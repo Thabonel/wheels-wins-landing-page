@@ -5,8 +5,12 @@ const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <div 
-        className="absolute inset-0 bg-hero-pattern bg-cover bg-center"
-        style={{ backgroundImage: "url('/lovable-uploads/dfd9e63a-441f-465f-bced-12e8603c66e2.png')" }}
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ 
+          backgroundImage: "url('/lovable-uploads/dfd9e63a-441f-465f-bced-12e8603c66e2.png')",
+          backgroundPosition: "center",
+          backgroundSize: "cover" 
+        }}
       >
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
