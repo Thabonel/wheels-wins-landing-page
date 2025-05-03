@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 
 interface TabNavigationProps {
@@ -39,7 +40,7 @@ const TabNavigation = ({ activeTab, setActiveTab, user }: TabNavigationProps) =>
             ))}
           </div>
           
-          {/* Removed user profile section - keeping the layout structure with empty div for spacing */}
+          {/* Empty div for spacing - no user profile here */}
           <div></div>
         </div>
       </div>
