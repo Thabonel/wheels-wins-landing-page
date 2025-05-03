@@ -43,7 +43,7 @@ const Header = () => {
           {/* Desktop Navigation Links - Only show on non-home pages when authenticated */}
           {!isHomePage && isAuthenticated && (
             <nav className="hidden md:flex items-center justify-center space-x-8 flex-grow">
-              <NavigationLinks navItems={navItems} isHomePage={false} />
+              <NavigationLinks navItems={navItems} isHomePage={isHomePage} />
             </nav>
           )}
 
@@ -56,7 +56,7 @@ const Header = () => {
               </div>
             ) : (
               /* Only show login button */
-              isHomePage && <UserMenu isHomePage={isHomePage} />
+              <UserMenu isHomePage={isHomePage} />
             )}
           </div>
         </>
