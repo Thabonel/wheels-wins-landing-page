@@ -8,10 +8,15 @@ export function useHeaderAppearance() {
   
   const isHomePage = location.pathname === "/";
   
+  // Show navigation when:
+  // 1. We're not on the home page OR
+  // 2. We're in dev mode (Lovable preview)
+  const showNavigation = !isHomePage || isDevMode;
+  
   return {
     isHomePage,
     isAuthenticated,
-    shouldBeTransparent: true, // Always true to make header transparent on all pages
-    showNavigation: true // Always show navigation links regardless of page or auth status
+    shouldBeTransparent: isHomePage, // Only transparent on home
+    showNavigation
   };
 }
