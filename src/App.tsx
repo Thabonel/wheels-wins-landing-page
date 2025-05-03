@@ -25,6 +25,10 @@ function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/you" element={<You />} />
+                <Route path="/wheels" element={<You />} /> {/* Placeholder routes until implemented */}
+                <Route path="/wins" element={<You />} />
+                <Route path="/social" element={<You />} />
+                <Route path="/shop" element={<You />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

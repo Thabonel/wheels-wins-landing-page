@@ -1,14 +1,11 @@
 
-import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import TabNavigation from "@/components/TabNavigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const You = () => {
   const { user, isAuthenticated, login } = useAuth();
-  const [activeTab, setActiveTab] = useState("you");
 
   const handleLogin = () => {
     login();
@@ -17,15 +14,6 @@ const You = () => {
 
   return (
     <div className="pt-24 pb-16">
-      {/* Tab Navigation */}
-      {isAuthenticated && user && (
-        <TabNavigation
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          user={user}
-        />
-      )}
-
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {isAuthenticated ? (
           <div className="space-y-8">

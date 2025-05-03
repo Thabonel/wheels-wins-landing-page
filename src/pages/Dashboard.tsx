@@ -1,12 +1,9 @@
 
-import { useState } from "react";
-import Header from "@/components/Header";
+import "@/components/calendar/calendar-styles.css";
 import UserCalendar from "@/components/UserCalendar";
 import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
 import PamAssistant from "@/components/PamAssistant";
-import Footer from "@/components/Footer";
-import "@/components/calendar/calendar-styles.css";
 
 const Dashboard = () => {
   // Mock user data for the layout
@@ -16,27 +13,22 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <div className="pt-24"> {/* Added padding to prevent header overlap */}
-        <main className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Left Column - 75% on desktop */}
-            <div className="w-full lg:w-3/4">
-              <UserCalendar />
-              <DashboardCards />
-              <WidgetArea />
-            </div>
-
-            {/* Right Column - 25% on desktop */}
-            <div className="w-full lg:w-1/4 mt-6 lg:mt-0">
-              <PamAssistant user={user} />
-            </div>
+    <div className="pt-24 pb-16">
+      <main className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left Column - 75% on desktop */}
+          <div className="w-full lg:w-3/4">
+            <UserCalendar />
+            <DashboardCards />
+            <WidgetArea />
           </div>
-        </main>
-      </div>
 
-      <Footer />
+          {/* Right Column - 25% on desktop */}
+          <div className="w-full lg:w-1/4 mt-6 lg:mt-0">
+            <PamAssistant user={user} />
+          </div>
+        </div>
+      </main>
     </div>
   );
 };

@@ -11,6 +11,17 @@ import LoginButton from "./header/LoginButton";
 import UserMenu from "./header/UserMenu";
 import MobileMenu from "./header/MobileMenu";
 
+// Define navigation items for the entire app
+export const navItems = [
+  { id: "home", label: "Home", path: "/" },
+  { id: "dashboard", label: "Dashboard", path: "/dashboard" },
+  { id: "you", label: "You", path: "/you" },
+  { id: "wheels", label: "Wheels", path: "/wheels" },
+  { id: "wins", label: "Wins", path: "/wins" },
+  { id: "social", label: "Social", path: "/social" },
+  { id: "shop", label: "Shop", path: "/shop" }
+];
+
 const Header = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -30,14 +41,6 @@ const Header = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-  
-  const navItems = [
-    { id: "you", label: "You", path: "/you" },
-    { id: "wheels", label: "Wheels", path: "/wheels" },
-    { id: "wins", label: "Wins", path: "/wins" },
-    { id: "social", label: "Social", path: "/social" },
-    { id: "shop", label: "Shop", path: "/shop" }
-  ];
 
   const isHomePage = location.pathname === "/";
 
