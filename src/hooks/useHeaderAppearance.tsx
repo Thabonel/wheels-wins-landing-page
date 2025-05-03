@@ -8,13 +8,13 @@ export function useHeaderAppearance() {
   
   const isHomePage = location.pathname === "/";
   
-  // In dev mode, we always treat as if authenticated to make navigation possible
+  // Always consider authenticated in dev mode for proper navigation
   const effectivelyAuthenticated = isAuthenticated || isDevMode;
   
   // Show navigation when:
   // 1. Not on homepage OR
-  // 2. On homepage but in dev mode
-  const showNavigation = !isHomePage || (isHomePage && isDevMode);
+  // 2. On homepage but in dev mode (to ensure preview works)
+  const showNavigation = !isHomePage || isDevMode;
   
   return {
     isHomePage,

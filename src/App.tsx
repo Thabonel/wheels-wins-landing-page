@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -13,7 +14,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 // Query client for React Query
 const queryClient = new QueryClient();
 
-// Protected route component that allows access in dev mode
+// Protected route component that always allows access in dev mode
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isDevMode } = useAuth();
   
