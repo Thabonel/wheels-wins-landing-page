@@ -1,4 +1,6 @@
+
 import { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface HeaderContainerProps {
   children: ReactNode;
@@ -7,13 +9,13 @@ interface HeaderContainerProps {
 }
 
 const HeaderContainer = ({ children, isScrolled, isHomePage }: HeaderContainerProps) => {
-  const headerClasses = [
+  const headerClasses = cn(
     "fixed top-0 left-0 right-0 z-50 transition-all duration-300 h-24",
-    isHomePage && !isScrolled ? "bg-transparent" : "bg-white shadow-sm",
-    isHomePage && isScrolled ? "bg-white/90 backdrop-blur-sm shadow-sm" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+    isHomePage && !isScrolled 
+      ? "bg-transparent text-white" 
+      : "bg-white text-gray-900 shadow-sm",
+    isHomePage && isScrolled ? "bg-white/90 backdrop-blur-sm shadow-sm" : ""
+  );
 
   return (
     <header className={headerClasses}>

@@ -16,12 +16,14 @@ const LogoutButton = ({ isHomePage }: LogoutButtonProps) => {
     toast.info("You have been logged out");
   };
 
+  const buttonClass = isHomePage
+    ? "bg-transparent border-white text-white hover:bg-white/20 drop-shadow-md"
+    : "";
+
   return (
     <Button
       variant="outline"
-      className={`font-semibold flex items-center gap-2 ${
-        isHomePage ? "bg-transparent border-white text-white hover:bg-white/20 drop-shadow-md" : ""
-      }`}
+      className={`font-semibold flex items-center gap-2 ${buttonClass}`}
       onClick={handleLogout}
     >
       <LogOut size={18} />

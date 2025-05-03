@@ -24,6 +24,10 @@ const UserMenu = ({ isHomePage, isMobile = false }: UserMenuProps) => {
     navigate("/profile");
   };
 
+  const buttonClass = isHomePage
+    ? "bg-transparent border-white text-white hover:bg-white/20 drop-shadow-md"
+    : "";
+
   return (
     <>
       {isAuthenticated ? (
@@ -43,7 +47,7 @@ const UserMenu = ({ isHomePage, isMobile = false }: UserMenuProps) => {
           variant={isHomePage ? "outline" : "secondary"}
           className={`${isMobile ? "text-base px-4 py-2" : "text-lg px-6 py-2"} 
             font-semibold flex items-center gap-2
-            ${isHomePage ? "bg-transparent border-white text-white hover:bg-white/20 drop-shadow-md" : ""}`}
+            ${buttonClass}`}
           onClick={handleLogin}
         >
           <LogIn size={isMobile ? 16 : 20} />
