@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLocation, Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +10,7 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
 
   const isHomePage = location.pathname === "/";
+  const showTransparentHeader = isHomePage && !isAuthenticated;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,10 +31,10 @@ const Header = () => {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-300 ${
-        isHomePage
-          ? isScrolled
-            ? "bg-white/90 backdrop-blur-sm shadow-sm"
-            : "bg-transparent"
+        showTransparentHeader
+          ? "bg-transparent"
+          : isHomePage && isScrolled
+          ? "bg-white/90 backdrop-blur-sm shadow-sm"
           : "bg-white shadow-sm"
       }`}
     >
@@ -89,7 +91,11 @@ const Header = () => {
             isHomePage && (
               <Link
                 to="/login"
-                className="px-5 py-2 rounded-md border border-white text-white hover:bg-white/20 transition drop-shadow-md"
+                className={`px-5 py-2 rounded-md ${
+                  showTransparentHeader
+                    ? "border border-white text-white hover:bg-white/20"
+                    : "border border-blue-600 text-blue-600 hover:bg-blue-50"
+                } transition drop-shadow-md`}
               >
                 Log In
               </Link>
