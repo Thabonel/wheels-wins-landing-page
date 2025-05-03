@@ -1,8 +1,7 @@
 
-import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
+import { useHeaderAppearance } from "@/hooks/useHeaderAppearance";
 
 // Import refactored components
 import HeaderContainer from "./header/HeaderContainer";
@@ -11,7 +10,7 @@ import UserMenu from "./header/UserMenu";
 import MobileMenu from "./header/MobileMenu";
 import LogoutButton from "./header/LogoutButton";
 
-// Define navigation items for the entire app (without Home and Dashboard)
+// Define navigation items for the entire app
 export const navItems = [
   { id: "you", label: "You", path: "/you" },
   { id: "wheels", label: "Wheels", path: "/wheels" },
@@ -21,26 +20,9 @@ export const navItems = [
 ];
 
 const Header = () => {
-  const location = useLocation();
   const isMobile = useIsMobile();
-  const [isScrolled, setIsScrolled] = useState(false);
   const { isAuthenticated } = useAuth();
-  
-  // Track scroll position to potentially add background on scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 60) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const isHomePage = location.pathname === "/";
+  const { isHomePage, isScrolled } = useHeaderAppearance();
 
   return (
     <HeaderContainer isScrolled={isScrolled} isHomePage={isHomePage}>
@@ -49,7 +31,7 @@ const Header = () => {
         <img
           src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/wheels%20and%20wins%20Logo%20alpha.png"
           alt="Wheels & Wins Logo"
-          className={`h-14 object-contain ${isHomePage ? "drop-shadow-md" : ""}`}
+          className={`h-14 object-contain transition-all ${isHomePage && !isScrolled ? "drop-shadow-md" : ""}`}
         />
       </div>
 
