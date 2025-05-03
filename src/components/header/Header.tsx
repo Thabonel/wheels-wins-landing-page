@@ -22,10 +22,10 @@ const Header = () => {
         />
       </Link>
 
-      {/* Navigation - Always show in dev mode OR when not on homepage */}
+      {/* Navigation - Show based on the header appearance logic */}
       <NavigationLinks isVisible={showNavigation} />
 
-      {/* Auth Buttons */}
+      {/* Auth Buttons - Show user menu if authenticated, login button on homepage or in dev mode */}
       <div className="flex items-center space-x-4">
         {isAuthenticated ? <UserMenu /> : (isHomePage || isDevMode) && <LoginButton />}
       </div>
