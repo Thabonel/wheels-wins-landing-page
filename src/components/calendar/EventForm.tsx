@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -20,11 +20,13 @@ import {
 } from "@/components/ui/select";
 import { DialogFooter } from "@/components/ui/dialog";
 import { EventFormData } from "./types";
-import { formatTimeToString } from "./utils";
 
 interface EventFormProps {
   defaultDate: Date;
   defaultHour: number;
+  defaultStartTime?: string;
+  defaultEndTime?: string;
+  isEditing?: boolean;
   onSubmit: (data: EventFormData) => void;
   onCancel: () => void;
 }
@@ -32,18 +34,46 @@ interface EventFormProps {
 const EventForm: React.FC<EventFormProps> = ({
   defaultDate,
   defaultHour,
+  defaultStartTime,
+  defaultEndTime,
+  isEditing = false,
   onSubmit,
   onCancel,
 }) => {
+  // Format time strings if needed
+  const formatTimeToString = (hour: number, minute: number = 0) => {
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  };
+
+  // Get default start/end times
+  const getDefaultStartTime = () => {
+    return defaultStartTime || formatTimeToString(defaultHour);
+  };
+  
+  const getDefaultEndTime = () => {
+    return defaultEndTime || formatTimeToString(defaultHour + 1);
+  };
+
   const form = useForm<EventFormData>({
     defaultValues: {
       title: "",
       type: "reminder",
       date: defaultDate,
-      startTime: formatTimeToString(defaultHour),
-      endTime: formatTimeToString(defaultHour + 1),
+      startTime: getDefaultStartTime(),
+      endTime: getDefaultEndTime(),
     },
   });
+
+  // Update form values when defaultValues change
+  useEffect(() => {
+    form.reset({
+      title: form.getValues("title"),
+      type: form.getValues("type"),
+      date: defaultDate,
+      startTime: defaultStartTime || formatTimeToString(defaultHour),
+      endTime: defaultEndTime || formatTimeToString(defaultHour + 1),
+    });
+  }, [defaultDate, defaultHour, defaultStartTime, defaultEndTime]);
 
   const handleSubmit = form.handleSubmit((data) => {
     onSubmit(data);
@@ -122,7 +152,7 @@ const EventForm: React.FC<EventFormProps> = ({
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit">Save Event</Button>
+          <Button type="submit">{isEditing ? "Update Event" : "Save Event"}</Button>
         </DialogFooter>
       </form>
     </Form>

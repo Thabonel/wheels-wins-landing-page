@@ -20,7 +20,7 @@ export interface CalendarNavigationProps {
 export interface CalendarViewProps {
   currentDate: Date;
   events: CalendarEvent[];
-  onAddEvent: (date: Date, hour: number) => void;
+  onAddEvent?: (date: Date, hour: number) => void;
 }
 
 export interface EventFormData {
