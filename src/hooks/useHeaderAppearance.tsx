@@ -9,19 +9,25 @@ export function useHeaderAppearance() {
   
   // Track scroll position to detect when to change header style
   useEffect(() => {
-    // Force check initial scroll position on mount
-    handleScroll();
-    
-    function handleScroll() {
+    // Define the scroll handler
+    const handleScroll = () => {
       if (window.scrollY > 60) {
         setIsScrolled(true);
       } else {
         setIsScrolled(false);
       }
-    }
+    };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    // Force check initial scroll position on mount
+    handleScroll();
+    
+    // Add the event listener
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   return {
