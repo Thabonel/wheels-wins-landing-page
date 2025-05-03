@@ -14,9 +14,10 @@ import ScrollToTop from "@/components/ScrollToTop";
 // Query client for React Query
 const queryClient = new QueryClient();
 
-// Route guard with dev mode bypass
+// Route guard that allows access in dev mode
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isDevMode } = useAuth();
+  // In dev mode or if authenticated, render children
   return isAuthenticated || isDevMode ? <>{children}</> : <Navigate to="/" replace />;
 };
 
