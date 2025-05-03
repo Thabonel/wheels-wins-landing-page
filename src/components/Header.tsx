@@ -20,7 +20,7 @@ const Header = () => {
           <div className="flex items-center gap-4">
             <Link to="/dashboard">
               <Button variant="ghost" className="text-lg font-semibold">
-                Dashboard
+                You
               </Button>
             </Link>
             <Button variant="secondary" className="text-lg font-semibold flex items-center gap-2 px-6 py-5">
