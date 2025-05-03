@@ -20,7 +20,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div> {/* Removed padding-top since header is no longer fixed */}
+      <div>
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} user={user} />
       
         <main className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
