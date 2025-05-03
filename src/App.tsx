@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -14,11 +13,17 @@ import ScrollToTop from "@/components/ScrollToTop";
 // Query client for React Query
 const queryClient = new QueryClient();
 
-// Route guard that ensures dev mode works properly
+// Protected route component that allows access in dev mode
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isDevMode } = useAuth();
-  // In dev mode or if authenticated, render children
-  return isAuthenticated || isDevMode ? <>{children}</> : <Navigate to="/" replace />;
+  
+  // Always allow access in dev mode or if authenticated
+  if (isAuthenticated || isDevMode) {
+    return <>{children}</>;
+  }
+  
+  // Otherwise redirect to home
+  return <Navigate to="/" replace />;
 };
 
 // Conditional padding handler
