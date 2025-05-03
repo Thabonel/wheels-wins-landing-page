@@ -7,7 +7,7 @@ interface NavigationLinksProps {
 
 const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
   const navItems = [
-    { label: "You", path: "/dashboard" },
+    { label: "You", path: "/you" },
     { label: "Wheels", path: "/wheels" },
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },
