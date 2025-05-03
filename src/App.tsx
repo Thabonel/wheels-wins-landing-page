@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import You from "./pages/You";
+import Dashboard from "./pages/Dashboard";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -37,6 +38,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <You />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
               </ProtectedRoute>
             }
           />
