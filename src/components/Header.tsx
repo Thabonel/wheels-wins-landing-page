@@ -1,11 +1,14 @@
 
 import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const Header = () => {
+  const location = useLocation();
+  const isHomePage = location.pathname === "/";
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 py-4 backdrop-blur-sm bg-transparent">
+    <header className={`fixed top-0 left-0 right-0 z-50 py-4 ${isHomePage ? 'backdrop-blur-sm bg-transparent' : 'bg-secondary/80 backdrop-blur-md border-b'}`}>
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
@@ -17,17 +20,40 @@ const Header = () => {
               />
             </Link>
           </div>
-          <div className="flex items-center gap-4">
+          <nav className="flex items-center gap-2 md:gap-4">
             <Link to="/dashboard">
-              <Button variant="ghost" className="text-lg font-semibold">
+              <Button 
+                variant={location.pathname === "/dashboard" ? "secondary" : "ghost"} 
+                className={`text-base md:text-lg font-semibold ${location.pathname === "/dashboard" ? "bg-accent hover:bg-accent/90" : ""}`}
+              >
                 You
               </Button>
             </Link>
-            <Button variant="secondary" className="text-lg font-semibold flex items-center gap-2 px-6 py-5">
+            <Link to="/wheels">
+              <Button variant="ghost" className="text-base md:text-lg font-semibold">
+                Wheels
+              </Button>
+            </Link>
+            <Link to="/wins">
+              <Button variant="ghost" className="text-base md:text-lg font-semibold">
+                Wins
+              </Button>
+            </Link>
+            <Link to="/social">
+              <Button variant="ghost" className="text-base md:text-lg font-semibold">
+                Social
+              </Button>
+            </Link>
+            <Link to="/shop">
+              <Button variant="ghost" className="text-base md:text-lg font-semibold hidden md:flex">
+                Shop
+              </Button>
+            </Link>
+            <Button variant="secondary" className="text-base md:text-lg font-semibold flex items-center gap-2 px-4 md:px-6 py-2 md:py-5 ml-1 md:ml-2">
               <LogIn size={20} />
-              <span>Log In</span>
+              <span className="hidden sm:inline">Log In</span>
             </Button>
-          </div>
+          </nav>
         </div>
       </div>
     </header>
