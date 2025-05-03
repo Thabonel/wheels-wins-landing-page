@@ -13,13 +13,20 @@ export function useHeaderAppearance() {
   
   // Show navigation when:
   // 1. Not on homepage OR
-  // 2. On homepage but in dev mode (to ensure preview works)
+  // 2. In dev mode (to ensure preview works properly)
   const showNavigation = !isHomePage || isDevMode;
+  
+  // Show user menu (avatar) when:
+  // 1. Not on homepage OR
+  // 2. User is authenticated (even on homepage)
+  // But never show on homepage unless in dev mode
+  const showUserMenu = !isHomePage || isDevMode;
   
   return {
     isHomePage,
     isAuthenticated: effectivelyAuthenticated,
     shouldBeTransparent: isHomePage,
-    showNavigation
+    showNavigation,
+    showUserMenu
   };
 }

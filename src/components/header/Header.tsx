@@ -9,7 +9,7 @@ import UserMenu from "./UserMenu";
 
 const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
-  const { isHomePage, showNavigation } = useHeaderAppearance();
+  const { isHomePage, showNavigation, showUserMenu } = useHeaderAppearance();
 
   return (
     <HeaderContainer isHomePage={isHomePage} isScrolled={false}>
@@ -25,9 +25,13 @@ const Header = () => {
       {/* Navigation - Show based on the header appearance logic */}
       <NavigationLinks isVisible={showNavigation} />
 
-      {/* Auth Buttons - Show user menu if authenticated, login button otherwise */}
+      {/* Auth Buttons - Show user menu if authenticated and allowed by layout, login button otherwise */}
       <div className="flex items-center space-x-4">
-        {isAuthenticated ? <UserMenu /> : (isHomePage || isDevMode) && <LoginButton />}
+        {isAuthenticated && showUserMenu ? (
+          <UserMenu />
+        ) : (
+          (isHomePage || isDevMode) && <LoginButton />
+        )}
       </div>
     </HeaderContainer>
   );
