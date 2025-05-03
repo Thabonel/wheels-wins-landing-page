@@ -16,7 +16,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 201 96% 32%;
+    --primary: 199 89% 48%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 60 55% 94%;
@@ -25,7 +25,7 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 35 92% 65%;
+    --accent: 25 95% 53%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
@@ -35,7 +35,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -87,4 +87,13 @@
     @apply bg-background text-foreground;
     font-family: 'Nunito', sans-serif;
   }
+}
+
+/* Additional styles for better UI elements */
+.btn-hover-effect {
+  @apply transition-all duration-300 ease-in-out transform hover:scale-105;
+}
+
+.section-transition {
+  @apply transition-all duration-500;
 }
