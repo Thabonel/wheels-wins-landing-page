@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import NavigationLinks from "./NavigationLinks";
 import LoginButton from "./LoginButton";
+import { toast } from "sonner";
+import { User, Settings, LogOut } from "lucide-react";
 
 interface MobileMenuProps {
   navItems: {
@@ -19,9 +21,15 @@ interface MobileMenuProps {
 
 const MobileMenu = ({ navItems, isHomePage }: MobileMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   
   const handleClose = () => setIsOpen(false);
+
+  const handleLogout = () => {
+    logout();
+    toast.info("You have been logged out");
+    handleClose();
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -81,10 +89,7 @@ const MobileMenu = ({ navItems, isHomePage }: MobileMenuProps) => {
               <Button
                 variant="destructive"
                 className="text-lg font-semibold flex items-center gap-2 px-6 py-5 mt-2 w-full justify-center"
-                onClick={() => {
-                  handleLogout();
-                  handleClose();
-                }}
+                onClick={handleLogout}
               >
                 <LogOut size={20} />
                 <span>Log Out</span>
@@ -98,9 +103,5 @@ const MobileMenu = ({ navItems, isHomePage }: MobileMenuProps) => {
     </Sheet>
   );
 };
-
-// Import missing dependencies
-import { toast } from "sonner";
-import { User, Settings, LogOut } from "lucide-react";
 
 export default MobileMenu;
