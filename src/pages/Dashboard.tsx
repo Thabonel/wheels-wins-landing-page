@@ -6,6 +6,7 @@ import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
 import PamAssistant from "@/components/PamAssistant";
 import Footer from "@/components/Footer";
+import "@/components/calendar/calendar-styles.css";
 
 const Dashboard = () => {
   // Mock user data for the layout

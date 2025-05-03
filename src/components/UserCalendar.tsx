@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -8,12 +7,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import MonthView from "./calendar/MonthView";
-import WeekView from "./calendar/WeekView";
-import DayView from "./calendar/DayView";
 import CalendarNavigation from "./calendar/CalendarNavigation";
 import EventForm from "./calendar/EventForm";
 import { CalendarEvent, EventFormData } from "./calendar/types";
+import FullCalendarWrapper from "./calendar/FullCalendarWrapper";
+
+// Add CSS import for FullCalendar styles
+import '@fullcalendar/core/main.css';
+import '@fullcalendar/daygrid/main.css';
+import '@fullcalendar/timegrid/main.css';
 
 const UserCalendar = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -30,37 +32,154 @@ const UserCalendar = () => {
 
   const { toast } = useToast();
   
-  // Event creation modal state
+  // Event modal state
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [newEventDate, setNewEventDate] = useState<Date>(new Date());
   const [newEventHour, setNewEventHour] = useState<number>(9);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  
+  // Event creation/edit state
+  const [eventStartTime, setEventStartTime] = useState<Date>(new Date());
+  const [eventEndTime, setEventEndTime] = useState<Date>(new Date());
 
-  const handleAddEvent = (date: Date, hour: number) => {
-    setNewEventDate(date);
-    setNewEventHour(hour);
+  // Handle creating a new event via selection
+  const handleEventCreate = (start: Date, end: Date) => {
+    setEventStartTime(start);
+    setEventEndTime(end);
+    setNewEventDate(start);
+    setNewEventHour(start.getHours());
+    setEditingEventId(null);
     setIsEventModalOpen(true);
   };
 
-  const handleEventSubmit = (data: EventFormData) => {
-    // Create new event with form data
-    const newEvent: CalendarEvent = {
-      date: data.date,
-      title: data.title,
-      type: data.type,
-      time: formatEventTime(data.startTime, data.endTime),
-      startTime: data.startTime,
-      endTime: data.endTime
-    };
+  // Handle clicking on an existing event
+  const handleEventSelect = (eventId: string) => {
+    const idParts = eventId.split('-');
+    const eventIndex = parseInt(idParts[idParts.length - 1]);
+    if (!isNaN(eventIndex) && events[eventIndex]) {
+      // Populate form with existing event data
+      const event = events[eventIndex];
+      setNewEventDate(event.date);
+      
+      // Parse the hours and minutes
+      const [startHour, startMinute] = event.startTime.split(':').map(Number);
+      const startDate = new Date(event.date);
+      startDate.setHours(startHour, startMinute, 0);
+      setEventStartTime(startDate);
+      
+      const [endHour, endMinute] = event.endTime.split(':').map(Number);
+      const endDate = new Date(event.date);
+      endDate.setHours(endHour, endMinute, 0);
+      setEventEndTime(endDate);
+      
+      setNewEventHour(startHour);
+      setEditingEventId(`${eventId}`);
+      setIsEventModalOpen(true);
+    }
+  };
 
-    // Add event to the list
-    setEvents(prev => [...prev, newEvent]);
-    setIsEventModalOpen(false);
+  // Handle moving an event via drag and drop
+  const handleEventMove = (eventId: string, newStart: Date, newEnd: Date) => {
+    const idParts = eventId.split('-');
+    const eventIndex = parseInt(idParts[idParts.length - 1]);
     
-    // Show success toast
-    toast({
-      title: "Event created",
-      description: `${data.title} has been added to your calendar.`
-    });
+    if (!isNaN(eventIndex) && events[eventIndex]) {
+      const updatedEvents = [...events];
+      const event = {...updatedEvents[eventIndex]};
+      
+      // Update the date
+      event.date = new Date(newStart);
+      
+      // Update startTime and endTime in HH:MM format
+      event.startTime = `${String(newStart.getHours()).padStart(2, '0')}:${String(newStart.getMinutes()).padStart(2, '0')}`;
+      event.endTime = `${String(newEnd.getHours()).padStart(2, '0')}:${String(newEnd.getMinutes()).padStart(2, '0')}`;
+      
+      // Update display time
+      event.time = formatEventTime(event.startTime, event.endTime);
+      
+      updatedEvents[eventIndex] = event;
+      setEvents(updatedEvents);
+      
+      toast({
+        title: "Event moved",
+        description: `${event.title} has been moved to ${format(event.date, 'MMMM d')} at ${event.time}.`
+      });
+    }
+  };
+
+  // Handle resizing an event
+  const handleEventResize = (eventId: string, newStart: Date, newEnd: Date) => {
+    const idParts = eventId.split('-');
+    const eventIndex = parseInt(idParts[idParts.length - 1]);
+    
+    if (!isNaN(eventIndex) && events[eventIndex]) {
+      const updatedEvents = [...events];
+      const event = {...updatedEvents[eventIndex]};
+      
+      // Update startTime and endTime (keeping the date the same)
+      event.startTime = `${String(newStart.getHours()).padStart(2, '0')}:${String(newStart.getMinutes()).padStart(2, '0')}`;
+      event.endTime = `${String(newEnd.getHours()).padStart(2, '0')}:${String(newEnd.getMinutes()).padStart(2, '0')}`;
+      
+      // Update display time
+      event.time = formatEventTime(event.startTime, event.endTime);
+      
+      updatedEvents[eventIndex] = event;
+      setEvents(updatedEvents);
+      
+      toast({
+        title: "Event resized",
+        description: `${event.title} duration updated to ${event.time}.`
+      });
+    }
+  };
+
+  const handleEventSubmit = (data: EventFormData) => {
+    if (editingEventId) {
+      // Edit existing event
+      const idParts = editingEventId.split('-');
+      const eventIndex = parseInt(idParts[idParts.length - 1]);
+      
+      if (!isNaN(eventIndex) && events[eventIndex]) {
+        const updatedEvents = [...events];
+        const updatedEvent: CalendarEvent = {
+          ...updatedEvents[eventIndex],
+          title: data.title,
+          type: data.type,
+          date: data.date,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          time: formatEventTime(data.startTime, data.endTime)
+        };
+        
+        updatedEvents[eventIndex] = updatedEvent;
+        setEvents(updatedEvents);
+        
+        toast({
+          title: "Event updated",
+          description: `${data.title} has been updated.`
+        });
+      }
+    } else {
+      // Create new event
+      const newEvent: CalendarEvent = {
+        date: data.date,
+        title: data.title,
+        type: data.type,
+        time: formatEventTime(data.startTime, data.endTime),
+        startTime: data.startTime,
+        endTime: data.endTime
+      };
+
+      // Add event to the list
+      setEvents(prev => [...prev, newEvent]);
+      
+      toast({
+        title: "Event created",
+        description: `${data.title} has been added to your calendar.`
+      });
+    }
+    
+    setIsEventModalOpen(false);
   };
 
   const formatEventTime = (start: string, end: string) => {
@@ -70,6 +189,15 @@ const UserCalendar = () => {
                          startHour > 12 ? `${startHour - 12}:${start.split(':')[1]} PM` : 
                          `${startHour}:${start.split(':')[1]} AM`;
     return startDisplay;
+  };
+
+  // Convert dates to appropriate formats for the EventForm
+  const getFormattedStartTime = () => {
+    return `${String(eventStartTime.getHours()).padStart(2, '0')}:${String(eventStartTime.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const getFormattedEndTime = () => {
+    return `${String(eventEndTime.getHours()).padStart(2, '0')}:${String(eventEndTime.getMinutes()).padStart(2, '0')}`;
   };
 
   return (
@@ -83,26 +211,33 @@ const UserCalendar = () => {
         />
       </CardHeader>
       <CardContent>
-        {viewMode === "month" ? (
-          <MonthView currentDate={currentDate} events={events} onAddEvent={handleAddEvent} />
-        ) : viewMode === "week" ? (
-          <WeekView currentDate={currentDate} events={events} onAddEvent={handleAddEvent} />
-        ) : (
-          <DayView currentDate={currentDate} events={events} onAddEvent={handleAddEvent} />
-        )}
+        <div className="fullcalendar-container">
+          <FullCalendarWrapper
+            currentDate={currentDate}
+            events={events}
+            viewMode={viewMode}
+            onEventSelect={handleEventSelect}
+            onEventCreate={handleEventCreate}
+            onEventMove={handleEventMove}
+            onEventResize={handleEventResize}
+          />
+        </div>
       </CardContent>
 
-      {/* Event Creation Dialog */}
+      {/* Event Creation/Edit Dialog */}
       <Dialog open={isEventModalOpen} onOpenChange={setIsEventModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Event</DialogTitle>
+            <DialogTitle>{editingEventId ? "Edit Event" : "Create New Event"}</DialogTitle>
           </DialogHeader>
           <EventForm 
             defaultDate={newEventDate}
             defaultHour={newEventHour}
             onSubmit={handleEventSubmit}
             onCancel={() => setIsEventModalOpen(false)}
+            isEditing={!!editingEventId}
+            defaultStartTime={getFormattedStartTime()}
+            defaultEndTime={getFormattedEndTime()}
           />
         </DialogContent>
       </Dialog>
