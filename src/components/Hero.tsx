@@ -1,8 +1,14 @@
+
 import { Button } from "@/components/ui/button";
+
 const Hero = () => {
-  return <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      <div className="absolute inset-0 bg-hero-pattern bg-cover bg-center">
-        <div className="absolute inset-0 bg-transparent"></div>
+  return (
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <div 
+        className="absolute inset-0 bg-hero-pattern bg-cover bg-center"
+        style={{ backgroundImage: "url('/lovable-uploads/dfd9e63a-441f-465f-bced-12e8603c66e2.png')" }}
+      >
+        <div className="absolute inset-0 bg-black/20"></div>
       </div>
       
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-24 text-center mt-16">
@@ -18,6 +24,8 @@ const Hero = () => {
           Join Now – First Month Free
         </Button>
       </div>
-    </section>;
+    </section>
+  );
 };
+
 export default Hero;
