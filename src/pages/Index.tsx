@@ -1,4 +1,3 @@
-
 import Hero from "@/components/Hero";
 import PamSpotlight from "@/components/PamSpotlight";
 import HowItWorks from "@/components/HowItWorks";
@@ -8,7 +7,7 @@ import CallToAction from "@/components/CallToAction";
 
 const Index = () => {
   return (
-    <div>
+    <div className="pt-0">
       <Hero />
       <PamSpotlight />
       <HowItWorks />
