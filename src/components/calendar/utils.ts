@@ -8,7 +8,8 @@ import {
   endOfMonth, 
   addDays,
   startOfDay, 
-  addHours
+  addHours,
+  format
 } from "date-fns";
 import { CalendarEvent } from "./types";
 
@@ -51,5 +52,16 @@ export const getEventsForHourSlot = (day: Date, hour: number, events: CalendarEv
   });
 };
 
+// Format time for display
+export const formatTimeDisplay = (hour: number) => {
+  return hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
+};
+
+// Format time from hour/minute to HH:MM format
+export const formatTimeToString = (hour: number, minute: number = 0) => {
+  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+};
+
 export const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const timeSlots = Array.from({ length: 17 }, (_, i) => i + 6); // 6am to 10pm
+

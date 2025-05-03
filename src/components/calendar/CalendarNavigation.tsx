@@ -2,7 +2,7 @@
 import React from "react";
 import { format, getMonth, getYear, startOfWeek, endOfWeek } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -46,19 +46,35 @@ const CalendarNavigation: React.FC<CalendarNavigationProps> = ({
     setCurrentDate(newDate);
   };
 
+  const goToPreviousDay = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() - 1);
+    setCurrentDate(newDate);
+  };
+
+  const goToNextDay = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + 1);
+    setCurrentDate(newDate);
+  };
+
   const goToPrevious = () => {
     if (viewMode === "month") {
       goToPreviousMonth();
-    } else {
+    } else if (viewMode === "week") {
       goToPreviousWeek();
+    } else {
+      goToPreviousDay();
     }
   };
 
   const goToNext = () => {
     if (viewMode === "month") {
       goToNextMonth();
-    } else {
+    } else if (viewMode === "week") {
       goToNextWeek();
+    } else {
+      goToNextDay();
     }
   };
 
@@ -128,11 +144,12 @@ const CalendarNavigation: React.FC<CalendarNavigationProps> = ({
             <ToggleGroup 
               type="single" 
               value={viewMode} 
-              onValueChange={(value) => value && setViewMode(value as "month" | "week")}
+              onValueChange={(value) => value && setViewMode(value as "month" | "week" | "day")}
               className="ml-4"
             >
               <ToggleGroupItem value="month" aria-label="Month view">Month View</ToggleGroupItem>
               <ToggleGroupItem value="week" aria-label="Week view">Week View</ToggleGroupItem>
+              <ToggleGroupItem value="day" aria-label="Day view">Day View</ToggleGroupItem>
             </ToggleGroup>
           </div>
         </div>
@@ -145,7 +162,9 @@ const CalendarNavigation: React.FC<CalendarNavigationProps> = ({
       <h3 className="text-2xl text-center mt-2">
         {viewMode === "month" 
           ? format(currentDate, "MMMM yyyy") 
-          : `Week of ${format(startOfWeek(currentDate), "MMM d")} - ${format(endOfWeek(currentDate), "MMM d, yyyy")}`}
+          : viewMode === "week"
+          ? `Week of ${format(startOfWeek(currentDate), "MMM d")} - ${format(endOfWeek(currentDate), "MMM d, yyyy")}`
+          : format(currentDate, "EEEE, MMMM d, yyyy")}
       </h3>
     </>
   );
