@@ -18,7 +18,7 @@ const Hero = () => {
           Pam is your AI assistant who helps you plan your trip, manage your money, and stay stress-free on the road.
         </p>
         
-        <Button className="text-xl font-semibold px-10 py-7 bg-accent hover:bg-accent/90" size="lg">Start Your 30-Day Free Trial with Pam</Button>
+        <Button className="text-xl font-semibold px-10 py-7 bg-accent hover:bg-accent/90" size="lg">Get Pam’s Help Free for 30 Days</Button>
       </div>
     </section>;
 };
