@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -12,10 +13,7 @@ import EventForm from "./calendar/EventForm";
 import { CalendarEvent, EventFormData } from "./calendar/types";
 import FullCalendarWrapper from "./calendar/FullCalendarWrapper";
 
-// Add CSS import for FullCalendar styles
-import '@fullcalendar/core/main.css';
-import '@fullcalendar/daygrid/main.css';
-import '@fullcalendar/timegrid/main.css';
+// We don't need CSS imports as we've defined our own styles in calendar-styles.css
 
 const UserCalendar = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
