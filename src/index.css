@@ -97,6 +97,21 @@
     @apply bg-background text-foreground;
     font-family: 'Nunito', sans-serif;
   }
+  
+  /* Add specific padding to main content areas to account for fixed header */
+  main {
+    @apply pt-24;
+  }
+  
+  /* Transparent header styles */
+  .transparent-header {
+    @apply bg-transparent;
+  }
+  
+  /* Text shadow for better contrast on transparent backgrounds */
+  .text-shadow {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
 }
 
 /* Additional styles for better UI elements */
