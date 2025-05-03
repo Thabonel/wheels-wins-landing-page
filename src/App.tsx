@@ -14,10 +14,10 @@ import ScrollToTop from "@/components/ScrollToTop";
 // Query client for React Query
 const queryClient = new QueryClient();
 
-// Route guard
+// Route guard with dev mode bypass
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
+  const { isAuthenticated, isDevMode } = useAuth();
+  return isAuthenticated || isDevMode ? <>{children}</> : <Navigate to="/" replace />;
 };
 
 // Conditional padding handler

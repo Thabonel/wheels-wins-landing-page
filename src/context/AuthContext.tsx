@@ -14,6 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: () => void;
   logout: () => void;
+  isDevMode: boolean;
 }
 
 // Create context with default values
@@ -21,7 +22,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
   login: () => {},
-  logout: () => {}
+  logout: () => {},
+  isDevMode: false
 });
 
 // Mock user for demonstration
@@ -35,13 +37,24 @@ const mockUser: User = {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   
-  // Check if user is already logged in (from localStorage, cookies, etc)
+  // Detect if we're in the Lovable preview environment
+  const isDevMode = 
+    window.location.hostname === 'localhost' || 
+    window.location.hostname.includes('lovable.dev') || 
+    window.location.hostname.includes('lovable.app');
+  
+  // In dev mode, automatically log in
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    if (isDevMode) {
+      setUser(mockUser);
+    } else {
+      // Only check localStorage in production
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+      }
     }
-  }, []);
+  }, [isDevMode]);
   
   // Login function - in a real app, this would authenticate with your backend
   const login = () => {
@@ -51,8 +64,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   // Logout function
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+    // In dev mode, we don't actually log out
+    if (!isDevMode) {
+      setUser(null);
+      localStorage.removeItem('user');
+    }
   };
   
   return (
@@ -60,7 +76,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       user,
       isAuthenticated: !!user,
       login,
-      logout
+      logout,
+      isDevMode
     }}>
       {children}
     </AuthContext.Provider>
