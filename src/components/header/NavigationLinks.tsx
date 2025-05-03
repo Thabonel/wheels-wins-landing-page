@@ -12,6 +12,7 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },
     { label: "Shop", path: "/shop" },
+    { label: "Profile", path: "/profile" },
   ];
 
   if (!isVisible) return null;
