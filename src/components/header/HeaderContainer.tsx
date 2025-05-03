@@ -13,8 +13,7 @@ const HeaderContainer = ({ children, isScrolled, isHomePage }: HeaderContainerPr
     "fixed top-0 left-0 right-0 z-50 transition-all duration-300 h-24",
     isHomePage && !isScrolled 
       ? "bg-transparent text-white" 
-      : "bg-white text-gray-900 shadow-sm",
-    isHomePage && isScrolled ? "bg-white/90 backdrop-blur-sm shadow-sm" : ""
+      : "bg-white text-gray-900 shadow-sm"
   );
 
   return (
