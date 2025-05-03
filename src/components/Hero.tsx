@@ -5,10 +5,10 @@ const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <div className="absolute inset-0 bg-hero-pattern bg-cover bg-center">
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/40"></div>
+        <div className="absolute inset-0 bg-black/30"></div>
       </div>
       
-      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-24 text-center">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-24 text-center mt-16">
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 drop-shadow-lg">
           Adventure Smarter with Wheels and Wins
         </h1>

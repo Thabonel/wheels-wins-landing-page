@@ -4,13 +4,11 @@ import { LogIn } from "lucide-react";
 
 const Header = () => {
   return (
-    <header className="absolute top-0 left-0 right-0 z-10 py-6">
+    <header className="fixed top-0 left-0 right-0 z-50 py-4 bg-black/30 backdrop-blur-sm">
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
-            <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-md">
-              Wheels & Wins
-            </h1>
+            <div className="h-14 w-52 bg-logo bg-contain bg-no-repeat" aria-label="Wheels & Wins"></div>
           </div>
           <div>
             <Button 

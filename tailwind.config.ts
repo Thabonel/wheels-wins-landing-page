@@ -97,7 +97,8 @@ export default {
                 'float': 'float 6s ease-in-out infinite',
 			},
             backgroundImage: {
-                'hero-pattern': "url('/lovable-uploads/772f78b9-1ffa-427e-9bc1-7c3bc48c1570.png')",
+                'hero-pattern': "url('/lovable-uploads/dfd9e63a-441f-465f-bced-12e8603c66e2.png')",
+                'logo': "url('/lovable-uploads/ef34b451-0971-4ade-9ec6-dd0803859e78.png')",
             },
 		}
 	},
