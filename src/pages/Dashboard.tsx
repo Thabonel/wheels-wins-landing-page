@@ -1,6 +1,6 @@
+
 import { useState } from "react";
 import Header from "@/components/Header";
-import TabNavigation from "@/components/TabNavigation";
 import UserCalendar from "@/components/UserCalendar";
 import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
@@ -8,8 +8,6 @@ import PamAssistant from "@/components/PamAssistant";
 import Footer from "@/components/Footer";
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState("you");
-
   // Mock user data for the layout
   const user = {
     name: "John",
@@ -20,8 +18,6 @@ const Dashboard = () => {
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="pt-24"> {/* Added padding to prevent header overlap */}
-        <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} user={user} />
-
         <main className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Left Column - 75% on desktop */}
