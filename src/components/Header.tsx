@@ -1,20 +1,18 @@
 
 import { useState, useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
 
 // Import refactored components
 import HeaderContainer from "./header/HeaderContainer";
 import NavigationLinks from "./header/NavigationLinks";
-import LoginButton from "./header/LoginButton";
 import UserMenu from "./header/UserMenu";
 import MobileMenu from "./header/MobileMenu";
+import LogoutButton from "./header/LogoutButton";
 
-// Define navigation items for the entire app
+// Define navigation items for the entire app (without Home and Dashboard)
 export const navItems = [
-  { id: "home", label: "Home", path: "/" },
-  { id: "dashboard", label: "Dashboard", path: "/dashboard" },
   { id: "you", label: "You", path: "/you" },
   { id: "wheels", label: "Wheels", path: "/wheels" },
   { id: "wins", label: "Wins", path: "/wins" },
@@ -48,13 +46,11 @@ const Header = () => {
     <HeaderContainer isScrolled={isScrolled} isHomePage={isHomePage}>
       {/* Logo - fixed width with proper shadow for contrast */}
       <div className="flex-shrink-0 w-[180px]">
-        <NavLink to="/">
-          <img
-            src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/wheels%20and%20wins%20Logo%20alpha.png"
-            alt="Wheels & Wins Logo"
-            className={`h-14 object-contain ${isHomePage ? "drop-shadow-md" : ""}`}
-          />
-        </NavLink>
+        <img
+          src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/wheels%20and%20wins%20Logo%20alpha.png"
+          alt="Wheels & Wins Logo"
+          className={`h-14 object-contain ${isHomePage ? "drop-shadow-md" : ""}`}
+        />
       </div>
 
       {/* Mobile Navigation */}
@@ -62,30 +58,32 @@ const Header = () => {
         <MobileMenu navItems={navItems} isHomePage={isHomePage} />
       ) : (
         <>
-          {/* Desktop Navigation - centered with flex-grow */}
-          <nav className="hidden md:flex items-center justify-center space-x-8 flex-grow">
-            <NavigationLinks navItems={navItems} isHomePage={isHomePage} />
-          </nav>
+          {/* Desktop Navigation Links - Only show on non-home pages when authenticated */}
+          {!isHomePage && isAuthenticated && (
+            <nav className="hidden md:flex items-center justify-center space-x-8 flex-grow">
+              <NavigationLinks navItems={navItems} isHomePage={false} />
+            </nav>
+          )}
 
           {/* Auth Section - fixed width for balance */}
-          <div className="hidden md:block w-[180px] text-right">
+          <div className="hidden md:flex items-center justify-end w-[180px]">
             {isAuthenticated ? (
-              <UserMenu isHomePage={isHomePage} />
+              <div className="flex items-center space-x-4">
+                <UserMenu isHomePage={isHomePage} />
+                <LogoutButton isHomePage={isHomePage} />
+              </div>
             ) : (
-              <LoginButton isHomePage={isHomePage} />
+              /* Only show login button */
+              isHomePage && <UserMenu isHomePage={isHomePage} />
             )}
           </div>
         </>
       )}
 
-      {/* Mobile-only login button or avatar (when menu is closed) */}
+      {/* Mobile-only user menu */}
       {isMobile && (
         <div className="md:hidden">
-          {isAuthenticated ? (
-            <UserMenu isHomePage={isHomePage} isMobile={true} />
-          ) : (
-            <LoginButton isHomePage={isHomePage} isMobile={true} />
-          )}
+          <UserMenu isHomePage={isHomePage} isMobile={true} />
         </div>
       )}
     </HeaderContainer>
