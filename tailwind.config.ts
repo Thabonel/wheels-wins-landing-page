@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -84,12 +85,20 @@ export default {
 					to: {
 						height: '0'
 					}
-				}
+				},
+                'float': {
+                    '0%, 100%': { transform: 'translateY(0)' },
+                    '50%': { transform: 'translateY(-10px)' },
+                },
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
-			}
+				'accordion-up': 'accordion-up 0.2s ease-out',
+                'float': 'float 6s ease-in-out infinite',
+			},
+            backgroundImage: {
+                'hero-pattern': "url('/lovable-uploads/772f78b9-1ffa-427e-9bc1-7c3bc48c1570.png')",
+            },
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
