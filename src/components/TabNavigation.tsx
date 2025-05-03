@@ -1,12 +1,4 @@
-
 import { useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from "@/components/ui/popover";
 
 interface TabNavigationProps {
   activeTab: string;
@@ -18,8 +10,6 @@ interface TabNavigationProps {
 }
 
 const TabNavigation = ({ activeTab, setActiveTab, user }: TabNavigationProps) => {
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  
   const tabs = [
     { id: "you", label: "You" },
     { id: "wheels", label: "Wheels" },
@@ -48,35 +38,9 @@ const TabNavigation = ({ activeTab, setActiveTab, user }: TabNavigationProps) =>
               </button>
             ))}
           </div>
-
-          {/* User Profile */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" className="flex items-center space-x-2">
-                <span className="text-base font-medium">{user.name}</span>
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-56" align="end">
-              <div className="space-y-2">
-                <h4 className="font-medium">Profile Settings</h4>
-                <div className="border-t pt-2">
-                  <Button variant="ghost" className="w-full justify-start">
-                    Account Settings
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start">
-                    Preferences
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start">
-                    Log Out
-                  </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+          
+          {/* Removed user profile section - keeping the layout structure with empty div for spacing */}
+          <div></div>
         </div>
       </div>
     </div>
