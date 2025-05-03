@@ -6,21 +6,21 @@ export function useHeaderAppearance() {
   const location = useLocation();
   const { isAuthenticated, isDevMode } = useAuth();
   
+  // Check if we're on homepage
   const isHomePage = location.pathname === "/";
   
   // Always consider authenticated in dev mode for proper navigation
   const effectivelyAuthenticated = isAuthenticated || isDevMode;
   
   // Show navigation when:
-  // 1. Not on homepage OR
-  // 2. In dev mode (to ensure preview works properly)
-  const showNavigation = !isHomePage || isDevMode;
+  // 1. Not on homepage (make this explicit)
+  // 2. Never show on homepage, even in dev mode to fix the homepage appearance
+  const showNavigation = !isHomePage;
   
   // Show user menu (avatar) when:
-  // 1. Not on homepage OR
-  // 2. User is authenticated (even on homepage)
-  // But never show on homepage unless in dev mode
-  const showUserMenu = !isHomePage || isDevMode;
+  // 1. Not on homepage (make this explicit)
+  // 2. Never show on homepage, even in dev mode to fix the homepage appearance
+  const showUserMenu = !isHomePage;
   
   return {
     isHomePage,

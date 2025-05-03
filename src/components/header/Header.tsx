@@ -23,7 +23,7 @@ const Header = () => {
       </Link>
 
       {/* Navigation - Show based on the header appearance logic */}
-      <NavigationLinks isVisible={showNavigation} />
+      {showNavigation && <NavigationLinks isVisible={true} />}
 
       {/* Auth Buttons - Show user menu if authenticated and allowed by layout, login button otherwise */}
       <div className="flex items-center space-x-4">
