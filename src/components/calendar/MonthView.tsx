@@ -4,7 +4,7 @@ import { format, isSameDay, isSameMonth } from "date-fns";
 import { CalendarViewProps } from "./types";
 import { daysOfWeek, generateCalendarDays, getEventsForDay } from "./utils";
 
-const MonthView: React.FC<CalendarViewProps> = ({ currentDate, events }) => {
+const MonthView: React.FC<CalendarViewProps> = ({ currentDate, events, onAddEvent }) => {
   const calendarDays = generateCalendarDays(currentDate);
   const today = new Date();
 
@@ -33,8 +33,9 @@ const MonthView: React.FC<CalendarViewProps> = ({ currentDate, events }) => {
             <div 
               key={i} 
               className={`min-h-[120px] border-r border-b last:border-r-0 p-1 ${
-                isCurrentMonth ? "bg-white" : "bg-gray-50 text-gray-400"
+                isCurrentMonth ? "bg-white hover:bg-gray-50 cursor-pointer" : "bg-gray-50 text-gray-400"
               }`}
+              onClick={() => isCurrentMonth && onAddEvent && onAddEvent(day, 9)} // Default to 9 AM for month view clicks
             >
               {/* Day number */}
               <div className={`
@@ -56,6 +57,7 @@ const MonthView: React.FC<CalendarViewProps> = ({ currentDate, events }) => {
                       'bg-yellow-100 text-yellow-800'}
                     `}
                     title={`${event.title} - ${event.time}`}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <div className="font-medium truncate">{event.title}</div>
                     <div className="text-[10px] opacity-80">{event.time}</div>
