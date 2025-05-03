@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface TabNavigationProps {
   activeTab: string;
@@ -11,13 +12,20 @@ interface TabNavigationProps {
 }
 
 const TabNavigation = ({ activeTab, setActiveTab, user }: TabNavigationProps) => {
+  const navigate = useNavigate();
+  
   const tabs = [
-    { id: "you", label: "You" },
-    { id: "wheels", label: "Wheels" },
-    { id: "wins", label: "Wins" },
-    { id: "social", label: "Social" },
-    { id: "shop", label: "Shop" },
+    { id: "you", label: "You", path: "/you" },
+    { id: "wheels", label: "Wheels", path: "/wheels" },
+    { id: "wins", label: "Wins", path: "/wins" },
+    { id: "social", label: "Social", path: "/social" },
+    { id: "shop", label: "Shop", path: "/shop" },
   ];
+
+  const handleTabClick = (tabId: string, path: string) => {
+    setActiveTab(tabId);
+    navigate(path);
+  };
 
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
@@ -33,7 +41,7 @@ const TabNavigation = ({ activeTab, setActiveTab, user }: TabNavigationProps) =>
                     ? "border-primary text-primary"
                     : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabClick(tab.id, tab.path)}
               >
                 {tab.label}
               </button>
