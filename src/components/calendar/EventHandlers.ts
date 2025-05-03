@@ -30,10 +30,7 @@ export const handleEventMove = (
     updatedEvents[eventIndex] = event;
     setEvents(updatedEvents);
     
-    toast({
-      title: "Event moved",
-      description: `${event.title} has been moved to ${format(event.date, 'MMMM d')} at ${event.time}.`
-    });
+    toast(`Event moved: ${event.title} has been moved to ${format(event.date, 'MMMM d')} at ${event.time}.`);
   }
 };
 
@@ -61,10 +58,7 @@ export const handleEventResize = (
     updatedEvents[eventIndex] = event;
     setEvents(updatedEvents);
     
-    toast({
-      title: "Event resized",
-      description: `${event.title} duration updated to ${event.time}.`
-    });
+    toast(`Event resized: ${event.title} duration updated to ${event.time}.`);
   }
 };
 
@@ -147,10 +141,7 @@ export const handleEventSubmit = (
       updatedEvents[eventIndex] = updatedEvent;
       setEvents(updatedEvents);
       
-      toast({
-        title: "Event updated",
-        description: `${data.title} has been updated.`
-      });
+      toast(`Event updated: ${data.title} has been updated.`);
     }
   } else {
     // Create new event
@@ -166,10 +157,7 @@ export const handleEventSubmit = (
     // Add event to the list
     setEvents(prev => [...prev, newEvent]);
     
-    toast({
-      title: "Event created",
-      description: `${data.title} has been added to your calendar.`
-    });
+    toast(`Event created: ${data.title} has been added to your calendar.`);
   }
   
   setIsEventModalOpen(false);
