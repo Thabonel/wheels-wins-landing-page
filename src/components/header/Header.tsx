@@ -6,13 +6,29 @@ import HeaderContainer from "./HeaderContainer";
 import NavigationLinks from "./NavigationLinks";
 import LoginButton from "./LoginButton";
 import UserMenu from "./UserMenu";
+import { useEffect, useState } from "react";
 
 const Header = () => {
   const { isAuthenticated } = useAuth();
   const { isHomePage } = useHeaderAppearance();
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Add scroll event listener to track when page is scrolled
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 10) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <HeaderContainer>
+    <HeaderContainer isHomePage={isHomePage} isScrolled={isScrolled}>
       {/* Logo */}
       <Link to="/" className="flex-shrink-0">
         <img
