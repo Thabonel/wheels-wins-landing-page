@@ -22,7 +22,7 @@ const Header = () => {
         />
       </Link>
 
-      {/* Navigation */}
+      {/* Navigation - Always show in dev mode OR when not on homepage */}
       <NavigationLinks isVisible={showNavigation} />
 
       {/* Auth Buttons */}

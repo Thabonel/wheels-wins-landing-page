@@ -12,7 +12,7 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },
     { label: "Shop", path: "/shop" },
-    { label: "Profile", path: "/profile" },
+    // Profile is intentionally not included - only accessible via avatar
   ];
 
   if (!isVisible) return null;
@@ -28,6 +28,7 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
               isActive ? "text-blue-600" : "text-gray-500 hover:text-blue-600"
             }`
           }
+          end
         >
           {item.label}
         </NavLink>
