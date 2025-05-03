@@ -1,24 +1,13 @@
 
-import { useState, useEffect } from "react";
 import { useLocation, Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useHeaderAppearance } from "@/hooks/useHeaderAppearance";
 
 const Header = () => {
   const { isAuthenticated, logout, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  const isHomePage = location.pathname === "/";
-  const showTransparentHeader = isHomePage && !isAuthenticated;
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 60);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  const { isHomePage } = useHeaderAppearance();
 
   const navItems = [
     { label: "You", path: "/you" },
@@ -30,13 +19,7 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-300 ${
-        showTransparentHeader
-          ? "bg-transparent"
-          : isHomePage && isScrolled
-          ? "bg-white/90 backdrop-blur-sm shadow-sm"
-          : "bg-white shadow-sm"
-      }`}
+      className="fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-300 bg-transparent backdrop-blur-sm"
     >
       <div className="container max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         {/* Logo */}
@@ -82,7 +65,7 @@ const Header = () => {
               {/* Log Out button */}
               <button
                 onClick={logout}
-                className="text-sm px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+                className="text-sm px-4 py-2 rounded-md border border-gray-300 bg-white/80 hover:bg-gray-100 transition"
               >
                 Log Out
               </button>
@@ -91,11 +74,7 @@ const Header = () => {
             isHomePage && (
               <Link
                 to="/login"
-                className={`px-5 py-2 rounded-md ${
-                  showTransparentHeader
-                    ? "border border-white text-white hover:bg-white/20"
-                    : "border border-blue-600 text-blue-600 hover:bg-blue-50"
-                } transition drop-shadow-md`}
+                className="px-5 py-2 rounded-md border border-white text-white hover:bg-white/20 transition drop-shadow-md"
               >
                 Log In
               </Link>
