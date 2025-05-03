@@ -1,16 +1,27 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LogIn, Menu } from "lucide-react";
+import { LogIn, LogOut, User, Settings, Menu } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/context/AuthContext";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
 
 const Header = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user, isAuthenticated, login, logout } = useAuth();
   
   // Track scroll position to potentially add background on scroll
   useEffect(() => {
@@ -35,6 +46,24 @@ const Header = () => {
   ];
 
   const isHomePage = location.pathname === "/";
+
+  const handleLogin = () => {
+    login();
+    toast.success("Successfully logged in");
+  };
+
+  const handleLogout = () => {
+    logout();
+    toast.info("You have been logged out");
+  };
+
+  const handleProfileClick = () => {
+    toast.info("Profile page coming soon");
+  };
+
+  const handleSettingsClick = () => {
+    toast.info("Settings page coming soon");
+  };
 
   return (
     <header 
@@ -89,14 +118,65 @@ const Header = () => {
                     </NavLink>
                   ))}
                   
-                  <Button
-                    variant="secondary"
-                    className="text-lg font-semibold flex items-center gap-2 px-6 py-5 mt-4 w-full justify-center"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <LogIn size={20} />
-                    <span>Log In</span>
-                  </Button>
+                  {isAuthenticated ? (
+                    <div className="mt-4">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={user?.avatar} alt={user?.name} />
+                          <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{user?.name}</span>
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        className="text-lg font-semibold flex items-center gap-2 px-6 py-5 w-full justify-center"
+                        onClick={() => {
+                          handleProfileClick();
+                          setIsOpen(false);
+                        }}
+                      >
+                        <User size={20} />
+                        <span>My Profile</span>
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        className="text-lg font-semibold flex items-center gap-2 px-6 py-5 mt-2 w-full justify-center"
+                        onClick={() => {
+                          handleSettingsClick();
+                          setIsOpen(false);
+                        }}
+                      >
+                        <Settings size={20} />
+                        <span>Settings</span>
+                      </Button>
+                      
+                      <Button
+                        variant="destructive"
+                        className="text-lg font-semibold flex items-center gap-2 px-6 py-5 mt-2 w-full justify-center"
+                        onClick={() => {
+                          handleLogout();
+                          setIsOpen(false);
+                        }}
+                      >
+                        <LogOut size={20} />
+                        <span>Log Out</span>
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      className="text-lg font-semibold flex items-center gap-2 px-6 py-5 mt-4 w-full justify-center"
+                      onClick={() => {
+                        handleLogin();
+                        setIsOpen(false);
+                      }}
+                    >
+                      <LogIn size={20} />
+                      <span>Log In</span>
+                    </Button>
+                  )}
                 </nav>
               </SheetContent>
             </Sheet>
@@ -123,32 +203,122 @@ const Header = () => {
                 ))}
               </nav>
 
-              {/* Login Button - fixed width for balance */}
+              {/* Auth Section - fixed width for balance */}
               <div className="hidden md:block w-[180px] text-right">
-                <Button
-                  variant={isHomePage ? "outline" : "secondary"}
-                  className={`text-lg font-semibold flex items-center gap-2 px-6 py-5 ${
-                    isHomePage ? "bg-transparent border-white text-white hover:bg-white/20 drop-shadow-md" : ""
-                  }`}
-                >
-                  <LogIn size={20} />
-                  <span>Log In</span>
-                </Button>
+                {isAuthenticated ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        className="rounded-full p-0 w-10 h-10 overflow-hidden"
+                        aria-label="User menu"
+                      >
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={user?.avatar} alt={user?.name} />
+                          <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <div className="flex items-center gap-2 p-2">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={user?.avatar} alt={user?.name} />
+                          <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <p className="text-sm font-medium leading-none">{user?.name}</p>
+                          <p className="text-xs text-muted-foreground">{user?.email}</p>
+                        </div>
+                      </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="cursor-pointer" onClick={handleProfileClick}>
+                        <User className="mr-2 h-4 w-4" />
+                        <span>My Profile</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="cursor-pointer" onClick={handleSettingsClick}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Settings</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleLogout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Log out</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    variant={isHomePage ? "outline" : "secondary"}
+                    className={`text-lg font-semibold flex items-center gap-2 px-6 py-5 ${
+                      isHomePage ? "bg-transparent border-white text-white hover:bg-white/20 drop-shadow-md" : ""
+                    }`}
+                    onClick={handleLogin}
+                  >
+                    <LogIn size={20} />
+                    <span>Log In</span>
+                  </Button>
+                )}
               </div>
             </>
           )}
 
-          {/* Mobile-only login button (when menu is closed) */}
+          {/* Mobile-only login button or avatar (when menu is closed) */}
           {isMobile && !isOpen && (
-            <Button
-              variant={isHomePage ? "outline" : "secondary"}
-              className={`md:hidden text-base font-semibold flex items-center gap-1 px-4 py-2 ${
-                isHomePage ? "bg-transparent border-white text-white hover:bg-white/20 drop-shadow-md" : ""
-              }`}
-            >
-              <LogIn size={16} />
-              <span>Log In</span>
-            </Button>
+            <>
+              {isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="rounded-full p-0 w-10 h-10 overflow-hidden"
+                      aria-label="User menu"
+                    >
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={user?.avatar} alt={user?.name} />
+                        <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="flex items-center gap-2 p-2">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={user?.avatar} alt={user?.name} />
+                        <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        <p className="text-sm font-medium leading-none">{user?.name}</p>
+                        <p className="text-xs text-muted-foreground">{user?.email}</p>
+                      </div>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="cursor-pointer" onClick={handleProfileClick}>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>My Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer" onClick={handleSettingsClick}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button
+                  variant={isHomePage ? "outline" : "secondary"}
+                  className={`md:hidden text-base font-semibold flex items-center gap-1 px-4 py-2 ${
+                    isHomePage ? "bg-transparent border-white text-white hover:bg-white/20 drop-shadow-md" : ""
+                  }`}
+                  onClick={handleLogin}
+                >
+                  <LogIn size={16} />
+                  <span>Log In</span>
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
