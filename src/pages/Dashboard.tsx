@@ -24,16 +24,16 @@ const Dashboard = () => {
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} user={user} />
       
         <main className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex flex-col lg:flex-row gap-6">
             {/* Left Column - 75% on desktop */}
-            <div className="w-full md:w-3/4">
+            <div className="w-full lg:w-3/4">
               <UserCalendar />
               <DashboardCards />
               <WidgetArea />
             </div>
             
             {/* Right Column - 25% on desktop */}
-            <div className="w-full md:w-1/4 mt-6 md:mt-0">
+            <div className="w-full lg:w-1/4 mt-6 lg:mt-0">
               <PamAssistant user={user} />
             </div>
           </div>
