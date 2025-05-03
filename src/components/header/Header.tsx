@@ -25,7 +25,7 @@ const Header = () => {
       {/* Navigation - Show based on the header appearance logic */}
       <NavigationLinks isVisible={showNavigation} />
 
-      {/* Auth Buttons - Show user menu if authenticated, login button on homepage or in dev mode */}
+      {/* Auth Buttons - Show user menu if authenticated, login button otherwise */}
       <div className="flex items-center space-x-4">
         {isAuthenticated ? <UserMenu /> : (isHomePage || isDevMode) && <LoginButton />}
       </div>
