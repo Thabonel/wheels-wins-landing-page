@@ -8,7 +8,7 @@ import CallToAction from "@/components/CallToAction";
 
 const Index = () => {
   return (
-    <div className="min-h-screen">
+    <div>
       <Hero />
       <PamSpotlight />
       <HowItWorks />

@@ -20,7 +20,7 @@ const LogoutButton = ({ isHomePage }: LogoutButtonProps) => {
     <Button
       variant="outline"
       className={`font-semibold flex items-center gap-2 ${
-        isHomePage ? "bg-transparent border-white text-white hover:bg-white/20" : ""
+        isHomePage ? "bg-transparent border-white text-white hover:bg-white/20 drop-shadow-md" : ""
       }`}
       onClick={handleLogout}
     >
