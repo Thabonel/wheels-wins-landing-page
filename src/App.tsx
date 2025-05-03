@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -7,7 +8,7 @@ import Footer from "@/components/Footer";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import You from "./pages/You";
-import Dashboard from "./pages/Dashboard";
+import ScrollToTop from "@/components/ScrollToTop";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -36,7 +37,7 @@ function AppRoutes() {
             path="/you"
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <You />
               </ProtectedRoute>
             }
           />
@@ -101,6 +102,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Router>
+          <ScrollToTop />
           <AppRoutes />
         </Router>
         <Toaster />
