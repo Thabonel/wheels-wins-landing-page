@@ -3,8 +3,9 @@ import React from "react";
 import { format, isSameDay } from "date-fns";
 import { CalendarViewProps } from "./types";
 import { daysOfWeek, generateWeekDays, getEventsForHourSlot, timeSlots } from "./utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-const WeekView: React.FC<CalendarViewProps> = ({ currentDate, events }) => {
+const WeekView: React.FC<CalendarViewProps> = ({ currentDate, events, onAddEvent }) => {
   const weekDays = generateWeekDays(currentDate);
   const today = new Date();
 
@@ -40,22 +41,30 @@ const WeekView: React.FC<CalendarViewProps> = ({ currentDate, events }) => {
               return (
                 <div 
                   key={`${day}-${hour}`}
-                  className="border-r border-b last:border-r-0 p-1 min-h-[60px]"
+                  className="border-r border-b last:border-r-0 p-1 min-h-[60px] hover:bg-gray-50 cursor-pointer"
+                  onClick={() => onAddEvent && onAddEvent(day, hour)}
                 >
                   {hourEvents.map((event, idx) => (
-                    <div 
-                      key={idx} 
-                      className={`
-                        text-xs p-1 rounded truncate cursor-pointer
-                        ${event.type === 'trip' ? 'bg-blue-100 text-blue-800' : 
-                        event.type === 'booking' ? 'bg-green-100 text-green-800' : 
-                        'bg-yellow-100 text-yellow-800'}
-                      `}
-                      title={`${event.title} - ${event.time}`}
-                    >
-                      <div className="font-medium truncate">{event.title}</div>
-                      <div className="text-[10px] opacity-80">{event.time}</div>
-                    </div>
+                    <Tooltip key={idx}>
+                      <TooltipTrigger asChild>
+                        <div 
+                          className={`
+                            text-xs p-1 rounded truncate cursor-pointer
+                            ${event.type === 'trip' ? 'bg-blue-100 text-blue-800' : 
+                            event.type === 'booking' ? 'bg-green-100 text-green-800' : 
+                            'bg-yellow-100 text-yellow-800'}
+                          `}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="font-medium truncate">{event.title}</div>
+                          <div className="text-[10px] opacity-80">{event.time}</div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="font-medium">{event.title}</p>
+                        <p className="text-xs">{format(day, "EEEE, MMMM d")} - {event.time}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
                 </div>
               );
