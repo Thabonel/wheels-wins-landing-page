@@ -8,8 +8,8 @@ import LoginButton from "./LoginButton";
 import UserMenu from "./UserMenu";
 
 const Header = () => {
-  const { isAuthenticated } = useAuth();
-  const { isHomePage } = useHeaderAppearance();
+  const { isAuthenticated, isDevMode } = useAuth();
+  const { isHomePage, showNavigation } = useHeaderAppearance();
 
   return (
     <HeaderContainer isHomePage={isHomePage} isScrolled={false}>
@@ -23,11 +23,11 @@ const Header = () => {
       </Link>
 
       {/* Navigation */}
-      <NavigationLinks isVisible={!isHomePage && isAuthenticated} />
+      <NavigationLinks isVisible={showNavigation} />
 
       {/* Auth Buttons */}
       <div className="flex items-center space-x-4">
-        {isAuthenticated ? <UserMenu /> : isHomePage && <LoginButton />}
+        {isAuthenticated ? <UserMenu /> : (isHomePage || isDevMode) && <LoginButton />}
       </div>
     </HeaderContainer>
   );
