@@ -28,7 +28,6 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
               isActive ? "text-blue-600" : "text-gray-500 hover:text-blue-600"
             }`
           }
-          end
         >
           {item.label}
         </NavLink>
