@@ -12,6 +12,6 @@ export function useHeaderAppearance() {
     isHomePage,
     isAuthenticated,
     shouldBeTransparent: true, // Always true to make header transparent on all pages
-    showNavigation: isDevMode || (!isHomePage && isAuthenticated) // Always show navigation in dev mode
+    showNavigation: true // Always show navigation links regardless of page or auth status
   };
 }
