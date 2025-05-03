@@ -23,81 +23,80 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const Main = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const isHome = location.pathname === "/";
-  return (
-    <main className={`flex-1 ${isHome ? "!pt-0" : "pt-24"}`}>
-      {children}
-    </main>
-  );
+  return <main className={`flex-1 ${isHome ? "" : "pt-24"}`}>{children}</main>;
 };
 
 function AppRoutes() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <Main>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route
-            path="/you"
-            element={
-              <ProtectedRoute>
-                <You />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Navigate to="/you" replace />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/wheels"
-            element={
-              <ProtectedRoute>
-                <NotFound />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/wins"
-            element={
-              <ProtectedRoute>
-                <NotFound />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/social"
-            element={
-              <ProtectedRoute>
-                <NotFound />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/shop"
-            element={
-              <ProtectedRoute>
-                <NotFound />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Main>
-      <Footer />
-    </div>
+    <>
+      <ScrollToTop />
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <Main>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route
+              path="/you"
+              element={
+                <ProtectedRoute>
+                  <You />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/you" replace />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wheels"
+              element={
+                <ProtectedRoute>
+                  <NotFound />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wins"
+              element={
+                <ProtectedRoute>
+                  <NotFound />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/social"
+              element={
+                <ProtectedRoute>
+                  <NotFound />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/shop"
+              element={
+                <ProtectedRoute>
+                  <NotFound />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Main>
+        <Footer />
+      </div>
+    </>
   );
 }
 
@@ -106,7 +105,6 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Router>
-          <ScrollToTop />
           <AppRoutes />
         </Router>
         <Toaster />
