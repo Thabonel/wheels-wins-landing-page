@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import Header from "@/components/Header";
+import Header from "@/components/header/Header";
 import Footer from "@/components/Footer";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
