@@ -1,12 +1,11 @@
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { EventClickArg, EventChangeArg, DateSelectArg, EventResizeDoneArg } from "@fullcalendar/core";
-import { CalendarViewProps, CalendarEvent, EventFormData } from "./types";
-import { format } from "date-fns";
+import { EventClickArg, EventChangeArg, DateSelectArg } from "@fullcalendar/core";
+import { CalendarViewProps, CalendarEvent } from "./types";
 
 interface FullCalendarWrapperProps extends Omit<CalendarViewProps, 'onAddEvent'> {
   viewMode: "month" | "week" | "day";
@@ -112,7 +111,7 @@ const FullCalendarWrapper: React.FC<FullCalendarWrapperProps> = ({
   };
 
   // Handle when a user resizes an event
-  const handleEventResize = (resizeInfo: EventResizeDoneArg) => {
+  const handleEventResize = (resizeInfo: any) => {
     onEventResize(
       resizeInfo.event.id,
       resizeInfo.event.start || new Date(),
