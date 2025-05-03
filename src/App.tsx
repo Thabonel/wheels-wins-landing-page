@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import You from "./pages/You";
+import Profile from "./pages/Profile";
 import ScrollToTop from "@/components/ScrollToTop";
 
 // Query client for React Query
@@ -53,7 +54,7 @@ function AppRoutes() {
             path="/profile"
             element={
               <ProtectedRoute>
-                <You /> {/* Swap to separate profile page later if needed */}
+                <Profile />
               </ProtectedRoute>
             }
           />
