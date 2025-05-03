@@ -1,17 +1,11 @@
-
 import { Button } from "@/components/ui/button";
-
 const Hero = () => {
-  return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ 
-          backgroundImage: "url('https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//WheelsnadwinsHero.jpg')",
-          backgroundPosition: "center",
-          backgroundSize: "cover" 
-        }}
-      >
+  return <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 bg-cover bg-center" style={{
+      backgroundImage: "url('https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//WheelsnadwinsHero.jpg')",
+      backgroundPosition: "center",
+      backgroundSize: "cover"
+    }}>
         <div className="absolute inset-0 bg-black/40"></div>
       </div>
       
@@ -24,12 +18,8 @@ const Hero = () => {
           Pam is your AI assistant who helps you plan your trip, manage your money, and stay stress-free on the road.
         </p>
         
-        <Button className="text-xl font-semibold px-10 py-7 bg-accent hover:bg-accent/90" size="lg">
-          Try Pam Free for 30 Days
-        </Button>
+        <Button className="text-xl font-semibold px-10 py-7 bg-accent hover:bg-accent/90" size="lg">Start Your 30-Day Free Trial with Pam</Button>
       </div>
-    </section>
-  );
+    </section>;
 };
-
 export default Hero;
