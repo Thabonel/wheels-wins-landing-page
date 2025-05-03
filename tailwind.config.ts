@@ -90,15 +90,20 @@ export default {
                     '0%, 100%': { transform: 'translateY(0)' },
                     '50%': { transform: 'translateY(-10px)' },
                 },
+				'pulse-slow': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.8' },
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
                 'float': 'float 6s ease-in-out infinite',
+				'pulse-slow': 'pulse-slow 3s ease-in-out infinite',
 			},
             backgroundImage: {
-                'hero-pattern': "url('/lovable-uploads/dfd9e63a-441f-465f-bced-12e8603c66e2.png')",
-                'logo': "url('/lovable-uploads/ef34b451-0971-4ade-9ec6-dd0803859e78.png')",
+                'hero-pattern': "url('https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//WheelsnadwinsHero.jpg')",
+                'logo': "url('https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//wheels%20and%20wins%20Logo%20alpha.png')",
             },
 		}
 	},
