@@ -28,7 +28,7 @@ export default function AddExpenseForm({ onClose }: AddExpenseFormProps) {
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
-  const { addExpense } = useExpenseActions();
+  const { addExpense, categories } = useExpenseActions();
   
   const handleSubmit = () => {
     if (!amount || !category || !description || !date) {
@@ -84,11 +84,9 @@ export default function AddExpenseForm({ onClose }: AddExpenseFormProps) {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Fuel">Fuel</SelectItem>
-                <SelectItem value="Food">Food</SelectItem>
-                <SelectItem value="Camp">Camp</SelectItem>
-                <SelectItem value="Fun">Fun</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

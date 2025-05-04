@@ -1,27 +1,76 @@
 
-export const expensesData = [
-  { id: 1, amount: 85.75, category: "Fuel", date: "May 2, 2025", description: "Diesel - Flying J" },
-  { id: 2, amount: 62.38, category: "Food", date: "May 1, 2025", description: "Grocery store" },
-  { id: 3, amount: 45.00, category: "Camp", date: "Apr 30, 2025", description: "State Park - 3 nights" },
-  { id: 4, amount: 35.99, category: "Fun", date: "Apr 28, 2025", description: "Museum tickets" },
-  { id: 5, amount: 148.32, category: "Fuel", date: "Apr 25, 2025", description: "Diesel - Pilot" },
-  { id: 6, amount: 78.45, category: "Food", date: "Apr 24, 2025", description: "Grocery store" },
-  { id: 7, amount: 22.99, category: "Other", date: "Apr 23, 2025", description: "Laundry" },
-  { id: 8, amount: 30.00, category: "Fun", date: "Apr 21, 2025", description: "National Park pass" },
-];
+import { ExpenseItem } from "./ExpenseTable";
 
-export const chartData = [
-  { name: 'Fuel', amount: 234.07 },
-  { name: 'Food', amount: 140.83 },
-  { name: 'Camp', amount: 45.00 },
-  { name: 'Fun', amount: 65.99 },
-  { name: 'Other', amount: 22.99 },
-];
+// Initial expense categories
+export const defaultCategories = ["Fuel", "Food", "Camp", "Fun", "Other"];
 
-export const categoryColors = {
-  "Fuel": "bg-purple-100 text-purple-800 border-purple-200",
-  "Food": "bg-blue-100 text-blue-800 border-blue-200",
-  "Camp": "bg-green-100 text-green-800 border-green-200",
-  "Fun": "bg-amber-100 text-amber-800 border-amber-200",
-  "Other": "bg-gray-100 text-gray-800 border-gray-200"
+// Category colors for visual distinction
+export const categoryColors: Record<string, string> = {
+  "Fuel": "bg-blue-50 text-blue-600 border-blue-200",
+  "Food": "bg-green-50 text-green-600 border-green-200",
+  "Camp": "bg-purple-50 text-purple-600 border-purple-200",
+  "Fun": "bg-amber-50 text-amber-600 border-amber-200",
+  "Other": "bg-gray-50 text-gray-600 border-gray-200",
+  
+  // Colors for potential custom categories
+  "Coffee": "bg-orange-50 text-orange-600 border-orange-200",
+  "Maintenance": "bg-red-50 text-red-600 border-red-200", 
+  "Gear": "bg-cyan-50 text-cyan-600 border-cyan-200",
+  "Toll": "bg-indigo-50 text-indigo-600 border-indigo-200",
+  "Park": "bg-emerald-50 text-emerald-600 border-emerald-200",
 };
+
+// Chart data for expense visualization
+export const chartData = [
+  { name: "Fuel", amount: 358.42 },
+  { name: "Food", amount: 290.15 },
+  { name: "Camp", amount: 175.00 },
+  { name: "Fun", amount: 120.75 },
+  { name: "Other", amount: 65.30 },
+];
+
+// Sample expense data
+export const expensesData: ExpenseItem[] = [
+  {
+    id: 1,
+    amount: 45.67,
+    category: "Fuel",
+    date: "2025-05-01",
+    description: "Gas station - Highway 95"
+  },
+  {
+    id: 2,
+    amount: 85.23,
+    category: "Food",
+    date: "2025-05-01",
+    description: "Grocery run for the week"
+  },
+  {
+    id: 3,
+    amount: 35.00,
+    category: "Camp",
+    date: "2025-04-30",
+    description: "Campground fee - Riverside"
+  },
+  {
+    id: 4,
+    amount: 12.50,
+    category: "Fun",
+    date: "2025-04-29",
+    description: "Movie tickets"
+  },
+  {
+    id: 5,
+    amount: 150.00,
+    category: "Fuel",
+    date: "2025-04-28",
+    description: "Gas and propane refill"
+  },
+  {
+    id: 6,
+    amount: 65.30,
+    category: "Other",
+    date: "2025-04-27",
+    description: "RV supplies"
+  }
+];

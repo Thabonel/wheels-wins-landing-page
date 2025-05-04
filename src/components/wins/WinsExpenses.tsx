@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Drawer, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -10,24 +10,47 @@ import ExpenseTable from "./expenses/ExpenseTable";
 import ExpenseChart from "./expenses/ExpenseChart";
 import AddExpenseForm from "./expenses/AddExpenseForm";
 import PamInsightCard from "./expenses/PamInsightCard";
-import { chartData, categoryColors } from "./expenses/mockData";
+import { chartData } from "./expenses/mockData";
 import { useExpenseActions } from "@/hooks/useExpenseActions";
 
 export default function WinsExpenses() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState("timeline");
-  const { expenses } = useExpenseActions();
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const { expenses, categories, categoryColors } = useExpenseActions();
+  
+  // Filter expenses based on selected category
+  const filteredExpenses = selectedCategory === "all" 
+    ? expenses 
+    : expenses.filter(expense => expense.category.toLowerCase() === selectedCategory.toLowerCase());
+  
+  // Prepare chart data based on categories
+  const filteredChartData = Object.entries(
+    expenses.reduce((acc, expense) => {
+      const category = expense.category;
+      if (!acc[category]) {
+        acc[category] = 0;
+      }
+      acc[category] += expense.amount;
+      return acc;
+    }, {} as Record<string, number>)
+  ).map(([name, amount]) => ({ name, amount }));
   
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <Tabs defaultValue="all" className="w-auto">
-          <TabsList>
+        <Tabs 
+          value={selectedCategory} 
+          onValueChange={setSelectedCategory} 
+          className="w-auto"
+        >
+          <TabsList className="overflow-x-auto">
             <TabsTrigger value="all">All Expenses</TabsTrigger>
-            <TabsTrigger value="fuel">Fuel</TabsTrigger>
-            <TabsTrigger value="food">Food</TabsTrigger>
-            <TabsTrigger value="camp">Camp</TabsTrigger>
-            <TabsTrigger value="fun">Fun</TabsTrigger>
+            {categories.map(category => (
+              <TabsTrigger key={category} value={category.toLowerCase()}>
+                {category}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
         
@@ -65,12 +88,12 @@ export default function WinsExpenses() {
 
       {viewMode === "timeline" ? (
         <ExpenseTable 
-          expenses={expenses} 
+          expenses={filteredExpenses} 
           categoryColors={categoryColors} 
           onFilterClick={() => console.log('Filter clicked')}
         />
       ) : (
-        <ExpenseChart chartData={chartData} />
+        <ExpenseChart chartData={filteredChartData} />
       )}
 
       <PamInsightCard 
