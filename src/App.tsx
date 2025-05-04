@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -9,14 +10,10 @@ import NotFound from "./pages/NotFound";
 import You from "./pages/You";
 import Profile from "./pages/Profile";
 import ScrollToTop from "@/components/ScrollToTop";
-
-// Dummy visible placeholder for route registration
-const Placeholder = ({ name }: { name: string }) => (
-  <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>
-    <p>This is the <strong>{name}</strong> page placeholder.</p>
-    <p>Replace this with real content.</p>
-  </div>
-);
+import Wheels from "./pages/Wheels";
+import Wins from "./pages/Wins";
+import Shop from "./pages/Shop";
+import Social from "./pages/Social";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -47,13 +44,10 @@ function AppRoutes() {
           <Route path="/" element={<Index />} />
           <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-
-          {/* Unprotected placeholder routes for Lovable canvas detection */}
-          <Route path="/wheels" element={<Placeholder name="Wheels" />} />
-          <Route path="/wins" element={<Placeholder name="Wins" />} />
-          <Route path="/shop" element={<Placeholder name="Shop" />} />
-          <Route path="/social" element={<Placeholder name="Social" />} />
-
+          <Route path="/wheels" element={<Wheels />} />
+          <Route path="/wins" element={<Wins />} />
+          <Route path="/shop" element={<Shop />} />
+          <Route path="/social" element={<Social />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Main>
