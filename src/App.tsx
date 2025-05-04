@@ -10,18 +10,24 @@ import You from "./pages/You";
 import Profile from "./pages/Profile";
 import ScrollToTop from "@/components/ScrollToTop";
 
-// Dummy components to force registration
-const Dummy = () => <div style={{ display: 'none' }} />;
+// Dummy visible placeholder for route registration
+const Placeholder = ({ name }: { name: string }) => (
+  <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>
+    <p>This is the <strong>{name}</strong> page placeholder.</p>
+    <p>Replace this with real content.</p>
+  </div>
+);
 
 // Query client for React Query
 const queryClient = new QueryClient();
 
+// Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isDevMode } = useAuth();
-  if (isAuthenticated || isDevMode) return <>{children}</>;
-  return <Navigate to="/" replace />;
+  return isAuthenticated || isDevMode ? <>{children}</> : <Navigate to="/" replace />;
 };
 
+// Handles conditional padding
 const Main = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -42,11 +48,11 @@ function AppRoutes() {
           <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
-          {/* Register hidden dummy elements to force canvas recognition */}
-          <Route path="/wheels" element={<ProtectedRoute><Dummy /></ProtectedRoute>} />
-          <Route path="/wins" element={<ProtectedRoute><Dummy /></ProtectedRoute>} />
-          <Route path="/shop" element={<ProtectedRoute><Dummy /></ProtectedRoute>} />
-          <Route path="/social" element={<ProtectedRoute><Dummy /></ProtectedRoute>} />
+          {/* Unprotected placeholder routes for Lovable canvas detection */}
+          <Route path="/wheels" element={<Placeholder name="Wheels" />} />
+          <Route path="/wins" element={<Placeholder name="Wins" />} />
+          <Route path="/shop" element={<Placeholder name="Shop" />} />
+          <Route path="/social" element={<Placeholder name="Social" />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
