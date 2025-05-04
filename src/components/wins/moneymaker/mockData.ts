@@ -1,5 +1,7 @@
 
-export const activeIdeas = [
+import { IncomeIdea, ChartDataItem } from "./types";
+
+export const activeIdeas: IncomeIdea[] = [
   {
     id: 1,
     name: "Etsy Digital Downloads",
@@ -46,7 +48,7 @@ export const activeIdeas = [
   }
 ];
 
-export const archivedIdeas = [
+export const archivedIdeas: IncomeIdea[] = [
   {
     id: 5,
     name: "Amazon FBA",
@@ -68,7 +70,7 @@ export const archivedIdeas = [
 ];
 
 // Chart data
-export const chartData = activeIdeas.map(idea => ({
+export const chartData: ChartDataItem[] = activeIdeas.map(idea => ({
   name: idea.name,
   income: idea.monthlyIncome,
   fill: idea.topPerformer ? '#8B5CF6' : '#0EA5E9'
