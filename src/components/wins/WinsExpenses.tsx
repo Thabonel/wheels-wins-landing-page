@@ -71,7 +71,9 @@ export default function WinsExpenses() {
         <ExpenseChart chartData={chartData} />
       )}
 
-      <PamInsightCard />
+      <PamInsightCard 
+        content="Your fuel costs are 23% higher than last month. I found three gas stations nearby with prices $0.30 lower than you've been paying. Want me to show you the route?"
+      />
     </div>
   );
 }
