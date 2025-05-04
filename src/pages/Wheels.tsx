@@ -21,7 +21,6 @@ export default function Wheels() {
   
   return (
     <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <h1 className="text-3xl font-bold mb-6 text-primary">Wheels Dashboard</h1>
       
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - 75% on desktop */}
