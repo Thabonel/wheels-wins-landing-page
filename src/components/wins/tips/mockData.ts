@@ -1,5 +1,6 @@
+import { TipCategory, LeaderboardUser } from "./types";
 
-export const tipCategories = [
+export const tipCategories: TipCategory[] = [
   {
     id: "fuel",
     name: "Fuel Savings",
@@ -76,7 +77,7 @@ export const tipCategories = [
   }
 ];
 
-export const leaderboardData = [
+export const leaderboardData: LeaderboardUser[] = [
   { name: "RVAdventures", points: 1250, avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png" },
   { name: "WanderingFamily", points: 950, avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png" },
   { name: "RoadTripQueen", points: 820, avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png" },
