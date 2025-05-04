@@ -3,19 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, ChevronDown, Edit, Archive, Share2 } from "lucide-react";
-
-interface IncomeIdeaProps {
-  id: number;
-  name: string;
-  status: string;
-  monthlyIncome: number;
-  startDate: string;
-  trend?: string;
-  growth?: number;
-  notes: string;
-  topPerformer?: boolean;
-  endDate?: string;
-}
+import { IncomeIdea } from "./types";
 
 export default function IncomeIdeaCard({
   name,
@@ -27,7 +15,7 @@ export default function IncomeIdeaCard({
   notes,
   topPerformer,
   endDate,
-}: IncomeIdeaProps) {
+}: IncomeIdea) {
   const isArchived = status === "Archived";
 
   return (
