@@ -6,6 +6,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Settings } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -17,6 +19,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { useState } from "react";
+import CategoryManagementModal from "./CategoryManagementModal";
 
 export interface ChartDataItem {
   name: string;
@@ -28,13 +32,25 @@ interface ExpenseChartProps {
 }
 
 export default function ExpenseChart({ chartData }: ExpenseChartProps) {
+  const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
+  
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Expenses by Category</CardTitle>
-        <CardDescription>
-          Your spending breakdown for the past 30 days
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Expenses by Category</CardTitle>
+          <CardDescription>
+            Your spending breakdown for the past 30 days
+          </CardDescription>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setManageCategoriesOpen(true)}
+        >
+          <Settings className="mr-2 h-4 w-4" />
+          Manage Categories
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="h-80">
@@ -57,6 +73,10 @@ export default function ExpenseChart({ chartData }: ExpenseChartProps) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        <CategoryManagementModal
+          open={manageCategoriesOpen}
+          onOpenChange={setManageCategoriesOpen}
+        />
       </CardContent>
     </Card>
   );
