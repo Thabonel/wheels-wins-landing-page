@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Tag, Star, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useRegion } from "@/context/RegionContext";
 import PamAssistant from "@/components/PamAssistant";
 
 export default function Shop() {
   const [activeTab, setActiveTab] = useState("all");
   const isMobile = useIsMobile();
+  const { region } = useRegion();
   
   // Mock user data for Pam assistant
   const user = {
@@ -18,7 +20,7 @@ export default function Shop() {
     avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png"
   };
   
-  // Product data
+  // Product data with region availability
   const affiliateProducts = [
     {
       id: "aff-1",
@@ -26,14 +28,16 @@ export default function Shop() {
       description: "Lightweight 100W solar panels perfect for boondocking. Includes charge controller and cables.",
       image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
       externalLink: "https://example.com/solar-panel-kit",
-      isPamRecommended: true
+      isPamRecommended: true,
+      availableRegions: ["Australia", "New Zealand", "United States", "Canada"]
     },
     {
       id: "aff-2",
       title: "Compact RV Storage System",
       description: "Maximize your storage space with these collapsible containers designed for RVs.",
       image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-      externalLink: "https://example.com/rv-storage"
+      externalLink: "https://example.com/rv-storage",
+      availableRegions: ["Australia", "United States", "Canada", "United Kingdom"]
     },
     {
       id: "aff-3",
@@ -41,14 +45,16 @@ export default function Shop() {
       description: "Complete medical kit with large-print instructions. Essential for remote travel.",
       image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
       externalLink: "https://example.com/first-aid",
-      isPamRecommended: true
+      isPamRecommended: true,
+      availableRegions: ["Australia", "New Zealand", "United States", "Canada", "United Kingdom"]
     },
     {
       id: "aff-4",
       title: "Water Filtration System",
       description: "Ensure clean drinking water wherever you travel with this compact filtration system.",
       image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-      externalLink: "https://example.com/water-filter"
+      externalLink: "https://example.com/water-filter",
+      availableRegions: ["Australia", "United States", "Canada"]
     },
   ];
   
@@ -59,9 +65,10 @@ export default function Shop() {
       description: "Learn to film, edit, and share adventures using just your smartphone.",
       image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
       price: 97,
-      currency: "USD",
+      currency: region === "Australia" || region === "New Zealand" ? "AUD" : region === "United Kingdom" ? "GBP" : "USD",
       type: "Video Course",
-      hasBonus: true
+      hasBonus: true,
+      availableRegions: ["Australia", "New Zealand", "United States", "Canada", "United Kingdom"]
     },
     {
       id: "dig-2",
@@ -69,8 +76,9 @@ export default function Shop() {
       description: "Downloadable templates for planning your next road trip with budget estimates.",
       image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
       price: 24.99,
-      currency: "USD",
-      type: "Travel Templates"
+      currency: region === "Australia" || region === "New Zealand" ? "AUD" : region === "United Kingdom" ? "GBP" : "USD",
+      type: "Travel Templates",
+      availableRegions: ["Australia", "New Zealand", "United States", "Canada"]
     },
     {
       id: "dig-3",
@@ -78,8 +86,9 @@ export default function Shop() {
       description: "Track and optimize your expenses while traveling south for winter.",
       image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
       price: 19.99,
-      currency: "USD",
-      type: "Budget Planner"
+      currency: region === "Australia" || region === "New Zealand" ? "AUD" : region === "United Kingdom" ? "GBP" : "USD",
+      type: "Budget Planner",
+      availableRegions: ["United States", "Canada"]
     },
     {
       id: "dig-4",
@@ -87,23 +96,33 @@ export default function Shop() {
       description: "Never forget a critical step with our comprehensive checklists.",
       image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
       price: 12.99,
-      currency: "USD",
+      currency: region === "Australia" || region === "New Zealand" ? "AUD" : region === "United Kingdom" ? "GBP" : "USD",
       type: "Checklists",
       hasBonus: true,
-      isNew: true
+      isNew: true,
+      availableRegions: ["Australia", "New Zealand", "United States", "Canada", "United Kingdom"]
     },
   ];
   
+  // Filter products based on current region
+  const regionFilteredAffiliateProducts = affiliateProducts.filter(
+    product => product.availableRegions.includes(region)
+  );
+  
+  const regionFilteredDigitalProducts = digitalProducts.filter(
+    product => product.availableRegions.includes(region)
+  );
+  
   // Combine products for "All" tab
-  const allProducts = [...digitalProducts, ...affiliateProducts];
+  const allProducts = [...regionFilteredDigitalProducts, ...regionFilteredAffiliateProducts];
   
   // Filter products based on active tab
   const getFilteredProducts = () => {
     switch(activeTab) {
       case "affiliate":
-        return affiliateProducts;
+        return regionFilteredAffiliateProducts;
       case "digital":
-        return digitalProducts;
+        return regionFilteredDigitalProducts;
       default:
         return allProducts;
     }
@@ -129,7 +148,7 @@ export default function Shop() {
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Wheels & Wins Shop</h1>
             <p className="text-gray-600">
-              Curated products and resources for mature travelers
+              Curated products and resources for mature travelers in {region}
             </p>
           </div>
           
@@ -137,7 +156,7 @@ export default function Shop() {
           <div className="mb-8 bg-blue-50 p-6 rounded-xl">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Star className="text-yellow-500" />
-              Top Picks
+              Top Picks for {region}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {allProducts.slice(0, 3).map((product) => (
@@ -188,85 +207,92 @@ export default function Shop() {
             
             {/* Product Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {getFilteredProducts().map((product) => {
-                // Digital Product Card
-                if ('price' in product) {
-                  return (
-                    <Card key={product.id} className="overflow-hidden border-2 border-gray-100 hover:border-blue-200 transition-colors">
-                      <div className="relative h-40">
-                        <img 
-                          src={product.image} 
-                          alt={product.title}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute top-2 right-2 flex flex-col gap-2">
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
-                            {product.type}
-                          </Badge>
-                          {product.isNew && (
-                            <Badge className="bg-green-600 hover:bg-green-700">
-                              New
+              {getFilteredProducts().length > 0 ? (
+                getFilteredProducts().map((product) => {
+                  // Digital Product Card
+                  if ('price' in product) {
+                    return (
+                      <Card key={product.id} className="overflow-hidden border-2 border-gray-100 hover:border-blue-200 transition-colors">
+                        <div className="relative h-40">
+                          <img 
+                            src={product.image} 
+                            alt={product.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-2 right-2 flex flex-col gap-2">
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+                              {product.type}
+                            </Badge>
+                            {product.isNew && (
+                              <Badge className="bg-green-600 hover:bg-green-700">
+                                New
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <CardContent className="p-4">
+                          <h3 className="text-lg font-semibold mb-1">{product.title}</h3>
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-xl font-bold text-blue-700">
+                                {product.currency === 'GBP' ? '£' : product.currency === 'AUD' ? 'A$' : '$'}{product.price} <span className="text-sm font-normal">{product.currency}</span>
+                              </div>
+                              {product.hasBonus && (
+                                <div className="flex items-center text-xs text-green-600 mt-1">
+                                  <Tag className="w-3 h-3 mr-1" />
+                                  Includes Bonus Materials
+                                </div>
+                              )}
+                            </div>
+                            <Button 
+                              onClick={() => handleBuyProduct(product.id)} 
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              Buy Now
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  } 
+                  // Affiliate Product Card
+                  else {
+                    return (
+                      <Card key={product.id} className="overflow-hidden border-2 border-gray-100 hover:border-blue-200 transition-colors">
+                        <div className="relative h-40">
+                          <img 
+                            src={product.image} 
+                            alt={product.title}
+                            className="w-full h-full object-cover"
+                          />
+                          {product.isPamRecommended && (
+                            <Badge className="absolute top-2 left-2 bg-purple-600 hover:bg-purple-700">
+                              <Star className="w-3 h-3 mr-1" /> Pam Recommended
                             </Badge>
                           )}
                         </div>
-                      </div>
-                      <CardContent className="p-4">
-                        <h3 className="text-lg font-semibold mb-1">{product.title}</h3>
-                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-xl font-bold text-blue-700">
-                              ${product.price} <span className="text-sm font-normal">{product.currency}</span>
-                            </div>
-                            {product.hasBonus && (
-                              <div className="flex items-center text-xs text-green-600 mt-1">
-                                <Tag className="w-3 h-3 mr-1" />
-                                Includes Bonus Materials
-                              </div>
-                            )}
-                          </div>
+                        <CardContent className="p-4">
+                          <h3 className="text-lg font-semibold mb-1">{product.title}</h3>
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
                           <Button 
-                            onClick={() => handleBuyProduct(product.id)} 
-                            className="bg-blue-600 hover:bg-blue-700"
+                            onClick={() => handleExternalLinkClick(product.externalLink)} 
+                            variant="outline"
+                            className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
                           >
-                            Buy Now
+                            View Deal <ArrowRight className="ml-2 w-4 h-4" />
                           </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                } 
-                // Affiliate Product Card
-                else {
-                  return (
-                    <Card key={product.id} className="overflow-hidden border-2 border-gray-100 hover:border-blue-200 transition-colors">
-                      <div className="relative h-40">
-                        <img 
-                          src={product.image} 
-                          alt={product.title}
-                          className="w-full h-full object-cover"
-                        />
-                        {product.isPamRecommended && (
-                          <Badge className="absolute top-2 left-2 bg-purple-600 hover:bg-purple-700">
-                            <Star className="w-3 h-3 mr-1" /> Pam Recommended
-                          </Badge>
-                        )}
-                      </div>
-                      <CardContent className="p-4">
-                        <h3 className="text-lg font-semibold mb-1">{product.title}</h3>
-                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
-                        <Button 
-                          onClick={() => handleExternalLinkClick(product.externalLink)} 
-                          variant="outline"
-                          className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
-                        >
-                          View Deal <ArrowRight className="ml-2 w-4 h-4" />
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                }
-              })}
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+                })
+              ) : (
+                <div className="col-span-full py-12 text-center">
+                  <p className="text-lg text-gray-500">No products available in {region} for this category.</p>
+                  <p className="text-sm text-gray-400 mt-2">Check back later as we expand our offerings.</p>
+                </div>
+              )}
             </div>
           </Tabs>
         </div>

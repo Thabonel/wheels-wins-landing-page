@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { RegionProvider } from "@/context/RegionContext";
 import { ExpensesProvider } from "@/context/ExpensesContext";
 import Header from "@/components/header/Header";
 import Footer from "@/components/Footer";
@@ -65,11 +66,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <ScrollToTop />
-          <AppRoutes />
-        </Router>
-        <Toaster />
+        <RegionProvider>
+          <Router>
+            <ScrollToTop />
+            <AppRoutes />
+          </Router>
+          <Toaster />
+        </RegionProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

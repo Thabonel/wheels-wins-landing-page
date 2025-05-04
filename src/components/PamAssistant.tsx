@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SendHorizonal, MessageCircle } from "lucide-react";
+import { useRegion } from "@/context/RegionContext";
 
 interface PamAssistantProps {
   user: {
@@ -15,6 +16,7 @@ interface PamAssistantProps {
 }
 
 const PamAssistant = ({ user }: PamAssistantProps) => {
+  const { region } = useRegion();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -22,24 +24,63 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
   const initialMessages = [
     { 
       sender: "pam", 
-      content: `Hi ${user.name}! Ready to plan your next adventure?`, 
+      content: `Hi ${user.name}! Ready to plan your next adventure in ${region}?`, 
       timestamp: new Date() 
     }
   ];
   
   const [messages, setMessages] = useState(initialMessages);
   
-  const quickReplies = [
-    "Show this week's spending",
-    "Add new event to calendar",
-    "Where am I headed next?",
-    "Find cheapest fuel nearby"
-  ];
+  // Generate region-specific quick replies
+  const getQuickReplies = () => {
+    const commonReplies = [
+      "Add new event to calendar",
+      "Where am I headed next?"
+    ];
+    
+    const regionSpecificReplies = {
+      "Australia": [
+        "Show this week's spending in AUD",
+        "Find cheapest fuel in Australia"
+      ],
+      "New Zealand": [
+        "Show this week's spending in NZD",
+        "Find DOC campsites nearby"
+      ],
+      "United States": [
+        "Show this week's spending in USD",
+        "Find cheapest diesel in this state"
+      ],
+      "Canada": [
+        "Show this week's spending in CAD",
+        "Find provincial parks nearby"
+      ],
+      "United Kingdom": [
+        "Show this week's spending in GBP",
+        "Find caravan parks in the area"
+      ]
+    };
+    
+    return [...commonReplies, ...regionSpecificReplies[region as keyof typeof regionSpecificReplies]];
+  };
+
+  const quickReplies = getQuickReplies();
 
   useEffect(() => {
     // Scroll to bottom whenever messages change
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+  
+  // Update welcome message when region changes
+  useEffect(() => {
+    setMessages([
+      { 
+        sender: "pam", 
+        content: `Hi ${user.name}! Ready to plan your next adventure in ${region}?`, 
+        timestamp: new Date() 
+      }
+    ]);
+  }, [region, user.name]);
   
   const handleQuickReply = (reply: string) => {
     const newMessages = [
@@ -51,11 +92,13 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
     // In a real app, we would process the message and generate a response
     // For this visual layout, we'll just simulate a response
     setTimeout(() => {
+      const regionSpecificResponse = `I'd be happy to help with that for your adventures in ${region}! This is just a visual demo, but in the real app I'd provide region-specific assistance.`;
+      
       setMessages([
         ...newMessages,
         { 
           sender: "pam", 
-          content: "I'm just a visual demo right now, but I'd be happy to help with that in the real app!", 
+          content: regionSpecificResponse, 
           timestamp: new Date() 
         }
       ]);
@@ -83,7 +126,7 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
           </div>
           <div className="flex flex-col">
             <span className="text-2xl font-bold text-blue-900">Chat with Pam</span>
-            <span className="text-sm text-muted-foreground">Your Friendly Travel Companion</span>
+            <span className="text-sm text-muted-foreground">Your {region} Travel Companion</span>
           </div>
         </CardTitle>
       </CardHeader>
@@ -121,7 +164,7 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
         <div className="space-y-2 mb-4">
           <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
             <MessageCircle size={14} />
-            <span>Suggestions:</span>
+            <span>Suggestions for {region}:</span>
           </h4>
           <div className="flex flex-wrap gap-2">
             {quickReplies.map((reply, i) => (
