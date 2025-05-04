@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Drawer, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Cell } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 
 // Import refactored components
 import ExpenseTable from "./expenses/ExpenseTable";
