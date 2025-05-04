@@ -6,13 +6,15 @@ interface NavigationLinksProps {
 }
 
 const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
+  // Updated to include all routes except /profile
+  // This matches the canvas dropdown navigation requirements
   const navItems = [
     { label: "You", path: "/you" },
     { label: "Wheels", path: "/wheels" },
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },
     { label: "Shop", path: "/shop" },
-    // Profile is intentionally not included - only accessible via avatar
+    // Profile is intentionally excluded - only accessible via avatar
   ];
 
   if (!isVisible) return null;

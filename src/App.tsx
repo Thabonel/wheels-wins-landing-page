@@ -19,6 +19,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isDevMode } = useAuth();
   
   // Always allow access in dev mode or if authenticated
+  // This is critical for canvas preview functionality
   if (isAuthenticated || isDevMode) {
     return <>{children}</>;
   }
@@ -44,6 +45,7 @@ function AppRoutes() {
       <Header />
       <Main>
         <Routes>
+          {/* Register all 7 routes for canvas navigation */}
           <Route path="/" element={<Index />} />
           <Route
             path="/you"
