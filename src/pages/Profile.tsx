@@ -7,15 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Profile = () => {
-  const { user, isAuthenticated, login } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { region, setRegion, isLoading } = useRegion();
   const [isUpdating, setIsUpdating] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = () => {
-    login();
-    toast.success("Successfully logged in");
+    // Navigate to auth page instead of calling login without params
+    navigate("/auth");
+    toast.success("Redirecting to login page");
   };
 
   const handleRegionChange = async (newRegion: string) => {
@@ -45,14 +48,12 @@ const Profile = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-4">
-                  <img
-                    src={user.avatar}
-                    alt={user.name}
-                    className="rounded-full w-20 h-20 object-cover border-2 border-primary"
-                  />
+                  <div className="rounded-full w-20 h-20 bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
+                    {user?.email?.[0]?.toUpperCase() || "U"}
+                  </div>
                   <div>
-                    <h3 className="text-xl font-bold">{user.name}</h3>
-                    <p className="text-muted-foreground">{user.email}</p>
+                    <h3 className="text-xl font-bold">{user?.email || "User"}</h3>
+                    <p className="text-muted-foreground">{user?.email}</p>
                   </div>
                 </div>
                 

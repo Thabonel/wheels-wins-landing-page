@@ -35,7 +35,7 @@ const Header = () => {
             {(isHomePage || isDevMode) && <LoginButton />}
             {!isHomePage && !isDevMode && (
               <Link to="/auth">
-                <Button variant="primary">Sign In</Button>
+                <Button variant="default">Sign In</Button>
               </Link>
             )}
           </>
