@@ -9,6 +9,38 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      post_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string
+          user_id: string
+          vote_type: boolean
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id: string
+          user_id: string
+          vote_type: boolean
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string
+          user_id?: string
+          vote_type?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_votes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "social_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -33,6 +65,124 @@ export type Database = {
         }
         Relationships: []
       }
+      social_group_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string | null
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string | null
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "social_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_groups: {
+        Row: {
+          activity_level: string | null
+          admin_id: string
+          cover_image: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          location: string | null
+          member_count: number | null
+          name: string
+        }
+        Insert: {
+          activity_level?: string | null
+          admin_id: string
+          cover_image?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          member_count?: number | null
+          name: string
+        }
+        Update: {
+          activity_level?: string | null
+          admin_id?: string
+          cover_image?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          member_count?: number | null
+          name?: string
+        }
+        Relationships: []
+      }
+      social_posts: {
+        Row: {
+          author_id: string
+          comments_count: number | null
+          content: string
+          created_at: string | null
+          downvotes: number | null
+          group_id: string | null
+          id: string
+          image_url: string | null
+          location: Database["public"]["Enums"]["post_location"]
+          status: Database["public"]["Enums"]["post_status"] | null
+          updated_at: string | null
+          upvotes: number | null
+        }
+        Insert: {
+          author_id: string
+          comments_count?: number | null
+          content: string
+          created_at?: string | null
+          downvotes?: number | null
+          group_id?: string | null
+          id?: string
+          image_url?: string | null
+          location: Database["public"]["Enums"]["post_location"]
+          status?: Database["public"]["Enums"]["post_status"] | null
+          updated_at?: string | null
+          upvotes?: number | null
+        }
+        Update: {
+          author_id?: string
+          comments_count?: number | null
+          content?: string
+          created_at?: string | null
+          downvotes?: number | null
+          group_id?: string | null
+          id?: string
+          image_url?: string | null
+          location?: Database["public"]["Enums"]["post_location"]
+          status?: Database["public"]["Enums"]["post_status"] | null
+          updated_at?: string | null
+          upvotes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "social_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -41,6 +191,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      post_location: "feed" | "group"
+      post_status: "pending" | "approved" | "rejected" | "hidden"
       supported_region:
         | "Australia"
         | "New Zealand"
@@ -162,6 +314,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      post_location: ["feed", "group"],
+      post_status: ["pending", "approved", "rejected", "hidden"],
       supported_region: [
         "Australia",
         "New Zealand",
