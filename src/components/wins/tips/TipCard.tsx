@@ -1,21 +1,16 @@
-
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ThumbsUp, Send } from "lucide-react";
+import { TipData } from "./types";
 
-interface TipData {
-  id: string;
-  title: string;
-  content: string;
-  source: string;
-  likes: number;
-  isNew: boolean;
+interface TipCardProps {
+  tip: TipData;
 }
 
-export default function TipCard({ tip }: { tip: TipData }) {
+export default function TipCard({ tip }: TipCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   
   return (
