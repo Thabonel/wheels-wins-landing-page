@@ -13,18 +13,21 @@ export type Database = {
         Row: {
           created_at: string | null
           id: number
+          region: string | null
           role: string | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
           id?: never
+          region?: string | null
           role?: string | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: never
+          region?: string | null
           role?: string | null
           user_id?: string | null
         }
@@ -38,7 +41,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      supported_region:
+        | "Australia"
+        | "New Zealand"
+        | "United States"
+        | "Canada"
+        | "United Kingdom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -153,6 +161,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      supported_region: [
+        "Australia",
+        "New Zealand",
+        "United States",
+        "Canada",
+        "United Kingdom",
+      ],
+    },
   },
 } as const
