@@ -19,6 +19,7 @@ import Social from "./pages/Social";
 import Auth from "./pages/Auth";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
+import Safety from "./pages/Safety";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ function AppRoutes() {
           <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/wheels" element={<Wheels />} />
+          <Route path="/safety" element={<ProtectedRoute><Safety /></ProtectedRoute>} />
           <Route path="/wins" element={
             <ExpensesProvider>
               <Wins />

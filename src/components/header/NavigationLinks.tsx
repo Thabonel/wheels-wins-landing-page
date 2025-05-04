@@ -6,10 +6,10 @@ interface NavigationLinksProps {
 }
 
 const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
-  // Updated to include all routes except /profile
-  // This matches the canvas dropdown navigation requirements
+  // Updated to include Safety route
   const navItems = [
     { label: "You", path: "/you" },
+    { label: "Safety", path: "/safety" },
     { label: "Wheels", path: "/wheels" },
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },
