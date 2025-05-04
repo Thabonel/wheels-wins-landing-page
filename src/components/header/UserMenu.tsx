@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import LogoutButton from "./LogoutButton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const UserMenu = () => {
   const { user } = useAuth();
@@ -12,10 +13,14 @@ const UserMenu = () => {
       {/* Profile avatar */}
       <button
         onClick={() => navigate("/profile")}
-        className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-700 hover:ring-2 ring-blue-500 transition"
+        className="hover:ring-2 ring-blue-500 transition rounded-full"
         title="Your Profile"
       >
-        {user?.email?.[0]?.toUpperCase() || "U"}
+        <Avatar>
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            {user?.email?.[0]?.toUpperCase() || "U"}
+          </AvatarFallback>
+        </Avatar>
       </button>
       
       {/* Log Out button */}
