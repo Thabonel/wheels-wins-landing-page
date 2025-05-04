@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Users, MapPin, PlusCircle, AlertCircle } from "lucide-react";
+import { Users, MapPin, PlusCircle, AlertCircle, ThumbsUp, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -114,7 +114,7 @@ export default function SocialGroups() {
           upvotes,
           downvotes,
           comments_count,
-          profiles!social_posts_author_id_fkey (user_id)
+          author_id
         `)
         .eq('group_id', groupId)
         .order('created_at', { ascending: false });
@@ -128,7 +128,7 @@ export default function SocialGroups() {
       if (postsData) {
         const formattedPosts = postsData.map(post => ({
           id: post.id,
-          author: `User ${post.profiles?.user_id?.substring(0, 5) || 'Unknown'}`,
+          author: `User ${post.author_id?.substring(0, 5) || 'Unknown'}`,
           authorAvatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png",
           date: new Date(post.created_at).toLocaleDateString(),
           content: post.content,
@@ -136,7 +136,7 @@ export default function SocialGroups() {
           likes: post.upvotes || 0,
           comments: post.comments_count || 0,
           status: post.status,
-          isOwnPost: user && post.profiles?.user_id === user.id
+          isOwnPost: user && post.author_id === user.id
         }));
         
         // Separate approved and pending posts
