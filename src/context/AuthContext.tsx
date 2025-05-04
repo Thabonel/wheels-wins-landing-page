@@ -1,33 +1,33 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-
-// Mock user type - would normally come from your API/auth service
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-}
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   isDevMode: boolean;
 }
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  session: null,
   isAuthenticated: false,
-  login: () => {},
-  logout: () => {},
+  login: async () => {},
+  signup: async () => {},
+  logout: async () => {},
   isDevMode: false
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Detect if we're in the Lovable preview environment
   const isDevMode = typeof window !== 'undefined' && (
@@ -35,52 +35,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     window.location.hostname.includes('lovable.dev') || 
     window.location.hostname.includes('lovable.app')
   );
-  
-  // In dev mode, automatically log in
+
   useEffect(() => {
-    if (isDevMode) {
-      setUser(mockUser);
-    } else {
-      // Only check localStorage in production
-      const savedUser = localStorage.getItem('user');
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        setIsLoading(false);
       }
-    }
-  }, [isDevMode]);
-  
-  // Mock user for demonstration
-  const mockUser: User = {
-    id: "123",
-    name: "John Doe",
-    email: "john@example.com",
-    avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png"
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Login function - using Supabase auth
+  const login = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) throw error;
   };
   
-  // Login function - in a real app, this would authenticate with your backend
-  const login = () => {
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
+  // Signup function - using Supabase auth
+  const signup = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    
+    if (error) throw error;
   };
   
   // Logout function
-  const logout = () => {
-    // In dev mode, we don't actually log out
-    if (!isDevMode) {
-      setUser(null);
-      localStorage.removeItem('user');
-    }
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
   
   return (
     <AuthContext.Provider value={{
       user,
+      session,
       isAuthenticated: !!user,
       login,
+      signup,
       logout,
       isDevMode
     }}>
-      {children}
+      {!isLoading && children}
     </AuthContext.Provider>
   );
 };
