@@ -11,6 +11,21 @@ import RVStorageOrganizer from "@/components/wheels/RVStorageOrganizer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRegion } from "@/context/RegionContext";
 
+// Define feature types
+interface BaseFeature {
+  title: string;
+  available: boolean;
+  component: JSX.Element;
+}
+
+interface RegionalFeature extends BaseFeature {
+  comingSoon?: boolean;
+}
+
+type FeatureMap = {
+  [key: string]: RegionalFeature;
+};
+
 export default function Wheels() {
   const [activeTab, setActiveTab] = useState("trip-planner");
   const isMobile = useIsMobile();
@@ -23,8 +38,8 @@ export default function Wheels() {
   };
   
   // Define which features are available in which regions
-  const getRegionalFeatures = () => {
-    const coreFeatures = {
+  const getRegionalFeatures = (): FeatureMap => {
+    const coreFeatures: FeatureMap = {
       "trip-planner": {
         title: "Trip Planner",
         available: true,
@@ -43,7 +58,7 @@ export default function Wheels() {
     };
     
     // Fuel log has regional restrictions
-    const fuelLogFeature = {
+    const fuelLogFeature: FeatureMap = {
       "fuel-log": {
         title: "Fuel Log",
         available: ["Australia", "United States", "Canada", "New Zealand"].includes(region),
@@ -61,7 +76,7 @@ export default function Wheels() {
   useEffect(() => {
     if (regionalFeatures[activeTab] && !regionalFeatures[activeTab].available) {
       const firstAvailableTab = Object.keys(regionalFeatures).find(
-        key => regionalFeatures[key as keyof typeof regionalFeatures].available
+        key => regionalFeatures[key].available
       );
       
       if (firstAvailableTab) {
