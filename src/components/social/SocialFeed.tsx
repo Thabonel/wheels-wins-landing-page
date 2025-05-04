@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
@@ -66,7 +67,7 @@ export default function SocialFeed() {
           upvotes,
           downvotes,
           comments_count,
-          profiles!social_posts_author_id_fkey (user_id, region)
+          author_id
         `)
         .eq('location', 'feed')
         .order('created_at', { ascending: false });
@@ -85,7 +86,7 @@ export default function SocialFeed() {
       // Format posts for display
       const formattedPosts: SocialPost[] = postsData.map(post => ({
         id: post.id,
-        author: `User ${post.profiles?.user_id?.substring(0, 5) || 'Unknown'}`,
+        author: `User ${post.author_id?.substring(0, 5) || 'Unknown'}`,
         authorAvatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png",
         date: new Date(post.created_at).toLocaleDateString(),
         content: post.content,
@@ -95,7 +96,7 @@ export default function SocialFeed() {
         status: post.status,
         location: post.location,
         groupId: post.group_id,
-        isOwnPost: user && post.profiles?.user_id === user.id
+        isOwnPost: user && post.author_id === user.id
       }));
       
       setPosts(formattedPosts);
