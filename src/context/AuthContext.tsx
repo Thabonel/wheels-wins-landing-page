@@ -26,22 +26,15 @@ const AuthContext = createContext<AuthContextType>({
   isDevMode: false
 });
 
-// Mock user for demonstration
-const mockUser: User = {
-  id: "123",
-  name: "John Doe",
-  email: "john@example.com",
-  avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png"
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   
   // Detect if we're in the Lovable preview environment
-  const isDevMode = 
+  const isDevMode = typeof window !== 'undefined' && (
     window.location.hostname === 'localhost' || 
     window.location.hostname.includes('lovable.dev') || 
-    window.location.hostname.includes('lovable.app');
+    window.location.hostname.includes('lovable.app')
+  );
   
   // In dev mode, automatically log in
   useEffect(() => {
@@ -55,6 +48,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   }, [isDevMode]);
+  
+  // Mock user for demonstration
+  const mockUser: User = {
+    id: "123",
+    name: "John Doe",
+    email: "john@example.com",
+    avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png"
+  };
   
   // Login function - in a real app, this would authenticate with your backend
   const login = () => {
