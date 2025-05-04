@@ -1,12 +1,6 @@
-
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-interface LeaderboardUser {
-  name: string;
-  points: number;
-  avatar: string;
-}
+import { LeaderboardUser } from "./types";
 
 interface LeaderboardProps {
   leaderboardData: LeaderboardUser[];

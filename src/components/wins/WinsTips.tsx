@@ -9,10 +9,12 @@ import TipCard from "./tips/TipCard";
 import TipsLeaderboard from "./tips/TipsLeaderboard";
 import PamPicksCard from "./tips/PamPicksCard";
 import TipShareForm from "./tips/TipShareForm";
-import { tipCategories, leaderboardData } from "./tips/mockData";
+import TipCategorySection from "./tips/TipCategorySection";
+import { useTipsData } from "./tips/useTipsData";
 
 export default function WinsTips() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { tipCategories, leaderboardData } = useTipsData();
   
   return (
     <div className="space-y-6">
@@ -37,14 +39,7 @@ export default function WinsTips() {
         
         <TabsContent value="tips" className="space-y-4 mt-6">
           {tipCategories.map((category) => (
-            <div key={category.id}>
-              <h3 className="font-medium text-lg mb-3">{category.name}</h3>
-              <div className="space-y-3">
-                {category.tips.map((tip) => (
-                  <TipCard key={tip.id} tip={tip} />
-                ))}
-              </div>
-            </div>
+            <TipCategorySection key={category.id} category={category} />
           ))}
         </TabsContent>
         
