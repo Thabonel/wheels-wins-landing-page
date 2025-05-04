@@ -1,10 +1,48 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const PricingPlans = () => {
+  const { isAuthenticated } = useAuth();
+  const [isLoading, setIsLoading] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const handleSubscription = async (priceId: string, planName: string) => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to subscribe");
+      navigate("/auth");
+      return;
+    }
+
+    setIsLoading(priceId);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          priceId,
+          successUrl: `${window.location.origin}/payment-success`,
+          cancelUrl: `${window.location.origin}/payment-canceled`,
+        }
+      });
+
+      if (error) throw error;
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      toast.error("Failed to start checkout process. Please try again later.");
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
   return (
     <section className="py-16 bg-gradient-to-b from-white to-gray-50">
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -39,7 +77,18 @@ const PricingPlans = () => {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full bg-primary hover:bg-primary/90">Get Started</Button>
+              <Button 
+                className="w-full bg-primary hover:bg-primary/90"
+                onClick={() => handleSubscription("price_1RJDRSDXysaVZSVhqChkrYBw", "Monthly Plan")}
+                disabled={isLoading === "price_1RJDRSDXysaVZSVhqChkrYBw"}
+              >
+                {isLoading === "price_1RJDRSDXysaVZSVhqChkrYBw" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : "Get Started"}
+              </Button>
             </CardFooter>
           </Card>
 
@@ -62,7 +111,18 @@ const PricingPlans = () => {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full bg-primary hover:bg-primary/90">Select Plan</Button>
+              <Button 
+                className="w-full bg-primary hover:bg-primary/90"
+                onClick={() => handleSubscription("price_1RJDRSDXysaVZSVhqChkrYBw", "Monthly Plan")}
+                disabled={isLoading === "price_1RJDRSDXysaVZSVhqChkrYBw"}
+              >
+                {isLoading === "price_1RJDRSDXysaVZSVhqChkrYBw" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : "Select Plan"}
+              </Button>
             </CardFooter>
           </Card>
 
@@ -92,7 +152,18 @@ const PricingPlans = () => {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full bg-accent hover:bg-accent/90">Select Plan</Button>
+              <Button 
+                className="w-full bg-accent hover:bg-accent/90"
+                onClick={() => handleSubscription("price_1RJDV7DXysaVZSVhFRfsFqzv", "Annual Plan")}
+                disabled={isLoading === "price_1RJDV7DXysaVZSVhFRfsFqzv"}
+              >
+                {isLoading === "price_1RJDV7DXysaVZSVhFRfsFqzv" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : "Select Plan"}
+              </Button>
             </CardFooter>
           </Card>
         </div>

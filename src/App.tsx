@@ -17,6 +17,8 @@ import Wins from "./pages/Wins";
 import Shop from "./pages/Shop";
 import Social from "./pages/Social";
 import Auth from "./pages/Auth";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCanceled from "./pages/PaymentCanceled";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -57,6 +59,8 @@ function AppRoutes() {
           } />
           <Route path="/shop" element={<Shop />} />
           <Route path="/social" element={<Social />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
+          <Route path="/payment-canceled" element={<PaymentCanceled />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Main>
