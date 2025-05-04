@@ -1,45 +1,35 @@
 
-import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
-import BudgetCategoryCard from "./budgets/BudgetCategoryCard";
+import { useState } from "react";
+import TotalBudgetsHeader from "./budgets/TotalBudgetsHeader";
 import TotalBudgetCard from "./budgets/TotalBudgetCard";
+import BudgetCategoriesGrid from "./budgets/BudgetCategoriesGrid";
 import PamBudgetAdvice from "./budgets/PamBudgetAdvice";
-import { budgetCategories } from "./budgets/mockData";
+import { useBudgetCalculations } from "./budgets/useBudgetCalculations";
 
 export default function WinsBudgets() {
-  // Calculate total budget summary
-  const totalBudget = budgetCategories.reduce((sum, item) => sum + item.budgeted, 0);
-  const totalSpent = budgetCategories.reduce((sum, item) => sum + item.spent, 0);
-  const totalRemaining = totalBudget - totalSpent;
-  const totalProgress = Math.round((totalSpent / totalBudget) * 100);
+  const [isEditing, setIsEditing] = useState(false);
+  const { categories, budgetSummary } = useBudgetCalculations();
+  
+  const handleEditClick = () => {
+    setIsEditing(true);
+    // In a real application, this would open a budget editing interface
+    console.log("Edit budgets clicked");
+  };
   
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium">Monthly Budgets</h2>
-        <Button variant="outline">
-          <Settings className="mr-2 h-4 w-4" />
-          Edit Budgets
-        </Button>
-      </div>
+      <TotalBudgetsHeader onEditClick={handleEditClick} />
       
       {/* Overall Budget Card */}
       <TotalBudgetCard 
-        totalBudget={totalBudget}
-        totalSpent={totalSpent}
-        totalRemaining={totalRemaining}
-        totalProgress={totalProgress}
+        totalBudget={budgetSummary.totalBudget}
+        totalSpent={budgetSummary.totalSpent}
+        totalRemaining={budgetSummary.totalRemaining}
+        totalProgress={budgetSummary.totalProgress}
       />
       
       {/* Category Budget Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {budgetCategories.map((category) => (
-          <BudgetCategoryCard 
-            key={category.id}
-            {...category}
-          />
-        ))}
-      </div>
+      <BudgetCategoriesGrid categories={categories} />
       
       {/* Pam's Budget Advice */}
       <PamBudgetAdvice />
