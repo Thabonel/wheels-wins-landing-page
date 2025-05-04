@@ -17,21 +17,43 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { useExpenseActions } from "@/hooks/useExpenseActions";
 
-export default function AddExpenseForm() {
+interface AddExpenseFormProps {
+  onClose?: () => void;
+}
+
+export default function AddExpenseForm({ onClose }: AddExpenseFormProps) {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
+  const { addExpense } = useExpenseActions();
   
   const handleSubmit = () => {
-    // Handle form submission logic here
-    console.log({ amount, category, description, date });
-    // Reset form
-    setAmount("");
-    setCategory("");
-    setDescription("");
-    setDate("");
+    if (!amount || !category || !description || !date) {
+      return;
+    }
+    
+    const success = addExpense({
+      amount: parseFloat(amount),
+      category,
+      description,
+      date,
+    });
+    
+    if (success) {
+      // Reset form
+      setAmount("");
+      setCategory("");
+      setDescription("");
+      setDate("");
+      
+      // Close drawer
+      if (onClose) {
+        onClose();
+      }
+    }
   };
   
   return (
@@ -62,11 +84,11 @@ export default function AddExpenseForm() {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="fuel">Fuel</SelectItem>
-                <SelectItem value="food">Food</SelectItem>
-                <SelectItem value="camp">Camp</SelectItem>
-                <SelectItem value="fun">Fun</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="Fuel">Fuel</SelectItem>
+                <SelectItem value="Food">Food</SelectItem>
+                <SelectItem value="Camp">Camp</SelectItem>
+                <SelectItem value="Fun">Fun</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>

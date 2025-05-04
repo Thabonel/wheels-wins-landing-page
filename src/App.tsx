@@ -1,7 +1,9 @@
+
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { ExpensesProvider } from "@/context/ExpensesContext";
 import Header from "@/components/header/Header";
 import Footer from "@/components/Footer";
 import Index from "./pages/Index";
@@ -44,7 +46,11 @@ function AppRoutes() {
           <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/wheels" element={<Wheels />} />
-          <Route path="/wins" element={<Wins />} />
+          <Route path="/wins" element={
+            <ExpensesProvider>
+              <Wins />
+            </ExpensesProvider>
+          } />
           <Route path="/shop" element={<Shop />} />
           <Route path="/social" element={<Social />} />
           <Route path="*" element={<NotFound />} />
