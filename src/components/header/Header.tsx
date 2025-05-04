@@ -6,6 +6,7 @@ import HeaderContainer from "./HeaderContainer";
 import NavigationLinks from "./NavigationLinks";
 import LoginButton from "./LoginButton";
 import UserMenu from "./UserMenu";
+import { Button } from "@/components/ui/button";
 
 const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
@@ -25,12 +26,19 @@ const Header = () => {
       {/* Navigation - ONLY when not on homepage */}
       {showNavigation && <NavigationLinks isVisible={true} />}
 
-      {/* Auth Buttons - Show user menu if authenticated and not on homepage, login button on homepage or in dev mode */}
+      {/* Auth Buttons */}
       <div className="flex items-center space-x-4">
-        {isAuthenticated && showUserMenu ? (
-          <UserMenu />
+        {isAuthenticated ? (
+          showUserMenu && <UserMenu />
         ) : (
-          (isHomePage || isDevMode) && <LoginButton />
+          <>
+            {(isHomePage || isDevMode) && <LoginButton />}
+            {!isHomePage && !isDevMode && (
+              <Link to="/auth">
+                <Button variant="primary">Sign In</Button>
+              </Link>
+            )}
+          </>
         )}
       </div>
     </HeaderContainer>

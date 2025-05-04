@@ -1,13 +1,13 @@
 
+import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 const LoginButton = () => {
   return (
-    <Link
-      to="/login"
-      className="px-5 py-2 rounded-md border border-white text-white hover:bg-white/20 transition drop-shadow-md"
-    >
-      Log In
+    <Link to="/auth">
+      <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
+        Login / Sign Up
+      </Button>
     </Link>
   );
 };

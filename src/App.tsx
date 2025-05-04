@@ -16,6 +16,7 @@ import Wheels from "./pages/Wheels";
 import Wins from "./pages/Wins";
 import Shop from "./pages/Shop";
 import Social from "./pages/Social";
+import Auth from "./pages/Auth";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -23,15 +24,16 @@ const queryClient = new QueryClient();
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isDevMode } = useAuth();
-  return isAuthenticated || isDevMode ? <>{children}</> : <Navigate to="/" replace />;
+  return isAuthenticated || isDevMode ? <>{children}</> : <Navigate to="/auth" replace />;
 };
 
 // Handles conditional padding
 const Main = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const isAuth = location.pathname === "/auth";
   return (
-    <main className={`flex-1 ${isHome ? "!pt-0" : "pt-24"}`}>
+    <main className={`flex-1 ${isHome ? "!pt-0" : isAuth ? "" : "pt-24"}`}>
       {children}
     </main>
   );
@@ -44,6 +46,7 @@ function AppRoutes() {
       <Main>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/wheels" element={<Wheels />} />
