@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { 
   Card, CardContent, CardHeader, CardTitle, CardFooter, 
@@ -23,7 +22,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PlusCircle, Filter } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  Tooltip, Legend, ResponsiveContainer, Cell 
+} from "recharts";
 
 export default function WinsExpenses() {
   const [drawerOpen, setDrawerOpen] = useState(false);
