@@ -5,6 +5,8 @@
   padding: 0;
   max-width: none;
   text-align: left;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* Keep the logo animations */
@@ -35,3 +37,4 @@
     animation: logo-spin infinite 20s linear;
   }
 }
+
