@@ -16,17 +16,19 @@ const Safety = () => {
 
   return (
     <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Top Button Menu */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        {safetyTopics.map((topic) => (
-          <button
-            key={topic.id}
-            onClick={() => scrollToSection(topic.id)}
-            className="bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600 transition"
-          >
-            {topic.title}
-          </button>
-        ))}
+      {/* Sticky Top Button Menu */}
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-200 py-4 mb-6">
+        <div className="flex flex-wrap gap-4">
+          {safetyTopics.map((topic) => (
+            <button
+              key={topic.id}
+              onClick={() => scrollToSection(topic.id)}
+              className="bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600 transition"
+            >
+              {topic.title}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Section Content */}
