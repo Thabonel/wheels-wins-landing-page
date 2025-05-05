@@ -3,8 +3,15 @@ import { Car, Caravan, ArrowLeft, Flag } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import PamAssistantWrapper from "@/components/shop/PamAssistantWrapper";
 
 const Safety = () => {
+  // Mock user data for Pam assistant
+  const user = {
+    name: "John",
+    avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//avatar-placeholder.png"
+  };
+
   const safetyTopics = [
     {
       id: "balance",
@@ -166,75 +173,89 @@ const Safety = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-blue-800 mb-4">Caravan Safety Guide</h1>
-        <p className="text-xl text-gray-700 max-w-3xl">
-          Simple, easy-to-follow guides to help you stay safe on your travels.
-        </p>
-      </div>
-      
-      {/* Topic selection cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        {safetyTopics.map((topic) => (
-          <Card key={topic.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex justify-center mb-4">
-                {topic.icon}
-              </div>
-              <CardTitle className="text-2xl text-center">{topic.title}</CardTitle>
-              <CardDescription className="text-center text-base">
-                {topic.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full text-lg py-6" 
-                onClick={() => {
-                  const element = document.getElementById(topic.id);
-                  element?.scrollIntoView({ behavior: 'smooth' });
-                }}
+      {/* Two-column layout with responsive design */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Left Column - Content (75% on desktop) */}
+        <div className="w-full lg:w-3/4">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-blue-800 mb-4">Caravan Safety Guide</h1>
+            <p className="text-xl text-gray-700 max-w-3xl">
+              Simple, easy-to-follow guides to help you stay safe on your travels.
+            </p>
+          </div>
+          
+          {/* Topic selection cards in a grid layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            {safetyTopics.map((topic) => (
+              <Card 
+                key={topic.id} 
+                className="hover:shadow-lg transition-shadow w-full sm:w-[320px] h-auto sm:h-[180px]"
               >
-                Learn More
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                <CardHeader className="p-6">
+                  <div className="flex justify-center mb-4">
+                    {topic.icon}
+                  </div>
+                  <CardTitle className="text-2xl text-center">{topic.title}</CardTitle>
+                  <CardDescription className="text-center text-base">
+                    {topic.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    className="w-full text-lg py-6" 
+                    onClick={() => {
+                      const element = document.getElementById(topic.id);
+                      element?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
+                    Learn More
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {/* Detailed content sections */}
-      <div className="space-y-16">
-        {safetyTopics.map((topic) => (
-          <section 
-            key={topic.id} 
-            id={topic.id} 
-            className="bg-white p-6 rounded-lg shadow-md"
-          >
-            <div className="flex items-center gap-4 mb-6">
-              {topic.icon}
-              <h2 className="text-3xl font-bold">{topic.title}</h2>
-            </div>
-            <div className="pl-4 border-l-4 border-blue-500">
-              {topic.content}
-            </div>
-            <div className="mt-8 flex justify-end">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="flex items-center gap-2 text-lg"
+          {/* Detailed content sections */}
+          <div className="space-y-16">
+            {safetyTopics.map((topic) => (
+              <section 
+                key={topic.id} 
+                id={topic.id} 
+                className="bg-white p-6 rounded-lg shadow-md"
               >
-                Back to Top
-              </Button>
-            </div>
-          </section>
-        ))}
-      </div>
+                <div className="flex items-center gap-4 mb-6">
+                  {topic.icon}
+                  <h2 className="text-3xl font-bold">{topic.title}</h2>
+                </div>
+                <div className="pl-4 border-l-4 border-blue-500">
+                  {topic.content}
+                </div>
+                <div className="mt-8 flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="flex items-center gap-2 text-lg"
+                  >
+                    Back to Top
+                  </Button>
+                </div>
+              </section>
+            ))}
+          </div>
 
-      <div className="mt-12 flex justify-center">
-        <Button asChild size="lg" className="text-lg px-8 py-6">
-          <Link to="/you">Back to Dashboard</Link>
-        </Button>
+          <div className="mt-12 flex justify-center">
+            <Button asChild size="lg" className="text-lg px-8 py-6">
+              <Link to="/you">Back to Dashboard</Link>
+            </Button>
+          </div>
+        </div>
+        
+        {/* Right Column - Pam Assistant (25% on desktop) */}
+        <div className="w-full lg:w-1/4 mt-6 lg:mt-0">
+          <PamAssistantWrapper user={user} />
+        </div>
       </div>
     </div>
   );
