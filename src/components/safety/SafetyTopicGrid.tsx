@@ -8,7 +8,7 @@ interface SafetyTopicGridProps {
 
 const SafetyTopicGrid = ({ topics }: SafetyTopicGridProps) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-12 w-full box-border">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6 w-full box-border">
       {topics.map((topic) => (
         <SafetyTopicCard 
           key={topic.id}
