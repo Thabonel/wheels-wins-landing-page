@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import PamAssistant from "@/components/PamAssistant";
@@ -16,7 +15,7 @@ export default function Wins() {
   const [activeTab, setActiveTab] = useState("overview");
   const isMobile = useIsMobile();
   
-  // Reset scroll when active tab changes
+  // Use our consistent scroll reset hook
   useScrollReset([activeTab]);
   
   // Mock user data for Pam assistant
@@ -73,7 +72,7 @@ export default function Wins() {
               )}
             </TabsList>
             
-            <div className="bg-white rounded-lg border p-4 min-h-[600px]">
+            <div className="bg-white rounded-lg border p-4 min-h-[600px]" id="content">
               <TabsContent value="overview">
                 <WinsOverview />
               </TabsContent>
