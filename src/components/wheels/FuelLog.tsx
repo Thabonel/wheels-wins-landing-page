@@ -6,6 +6,11 @@ import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split("T")[0]; // "YYYY-MM-DD"
+};
+
 export default function FuelLog() {
   const [fuelEntries, setFuelEntries] = useState([
     { id: 1, date: '2025-04-28', gallons: 16.3, price: 3.45, total: 56.24, location: 'Shell, Portland' },
@@ -20,7 +25,7 @@ export default function FuelLog() {
   ]);
 
   const [newEntry, setNewEntry] = useState({
-    date: '',
+    date: getTodayDate(),
     location: '',
     gallons: '',
     price: '',
@@ -37,7 +42,7 @@ export default function FuelLog() {
       total: parseFloat(newEntry.total)
     };
     setFuelEntries([entry, ...fuelEntries]);
-    setNewEntry({ date: '', location: '', gallons: '', price: '', total: '' });
+    setNewEntry({ date: getTodayDate(), location: '', gallons: '', price: '', total: '' });
   };
 
   const avgPrice = fuelEntries.reduce((acc, entry) => acc + entry.price, 0) / fuelEntries.length;
@@ -45,7 +50,6 @@ export default function FuelLog() {
 
   return (
     <div className="space-y-6">
-      {/* Fuel Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
@@ -67,7 +71,6 @@ export default function FuelLog() {
         </Card>
       </div>
 
-      {/* Add Entry Button and Note */}
       <div className="flex flex-col items-end gap-2">
         <p className="text-sm text-gray-600 text-right">
           You can ask Pam to log fuel, or add it manually:
@@ -80,7 +83,11 @@ export default function FuelLog() {
             <div className="space-y-4">
               <div>
                 <Label>Date</Label>
-                <Input value={newEntry.date} onChange={(e) => setNewEntry({ ...newEntry, date: e.target.value })} />
+                <Input 
+                  type="date"
+                  value={newEntry.date}
+                  onChange={(e) => setNewEntry({ ...newEntry, date: e.target.value })}
+                />
               </div>
               <div>
                 <Label>Location</Label>
@@ -104,7 +111,6 @@ export default function FuelLog() {
         </Dialog>
       </div>
 
-      {/* Fuel Entries Table */}
       <div className="rounded-md border overflow-hidden">
         <Table>
           <TableHeader>
@@ -130,10 +136,8 @@ export default function FuelLog() {
         </Table>
       </div>
 
-      {/* Pam's fuel suggestions */}
       <div className="mt-8">
         <h3 className="text-xl font-semibold mb-4">Nearby fuel stations:</h3>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {fuelSuggestions.map((station) => (
             <Card key={station.id} className="cursor-pointer hover:border-primary transition-colors">
@@ -141,10 +145,7 @@ export default function FuelLog() {
                 <h4 className="font-bold">{station.name}</h4>
                 <p className="text-gray-600 text-sm mt-1">${station.price}/gal</p>
                 <p className="text-gray-600 text-sm">{station.distance}</p>
-                <a 
-                  href={station.link} 
-                  className="text-primary text-sm mt-3 block hover:underline"
-                >
+                <a href={station.link} className="text-primary text-sm mt-3 block hover:underline">
                   Get Directions
                 </a>
               </CardContent>
