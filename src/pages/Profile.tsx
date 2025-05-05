@@ -1,147 +1,145 @@
-
-import { useAuth } from "@/context/AuthContext";
-import { useRegion, Region } from "@/context/RegionContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const Profile = () => {
-  const { user, isAuthenticated } = useAuth();
-  const { region, setRegion, isLoading } = useRegion();
-  const [isUpdating, setIsUpdating] = useState(false);
-  const navigate = useNavigate();
-
-  const handleLogin = () => {
-    // Navigate to auth page instead of calling login without params
-    navigate("/auth");
-    toast.success("Redirecting to login page");
-  };
-
-  const handleRegionChange = async (newRegion: string) => {
-    if (!isAuthenticated) return;
-    
-    setIsUpdating(true);
-    try {
-      await setRegion(newRegion as Region);
-      toast.success(`Region updated to ${newRegion}`);
-    } catch (error) {
-      toast.error("Failed to update region");
-      console.error("Region update error:", error);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+export default function ProfilePage() {
+  const [isCouple, setIsCouple] = useState(false);
 
   return (
-    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {isAuthenticated ? (
-        <div className="space-y-8">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* User Profile Section */}
-            <Card className="flex-1">
-              <CardHeader>
-                <CardTitle>Your Profile</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <div className="rounded-full w-20 h-20 bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
-                    {user?.email?.[0]?.toUpperCase() || "U"}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold">{user?.email || "User"}</h3>
-                    <p className="text-muted-foreground">{user?.email}</p>
-                  </div>
-                </div>
-                
-                {/* Region Selection */}
-                <div className="mt-6 border-t pt-6">
-                  <Label htmlFor="region" className="text-base font-medium">Your Region</Label>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    This affects travel recommendations, fuel prices, and available products.
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <Select 
-                      disabled={isLoading || isUpdating} 
-                      value={region} 
-                      onValueChange={handleRegionChange}
-                    >
-                      <SelectTrigger className="w-[240px]" id="region">
-                        <SelectValue placeholder="Select Region" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="Australia">Australia</SelectItem>
-                          <SelectItem value="New Zealand">New Zealand</SelectItem>
-                          <SelectItem value="United States">United States</SelectItem>
-                          <SelectItem value="Canada">Canada</SelectItem>
-                          <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    {isUpdating && <span className="text-sm text-muted-foreground">Updating...</span>}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+    <div className="space-y-6 max-w-4xl mx-auto p-6">
+      <h1 className="text-2xl font-bold">Your Profile</h1>
 
-            {/* Account Stats */}
-            <Card className="flex-1">
-              <CardHeader>
-                <CardTitle>Your Stats</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-muted rounded-lg p-4 text-center">
-                    <div className="text-3xl font-bold text-primary">0</div>
-                    <div className="text-sm text-muted-foreground">Wheels</div>
-                  </div>
-                  <div className="bg-muted rounded-lg p-4 text-center">
-                    <div className="text-3xl font-bold text-primary">0</div>
-                    <div className="text-sm text-muted-foreground">Wins</div>
-                  </div>
-                  <div className="bg-muted rounded-lg p-4 text-center">
-                    <div className="text-3xl font-bold text-primary">0</div>
-                    <div className="text-sm text-muted-foreground">Friends</div>
-                  </div>
-                  <div className="bg-muted rounded-lg p-4 text-center">
-                    <div className="text-3xl font-bold text-primary">0</div>
-                    <div className="text-sm text-muted-foreground">Points</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Identity */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <div className="space-y-2">
+            <Label>Profile Picture</Label>
+            <Input type="file" />
+          </div>
+          <div className="space-y-2">
+            <Label>Full Name</Label>
+            <Input placeholder="John Smith" />
+          </div>
+          <div className="space-y-2">
+            <Label>Nickname (for social)</Label>
+            <Input placeholder="GreyNomadJohn" />
+          </div>
+          <div className="space-y-2">
+            <Label>Email</Label>
+            <Input type="email" value="thabone10@gmail.com" disabled />
+          </div>
+          <div className="space-y-2">
+            <Label>Region</Label>
+            <Select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select region" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Australia">Australia</SelectItem>
+                <SelectItem value="USA">United States</SelectItem>
+                <SelectItem value="Canada">Canada</SelectItem>
+                <SelectItem value="UK">United Kingdom</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Travel Style</Label>
+            <Select onValueChange={(val) => setIsCouple(val === "couple")}> 
+              <SelectTrigger>
+                <SelectValue placeholder="Solo or Couple?" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="solo">Solo</SelectItem>
+                <SelectItem value="couple">Couple</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Recent Activity */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="mb-4">No recent activity to show.</p>
-                <p>Your activities will appear here once you start participating.</p>
+          {isCouple && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Partner's Name</Label>
+                <Input placeholder="Mary Smith" />
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <div className="text-center py-16">
-          <h2 className="text-3xl font-bold mb-4">Log in to view your profile</h2>
-          <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
-            Sign in to access your personal dashboard, track your wheels, wins, and connect with other members.
-          </p>
-          <Button size="lg" onClick={handleLogin}>
-            Log In
-          </Button>
-        </div>
-      )}
+              <div className="space-y-2">
+                <Label>Partner's Email</Label>
+                <Input placeholder="mary@example.com" />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Partner's Profile Picture</Label>
+                <Input type="file" />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Vehicle Info */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <h2 className="text-lg font-semibold">Your Vehicle Setup</h2>
+          <div className="space-y-2">
+            <Label>Vehicle Type</Label>
+            <Input placeholder="RV, 4WD, Caravan..." />
+          </div>
+          <div className="space-y-2">
+            <Label>Make / Model / Year</Label>
+            <Input placeholder="Toyota LandCruiser 2022" />
+          </div>
+          <div className="space-y-2">
+            <Label>Fuel Type</Label>
+            <Select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Diesel">Diesel</SelectItem>
+                <SelectItem value="Petrol">Petrol</SelectItem>
+                <SelectItem value="Electric">Electric</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Are you towing?</Label>
+            <Input placeholder="Type, weight, make/model" />
+          </div>
+          <div className="space-y-2">
+            <Label>Are you towing a second vehicle?</Label>
+            <Input placeholder="e.g. Suzuki Jimny, 1.2T" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Preferences */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <h2 className="text-lg font-semibold">Travel Preferences</h2>
+          <div className="space-y-2">
+            <Label>Max comfortable daily driving (km)</Label>
+            <Input placeholder="e.g. 300" />
+          </div>
+          <div className="space-y-2">
+            <Label>Preferred camp types</Label>
+            <Input placeholder="Free, Paid, Bush, RV Park..." />
+          </div>
+          <div className="space-y-2">
+            <Label>Accessibility or mobility needs?</Label>
+            <Input placeholder="Optional" />
+          </div>
+          <div className="space-y-2">
+            <Label>Pets on board?</Label>
+            <Input placeholder="e.g. 2 dogs" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Save */}
+      <div className="flex justify-end">
+        <Button>Save Profile</Button>
+      </div>
     </div>
   );
-};
-
-export default Profile;
+}
