@@ -17,10 +17,24 @@
       margin-top: 0.5rem;
       padding: 0.5rem 1rem;
     }
-    pre {
-      white-space: pre-wrap;
-      background: #f4f4f4;
+    #chatHistory {
+      margin-top: 1rem;
+      max-height: 400px;
+      overflow-y: auto;
+      background: #f9f9f9;
       padding: 1rem;
+      border: 1px solid #ddd;
+    }
+    .entry {
+      margin-bottom: 1rem;
+    }
+    .entry strong {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #ccc;
     }
   </style>
 </head>
@@ -29,29 +43,19 @@
   <textarea id="prompt" placeholder="Paste your question or code..."></textarea>
   <br>
   <button onclick="askGPT()">Ask</button>
-  <pre id="response">Response will appear here...</pre>
+
+  <div id="chatHistory"></div>
 
   <script>
-    const API_KEY = "sk-REPLACE_WITH_YOUR_API_KEY"; // 🔁 Replace this line
+    const API_KEY = "sk-REPLACE_WITH_YOUR_API_KEY"; // 🔁 Replace with your key
 
     async function askGPT() {
       const prompt = document.getElementById("prompt").value;
+
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${API_KEY}`
         },
-        body: JSON.stringify({
-          model: "gpt-4", // or "gpt-3.5-turbo"
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.7
-        })
-      });
-
-      const data = await res.json();
-      document.getElementById("response").textContent = data.choices?.[0]?.message?.content || "No response.";
-    }
-  </script>
-</body>
-</html>
+        body: JSON.
