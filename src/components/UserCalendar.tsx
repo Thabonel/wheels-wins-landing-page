@@ -1,18 +1,17 @@
-
+import type { CalendarEvent } from "@/components/you/types";
 import React, { useState } from "react";
 import "@/components/you/calendar-styles.css";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarEvent, EventFormData } from "./calendar/types";
-import CalendarContainer from "./calendar/CalendarContainer";
-import EventModal from "./calendar/EventModal";
-import { getFormattedTime } from "./calendar/EventFormatter";
+import CalendarContainer from "@/components/you/CalendarContainer";
+import EventModal from "@/components/you/EventModal";
+import { getFormattedTime } from "@/components/you/EventFormatter";
 import {
   handleEventCreate,
   handleEventMove,
   handleEventResize,
   handleEventSelect,
   handleEventSubmit
-} from "./calendar/EventHandlers";
+} from "@/components/you/EventHandlers";
 
 const UserCalendar = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
