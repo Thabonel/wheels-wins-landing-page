@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Drawer, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import { useScrollReset } from "@/hooks/useScrollReset";
 
 // Import refactored components
 import ExpenseTable from "./expenses/ExpenseTable";
@@ -18,6 +19,9 @@ export default function WinsExpenses() {
   const [viewMode, setViewMode] = useState("timeline");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const { expenses, categories, categoryColors } = useExpenseActions();
+  
+  // Reset scroll when selected category or view mode changes
+  useScrollReset([selectedCategory, viewMode]);
   
   // Filter expenses based on selected category
   const filteredExpenses = selectedCategory === "all" 

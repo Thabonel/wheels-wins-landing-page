@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +9,7 @@ import VehicleMaintenance from "@/components/wheels/VehicleMaintenance";
 import RVStorageOrganizer from "@/components/wheels/RVStorageOrganizer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRegion } from "@/context/RegionContext";
+import { useScrollReset } from "@/hooks/useScrollReset";
 
 // Define feature types
 interface BaseFeature {
@@ -30,6 +30,9 @@ export default function Wheels() {
   const [activeTab, setActiveTab] = useState("trip-planner");
   const isMobile = useIsMobile();
   const { region } = useRegion();
+  
+  // Reset scroll when active tab changes
+  useScrollReset([activeTab]);
   
   // Mock user data for Pam assistant
   const user = {

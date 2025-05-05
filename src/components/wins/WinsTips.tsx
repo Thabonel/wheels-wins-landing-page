@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerTrigger } from "@/components/ui/drawer";
 import { Lightbulb } from "lucide-react";
+import { useScrollReset } from "@/hooks/useScrollReset";
 
 import TipCard from "./tips/TipCard";
 import TipsLeaderboard from "./tips/TipsLeaderboard";
@@ -14,7 +15,11 @@ import { useTipsData } from "./tips/useTipsData";
 
 export default function WinsTips() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [tabValue, setTabValue] = useState("tips");
   const { tipCategories, leaderboardData } = useTipsData();
+  
+  // Reset scroll when tab changes
+  useScrollReset([tabValue]);
   
   return (
     <div className="space-y-6">
@@ -31,7 +36,12 @@ export default function WinsTips() {
         </Drawer>
       </div>
       
-      <Tabs defaultValue="tips" className="w-full">
+      <Tabs 
+        defaultValue="tips" 
+        value={tabValue} 
+        onValueChange={setTabValue}
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="tips">Weekly Tips</TabsTrigger>
           <TabsTrigger value="leaderboard">Savings Leaderboard</TabsTrigger>
