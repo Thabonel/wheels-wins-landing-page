@@ -1,8 +1,8 @@
+
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import PamAssistant from "@/components/PamAssistant";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Drawer, DrawerTrigger, DrawerContent, DrawerClose, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import WinsOverview from "@/components/wins/WinsOverview";
 import WinsExpenses from "@/components/wins/WinsExpenses";
 import WinsIncome from "@/components/wins/WinsIncome";
@@ -72,7 +72,7 @@ export default function Wins() {
               )}
             </TabsList>
             
-            <div className="bg-white rounded-lg border p-4 min-h-[600px]" id="content">
+            <div className="bg-white rounded-lg border p-4 min-h-[600px] mt-4" id="content">
               <TabsContent value="overview">
                 <WinsOverview />
               </TabsContent>
