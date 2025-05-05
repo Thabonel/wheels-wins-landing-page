@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 
@@ -7,31 +6,13 @@ import { cn } from "@/lib/utils"
 const Tabs = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root>
->(({ className, onValueChange, ...props }, ref) => {
-  // Enhanced onValueChange to automatically scroll to top when tab changes
-  const handleValueChange = React.useCallback((value: string) => {
-    // Scroll to top when tab changes
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: "auto"
-    });
-    
-    // Call original onValueChange if provided
-    if (onValueChange) {
-      onValueChange(value);
-    }
-  }, [onValueChange]);
-
-  return (
-    <TabsPrimitive.Root
-      ref={ref}
-      className={cn(className)}
-      onValueChange={handleValueChange}
-      {...props}
-    />
-  );
-});
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.Root
+    ref={ref}
+    className={cn(className)}
+    {...props}
+  />
+));
 Tabs.displayName = "Tabs";
 
 const TabsList = React.forwardRef<
