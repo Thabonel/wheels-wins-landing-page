@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useHeaderAppearance } from "@/hooks/useHeaderAppearance";
+import { useLocation } from "react-router-dom";
 import HeaderContainer from "./HeaderContainer";
 import NavigationLinks from "./NavigationLinks";
 import LoginButton from "./LoginButton";
@@ -11,6 +12,8 @@ import { Button } from "@/components/ui/button";
 const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
   const { isHomePage, showNavigation, showUserMenu } = useHeaderAppearance();
+  const location = useLocation();
+  const isShopPage = location.pathname === '/shop';
 
   return (
     <HeaderContainer isHomePage={isHomePage} isScrolled={false}>
@@ -30,12 +33,14 @@ const Header = () => {
 
       {/* Auth Buttons */}
       <div className="flex items-center space-x-4">
-        {/* Always show Shop button */}
-        <Link to="/shop">
-          <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
-            Shop
-          </Button>
-        </Link>
+        {/* Only show Shop button when user is not authenticated OR on homepage */}
+        {(!isAuthenticated && !isDevMode) || isHomePage ? (
+          <Link to="/shop">
+            <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
+              Shop
+            </Button>
+          </Link>
+        ) : null}
         
         {isAuthenticated ? (
           showUserMenu && <UserMenu />
