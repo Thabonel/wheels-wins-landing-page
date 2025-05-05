@@ -29,31 +29,27 @@ const WidgetArea = () => {
           <ToggleGroupItem value="travel" className="text-sm">Travel Alerts</ToggleGroupItem>
         </ToggleGroup>
 
-        {selectedSources.length > 0 && (
-          <Card className="mt-4">
-            <Collapsible open={open} onOpenChange={setOpen}>
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-lg">Top News</CardTitle>
-                  <CollapsibleTrigger className="hover:bg-muted p-1 rounded-full">
-                    {open ? <ChevronUp /> : <ChevronDown />}
-                  </CollapsibleTrigger>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CollapsibleContent>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Breaking: Sample headline from selected sources.</li>
-                    <li>Weather alerts affecting the East Coast.</li>
-                    <li>Global markets slightly up as reports roll in.</li>
-                  </ul>
-                </CollapsibleContent>
-              </CardContent>
-            </Collapsible>
-          </Card>
-        )}
-
-        {selectedSources.length === 0 && (
+        {selectedSources.length > 0 ? (
+          <Collapsible open={open} onOpenChange={setOpen}>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-lg">Top News</CardTitle>
+                <CollapsibleTrigger className="hover:bg-muted p-1 rounded-full">
+                  {open ? <ChevronUp /> : <ChevronDown />}
+                </CollapsibleTrigger>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CollapsibleContent>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Breaking: Sample headline from selected sources.</li>
+                  <li>Weather alerts affecting the East Coast.</li>
+                  <li>Global markets slightly up as reports roll in.</li>
+                </ul>
+              </CollapsibleContent>
+            </CardContent>
+          </Collapsible>
+        ) : (
           <div className="text-center py-6 text-muted-foreground">
             <p className="text-lg">No sources selected</p>
             <p>Choose your preferred news sources above</p>
