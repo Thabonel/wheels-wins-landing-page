@@ -1,4 +1,5 @@
 import type { CalendarEvent } from "@/components/you/types";
+import type { EventFormData } from "@/components/you/types";
 import React, { useState } from "react";
 import "@/components/you/calendar-styles.css";
 import { useToast } from "@/hooks/use-toast";
