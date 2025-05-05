@@ -5,7 +5,6 @@ import WidgetArea from "@/components/WidgetArea";
 import PamAssistant from "@/components/PamAssistant";
 
 const You = () => {
-  // Mock user data for the layout
   const user = {
     name: "John",
     avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//avatar-placeholder.png"
