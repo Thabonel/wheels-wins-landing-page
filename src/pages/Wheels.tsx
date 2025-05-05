@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PamAssistant from "@/components/PamAssistant";
 import TripPlanner from "@/components/wheels/TripPlanner";
 import FuelLog from "@/components/wheels/FuelLog";
 import VehicleMaintenance from "@/components/wheels/VehicleMaintenance";
 import RVStorageOrganizer from "@/components/wheels/RVStorageOrganizer";
+import CaravanSafety from "@/components/wheels/CaravanSafety"; // 🆕 Import new safety component
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRegion } from "@/context/RegionContext";
 import { useScrollReset } from "@/hooks/useScrollReset";
 
-// Define feature types
 interface BaseFeature {
   title: string;
   available: boolean;
@@ -30,23 +29,30 @@ export default function Wheels() {
   const [activeTab, setActiveTab] = useState("trip-planner");
   const isMobile = useIsMobile();
   const { region } = useRegion();
-  
-  // Reset scroll when active tab changes
   useScrollReset([activeTab]);
-  
-  // Mock user data for Pam assistant
+
   const user = {
     name: "John",
     avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png"
   };
-  
-  // Define which features are available in which regions
+
   const getRegionalFeatures = (): FeatureMap => {
-    const coreFeatures: FeatureMap = {
+    const features: FeatureMap = {
       "trip-planner": {
         title: "Trip Planner",
         available: true,
         component: <TripPlanner />
+      },
+      "fuel-log": {
+        title: "Fuel Log",
+        available: ["Australia", "United States", "Canada", "New Zealand"].includes(region),
+        component: <FuelLog />,
+        comingSoon: !["Australia", "United States", "Canada", "New Zealand"].includes(region)
+      },
+      "caravan-safety": {
+        title: "Caravan Safety",
+        available: true,
+        component: <CaravanSafety />
       },
       "vehicle-maintenance": {
         title: "Vehicle Maintenance",
@@ -59,39 +65,23 @@ export default function Wheels() {
         component: <RVStorageOrganizer />
       }
     };
-    
-    // Fuel log has regional restrictions
-    const fuelLogFeature: FeatureMap = {
-      "fuel-log": {
-        title: "Fuel Log",
-        available: ["Australia", "United States", "Canada", "New Zealand"].includes(region),
-        component: <FuelLog />,
-        comingSoon: !["Australia", "United States", "Canada", "New Zealand"].includes(region)
-      }
-    };
-    
-    return { ...coreFeatures, ...fuelLogFeature };
+    return features;
   };
-  
+
   const regionalFeatures = getRegionalFeatures();
-  
-  // Set the first available tab as active if current one isn't available
+
   useEffect(() => {
     if (regionalFeatures[activeTab] && !regionalFeatures[activeTab].available) {
-      const firstAvailableTab = Object.keys(regionalFeatures).find(
+      const fallback = Object.keys(regionalFeatures).find(
         key => regionalFeatures[key].available
       );
-      
-      if (firstAvailableTab) {
-        setActiveTab(firstAvailableTab);
-      }
+      if (fallback) setActiveTab(fallback);
     }
   }, [region]);
-  
+
   return (
     <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4">
           <Tabs 
             defaultValue="trip-planner"
@@ -101,9 +91,9 @@ export default function Wheels() {
           >
             <TabsList className="w-full justify-start overflow-x-auto mb-6">
               {Object.entries(regionalFeatures).map(([key, feature]) => (
-                <TabsTrigger 
+                <TabsTrigger
                   key={key}
-                  value={key} 
+                  value={key}
                   className="text-base py-3 px-6 relative"
                   disabled={!feature.available}
                 >
@@ -116,16 +106,17 @@ export default function Wheels() {
                 </TabsTrigger>
               ))}
             </TabsList>
-            
+
             <div className="bg-white rounded-lg border p-4 min-h-[600px]">
               {Object.entries(regionalFeatures).map(([key, feature]) => (
                 <TabsContent key={key} value={key}>
                   {feature.comingSoon ? (
                     <div className="text-center py-12">
-                      <h3 className="text-xl font-semibold text-gray-700 mb-2">Coming Soon to {region}</h3>
+                      <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                        Coming Soon to {region}
+                      </h3>
                       <p className="text-gray-500">
-                        We're working on bringing this feature to your region. 
-                        Check back soon!
+                        We're working on bringing this feature to your region. Check back soon!
                       </p>
                     </div>
                   ) : (
@@ -136,11 +127,10 @@ export default function Wheels() {
             </div>
           </Tabs>
         </div>
-        
-        {/* Pam Assistant - 25% on desktop, floating button on mobile */}
+
         <div className={`${isMobile ? 'fixed bottom-4 right-4 z-30' : 'w-full lg:w-1/4'}`}>
           {isMobile ? (
-            <button 
+            <button
               onClick={() => document.getElementById('pam-modal')?.classList.toggle('hidden')}
               className="bg-primary text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg"
             >
@@ -149,14 +139,13 @@ export default function Wheels() {
           ) : (
             <PamAssistant user={user} />
           )}
-          
-          {/* Mobile Pam modal */}
+
           {isMobile && (
             <div id="pam-modal" className="hidden fixed inset-0 z-40 bg-black bg-opacity-50">
               <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-auto">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-bold">Chat with Pam</h3>
-                  <button 
+                  <button
                     onClick={() => document.getElementById('pam-modal')?.classList.add('hidden')}
                     className="text-gray-500"
                   >
