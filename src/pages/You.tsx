@@ -1,4 +1,4 @@
-import "@/components/calendar/calendar-styles.css";
+import "@/components/you/calendar-styles.css";
 import UserCalendar from "@/components/UserCalendar";
 import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
