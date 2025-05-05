@@ -1,5 +1,5 @@
-
-import SafetyTopicCard from "./SafetyTopicCard";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { SafetyTopic } from "./types";
 
 interface SafetyTopicGridProps {
@@ -8,15 +8,13 @@ interface SafetyTopicGridProps {
 
 const SafetyTopicGrid = ({ topics }: SafetyTopicGridProps) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6 w-full box-border">
+    <div className="flex flex-wrap gap-4 mb-6">
       {topics.map((topic) => (
-        <SafetyTopicCard 
-          key={topic.id}
-          id={topic.id}
-          title={topic.title}
-          description={topic.description}
-          icon={topic.icon}
-        />
+        <Link key={topic.id} to={topic.path}>
+          <Button className="px-6 py-4 text-base w-full sm:w-auto">
+            {topic.title}
+          </Button>
+        </Link>
       ))}
     </div>
   );
