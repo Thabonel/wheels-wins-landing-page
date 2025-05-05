@@ -3,7 +3,6 @@ import UserCalendar from "@/components/UserCalendar";
 import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
 import PamAssistant from "@/components/PamAssistant";
-import NewsWidget from "@/components/calendar/NewsWidget"; // NEW
 
 const You = () => {
   const user = {
@@ -19,7 +18,6 @@ const You = () => {
           <UserCalendar />
           <DashboardCards />
           <WidgetArea />
-          <NewsWidget /> {/* ADD THIS LINE */}
         </div>
 
         {/* Right Column - 25% on desktop */}
