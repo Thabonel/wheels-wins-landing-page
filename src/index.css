@@ -6,8 +6,8 @@
 
 @layer base {
   :root {
-    /* Increase header height variable - try a larger value */
-    --header-height: 8rem; /* Increased from 6rem to 8rem (128px) */
+    /* Reduce header height variable to give elegant spacing below logo */
+    --header-height: 5rem; /* Reduced from 8rem to 5rem (80px) */
     
     --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
@@ -100,7 +100,7 @@
     @apply overflow-x-hidden;
     width: 100%;
     max-width: 100%;
-    /* Increase scroll padding to match the new header height */
+    /* Adjust scroll padding to match the new header height */
     scroll-padding-top: var(--header-height);
   }
 
@@ -109,10 +109,10 @@
     font-family: 'Nunito', sans-serif;
   }
   
-  /* Add specific padding to main content areas to account for fixed header */
+  /* Adjust padding to account for smaller fixed header */
   main {
-    /* Increase the top padding to match new header height */
-    @apply pt-32; /* Increased from pt-24 to pt-32 */
+    /* Reduce the top padding to match new header height */
+    @apply pt-20; /* Reduced from pt-32 to pt-20 */
     overflow-x: hidden;
     width: 100%;
     max-width: 100%;
