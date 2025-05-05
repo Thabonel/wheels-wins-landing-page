@@ -13,7 +13,7 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
   const { region } = useRegion();
   
   // Mock chat messages for visual layout
-  const initialMessages = [
+  const initialMessages: ChatMessage[] = [
     { 
       sender: "pam", 
       content: `Hi ${user.name}! Ready to plan your next adventure in ${region}?`, 
@@ -30,7 +30,7 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
   useEffect(() => {
     setMessages([
       { 
-        sender: "pam", 
+        sender: "pam" as const, 
         content: `Hi ${user.name}! Ready to plan your next adventure in ${region}?`, 
         timestamp: new Date() 
       }
@@ -40,7 +40,7 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
   const handleQuickReply = (reply: string) => {
     const newMessages = [
       ...messages,
-      { sender: "user", content: reply, timestamp: new Date() },
+      { sender: "user" as const, content: reply, timestamp: new Date() },
     ];
     setMessages(newMessages);
     
@@ -52,7 +52,7 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
       setMessages([
         ...newMessages,
         { 
-          sender: "pam", 
+          sender: "pam" as const, 
           content: regionSpecificResponse, 
           timestamp: new Date() 
         }
