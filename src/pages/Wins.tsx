@@ -72,7 +72,7 @@ export default function Wins() {
               )}
             </TabsList>
             
-            <div className="bg-white rounded-lg border p-4 min-h-[600px] mt-6" id="content">
+            <div className="bg-white rounded-lg border p-4 min-h-[600px] mt-4" id="content">
               <TabsContent value="overview">
                 <WinsOverview />
               </TabsContent>
