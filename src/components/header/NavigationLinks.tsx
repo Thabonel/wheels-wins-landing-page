@@ -12,10 +12,9 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
   const location = useLocation();
   const isShopPage = location.pathname === '/shop';
   
-  // Define authenticated nav items
+  // Define authenticated nav items - Safety removed from main navigation
   const authenticatedNavItems = [
     { label: "You", path: "/you" },
-    { label: "Safety", path: "/safety" },
     { label: "Wheels", path: "/wheels" },
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },

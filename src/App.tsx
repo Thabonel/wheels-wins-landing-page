@@ -51,9 +51,11 @@ function AppRoutes() {
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
+          <Route path="/you/safety" element={<ProtectedRoute><Safety /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/wheels" element={<Wheels />} />
-          <Route path="/safety" element={<ProtectedRoute><Safety /></ProtectedRoute>} />
+          {/* Redirect old safety path to the new location */}
+          <Route path="/safety" element={<Navigate to="/you/safety" replace />} />
           <Route path="/wins" element={
             <ExpensesProvider>
               <Wins />
