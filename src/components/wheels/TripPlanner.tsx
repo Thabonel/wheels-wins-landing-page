@@ -8,14 +8,14 @@ export default function TripPlanner() {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<mapboxgl.Map | null>(null);
 
-  const [suggestions, setSuggestions] = useState([
+  const [suggestions] = useState([
     {
       id: 1,
       name: "Yellowstone National Park",
       description: "Famous for its wildlife and geothermal features",
       link: "https://www.nps.gov/yell/",
       type: "park",
-      coords: [-110.5885, 44.4280]
+      coords: [-110.5885, 44.428]
     },
     {
       id: 2,
@@ -36,7 +36,7 @@ export default function TripPlanner() {
   ]);
 
   useEffect(() => {
-    if (map.current || !mapContainer.current) return;
+    if (!mapContainer.current || map.current) return;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -45,14 +45,21 @@ export default function TripPlanner() {
       zoom: 3.5
     });
 
+    // Add zoom controls
+    map.current.addControl(new mapboxgl.NavigationControl());
+
     // Add markers
     suggestions.forEach((item) => {
       new mapboxgl.Marker()
         .setLngLat(item.coords)
-        .setPopup(new mapboxgl.Popup().setHTML(`<h3>${item.name}</h3><p>${item.description}</p>`))
+        .setPopup(
+          new mapboxgl.Popup({ offset: 25 }).setHTML(
+            `<h3>${item.name}</h3><p>${item.description}</p>`
+          )
+        )
         .addTo(map.current!);
     });
-  }, []);
+  }, [suggestions]);
 
   return (
     <div className="space-y-6">
@@ -67,7 +74,10 @@ export default function TripPlanner() {
         <div className="overflow-x-auto pb-4">
           <div className="flex space-x-4">
             {suggestions.map((item) => (
-              <Card key={item.id} className="min-w-[280px] cursor-pointer hover:border-primary transition-colors">
+              <Card
+                key={item.id}
+                className="min-w-[280px] cursor-pointer hover:border-primary transition-colors"
+              >
                 <CardContent className="p-4">
                   <h4 className="font-bold">{item.name}</h4>
                   <p className="text-gray-600 text-sm mt-1">{item.description}</p>
