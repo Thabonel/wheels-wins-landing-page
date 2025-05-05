@@ -34,7 +34,7 @@ export default function Wins() {
   ];
   
   return (
-    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4">
@@ -44,7 +44,7 @@ export default function Wins() {
             onValueChange={setActiveTab}
             className="w-full"
           >
-            <TabsList className="w-full justify-start overflow-x-auto mb-6">
+            <TabsList className="w-full justify-start overflow-x-auto mb-4">
               {isMobile ? (
                 <div className="w-full p-2">
                   <select 
@@ -72,7 +72,7 @@ export default function Wins() {
               )}
             </TabsList>
             
-            <div className="bg-white rounded-lg border p-4 min-h-[600px] mt-4" id="content">
+            <div className="bg-white rounded-lg border p-4 min-h-[600px] mt-2" id="content">
               <TabsContent value="overview">
                 <WinsOverview />
               </TabsContent>
