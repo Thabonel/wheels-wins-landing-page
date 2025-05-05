@@ -16,7 +16,7 @@ const SafetyTopicDetail = ({ id, title, icon, content }: SafetyTopicDetailProps)
   return (
     <section 
       id={id} 
-      className="bg-white p-4 sm:p-6 rounded-lg shadow-md box-border w-full"
+      className="bg-white p-4 sm:p-6 rounded-lg shadow-sm box-border w-full mb-8"
     >
       <div className="flex flex-wrap items-center gap-4 mb-6 w-full box-border">
         <div className="flex-shrink-0">

@@ -8,7 +8,7 @@ interface SafetyTopicsListProps {
 
 const SafetyTopicsList = ({ topics }: SafetyTopicsListProps) => {
   return (
-    <div className="space-y-16">
+    <div className="space-y-8">
       {topics.map((topic) => (
         <SafetyTopicDetail 
           key={topic.id}

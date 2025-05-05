@@ -16,19 +16,19 @@ const SafetyTopicCard = ({ id, title, description, icon }: SafetyTopicCardProps)
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow w-full box-border">
+    <Card className="hover:shadow-lg transition-shadow h-full w-full box-border">
       <CardHeader className="p-6">
         <div className="flex justify-center mb-4">
           {icon}
         </div>
-        <CardTitle className="text-2xl text-center break-words">{title}</CardTitle>
+        <CardTitle className="text-xl text-center break-words">{title}</CardTitle>
         <CardDescription className="text-center text-base break-words">
           {description}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Button 
-          className="w-full text-lg py-6" 
+          className="w-full" 
           onClick={scrollToTopic}
         >
           Learn More
