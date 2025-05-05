@@ -14,8 +14,6 @@ export default function VehicleMaintenance() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Vehicle Maintenance</h2>
-      
       {/* Maintenance Timeline */}
       <div className="space-y-4">
         <h3 className="text-xl font-semibold">Maintenance Timeline</h3>
