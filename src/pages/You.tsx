@@ -33,7 +33,7 @@ const You = () => {
                 </p>
               </div>
               <Button asChild className="text-lg py-6 px-8">
-                <Link to="/safety">View Safety Guide</Link>
+                <Link to="/you/safety">View Safety Guide</Link>
               </Button>
             </div>
           </div>
