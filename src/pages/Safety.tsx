@@ -1,22 +1,22 @@
-
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { safetyTopics } from "@/components/safety/safetyData";
 import SafetyFooter from "@/components/safety/SafetyFooter";
 import SafetyTopicGrid from "@/components/safety/SafetyTopicGrid";
 import SafetyTopicsList from "@/components/safety/SafetyTopicsList";
-import PamAssistantWrapper from "@/components/shop/PamAssistantWrapper";
+import PamAssistant from "@/components/PamAssistant";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Home } from "lucide-react";
 
 const Safety = () => {
-  // Mock user data for Pam assistant
+  const isMobile = useIsMobile();
+
   const user = {
     name: "John",
     avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//avatar-placeholder.png"
   };
 
-  // Force scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -34,7 +34,7 @@ const Safety = () => {
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link to="/you">Dashboard</Link>
+              <Link to="/wheels">Wheels</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -46,22 +46,45 @@ const Safety = () => {
 
       {/* Two-column layout with responsive design */}
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left Column - Content (75% on desktop) */}
+        {/* Left Column - Content */}
         <div className="w-full lg:w-3/4">
-          {/* Topic selection cards in a grid layout */}
           <SafetyTopicGrid topics={safetyTopics} />
 
-          {/* Detailed content sections */}
           <div className="bg-white rounded-lg border p-4">
             <SafetyTopicsList topics={safetyTopics} />
           </div>
 
           <SafetyFooter />
         </div>
-        
-        {/* Right Column - Pam Assistant (25% on desktop) */}
-        <div className={`w-full lg:w-1/4 mt-6 lg:mt-0`}>
-          <PamAssistantWrapper user={user} />
+
+        {/* Right Column - Pam Assistant */}
+        <div className={`${isMobile ? 'fixed bottom-4 right-4 z-30' : 'w-full lg:w-1/4 mt-6 lg:mt-0'}`}>
+          {isMobile ? (
+            <>
+              <button
+                onClick={() => document.getElementById('pam-modal')?.classList.toggle('hidden')}
+                className="bg-primary text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg"
+              >
+                <span className="text-lg font-bold">Pam</span>
+              </button>
+              <div id="pam-modal" className="hidden fixed inset-0 z-40 bg-black bg-opacity-50">
+                <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-auto">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold">Chat with Pam</h3>
+                    <button
+                      onClick={() => document.getElementById('pam-modal')?.classList.add('hidden')}
+                      className="text-gray-500"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <PamAssistant user={user} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <PamAssistant user={user} />
+          )}
         </div>
       </div>
     </div>
