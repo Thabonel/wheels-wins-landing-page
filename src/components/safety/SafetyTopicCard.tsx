@@ -17,7 +17,7 @@ const SafetyTopicCard = ({ id, title, description, icon }: SafetyTopicCardProps)
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow w-full sm:w-[320px] h-auto sm:h-[180px]">
+    <Card className="hover:shadow-lg transition-shadow w-full">
       <CardHeader className="p-6">
         <div className="flex justify-center mb-4">
           {icon}
