@@ -1,4 +1,5 @@
 
+import { useEffect } from "react";
 import { safetyTopics } from "@/components/safety/safetyData";
 import SafetyFooter from "@/components/safety/SafetyFooter";
 import SafetyTopicGrid from "@/components/safety/SafetyTopicGrid";
@@ -11,6 +12,11 @@ const Safety = () => {
     name: "John",
     avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//avatar-placeholder.png"
   };
+
+  // Force scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="container mx-auto px-4 py-8 w-full max-w-full overflow-hidden">
