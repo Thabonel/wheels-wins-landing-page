@@ -5,8 +5,21 @@ const ScrollToTop = () => {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    // Instantly scroll to top on route change with no visual flicker
-    window.scrollTo(0, 0);
+    // Scroll to the top minus header offset
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "auto"
+    });
+
+    // Additional scroll to ensure position resets cleanly
+    setTimeout(() => {
+      window.scrollTo({
+        top: 64, // offset for fixed header
+        left: 0,
+        behavior: "auto"
+      });
+    }, 50);
   }, [pathname]);
 
   return null;
