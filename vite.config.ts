@@ -19,4 +19,10 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ['mapbox-gl'],
+  },
+  ssr: {
+    noExternal: ['mapbox-gl'],
+  },
 }));
