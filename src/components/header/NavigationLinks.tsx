@@ -1,13 +1,19 @@
 
 import { NavLink } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useLocation } from "react-router-dom";
 
 interface NavigationLinksProps {
   isVisible: boolean;
 }
 
 const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
-  // Updated to include Safety route
-  const navItems = [
+  const { isAuthenticated, isDevMode } = useAuth();
+  const location = useLocation();
+  const isShopPage = location.pathname === '/shop';
+  
+  // Define authenticated nav items
+  const authenticatedNavItems = [
     { label: "You", path: "/you" },
     { label: "Safety", path: "/safety" },
     { label: "Wheels", path: "/wheels" },
@@ -16,8 +22,18 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
     { label: "Shop", path: "/shop" },
     // Profile is intentionally excluded - only accessible via avatar
   ];
+  
+  // Define unauthenticated nav items for shop page
+  const unauthenticatedShopNavItems = [
+    { label: "Shop", path: "/shop" },
+  ];
+  
+  // Determine which nav items to show
+  const navItems = (isAuthenticated || isDevMode) 
+    ? authenticatedNavItems 
+    : (isShopPage ? unauthenticatedShopNavItems : []);
 
-  if (!isVisible) return null;
+  if (!isVisible || navItems.length === 0) return null;
 
   return (
     <nav className="flex space-x-6">

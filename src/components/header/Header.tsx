@@ -23,11 +23,20 @@ const Header = () => {
         />
       </Link>
 
-      {/* Navigation - ONLY when not on homepage */}
-      {showNavigation && <NavigationLinks isVisible={true} />}
+      {/* Navigation - Show based on authentication status or homepage */}
+      <NavigationLinks 
+        isVisible={isAuthenticated || isDevMode || (!isHomePage && location.pathname === '/shop')} 
+      />
 
       {/* Auth Buttons */}
       <div className="flex items-center space-x-4">
+        {/* Always show Shop button */}
+        <Link to="/shop">
+          <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
+            Shop
+          </Button>
+        </Link>
+        
         {isAuthenticated ? (
           showUserMenu && <UserMenu />
         ) : (
