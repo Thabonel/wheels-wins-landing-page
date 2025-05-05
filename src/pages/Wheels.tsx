@@ -6,7 +6,7 @@ import TripPlanner from "@/components/wheels/TripPlanner";
 import FuelLog from "@/components/wheels/FuelLog";
 import VehicleMaintenance from "@/components/wheels/VehicleMaintenance";
 import RVStorageOrganizer from "@/components/wheels/RVStorageOrganizer";
-import CaravanSafety from "@/components/wheels/CaravanSafety"; // 🆕 Import new safety component
+import Safety from "@/pages/Safety"; // ✅ Correct reference to Safety page
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRegion } from "@/context/RegionContext";
 import { useScrollReset } from "@/hooks/useScrollReset";
@@ -37,7 +37,7 @@ export default function Wheels() {
   };
 
   const getRegionalFeatures = (): FeatureMap => {
-    const features: FeatureMap = {
+    return {
       "trip-planner": {
         title: "Trip Planner",
         available: true,
@@ -52,7 +52,7 @@ export default function Wheels() {
       "caravan-safety": {
         title: "Caravan Safety",
         available: true,
-        component: <CaravanSafety />
+        component: <Safety />
       },
       "vehicle-maintenance": {
         title: "Vehicle Maintenance",
@@ -65,7 +65,6 @@ export default function Wheels() {
         component: <RVStorageOrganizer />
       }
     };
-    return features;
   };
 
   const regionalFeatures = getRegionalFeatures();
