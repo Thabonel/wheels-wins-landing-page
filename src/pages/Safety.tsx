@@ -1,6 +1,5 @@
 
 import { safetyTopics } from "@/components/safety/safetyData";
-import SafetyHeader from "@/components/safety/SafetyHeader";
 import SafetyFooter from "@/components/safety/SafetyFooter";
 import SafetyTopicGrid from "@/components/safety/SafetyTopicGrid";
 import SafetyTopicsList from "@/components/safety/SafetyTopicsList";
@@ -19,8 +18,6 @@ const Safety = () => {
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
         {/* Left Column - Content (75% on desktop) */}
         <div className="w-full lg:w-3/4">
-          <SafetyHeader />
-          
           {/* Topic selection cards in a grid layout */}
           <SafetyTopicGrid topics={safetyTopics} />
 

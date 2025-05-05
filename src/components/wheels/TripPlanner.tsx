@@ -29,8 +29,6 @@ export default function TripPlanner() {
   
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Trip Planner</h2>
-      
       {/* Placeholder for MapBox map - will be implemented later */}
       <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 h-[400px] flex items-center justify-center">
         <p className="text-blue-500 font-medium">Map will be displayed here using Mapbox</p>
