@@ -11,21 +11,24 @@ const ScrollToTop = () => {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    // Immediate scroll to top with no animation
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: "auto"
-    });
-    
-    // Also ensure any element with id "content" is scrolled to top
-    // This helps with layouts that have separate scrollable areas
-    const contentElement = document.getElementById("content");
-    if (contentElement) {
-      contentElement.scrollTop = 0;
-    }
-    
-    console.log("ScrollToTop: Reset scroll position for route:", pathname);
+    // Add a small delay to ensure DOM is fully rendered
+    setTimeout(() => {
+      // Immediate scroll to top with no animation
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "auto"
+      });
+      
+      // Also ensure any element with id "content" is scrolled to top
+      // This helps with layouts that have separate scrollable areas
+      const contentElement = document.getElementById("content");
+      if (contentElement) {
+        contentElement.scrollTop = 0;
+      }
+      
+      console.log("ScrollToTop: Reset scroll position for route:", pathname);
+    }, 100); // Small delay to ensure DOM elements are ready
   }, [pathname]);
 
   return null;
