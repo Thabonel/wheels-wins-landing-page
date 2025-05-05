@@ -28,7 +28,7 @@ const ScrollToTop = () => {
       }
       
       console.log("ScrollToTop: Reset scroll position for route:", pathname);
-    }, 150); // Increased delay from 100ms to 150ms
+    }, 100); // Small delay to ensure DOM elements are ready
   }, [pathname]);
 
   return null;

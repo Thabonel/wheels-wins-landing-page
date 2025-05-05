@@ -6,8 +6,8 @@
 
 @layer base {
   :root {
-    /* Increase header height variable even more */
-    --header-height: 10rem; /* Increased from 8rem to 10rem (160px) */
+    /* Increase header height variable - try a larger value */
+    --header-height: 8rem; /* Increased from 6rem to 8rem (128px) */
     
     --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
@@ -112,7 +112,7 @@
   /* Add specific padding to main content areas to account for fixed header */
   main {
     /* Increase the top padding to match new header height */
-    @apply pt-40; /* Increased from pt-32 to pt-40 */
+    @apply pt-32; /* Increased from pt-24 to pt-32 */
     overflow-x: hidden;
     width: 100%;
     max-width: 100%;
