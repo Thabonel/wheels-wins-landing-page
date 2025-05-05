@@ -1,9 +1,9 @@
-
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import PamAssistant from "@/components/PamAssistant";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useScrollReset } from "@/hooks/useScrollReset";
 
 // Social page components
 import SocialFeed from "@/components/social/SocialFeed";
@@ -14,6 +14,9 @@ import SocialHustleBoard from "@/components/social/SocialHustleBoard";
 export default function Social() {
   const [activeTab, setActiveTab] = useState("feed");
   const isMobile = useIsMobile();
+  
+  // Reset scroll when active tab changes
+  useScrollReset([activeTab]);
   
   // Mock user data for Pam assistant
   const user = {

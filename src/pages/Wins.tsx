@@ -10,10 +10,14 @@ import WinsIncome from "@/components/wins/WinsIncome";
 import WinsBudgets from "@/components/wins/WinsBudgets";
 import WinsTips from "@/components/wins/WinsTips";
 import WinsMoneyMaker from "@/components/wins/WinsMoneyMaker";
+import { useScrollReset } from "@/hooks/useScrollReset";
 
 export default function Wins() {
   const [activeTab, setActiveTab] = useState("overview");
   const isMobile = useIsMobile();
+  
+  // Reset scroll when active tab changes
+  useScrollReset([activeTab]);
   
   // Mock user data for Pam assistant
   const user = {
