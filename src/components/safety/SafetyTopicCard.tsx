@@ -17,13 +17,13 @@ const SafetyTopicCard = ({ id, title, description, icon }: SafetyTopicCardProps)
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow w-full">
+    <Card className="hover:shadow-lg transition-shadow w-full overflow-hidden">
       <CardHeader className="p-6">
         <div className="flex justify-center mb-4">
           {icon}
         </div>
-        <CardTitle className="text-2xl text-center">{title}</CardTitle>
-        <CardDescription className="text-center text-base">
+        <CardTitle className="text-2xl text-center break-words">{title}</CardTitle>
+        <CardDescription className="text-center text-base break-words">
           {description}
         </CardDescription>
       </CardHeader>

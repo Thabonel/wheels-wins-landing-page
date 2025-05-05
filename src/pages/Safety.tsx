@@ -13,11 +13,11 @@ const Safety = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-full overflow-x-hidden">
+    <div className="container mx-auto px-4 py-8 w-full max-w-full overflow-hidden">
       {/* Two-column layout with responsive design */}
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 w-full">
         {/* Left Column - Content (75% on desktop) */}
-        <div className="w-full lg:w-3/4">
+        <div className="w-full lg:w-3/4 overflow-hidden">
           {/* Topic selection cards in a grid layout */}
           <SafetyTopicGrid topics={safetyTopics} />
 
