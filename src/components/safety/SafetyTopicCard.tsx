@@ -1,5 +1,4 @@
 
-import { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -17,7 +16,7 @@ const SafetyTopicCard = ({ id, title, description, icon }: SafetyTopicCardProps)
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow w-full overflow-hidden">
+    <Card className="hover:shadow-lg transition-shadow w-full box-border">
       <CardHeader className="p-6">
         <div className="flex justify-center mb-4">
           {icon}

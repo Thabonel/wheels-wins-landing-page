@@ -19,11 +19,11 @@ const Safety = () => {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-8 w-full max-w-full overflow-hidden">
+    <div className="container mx-auto px-4 py-8 box-border">
       {/* Two-column layout with responsive design */}
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 w-full">
         {/* Left Column - Content (75% on desktop) */}
-        <div className="w-full lg:w-3/4 overflow-hidden">
+        <div className="w-full lg:w-3/4 box-border">
           {/* Topic selection cards in a grid layout */}
           <SafetyTopicGrid topics={safetyTopics} />
 
@@ -34,7 +34,7 @@ const Safety = () => {
         </div>
         
         {/* Right Column - Pam Assistant (25% on desktop) */}
-        <div className="w-full lg:w-1/4 mt-6 lg:mt-0">
+        <div className="w-full lg:w-1/4 mt-6 lg:mt-0 box-border">
           <PamAssistantWrapper user={user} />
         </div>
       </div>
