@@ -93,6 +93,13 @@
     @apply border-border;
   }
 
+  /* Apply global overflow-x hidden to html and body */
+  html, body {
+    @apply overflow-x-hidden;
+    width: 100%;
+    max-width: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Nunito', sans-serif;
@@ -101,6 +108,9 @@
   /* Add specific padding to main content areas to account for fixed header */
   main {
     @apply pt-24;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
   }
   
   /* Transparent header styles */
@@ -154,3 +164,14 @@
 .bubble-animate {
   animation: bubble-appear 0.3s ease-out forwards;
 }
+
+/* Add a utility class to ensure content stays within containers */
+.content-container {
+  @apply w-full max-w-full overflow-x-hidden;
+}
+
+/* Ensure all flex containers wrap properly */
+.flex-container {
+  @apply flex flex-wrap;
+}
+

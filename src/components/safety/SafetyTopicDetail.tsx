@@ -22,9 +22,9 @@ const SafetyTopicDetail = ({ id, title, icon, content }: SafetyTopicDetailProps)
         <div className="flex-shrink-0">
           {icon}
         </div>
-        <h2 className="text-2xl sm:text-3xl font-bold">{title}</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold break-words">{title}</h2>
       </div>
-      <div className="pl-2 sm:pl-4 border-l-4 border-blue-500 overflow-x-hidden">
+      <div className="pl-2 sm:pl-4 border-l-4 border-blue-500 overflow-hidden">
         {content}
       </div>
       <div className="mt-8 flex justify-end">
