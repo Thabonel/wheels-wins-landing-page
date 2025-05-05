@@ -6,7 +6,7 @@
   max-width: none;
   text-align: left;
   width: 100%;
-  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 /* Keep the logo animations */
@@ -37,4 +37,3 @@
     animation: logo-spin infinite 20s linear;
   }
 }
-
