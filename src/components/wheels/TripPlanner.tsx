@@ -48,10 +48,8 @@ export default function TripPlanner() {
     map.current.addControl(new mapboxgl.NavigationControl());
 
     map.current.on("load", () => {
-      // Resize in case container size changed
       map.current?.resize();
 
-      // Add markers and build bounds
       const bounds = new mapboxgl.LngLatBounds();
       suggestions.forEach((item) => {
         new mapboxgl.Marker()
@@ -66,17 +64,19 @@ export default function TripPlanner() {
         bounds.extend(item.coords as [number, number]);
       });
 
-      // Fit map to show all markers with padding
       map.current.fitBounds(bounds, { padding: 40 });
     });
   }, [suggestions]);
 
   return (
     <div className="space-y-6 w-full">
+      {/* Map */}
       <div
         ref={mapContainer}
-        className="rounded-lg border h-[400px] w-full"
+        className="relative rounded-lg border h-[400px] w-full"
       />
+
+      {/* Suggestions */}
       <div>
         <h3 className="text-xl font-semibold mb-4">Pam suggests:</h3>
         <p className="text-gray-600 mb-4">
