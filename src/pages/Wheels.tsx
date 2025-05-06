@@ -32,49 +32,52 @@ export default function Wheels() {
   const { region } = useRegion();
   useScrollReset([activeTab]);
 
+  // State for geolocation
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCoords({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          setGeoError(error.message);
+        }
+      );
+    } else {
+      setGeoError("Geolocation is not supported");
+    }
+  }, []);
+
   const user = {
     name: "John",
-    avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png"
+    avatar:
+      "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png",
   };
 
-  const getRegionalFeatures = (): FeatureMap => {
-    return {
-      "trip-planner": {
-        title: "Trip Planner",
-        available: true,
-        component: <TripPlanner />
-      },
-      "fuel-log": {
-        title: "Fuel Log",
-        available: ["Australia", "United States", "Canada", "New Zealand"].includes(region),
-        component: <FuelLog />,
-        comingSoon: !["Australia", "United States", "Canada", "New Zealand"].includes(region)
-      },
-      "caravan-safety": {
-        title: "Caravan Safety",
-        available: true,
-        component: <Safety />
-      },
-      "vehicle-maintenance": {
-        title: "Vehicle Maintenance",
-        available: true,
-        component: <VehicleMaintenance />
-      },
-      "rv-storage": {
-        title: "RV Storage Organizer",
-        available: true,
-        component: <RVStorageOrganizer />
-      }
-    };
-  };
+  const getRegionalFeatures = (): FeatureMap => ({
+    "trip-planner": { title: "Trip Planner", available: true, component: <TripPlanner /> },
+    "fuel-log": {
+      title: "Fuel Log",
+      available: ["Australia", "United States", "Canada", "New Zealand"].includes(region),
+      component: <FuelLog />,
+      comingSoon: !["Australia", "United States", "Canada", "New Zealand"].includes(region),
+    },
+    "caravan-safety": { title: "Caravan Safety", available: true, component: <Safety /> },
+    "vehicle-maintenance": { title: "Vehicle Maintenance", available: true, component: <VehicleMaintenance /> },
+    "rv-storage": { title: "RV Storage Organizer", available: true, component: <RVStorageOrganizer /> },
+  });
 
   const regionalFeatures = getRegionalFeatures();
 
   useEffect(() => {
     if (regionalFeatures[activeTab] && !regionalFeatures[activeTab].available) {
-      const fallback = Object.keys(regionalFeatures).find(
-        key => regionalFeatures[key].available
-      );
+      const fallback = Object.keys(regionalFeatures).find((key) => regionalFeatures[key].available);
       if (fallback) setActiveTab(fallback);
     }
   }, [region]);
@@ -83,25 +86,13 @@ export default function Wheels() {
     <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="w-full lg:w-3/4">
-          <Tabs 
-            defaultValue="trip-planner"
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
+          <Tabs defaultValue="trip-planner" value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start overflow-x-auto mb-6">
               {Object.entries(regionalFeatures).map(([key, feature]) => (
-                <TabsTrigger
-                  key={key}
-                  value={key}
-                  className="text-base py-3 px-6 relative"
-                  disabled={!feature.available}
-                >
+                <TabsTrigger key={key} value={key} className="text-base py-3 px-6 relative" disabled={!feature.available}>
                   {feature.title}
                   {feature.comingSoon && (
-                    <Badge className="ml-2 bg-amber-500 absolute -top-2 -right-2 text-[10px]">
-                      Coming Soon
-                    </Badge>
+                    <Badge className="ml-2 bg-amber-500 absolute -top-2 -right-2 text-[10px]">Coming Soon</Badge>
                   )}
                 </TabsTrigger>
               ))}
@@ -112,12 +103,8 @@ export default function Wheels() {
                 <TabsContent key={key} value={key}>
                   {feature.comingSoon ? (
                     <div className="text-center py-12">
-                      <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                        Coming Soon to {region}
-                      </h3>
-                      <p className="text-gray-500">
-                        We're working on bringing this feature to your region. Check back soon!
-                      </p>
+                      <h3 className="text-xl font-semibold text-gray-700 mb-2">Coming Soon to {region}</h3>
+                      <p className="text-gray-500">We're working on bringing this feature to your region. Check back soon!</p>
                     </div>
                   ) : (
                     feature.component
@@ -128,7 +115,7 @@ export default function Wheels() {
           </Tabs>
         </div>
 
-        <div className={`${isMobile ? 'fixed bottom-4 right-4 z-30' : 'w-full lg:w-1/4'}`}>
+        <div className={isMobile ? 'fixed bottom-4 right-4 z-30' : 'w-full lg:w-1/4'}>
           {isMobile ? (
             <button
               onClick={() => document.getElementById('pam-modal')?.classList.toggle('hidden')}
@@ -140,7 +127,13 @@ export default function Wheels() {
             <>
               <PamAssistant user={user} />
               <div className="mt-4">
-                <WeatherWidget />
+                {coords ? (
+                  <WeatherWidget latitude={coords.latitude} longitude={coords.longitude} />
+                ) : geoError ? (
+                  <p>Error: {geoError}</p>
+                ) : (
+                  <p>Loading weather...</p>
+                )}
               </div>
             </>
           )}
