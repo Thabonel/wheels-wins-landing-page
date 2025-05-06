@@ -1,15 +1,36 @@
-
-/* Remove default padding and max-width constraints */
+/* Reset layout constraints */
 #root {
   margin: 0;
   padding: 0;
   max-width: none;
-  text-align: left;
   width: 100%;
+  text-align: left;
   box-sizing: border-box;
 }
 
-/* Keep the logo animations */
+/* Global layout fix for full height */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Remove unintended bottom padding across the app */
+body > div {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Pam spacing fix */
+main {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Logo styles preserved */
 .logo {
   height: 6em;
   padding: 1.5em;
