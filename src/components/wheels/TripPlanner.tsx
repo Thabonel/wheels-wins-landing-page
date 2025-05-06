@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import { Card, CardContent } from "@/components/ui/card";
 
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 export default function TripPlanner() {
   const mapContainer = useRef<HTMLDivElement | null>(null);
@@ -15,7 +15,7 @@ export default function TripPlanner() {
       description: "Famous for its wildlife and geothermal features",
       link: "https://www.nps.gov/yell/",
       type: "park",
-      coords: [-110.5885, 44.428]
+      coords: [-110.5885, 44.428],
     },
     {
       id: 2,
@@ -23,7 +23,7 @@ export default function TripPlanner() {
       description: "Natural wonder with breathtaking views",
       link: "https://www.nps.gov/grca/",
       type: "park",
-      coords: [-112.1401, 36.0544]
+      coords: [-112.1401, 36.0544],
     },
     {
       id: 3,
@@ -31,8 +31,8 @@ export default function TripPlanner() {
       description: "Known for its waterfalls and giant sequoias",
       link: "https://www.nps.gov/yose/",
       type: "park",
-      coords: [-119.5383, 37.8651]
-    }
+      coords: [-119.5383, 37.8651],
+    },
   ]);
 
   useEffect(() => {
@@ -42,13 +42,16 @@ export default function TripPlanner() {
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/streets-v11",
       center: [-98.5795, 39.8283], // Center of USA
-      zoom: 3.5
+      zoom: 3.5,
     });
 
-    // Add zoom controls
     map.current.addControl(new mapboxgl.NavigationControl());
 
-    // Add markers
+    // Ensure the map fills its container
+    map.current.on("load", () => {
+      map.current?.resize();
+    });
+
     suggestions.forEach((item) => {
       new mapboxgl.Marker()
         .setLngLat(item.coords)
@@ -62,14 +65,19 @@ export default function TripPlanner() {
   }, [suggestions]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Map */}
-      <div ref={mapContainer} className="rounded-lg border h-[400px]" />
+      <div
+        ref={mapContainer}
+        className="rounded-lg border h-[400px] w-full"
+      />
 
       {/* Suggestions */}
       <div>
         <h3 className="text-xl font-semibold mb-4">Pam suggests:</h3>
-        <p className="text-gray-600 mb-4">Which of these parks would you like to visit?</p>
+        <p className="text-gray-600 mb-4">
+          Which of these parks would you like to visit?
+        </p>
 
         <div className="overflow-x-auto pb-4">
           <div className="flex space-x-4">
@@ -80,7 +88,9 @@ export default function TripPlanner() {
               >
                 <CardContent className="p-4">
                   <h4 className="font-bold">{item.name}</h4>
-                  <p className="text-gray-600 text-sm mt-1">{item.description}</p>
+                  <p className="text-gray-600 text-sm mt-1">
+                    {item.description}
+                  </p>
                   <a
                     href={item.link}
                     target="_blank"
