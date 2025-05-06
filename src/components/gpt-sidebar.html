@@ -17,6 +17,7 @@
     button {
       padding: 0.5rem 1rem;
       font-size: 1rem;
+      margin-right: 0.5rem;
     }
     #response {
       margin-top: 1rem;
@@ -29,8 +30,10 @@
 </head>
 <body>
   <h2>Ask GPT</h2>
-  <textarea id="prompt" placeholder="Type your question here..."></textarea>
+  <textarea id="prompt" placeholder="Type your question here..."></textarea><br/>
   <button onclick="askGPT()">Ask GPT</button>
+  <button onclick="copyToClipboard()">Copy to KB</button>
+
   <div id="response">GPT response will appear here...</div>
 
   <script>
@@ -58,6 +61,13 @@
 
       responseBox.textContent = answer;
       document.getElementById("prompt").value = "";
+    }
+
+    function copyToClipboard() {
+      const text = document.getElementById("response").textContent;
+      navigator.clipboard.writeText(text)
+        .then(() => alert("Copied to clipboard for KB"))
+        .catch(err => alert("Failed to copy: " + err));
     }
   </script>
 </body>
