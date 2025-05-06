@@ -41,44 +41,47 @@ export default function TripPlanner() {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/streets-v11",
-      center: [-98.5795, 39.8283], // Center of USA
+      center: [-98.5795, 39.8283],
       zoom: 3.5,
     });
 
     map.current.addControl(new mapboxgl.NavigationControl());
 
-    // Ensure the map fills its container
     map.current.on("load", () => {
+      // Resize in case container size changed
       map.current?.resize();
-    });
 
-    suggestions.forEach((item) => {
-      new mapboxgl.Marker()
-        .setLngLat(item.coords)
-        .setPopup(
-          new mapboxgl.Popup({ offset: 25 }).setHTML(
-            `<h3>${item.name}</h3><p>${item.description}</p>`
+      // Add markers and build bounds
+      const bounds = new mapboxgl.LngLatBounds();
+      suggestions.forEach((item) => {
+        new mapboxgl.Marker()
+          .setLngLat(item.coords)
+          .setPopup(
+            new mapboxgl.Popup({ offset: 25 }).setHTML(
+              `<h3>${item.name}</h3><p>${item.description}</p>`
+            )
           )
-        )
-        .addTo(map.current!);
+          .addTo(map.current!);
+
+        bounds.extend(item.coords as [number, number]);
+      });
+
+      // Fit map to show all markers with padding
+      map.current.fitBounds(bounds, { padding: 40 });
     });
   }, [suggestions]);
 
   return (
     <div className="space-y-6 w-full">
-      {/* Map */}
       <div
         ref={mapContainer}
         className="rounded-lg border h-[400px] w-full"
       />
-
-      {/* Suggestions */}
       <div>
         <h3 className="text-xl font-semibold mb-4">Pam suggests:</h3>
         <p className="text-gray-600 mb-4">
           Which of these parks would you like to visit?
         </p>
-
         <div className="overflow-x-auto pb-4">
           <div className="flex space-x-4">
             {suggestions.map((item) => (
