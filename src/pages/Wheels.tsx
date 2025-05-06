@@ -10,6 +10,7 @@ import Safety from "@/pages/Safety"; // ✅ Correct reference to Safety page
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRegion } from "@/context/RegionContext";
 import { useScrollReset } from "@/hooks/useScrollReset";
+import WeatherWidget from "@/components/wheels/WeatherWidget"; // ✅ ADDED
 
 interface BaseFeature {
   title: string;
@@ -136,7 +137,12 @@ export default function Wheels() {
               <span className="text-lg font-bold">Pam</span>
             </button>
           ) : (
-            <PamAssistant user={user} />
+            <>
+              <PamAssistant user={user} />
+              <div className="mt-4">
+                <WeatherWidget />
+              </div>
+            </>
           )}
 
           {isMobile && (
