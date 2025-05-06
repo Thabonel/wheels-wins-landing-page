@@ -14,7 +14,6 @@ export default function TripPlanner() {
       name: "Yellowstone National Park",
       description: "Famous for its wildlife and geothermal features",
       link: "https://www.nps.gov/yell/",
-      type: "park",
       coords: [-110.5885, 44.428],
     },
     {
@@ -22,7 +21,6 @@ export default function TripPlanner() {
       name: "Grand Canyon National Park",
       description: "Natural wonder with breathtaking views",
       link: "https://www.nps.gov/grca/",
-      type: "park",
       coords: [-112.1401, 36.0544],
     },
     {
@@ -30,7 +28,6 @@ export default function TripPlanner() {
       name: "Yosemite National Park",
       description: "Known for its waterfalls and giant sequoias",
       link: "https://www.nps.gov/yose/",
-      type: "park",
       coords: [-119.5383, 37.8651],
     },
   ]);
@@ -52,7 +49,7 @@ export default function TripPlanner() {
 
       const bounds = new mapboxgl.LngLatBounds();
       suggestions.forEach((item) => {
-        new mapboxgl.Marker()
+        new mapboxgl.Marker({ anchor: "bottom" })
           .setLngLat(item.coords)
           .setPopup(
             new mapboxgl.Popup({ offset: 25 }).setHTML(
@@ -64,7 +61,9 @@ export default function TripPlanner() {
         bounds.extend(item.coords as [number, number]);
       });
 
-      map.current.fitBounds(bounds, { padding: 40 });
+      map.current.fitBounds(bounds, {
+        padding: { top: 60, bottom: 60, left: 60, right: 60 },
+      });
     });
   }, [suggestions]);
 
@@ -73,7 +72,7 @@ export default function TripPlanner() {
       {/* Map */}
       <div
         ref={mapContainer}
-        className="relative rounded-lg border h-[400px] w-full"
+        className="relative overflow-hidden rounded-lg border h-[400px] w-full"
       />
 
       {/* Suggestions */}
