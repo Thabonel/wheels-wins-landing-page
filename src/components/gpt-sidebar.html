@@ -12,45 +12,41 @@
     textarea {
       width: 100%;
       height: 150px;
+      margin-bottom: 1rem;
     }
     button {
-      margin-top: 0.5rem;
       padding: 0.5rem 1rem;
+      font-size: 1rem;
     }
     #chatHistory {
       margin-top: 1rem;
-      max-height: 400px;
-      overflow-y: auto;
-      background: #f9f9f9;
       padding: 1rem;
-      border: 1px solid #ddd;
+      background: #f4f4f4;
+      border: 1px solid #ccc;
+      max-height: 300px;
+      overflow-y: auto;
     }
     .entry {
       margin-bottom: 1rem;
     }
     .entry strong {
       display: block;
-      margin-bottom: 0.25rem;
-    }
-    hr {
-      border: none;
-      border-top: 1px solid #ccc;
     }
   </style>
 </head>
 <body>
   <h2>Ask GPT</h2>
-  <textarea id="prompt" placeholder="Paste your question or code..."></textarea>
-  <br>
+  <textarea id="prompt" placeholder="Type your question or paste your code..."></textarea>
   <button onclick="askGPT()">Ask</button>
 
   <div id="chatHistory"></div>
 
   <script>
-    const API_KEY = "sk-REPLACE_WITH_YOUR_API_KEY"; // 🔁 Replace with your key
+    const API_KEY = "sk-YOUR-API-KEY-HERE"; // ← Replace with your real key
 
     async function askGPT() {
       const prompt = document.getElementById("prompt").value;
+      const responseBox = document.getElementById("chatHistory");
 
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -58,4 +54,16 @@
           "Content-Type": "application/json",
           "Authorization": `Bearer ${API_KEY}`
         },
-        body: JSON.
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.7
+        })
+      });
+
+      const data = await res.json();
+      const answer = data.choices?.[0]?.message?.content || "No response.";
+
+      const entry = document.createElement("div");
+      entry.className = "entry";
+      entry.innerHTML = `<strong>You:</
