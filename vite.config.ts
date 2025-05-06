@@ -3,6 +3,9 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+// Polyfill Node’s crypto.getRandomValues for Vite
+;(globalThis as any).crypto = require("crypto").webcrypto;
+
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
