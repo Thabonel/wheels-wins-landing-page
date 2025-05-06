@@ -59,7 +59,7 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
     document.head.appendChild(script);
     const style = document.createElement("style");
     style.innerHTML = `
-      #webchat .bpWebchat { position: unset; width: 100%; height: 100%; max-height: 100%; max-width: 100%; }
+      #webchat .bpWebchat { width: 100%; height: 100%; max-height: 100%; max-width: 100%; }
       #webchat .bpFab { display: none; }
       #webchat { position: fixed; bottom: 20px; right: 20px; width: 500px; height: 500px; z-index: 1000; }
     `;
