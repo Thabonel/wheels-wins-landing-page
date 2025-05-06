@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -16,58 +15,62 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@wheelsandwins" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  <!-- In your <head> tag -->
-  <script src="https://cdn.botpress.cloud/webchat/v2.4/inject.js"></script>
-  <style>
+  
+    <script src="https://cdn.botpress.cloud/webchat/v2.4/inject.js"></script>
+    
+    <style>
+      #webchat .bpFab {
+        display: none;
+      }
 
-    #webchat .bpFab {
-      display: none;
-    }
-
-    /* Pam chat layout overrides for readability */
-    #webchat .bpWebchat {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-    #webchat .bpWebchat .bp-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-    }
-    #webchat .bpWebchat .bp-input-container {
-      order: 2;
-      margin-top: 16px;
-      padding: 12px;
-      background: #fff;
-    }
-    #webchat .bpWebchat .bp-suggestions {
-      order: 3;
-      display: flex !important;
-      overflow-x: auto !important;
-      padding: 8px;
-      gap: 8px;
-    }
-    #webchat .bpWebchat .bp-suggestions button {
-      border-radius: 20px;
-      padding: 4px 12px;
-      margin: 0 4px;
-      flex-shrink: 0;
-    }
-    /* fixed position for webchat container */
-    #webchat {
-      position: fixed !important;
-      bottom: 20px !important;
-      right: 20px !important;
-      width: 500px !important;
-      height: 500px !important;
-      z-index: 1000 !important;
-    }
-  </style>
+      /* Pam chat layout overrides for readability */
+      #webchat .bpWebchat {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      #webchat .bpWebchat .bp-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+      }
+      #webchat .bpWebchat .bp-input-container {
+        order: 2;
+        margin-top: 16px;
+        padding: 12px;
+        background: #fff;
+      }
+      #webchat .bpWebchat .bp-suggestions {
+        order: 3;
+        display: flex !important;
+        overflow-x: auto !important;
+        padding: 8px;
+        gap: 8px;
+      }
+      #webchat .bpWebchat .bp-suggestions button {
+        border-radius: 20px;
+        padding: 4px 12px;
+        margin: 0 4px;
+        flex-shrink: 0;
+      }
+      /* fixed position for webchat container */
+      #webchat {
+        position: fixed !important;
+        bottom: 20px !important;
+        right: 20px !important;
+        width: 500px !important;
+        height: 500px !important;
+        z-index: 1000 !important;
+      }
+    </style>
   </head>
 
   <body>
     <div id="root"></div>
+
+    <!-- Webchat container -->
+    <div id="webchat"></div> <!-- Added this container -->
+
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
