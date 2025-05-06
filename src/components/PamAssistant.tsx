@@ -54,17 +54,7 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
   };
 
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://cdn.botpress.cloud/webchat/v2.4/inject.js";
-    document.head.appendChild(script);
-    const style = document.createElement("style");
-    style.innerHTML = `
-      #webchat .bpWebchat { width: 100%; height: 100%; max-height: 100%; max-width: 100%; }
-      #webchat .bpFab { display: none; }
-      #webchat { position: fixed; bottom: 20px; right: 20px; width: 500px; height: 500px; z-index: 1000; }
-    `;
-    document.head.appendChild(style);
-    script.onload = () => {
+    const configure = () => {
       (window as any).botpress.on("webchat:ready", () => (window as any).botpress.open());
       (window as any).botpress.init({
         botId: "4df68009-c8b1-46ef-8d26-af6b2b6a384b",
@@ -89,6 +79,15 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
         selector: "#webchat"
       });
     };
+
+    if ((window as any).botpress) {
+      configure();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cdn.botpress.cloud/webchat/v2.4/inject.js";
+      script.onload = configure;
+      document.head.appendChild(script);
+    }
   }, []);
 
   return (
