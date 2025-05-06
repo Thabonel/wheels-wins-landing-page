@@ -1,10 +1,11 @@
+// vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import { webcrypto } from "crypto";
 
-// 👉 Use Node’s built-in webcrypto, which has a proper getRandomValues
+const { webcrypto } = require("crypto");
+// Polyfill Node’s webcrypto so getRandomValues works in Vite
 ;(globalThis as any).crypto = webcrypto;
 
 export default defineConfig(({ mode }) => ({
