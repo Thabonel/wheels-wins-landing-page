@@ -18,35 +18,27 @@
       padding: 0.5rem 1rem;
       font-size: 1rem;
     }
-    #chatHistory {
+    #response {
       margin-top: 1rem;
+      white-space: pre-wrap;
+      background: #f9f9f9;
       padding: 1rem;
-      background: #f4f4f4;
       border: 1px solid #ccc;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-    .entry {
-      margin-bottom: 1rem;
-    }
-    .entry strong {
-      display: block;
     }
   </style>
 </head>
 <body>
   <h2>Ask GPT</h2>
-  <textarea id="prompt" placeholder="Type your question or paste your code..."></textarea>
-  <button onclick="askGPT()">Ask</button>
-
-  <div id="chatHistory"></div>
+  <textarea id="prompt" placeholder="Type your question here..."></textarea>
+  <button onclick="askGPT()">Ask GPT</button>
+  <div id="response">GPT response will appear here...</div>
 
   <script>
-    const API_KEY = "sk-sk-proj-vhreO4ouBKFsImQp9XhWQF-hiJdPtBVEVtUx5OiZ-ewS_GjWcWIdJG0KymwmVClW5aucOXFSWdT3BlbkFJ3XWr49UzddnUH2iHg41MKdNbKBmfvMmrK95e8bwLu6qgiCpic3pI2rjifNpPvMMGjlYHmipw0AYOUR-API-KEY-HERE"; // ← Replace with your real key
+    const API_KEY = "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";
 
     async function askGPT() {
       const prompt = document.getElementById("prompt").value;
-      const responseBox = document.getElementById("chatHistory");
+      const responseBox = document.getElementById("response");
 
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -64,6 +56,9 @@
       const data = await res.json();
       const answer = data.choices?.[0]?.message?.content || "No response.";
 
-      const entry = document.createElement("div");
-      entry.className = "entry";
-      entry.innerHTML = `<strong>You:</
+      responseBox.textContent = answer;
+      document.getElementById("prompt").value = "";
+    }
+  </script>
+</body>
+</html>
