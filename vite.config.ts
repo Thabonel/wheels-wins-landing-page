@@ -2,12 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import { randomFillSync } from "crypto";
+import { webcrypto } from "crypto";
 
-// Polyfill Node’s crypto.getRandomValues for Vite
-;(globalThis as any).crypto = {
-  getRandomValues: (arr: Uint8Array) => randomFillSync(arr),
-};
+// 👉 Use Node’s built-in webcrypto, which has a proper getRandomValues
+;(globalThis as any).crypto = webcrypto;
 
 export default defineConfig(({ mode }) => ({
   server: {
