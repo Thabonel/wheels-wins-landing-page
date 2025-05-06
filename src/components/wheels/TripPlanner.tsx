@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
+import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
+import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import { Card, CardContent } from "@/components/ui/card";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -47,26 +49,23 @@ export default function TripPlanner() {
     map.current.on("load", () => {
       map.current?.resize();
 
-      // Use global Mapbox Streets vector source for off-road tracks
+      // Off-road tracks source & layers
       map.current.addSource("offroad-tracks", {
         type: "vector",
-        url: "mapbox://mapbox.mapbox-streets-v8"
+        url: "mapbox://mapbox.mapbox-streets-v8",
       });
-
-      // Add a layer per difficulty level
       const levels = [
         { id: "offroad-easy", filterValue: "easy", width: 2 },
         { id: "offroad-medium", filterValue: "medium", width: 2 },
         { id: "offroad-difficult", filterValue: "difficult", width: 2 },
         { id: "offroad-extreme", filterValue: "extreme", width: 2 },
       ];
-
       levels.forEach(({ id, filterValue, width }) => {
         map.current!.addLayer({
           id,
           type: "line",
           source: "offroad-tracks",
-          "source-layer": "road", // Mapbox Streets v8 layer for roads
+          "source-layer": "road",
           filter: ["all", ["==", "class", "road"], ["==", "type", filterValue]],
           paint: {
             "line-color": [
@@ -76,14 +75,14 @@ export default function TripPlanner() {
               "medium", "#f1c40f",
               "difficult", "#e67e22",
               "extreme", "#e74c3c",
-              "#000000"
+              "#000000",
             ],
             "line-width": width,
           },
         });
       });
 
-      // Add markers & fit bounds
+      // Add park markers & fit bounds
       const bounds = new mapboxgl.LngLatBounds();
       suggestions.forEach((item) => {
         new mapboxgl.Marker({ anchor: "bottom" })
@@ -96,10 +95,19 @@ export default function TripPlanner() {
           .addTo(map.current!);
         bounds.extend(item.coords as [number, number]);
       });
-
       map.current!.fitBounds(bounds, {
         padding: { top: 60, bottom: 60, left: 60, right: 60 },
       });
+
+      // ** Dynamic route planning via Mapbox Directions **
+      const directions = new MapboxDirections({
+        accessToken: mapboxgl.accessToken,
+        unit: "metric",
+        profile: "mapbox/driving",
+        interactive: true,
+        controls: { instructions: true },
+      });
+      map.current!.addControl(directions, "top-left");
     });
   }, [suggestions]);
 
