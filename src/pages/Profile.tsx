@@ -3,9 +3,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import RegionSelector from "@/components/RegionSelector";
+import { useRegion } from "@/context/RegionContext";
 
 export default function ProfilePage() {
+  const { region, setRegion } = useRegion();
   const [isCouple, setIsCouple] = useState(false);
 
   return (
@@ -33,21 +35,14 @@ export default function ProfilePage() {
           </div>
           <div className="space-y-2">
             <Label>Region</Label>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Select region" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Australia">Australia</SelectItem>
-                <SelectItem value="USA">United States</SelectItem>
-                <SelectItem value="Canada">Canada</SelectItem>
-                <SelectItem value="UK">United Kingdom</SelectItem>
-              </SelectContent>
-            </Select>
+            <RegionSelector
+              defaultValue={region}
+              onRegionChange={setRegion}
+            />
           </div>
           <div className="space-y-2">
             <Label>Travel Style</Label>
-            <Select onValueChange={(val) => setIsCouple(val === "couple")}> 
+            <Select onValueChange={(val) => setIsCouple(val === "couple")}>
               <SelectTrigger>
                 <SelectValue placeholder="Solo or Couple?" />
               </SelectTrigger>
