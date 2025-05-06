@@ -1,36 +1,33 @@
-/* Reset layout constraints */
-#root {
-  margin: 0;
-  padding: 0;
-  max-width: none;
-  width: 100%;
-  text-align: left;
-  box-sizing: border-box;
-}
-
-/* Global layout fix for full height */
-html, body {
+/* Global reset for layout constraints */
+#root, html, body {
   margin: 0;
   padding: 0;
   height: 100%;
   width: 100%;
-  box-sizing: border-box;
+  max-width: 100%;
   overflow-x: hidden;
+  text-align: left;
+  box-sizing: border-box;
+  background-color: #fff;
 }
 
-/* Remove unintended bottom padding across the app */
+/* Ensure app wrapper fills viewport height without extra padding */
 body > div {
-  padding-bottom: 0 !important;
-  margin-bottom: 0 !important;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
-/* Pam spacing fix */
+/* Make sure main area grows and footer sticks at bottom */
 main {
-  padding-bottom: 0 !important;
-  margin-bottom: 0 !important;
+  flex-grow: 1;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
-/* Logo styles preserved */
+/* Logo styles */
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -44,6 +41,7 @@ main {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
+/* Logo animation */
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
@@ -52,7 +50,6 @@ main {
     transform: rotate(360deg);
   }
 }
-
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
