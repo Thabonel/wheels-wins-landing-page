@@ -1,7 +1,8 @@
+import 'mapbox-gl/dist/mapbox-gl.css';
+import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import { useState, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
-import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import { Card, CardContent } from "@/components/ui/card";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -71,10 +72,14 @@ export default function TripPlanner() {
             "line-color": [
               "match",
               ["get", "type"],
-              "easy", "#2ecc71",
-              "medium", "#f1c40f",
-              "difficult", "#e67e22",
-              "extreme", "#e74c3c",
+              "easy",
+              "#2ecc71",
+              "medium",
+              "#f1c40f",
+              "difficult",
+              "#e67e22",
+              "extreme",
+              "#e74c3c",
               "#000000",
             ],
             "line-width": width,
@@ -99,7 +104,7 @@ export default function TripPlanner() {
         padding: { top: 60, bottom: 60, left: 60, right: 60 },
       });
 
-      // ** Dynamic route planning via Mapbox Directions **
+      // Dynamic route planning via Mapbox Directions
       const directions = new MapboxDirections({
         accessToken: mapboxgl.accessToken,
         unit: "metric",
@@ -116,7 +121,7 @@ export default function TripPlanner() {
       {/* Map */}
       <div
         ref={mapContainer}
-        className="relative overflow-hidden rounded-lg border h-[400px] w-full"
+        className="relative rounded-lg border h-[400px] w-full"
       />
 
       {/* Suggestions */}
