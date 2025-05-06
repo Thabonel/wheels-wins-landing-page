@@ -30,6 +30,37 @@
     #webchat .bpFab {
       display: none;
     }
+
+    /* Pam chat layout overrides for readability */
+    #webchat .bpWebchat {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    #webchat .bpWebchat .bp-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    #webchat .bpWebchat .bp-input-container {
+      order: 2;
+      margin-top: 16px;
+      padding: 12px;
+      background: #fff;
+    }
+    #webchat .bpWebchat .bp-suggestions {
+      order: 3;
+      display: flex !important;
+      overflow-x: auto !important;
+      padding: 8px;
+      gap: 8px;
+    }
+    #webchat .bpWebchat .bp-suggestions button {
+      border-radius: 20px;
+      padding: 4px 12px;
+      margin: 0 4px;
+      flex-shrink: 0;
+    }
   </style>
   </head>
 
