@@ -19,37 +19,35 @@ interface Waypoint {
 
 const regionCenters: Record<string, [number, number]> = {
   Australia: [133.7751, -25.2744],
-  US:       [-98.5795, 39.8283],
-  Canada:  [-106.3468, 56.1304],
-  NZ:      [174.8860, -40.9006],
-  UK:      [-3.435973, 55.378051],
+  US: [-98.5795, 39.8283],
+  Canada: [-106.3468, 56.1304],
+  NZ: [174.8860, -40.9006],
+  UK: [-3.435973, 55.378051],
 };
 
 const modes = [
-  { label: "Off-grid",           value: "off-grid" },
-  { label: "Luxury",             value: "luxury"  },
-  { label: "Fastest (routing)",  value: "fastest" },
-  { label: "Shortest (routing)", value: "shortest"},
-  { label: "Scenic (routing)",   value: "scenic"  },
+  { label: "Off-grid", value: "off-grid" },
+  { label: "Luxury", value: "luxury" },
+  { label: "Fastest (routing)", value: "fastest" },
+  { label: "Shortest (routing)", value: "shortest" },
+  { label: "Scenic (routing)", value: "scenic" },
 ];
 
 export default function TripPlanner() {
-  const mapContainer      = useRef<HTMLDivElement>(null);
+  const mapContainer = useRef<HTMLDivElement>(null);
   const geocoderContainer = useRef<HTMLDivElement>(null);
-  const map               = useRef<mapboxgl.Map>();
+  const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
-
-  const [originName, setOriginName]       = useState("A");
-  const [destName,   setDestName]         = useState("B");
-  const [waypoints,  setWaypoints]        = useState<Waypoint[]>([]);
-  const [adding,     setAdding]           = useState(false);
-  const [suggestions,setSuggestions]      = useState<any[]>([]);
-  const [loading,    setLoading]          = useState(false);
-  const [saving,     setSaving]           = useState(false);
-  const [mode,       setMode]             = useState(modes[0].value);
-
+  const [originName, setOriginName] = useState("A");
+  const [destName, setDestName] = useState("B");
+  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useState(modes[0].value);
   const { region } = useRegion();
-  const { user }   = useAuth();
+  const { user } = useAuth();
 
   // Hide default geocoder icon
   useEffect(() => {
@@ -63,13 +61,12 @@ export default function TripPlanner() {
   useEffect(() => {
     if (!mapContainer.current) return;
     const center = regionCenters[region] || regionCenters.US;
-
     if (!map.current) {
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style:     "mapbox://styles/mapbox/streets-v11",
+        style: "mapbox://styles/mapbox/streets-v11",
         center,
-        zoom:      3.5,
+        zoom: 3.5,
       });
       map.current.addControl(new mapboxgl.NavigationControl());
 
@@ -78,17 +75,17 @@ export default function TripPlanner() {
         accessToken: mapboxgl.accessToken,
         mapboxgl,
         placeholder: "Search start or end",
-        marker:      false,
+        marker: false,
       });
       geocoderContainer.current?.appendChild(geocoder.onAdd(map.current));
 
       // Directions control
       const dir = new MapboxDirections({
         accessToken: mapboxgl.accessToken,
-        unit:        "metric",
-        profile:     "mapbox/driving",
+        unit: "metric",
+        profile: "mapbox/driving",
         interactive: true,
-        controls:    { instructions: true },
+        controls: { instructions: true },
       });
       directionsControl.current = dir;
       map.current.addControl(dir, "top-left");
@@ -114,18 +111,14 @@ export default function TripPlanner() {
       const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
       const place = await reverseGeocode(coords);
       const newWp: Waypoint = { coords, name: place };
-
       setWaypoints((w) => [...w, newWp]);
-
       // Create numbered marker
       const el = document.createElement("div");
       el.className = "text-white bg-blue-600 rounded-full w-6 h-6 flex items-center justify-center";
       el.innerText = String(waypoints.length + 1);
       new mapboxgl.Marker({ element: el }).setLngLat(coords).addTo(map.current!);
-
       // Insert waypoint before final destination
       directionsControl.current!.addWaypoint(waypoints.length, coords);
-
       setAdding(false);
       map.current!.getCanvas().style.cursor = "";
     };
@@ -135,44 +128,59 @@ export default function TripPlanner() {
 
   // Reverse-geocode helper
   async function reverseGeocode([lng, lat]: [number, number]): Promise<string> {
-    const res  = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}`
+    const res = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/ ${lng},${lat}.json?access_token=${mapboxgl.accessToken}`
     );
     const data = await res.json();
-    return data.features?.[0]?.place_name
-      || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    return data.features?.[0]?.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 
   // Fetch suggestions via n8n
   async function fetchTripSuggestions() {
-    const dir            = directionsControl.current!;
-    const origin         = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
-    const dest           = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
-    const routingProfile = dir.getProfile();
+    const dir = directionsControl.current!;
+    const origin = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
+    const dest = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
+    const routingProfile = dir.getProfile();       // e.g. "mapbox/driving"
+    const travelStyle = mode;                      // e.g. "off-grid"
+
     if (!origin || !dest) return;
 
     setLoading(true);
     try {
       const payload = {
-        region,
-        routingProfile,        // Mapbox profile: driving, walking, etc.
-        travelStyle:    mode,  // e.g. "off-grid"
-        vehicleType:    "4WD Camper",
-        interests:      ["parks","fuel"],
-        route: { origin, dest },
-        routePreferences: {
-          waypoints: waypoints.map((w) => w.coords),
+        origin: {
+          coordinates: origin,
+          name: originName,
         },
+        destination: {
+          coordinates: dest,
+          name: destName,
+        },
+        waypoints: waypoints.map(wp => ({
+          coordinates: wp.coords,
+          name: wp.name,
+        })),
+        profile: routingProfile,
+        mode: travelStyle,
       };
 
-      const res  = await fetch("/n8n/webhooks/trip-plan-suggestion", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
+      const res = await fetch("/n8n/webhooks/trip-plan-suggestion", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch trip suggestions");
+      }
+
       const json = await res.json();
       setSuggestions(json.suggestions || []);
       await saveTrip();
+    } catch (error) {
+      console.error("Error fetching trip suggestions:", error);
     } finally {
       setLoading(false);
     }
@@ -180,22 +188,22 @@ export default function TripPlanner() {
 
   // Save trip to Supabase
   async function saveTrip() {
-    const dir            = directionsControl.current!;
-    const origin         = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
-    const dest           = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
+    const dir = directionsControl.current!;
+    const origin = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
+    const dest = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
     const routingProfile = dir.getProfile();
     if (!user || !origin || !dest) return;
 
     setSaving(true);
     await supabase.from("trips").insert({
-      user_id:            user.id,
-      start_location:     JSON.stringify({ name: originName, coords: origin }),
-      end_location:       JSON.stringify({ name: destName,   coords: dest   }),
-      start_date:         new Date(),
-      arrival_date:       new Date(),
+      user_id: user.id,
+      start_location: JSON.stringify({ name: originName, coords: origin }),
+      end_location: JSON.stringify({ name: destName, coords: dest }),
+      start_date: new Date(),
+      arrival_date: new Date(),
       route: { origin, dest, routingProfile },
-      trip_pois:          suggestions,
-      route_preferences:  { mode, requiredWaypoints: waypoints.map(w => w.coords) },
+      trip_pois: suggestions,
+      route_preferences: { mode, requiredWaypoints: waypoints.map(w => w.coords) },
     });
     setSaving(false);
   }
@@ -203,7 +211,6 @@ export default function TripPlanner() {
   // Render suggestion POI markers
   useEffect(() => {
     if (!map.current?.isStyleLoaded()) return;
-
     // Clear old suggestion markers
     map.current.getStyle().layers?.forEach((l) => {
       if (l.id.startsWith("marker-")) {
@@ -211,7 +218,6 @@ export default function TripPlanner() {
         map.current!.removeSource(l.id);
       }
     });
-
     const bounds = new mapboxgl.LngLatBounds();
     suggestions.forEach((item) => {
       new mapboxgl.Marker({ anchor: "bottom" })
@@ -245,14 +251,12 @@ export default function TripPlanner() {
         <p className="text-sm text-gray-500">
           Tip: Ask Pam—“Plan my trip from {originName} to {destName}.”
         </p>
-        <div ref={geocoderContainer} className="w-1/3" />
+        <div ref={geocoderContainer} className="w-1/3 p-2 border rounded bg-white shadow-md"></div>
       </div>
-
       {/* Map */}
       <div className="overflow-hidden rounded-lg border">
-        <div ref={mapContainer} className="h-[400px] w-full" />
+        <div ref={mapContainer} className="h-[600px] w-full" />
       </div>
-
       {/* Controls */}
       <div className="flex items-center space-x-4 pt-2">
         <div className="flex items-center space-x-2">
@@ -261,7 +265,7 @@ export default function TripPlanner() {
             id="routeMode"
             value={mode}
             onChange={(e) => setMode(e.target.value)}
-            className="border rounded p-1"
+            className="border rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             {modes.map((m) => (
               <option key={m.value} value={m.value}>
@@ -273,16 +277,17 @@ export default function TripPlanner() {
         <button
           onClick={() => {
             setAdding(true);
-            map.current!.getCanvas().style.cursor = "crosshair";
+            if (map.current) {
+              map.current.getCanvas().style.cursor = "crosshair";
+            }
           }}
           className={`px-4 py-2 text-white rounded ${
             adding ? "bg-gray-500" : "bg-primary"
-          } hover:opacity-90`}
+          } hover:opacity-90 transition-opacity`}
         >
           {adding ? "Click map…" : "Add Stop"}
         </button>
       </div>
-
       {/* Waypoints List */}
       {waypoints.length > 0 && (
         <div>
@@ -300,11 +305,9 @@ export default function TripPlanner() {
           </ul>
         </div>
       )}
-
       {/* Status & Suggestions */}
       {loading && <p className="text-center text-gray-600">Planning…</p>}
       {saving && <p className="text-center text-gray-600">Saving…</p>}
-
       {suggestions.length > 0 && (
         <>
           <h3 className="text-xl font-semibold">Pam suggests:</h3>
