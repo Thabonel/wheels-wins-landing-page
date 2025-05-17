@@ -16,12 +16,11 @@ export default function VehicleMaintenance() {
   const { user } = useAuth();
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<MaintenanceTask | null>(null);
   const [formTask, setFormTask] = useState("");
   const [formDate, setFormDate] = useState("");
   const [formMileage, setFormMileage] = useState<number>(0);
 
-  // Fetch tasks from Supabase on mount and after updates
+  // Fetch tasks from Supabase
   const fetchTasks = async () => {
     if (!user) return;
     const { data, error } = await supabase
@@ -33,10 +32,9 @@ export default function VehicleMaintenance() {
       toast.error("Error loading tasks.");
       return;
     }
-    const mapped: MaintenanceTask[] = data!.map((r) => {
-      const today = new Date().toISOString().split("T")[0];
-      let status: MaintenanceTask['status'] = "upcoming";
-      if (r.date < today) status = "overdue";
+    const today = new Date().toISOString().split("T")[0];
+    const mapped = data!.map((r) => {
+      let status: MaintenanceTask["status"] = r.date < today ? "overdue" : "upcoming";
       return { id: r.id, task: r.task, date: r.date, mileage: r.mileage, status };
     });
     setMaintenanceTasks(mapped);
@@ -46,26 +44,17 @@ export default function VehicleMaintenance() {
     fetchTasks();
   }, [user]);
 
-  const handleAddClick = () => {
-    setSelectedTask({ id: 0, task: "", date: "", mileage: 0, status: "upcoming" });
+  const openAddModal = () => {
     setFormTask("");
     setFormDate("");
     setFormMileage(0);
     setShowModal(true);
   };
 
-  const handleScheduleClick = (task: MaintenanceTask) => {
-    setSelectedTask(task);
-    setFormTask(task.task);
-    setFormDate(task.date);
-    setFormMileage(task.mileage);
-    setShowModal(true);
-  };
-
   const handleModalSubmit = async () => {
     if (!user) {
-      setShowModal(false);
       toast.error("You must be signed in.");
+      setShowModal(false);
       return;
     }
     if (!formTask || !formDate) {
@@ -76,14 +65,13 @@ export default function VehicleMaintenance() {
     // Insert new record
     const { error } = await supabase
       .from("maintenance_records")
-      .insert([
-        { user_id: user.id, task: formTask, date: formDate, mileage: formMileage }
-      ]);
+      .insert([{ user_id: user.id, task: formTask, date: formDate, mileage: formMileage }]);
     setShowModal(false);
     if (error) {
       toast.error("Error saving record.");
       return;
     }
+
     // Dispatch calendar event
     window.postMessage(
       {
@@ -100,10 +88,7 @@ export default function VehicleMaintenance() {
     <div className="relative space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold">Maintenance Timeline</h3>
-        <button
-          onClick={handleAddClick}
-          className="bg-primary text-white py-1 px-3 rounded-md text-sm shadow"
-        >
+        <button onClick={openAddModal} className="bg-primary text-white py-1 px-3 rounded-md text-sm shadow">
           Add Task
         </button>
       </div>
@@ -113,25 +98,28 @@ export default function VehicleMaintenance() {
         <div>
           <h4 className="font-medium text-red-600 mb-2">Overdue</h4>
           <div className="space-y-2">
-            {maintenanceTasks
-              .filter((t) => t.status === "overdue")
-              .map((task) => (
-                <Card key={task.id} className="border-red-200 bg-red-50">
-                  <CardContent className="p-4 flex justify-between items-center">
-                    <div>
-                      <h5 className="font-bold">{task.task}</h5>
-                      <p className="text-sm text-gray-600">Due: {task.date}</p>
-                      <p className="text-sm text-gray-600">Mileage: {task.mileage.toLocaleString()}</p>
-                    </div>
-                    <button
-                      onClick={() => handleScheduleClick(task)}
-                      className="bg-primary text-white py-1 px-3 rounded-md text-sm"
-                    >
-                      Schedule
-                    </button>
-                  </CardContent>
-                </Card>
-              ))}
+            {maintenanceTasks.filter((t) => t.status === "overdue").map((task) => (
+              <Card key={task.id} className="border-red-200 bg-red-50">
+                <CardContent className="p-4 flex justify-between items-center">
+                  <div>
+                    <h5 className="font-bold">{task.task}</h5>
+                    <p className="text-sm text-gray-600">Due: {task.date}</p>
+                    <p className="text-sm text-gray-600">Mileage: {task.mileage.toLocaleString()}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setFormTask(task.task);
+                      setFormDate(task.date);
+                      setFormMileage(task.mileage);
+                      setShowModal(true);
+                    }}
+                    className="bg-primary text-white py-1 px-3 rounded-md text-sm"
+                  >
+                    Schedule
+                  </button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
 
@@ -139,25 +127,28 @@ export default function VehicleMaintenance() {
         <div>
           <h4 className="font-medium text-blue-600 mb-2">Upcoming</h4>
           <div className="space-y-2">
-            {maintenanceTasks
-              .filter((t) => t.status === "upcoming")
-              .map((task) => (
-                <Card key={task.id} className="border-blue-200 bg-blue-50">
-                  <CardContent className="p-4 flex justify-between items-center">
-                    <div>
-                      <h5 className="font-bold">{task.task}</h5>
-                      <p className="text-sm text-gray-600">Due: {task.date}</p>
-                      <p className="text-sm text-gray-600">Mileage: {task.mileage.toLocaleString()}</p>
-                    </div>
-                    <button
-                      onClick={() => handleScheduleClick(task)}
-                      className="bg-primary text-white py-1 px-3 rounded-md text-sm"
-                    >
-                      Schedule
-                    </button>
-                  </CardContent>
-                </Card>
-              ))}
+            {maintenanceTasks.filter((t) => t.status === "upcoming").map((task) => (
+              <Card key={task.id} className="border-blue-200 bg-blue-50">
+                <CardContent className="p-4 flex justify-between items-center">
+                  <div>
+                    <h5 className="font-bold">{task.task}</h5>
+                    <p className="text-sm text-gray-600">Due: {task.date}</p>
+                    <p className="text-sm text-gray-600">Mileage: {task.mileage.toLocaleString()}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setFormTask(task.task);
+                      setFormDate(task.date);
+                      setFormMileage(task.mileage);
+                      setShowModal(true);
+                    }}
+                    className="bg-primary text-white py-1 px-3 rounded-md text-sm"
+                  >
+                    Schedule
+                  </button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
 
@@ -165,20 +156,18 @@ export default function VehicleMaintenance() {
         <div>
           <h4 className="font-medium text-green-600 mb-2">Completed</h4>
           <div className="space-y-2">
-            {maintenanceTasks
-              .filter((t) => t.status === "completed")
-              .map((task) => (
-                <Card key={task.id} className="border-green-200 bg-green-50">
-                  <CardContent className="p-4 flex justify-between items-center">
-                    <div>
-                      <h5 className="font-bold">{task.task}</h5>
-                      <p className="text-sm text-gray-600">Completed: {task.date}</p>
-                      <p className="text-sm text-gray-600">Mileage: {task.mileage.toLocaleString()}</p>
-                    </div>
-                    <span className="text-green-600 text-sm font-medium">✓ Done</span>
-                  </CardContent>
-                </Card>
-              ))}
+            {maintenanceTasks.filter((t) => t.status === "completed").map((task) => (
+              <Card key={task.id} className="border-green-200 bg-green-50">
+                <CardContent className="p-4 flex justify-between items-center">
+                  <div>
+                    <h5 className="font-bold">{task.task}</h5>
+                    <p className="text-sm text-gray-600">Completed: {task.date}</p>
+                    <p className="text-sm text-gray-600">Mileage: {task.mileage.toLocaleString()}</p>
+                  </div>
+                  <span className="text-green-600 text-sm font-medium">✓ Done</span>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </div>

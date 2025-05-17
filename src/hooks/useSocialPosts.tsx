@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { PostStatus, PostLocation } from "@/components/social/types";

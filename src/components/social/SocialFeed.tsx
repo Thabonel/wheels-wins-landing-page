@@ -7,7 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { MessageSquare, ThumbsUp, ThumbsDown, Share2, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { SocialPost, PostVote } from "./types";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
