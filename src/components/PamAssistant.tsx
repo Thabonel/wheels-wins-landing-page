@@ -1,16 +1,12 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRegion } from "@/context/RegionContext";
+import { usePam } from "@/hooks/usePam";
 import PamHeader from "./pam/PamHeader";
 import ChatMessages from "./pam/ChatMessages";
-import QuickReplies from "./pam/QuickReplies";
 import ChatInput from "./pam/ChatInput";
-import { getQuickReplies } from "./pam/chatUtils";
-import { PamAssistantProps, ChatMessage } from "./pam/types";
 
-const PamAssistant = ({ user }: PamAssistantProps) => {
-  const { region } = useRegion();
-
+const PamAssistant = ({ user }: { user: { name: string } }) => {
   const initialMessages: ChatMessage[] = [
     {
       sender: "pam",
@@ -20,38 +16,12 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
   ];
 
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
-  const quickReplies = getQuickReplies(region);
+  const { region } = useRegion();
+  const { messages: pamMessages, send } = usePam();
 
   useEffect(() => {
-    setMessages([
-      {
-        sender: "pam" as const,
-        content: `Hi ${user.name}! Ready to plan your next adventure in ${region}?`,
-        timestamp: new Date(),
-      },
-    ]);
+    // No need to manage messages state here, use usePam's messages
   }, [region, user.name]);
-
-  const handleQuickReply = (reply: string) => {
-    const newMessages = [
-      ...messages,
-      { sender: "user" as const, content: reply, timestamp: new Date() },
-    ];
-    setMessages(newMessages);
-
-    setTimeout(() => {
-      const regionSpecificResponse = `I'd be happy to help with that for your adventures in ${region}! This is just a visual demo, but in the real app I'd provide region-specific assistance.`;
-
-      setMessages([
-        ...newMessages,
-        {
-          sender: "pam" as const,
-          content: regionSpecificResponse,
-          timestamp: new Date(),
-        },
-      ]);
-    }, 1000);
-  };
 
   useEffect(() => {
     const configure = () => {
@@ -96,15 +66,10 @@ const PamAssistant = ({ user }: PamAssistantProps) => {
       <PamHeader region={region} />
 
       <CardContent className="flex-1 flex flex-col h-full pt-4 px-3 pb-3">
-        <ChatMessages messages={messages} />
+        <ChatMessages messages={pamMessages} />
         <div className="mt-4">
-          <ChatInput onSendMessage={handleQuickReply} />
-          <div className="overflow-x-auto mt-3">
-            <QuickReplies
-              replies={quickReplies}
-              onReplyClick={handleQuickReply}
-              region={region}
-            />
+          <ChatInput onSendMessage={send} />
+          <div className="overflow-x-auto mt-3"> {/* This div is kept for potential future use or styling */}
           </div>
         </div>
       </CardContent>
