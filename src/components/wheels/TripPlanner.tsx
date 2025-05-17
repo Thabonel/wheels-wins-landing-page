@@ -7,7 +7,7 @@ import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-direct
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRegion } from "@/context/RegionContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase";
 import { useAuth } from "@/context/AuthContext";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
