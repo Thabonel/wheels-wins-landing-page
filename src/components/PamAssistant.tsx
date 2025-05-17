@@ -1,27 +1,33 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRegion } from "@/context/RegionContext";
 import { usePam } from "@/hooks/usePam";
 import PamHeader from "./pam/PamHeader";
-import ChatMessages from "./pam/ChatMessages";
+import ChatMessages, { ChatMessage } from "./pam/ChatMessages";
 import ChatInput from "./pam/ChatInput";
 
 const PamAssistant = ({ user }: { user: { name: string } }) => {
-  const initialMessages: ChatMessage[] = [
+  const { region } = useRegion();
+  const { messages: pamMessages, send } = usePam();
+
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       sender: "pam",
       content: `Hi ${user.name}! Ready to plan your next adventure in ${region}?`,
       timestamp: new Date(),
     },
-  ];
-
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
-  const { region } = useRegion();
-  const { messages: pamMessages, send } = usePam();
+  ]);
 
   useEffect(() => {
-    // No need to manage messages state here, use usePam's messages
-  }, [region, user.name]);
+    setMessages([
+      {
+        sender: "pam",
+        content: `Hi ${user.name}! Ready to plan your next adventure in ${region}?`,
+        timestamp: new Date(),
+      },
+      ...pamMessages,
+    ]);
+  }, [region, user.name, pamMessages]);
 
   useEffect(() => {
     const configure = () => {
@@ -43,10 +49,10 @@ const PamAssistant = ({ user }: { user: { name: string } }) => {
           themeMode: "light",
           fontFamily: "inter",
           radius: 1,
-          showPoweredBy: true
+          showPoweredBy: true,
         },
         clientId: "67cb8c1b-bcb4-4b12-98f5-f807b85b31a9",
-        selector: "#webchat"
+        selector: "#webchat",
       });
     };
 
@@ -62,19 +68,17 @@ const PamAssistant = ({ user }: { user: { name: string } }) => {
 
   return (
     <>
-    <Card className="h-[calc(100vh-200px)] flex flex-col sticky top-20 rounded-xl shadow-md overflow-hidden border-2 border-blue-100/30">
-      <PamHeader region={region} />
-
-      <CardContent className="flex-1 flex flex-col h-full pt-4 px-3 pb-3">
-        <ChatMessages messages={pamMessages} />
-        <div className="mt-4">
-          <ChatInput onSendMessage={send} />
-          <div className="overflow-x-auto mt-3"> {/* This div is kept for potential future use or styling */}
+      <Card className="h-[calc(100vh-200px)] flex flex-col sticky top-20 rounded-xl shadow-md overflow-hidden border-2 border-blue-100/30">
+        <PamHeader region={region} />
+        <CardContent className="flex-1 flex flex-col h-full pt-4 px-3 pb-3">
+          <ChatMessages messages={messages} />
+          <div className="mt-4">
+            <ChatInput onSendMessage={send} />
+            <div className="overflow-x-auto mt-3"></div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-    <div id="webchat"></div>
+        </CardContent>
+      </Card>
+      <div id="webchat"></div>
     </>
   );
 };
