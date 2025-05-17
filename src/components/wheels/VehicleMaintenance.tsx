@@ -19,6 +19,8 @@ export default function VehicleMaintenance() {
   const [formTask, setFormTask] = useState("");
   const [formDate, setFormDate] = useState("");
   const [formMileage, setFormMileage] = useState<number>(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Fetch tasks from Supabase
   const fetchTasks = async () => {
@@ -34,7 +36,7 @@ export default function VehicleMaintenance() {
     }
     const today = new Date().toISOString().split("T")[0];
     const mapped = data!.map((r) => {
-      let status: MaintenanceTask["status"] = r.date < today ? "overdue" : "upcoming";
+      const status: MaintenanceTask["status"] = r.date < today ? "overdue" : "upcoming";
       return { id: r.id, task: r.task, date: r.date, mileage: r.mileage, status };
     });
     setMaintenanceTasks(mapped);
@@ -61,8 +63,6 @@ export default function VehicleMaintenance() {
       toast.error("Please fill in all fields.");
       return;
     }
-
-    // Insert new record
     const { error } = await supabase
       .from("maintenance_records")
       .insert([{ user_id: user.id, task: formTask, date: formDate, mileage: formMileage }]);
@@ -71,8 +71,6 @@ export default function VehicleMaintenance() {
       toast.error("Error saving record.");
       return;
     }
-
-    // Dispatch calendar event
     window.postMessage(
       {
         type: "ADD_CALENDAR_EVENT",
@@ -82,6 +80,31 @@ export default function VehicleMaintenance() {
     );
     toast.success(`Saved: ${formTask} on ${formDate}`);
     fetchTasks();
+  };
+
+  const confirmDelete = (id: number) => {
+    setDeletingId(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (deletingId == null) return;
+    setShowDeleteModal(false);
+    const { error } = await supabase
+      .from("maintenance_records")
+      .delete()
+      .eq("id", deletingId);
+    if (error) {
+      toast.error("Failed to delete task.");
+      return;
+    }
+    window.postMessage(
+      { type: "REMOVE_CALENDAR_EVENT", eventId: deletingId },
+      "*"
+    );
+    toast.success("Task deleted.");
+    fetchTasks();
+    setDeletingId(null);
   };
 
   return (
@@ -106,17 +129,22 @@ export default function VehicleMaintenance() {
                     <p className="text-sm text-gray-600">Due: {task.date}</p>
                     <p className="text-sm text-gray-600">Mileage: {task.mileage.toLocaleString()}</p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setFormTask(task.task);
-                      setFormDate(task.date);
-                      setFormMileage(task.mileage);
-                      setShowModal(true);
-                    }}
-                    className="bg-primary text-white py-1 px-3 rounded-md text-sm"
-                  >
-                    Schedule
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setFormTask(task.task);
+                        setFormDate(task.date);
+                        setFormMileage(task.mileage);
+                        setShowModal(true);
+                      }}
+                      className="bg-primary text-white py-1 px-3 rounded-md text-sm"
+                    >
+                      Schedule
+                    </button>
+                    <button onClick={() => confirmDelete(task.id)} className="text-red-600 text-sm">
+                      🗑️ Delete
+                    </button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -135,17 +163,22 @@ export default function VehicleMaintenance() {
                     <p className="text-sm text-gray-600">Due: {task.date}</p>
                     <p className="text-sm text-gray-600">Mileage: {task.mileage.toLocaleString()}</p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setFormTask(task.task);
-                      setFormDate(task.date);
-                      setFormMileage(task.mileage);
-                      setShowModal(true);
-                    }}
-                    className="bg-primary text-white py-1 px-3 rounded-md text-sm"
-                  >
-                    Schedule
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setFormTask(task.task);
+                        setFormDate(task.date);
+                        setFormMileage(task.mileage);
+                        setShowModal(true);
+                      }}
+                      className="bg-primary text-white py-1 px-3 rounded-md text-sm"
+                    >
+                      Schedule
+                    </button>
+                    <button onClick={() => confirmDelete(task.id)} className="text-red-600 text-sm">
+                      🗑️ Delete
+                    </button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -164,7 +197,9 @@ export default function VehicleMaintenance() {
                     <p className="text-sm text-gray-600">Completed: {task.date}</p>
                     <p className="text-sm text-gray-600">Mileage: {task.mileage.toLocaleString()}</p>
                   </div>
-                  <span className="text-green-600 text-sm font-medium">✓ Done</span>
+                  <button onClick={() => confirmDelete(task.id)} className="text-red-600 text-sm">
+                    🗑️ Delete
+                  </button>
                 </CardContent>
               </Card>
             ))}
@@ -172,6 +207,7 @@ export default function VehicleMaintenance() {
         </div>
       </div>
 
+      {/* Add / Schedule Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-80">
@@ -203,6 +239,32 @@ export default function VehicleMaintenance() {
               </button>
               <button onClick={handleModalSubmit} className="bg-primary text-white px-4 py-2 rounded">
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-80">
+            <h4 className="text-lg font-semibold mb-2">Confirm Delete</h4>
+            <p className="text-sm text-gray-600 mb-4">
+              Are you sure you want to delete this task? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded border"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirmed}
+                className="px-4 py-2 bg-red-600 text-white rounded"
+              >
+                Delete
               </button>
             </div>
           </div>
