@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase';
 
 // Define supported regions
 export type Region = 'Australia' | 'New Zealand' | 'United States' | 'Canada' | 'United Kingdom';

@@ -1,5 +1,5 @@
 
-import { Database } from "@/integrations/supabase/types";
+import { Database } from "@/integrations/supabase";
 
 export const POST_STATUS: Record<
   Database["public"]["Enums"]["post_status"], 

@@ -1,5 +1,5 @@
 
-import { Database } from "@/integrations/supabase/types";
+import { Database } from "@/integrations/supabase";
 
 export type PostStatus = Database["public"]["Enums"]["post_status"];
 export type PostLocation = Database["public"]["Enums"]["post_location"];
