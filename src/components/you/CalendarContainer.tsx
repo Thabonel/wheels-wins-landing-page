@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import CalendarNavigation from "./CalendarNavigation";
@@ -10,7 +9,7 @@ interface CalendarContainerProps {
   events: any[];
   setCurrentDate: (date: Date) => void;
   setViewMode: (mode: "month" | "week" | "day") => void;
-  onEventSelect: (eventId: string) => void;
+  onEventEdit: (eventId: string) => void;
   onEventCreate: (start: Date, end: Date) => void;
   onEventMove: (eventId: string, newStart: Date, newEnd: Date) => void;
   onEventResize: (eventId: string, newStart: Date, newEnd: Date) => void;
@@ -22,7 +21,7 @@ const CalendarContainer: React.FC<CalendarContainerProps> = ({
   events,
   setCurrentDate,
   setViewMode,
-  onEventSelect,
+  onEventEdit,
   onEventCreate,
   onEventMove,
   onEventResize
@@ -43,7 +42,7 @@ const CalendarContainer: React.FC<CalendarContainerProps> = ({
             currentDate={currentDate}
             events={events}
             viewMode={viewMode}
-            onEventSelect={onEventSelect}
+            onEventEdit={onEventEdit}
             onEventCreate={onEventCreate}
             onEventMove={onEventMove}
             onEventResize={onEventResize}

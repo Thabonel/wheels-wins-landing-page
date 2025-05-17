@@ -19,6 +19,8 @@ interface EventModalProps {
   defaultEndTime: string;
   onSubmit: (data: EventFormData) => void;
   onCancel: () => void;
+  defaultTitle: string; // Add defaultTitle to interface
+  defaultType: string; // Add defaultType to interface
 }
 
 const EventModal: React.FC<EventModalProps> = ({
@@ -29,6 +31,8 @@ const EventModal: React.FC<EventModalProps> = ({
   defaultHour,
   defaultStartTime,
   defaultEndTime,
+  defaultTitle, // Destructure defaultTitle
+  defaultType, // Destructure defaultType
   onSubmit,
   onCancel,
 }) => {
@@ -46,6 +50,8 @@ const EventModal: React.FC<EventModalProps> = ({
           isEditing={isEditing}
           defaultStartTime={defaultStartTime}
           defaultEndTime={defaultEndTime}
+          defaultTitle={defaultTitle} // Pass defaultTitle to EventForm
+          defaultType={defaultType} // Pass defaultType to EventForm
         />
       </DialogContent>
     </Dialog>

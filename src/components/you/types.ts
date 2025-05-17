@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 export interface CalendarEvent {
   date: Date;
   title: string;
-  type: "trip" | "booking" | "reminder";
+  type: "trip" | "booking" | "reminder" | "maintenance" | "inspection";
   time: string;
   startTime: string;
   endTime: string;
@@ -25,7 +25,7 @@ export interface CalendarViewProps {
 
 export interface EventFormData {
   title: string;
-  type: "trip" | "booking" | "reminder";
+  type: "trip" | "booking" | "reminder" | "maintenance" | "inspection";
   date: Date;
   startTime: string;
   endTime: string;
