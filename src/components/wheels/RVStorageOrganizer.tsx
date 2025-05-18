@@ -20,48 +20,12 @@ export default function RVStorageOrganizer() {
   const [missingItems, setMissingItems] = useState<{ name: string; drawerName: string }[]>([]);
   const [checkedState, setCheckedState] = useState<{ [key: string]: boolean }>({});
   const [listId, setListId] = useState<string | null>(null);
-  const [phone, setPhone] = useState('');
-  const [countryCode, setCountryCode] = useState('+1');
-  const [showSMSPrompt, setShowSMSPrompt] = useState(false);
-
-  const handleSendSMS = async () => {
-    const fullNumber = `${countryCode}${phone.replace(/^0+/, '')}`;
-    try {
-      const res = await sendSMS(fullNumber, generateMessageText());
-      toast({ title: "Sent!", description: "Check your phone." });
-      setShowSMSPrompt(false);
-      localStorage.setItem('userPhone', phone);
-    } catch (err) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const sendSMS = async (to: string, body: string) => {
-    const res = await fetch("/api/send-sms", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to, body }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to send SMS");
-    return data;
-  };
 
   const generateMessageText = () => {
     return missingItems.map(item => `• ${item.name} (${item.drawerName})`).join('\n');
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem("userPhone");
-    if (saved) setPhone(saved);
-
-    fetch("https://ipapi.co/json/")
-      .then(res => res.json())
-      .then(data => {
-        if (!saved && data?.country_calling_code) {
-          setCountryCode(data.country_calling_code);
-      }
-      });
 
     const fetchStorage = async () => {
       const { data, error } = await supabase
@@ -147,10 +111,17 @@ export default function RVStorageOrganizer() {
   };
 
   const openOnPhone = () => {
-    if (!listId) return;
+    if (!listId) {
+ console.log("No list ID available");
+ return;
+ }
     const url = `${window.location.origin}/shopping-list/${listId}`;
-    navigator.clipboard.writeText(url);
-    toast({ title: "Link copied", description: "Open this on your phone." });
+ navigator.clipboard.writeText(url).then(() => {
+ toast({ title: "Link copied", description: "Open this on your phone." });
+ }).catch(err => {
+ console.error("Clipboard error:", err);
+ toast({ title: "Clipboard error", description: err.message, variant: "destructive" });
+ });
   };
 
   return (
@@ -233,38 +204,12 @@ export default function RVStorageOrganizer() {
           </ul>
           <DialogFooter className="flex justify-between">
             <Button variant="outline" onClick={openOnPhone}>Open on Phone</Button>
-            <Button className="bg-blue-500 text-white" onClick={() => setShowSMSPrompt(true)}>Send via SMS</Button>
             <Button onClick={() => setShowList(false)}>Close</Button>
           </DialogFooter>
-          {showSMSPrompt && (
-            <div className="flex flex-col gap-2 mt-4">
-              <div className="relative flex items-center gap-2 mt-4 w-full">
-                <select
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  className="absolute left-0 top-0 h-full rounded-l border-r bg-gray-100 px-2 text-sm text-gray-600 opacity-0 w-0 overflow-hidden">
-                  <option value="+1">🇺🇸 USA (+1)</option>
-                  <option value="+44">🇬🇧 UK (+44)</option>
-                  <option value="+61">🇦🇺 Australia (+61)</option>
-                  <option value="+91">🇮🇳 India (+91)</option>
-                </select>
-                <input
-                  type="tel"
-                  inputMode="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Enter your phone number"
-                  className="flex-1 border rounded px-4 py-2 w-full pl-16"
-                />
-              </div>
-               <div className="flex gap-2 justify-end">
-                <Button variant="secondary" onClick={() => setShowSMSPrompt(false)}>Cancel</Button>
-                <Button onClick={handleSendSMS}>Send</Button>
-              </div>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>
   );
+
 }
+  
