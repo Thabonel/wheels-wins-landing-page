@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"
-  }, 
+  },
   "dependencies": {
     "@fullcalendar/core": "^6.1.10",
     "@fullcalendar/daygrid": "^6.1.10",
@@ -46,7 +46,7 @@
     "@radix-ui/react-toggle": "^1.1.0",
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
-    "@supabase/supabase-js": "^2.49.4", 
+    "@supabase/supabase-js": "^2.49.4",
     "@tanstack/react-query": "^5.56.2",
     "class-variance-authority": "^0.7.1",
     "cline": "^0.8.2",
@@ -54,7 +54,7 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
-    "input-otp": "^1.2.4", 
+    "input-otp": "^1.2.4",
     "lovable-tagger": "^1.1.8",
     "lucide-react": "^0.462.0",
     "mapbox-gl": "^3.11.1",
@@ -69,6 +69,7 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "twilio": "^5.6.1",
     "uuid": "^11.1.0",
     "vaul": "^0.9.3",
     "zod": "^3.23.8"
