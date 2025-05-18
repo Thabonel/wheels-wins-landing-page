@@ -1,158 +1,188 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/use-toast";
+import DrawerSelector from "./DrawerSelector";
 
 export default function RVStorageOrganizer() {
-  const [storage, setStorage] = useState([
-    {
-      id: 1,
-      name: "Kitchen Drawer",
-      isOpen: false,
-      items: [
-        { id: 1, name: "Plates", packed: true },
-        { id: 2, name: "Utensils", packed: true },
-        { id: 3, name: "Cups", packed: false },
-        { id: 4, name: "Cooking Tools", packed: true },
-      ]
-    },
-    {
-      id: 2,
-      name: "Bathroom Cabinet",
-      isOpen: false,
-      items: [
-        { id: 1, name: "Towels", packed: true },
-        { id: 2, name: "Toiletries", packed: true },
-        { id: 3, name: "First Aid Kit", packed: true },
-      ]
-    },
-    {
-      id: 3,
-      name: "Under Bed Storage",
-      isOpen: false,
-      items: [
-        { id: 1, name: "Extra Bedding", packed: true },
-        { id: 2, name: "Winter Clothes", packed: false },
-        { id: 3, name: "Hiking Gear", packed: false },
-      ]
-    },
-    {
-      id: 4,
-      name: "Exterior Compartment",
-      isOpen: false,
-      items: [
-        { id: 1, name: "Electrical Hookup", packed: true },
-        { id: 2, name: "Water Hose", packed: true },
-        { id: 3, name: "Leveling Blocks", packed: false },
-        { id: 4, name: "Outdoor Chairs", packed: false },
-      ]
-    },
-  ]);
+  const [storage, setStorage] = useState<any[]>([]);
+  const [newItemNames, setNewItemNames] = useState<{ [key: string]: string }>({});
 
-  const toggleDrawerState = (drawerId: number) => {
-    setStorage(storage.map(drawer => 
-      drawer.id === drawerId ? { ...drawer, isOpen: !drawer.isOpen } : drawer
-    ));
+  useEffect(() => {
+    const fetchStorage = async () => {
+      const { data, error } = await supabase
+        .from("drawers")
+        .select("id, name, photo_url, items(id, name, packed)");
+
+      if (!error && data) {
+        setStorage(
+          data.map((d) => ({
+            id: d.id,
+            name: d.name,
+            photo_url: d.photo_url,
+            isOpen: false,
+            items: d.items || [],
+          }))
+        );
+      }
+    };
+    fetchStorage();
+  }, []);
+
+  const toggleDrawerState = (id: string) => {
+    setStorage((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, isOpen: !d.isOpen } : d))
+    );
   };
 
-  const toggleItemPacked = (drawerId: number, itemId: number) => {
-    setStorage(storage.map(drawer => {
-      if (drawer.id !== drawerId) return drawer;
-      
-      const updatedItems = drawer.items.map(item => 
-        item.id === itemId ? { ...item, packed: !item.packed } : item
+  const toggleItemPacked = async (drawerId: string, itemId: string) => {
+    const drawer = storage.find((d) => d.id === drawerId);
+    if (!drawer) return;
+
+    const item = drawer.items.find((i: any) => i.id === itemId);
+    if (!item) return;
+
+    await supabase.from("items").update({ packed: !item.packed }).eq("id", itemId);
+    setStorage((prev) =>
+      prev.map((d) =>
+        d.id === drawerId
+          ? {
+              ...d,
+              items: d.items.map((i: any) =>
+                i.id === itemId ? { ...i, packed: !i.packed } : i
+              ),
+            }
+          : d
+      )
+    );
+  };
+
+  const deleteItem = async (drawerId: string, itemId: string) => {
+    await supabase.from("items").delete().eq("id", itemId);
+    setStorage((prev) =>
+      prev.map((d) =>
+        d.id === drawerId
+          ? {
+              ...d,
+              items: d.items.filter((i: any) => i.id !== itemId),
+            }
+          : d
+      )
+    );
+  };
+
+  const addItem = async (drawerId: string) => {
+    const name = newItemNames[drawerId]?.trim();
+    if (!name) return;
+
+    const { data, error } = await supabase
+      .from("items")
+      .insert([{ drawer_id: drawerId, name, packed: false }])
+      .select();
+
+    if (!error && data?.[0]) {
+      setStorage((prev) =>
+        prev.map((d) =>
+          d.id === drawerId
+            ? {
+                ...d,
+                items: [data[0], ...d.items],
+              }
+            : d
+        )
       );
-      
-      return { ...drawer, items: updatedItems };
-    }));
+      setNewItemNames((prev) => ({ ...prev, [drawerId]: "" }));
+    }
   };
 
   const isDrawerComplete = (drawer: any) => {
-    return drawer.items.every(item => item.packed);
+    return drawer.items?.every((i: any) => i.packed);
   };
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">RV Storage Organizer</h2>
-      
+
+      <div className="flex justify-end">
+        <DrawerSelector onDrawerCreated={(drawer) => setStorage((prev) => [...prev, drawer])} />
+      </div>
+
       <div className="space-y-4">
-        {storage.map(drawer => {
-          const isComplete = isDrawerComplete(drawer);
-          
+        {storage.map((drawer) => {
+          const complete = isDrawerComplete(drawer);
           return (
-            <Card 
-              key={drawer.id} 
-              className={`${isComplete ? 'border-green-200' : 'border-amber-200'} transition-colors`}
+            <Card
+              key={drawer.id}
+              className={`${complete ? "border-green-200" : "border-amber-200"}`}
             >
               <CardContent className="p-0">
-                <Accordion type="single" collapsible>
-                  <AccordionItem value={`drawer-${drawer.id}`} className="border-0">
-                    <div className={`p-4 flex justify-between items-center ${isComplete ? 'bg-green-50' : 'bg-amber-50'}`}>
-                      <div>
-                        <AccordionTrigger className="hover:no-underline py-0">
-                          <span className="font-bold">{drawer.name}</span>
-                        </AccordionTrigger>
-                        <p className="text-sm text-gray-600">
-                          {drawer.items.filter(i => i.packed).length} of {drawer.items.length} items packed
-                        </p>
-                      </div>
-                      <Button
-                        onClick={() => toggleDrawerState(drawer.id)}
-                        variant="outline"
-                        size="sm"
-                      >
-                        {drawer.isOpen ? 'Close' : 'Open'}
-                      </Button>
+                <div
+                  className={`p-4 flex justify-between items-center ${
+                    complete ? "bg-green-50" : "bg-amber-50"
+                  }`}
+                >
+                  <div className="flex items-center space-x-4">
+                    {drawer.photo_url && (
+                      <img
+                        src={drawer.photo_url}
+                        alt={drawer.name}
+                        className="w-10 h-10 object-cover rounded"
+                      />
+                    )}
+                    <div>
+                      <span className="font-bold">{drawer.name}</span>
+                      <p className="text-sm text-gray-600">
+                        {drawer.items.filter((i: any) => i.packed).length} of {drawer.items.length} items packed
+                      </p>
                     </div>
-                    <AccordionContent>
-                      <div className="p-4 pt-2 border-t">
-                        <ul className="space-y-2">
-                          {drawer.items.map(item => (
-                            <li 
-                              key={item.id} 
-                              className="flex items-center p-2 rounded hover:bg-gray-50"
-                            >
-                              <label className="flex items-center cursor-pointer w-full">
-                                <input 
-                                  type="checkbox" 
-                                  checked={item.packed} 
-                                  onChange={() => toggleItemPacked(drawer.id, item.id)}
-                                  className="mr-3 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
-                                />
-                                <span className={`${item.packed ? 'line-through text-gray-500' : ''}`}>
-                                  {item.name}
-                                </span>
-                              </label>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                  </div>
+                  <Button
+                    onClick={() => toggleDrawerState(drawer.id)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {drawer.isOpen ? "Close" : "Open"}
+                  </Button>
+                </div>
+
+                {drawer.isOpen && (
+                  <div className="p-4 pt-2 border-t space-y-4">
+                    <div className="flex space-x-2">
+                      <Input
+                        placeholder="Add item name"
+                        value={newItemNames[drawer.id] || ""}
+                        onChange={(e) =>
+                          setNewItemNames((prev) => ({ ...prev, [drawer.id]: e.target.value }))
+                        }
+                      />
+                      <Button onClick={() => addItem(drawer.id)}>+ Add Item</Button>
+                    </div>
+                    <ul className="space-y-2">
+                      {drawer.items.map((item: any) => (
+                        <li key={item.id} className="flex items-center justify-between">
+                          <label className="flex items-center w-full cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={item.packed}
+                              onChange={() => toggleItemPacked(drawer.id, item.id)}
+                              className="mr-3 h-5 w-5"
+                            />
+                            <span className={item.packed ? "line-through text-gray-500" : ""}>{item.name}</span>
+                          </label>
+                          <Button size="sm" variant="ghost" onClick={() => deleteItem(drawer.id, item.id)}>
+                            ❌
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
         })}
-      </div>
-      
-      {/* Pam's suggestion */}
-      <div className="mt-8">
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="p-4">
-            <h3 className="text-lg font-semibold">Pam suggests:</h3>
-            <p className="mt-2">You're missing some items for your upcoming trip. Would you like help creating a shopping list for the remaining items?</p>
-            <div className="mt-4">
-              <Button className="mr-3">
-                Create Shopping List
-              </Button>
-              <Button variant="outline">
-                Skip for Now
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
