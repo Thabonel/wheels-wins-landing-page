@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -20,21 +19,20 @@ import Auth from "./pages/Auth";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import Safety from "./pages/Safety";
+import PamChatController from "@/components/pam/PamChatController"; // ✅ Add Pam
 
-// Query client for React Query
 const queryClient = new QueryClient();
 
-// Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isDevMode } = useAuth();
   return isAuthenticated || isDevMode ? <>{children}</> : <Navigate to="/auth" replace />;
 };
 
-// Handles conditional padding
 const Main = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const isHome = location.pathname === "/";
   const isAuth = location.pathname === "/auth";
+
   return (
     <main className={`flex-1 ${isHome ? "!pt-0" : isAuth ? "" : "pt-24"}`}>
       {children}
@@ -43,6 +41,9 @@ const Main = ({ children }: { children: React.ReactNode }) => {
 };
 
 function AppRoutes() {
+  const location = useLocation();
+  const hidePam = ["/", "/profile"].includes(location.pathname); // ✅ Skip Pam on these pages
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -54,13 +55,8 @@ function AppRoutes() {
           <Route path="/you/safety" element={<ProtectedRoute><Safety /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/wheels" element={<Wheels />} />
-          {/* Redirect old safety path to the new location */}
           <Route path="/safety" element={<Navigate to="/you/safety" replace />} />
-          <Route path="/wins" element={
-            <ExpensesProvider>
-              <Wins />
-            </ExpensesProvider>
-          } />
+          <Route path="/wins" element={<ExpensesProvider><Wins /></ExpensesProvider>} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/social" element={<Social />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
@@ -68,6 +64,7 @@ function AppRoutes() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Main>
+      {!hidePam && <PamChatController />} {/* ✅ Conditionally render Pam */}
       <Footer />
     </div>
   );
