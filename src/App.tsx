@@ -34,37 +34,47 @@ const Main = ({ children }: { children: React.ReactNode }) => {
   const isAuth = location.pathname === "/auth";
 
   return (
-    <main className={`flex-1 ${isHome ? "!pt-0" : isAuth ? "" : "pt-24"}`}>
+    <main className="flex-1 pt-[var(--header-height)]">
       {children}
     </main>
   );
 };
 
 function AppRoutes() {
-  const location = useLocation();
-  const hidePam = ["/", "/profile"].includes(location.pathname); // ✅ Skip Pam on these pages
+  const { pathname } = useLocation(); // ✅ Required for conditional rendering
+  const excludePam = pathname === "/" || pathname === "/profile";
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <Main>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
-          <Route path="/you/safety" element={<ProtectedRoute><Safety /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/wheels" element={<Wheels />} />
-          <Route path="/safety" element={<Navigate to="/you/safety" replace />} />
-          <Route path="/wins" element={<ExpensesProvider><Wins /></ExpensesProvider>} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/social" element={<Social />} />
-          <Route path="/payment-success" element={<PaymentSuccess />} />
-          <Route path="/payment-canceled" element={<PaymentCanceled />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Main>
-      {!hidePam && <PamChatController />} {/* ✅ Conditionally render Pam */}
+
+      <div className="flex flex-1"> {/* Added flex container for main and sidebar */}
+        <div className="flex-1 overflow-auto">
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
+            <Route path="/you/safety" element={<ProtectedRoute><Safety /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/wheels" element={<Wheels />} />
+            <Route path="/safety" element={<Main><Navigate to="/you/safety" replace /></Main>} />
+            <Route path="/wins" element={<ExpensesProvider><Wins /></ExpensesProvider>} /> {/* This route is now outside of the Main component */}
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/social" element={<Social />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/payment-canceled" element={<PaymentCanceled />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+
+        {/* Pam Sidebar on Desktop (exclude home + profile) */}
+        {!excludePam && (
+          <div className="hidden md:block w-[340px] max-w-[340px] border-l bg-white shadow-lg z-50">
+            <PamChatController />
+          </div>
+        )}
+      </div>
+
       <Footer />
     </div>
   );

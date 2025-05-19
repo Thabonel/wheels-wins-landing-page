@@ -16,7 +16,7 @@ const HeaderContainer = ({ children, isHomePage, isScrolled }: HeaderContainerPr
       : "bg-white shadow-sm";
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 h-[var(--header-height)] transition-all duration-300 ${baseClass}`}>
+    <header className={`sticky top-0 z-50 h-[var(--header-height)] transition-all duration-300 ${baseClass} supports-[position:sticky]:sticky`}>
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
         <div className="flex justify-between items-center h-full">
           {children}

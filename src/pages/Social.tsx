@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import PamAssistant from "@/components/PamAssistant";
@@ -14,7 +14,7 @@ import SocialHustleBoard from "@/components/social/SocialHustleBoard";
 export default function Social() {
   const [activeTab, setActiveTab] = useState("feed");
   const isMobile = useIsMobile();
-  
+ 
   // Reset scroll when active tab changes
   useScrollReset([activeTab]);
   
@@ -32,7 +32,7 @@ export default function Social() {
   ];
   
   return (
-    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="container px-4 sm:px-6 lg:px-8 py-6"> {/* Adjusted for Pam sidebar */}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4">

@@ -11,7 +11,8 @@ const You = () => {
   };
 
   return (
-    <main className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    // The Pam sidebar is visible on this page, so remove max-width and auto margins
+    <main className="container px-4 sm:px-6 lg:px-8 py-6"> {/* Adjusted for Pam sidebar */}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Left Column - 75% on desktop */}
         <div className="w-full lg:w-3/4">
