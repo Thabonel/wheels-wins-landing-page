@@ -8,7 +8,7 @@ export function usePam() {
     const id = uuid();
 
     const userMsg = { id, role: "user", content: userMessage };
-    setMessages(prev => [...prev, userMsg]);
+ setMessages(prev => [...prev, {...userMsg, timestamp: new Date()}]);
 
     // 🔁 Fake response (replace later with OpenAI + MCP)
     const response = await fakePamResponse(userMessage);
@@ -19,8 +19,7 @@ export function usePam() {
       content: response.text,
       render: response.render,
     };
-
-    setMessages(prev => [...prev, assistantMsg]);
+ setMessages(prev => [...prev, {...assistantMsg, timestamp: new Date()}]);
 
     return assistantMsg;
   };

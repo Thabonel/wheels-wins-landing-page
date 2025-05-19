@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 
 const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/d8be6676-487e-40cf-8a32-91188c70cbef";
+// Define excluded routes where Pam chat should not be shown (unless mobile)
 const EXCLUDED_ROUTES = ["/", "/profile"];
+
 
 const PamChatController = () => {
   const { pathname } = useLocation();
@@ -34,13 +36,9 @@ const PamChatController = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message,
-          user_id: "bfa0e820-78a9-4d77-9c5e-3457c848a7b6",
+          user_id: "user-123", // Placeholder, replace with actual user ID
           region,
-          history: messages.map(m => ({
-            role: m.sender === "user" ? "user" : "assistant",
-            content: m.content
-          }))
+          content: message, // Use 'content' as specified
         }),
       });
       const data = await response.json();
@@ -54,18 +52,22 @@ const PamChatController = () => {
       };
       setMessages((prev) => [...prev, pamMessage]);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: "pam",
-          content: "Sorry, I couldn’t connect to Pam right now.",
-          timestamp: new Date(),
-        },
-      ]);
+      const errorMessage: ChatMessage = {
+        sender: "pam",
+        content: "Sorry, something went wrong.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     }
   };
 
-  if (isExcluded) return null;
+  useEffect(() => {
+    if (isMobile && isMobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [isMobileOpen, isMobile]);
 
   return (
     <>
@@ -75,8 +77,8 @@ const PamChatController = () => {
         {isMobileOpen ? (
           <div className="w-full max-w-sm h-[80vh] rounded-xl shadow-xl bg-white border border-blue-100 flex flex-col overflow-hidden">
             <PamHeader region={region} />
-            <div className="flex flex-col flex-1 px-4 pb-2">
-              <ChatMessages messages={messages} />
+            <div className="flex flex-col flex-1 px-4 pb-2 overflow-y-auto"> {/* Added overflow-y-auto here */}
+              <ChatMessages messages={messages} /> {/* This component likely needs scroll handling */}
               <QuickReplies replies={getQuickReplies(region)} onReplyClick={sendMessage} region={region} />
               <ChatInput onSendMessage={sendMessage} />
             </div>
