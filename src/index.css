@@ -111,7 +111,6 @@
   
   /* Adjust padding to account for smaller fixed header */
   main {
-    /* Reduce the top padding to match new header height */
     @apply pt-20; /* Reduced from pt-32 to pt-20 */
     overflow-x: hidden;
     width: 100%;

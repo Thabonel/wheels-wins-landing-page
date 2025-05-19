@@ -83,7 +83,8 @@ export default function Wheels() {
   }, [region]);
 
   return (
-    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className={`container px-4 sm:px-6 lg:px-8 py-6`}> {/* Adjusted for Pam sidebar visibility */}
+    }\`}>\n
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="w-full lg:w-3/4">
           <Tabs defaultValue="trip-planner" value={activeTab} onValueChange={setActiveTab} className="w-full">

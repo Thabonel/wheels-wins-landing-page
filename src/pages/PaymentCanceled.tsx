@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 const PaymentCanceled = () => {
   return (
-    <div className="container max-w-lg mx-auto px-4 py-16 text-center">
+    <div className="container px-4 py-16 text-center"> {/* Adjusted for Pam sidebar */}
       <div className="mb-6 flex justify-center">
         <div className="rounded-full bg-red-100 p-3">
           <XCircle className="h-12 w-12 text-red-500" />

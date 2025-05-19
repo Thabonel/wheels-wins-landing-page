@@ -34,7 +34,7 @@ export default function Wins() {
   ];
   
   return (
-    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div className="container px-4 sm:px-6 lg:px-8 py-4">
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4">
