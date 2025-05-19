@@ -6,11 +6,11 @@ import TripPlanner from "@/components/wheels/TripPlanner";
 import FuelLog from "@/components/wheels/FuelLog";
 import VehicleMaintenance from "@/components/wheels/VehicleMaintenance";
 import RVStorageOrganizer from "@/components/wheels/RVStorageOrganizer";
-import Safety from "@/pages/Safety"; // ✅ Correct reference to Safety page
+import Safety from "@/pages/Safety";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRegion } from "@/context/RegionContext";
 import { useScrollReset } from "@/hooks/useScrollReset";
-import WeatherWidget from "@/components/wheels/WeatherWidget"; // ✅ ADDED
+import WeatherWidget from "@/components/wheels/WeatherWidget";
 
 interface BaseFeature {
   title: string;
@@ -32,7 +32,6 @@ export default function Wheels() {
   const { region } = useRegion();
   useScrollReset([activeTab]);
 
-  // State for geolocation
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
 
@@ -83,8 +82,7 @@ export default function Wheels() {
   }, [region]);
 
   return (
-    <div className={`container px-4 sm:px-6 lg:px-8 py-6`}> {/* Adjusted for Pam sidebar visibility */}
-    }\`}>\n
+    <div className="container px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="w-full lg:w-3/4">
           <Tabs defaultValue="trip-planner" value={activeTab} onValueChange={setActiveTab} className="w-full">
