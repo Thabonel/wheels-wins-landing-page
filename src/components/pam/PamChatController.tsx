@@ -33,13 +33,23 @@ const PamChatController = () => {
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          message,
+          user_id: "bfa0e820-78a9-4d77-9c5e-3457c848a7b6",
+          region,
+          history: messages.map(m => ({
+            role: m.sender === "user" ? "user" : "assistant",
+            content: m.content
+          }))
+        }),
       });
       const data = await response.json();
 
+      const reply = data?.reply || data?.message || "I'm not sure how to respond to that.";
+
       const pamMessage: ChatMessage = {
         sender: "pam",
-        content: data.reply || "I'm not sure how to respond to that.",
+        content: reply,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, pamMessage]);
@@ -59,18 +69,6 @@ const PamChatController = () => {
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside
-        className="hidden md:flex w-[340px] flex-col border-l h-full bg-white shadow-lg fixed top-0 right-0 z-30"
-        style={{ height: "100vh" }}
-      >
-        <PamHeader region={region} />
-        <div className="flex flex-col flex-1 overflow-hidden px-4">
-          <ChatMessages messages={messages} />
-          <QuickReplies replies={getQuickReplies(region)} onReplyClick={sendMessage} region={region} />
-          <ChatInput onSendMessage={sendMessage} />
-        </div>
-      </aside>
 
       {/* Mobile floating button */}
       <div className="md:hidden fixed bottom-6 right-4 z-40">

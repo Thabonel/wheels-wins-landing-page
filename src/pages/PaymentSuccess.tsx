@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 const PaymentSuccess = () => {
   return (
-    <div className="container max-w-lg mx-auto px-4 py-16 text-center">
+    <div className="container px-4 py-16 text-center">
       <div className="mb-6 flex justify-center">
         <div className="rounded-full bg-green-100 p-3">
           <CheckCircle className="h-12 w-12 text-green-600" />
