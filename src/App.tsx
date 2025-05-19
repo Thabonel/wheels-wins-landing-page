@@ -48,12 +48,12 @@ function AppRoutes() {
     <div className="flex min-h-screen flex-col">
       <Header />
 
-      <div className="flex flex-1"> {/* Added flex container for main and sidebar */}
+      <div className="flex w-full px-4 sm:px-6 lg:px-8 py-6 gap-6"> {/* Modified flex container for main and sidebar */}
         <div className="flex-1 overflow-auto">
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
+            <Route path="/you" element={<Main><ProtectedRoute><You /></ProtectedRoute></Main>} />
             <Route path="/you/safety" element={<ProtectedRoute><Safety /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/wheels" element={<Wheels />} />
@@ -69,7 +69,7 @@ function AppRoutes() {
 
         {/* Pam Sidebar on Desktop (exclude home + profile) */}
         {!excludePam && (
-          <div className="hidden md:block w-[340px] max-w-[340px] border-l bg-white shadow-lg z-50">
+          <div className="hidden lg:block fixed right-0 top-0 h-full w-[300px]">
             <PamChatController />
           </div>
         )}
