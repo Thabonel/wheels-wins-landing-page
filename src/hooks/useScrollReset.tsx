@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-export const useScrollReset = () => {
+export const useScrollReset = (p0: string[]) => {
   const location = useLocation();
 
   useEffect(() => {
