@@ -10,23 +10,30 @@ const PamAssistant = ({ user }: { user: { name: string } }) => {
   const { region } = useRegion();
   const { messages: pamMessages, send } = usePam();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      sender: "pam",
-      content: `Hi ${user.name}! Ready to plan your next adventure in ${region}?`,
-      timestamp: new Date(),
-    },
-  ]);
+  // Local state to manage messages displayed in this component
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  useEffect(() => {
-    setMessages([
+  // Function to handle sending messages and updating local state
+  const handleSend = async (message: string) => {
+    // Add user message to local state immediately
+    setMessages((prev) => [
+      ...prev,
       {
-        sender: "pam",
-        content: `Hi ${user.name}! Ready to plan your next adventure in ${region}?`,
+        sender: "user",
+        content: message,
         timestamp: new Date(),
       },
-      ...pamMessages,
     ]);
+
+    // Send message via usePam hook (which will also update pamMessages)
+    // The response from the webhook will be reflected in pamMessages later
+     await send(message);
+  };
+
+  useEffect(() => {
+    // This effect now only updates messages based on external pamMessages
+    // This ensures messages from the webhook (via usePam) are added
+    setMessages([...pamMessages]);
   }, [region, user.name, pamMessages]);
 
   useEffect(() => {
@@ -73,7 +80,7 @@ const PamAssistant = ({ user }: { user: { name: string } }) => {
         <CardContent className="flex-1 flex flex-col h-full pt-4 px-3 pb-3">
           <ChatMessages messages={messages} />
           <div className="mt-4">
-            <ChatInput onSendMessage={send} />
+            <ChatInput onSendMessage={handleSend} />
             <div className="overflow-x-auto mt-3"></div>
           </div>
         </CardContent>
