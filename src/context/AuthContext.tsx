@@ -11,6 +11,7 @@ interface AuthContextType {
   signup: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isDevMode: boolean;
+  supabase: typeof supabase;
 }
 
 // Create context with default values
@@ -21,7 +22,8 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   signup: async () => {},
   logout: async () => {},
-  isDevMode: false
+  isDevMode: false,
+  supabase: {} as typeof supabase, // Add a placeholder for the supabase client
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -89,7 +91,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAuthenticated: !!user,
       login,
       signup,
-      logout,
+      logout,      
+      supabase, // Include the supabase instance
       isDevMode
     }}>
       {!isLoading && children}
