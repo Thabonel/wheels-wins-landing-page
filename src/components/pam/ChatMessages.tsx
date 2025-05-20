@@ -9,13 +9,14 @@ const ChatMessages = ({ messages }: ChatMessagesProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Scroll to the bottom when messages change
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   return (
     <div
       className="flex-1 overflow-y-auto px-4 pb-4"
-      style={{ maxHeight: "60vh" }} // Locks scroll to this area
+      style={{ maxHeight: "60vh", scrollPaddingBottom: '80px' }} // Locks scroll to this area and adds padding
     >
       {messages.map((msg, i) => (
         <div
