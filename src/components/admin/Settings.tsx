@@ -1,65 +1,102 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
+import { useSupabaseClient } from "@/hooks/useSupabaseClient";
 
 const Settings = () => {
   const [emailNotifications, setEmailNotifications] = useState(false);
   const [twoFactor, setTwoFactor] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user, supabase, isReady } = useSupabaseClient();
 
-  const handleSaveSettings = (setting: 'email' | 'twoFactor', value: boolean) => {
-    setSaving(true);
-    setError(null);
+  useEffect(() => {
+    if (!isReady || !user) return;
 
-    // Simulate a backend save operation
-    setTimeout(() => {
-      // Simulate success or failure (e.g., 10% chance of failure)
-      const success = Math.random() > 0.1;
+    const loadSettings = async () => {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('email_notifications, two_factor_auth')
+        .eq('user_id', user.id)
+        .single();
 
-      if (success) {
-        toast({
-          title: "Settings Saved",
-          description: `${setting === 'email' ? 'Email notifications' : 'Two-factor authentication'} updated.`,
-        });
-      } else {
-        setError("Failed to save settings.");
-        toast({
-          title: "Error",
-          description: "Failed to save settings.",
-          variant: "destructive",
-        });
+      if (error) {
+        console.error("Error loading settings:", error);
+      } else if (data) {
+        setEmailNotifications(data.email_notifications);
+        setTwoFactor(data.two_factor_auth);
       }
-      setSaving(false);
-    }, 1000); // Simulate 1 second save time
+    };
+
+    loadSettings();
+  }, [isReady, user, supabase]);
+
+  const handleSaveSettings = async (key: 'email_notifications' | 'two_factor_auth', value: boolean) => {
+    if (!isReady || !user) return;
+
+    setSaving(true);
+
+    const updatedSettings = {
+      user_id: user.id,
+      [key]: value,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from('settings')
+      .upsert(updatedSettings, { onConflict: 'user_id' });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error saving setting", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Setting saved successfully." });
+    }
   };
 
   return (
     <div className="grid gap-4 p-4">
       <Card>
-        <CardContent className="flex items-center justify-between space-x-4">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Email Notifications</h3>
+              <p className="text-sm text-gray-500">Receive email notifications for important updates.</p>
+            </div>
+            <Switch
+              checked={emailNotifications}
+              onCheckedChange={(checked) => {
+                setEmailNotifications(checked);
+                handleSaveSettings('email_notifications', checked);
+              }}
+              disabled={!isReady || saving}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
+            <p className="text-sm text-gray-500">Enhance account security with 2FA.</p>
+          </div>
           <Switch
-            type="checkbox"
-            checked={emailNotifications}
-            onChange={(e) => setEmailNotifications(e.target.checked)}
-            className="w-6 h-6"
+            checked={twoFactor}
+            onCheckedChange={(checked) => {
+              setTwoFactor(checked);
+              handleSaveSettings('two_factor_auth', checked);
+            }}
+            disabled={!isReady || saving}
           />
         </CardContent>
       </Card>
+
       <Card>
-        <CardContent className="flex items-center justify-between space-x-4">
-          <div className="flex-1">
-            <h2 className="text-lg font-bold">Two-Factor Authentication</h2>
-            <p className="text-sm text-gray-500">Enhance account security with 2FA.</p>
-          </div>
-          <Switch checked={twoFactor} onCheckedChange={setTwoFactor} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <h2 className="text-xl font-bold">API Key Management</h2>
+        <CardContent className="p-4">
+          <h3 className="text-lg font-medium">API Key Management</h3>
           <p className="text-sm text-gray-500">Manage API keys for external integrations.</p>
         </CardContent>
       </Card>
