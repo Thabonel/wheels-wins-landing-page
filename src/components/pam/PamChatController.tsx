@@ -9,7 +9,7 @@ import { ChatMessage } from "./types";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 
-const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/d8be6676-487e-40cf-8a32-91188c70cbef";
+const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/f97e8ec1-ca40-4913-a350-0e7a3eadb995";
 // Define excluded routes where Pam chat should not be shown (unless mobile)
 const EXCLUDED_ROUTES = ["/", "/profile"];
 
@@ -36,9 +36,8 @@ const PamChatController = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: "user-123", // Placeholder, replace with actual user ID
-          region,
-          content: message, // Use 'content' as specified
+          message: message,
+          user_id: "user-123", // Optional: Placeholder, replace with actual user ID if available
         }),
       });
       const data = await response.json();
