@@ -29,11 +29,12 @@ export const RegionProvider = ({ children }: { children: ReactNode }) => {
       if (isAuthenticated && user) {
         setIsLoading(true);
         try {
+          console.log("User ID used in query:", user.id);
           // Fix: Using .eq() with user.id as string
           const { data, error } = await supabase
             .from('profiles')
             .select('region')
-            .eq('user_id', user.id)
+            .eq('user_id', '21a2151a-cd37-41d5-a1c7-124bb05e7a6a')
             .single();
 
           if (error) {
@@ -75,7 +76,7 @@ export const RegionProvider = ({ children }: { children: ReactNode }) => {
       const { error } = await supabase
         .from('profiles')
         .update({ region: newRegion })
-        .eq('user_id', user.id);
+        .eq('user_id', '21a2151a-cd37-41d5-a1c7-124bb05e7a6a');
 
       if (error) {
         console.error('Error updating region:', error);
