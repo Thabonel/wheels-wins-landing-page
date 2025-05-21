@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useSession } from "@supabase/auth-helpers-react";
+import { toast } from "sonner";
 
 interface AdminUser {
   id: string;
@@ -13,26 +13,67 @@ interface AdminUser {
   status: string;
 }
 
-export default function AdminUserManagement() {
-  const session = useSession();
+export default function UserManagement() {
+  // Assuming your custom useAuth hook provides a session object with an access_token
+  // const supabase = useSupabaseClient(); // Removed useSupabaseClient import
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchUsers = async () => {
+    console.log("Access token:", session?.access_token);
     setLoading(true);
-    const res = await fetch("https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/get-admin-users", {
-      headers: {
-        Authorization: `Bearer ${session?.access_token}`,
-      },
-    });
-    const data = await res.json();
-    setUsers(data);
-    setLoading(false);
+    try {
+      const res = await fetch("https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/get-admin-users", {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("Error fetching users:", errorData);
+        toast.error("Failed to fetch users");
+        setLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      console.log("Fetched data:", data);
+      setUsers(data);
+      setLoading(false);
+    } catch (error) {
+      console.error("Network error:", error);
+      toast.error("Network error while fetching users");
+      setLoading(false);
+    }
   };
 
-  useEffect(() => {
-    if (session) fetchUsers();
-  }, [session]);
+  const handleDeactivateUser = async (id: string) => {
+    const { error } = await supabase.from("profiles").update({ status: "Inactive" }).eq("id", id);
+    if (error) {
+      toast.error("Failed to deactivate user");
+    } else {
+      toast.success("User deactivated");
+      fetchUsers();
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    const { error } = await supabase.from("profiles").delete().eq("id", id);
+    if (error) {
+      toast.error("Failed to delete user");
+    } else {
+      toast.success("User deleted");
+      fetchUsers();
+    }
+  };
+
+  // Temporarily comment out the useEffect to prevent fetching on component mount
+  // useEffect(() => {
+  //   // Assuming 'session' is available from your custom auth context
+  //   if (session) fetchUsers();
+  //   // If session is not available from auth context, you might need to adjust this logic
+  // }, [session]);
 
   return (
     <div className="p-6">
@@ -56,6 +97,8 @@ export default function AdminUserManagement() {
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading users...</p>
+          ) : users.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No users found.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -80,11 +123,13 @@ export default function AdminUserManagement() {
                         {user.status || "Active"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="space-x-2">
-                        <Button variant="destructive" size="sm">Deactivate</Button>
-                        <Button variant="destructive" size="sm">Delete</Button>
-                      </div>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="destructive" size="sm" onClick={() => handleDeactivateUser(user.id)}>
+                        Deactivate
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                        Delete
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -92,7 +137,7 @@ export default function AdminUserManagement() {
             </Table>
           )}
         </CardContent>
-        {!loading && (
+        {!loading && users.length > 0 && (
           <CardFooter className="justify-end text-sm text-muted-foreground">
             Total users: {users.length}
           </CardFooter>
