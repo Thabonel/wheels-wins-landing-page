@@ -1,38 +1,78 @@
-
 import { useState } from "react";
 import TotalBudgetsHeader from "./budgets/TotalBudgetsHeader";
 import TotalBudgetCard from "./budgets/TotalBudgetCard";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import BudgetCategoriesGrid from "./budgets/BudgetCategoriesGrid";
 import PamBudgetAdvice from "./budgets/PamBudgetAdvice";
-import { useBudgetCalculations } from "./budgets/useBudgetCalculations";
+import CategoryManagementModal from "./expenses/CategoryManagementModal";
 
 export default function WinsBudgets() {
   const [isEditing, setIsEditing] = useState(false);
-  const { categories, budgetSummary } = useBudgetCalculations();
-  
+
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
+
+  // State to hold the selected month (0-indexed)
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  // Calculate start and end dates for the selected month
+  const startDate = new Date(selectedYear, selectedMonth, 1).toISOString();
+  const endDate = new Date(selectedYear, selectedMonth + 1, 0).toISOString();
+
+  // Generate a list of months for the dropdown (e.g., last 12 months)
+  const months = Array.from({ length: 12 }).map((_, i) => {
+    const date = new Date(currentYear, currentMonth - i, 1);
+    return {
+      value: `${date.getMonth()}-${date.getFullYear()}`,
+      label: date.toLocaleString("default", { month: "long", year: "numeric" }),
+      month: date.getMonth(),
+      year: date.getFullYear(),
+    };
+  });
+
   const handleEditClick = () => {
     setIsEditing(true);
-    // In a real application, this would open a budget editing interface
-    console.log("Edit budgets clicked");
   };
-  
+
+  const handleMonthChange = (value: string) => {
+    const [month, year] = value.split("-").map(Number);
+    setSelectedMonth(month);
+    setSelectedYear(year);
+  };
+
   return (
     <div className="space-y-6">
       <TotalBudgetsHeader onEditClick={handleEditClick} />
-      
-      {/* Overall Budget Card */}
-      <TotalBudgetCard 
-        totalBudget={budgetSummary.totalBudget}
-        totalSpent={budgetSummary.totalSpent}
-        totalRemaining={budgetSummary.totalRemaining}
-        totalProgress={budgetSummary.totalProgress}
-      />
-      
-      {/* Category Budget Cards */}
-      <BudgetCategoriesGrid categories={categories} />
-      
-      {/* Pam's Budget Advice */}
+
+      <div className="flex justify-end">
+        <Select
+          onValueChange={handleMonthChange}
+          defaultValue={`${selectedMonth}-${selectedYear}`}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select a month" />
+          </SelectTrigger>
+          <SelectContent>
+            {months.map((month) => (
+              <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <TotalBudgetCard startDate={startDate} endDate={endDate} />
+      <BudgetCategoriesGrid startDate={startDate} endDate={endDate} />
       <PamBudgetAdvice />
+
+      <CategoryManagementModal open={isEditing} onOpenChange={setIsEditing} />
     </div>
   );
 }

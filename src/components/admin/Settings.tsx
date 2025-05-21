@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import { useSupabaseClient } from "@/hooks/useSupabaseClient";
+import useSupabaseClient from "@/hooks/useSupabaseClient";
 
 const Settings = () => {
   const [emailNotifications, setEmailNotifications] = useState(false);
