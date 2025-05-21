@@ -1,34 +1,63 @@
-
 import { useState, useEffect } from "react";
-import { 
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle 
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { Trash2, Plus } from "lucide-react";
-import { useExpenseActions } from "@/hooks/useExpenseActions";
+import { useSupabaseClient } from "@supabase/auth-helpers-react";
+import { useUser } from "@supabase/auth-helpers-react";
 
 interface CategoryManagementModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function CategoryManagementModal({ 
-  open, 
-  onOpenChange 
+export default function CategoryManagementModal({
+  open,
+  onOpenChange
 }: CategoryManagementModalProps) {
-  const { categories, addCategory, deleteCategory } = useExpenseActions();
+  const supabase = useSupabaseClient();
+  const user = useUser();
+  const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const handleAddCategory = () => {
-    if (newCategory.trim()) {
-      addCategory(newCategory.trim());
+  useEffect(() => {
+    async function fetchCategories() {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("budgets")
+        .select("category")
+        .eq("user_id", user.id);
+      if (!error && data) {
+        const unique = Array.from(new Set(data.map((row) => row.category)));
+        setCategories(unique);
+      }
+    }
+
+    fetchCategories();
+  }, [user, supabase, open]);
+
+  const handleAddCategory = async () => {
+    if (!newCategory.trim() || !user) return;
+
+    // Insert new category as a blank budget row
+    const { error } = await supabase.from("budgets").insert([
+      {
+        user_id: user.id,
+        category: newCategory.trim(),
+        budgeted_amount: 0,
+      }
+    ]);
+
+    if (!error) {
+      setCategories([...categories, newCategory.trim()]);
       setNewCategory("");
     }
   };
@@ -38,10 +67,16 @@ export default function CategoryManagementModal({
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (categoryToDelete) {
-      deleteCategory(categoryToDelete);
-    }
+  const confirmDelete = async () => {
+    if (!categoryToDelete || !user) return;
+
+    await supabase
+      .from("budgets")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("category", categoryToDelete);
+
+    setCategories(categories.filter((c) => c !== categoryToDelete));
     setDeleteDialogOpen(false);
     setCategoryToDelete(null);
   };
@@ -51,19 +86,19 @@ export default function CategoryManagementModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Manage Expense Categories</DialogTitle>
+            <DialogTitle>Manage Budget Categories</DialogTitle>
             <DialogDescription>
-              Add or remove expense categories to better organize your spending.
+              Add or remove budget categories to better organize your planning.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="flex items-end gap-2 my-4">
             <div className="flex-1">
-              <Input 
-                placeholder="New Category Name" 
-                value={newCategory} 
+              <Input
+                placeholder="New Category Name"
+                value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
               />
             </div>
             <Button onClick={handleAddCategory}>
@@ -77,9 +112,9 @@ export default function CategoryManagementModal({
               <div key={category} className="flex justify-between items-center p-3 border rounded-md">
                 <span>{category}</span>
                 {category !== "Fuel" && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleDeleteClick(category)}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
@@ -88,7 +123,7 @@ export default function CategoryManagementModal({
               </div>
             ))}
           </div>
-          
+
           <DialogFooter className="sm:justify-end">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Done
@@ -102,8 +137,7 @@ export default function CategoryManagementModal({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Category</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the "{categoryToDelete}" category? 
-              Any expenses in this category will be moved to "Other".
+              Are you sure you want to delete the "{categoryToDelete}" category?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,6 +1,7 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,45 +20,46 @@ import {
 } from "@/components/ui/drawer";
 import { useExpenseActions } from "@/hooks/useExpenseActions";
 
+import { format } from "date-fns";
+
 interface AddExpenseFormProps {
   onClose?: () => void;
 }
 
+
 export default function AddExpenseForm({ onClose }: AddExpenseFormProps) {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState("");
+  const [description, setDescription] = useState('');
   const { addExpense, categories } = useExpenseActions();
-  
+
+ const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const handleSubmit = () => {
     if (!amount || !category || !description || !date) {
       return;
     }
-    
+
     const success = addExpense({
       amount: parseFloat(amount),
       category,
       description,
-      date,
+      date: date,
     });
-    
+
     if (success) {
-      // Reset form
       setAmount("");
       setCategory("");
       setDescription("");
       setDate("");
-      
-      // Close drawer
+      setSelectedDate(new Date());
       if (onClose) {
         onClose();
       }
     }
   };
-  
+
   return (
-    <DrawerContent>
+    <DrawerContent className="max-w-xl mx-auto rounded-lg border shadow-md">
       <DrawerHeader>
         <DrawerTitle>Add New Expense</DrawerTitle>
         <DrawerDescription>
@@ -68,13 +70,22 @@ export default function AddExpenseForm({ onClose }: AddExpenseFormProps) {
         <form className="grid gap-4 py-4">
           <div className="grid gap-2">
             <label htmlFor="amount">Amount ($)</label>
-            <Input 
-              id="amount" 
-              type="number" 
-              step="0.01" 
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
               placeholder="0.00"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)} 
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <label htmlFor="description">Description</label>
+            <Input
+              id="description"
+              placeholder="What was this expense for?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
             />
           </div>
           <div className="grid gap-2">
@@ -84,29 +95,26 @@ export default function AddExpenseForm({ onClose }: AddExpenseFormProps) {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="grid gap-2">
-            <label htmlFor="description">Description</label>
-            <Input 
-              id="description" 
-              placeholder="What was this expense for?"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)} 
-            />
-          </div>
-          <div className="grid gap-2">
             <label htmlFor="date">Date</label>
-            <Input 
-              id="date" 
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)} 
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={`w-full justify-start text-left font-normal ${!selectedDate ? "text-muted-foreground" : ""}`}>
+                  {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus />
+              </PopoverContent>
+            </Popover>
           </div>
         </form>
       </div>

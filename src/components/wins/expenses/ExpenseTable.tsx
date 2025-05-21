@@ -16,26 +16,19 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Filter } from "lucide-react";
+import { useExpenseActions } from "@/hooks/useExpenseActions";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export interface ExpenseItem {
-  id: number;
-  amount: number;
-  category: string;
-  date: string;
-  description: string;
-}
 
 interface ExpenseTableProps {
-  expenses: ExpenseItem[];
-  categoryColors: Record<string, string>;
   onFilterClick: () => void;
 }
 
-export default function ExpenseTable({ 
-  expenses, 
-  categoryColors,
+export default function ExpenseTable({
   onFilterClick 
 }: ExpenseTableProps) {
+  const { expenses, categoryColors, isLoading } = useExpenseActions();
+
   return (
     <Card>
       <CardHeader>
@@ -48,30 +41,42 @@ export default function ExpenseTable({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {expenses.map((expense) => (
-              <TableRow key={expense.id}>
-                <TableCell className="font-medium">{expense.date}</TableCell>
-                <TableCell>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${categoryColors[expense.category as keyof typeof categoryColors]}`}>
-                    {expense.category}
-                  </span>
-                </TableCell>
-                <TableCell>{expense.description}</TableCell>
-                <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : expenses.length === 0 ? (
+          <div className="text-center text-muted-foreground">
+            No expenses found.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {expenses.map((expense) => (
+                <TableRow key={expense.id}>
+                  <TableCell className="font-medium">{expense.date}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${categoryColors[expense.category as keyof typeof categoryColors]}`}>
+                      {expense.category}
+                    </span>
+                  </TableCell>
+                  <TableCell>{expense.description}</TableCell>
+                  <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
       <CardFooter className="flex justify-between">
         <div className="text-sm text-muted-foreground">
