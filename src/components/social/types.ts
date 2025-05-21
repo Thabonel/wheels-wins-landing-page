@@ -1,11 +1,11 @@
-
 import { Database } from "@/integrations/supabase";
 
 export type PostStatus = Database["public"]["Enums"]["post_status"];
 export type PostLocation = Database["public"]["Enums"]["post_location"];
 
 export interface SocialPost {
-  id: number | string;
+  id: string;
+  authorId: string;
   author: string;
   authorAvatar: string;
   date: string;
@@ -13,31 +13,37 @@ export interface SocialPost {
   image?: string;
   likes: number;
   comments: number;
-  status?: PostStatus;
-  location?: PostLocation;
+  status: PostStatus;
+  location: PostLocation;
   groupId?: string | null;
-  isOwnPost?: boolean;
+  isOwnPost: boolean;
+}
+
+export interface PostVote {
+  id: string;
+  postId: string;
+  voteType: boolean; // true for upvote, false for downvote
 }
 
 export interface SocialGroup {
-  id: number | string;
+  id: string;
   name: string;
   cover: string;
   members: number;
   location?: string;
   description: string;
-  activityLevel: 'active' | 'new' | 'quiet';
-  isAdmin?: boolean;
+  activityLevel: "active" | "new" | "quiet";
+  isAdmin: boolean;
 }
 
 export interface RecommendedGroup {
-  id: number | string;
+  id: string;
   name: string;
   members: number;
 }
 
 export interface MarketplaceListing {
-  id: number;
+  id: string;
   title: string;
   price: number;
   description: string;
@@ -47,7 +53,7 @@ export interface MarketplaceListing {
 }
 
 export interface HustleIdea {
-  id: number;
+  id: string;
   title: string;
   description: string;
   image: string;
@@ -56,10 +62,4 @@ export interface HustleIdea {
   likes: number;
   trending: boolean;
   tags: string[];
-}
-
-export interface PostVote {
-  id: string;
-  postId: string;
-  voteType: boolean; // true for upvote, false for downvote
 }

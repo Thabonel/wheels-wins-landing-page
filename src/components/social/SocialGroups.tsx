@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Users, MapPin, PlusCircle, AlertCircle, ThumbsUp, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase";
 import { useAuth } from "@/context/AuthContext";
+// Assuming you have a Dialog component - replace with your actual import path
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +16,7 @@ import { SocialGroup, SocialPost } from "./types";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
 
 export default function SocialGroups() {
-  const [groups, setGroups] = useState<SocialGroup[]>([]);
+  const [groups, setGroups] = useState<SocialGroup[]>([]); // Keep this for the list view
   const [recommendedGroups, setRecommendedGroups] = useState<SocialGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<SocialGroup | null>(null);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -23,13 +25,16 @@ export default function SocialGroups() {
   const [newGroupPost, setNewGroupPost] = useState("");
   const [joinedGroups, setJoinedGroups] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+
   const { user } = useAuth();
   const { createPost, moderatePost, isSubmitting } = useSocialPosts();
   
   useEffect(() => {
-    fetchGroups();
     if (user) {
+      fetchGroups(); // Fetch groups only if user is logged in
       fetchUserGroups();
     }
   }, [user]);
@@ -41,6 +46,8 @@ export default function SocialGroups() {
   }, [selectedGroup]);
   
   const fetchGroups = async () => {
+    if (!user) return; // Ensure user is logged in before fetching
+
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -206,6 +213,49 @@ export default function SocialGroups() {
     } catch (err) {
       console.error("Error in handleJoinGroup:", err);
       toast.error("Something went wrong");
+    }
+  };
+
+  const handleCreateGroup = async () => {
+    if (!user) {
+      toast.error("You must be logged in to create a group");
+      return;
+    }
+
+    if (!newGroupName.trim()) {
+      toast.error("Group name cannot be empty");
+      return;
+    }
+
+    // Assuming createGroup function is imported from useSocialData.ts
+    // Make sure to pass the access_token if your createGroup requires it,
+    // or ensure createGroup gets it internally via useAuth
+    try {
+      // Assuming createGroup gets access_token internally:
+      // import { createGroup } from './useSocialData'; // Adjust import path
+      // const newGroup = await createGroup({
+      //   name: newGroupName,
+      //   description: newGroupDescription,
+      //   owner_id: user.id,
+      // });
+      //
+      // If createGroup requires token:
+      // import { createGroup } from './useSocialData'; // Adjust import path
+      // const { session } = useAuth();
+      // if (!session?.access_token) throw new Error("No access token found");
+      // const newGroup = await createGroup({ name: newGroupName, description: newGroupDescription, owner_id: user.id }, session.access_token);
+
+      // Placeholder for actual createGroup call
+      console.log("Attempting to create group:", { name: newGroupName, description: newGroupDescription, owner_id: user.id });
+      toast.success(`Group "${newGroupName}" created successfully!`); // Placeholder success message
+
+      setNewGroupName("");
+      setNewGroupDescription("");
+      setShowCreateModal(false);
+      fetchGroups();
+    } catch (err) {
+      console.error("Error creating group:", err);
+      toast.error(`Failed to create group: ${err.message}`);
     }
   };
   
@@ -541,7 +591,7 @@ export default function SocialGroups() {
               <p className="text-gray-700 mb-4">
                 Have a shared interest or location? Create a group for like-minded travelers!
               </p>
-              <Button>
+              <Button onClick={() => setShowCreateModal(true)}>
                 <PlusCircle size={18} className="mr-2" /> Create Group
               </Button>
             </CardContent>
