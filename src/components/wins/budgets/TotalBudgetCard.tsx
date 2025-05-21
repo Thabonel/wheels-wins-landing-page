@@ -1,20 +1,16 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useBudgetCalculations } from "./useBudgetCalculations";
 
-interface TotalBudgetCardProps {
-  totalBudget: number;
-  totalSpent: number;
-  totalRemaining: number;
-  totalProgress: number;
-}
+export default function TotalBudgetCard() {
+  const { budgetSummary, loading } = useBudgetCalculations();
 
-export default function TotalBudgetCard({
-  totalBudget,
-  totalSpent,
-  totalRemaining,
-  totalProgress,
-}: TotalBudgetCardProps) {
+  if (loading) {
+    return <Card className="border-2 border-blue-100"><CardContent>Loading summary...</CardContent></Card>;
+  }
+
+  const { totalBudget, totalSpent, totalRemaining, totalProgress } = budgetSummary;
   return (
     <Card className="border-2 border-blue-100">
       <CardHeader>

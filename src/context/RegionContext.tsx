@@ -31,10 +31,10 @@ export const RegionProvider = ({ children }: { children: ReactNode }) => {
         try {
           console.log("User ID used in query:", user.id);
           // Fix: Using .eq() with user.id as string
-          const { data, error } = await supabase
+          const { data, error } = await supabase 
             .from('profiles')
             .select('region')
-            .eq('user_id', '21a2151a-cd37-41d5-a1c7-124bb05e7a6a')
+            .eq('user_id', user.id)
             .single();
 
           if (error) {
@@ -73,10 +73,10 @@ export const RegionProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       // Fix: Using .eq() with user.id as string
-      const { error } = await supabase
+      const { error } = await supabase 
         .from('profiles')
         .update({ region: newRegion })
-        .eq('user_id', '21a2151a-cd37-41d5-a1c7-124bb05e7a6a');
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('Error updating region:', error);
