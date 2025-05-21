@@ -2,8 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { RegionProvider } from "@/context/RegionContext";
-import { ExpensesProvider } from "@/context/ExpensesContext";
 import Header from "@/components/header/Header";
 import Footer from "@/components/Footer";
 import Index from "./pages/Index";
@@ -13,6 +11,7 @@ import Profile from "./pages/Profile";
 import ScrollToTop from "@/components/ScrollToTop";
 import Wheels from "./pages/Wheels";
 import Wins from "./pages/Wins";
+import { ExpensesProvider } from "@/context/ExpensesContext";
 import Shop from "./pages/Shop";
 import Social from "./pages/Social";
 import Auth from "./pages/Auth";
@@ -20,7 +19,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import Safety from "./pages/Safety";
 import AdminDashboard from "./pages/AdminDashboard";
-import PamChatController from "@/components/pam/PamChatController"; // ✅ Add Pam
+import PamChatController from "@/components/pam/PamChatController";
 
 const queryClient = new QueryClient();
 
@@ -42,14 +41,14 @@ const Main = ({ children }: { children: React.ReactNode }) => {
 };
 
 function AppRoutes() {
-  const { pathname } = useLocation(); // ✅ Required for conditional rendering
+  const { pathname } = useLocation();
   const excludePam = pathname === "/" || pathname === "/profile";
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
 
-      <div className="flex w-full px-4 sm:px-6 lg:px-8 py-6 gap-6"> {/* Modified flex container for main and sidebar */}
+      <div className="flex w-full px-4 sm:px-6 lg:px-8 py-6 gap-6">
         <div className="flex-1 overflow-auto">
           <Routes>
             <Route path="/" element={<Index />} />
@@ -59,17 +58,16 @@ function AppRoutes() {
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/wheels" element={<Wheels />} />
             <Route path="/safety" element={<Main><Navigate to="/you/safety" replace /></Main>} />
-            <Route path="/wins" element={<ExpensesProvider><Wins /></ExpensesProvider>} /> {/* This route is now outside of the Main component */}
+            <Route path="/wins" element={<ExpensesProvider><Wins /></ExpensesProvider>} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/social" element={<Social />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/payment-canceled" element={<PaymentCanceled />} />
- <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
 
-        {/* Pam Sidebar on Desktop (exclude home + profile) */}
         {!excludePam && (
           <div className="hidden lg:block fixed right-0 top-0 h-full w-[300px]">
             <PamChatController />
@@ -86,13 +84,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <RegionProvider>
-          <Router>
-            <ScrollToTop />
-            <AppRoutes />
-          </Router>
-          <Toaster />
-        </RegionProvider>
+        <Router>
+          <ScrollToTop />
+          <AppRoutes />
+        </Router>
+        <Toaster />
       </AuthProvider>
     </QueryClientProvider>
   );
