@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
@@ -9,228 +8,173 @@ import { toast } from "sonner";
 import { MessageSquare, ThumbsUp, ThumbsDown, Share2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { SocialPost, PostVote } from "./types";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
 
+interface SocialPost {
+  id: string;
+  author: string;
+  authorAvatar: string;
+  date: string;
+  content: string;
+  image?: string;
+  likes: number;
+  comments: number;
+  status: string;
+  location: string;
+  groupId: string | null;
+  isOwnPost: boolean;
+}
 export default function SocialFeed() {
   const [newPost, setNewPost] = useState("");
   const [posts, setPosts] = useState<SocialPost[]>([]);
-  const [trendingTopics, setTrendingTopics] = useState<string[]>([
+  const [trendingTopics] = useState<string[]>([
     "SolarPanels", "BoonDocking", "RVLife", "VanLife", "OffGrid"
   ]);
   const [userVotes, setUserVotes] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { user } = useAuth();
-  const { createPost, votePost, isSubmitting } = useSocialPosts();
-  
+  const { createPost, votePost } = useSocialPosts();
+
   useEffect(() => {
     fetchPosts();
-    if (user) {
-      fetchUserVotes();
-    }
-    // Set up realtime subscription to posts
+    if (user) fetchUserVotes();
+
+    // Realtime subscription: only for feed posts
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel("public:social_posts")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'social_posts'
+          event: "*",
+          schema: "public",
+          table: "social_posts",
+          filter: "location=eq.feed"
         },
         () => {
           fetchPosts();
         }
       )
       .subscribe();
-    
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel).catch(console.error);
     };
   }, [user]);
-  
+
   const fetchPosts = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      
-      const { data: postsData, error } = await supabase
-        .from('social_posts')
-        .select(`
-          id,
-          content,
-          image_url,
-          created_at,
-          status,
-          location,
-          group_id,
-          upvotes,
-          downvotes,
-          comments_count,
-          author_id
-        `)
-        .eq('location', 'feed')
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        console.error("Error fetching posts:", error);
-        toast.error("Failed to load posts");
-        return;
-      }
-      
-      if (!postsData) {
-        setPosts([]);
-        return;
-      }
-      
-      // Format posts for display
-      const formattedPosts: SocialPost[] = postsData.map(post => ({
-        id: post.id,
-        author: `User ${post.author_id?.substring(0, 5) || 'Unknown'}`,
-        authorAvatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png",
+      const { data, error } = await supabase
+        .from("social_posts")
+        .select(
+          `id, content, image_url, created_at, status, location, group_id, upvotes, downvotes, comments_count, author_id`
+        )
+        .eq("location", "feed")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const formatted = data?.map((post) => ({
+        id: post.id.toString(), // Ensure ID is string
+        author: `User ${post.author_id?.substring(0, 5) || "Unknown"}`,
+        authorAvatar: supabase.storage.from("public-assets").getPublicUrl("avatar-placeholder.png").data.publicUrl,
         date: new Date(post.created_at).toLocaleDateString(),
         content: post.content,
         image: post.image_url || undefined,
-        likes: post.upvotes || 0,
-        comments: post.comments_count || 0,
+        likes: post.upvotes ?? 0,
+        comments: post.comments_count ?? 0,
         status: post.status,
         location: post.location,
         groupId: post.group_id,
-        isOwnPost: user && post.author_id === user.id
-      }));
-      
-      setPosts(formattedPosts);
+        isOwnPost: user?.id === post.author_id,
+      })) || [];
+
+      setPosts(formatted);
     } catch (err) {
-      console.error("Error in fetchPosts:", err);
-      toast.error("Something went wrong");
+      console.error("Error fetching posts:", err);
+      toast.error("Failed to load posts");
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const fetchUserVotes = async () => {
     if (!user) return;
-    
     try {
       const { data, error } = await supabase
-        .from('post_votes')
-        .select('post_id, vote_type')
-        .eq('user_id', user.id);
-        
-      if (error) {
-        console.error("Error fetching user votes:", error);
-        return;
-      }
-      
-      if (data) {
-        const votes: Record<string, boolean> = {};
-        data.forEach(vote => {
-          votes[vote.post_id] = vote.vote_type;
-        });
-        setUserVotes(votes);
-      }
-    } catch (err) {
-      console.error("Error in fetchUserVotes:", err);
-    }
-  };
-  
-  const handlePostSubmit = async () => {
-    if (!newPost.trim()) return;
-    
-    const result = await createPost(newPost);
-    if (result) {
-      setNewPost("");
-      await fetchPosts();
-    }
-  };
-  
-  const handleVote = async (postId: string, isUpvote: boolean) => {
-    const success = await votePost(postId, isUpvote);
-    if (success) {
-      // Optimistically update UI
-      setPosts(prevPosts => 
-        prevPosts.map(post => {
-          if (post.id === postId) {
-            // Calculate new vote counts
-            let newLikes = post.likes;
-            
-            // If user already voted on this post
-            if (postId in userVotes) {
-              // If changing vote type
-              if (userVotes[postId] !== isUpvote) {
-                newLikes = isUpvote ? newLikes + 2 : newLikes - 2;
-              } 
-              // If removing same vote type
-              else {
-                newLikes = isUpvote ? newLikes - 1 : newLikes + 1;
-              }
-            } 
-            // If new vote
-            else {
-              newLikes = isUpvote ? newLikes + 1 : newLikes - 1;
-            }
-            
-            // Update post status if it gets 10 or more downvotes
-            let newStatus = post.status;
-            if (!isUpvote && (10 - newLikes >= 10)) {
-              newStatus = 'hidden';
-            }
-            
-            return { ...post, likes: newLikes, status: newStatus };
-          }
-          return post;
-        })
-      );
-      
-      // Update local user votes state
-      setUserVotes(prev => {
-        const newVotes = { ...prev };
-        // If user already voted the same way, remove the vote
-        if (prev[postId] === isUpvote) {
-          delete newVotes[postId];
-        } else {
-          // Otherwise, set or update the vote
-          newVotes[postId] = isUpvote;
-        }
-        return newVotes;
+        .from("post_votes")
+        .select("post_id, vote_type")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      const votes: Record<string, boolean> = {};
+      data?.forEach((v) => {
+        votes[v.post_id] = v.vote_type;
       });
-      
-      fetchPosts(); // Refresh to get accurate counts
+      setUserVotes(votes);
+    } catch (err) {
+      console.error("Error fetching votes:", err);
     }
   };
 
-  const getPostStatusBadge = (post: SocialPost) => {
-    if (post.status === 'pending') {
-      return <Badge className="bg-amber-500">Pending Approval</Badge>;
+  const handlePostSubmit = async () => {
+    if (!newPost.trim()) return;
+    setIsSubmitting(true);
+    const success = await createPost(newPost);
+    if (success) {
+      setNewPost("");
+      // No need to await here, let it refetch in background
+      await fetchPosts();
     }
-    if (post.status === 'hidden') {
-      return <Badge className="bg-red-500">Hidden by Community</Badge>;
-    }
+    setIsSubmitting(false);
+  };
+
+  const handleVote = async (postId: string, isUp: boolean) => {
+    const success = await votePost(postId, isUp);
+    if (!success) return;
+    // Optimistic UI update
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id !== postId) return p;
+        const prevVote = userVotes[postId];
+        let delta = isUp ? 1 : -1;
+        if (prevVote !== undefined) delta = prevVote === isUp ? -1 : 2 * (isUp ? 1 : -1);
+        const likes = p.likes + delta;
+        return {
+          ...p,
+          likes: Math.max(0, likes), // Ensure likes don't go below 0
+          status: likes < 0 && p.status !== "hidden" ? "hidden" : p.status,
+        };
+      })
+    );
+    setUserVotes((prev) => {
+      const copy = { ...prev };
+      if (copy[postId] === isUp) delete copy[postId];
+      else copy[postId] = isUp;
+      return copy;
+    });
+    fetchPosts(); // Refetch to get accurate counts from backend
+  };
+
+  const getStatusBadge = (p: SocialPost) => {
+    if (p.status === "pending") return <Badge className="bg-amber-500">Pending</Badge>;
+    if (p.status === "hidden") return <Badge className="bg-red-500">Hidden</Badge>;
     return null;
   };
 
   return (
     <div className="space-y-8">
-      <div className="bg-blue-50 p-6 rounded-lg mb-6">
-        <h2 className="text-xl font-bold mb-4">Pam's Community Insights</h2>
-        <div className="space-y-3">
-          <p className="text-gray-700">
-            <span className="font-semibold">Today's hot topics:</span> Solar power upgrades, Arizona winter meetups, and budget-friendly campgrounds.
-          </p>
-          <p className="text-gray-700">
-            <span className="font-semibold">Community mood:</span> Excited about the upcoming travel season!
-          </p>
-        </div>
-      </div>
-      
-      {/* New post creation */}
+      {/* New Post */}
       <Card className="border-2 border-blue-100">
         <CardContent className="pt-6">
           <h3 className="text-lg font-semibold mb-3">Create a new post</h3>
-          <Textarea 
-            value={newPost} 
+          <Textarea
+            value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
-            placeholder="Share your travel updates, questions, or stories..."
+            placeholder="Share your travel updates..."
             className="min-h-[120px] mb-4"
             disabled={isSubmitting || !user}
           />
@@ -243,111 +187,105 @@ export default function SocialFeed() {
             </Button>
           </div>
           {!user ? (
-            <div className="text-xs text-red-500 mt-2">
-              You need to be logged in to post
-            </div>
+            <p className="text-xs text-red-500 mt-2">Log in to post</p>
           ) : (
-            <div className="text-xs text-gray-500 mt-2">
-              Feed posts are automatically approved but may be hidden if they receive 10+ downvotes
-            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Posts auto-approved; hidden after 10+ downvotes
+            </p>
           )}
         </CardContent>
       </Card>
-      
-      {/* Feed posts */}
+
+      {/* Community Feed */}
       <div className="space-y-6">
         <h3 className="text-xl font-semibold mb-4">Community Feed</h3>
-        
+
         {isLoading ? (
           <div className="text-center py-8">Loading posts...</div>
         ) : posts.length === 0 ? (
           <Card className="text-center py-8">
             <CardContent>
-              <p className="text-gray-500">No posts yet. Be the first to share!</p>
+              <p className="text-gray-500">No posts yet. Be the first!</p>
             </CardContent>
           </Card>
         ) : (
           posts.map((post) => (
-            <Card key={post.id} className={`mb-4 ${post.status === 'hidden' ? 'bg-gray-50' : ''}`}>
-              <CardHeader className="flex flex-row items-center gap-4 pb-2">
+            <Card key={post.id} className={post.status === "hidden" ? "bg-gray-50" : ""}>
+              <CardHeader className="flex items-center gap-4 pb-2">
                 <Avatar className="w-10 h-10">
                   <img src={post.authorAvatar} alt={post.author} />
                 </Avatar>
-                <div className="flex flex-col">
+                <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h4 className="font-semibold">{post.author}</h4>
                     {post.isOwnPost && <Badge variant="outline">You</Badge>}
-                    {getPostStatusBadge(post)}
+                    {getStatusBadge(post)}
                   </div>
                   <p className="text-sm text-gray-500">{post.date}</p>
                 </div>
               </CardHeader>
-              <CardContent className={post.status === 'hidden' ? 'opacity-50' : ''}>
-                {post.status === 'hidden' && (
+              <CardContent className={post.status === "hidden" ? "opacity-50" : ""}>
+                {post.status === "hidden" && (
                   <div className="flex items-center gap-2 text-red-500 mb-3">
                     <AlertCircle size={16} />
-                    <p className="text-sm">This post has been hidden due to community feedback</p>
+                    <span className="text-sm">Hidden by community</span>
                   </div>
                 )}
                 <p className="whitespace-pre-line">{post.content}</p>
                 {post.image && (
-                  <div className="mt-4">
-                    <img 
-                      src={post.image} 
-                      alt="Post image" 
-                      className="rounded-md max-h-[300px] object-cover" 
-                    />
-                  </div>
+                  <img
+                    src={post.image}
+                    alt="Post image"
+                    className="mt-4 rounded-md max-h-[300px] object-cover"
+                  />
                 )}
               </CardContent>
               <CardFooter className="border-t pt-4">
-                <div className="flex gap-6 w-full">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleVote(post.id.toString(), true)} 
+                <div className="flex gap-6 items-center w-full">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleVote(post.id, true)}
                     disabled={!user}
-                    className={`flex items-center gap-1 ${userVotes[post.id.toString()] === true ? 'text-green-600' : ''}`}
+                    className={
+                      userVotes[post.id.toString()] === true ? "text-green-600" : ""
+                    } // Use post.id directly
                   >
                     <ThumbsUp size={18} /> {post.likes}
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleVote(post.id.toString(), false)}
-                    disabled={!user} 
-                    className={`flex items-center gap-1 ${userVotes[post.id.toString()] === false ? 'text-red-600' : ''}`}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleVote(post.id, false)}
+                    disabled={!user}
+                    className={
+                      userVotes[post.id.toString()] === false ? "text-red-600" : ""
+                    } // Use post.id directly
                   >
                     <ThumbsDown size={18} />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="flex items-center gap-1"
-                  >
+                  <Button variant="ghost" size="sm" className="flex items-center gap-1">
                     <MessageSquare size={18} /> {post.comments}
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="flex items-center gap-1 ml-auto"
-                  >
-                    <Share2 size={18} /> Share
-                  </Button>
+                  <div className="ml-auto">
+                    <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                      <Share2 size={18} /> Share
+                    </Button>
+                  </div>
                 </div>
               </CardFooter>
             </Card>
           ))
         )}
       </div>
-      
-      {/* Trending topics sidebar */}
+
+      {/* Trending on Mobile */}
       <div className="lg:hidden mt-6 p-4 bg-gray-50 rounded-lg">
         <h3 className="font-semibold mb-3">Trending Topics</h3>
         <ul className="space-y-2">
-          {trendingTopics.map((topic, index) => (
-            <li key={index} className="text-blue-600 hover:underline cursor-pointer">
-              #{topic}
+          {trendingTopics.map((t, i) => (
+            <li key={i} className="text-blue-600 hover:underline cursor-pointer">
+              #{t}
             </li>
           ))}
         </ul>
