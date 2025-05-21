@@ -10,7 +10,7 @@ serve(async (req) => {
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("*");
+      .select("id, email, created_at, region, status");
     
     if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
