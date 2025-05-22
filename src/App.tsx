@@ -20,6 +20,7 @@ import PaymentCanceled from "./pages/PaymentCanceled";
 import Safety from "./pages/Safety";
 import AdminDashboard from "./pages/AdminDashboard";
 import PamChatController from "@/components/pam/PamChatController";
+import Onboarding from "./pages/Onboarding";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ function AppRoutes() {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/you" element={<Main><ProtectedRoute><You /></ProtectedRoute></Main>} />
             <Route path="/you/safety" element={<ProtectedRoute><Safety /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
