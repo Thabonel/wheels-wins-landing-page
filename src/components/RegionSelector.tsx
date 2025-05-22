@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -51,6 +50,7 @@ export default function RegionSelector({
             <SelectItem value="United States">United States</SelectItem>
             <SelectItem value="Canada">Canada</SelectItem>
             <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+            <SelectItem value="Rest of the World">Rest of the World</SelectItem>
           </SelectGroup>
         </SelectContent>
       </Select>
