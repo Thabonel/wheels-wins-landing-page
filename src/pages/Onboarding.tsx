@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
-const WEBHOOK_URL = 'https://treflip2025.app.n8n.cloud/webhook/d8be6676-487e-40cf-8a32-91188c70cbef';
+const WEBHOOK_URL = 'https://treflip2025.app.n8n.cloud/webhook/79d30fcb-ac7a-4a1d-9a53-9532bde02e52';
 
 const Onboarding: React.FC = () => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     ask_full_name: '',
     ask_nickname: '',
@@ -22,9 +24,7 @@ const Onboarding: React.FC = () => {
   const [submissionStatus, setSubmissionStatus] = useState<string | null>(null);
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     setFormData({
       ...formData,
@@ -36,10 +36,14 @@ const Onboarding: React.FC = () => {
     e.preventDefault();
     setSubmissionStatus('Submitting...');
     try {
+      const payload = {
+        ...formData,
+        user_id: user?.id,
+      };
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       if (response.ok) {
         setSubmissionStatus('Submission successful!');
@@ -133,7 +137,7 @@ const Onboarding: React.FC = () => {
         {/* Region */}
         <div>
           <label htmlFor="ask_region" className="block text-sm font-medium text-gray-700">
-            Which region are you travelling in? (Australia, New Zealand, US, Canada, UK)
+            Which region are you travelling in?
           </label>
           <select
             id="ask_region"
@@ -148,6 +152,7 @@ const Onboarding: React.FC = () => {
             <option value="US">US</option>
             <option value="Canada">Canada</option>
             <option value="UK">UK</option>
+            <option value="Rest of the World">Rest of the World</option>
           </select>
         </div>
 
@@ -211,7 +216,7 @@ const Onboarding: React.FC = () => {
             onChange={handleChange}
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
-            <option value="">Select fuel type'</option>
+            <option value="">Select fuel type</option>
             <option value="Diesel">Diesel</option>
             <option value="Petrol">Petrol</option>
             <option value="Electric">Electric</option>
@@ -228,6 +233,81 @@ const Onboarding: React.FC = () => {
             id="ask_towing"
             name="ask_towing"
             value={formData.ask_towing}
+            onChange={handleChange}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        {/* Second Vehicle */}
+        <div>
+          <label htmlFor="ask_second_vehicle" className="block text-sm font-medium text-gray-700">
+            Do you travel with a second vehicle? If yes, what kind?
+          </label>
+          <input
+            type="text"
+            id="ask_second_vehicle"
+            name="ask_second_vehicle"
+            value={formData.ask_second_vehicle}
+            onChange={handleChange}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        {/* Drive Limit */}
+        <div>
+          <label htmlFor="ask_drive_limit" className="block text-sm font-medium text-gray-700">
+            What's your max comfortable daily driving distance? (km/miles)
+          </label>
+          <input
+            type="text"
+            id="ask_drive_limit"
+            name="ask_drive_limit"
+            value={formData.ask_drive_limit}
+            onChange={handleChange}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        {/* Camp Types */}
+        <div>
+          <label htmlFor="ask_camp_types" className="block text-sm font-medium text-gray-700">
+            What are your preferred camp types? (Free, Paid, Bush, RV Park...)
+          </label>
+          <input
+            type="text"
+            id="ask_camp_types"
+            name="ask_camp_types"
+            value={formData.ask_camp_types}
+            onChange={handleChange}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        {/* Accessibility Needs */}
+        <div>
+          <label htmlFor="ask_accessibility" className="block text-sm font-medium text-gray-700">
+            Do you have any accessibility or mobility needs?
+          </label>
+          <textarea
+            id="ask_accessibility"
+            name="ask_accessibility"
+            value={formData.ask_accessibility}
+            onChange={handleChange}
+            rows={3}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          ></textarea>
+        </div>
+
+        {/* Pets */}
+        <div>
+          <label htmlFor="ask_pets" className="block text-sm font-medium text-gray-700">
+            Do you travel with pets? (e.g. 2 dogs)
+          </label>
+          <input
+            type="text"
+            id="ask_pets"
+            name="ask_pets"
+            value={formData.ask_pets}
             onChange={handleChange}
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />

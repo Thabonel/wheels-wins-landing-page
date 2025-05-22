@@ -1,10 +1,9 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase';
 
 // Define supported regions
-export type Region = 'Australia' | 'New Zealand' | 'United States' | 'Canada' | 'United Kingdom';
+export type Region = 'Australia' | 'New Zealand' | 'United States' | 'Canada' | 'United Kingdom' | 'Rest of the World';
 
 interface RegionContextType {
   region: Region;
@@ -29,9 +28,7 @@ export const RegionProvider = ({ children }: { children: ReactNode }) => {
       if (isAuthenticated && user) {
         setIsLoading(true);
         try {
-          console.log("User ID used in query:", user.id);
-          // Fix: Using .eq() with user.id as string
-          const { data, error } = await supabase 
+          const { data, error } = await supabase
             .from('profiles')
             .select('region')
             .eq('user_id', user.id)
@@ -40,7 +37,6 @@ export const RegionProvider = ({ children }: { children: ReactNode }) => {
           if (error) {
             console.error('Error fetching region:', error);
           } else if (data) {
-            // Validate that the region is one of our supported regions
             const userRegion = data.region as Region;
             if (isValidRegion(userRegion)) {
               setRegionState(userRegion);
@@ -61,7 +57,14 @@ export const RegionProvider = ({ children }: { children: ReactNode }) => {
 
   // Function to validate region
   const isValidRegion = (region: string): region is Region => {
-    return ['Australia', 'New Zealand', 'United States', 'Canada', 'United Kingdom'].includes(region);
+    return [
+      'Australia',
+      'New Zealand',
+      'United States',
+      'Canada',
+      'United Kingdom',
+      'Rest of the World'
+    ].includes(region);
   };
 
   // Function to update region
@@ -72,8 +75,7 @@ export const RegionProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // Fix: Using .eq() with user.id as string
-      const { error } = await supabase 
+      const { error } = await supabase
         .from('profiles')
         .update({ region: newRegion })
         .eq('user_id', user.id);
@@ -83,7 +85,6 @@ export const RegionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Update local state
       setRegionState(newRegion);
     } catch (error) {
       console.error('Error in region update:', error);
