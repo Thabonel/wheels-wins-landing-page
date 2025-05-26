@@ -6,6 +6,7 @@ const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/4cd18979-6ee8-451
 
 export function usePam() {
   const { user } = useAuth();
+  console.log("Pam Auth User ID:", user?.id);
   const [messages, setMessages] = useState<any[]>([]);
 
   const send = async (userMessage: string) => {
