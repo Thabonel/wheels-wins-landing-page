@@ -1,7 +1,6 @@
-
+// src/pages/Wins.tsx
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import PamAssistant from "@/components/PamAssistant";
 import { useIsMobile } from "@/hooks/use-mobile";
 import WinsOverview from "@/components/wins/WinsOverview";
 import WinsExpenses from "@/components/wins/WinsExpenses";
@@ -38,13 +37,13 @@ export default function Wins() {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4">
-          <Tabs 
-            defaultValue="overview" 
+          <Tabs
+            defaultValue="overview"
             value={activeTab}
             onValueChange={setActiveTab}
             className="w-full"
           >
-            <TabsList className="w-full justify-start overflow-x-auto mb-4">
+            <TabsList className="w-full justify-start flex-wrap mb-4">
               {isMobile ? (
                 <div className="w-full p-2">
                   <select 
@@ -95,21 +94,15 @@ export default function Wins() {
           </Tabs>
         </div>
         
-        {/* Pam Assistant - 25% on desktop, floating button on mobile */}
-        <div className={`${isMobile ? 'fixed bottom-4 right-4 z-30' : 'w-full lg:w-1/4'}`}>
-          {isMobile ? (
+        {/* Pam Assistant – only mobile */}
+        {isMobile && (
+          <>
             <button 
               onClick={() => document.getElementById('pam-modal')?.classList.toggle('hidden')}
-              className="bg-primary text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg"
+              className="fixed bottom-4 right-4 z-30 bg-primary text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg"
             >
               <span className="text-lg font-bold">Pam</span>
             </button>
-          ) : (
-            <PamAssistant user={user} />
-          )}
-          
-          {/* Mobile Pam modal */}
-          {isMobile && (
             <div id="pam-modal" className="hidden fixed inset-0 z-40 bg-black bg-opacity-50">
               <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-auto">
                 <div className="flex justify-between items-center mb-4">
@@ -124,8 +117,8 @@ export default function Wins() {
                 <PamAssistant user={user} />
               </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

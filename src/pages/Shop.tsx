@@ -79,7 +79,7 @@ export default function Shop() {
             onValueChange={(value) => setActiveTab(value as TabValue)}
             className="w-full"
           >
-            <TabsList className="w-full justify-start overflow-x-auto mb-6">
+            <TabsList className="w-full justify-start flex-wrap mb-6">
               <ProductFilters 
                 activeTab={activeTab} 
                 setActiveTab={setActiveTab} 
@@ -98,10 +98,6 @@ export default function Shop() {
           </Tabs>
         </div>
         
-        {/* Pam Assistant - 25% on desktop, floating button on mobile */}
-        <div className={`${isMobile ? 'fixed bottom-4 right-4 z-30' : 'w-full lg:w-1/4'}`}>
-          <PamAssistantWrapper user={user} />
-        </div>
       </div>
     </div>
   );
