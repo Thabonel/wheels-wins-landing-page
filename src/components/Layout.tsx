@@ -5,6 +5,7 @@ import PamAssistant from '@/components/PamAssistant';
 import { useLocation } from 'react-router-dom';
 import Header from '@/components/header/Header';
 import Footer from '@/components/Footer';
+import Hero from '@/components/Hero';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,9 @@ export default function Layout({ children }: LayoutProps) {
       <header className="bg-white shadow-sm border-b px-6 py-4">
         <Header />
       </header>
+
+      {/* Full-width hero only on homepage */}
+      {pathname === '/' && <Hero />}
 
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
@@ -52,7 +56,7 @@ export default function Layout({ children }: LayoutProps) {
         </>
       )}
 
-      <footer className="bg-gray-800 text-white py-4">
+      <footer className="bg-white text-gray-600 py-4">
         <Footer />
       </footer>
     </div>
