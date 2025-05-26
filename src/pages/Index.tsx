@@ -1,5 +1,4 @@
-
-import Hero from "@/components/Hero";
+// src/pages/Index.tsx
 import PamSpotlight from "@/components/PamSpotlight";
 import HowItWorks from "@/components/HowItWorks";
 import FeaturedProduct from "@/components/FeaturedProduct";
@@ -10,7 +9,7 @@ import PricingPlans from "@/components/PricingPlans";
 const Index = () => {
   return (
     <div className="pt-0">
-      <Hero />
+      {/* Hero removed here; Layout will render it full-width */}
       <PamSpotlight />
       <HowItWorks />
       <FeaturedProduct />
