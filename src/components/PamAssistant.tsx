@@ -1,10 +1,12 @@
+// src/components/PamAssistant.tsx
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { useRegion } from "@/context/RegionContext";
 import { usePam } from "@/hooks/usePam";
 import PamHeader from "@/components/pam/PamHeader";
 import ChatMessages from "@/components/pam/ChatMessages";
 import ChatInput from "@/components/pam/ChatInput";
+import { useAuth } from "@/context/AuthContext";
 
 type Message = {
   sender: "user" | "pam";
@@ -12,8 +14,9 @@ type Message = {
   timestamp: Date;
 };
 
-const PamAssistant = ({ user }: { user: { name: string } }) => {
+export default function PamAssistant() {
   const { region } = useRegion();
+  const { user: authUser } = useAuth();
   const { messages: pamMessages, send } = usePam();
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -30,12 +33,12 @@ const PamAssistant = ({ user }: { user: { name: string } }) => {
   };
 
   useEffect(() => {
-    setMessages([...pamMessages]);
-  }, [region, user.name, pamMessages]);
+    // Reset messages when region or user changes
+    setMessages(pamMessages.map((m) => ({ ...m, timestamp: new Date(m.timestamp) })));
+  }, [region, authUser?.id, pamMessages]);
 
-  if (!user) {
-    return null;
-  }
+  // If not logged in, don’t render
+  if (!authUser) return null;
 
   return (
     <Card className="flex flex-col h-full p-4 rounded-xl shadow-md border-2 border-blue-100/30">
@@ -43,11 +46,7 @@ const PamAssistant = ({ user }: { user: { name: string } }) => {
       <div className="flex-1 overflow-auto my-4">
         <ChatMessages messages={messages} />
       </div>
-      <div className="mt-auto">
-        <ChatInput onSendMessage={handleSend} />
-      </div>
+      <ChatInput onSendMessage={handleSend} />
     </Card>
   );
-};
-
-export default PamAssistant;
+}

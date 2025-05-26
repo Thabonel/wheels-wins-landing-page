@@ -19,15 +19,12 @@ export default function WinsBudgets() {
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
 
-  // State to hold the selected month (0-indexed)
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
 
-  // Calculate start and end dates for the selected month
   const startDate = new Date(selectedYear, selectedMonth, 1).toISOString();
   const endDate = new Date(selectedYear, selectedMonth + 1, 0).toISOString();
 
-  // Generate a list of months for the dropdown (e.g., last 12 months)
   const months = Array.from({ length: 12 }).map((_, i) => {
     const date = new Date(currentYear, currentMonth - i, 1);
     return {
@@ -53,23 +50,22 @@ export default function WinsBudgets() {
       <TotalBudgetsHeader onEditClick={handleEditClick} />
 
       <div className="flex justify-end">
-        <Select
-          onValueChange={handleMonthChange}
-          defaultValue={`${selectedMonth}-${selectedYear}`}
-        >
+        <Select onValueChange={handleMonthChange} defaultValue={`${selectedMonth}-${selectedYear}`}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select a month" />
           </SelectTrigger>
           <SelectContent>
             {months.map((month) => (
-              <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
+              <SelectItem key={month.value} value={month.value}>
+                {month.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      <TotalBudgetCard startDate={startDate} endDate={endDate} />
-      <BudgetCategoriesGrid startDate={startDate} endDate={endDate} />
+      <TotalBudgetCard />
+      <BudgetCategoriesGrid />
       <PamBudgetAdvice />
 
       <CategoryManagementModal open={isEditing} onOpenChange={setIsEditing} />

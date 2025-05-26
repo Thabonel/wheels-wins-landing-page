@@ -19,7 +19,7 @@ import Safety from "./pages/Safety";
 import AdminDashboard from "./pages/AdminDashboard";
 import ScrollToTop from "@/components/ScrollToTop";
 import { ExpensesProvider } from "@/context/ExpensesContext";
-import PamAssistant from "@/components/PamAssistant";
+// Removed duplicate import of PamAssistant
 
 const queryClient = new QueryClient();
 
@@ -30,6 +30,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function AppRoutes() {
   const { pathname } = useLocation();
+  // Sidebar Pam is now handled in Layout, so we no longer render it here
   const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
 
   return (
@@ -91,12 +92,6 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-
-      {!hidePam && (
-        <div className="hidden lg:block fixed top-[var(--header-height)] right-[16px] bottom-0 w-[300px]">
-          <PamAssistant user={{ name: "User" }} />
-        </div>
-      )}
     </div>
   );
 }
