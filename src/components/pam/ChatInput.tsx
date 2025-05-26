@@ -1,13 +1,15 @@
+// src/components/pam/ChatInput.tsx
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { SendHorizontal } from "lucide-react";
+import { ArrowUp } from "lucide-react";
+import MicButton from "@/components/MicButton";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
 }
 
-const ChatInput = ({ onSendMessage }: ChatInputProps) => {
+export default function ChatInput({ onSendMessage }: ChatInputProps) {
   const [message, setMessage] = useState("");
 
   const handleSend = () => {
@@ -17,7 +19,7 @@ const ChatInput = ({ onSendMessage }: ChatInputProps) => {
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex items-center gap-2">
       <Input
         value={message}
         onChange={(e) => setMessage(e.target.value)}
@@ -31,16 +33,17 @@ const ChatInput = ({ onSendMessage }: ChatInputProps) => {
         }}
       />
 
-      <Button
-        type="button"
-        size="icon"
-        onClick={handleSend}
-        className="bg-blue-500 hover:bg-blue-600"
-      >
-        <SendHorizontal className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="icon"
+          onClick={handleSend}
+          className="bg-blue-500 hover:bg-blue-600"
+        >
+          <ArrowUp className="h-4 w-4 rotate-45" />
+        </Button>
+        <MicButton inline />
+      </div>
     </div>
   );
-};
-
-export default ChatInput;
+}
