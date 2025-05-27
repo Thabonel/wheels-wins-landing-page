@@ -135,6 +135,38 @@ export default function TripPlanner() {
     return data.features?.[0]?.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 
+  // Send trip data to n8n webhook
+  const submitTripPlan = async () => {
+    const dir = directionsControl.current!;
+    const originCoords = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
+    const destCoords = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
+    if (!user || !originCoords || !destCoords) return;
+
+    const TRIP_WEBHOOK_URL = import.meta.env.VITE_N8N_TRIP_WEBHOOK;
+
+    const payload = {
+      user_id: user.id, // Supabase user
+      origin: { name: originName, coords: originCoords },
+      destination: { name: destName, coords: destCoords },
+      stops: waypoints,
+      routeMode: dir.getProfile(), // e.g. mapbox/driving
+      travelMode: mode, // e.g. off-grid, luxury, fastest etc.
+    };
+
+    try {
+      const res = await fetch(TRIP_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      console.log("Trip plan response:", data);
+      // Optionally display result to user
+    } catch (err) {
+      console.error("Trip webhook failed", err);
+    }
+  };
+
   // Fetch suggestions via n8n
   async function fetchTripSuggestions() {
     const dir = directionsControl.current!;
@@ -164,13 +196,8 @@ export default function TripPlanner() {
         mode: travelStyle,
       };
 
-      const res = await fetch("/n8n/webhooks/trip-plan-suggestion", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const TRIP_WEBHOOK_URL = import.meta.env.VITE_N8N_TRIP_WEBHOOK;
+      const res = await fetch(TRIP_WEBHOOK_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), });
 
       if (!res.ok) {
         throw new Error("Failed to fetch trip suggestions");
@@ -179,6 +206,7 @@ export default function TripPlanner() {
       const json = await res.json();
       setSuggestions(json.suggestions || []);
       await saveTrip();
+      await submitTripPlan(); // Call the submit function here
     } catch (error) {
       console.error("Error fetching trip suggestions:", error);
     } finally {
@@ -287,6 +315,13 @@ export default function TripPlanner() {
         >
           {adding ? "Click map…" : "Add Stop"}
         </button>
+        <button
+          onClick={submitTripPlan}
+          className="px-4 py-2 text-white bg-green-600 hover:opacity-90 rounded transition-opacity"
+        >
+          Send to Pam
+        </button>
+
       </div>
       {/* Waypoints List */}
       {waypoints.length > 0 && (
