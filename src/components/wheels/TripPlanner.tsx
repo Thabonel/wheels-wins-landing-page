@@ -61,6 +61,7 @@ export default function TripPlanner() {
   useEffect(() => {
     if (!mapContainer.current) return;
     const center = regionCenters[region] || regionCenters.US;
+
     if (!map.current) {
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
@@ -88,9 +89,16 @@ export default function TripPlanner() {
         controls: { instructions: true },
       });
       directionsControl.current = dir;
-      map.current.addControl(dir, "top-left");
 
-      // On every route redraw: reverse-geocode A & B, then fetch suggestions
+      // Mount directions UI into our panel
+      const ui = dir.onAdd(map.current);
+      const panel = document.getElementById("directions-panel");
+      if (panel) {
+        panel.appendChild(ui);
+      } else {
+        map.current.addControl(dir, "top-left");
+      }
+
       dir.on("route", async () => {
         const o = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
         const d = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
@@ -103,7 +111,7 @@ export default function TripPlanner() {
     }
   }, [region]);
 
-  // Pin-drop mode: click map to add a waypoint
+  // Pin-drop mode
   useEffect(() => {
     if (!map.current) return;
     const onClick = async (e: mapboxgl.MapMouseEvent & mapboxgl.EventData) => {
@@ -112,12 +120,10 @@ export default function TripPlanner() {
       const place = await reverseGeocode(coords);
       const newWp: Waypoint = { coords, name: place };
       setWaypoints((w) => [...w, newWp]);
-      // Create numbered marker
       const el = document.createElement("div");
       el.className = "text-white bg-blue-600 rounded-full w-6 h-6 flex items-center justify-center";
       el.innerText = String(waypoints.length + 1);
       new mapboxgl.Marker({ element: el }).setLngLat(coords).addTo(map.current!);
-      // Insert waypoint before final destination
       directionsControl.current!.addWaypoint(waypoints.length, coords);
       setAdding(false);
       map.current!.getCanvas().style.cursor = "";
@@ -126,87 +132,63 @@ export default function TripPlanner() {
     return () => map.current!.off("click", onClick);
   }, [adding, waypoints]);
 
-  // Reverse-geocode helper
   async function reverseGeocode([lng, lat]: [number, number]): Promise<string> {
     const res = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/ ${lng},${lat}.json?access_token=${mapboxgl.accessToken}`
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}`
     );
     const data = await res.json();
     return data.features?.[0]?.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 
-  // Send trip data to n8n webhook
   const submitTripPlan = async () => {
     const dir = directionsControl.current!;
     const originCoords = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
     const destCoords = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
     if (!user || !originCoords || !destCoords) return;
-
     const TRIP_WEBHOOK_URL = import.meta.env.VITE_N8N_TRIP_WEBHOOK;
-
     const payload = {
-      user_id: user.id, // Supabase user
+      user_id: user.id,
       origin: { name: originName, coords: originCoords },
       destination: { name: destName, coords: destCoords },
       stops: waypoints,
-      routeMode: dir.getProfile(), // e.g. mapbox/driving
-      travelMode: mode, // e.g. off-grid, luxury, fastest etc.
+      routeMode: dir.getProfile(),
+      travelMode: mode,
     };
-
     try {
-      const res = await fetch(TRIP_WEBHOOK_URL, {
+      await fetch(TRIP_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      console.log("Trip plan response:", data);
-      // Optionally display result to user
     } catch (err) {
       console.error("Trip webhook failed", err);
     }
   };
 
-  // Fetch suggestions via n8n
   async function fetchTripSuggestions() {
     const dir = directionsControl.current!;
     const origin = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
     const dest = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
-    const routingProfile = dir.getProfile();       // e.g. "mapbox/driving"
-    const travelStyle = mode;                      // e.g. "off-grid"
-
     if (!origin || !dest) return;
-
     setLoading(true);
     try {
       const payload = {
-        origin: {
-          coordinates: origin,
-          name: originName,
-        },
-        destination: {
-          coordinates: dest,
-          name: destName,
-        },
-        waypoints: waypoints.map(wp => ({
-          coordinates: wp.coords,
-          name: wp.name,
-        })),
-        profile: routingProfile,
-        mode: travelStyle,
+        origin: { coordinates: origin, name: originName },
+        destination: { coordinates: dest, name: destName },
+        waypoints: waypoints.map(wp => ({ coordinates: wp.coords, name: wp.name })),
+        profile: dir.getProfile(),
+        mode,
       };
-
       const TRIP_WEBHOOK_URL = import.meta.env.VITE_N8N_TRIP_WEBHOOK;
-      const res = await fetch(TRIP_WEBHOOK_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch trip suggestions");
-      }
-
+      const res = await fetch(TRIP_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       const json = await res.json();
       setSuggestions(json.suggestions || []);
       await saveTrip();
-      await submitTripPlan(); // Call the submit function here
+      await submitTripPlan();
     } catch (error) {
       console.error("Error fetching trip suggestions:", error);
     } finally {
@@ -214,14 +196,11 @@ export default function TripPlanner() {
     }
   }
 
-  // Save trip to Supabase
   async function saveTrip() {
     const dir = directionsControl.current!;
     const origin = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
     const dest = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
-    const routingProfile = dir.getProfile();
     if (!user || !origin || !dest) return;
-
     setSaving(true);
     await supabase.from("trips").insert({
       user_id: user.id,
@@ -229,64 +208,32 @@ export default function TripPlanner() {
       end_location: JSON.stringify({ name: destName, coords: dest }),
       start_date: new Date(),
       arrival_date: new Date(),
-      route: { origin, dest, routingProfile },
+      route: { origin, dest, routingProfile: dir.getProfile() },
       trip_pois: suggestions,
       route_preferences: { mode, requiredWaypoints: waypoints.map(w => w.coords) },
     });
     setSaving(false);
   }
 
-  // Render suggestion POI markers
-  useEffect(() => {
-    if (!map.current?.isStyleLoaded()) return;
-    // Clear old suggestion markers
-    map.current.getStyle().layers?.forEach((l) => {
-      if (l.id.startsWith("marker-")) {
-        map.current!.removeLayer(l.id);
-        map.current!.removeSource(l.id);
-      }
-    });
-    const bounds = new mapboxgl.LngLatBounds();
-    suggestions.forEach((item) => {
-      new mapboxgl.Marker({ anchor: "bottom" })
-        .setLngLat([item.lng, item.lat])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 25 }).setHTML(
-            `<h3>${item.name}</h3><p>${item.tags?.join(",")}</p>`
-          )
-        )
-        .addTo(map.current!);
-      bounds.extend([item.lng, item.lat]);
-    });
-    if (suggestions.length) {
-      map.current.fitBounds(bounds, {
-        padding: { top: 60, bottom: 60, left: 60, right: 60 },
-      });
-    }
-  }, [suggestions]);
-
-  // Remove a waypoint
-  const removeWaypoint = (i: number) => {
-    setWaypoints((prev) => prev.filter((_, idx) => idx !== i));
-    directionsControl.current!.removeWaypoint(i);
-    fetchTripSuggestions();
-  };
-
   return (
     <div className="space-y-4 w-full">
-      {/* Tip & A→B display */}
-      <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-500">
-          Tip: Ask Pam—“Plan my trip from {originName} to {destName}.”
-        </p>
-        <div ref={geocoderContainer} className="w-1/3 p-2 border rounded bg-white shadow-md"></div>
+      <p className="text-sm text-gray-500">
+        Tip: Ask Pam—“Plan my trip from {originName} to {destName}.”
+      </p>
+
+      <div className="flex space-x-4">
+        {/* Map */}
+        <div className="flex-1 overflow-hidden rounded-lg border">
+          <div ref={mapContainer} className="h-[600px] w-full" />
+        </div>
+        {/* Directions panel */}
+        <div
+          id="directions-panel"
+          className="w-80 max-h-[600px] overflow-auto rounded-lg border p-4 bg-white"
+        />
       </div>
-      {/* Map */}
-      <div className="overflow-hidden rounded-lg border">
-        <div ref={mapContainer} className="h-[600px] w-full" />
-      </div>
-      {/* Controls */}
-      <div className="flex items-center space-x-4 pt-2">
+
+      <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
           <label htmlFor="routeMode">Route mode:</label>
           <select
@@ -305,9 +252,7 @@ export default function TripPlanner() {
         <button
           onClick={() => {
             setAdding(true);
-            if (map.current) {
-              map.current.getCanvas().style.cursor = "crosshair";
-            }
+            if (map.current) map.current.getCanvas().style.cursor = "crosshair";
           }}
           className={`px-4 py-2 text-white rounded ${
             adding ? "bg-gray-500" : "bg-primary"
@@ -321,9 +266,17 @@ export default function TripPlanner() {
         >
           Send to Pam
         </button>
-
       </div>
-      {/* Waypoints List */}
+
+      <p className="text-sm text-gray-500">
+        Use the search box below to find and add additional stops by name or address.
+      </p>
+
+      <div
+        ref={geocoderContainer}
+        className="w-full max-w-md p-2 border rounded bg-white shadow-md mt-1"
+      />
+
       {waypoints.length > 0 && (
         <div>
           <h4 className="font-semibold">Stops:</h4>
@@ -334,13 +287,20 @@ export default function TripPlanner() {
                   {i + 1}
                 </span>
                 <span className="flex-1 text-sm">{w.name}</span>
-                <button onClick={() => removeWaypoint(i)}>❌</button>
+                <button
+                  onClick={() => {
+                    directionsControl.current!.removeWaypoint(i);
+                    setWaypoints((prev) => prev.filter((_, idx) => idx !== i));
+                  }}
+                >
+                  ❌
+                </button>
               </li>
             ))}
           </ul>
         </div>
       )}
-      {/* Status & Suggestions */}
+
       {loading && <p className="text-center text-gray-600">Planning…</p>}
       {saving && <p className="text-center text-gray-600">Saving…</p>}
       {suggestions.length > 0 && (
