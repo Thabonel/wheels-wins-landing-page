@@ -28,8 +28,12 @@ export default function Layout({ children }: LayoutProps) {
       {/* Full-width hero only on homepage */}
       {pathname === "/" && <Hero />}
 
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {children}
+      <main
+        className={
+          pathname === "/" ? "flex-1 px-0 py-0" : "flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6"
+        }
+      >
+       {children}
       </main>
 
       {/* Desktop Pam chat sidebar */}
