@@ -39,15 +39,8 @@ export default function Wheels() {
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCoords({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-        },
-        (error) => {
-          setGeoError(error.message);
-        }
+        ({ coords }) => setCoords({ latitude: coords.latitude, longitude: coords.longitude }),
+        (error) => setGeoError(error.message)
       );
     } else {
       setGeoError("Geolocation is not supported");
@@ -77,21 +70,9 @@ export default function Wheels() {
   }, [region]);
 
   return (
-    <DashboardLayout
-      sidebar={
-        !isMobile ? (
-          coords ? (
-            <WeatherWidget latitude={coords.latitude} longitude={coords.longitude} />
-          ) : geoError ? (
-            <p className="p-4 text-center text-red-500">Error: {geoError}</p>
-          ) : (
-            <p className="p-4 text-center">Loading weather...</p>
-          )
-        ) : null
-      }
-    >
+    <DashboardLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Tabs defaultValue="trip-planner" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start flex-wrap mb-6">
             {Object.entries(regionalFeatures).map(([key, feature]) => (
               <TabsTrigger
@@ -110,47 +91,38 @@ export default function Wheels() {
             ))}
           </TabsList>
 
-          <div className="bg-white rounded-lg border p-4 min-h-[600px]">
-            {Object.entries(regionalFeatures).map(([key, feature]) => (
-              <TabsContent key={key} value={key}>
-                {feature.comingSoon ? (
-                  <div className="text-center py-12">
-                    <h3 className="text-xl font-semibold text-gray-700 mb-2">Coming Soon to {region}</h3>
-                    <p className="text-gray-500">We're working on bringing this feature to your region. Check back soon!</p>
+          {Object.entries(regionalFeatures).map(([key, feature]) => (
+            <TabsContent key={key} value={key}>
+              {feature.comingSoon ? (
+                <div className="text-center py-12">
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                    Coming Soon to {region}
+                  </h3>
+                  <p className="text-gray-500">We're working on bringing this feature to your region. Check back soon!</p>
+                </div>
+              ) : key === "trip-planner" ? (
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  {/* Trip Planner + Weather */}
+                  <div className="col-span-1 md:col-span-11 space-y-4">
+                    <TripPlanner />
+                    {coords && <WeatherWidget latitude={coords.latitude} longitude={coords.longitude} />}
                   </div>
-                ) : (
-                  feature.component
-                )}
-              </TabsContent>
-            ))}
-          </div>
+
+                  {/* Directions panel */}
+                  <div className="col-span-1 md:col-span-1">
+                    <div
+                      id="directions-panel"
+                      className="bg-white rounded-lg border p-4 min-h-[600px] overflow-y-auto overflow-x-hidden"
+                    />
+                  </div>
+                </div>
+              ) : (
+                feature.component
+              )}
+            </TabsContent>
+          ))}
         </Tabs>
       </div>
-
-      {isMobile && (
-        <>
-          <button
-            onClick={() => document.getElementById("pam-modal")?.classList.toggle("hidden")}
-            className="fixed bottom-4 right-4 z-30 bg-primary text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg"
-          >
-            <span className="text-lg font-bold">Pam</span>
-          </button>
-          <div id="pam-modal" className="hidden fixed inset-0 z-40 bg-black bg-opacity-50">
-            <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">Chat with Pam</h3>
-                <button
-                  onClick={() => document.getElementById("pam-modal")?.classList.add("hidden")}
-                  className="text-gray-500"
-                >
-                  Close
-                </button>
-              </div>
-              <PamAssistant user={user} />
-            </div>
-          </div>
-        </>
-      )}
     </DashboardLayout>
   );
 }

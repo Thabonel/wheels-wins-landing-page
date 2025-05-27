@@ -7,16 +7,12 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children, sidebar }: DashboardLayoutProps) {
-  return (
-    <div className="flex gap-6">
-      {/* Main area */}
-      <div className="flex-1">
-        {children}
+ return (
+ <div className="relative">
+ {children}
+      <div className="hidden lg:block absolute top-0 right-0 w-72">
+ {sidebar}
       </div>
-      {/* Sidebar – desktop only */}
-      <div className="hidden lg:block w-72">
-        {sidebar}
-      </div>
-    </div>
+ </div>
   );
 }
