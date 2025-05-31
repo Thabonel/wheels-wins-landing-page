@@ -110,27 +110,25 @@ export default function MapControls({
   }, [adding, waypoints, setWaypoints, setAdding]);
 
   return (
-    <div className="space-y-4">
-      {/* Geocoder search box */}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Map */}
+      <div className="lg:col-span-2 overflow-hidden rounded-lg border">
+        <div ref={mapContainer} className="h-[600px] w-full" />
+      </div>
+      
+      {/* Directions panel */}
+      <div className="lg:col-span-1">
+        <div
+          ref={directionsContainer}
+          className="bg-white rounded-lg border p-4 h-[600px] overflow-y-auto"
+        />
+      </div>
+
+      {/* Hidden geocoder container */}
       <div
         ref={geocoderContainer}
-        className="w-full max-w-md bg-white border rounded-lg shadow-md"
+        className="w-full max-w-md p-2 border rounded bg-white shadow-md mt-1"
       />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Map */}
-        <div className="lg:col-span-2 overflow-hidden rounded-lg border">
-          <div ref={mapContainer} className="h-[600px] w-full" />
-        </div>
-        
-        {/* Directions panel */}
-        <div className="lg:col-span-1">
-          <div
-            ref={directionsContainer}
-            className="bg-white rounded-lg border p-4 h-[600px] overflow-y-auto"
-          />
-        </div>
-      </div>
     </div>
   );
 }
