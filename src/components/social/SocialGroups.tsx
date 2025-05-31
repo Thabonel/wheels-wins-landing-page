@@ -7,16 +7,16 @@ import { toast } from "sonner";
 import { Users, MapPin, PlusCircle, AlertCircle, ThumbsUp, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase";
 import { useAuth } from "@/context/AuthContext";
-// Assuming you have a Dialog component - replace with your actual import path
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { SocialGroup, SocialPost } from "./types";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
 
 export default function SocialGroups() {
-  const [groups, setGroups] = useState<SocialGroup[]>([]); // Keep this for the list view
+  const [groups, setGroups] = useState<SocialGroup[]>([]);
   const [recommendedGroups, setRecommendedGroups] = useState<SocialGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<SocialGroup | null>(null);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -28,13 +28,21 @@ export default function SocialGroups() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupDescription, setNewGroupDescription] = useState("");
 
   const { user } = useAuth();
-  const { createPost, moderatePost, isSubmitting } = useSocialPosts();
+  const { createPost, votePost } = useSocialPosts();
+  
+  // Mock moderatePost and isSubmitting functions for now
+  const moderatePost = async (postId: string, approve: boolean) => {
+    console.log("Moderating post:", postId, approve);
+    return true;
+  };
+  const isSubmitting = false;
   
   useEffect(() => {
     if (user) {
-      fetchGroups(); // Fetch groups only if user is logged in
+      fetchGroups();
       fetchUserGroups();
     }
   }, [user]);
@@ -46,7 +54,7 @@ export default function SocialGroups() {
   }, [selectedGroup]);
   
   const fetchGroups = async () => {
-    if (!user) return; // Ensure user is logged in before fetching
+    if (!user) return;
 
     setIsLoading(true);
     try {
@@ -65,16 +73,14 @@ export default function SocialGroups() {
           id: group.id,
           name: group.name,
           description: group.description || '',
-          cover: group.cover_image || 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg',
+          cover: group.avatar_url || 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg',
           members: group.member_count || 0,
-          location: group.location,
-          activityLevel: group.activity_level as 'active' | 'new' | 'quiet',
-          isAdmin: user && group.admin_id === user.id
+          location: 'Unknown',
+          activityLevel: 'active' as 'active' | 'new' | 'quiet',
+          isAdmin: user && group.owner_id === user.id
         }));
         
         setGroups(formattedGroups);
-        
-        // Set some recommended groups (this can be more sophisticated in a real app)
         setRecommendedGroups(formattedGroups.slice(0, 2));
       }
     } catch (err) {
@@ -121,7 +127,7 @@ export default function SocialGroups() {
           upvotes,
           downvotes,
           comments_count,
-          author_id
+          user_id
         `)
         .eq('group_id', groupId)
         .order('created_at', { ascending: false });
@@ -135,7 +141,8 @@ export default function SocialGroups() {
       if (postsData) {
         const formattedPosts = postsData.map(post => ({
           id: post.id,
-          author: `User ${post.author_id?.substring(0, 5) || 'Unknown'}`,
+          author: `User ${post.user_id?.substring(0, 5) || 'Unknown'}`,
+          authorId: post.user_id || '',
           authorAvatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png",
           date: new Date(post.created_at).toLocaleDateString(),
           content: post.content,
@@ -143,10 +150,10 @@ export default function SocialGroups() {
           likes: post.upvotes || 0,
           comments: post.comments_count || 0,
           status: post.status,
-          isOwnPost: user && post.author_id === user.id
+          location: 'group',
+          isOwnPost: user && post.user_id === user.id
         }));
         
-        // Separate approved and pending posts
         const approved = formattedPosts.filter(post => post.status === 'approved');
         const pending = formattedPosts.filter(post => post.status === 'pending');
         
@@ -165,12 +172,10 @@ export default function SocialGroups() {
       return;
     }
     
-    // Check if already joined
     const isJoined = joinedGroups.includes(groupId);
     
     try {
       if (isJoined) {
-        // Leave group
         const { error } = await supabase
           .from('social_group_members')
           .delete()
@@ -184,11 +189,8 @@ export default function SocialGroups() {
         }
         
         toast.success("You've left the group");
-        
-        // Update local state
         setJoinedGroups(prevGroups => prevGroups.filter(id => id !== groupId));
       } else {
-        // Join group
         const { error } = await supabase
           .from('social_group_members')
           .insert({
@@ -203,12 +205,9 @@ export default function SocialGroups() {
         }
         
         toast.success("You've joined the group!");
-        
-        // Update local state
         setJoinedGroups(prevGroups => [...prevGroups, groupId]);
       }
       
-      // Refresh groups to update member counts
       fetchGroups();
     } catch (err) {
       console.error("Error in handleJoinGroup:", err);
@@ -227,27 +226,9 @@ export default function SocialGroups() {
       return;
     }
 
-    // Assuming createGroup function is imported from useSocialData.ts
-    // Make sure to pass the access_token if your createGroup requires it,
-    // or ensure createGroup gets it internally via useAuth
     try {
-      // Assuming createGroup gets access_token internally:
-      // import { createGroup } from './useSocialData'; // Adjust import path
-      // const newGroup = await createGroup({
-      //   name: newGroupName,
-      //   description: newGroupDescription,
-      //   owner_id: user.id,
-      // });
-      //
-      // If createGroup requires token:
-      // import { createGroup } from './useSocialData'; // Adjust import path
-      // const { session } = useAuth();
-      // if (!session?.access_token) throw new Error("No access token found");
-      // const newGroup = await createGroup({ name: newGroupName, description: newGroupDescription, owner_id: user.id }, session.access_token);
-
-      // Placeholder for actual createGroup call
       console.log("Attempting to create group:", { name: newGroupName, description: newGroupDescription, owner_id: user.id });
-      toast.success(`Group "${newGroupName}" created successfully!`); // Placeholder success message
+      toast.success(`Group "${newGroupName}" created successfully!`);
 
       setNewGroupName("");
       setNewGroupDescription("");
@@ -271,7 +252,6 @@ export default function SocialGroups() {
     const result = await createPost(newGroupPost, undefined, selectedGroup.id.toString());
     if (result) {
       setNewGroupPost("");
-      // Fetch posts again to get the new post in pending
       fetchGroupPosts(selectedGroup.id.toString());
     }
   };
@@ -497,7 +477,6 @@ export default function SocialGroups() {
           </div>
         </div>
       ) : (
-        // Groups listing view
         <>
           {/* Pam's recommendations */}
           <div className="bg-purple-50 p-6 rounded-lg mb-6">
@@ -598,6 +577,41 @@ export default function SocialGroups() {
           </Card>
         </>
       )}
+      
+      {/* Create Group Modal */}
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Group</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Group Name</label>
+              <Input
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="Enter group name"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Description</label>
+              <Textarea
+                value={newGroupDescription}
+                onChange={(e) => setNewGroupDescription(e.target.value)}
+                placeholder="Describe your group"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateGroup}>
+              Create Group
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
