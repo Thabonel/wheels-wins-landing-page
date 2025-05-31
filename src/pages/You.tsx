@@ -1,4 +1,4 @@
-// src/pages/You.tsx
+
 import "@/components/you/calendar-styles.css";
 import { useIsMobile } from "@/hooks/use-mobile";
 import PamAssistant from "@/components/PamAssistant";
@@ -58,7 +58,7 @@ const You = () => {
                   Close
                 </button>
               </div>
-              <PamAssistant user={user} />
+              <PamAssistant />
             </div>
           </div>
         </>

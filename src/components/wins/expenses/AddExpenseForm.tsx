@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -26,16 +27,15 @@ interface AddExpenseFormProps {
   onClose?: () => void;
 }
 
-
 export default function AddExpenseForm({ onClose }: AddExpenseFormProps) {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const { addExpense, categories } = useExpenseActions();
 
- const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const handleSubmit = () => {
-    if (!amount || !category || !description || !date) {
+    if (!amount || !category || !description || !selectedDate) {
       return;
     }
 
@@ -43,14 +43,13 @@ export default function AddExpenseForm({ onClose }: AddExpenseFormProps) {
       amount: parseFloat(amount),
       category,
       description,
-      date: date,
+      date: format(selectedDate, 'yyyy-MM-dd'),
     });
 
     if (success) {
       setAmount("");
       setCategory("");
       setDescription("");
-      setDate("");
       setSelectedDate(new Date());
       if (onClose) {
         onClose();

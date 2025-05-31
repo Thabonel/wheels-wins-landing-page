@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext'; // Assuming you have an AuthContext
-import { BudgetCategory, BudgetSummaryView } from "./types";
+import { useAuth } from '@/context/AuthContext';
+import { BudgetCategory, BudgetSummary } from "./types";
 import useSupabaseClient from '@/hooks/useSupabaseClient';
 
 export function useBudgetCalculations(startDate?: string, endDate?: string) {
@@ -11,7 +11,7 @@ export function useBudgetCalculations(startDate?: string, endDate?: string) {
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [budgetSummary, setBudgetSummary] = useState<BudgetSummary>({
     totalBudget: 0, 
-    spent: 0,
+    totalSpent: 0,
     totalRemaining: 0,
     totalProgress: 0,
   });
@@ -40,10 +40,9 @@ export function useBudgetCalculations(startDate?: string, endDate?: string) {
 
       if (error) {
         console.error('Error fetching budgets:', error);
-        // Handle the case where the budget_summary view might not exist or be empty
         setBudgetSummary({
           totalBudget: 0,
-          spent: 0,
+          totalSpent: 0,
           totalRemaining: 0,
           totalProgress: 0,
         });
@@ -51,7 +50,7 @@ export function useBudgetCalculations(startDate?: string, endDate?: string) {
         const summaryData = data ? data[0] : { total_budget: 0, spent: 0 };
         setBudgetSummary({
           totalBudget: summaryData.total_budget || 0,
-          spent: summaryData.spent || 0, // Use the 'spent' value directly
+          totalSpent: summaryData.spent || 0,
           totalRemaining: (summaryData.total_budget || 0) - (summaryData.spent || 0),
           totalProgress: (summaryData.total_budget || 0) > 0 ? Math.round(((summaryData.spent || 0) / (summaryData.total_budget || 0)) * 100) : 0,
         });
@@ -65,6 +64,6 @@ export function useBudgetCalculations(startDate?: string, endDate?: string) {
   return {
     categories,
     budgetSummary,
-    loading, // Added loading state for better handling in components
+    loading,
   };
 }
