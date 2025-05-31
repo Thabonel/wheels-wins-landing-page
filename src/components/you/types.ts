@@ -8,6 +8,8 @@ export interface CalendarEvent {
   time: string;
   startTime: string;
   endTime: string;
+  description?: string;
+  location?: string;
 }
 
 export interface CalendarNavigationProps {
@@ -29,4 +31,6 @@ export interface EventFormData {
   date: Date;
   startTime: string;
   endTime: string;
+  description?: string;
+  location?: string;
 }

@@ -24,12 +24,19 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     if (!user) return;
     
-    console.log("Access token:", user.access_token);
+    // Get the session to access the access token
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      toast.error("Authentication required");
+      return;
+    }
+    
+    console.log("Access token:", session.access_token);
     setLoading(true);
     try {
       const res = await fetch("https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/get-admin-users", {
         headers: {
-          Authorization: `Bearer ${user.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
       });
 
