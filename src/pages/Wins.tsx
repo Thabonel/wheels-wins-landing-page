@@ -1,4 +1,4 @@
-// src/pages/Wins.tsx
+
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -8,6 +8,7 @@ import WinsIncome from "@/components/wins/WinsIncome";
 import WinsBudgets from "@/components/wins/WinsBudgets";
 import WinsTips from "@/components/wins/WinsTips";
 import WinsMoneyMaker from "@/components/wins/WinsMoneyMaker";
+import PamAssistant from "@/components/PamAssistant";
 import { useScrollReset } from "@/hooks/useScrollReset";
 
 export default function Wins() {
@@ -114,7 +115,7 @@ export default function Wins() {
                     Close
                   </button>
                 </div>
-                <PamAssistant user={user} />
+                <PamAssistant />
               </div>
             </div>
           </>
