@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
@@ -18,6 +19,18 @@ import {
 } from "lucide-react";
 import { useSocialData } from "@/components/social/useSocialData";
 import { useMoneyMakerData } from "@/components/wins/moneymaker/useMoneyMakerData";
+
+interface Hustle {
+  id: number;
+  title: string;
+  description: string;
+  image: string;
+  avgEarnings: number;
+  rating: number;
+  likes: number;
+  trending: boolean;
+  tags: string[];
+}
 
 export default function SocialHustleBoard() {
   // Default hustles to an empty array

@@ -1,18 +1,20 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import useSupabaseClient from "@/hooks/useSupabaseClient";
+import { supabase } from "@/integrations/supabase";
+import { useAuth } from "@/context/AuthContext";
 
 const Settings = () => {
   const [emailNotifications, setEmailNotifications] = useState(false);
   const [twoFactor, setTwoFactor] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
-  const { user, supabase, isReady } = useSupabaseClient();
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (!isReady || !user) return;
+    if (!user) return;
 
     const loadSettings = async () => {
       const { data, error } = await supabase
@@ -30,10 +32,10 @@ const Settings = () => {
     };
 
     loadSettings();
-  }, [isReady, user, supabase]);
+  }, [user]);
 
   const handleSaveSettings = async (key: 'email_notifications' | 'two_factor_auth', value: boolean) => {
-    if (!isReady || !user) return;
+    if (!user) return;
 
     setSaving(true);
 
@@ -71,7 +73,7 @@ const Settings = () => {
                 setEmailNotifications(checked);
                 handleSaveSettings('email_notifications', checked);
               }}
-              disabled={!isReady || saving}
+              disabled={!user || saving}
             />
           </div>
         </CardContent>
@@ -89,7 +91,7 @@ const Settings = () => {
               setTwoFactor(checked);
               handleSaveSettings('two_factor_auth', checked);
             }}
-            disabled={!isReady || saving}
+            disabled={!user || saving}
           />
         </CardContent>
       </Card>
