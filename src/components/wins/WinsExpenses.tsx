@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Drawer, DrawerTrigger } from "@/components/ui/drawer";
@@ -28,17 +27,21 @@ export default function WinsExpenses() {
     ? expenses 
     : expenses.filter(expense => expense.category.toLowerCase() === selectedCategory.toLowerCase());
   
-  // Prepare chart data based on categories
+  // Prepare chart data based on categories - ensure amount is always a number
   const filteredChartData = Object.entries(
     expenses.reduce((acc, expense) => {
       const category = expense.category;
       if (!acc[category]) {
         acc[category] = 0;
       }
-      acc[category] += Number(expense.amount) || 0;
+      const amount = Number(expense.amount);
+      acc[category] += isNaN(amount) ? 0 : amount;
       return acc;
     }, {} as Record<string, number>)
-  ).map(([name, amount]) => ({ name, amount: Number(amount) }));
+  ).map(([name, amount]) => ({ 
+    name, 
+    amount: Number(amount) || 0 
+  }));
   
   return (
     <div className="space-y-6">
