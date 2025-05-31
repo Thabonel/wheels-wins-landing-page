@@ -1,9 +1,12 @@
+
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase";
+import { useAuth } from "@/context/AuthContext";
 
 interface AdminUser {
   id: string;
@@ -14,18 +17,19 @@ interface AdminUser {
 }
 
 export default function UserManagement() {
-  // Assuming your custom useAuth hook provides a session object with an access_token
-  // const supabase = useSupabaseClient(); // Removed useSupabaseClient import
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   const fetchUsers = async () => {
-    console.log("Access token:", session?.access_token);
+    if (!user) return;
+    
+    console.log("Access token:", user.access_token);
     setLoading(true);
     try {
       const res = await fetch("https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/get-admin-users", {
         headers: {
-          Authorization: `Bearer ${session?.access_token}`,
+          Authorization: `Bearer ${user.access_token}`,
         },
       });
 
@@ -68,12 +72,9 @@ export default function UserManagement() {
     }
   };
 
-  // Temporarily comment out the useEffect to prevent fetching on component mount
-  // useEffect(() => {
-  //   // Assuming 'session' is available from your custom auth context
-  //   if (session) fetchUsers();
-  //   // If session is not available from auth context, you might need to adjust this logic
-  // }, [session]);
+  useEffect(() => {
+    if (user) fetchUsers();
+  }, [user]);
 
   return (
     <div className="p-6">
