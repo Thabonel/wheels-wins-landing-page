@@ -36,6 +36,7 @@ const modes = [
 export default function TripPlanner() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const geocoderContainer = useRef<HTMLDivElement>(null);
+  const directionsContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
   const [originName, setOriginName] = useState("A");
@@ -90,14 +91,9 @@ export default function TripPlanner() {
       });
       directionsControl.current = dir;
 
-      // Mount directions UI into our panel
+      // Mount directions UI into our container
       const ui = dir.onAdd(map.current);
-      const panel = document.getElementById("directions-panel");
-      if (panel) {
-        panel.appendChild(ui);
-      } else {
-        map.current.addControl(dir, "top-left");
-      }
+      directionsContainer.current?.appendChild(ui);
 
       dir.on("route", async () => {
         const o = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
@@ -111,6 +107,7 @@ export default function TripPlanner() {
     }
   }, [region]);
 
+  
   // Pin-drop mode
   useEffect(() => {
     if (!map.current) return;
@@ -221,16 +218,19 @@ export default function TripPlanner() {
         Tip: Ask Pam—“Plan my trip from {originName} to {destName}.”
       </p>
 
-      <div className="flex space-x-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Map */}
-        <div className="flex-1 overflow-hidden rounded-lg border">
+        <div className="lg:col-span-2 overflow-hidden rounded-lg border">
           <div ref={mapContainer} className="h-[600px] w-full" />
         </div>
+        
         {/* Directions panel */}
-        <div
-          id="directions-panel"
-          className="w-80 max-h-[600px] overflow-auto rounded-lg border p-4 bg-white"
-        />
+        <div className="lg:col-span-1">
+          <div
+            ref={directionsContainer}
+            className="bg-white rounded-lg border p-4 h-[600px] overflow-y-auto"
+          />
+        </div>
       </div>
 
       <div className="flex items-center space-x-4">
