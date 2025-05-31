@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase";
 import { SocialPost, SocialGroup, MarketplaceListing, HustleIdea } from "./types";
@@ -5,7 +6,7 @@ import { SocialPost, SocialGroup, MarketplaceListing, HustleIdea } from "./types
 export function useSocialData() {
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [groups, setGroups] = useState<SocialGroup[]>([]);
-  const [listings, setListings] = useState<MarketplaceListing[]>([]);
+  const [marketplaceListings, setMarketplaceListings] = useState<MarketplaceListing[]>([]);
   const [hustles, setHustles] = useState<HustleIdea[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -29,7 +30,7 @@ export function useSocialData() {
           .from("marketplace_listings")
           .select("*");
         if (listingsError) throw listingsError;
-        setListings(listingsData);
+        setMarketplaceListings(listingsData);
 
         const { data: hustlesData = [], error: hustlesError } = await supabase
           .from("hustle_ideas")
@@ -46,7 +47,7 @@ export function useSocialData() {
     fetchData();
   }, []);
 
-  return { posts, groups, listings, hustles, loading };
+  return { posts, groups, marketplaceListings, hustles, loading };
 }
 
 export async function createSocialPost(post: {
