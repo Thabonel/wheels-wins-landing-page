@@ -1,3 +1,4 @@
+
 import 'mapbox-gl/dist/mapbox-gl.css';
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
@@ -55,7 +56,11 @@ export default function TripPlanner() {
     const style = document.createElement("style");
     style.innerHTML = `.mapboxgl-ctrl-geocoder .mapboxgl-ctrl-geocoder--icon { display: none; }`;
     document.head.appendChild(style);
-    return () => document.head.removeChild(style);
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
   }, []);
 
   // Initialize map, geocoder, directions
@@ -111,7 +116,7 @@ export default function TripPlanner() {
   // Pin-drop mode
   useEffect(() => {
     if (!map.current) return;
-    const onClick = async (e: mapboxgl.MapMouseEvent & mapboxgl.EventData) => {
+    const onClick = async (e: mapboxgl.MapMouseEvent) => {
       if (!adding) return;
       const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
       const place = await reverseGeocode(coords);
@@ -215,7 +220,7 @@ export default function TripPlanner() {
   return (
     <div className="space-y-4 w-full">
       <p className="text-sm text-gray-500">
-        Tip: Ask Pam—“Plan my trip from {originName} to {destName}.”
+        Tip: Ask Pam—"Plan my trip from {originName} to {destName}."
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -233,22 +238,18 @@ export default function TripPlanner() {
         </div>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2">
-          <label htmlFor="routeMode">Route mode:</label>
-          <select
-            id="routeMode"
-            value={mode}
-            onChange={(e) => setMode(e.target.value)}
-            className="border rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {modes.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="flex items-center space-x-4 flex-wrap">
+        <select
+          value={mode}
+          onChange={(e) => setMode(e.target.value)}
+          className="border rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {modes.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
         <button
           onClick={() => {
             setAdding(true);
