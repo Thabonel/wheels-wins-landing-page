@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
@@ -33,7 +32,6 @@ interface Hustle {
 }
 
 export default function SocialHustleBoard() {
-  // Default hustles to an empty array
   const { hustles = [] } = useSocialData();
   const { activeIdeas } = useMoneyMakerData();
   const [searchQuery, setSearchQuery] = useState("");
@@ -54,7 +52,6 @@ export default function SocialHustleBoard() {
   };
 
   const getSortedHustles = () => {
-    // Ensure hustles is always an array
     const filteredHustles = hustles.filter((hustle) => {
       if (archivedIds.includes(hustle.id)) {
         return false;
