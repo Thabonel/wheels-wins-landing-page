@@ -1,3 +1,4 @@
+
 import type { CalendarEvent } from "@/components/you/types";
 import type { EventFormData } from "@/components/you/types";
 import React, { useState } from "react";
@@ -101,13 +102,27 @@ const UserCalendar = () => {
         defaultType={editingEventType}
         defaultStartTime={getFormattedTime(eventStartTime)}
         defaultEndTime={getFormattedTime(eventEndTime)}
-        onSubmit={(data: EventFormData) => handleEventSubmit(
-          data,
-          editingEventId,
-          events,
-          setEvents,
-          setIsEventModalOpen
-        )}
+        onSubmit={(data: EventFormData) => {
+          // Convert EventFormData to CalendarEvent format
+          const calendarEvent: CalendarEvent = {
+            title: data.title,
+            date: data.date,
+            startTime: data.startTime,
+            endTime: data.endTime,
+            type: data.type,
+            description: data.description,
+            location: data.location,
+            time: data.startTime // Add the required time property
+          };
+          
+          handleEventSubmit(
+            calendarEvent,
+            editingEventId,
+            events,
+            setEvents,
+            setIsEventModalOpen
+          );
+        }}
         onCancel={() => setIsEventModalOpen(false)}
       />
     </>
