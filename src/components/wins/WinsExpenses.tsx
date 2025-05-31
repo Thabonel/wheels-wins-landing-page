@@ -35,10 +35,10 @@ export default function WinsExpenses() {
       if (!acc[category]) {
         acc[category] = 0;
       }
-      acc[category] += expense.amount;
+      acc[category] += Number(expense.amount) || 0;
       return acc;
     }, {} as Record<string, number>)
-  ).map(([name, amount]) => ({ name, amount }));
+  ).map(([name, amount]) => ({ name, amount: Number(amount) }));
   
   return (
     <div className="space-y-6">

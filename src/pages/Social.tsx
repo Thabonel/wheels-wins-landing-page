@@ -1,4 +1,4 @@
-// src/pages/Social.tsx
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -111,7 +111,7 @@ export default function Social() {
                   Close
                 </button>
               </div>
-              <PamAssistant user={user} />
+              <PamAssistant />
             </div>
           </div>
         )}
