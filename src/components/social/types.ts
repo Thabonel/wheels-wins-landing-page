@@ -38,3 +38,15 @@ export interface MarketplaceListing {
   posted: string;
   isFavorite?: boolean;
 }
+
+export interface HustleIdea {
+  id: number;
+  title: string;
+  description: string;
+  image: string;
+  avgEarnings: number;
+  rating: number;
+  likes: number;
+  trending: boolean;
+  tags: string[];
+}
