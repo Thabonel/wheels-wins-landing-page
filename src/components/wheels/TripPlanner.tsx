@@ -1,4 +1,5 @@
 
+
 import 'mapbox-gl/dist/mapbox-gl.css';
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
@@ -131,7 +132,11 @@ export default function TripPlanner() {
       map.current!.getCanvas().style.cursor = "";
     };
     map.current.on("click", onClick);
-    return () => map.current!.off("click", onClick);
+    return () => {
+      if (map.current) {
+        map.current.off("click", onClick);
+      }
+    };
   }, [adding, waypoints]);
 
   async function reverseGeocode([lng, lat]: [number, number]): Promise<string> {

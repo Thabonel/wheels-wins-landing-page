@@ -1,4 +1,5 @@
 
+
 import {
   Table,
   TableBody,
@@ -16,18 +17,28 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Filter } from "lucide-react";
-import { useExpenseActions } from "@/hooks/useExpenseActions";
 import { Skeleton } from "@/components/ui/skeleton";
 
+export interface ExpenseItem {
+  id: number;
+  amount: number;
+  category: string;
+  date: string;
+  description: string;
+}
 
 interface ExpenseTableProps {
+  expenses: ExpenseItem[];
+  categoryColors: Record<string, string>;
   onFilterClick: () => void;
 }
 
 export default function ExpenseTable({
+  expenses,
+  categoryColors,
   onFilterClick 
 }: ExpenseTableProps) {
-  const { expenses, categoryColors, isLoading } = useExpenseActions();
+  const isLoading = false; // You can add this as a prop if needed
 
   return (
     <Card>

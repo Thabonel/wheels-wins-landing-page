@@ -1,90 +1,38 @@
-tsx
-import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { useRegion } from "@/context/RegionContext";
-import { usePam } from "@/hooks/usePam";
-import PamHeader from "@/components/pam/PamHeader";
-import ChatMessages from "@/components/pam/ChatMessages";
-import ChatInput from "@/components/pam/ChatInput";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
-import { Button } from "@/components/ui/button"; 
-import { useMobile } from "@/hooks/use-mobile";
 
-type Message = {
-  sender: "user" | "pam";
-  content: string;
-  timestamp: Date;
-};
+import { useIsMobile } from "@/hooks/use-mobile";
+import PamAssistant from "@/components/PamAssistant";
 
-const PamAssistant = ({ user }: { user: { name: string } }) => {
-  const { region } = useRegion();
-  const { messages: pamMessages, send } = usePam();
-  const [messages, setMessages] = useState<Message[]>([]);
-
-  const handleSend = async (message: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { sender: "user", content: message, timestamp: new Date() },
-    ]);
-    const assistantMsg = await send(message);
-    setMessages((prev) => [
-      ...prev,
-      { sender: "pam", content: assistantMsg.content, timestamp: new Date() },
-    ]);
-  };
-
-  useEffect(() => {
-    setMessages([...pamMessages]);
-  }, [region, user.name, pamMessages]);
-
-  const { isMobile } = useMobile();
+export default function PamAssistantWrapper() {
+  const isMobile = useIsMobile();
 
   if (isMobile) {
     return (
-      <Drawer>
-        <DrawerTrigger asChild>
-          <Button className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-            Open Pam Assistant
-          </Button>
-        </DrawerTrigger>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Pam Assistant</DrawerTitle>
-            <DrawerDescription>Your personal AI helper.</DrawerDescription>
-          </DrawerHeader>
-          <div className="flex flex-col h-[70vh] p-4">
-            <PamHeader region={region} />
-            <div className="flex-1 overflow-auto my-4">
-              <ChatMessages messages={messages} />
+      <>
+        <button
+          onClick={() => document.getElementById("pam-modal")?.classList.toggle("hidden")}
+          className="bg-primary text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg"
+        >
+          <span className="text-lg font-bold">Pam</span>
+        </button>
+
+        {/* Mobile Pam modal */}
+        <div id="pam-modal" className="hidden fixed inset-0 z-40 bg-black bg-opacity-50">
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Chat with Pam</h3>
+              <button
+                onClick={() => document.getElementById("pam-modal")?.classList.add("hidden")}
+                className="text-gray-500"
+              >
+                Close
+              </button>
             </div>
-            <div className="mt-auto">
-              <ChatInput onSendMessage={handleSend} />
-            </div>
+            <PamAssistant />
           </div>
-          <DrawerFooter>
-            <DrawerClose asChild>
-              <Button variant="outline">Close</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+        </div>
+      </>
     );
   }
 
-  return (
-    <>
-      {/* Render PamAssistant here for desktop if needed, or nothing if this wrapper is only for mobile */}
-    </>
-  );
-};
-
-export default PamAssistant;
+  return <PamAssistant />;
+}
