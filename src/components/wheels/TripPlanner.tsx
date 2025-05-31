@@ -1,4 +1,3 @@
-
 import 'mapbox-gl/dist/mapbox-gl.css';
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
@@ -11,6 +10,7 @@ import { hideGeocoderIcon } from "./trip-planner/utils";
 import { modes } from "./trip-planner/constants";
 import { Waypoint, Suggestion } from "./trip-planner/types";
 import MapControls from "./trip-planner/MapControls";
+import GeocodeSearch from "./trip-planner/GeocodeSearch";
 import TripControls from "./trip-planner/TripControls";
 import WaypointsList from "./trip-planner/WaypointsList";
 import SuggestionsGrid from "./trip-planner/SuggestionsGrid";
@@ -117,6 +117,13 @@ export default function TripPlanner() {
         directionsControl={directionsControl}
       />
 
+      <div className="space-y-4">
+        <p className="text-sm text-gray-500">
+          Search for places to add to your route:
+        </p>
+        <GeocodeSearch directionsControl={directionsControl} />
+      </div>
+
       <TripControls
         mode={mode}
         setMode={setMode}
@@ -125,10 +132,6 @@ export default function TripPlanner() {
         onSubmitTrip={submitTripPlan}
         map={map}
       />
-
-      <p className="text-sm text-gray-500">
-        Use the search box below to find and add additional stops by name or address.
-      </p>
 
       <WaypointsList
         waypoints={waypoints}

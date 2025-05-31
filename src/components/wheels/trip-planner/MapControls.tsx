@@ -2,7 +2,6 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
-import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
@@ -31,32 +30,26 @@ export default function MapControls({
   directionsControl,
 }: MapControlsProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const geocoderContainer = useRef<HTMLDivElement>(null);
   const directionsContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map>();
 
-  // Initialize map, geocoder, directions
+  // Initialize map and directions
   useEffect(() => {
     if (!mapContainer.current) return;
+    
     const center = regionCenters[region] || regionCenters.US;
 
     if (!map.current) {
+      console.log('Initializing map with token:', import.meta.env.VITE_MAPBOX_TOKEN ? 'Token present' : 'Token missing');
+      
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/streets-v11",
         center,
         zoom: 3.5,
       });
+      
       map.current.addControl(new mapboxgl.NavigationControl());
-
-      // Geocoder
-      const geocoder = new MapboxGeocoder({
-        accessToken: mapboxgl.accessToken,
-        mapboxgl,
-        placeholder: "Search start or end",
-        marker: false,
-      });
-      geocoderContainer.current?.appendChild(geocoder.onAdd(map.current));
 
       // Directions control
       const dir = new MapboxDirections({
@@ -123,12 +116,6 @@ export default function MapControls({
           className="bg-white rounded-lg border p-4 h-[600px] overflow-y-auto"
         />
       </div>
-
-      {/* Hidden geocoder container */}
-      <div
-        ref={geocoderContainer}
-        className="w-full max-w-md p-2 border rounded bg-white shadow-md mt-1"
-      />
     </div>
   );
 }
