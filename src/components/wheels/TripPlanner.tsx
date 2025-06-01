@@ -1,3 +1,4 @@
+
 import 'mapbox-gl/dist/mapbox-gl.css';
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
@@ -11,6 +12,8 @@ import { modes } from "./trip-planner/constants";
 import { Waypoint, Suggestion } from "./trip-planner/types";
 import MapControls from "./trip-planner/MapControls";
 import GeocodeSearch from "./trip-planner/GeocodeSearch";
+import RouteInputs from "./trip-planner/RouteInputs";
+import TravelModeButtons from "./trip-planner/TravelModeButtons";
 import TripControls from "./trip-planner/TripControls";
 import WaypointsList from "./trip-planner/WaypointsList";
 import SuggestionsGrid from "./trip-planner/SuggestionsGrid";
@@ -29,6 +32,7 @@ export default function TripPlanner() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState(modes[0].value);
+  const [travelMode, setTravelMode] = useState('driving');
   const { region } = useRegion();
   const { user } = useAuth();
 
@@ -100,11 +104,12 @@ export default function TripPlanner() {
   };
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="space-y-6 w-full">
       <p className="text-sm text-gray-500">
         Tip: Ask Pam—"Plan my trip from {originName} to {destName}."
       </p>
 
+      {/* Full Width Map */}
       <MapControls
         region={region}
         waypoints={waypoints}
@@ -117,13 +122,30 @@ export default function TripPlanner() {
         directionsControl={directionsControl}
       />
 
-      <div className="space-y-4">
+      {/* Search Bar */}
+      <div className="space-y-2">
         <p className="text-sm text-gray-500">
           Search for places to add to your route:
         </p>
         <GeocodeSearch directionsControl={directionsControl} />
       </div>
 
+      {/* Route Inputs (A/B) */}
+      <RouteInputs
+        directionsControl={directionsControl}
+        originName={originName}
+        destName={destName}
+        setOriginName={setOriginName}
+        setDestName={setDestName}
+      />
+
+      {/* Travel Mode Buttons */}
+      <TravelModeButtons
+        activeMode={travelMode}
+        onModeChange={setTravelMode}
+      />
+
+      {/* Trip Controls */}
       <TripControls
         mode={mode}
         setMode={setMode}
@@ -133,15 +155,18 @@ export default function TripPlanner() {
         map={map}
       />
 
+      {/* Waypoints List */}
       <WaypointsList
         waypoints={waypoints}
         setWaypoints={setWaypoints}
         directionsControl={directionsControl}
       />
 
+      {/* Loading/Saving States */}
       {loading && <p className="text-center text-gray-600">Planning…</p>}
       {saving && <p className="text-center text-gray-600">Saving…</p>}
       
+      {/* Suggestions Grid */}
       <SuggestionsGrid suggestions={suggestions} />
     </div>
   );
