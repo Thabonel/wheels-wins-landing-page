@@ -1,0 +1,40 @@
+
+import { Car, Bike, MapPin, Users } from "lucide-react";
+
+interface TravelModeButtonsProps {
+  activeMode: string;
+  onModeChange: (mode: string) => void;
+}
+
+export default function TravelModeButtons({ activeMode, onModeChange }: TravelModeButtonsProps) {
+  const modes = [
+    { id: 'traffic', label: 'Traffic', icon: Car },
+    { id: 'driving', label: 'Driving', icon: Car },
+    { id: 'walking', label: 'Walking', icon: Users },
+    { id: 'cycling', label: 'Cycling', icon: Bike },
+  ];
+
+  return (
+    <div className="flex gap-2">
+      {modes.map((mode) => {
+        const Icon = mode.icon;
+        const isActive = activeMode === mode.id;
+        
+        return (
+          <button
+            key={mode.id}
+            onClick={() => onModeChange(mode.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+              isActive
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <Icon size={16} />
+            <span className="text-sm font-medium">{mode.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
