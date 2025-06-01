@@ -5,8 +5,6 @@ import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-direct
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
-import RouteInputs from "./RouteInputs";
-import TravelModeButtons from "./TravelModeButtons";
 
 interface MapControlsProps {
   region: string;
@@ -59,7 +57,7 @@ export default function MapControls({
         zoom: 3.5,
       });
       
-      map.current.addControl(new mapboxgl.NavigationControl());
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
       // Directions control
       const dir = new MapboxDirections({
@@ -71,7 +69,7 @@ export default function MapControls({
       });
       directionsControl.current = dir;
 
-      // Add directions to map (but don't show the UI panel)
+      // Add directions to map (but hide the default UI)
       map.current.addControl(dir);
 
       dir.on("route", async () => {
@@ -112,23 +110,9 @@ export default function MapControls({
   }, [adding, waypoints, setWaypoints, setAdding]);
 
   return (
-    <div className="w-full relative">
-      <div className="overflow-hidden rounded-lg border">
-        <div ref={mapContainer} className="h-[500px] w-full relative" />
-        
-        {/* Desktop Overlays */}
-        <RouteInputs
-          directionsControl={directionsControl}
-          originName={originName}
-          destName={destName}
-          setOriginName={setOriginName}
-          setDestName={setDestName}
-        />
-        
-        <TravelModeButtons
-          activeMode={travelMode}
-          onModeChange={onTravelModeChange}
-        />
+    <div className="w-full h-[60vh] lg:h-[70vh] relative">
+      <div className="overflow-hidden rounded-lg border h-full">
+        <div ref={mapContainer} className="h-full w-full relative" />
       </div>
     </div>
   );
