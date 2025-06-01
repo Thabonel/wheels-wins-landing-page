@@ -18,6 +18,7 @@ import TripControls from "./trip-planner/TripControls";
 import WaypointsList from "./trip-planner/WaypointsList";
 import SuggestionsGrid from "./trip-planner/SuggestionsGrid";
 import { TripService } from "./trip-planner/TripService";
+import { MapPin } from "lucide-react";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -109,7 +110,7 @@ export default function TripPlanner() {
         Tip: Ask Pam—"Plan my trip from {originName} to {destName}."
       </p>
 
-      {/* Full Width Map */}
+      {/* Full Width Map with Overlays */}
       <MapControls
         region={region}
         waypoints={waypoints}
@@ -120,6 +121,11 @@ export default function TripPlanner() {
         setDestName={setDestName}
         onRouteChange={fetchTripSuggestions}
         directionsControl={directionsControl}
+        originName={originName}
+        destName={destName}
+        travelMode={travelMode}
+        onTravelModeChange={setTravelMode}
+        map={map}
       />
 
       {/* Search Bar */}
@@ -130,20 +136,74 @@ export default function TripPlanner() {
         <GeocodeSearch directionsControl={directionsControl} />
       </div>
 
-      {/* Route Inputs (A/B) */}
-      <RouteInputs
-        directionsControl={directionsControl}
-        originName={originName}
-        destName={destName}
-        setOriginName={setOriginName}
-        setDestName={setDestName}
-      />
+      {/* Mobile Route Inputs (Below map on small screens) */}
+      <div className="lg:hidden space-y-4">
+        <div className="bg-white rounded-lg border p-4 space-y-3">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Route Points</h3>
+          
+          {/* Origin Input */}
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
+              A
+            </div>
+            <div className="flex-1 relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={originName}
+                onChange={(e) => setOriginName(e.target.value)}
+                placeholder="Choose starting point"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
 
-      {/* Travel Mode Buttons */}
-      <TravelModeButtons
-        activeMode={travelMode}
-        onModeChange={setTravelMode}
-      />
+          {/* Destination Input */}
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
+              B
+            </div>
+            <div className="flex-1 relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={destName}
+                onChange={(e) => setDestName(e.target.value)}
+                placeholder="Choose destination"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Travel Mode Buttons */}
+        <div className="bg-white rounded-lg border p-4">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Travel Mode</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'traffic', label: 'Traffic' },
+              { id: 'driving', label: 'Driving' },
+              { id: 'walking', label: 'Walking' },
+              { id: 'cycling', label: 'Cycling' },
+            ].map((mode) => {
+              const isActive = travelMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  onClick={() => setTravelMode(mode.id)}
+                  className={`px-3 py-2 rounded-lg border transition-colors text-sm font-medium ${
+                    isActive
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Trip Controls */}
       <TripControls

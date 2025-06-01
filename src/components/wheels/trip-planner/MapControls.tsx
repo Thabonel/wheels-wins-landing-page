@@ -5,6 +5,8 @@ import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-direct
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
+import RouteInputs from "./RouteInputs";
+import TravelModeButtons from "./TravelModeButtons";
 
 interface MapControlsProps {
   region: string;
@@ -16,6 +18,11 @@ interface MapControlsProps {
   setDestName: (name: string) => void;
   onRouteChange: () => void;
   directionsControl: React.MutableRefObject<MapboxDirections | undefined>;
+  originName: string;
+  destName: string;
+  travelMode: string;
+  onTravelModeChange: (mode: string) => void;
+  map: React.MutableRefObject<mapboxgl.Map | undefined>;
 }
 
 export default function MapControls({
@@ -28,9 +35,13 @@ export default function MapControls({
   setDestName,
   onRouteChange,
   directionsControl,
+  originName,
+  destName,
+  travelMode,
+  onTravelModeChange,
+  map,
 }: MapControlsProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map>();
 
   // Initialize map and directions
   useEffect(() => {
@@ -101,9 +112,23 @@ export default function MapControls({
   }, [adding, waypoints, setWaypoints, setAdding]);
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
       <div className="overflow-hidden rounded-lg border">
-        <div ref={mapContainer} className="h-[500px] w-full" />
+        <div ref={mapContainer} className="h-[500px] w-full relative" />
+        
+        {/* Desktop Overlays */}
+        <RouteInputs
+          directionsControl={directionsControl}
+          originName={originName}
+          destName={destName}
+          setOriginName={setOriginName}
+          setDestName={setDestName}
+        />
+        
+        <TravelModeButtons
+          activeMode={travelMode}
+          onModeChange={onTravelModeChange}
+        />
       </div>
     </div>
   );
