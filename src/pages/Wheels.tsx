@@ -70,42 +70,78 @@ export default function Wheels() {
   }, [region]);
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start flex-wrap mb-6">
-          {Object.entries(regionalFeatures).map(([key, feature]) => (
-            <TabsTrigger
-              key={key}
-              value={key}
-              className="text-base py-3 px-6 relative"
-              disabled={!feature.available}
-            >
-              {feature.title}
-              {feature.comingSoon && (
-                <Badge className="ml-2 bg-amber-500 absolute -top-2 -right-2 text-[10px]">
-                  Coming Soon
-                </Badge>
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+    <div className="w-full h-full overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
+        {/* Tab navigation - only show for non-trip-planner tabs */}
+        {activeTab !== "trip-planner" && (
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <TabsList className="w-full justify-start flex-wrap mb-6">
+              {Object.entries(regionalFeatures).map(([key, feature]) => (
+                <TabsTrigger
+                  key={key}
+                  value={key}
+                  className="text-base py-3 px-6 relative"
+                  disabled={!feature.available}
+                >
+                  {feature.title}
+                  {feature.comingSoon && (
+                    <Badge className="ml-2 bg-amber-500 absolute -top-2 -right-2 text-[10px]">
+                      Coming Soon
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        )}
 
+        {/* Tab content */}
         {Object.entries(regionalFeatures).map(([key, feature]) => (
-          <TabsContent key={key} value={key}>
+          <TabsContent key={key} value={key} className="flex-1 overflow-hidden">
             {feature.comingSoon ? (
-              <div className="text-center py-12">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center py-12">
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">
                   Coming Soon to {region}
                 </h3>
                 <p className="text-gray-500">We're working on bringing this feature to your region. Check back soon!</p>
               </div>
             ) : key === "trip-planner" ? (
-              <div className="space-y-4">
-                <TripPlanner />
-                {coords && <WeatherWidget latitude={coords.latitude} longitude={coords.longitude} />}
+              <div className="h-full flex flex-col">
+                {/* Trip planner tab navigation */}
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
+                  <TabsList className="w-full justify-start flex-wrap mb-4">
+                    {Object.entries(regionalFeatures).map(([tabKey, tabFeature]) => (
+                      <TabsTrigger
+                        key={tabKey}
+                        value={tabKey}
+                        className="text-base py-3 px-6 relative"
+                        disabled={!tabFeature.available}
+                      >
+                        {tabFeature.title}
+                        {tabFeature.comingSoon && (
+                          <Badge className="ml-2 bg-amber-500 absolute -top-2 -right-2 text-[10px]">
+                            Coming Soon
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
+                
+                {/* Trip planner content */}
+                <div className="flex-1 overflow-hidden">
+                  <TripPlanner />
+                  {coords && !isMobile && (
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                      <WeatherWidget latitude={coords.latitude} longitude={coords.longitude} />
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
-              feature.component
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                {feature.component}
+              </div>
             )}
           </TabsContent>
         ))}
