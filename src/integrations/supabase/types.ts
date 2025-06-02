@@ -161,6 +161,108 @@ export type Database = {
           },
         ]
       }
+      camping_locations: {
+        Row: {
+          address: string | null
+          amenities: Json | null
+          availability_calendar: Json | null
+          created_at: string | null
+          hookups: Json | null
+          id: string
+          latitude: number
+          longitude: number
+          max_rig_length: number | null
+          name: string
+          price_per_night: number | null
+          reservation_link: string | null
+          reservation_required: boolean | null
+          reviews_summary: string | null
+          seasonal_info: Json | null
+          type: string
+          updated_at: string | null
+          user_ratings: number | null
+        }
+        Insert: {
+          address?: string | null
+          amenities?: Json | null
+          availability_calendar?: Json | null
+          created_at?: string | null
+          hookups?: Json | null
+          id?: string
+          latitude: number
+          longitude: number
+          max_rig_length?: number | null
+          name: string
+          price_per_night?: number | null
+          reservation_link?: string | null
+          reservation_required?: boolean | null
+          reviews_summary?: string | null
+          seasonal_info?: Json | null
+          type: string
+          updated_at?: string | null
+          user_ratings?: number | null
+        }
+        Update: {
+          address?: string | null
+          amenities?: Json | null
+          availability_calendar?: Json | null
+          created_at?: string | null
+          hookups?: Json | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          max_rig_length?: number | null
+          name?: string
+          price_per_night?: number | null
+          reservation_link?: string | null
+          reservation_required?: boolean | null
+          reviews_summary?: string | null
+          seasonal_info?: Json | null
+          type?: string
+          updated_at?: string | null
+          user_ratings?: number | null
+        }
+        Relationships: []
+      }
+      community_intelligence: {
+        Row: {
+          created_at: string | null
+          data_source: string
+          data_type: string
+          facebook_events: Json | null
+          free_camping_updates: Json | null
+          id: string
+          reddit_discussions: Json | null
+          relevance_score: number | null
+          rv_forum_tips: Json | null
+          scraped_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data_source: string
+          data_type: string
+          facebook_events?: Json | null
+          free_camping_updates?: Json | null
+          id?: string
+          reddit_discussions?: Json | null
+          relevance_score?: number | null
+          rv_forum_tips?: Json | null
+          scraped_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data_source?: string
+          data_type?: string
+          facebook_events?: Json | null
+          free_camping_updates?: Json | null
+          id?: string
+          reddit_discussions?: Json | null
+          relevance_score?: number | null
+          rv_forum_tips?: Json | null
+          scraped_at?: string | null
+        }
+        Relationships: []
+      }
       drawers: {
         Row: {
           created_at: string | null
@@ -212,6 +314,57 @@ export type Database = {
           description?: string | null
           id?: never
           user_id?: string
+        }
+        Relationships: []
+      }
+      facebook_groups: {
+        Row: {
+          activity_level: string | null
+          admin_contact: string | null
+          created_at: string | null
+          description: string | null
+          group_name: string
+          group_type: string | null
+          group_url: string | null
+          id: string
+          latitude: number | null
+          location: string | null
+          longitude: number | null
+          meetup_frequency: string | null
+          member_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activity_level?: string | null
+          admin_contact?: string | null
+          created_at?: string | null
+          description?: string | null
+          group_name: string
+          group_type?: string | null
+          group_url?: string | null
+          id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          meetup_frequency?: string | null
+          member_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activity_level?: string | null
+          admin_contact?: string | null
+          created_at?: string | null
+          description?: string | null
+          group_name?: string
+          group_type?: string | null
+          group_url?: string | null
+          id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          meetup_frequency?: string | null
+          member_count?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -349,6 +502,60 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_stations: {
+        Row: {
+          address: string
+          amenities: Json | null
+          brand: string | null
+          created_at: string | null
+          diesel_price: number | null
+          id: string
+          last_updated: string | null
+          latitude: number
+          longitude: number
+          premium_price: number | null
+          regular_price: number | null
+          rv_friendly: boolean | null
+          station_name: string
+          updated_at: string | null
+          user_ratings: number | null
+        }
+        Insert: {
+          address: string
+          amenities?: Json | null
+          brand?: string | null
+          created_at?: string | null
+          diesel_price?: number | null
+          id?: string
+          last_updated?: string | null
+          latitude: number
+          longitude: number
+          premium_price?: number | null
+          regular_price?: number | null
+          rv_friendly?: boolean | null
+          station_name: string
+          updated_at?: string | null
+          user_ratings?: number | null
+        }
+        Update: {
+          address?: string
+          amenities?: Json | null
+          brand?: string | null
+          created_at?: string | null
+          diesel_price?: number | null
+          id?: string
+          last_updated?: string | null
+          latitude?: number
+          longitude?: number
+          premium_price?: number | null
+          regular_price?: number | null
+          rv_friendly?: boolean | null
+          station_name?: string
+          updated_at?: string | null
+          user_ratings?: number | null
+        }
+        Relationships: []
+      }
       hustle_opportunities: {
         Row: {
           category: string | null
@@ -464,6 +671,120 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      local_events: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          end_time: string | null
+          event_name: string
+          event_type: string | null
+          id: string
+          is_free: boolean | null
+          latitude: number | null
+          longitude: number | null
+          registration_link: string | null
+          registration_required: boolean | null
+          start_date: string
+          start_time: string | null
+          target_audience: Json | null
+          ticket_price: number | null
+          updated_at: string | null
+          venue_name: string | null
+          weather_dependent: boolean | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          end_time?: string | null
+          event_name: string
+          event_type?: string | null
+          id?: string
+          is_free?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          registration_link?: string | null
+          registration_required?: boolean | null
+          start_date: string
+          start_time?: string | null
+          target_audience?: Json | null
+          ticket_price?: number | null
+          updated_at?: string | null
+          venue_name?: string | null
+          weather_dependent?: boolean | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          end_time?: string | null
+          event_name?: string
+          event_type?: string | null
+          id?: string
+          is_free?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          registration_link?: string | null
+          registration_required?: boolean | null
+          start_date?: string
+          start_time?: string | null
+          target_audience?: Json | null
+          ticket_price?: number | null
+          updated_at?: string | null
+          venue_name?: string | null
+          weather_dependent?: boolean | null
+        }
+        Relationships: []
+      }
+      location_weather_patterns: {
+        Row: {
+          avg_high_temp: number | null
+          avg_low_temp: number | null
+          avg_precipitation: number | null
+          best_for_activities: Json | null
+          created_at: string | null
+          crowd_levels: string | null
+          id: string
+          latitude: number
+          location_name: string | null
+          longitude: number
+          month: number | null
+          weather_warnings: Json | null
+        }
+        Insert: {
+          avg_high_temp?: number | null
+          avg_low_temp?: number | null
+          avg_precipitation?: number | null
+          best_for_activities?: Json | null
+          created_at?: string | null
+          crowd_levels?: string | null
+          id?: string
+          latitude: number
+          location_name?: string | null
+          longitude: number
+          month?: number | null
+          weather_warnings?: Json | null
+        }
+        Update: {
+          avg_high_temp?: number | null
+          avg_low_temp?: number | null
+          avg_precipitation?: number | null
+          best_for_activities?: Json | null
+          created_at?: string | null
+          crowd_levels?: string | null
+          id?: string
+          latitude?: number
+          location_name?: string | null
+          longitude?: number
+          month?: number | null
+          weather_warnings?: Json | null
+        }
+        Relationships: []
       }
       maintenance_records: {
         Row: {
@@ -639,6 +960,63 @@ export type Database = {
         }
         Relationships: []
       }
+      offroad_routes: {
+        Row: {
+          best_seasons: Json | null
+          created_at: string | null
+          difficulty_level: string | null
+          distance_miles: number | null
+          end_location: Json | null
+          estimated_time_hours: number | null
+          id: string
+          latitude: number
+          longitude: number
+          route_description: string | null
+          route_name: string
+          safety_notes: string | null
+          scenic_rating: number | null
+          start_location: Json | null
+          updated_at: string | null
+          vehicle_requirements: Json | null
+        }
+        Insert: {
+          best_seasons?: Json | null
+          created_at?: string | null
+          difficulty_level?: string | null
+          distance_miles?: number | null
+          end_location?: Json | null
+          estimated_time_hours?: number | null
+          id?: string
+          latitude: number
+          longitude: number
+          route_description?: string | null
+          route_name: string
+          safety_notes?: string | null
+          scenic_rating?: number | null
+          start_location?: Json | null
+          updated_at?: string | null
+          vehicle_requirements?: Json | null
+        }
+        Update: {
+          best_seasons?: Json | null
+          created_at?: string | null
+          difficulty_level?: string | null
+          distance_miles?: number | null
+          end_location?: Json | null
+          estimated_time_hours?: number | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          route_description?: string | null
+          route_name?: string
+          safety_notes?: string | null
+          scenic_rating?: number | null
+          start_location?: Json | null
+          updated_at?: string | null
+          vehicle_requirements?: Json | null
+        }
+        Relationships: []
+      }
       onboarding_responses: {
         Row: {
           accessibility: string | null
@@ -805,21 +1183,18 @@ export type Database = {
         Row: {
           content: string
           created_at: string | null
-          embedding: string | null
           id: string
           user_id: string
         }
         Insert: {
           content: string
           created_at?: string | null
-          embedding?: string | null
           id?: string
           user_id: string
         }
         Update: {
           content?: string
           created_at?: string | null
-          embedding?: string | null
           id?: string
           user_id?: string
         }
@@ -846,6 +1221,128 @@ export type Database = {
           timestamp?: string | null
           value?: number | null
           workflow_name?: string | null
+        }
+        Relationships: []
+      }
+      pam_recommendations: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string
+          expires_at: string | null
+          id: string
+          latitude: number | null
+          location: string | null
+          longitude: number | null
+          priority_level: string | null
+          recommendation_id: string
+          savings_amount: number | null
+          source_data_id: string | null
+          time_sensitive: boolean | null
+          title: string
+          user_acted: boolean | null
+          user_id: string
+          user_rating: number | null
+          user_viewed: boolean | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description: string
+          expires_at?: string | null
+          id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority_level?: string | null
+          recommendation_id: string
+          savings_amount?: number | null
+          source_data_id?: string | null
+          time_sensitive?: boolean | null
+          title: string
+          user_acted?: boolean | null
+          user_id: string
+          user_rating?: number | null
+          user_viewed?: boolean | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string
+          expires_at?: string | null
+          id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority_level?: string | null
+          recommendation_id?: string
+          savings_amount?: number | null
+          source_data_id?: string | null
+          time_sensitive?: boolean | null
+          title?: string
+          user_acted?: boolean | null
+          user_id?: string
+          user_rating?: number | null
+          user_viewed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pam_recommendations_source_data_id_fkey"
+            columns: ["source_data_id"]
+            isOneToOne: false
+            referencedRelation: "travel_intelligence_raw"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      popular_routes: {
+        Row: {
+          best_travel_months: Json | null
+          created_at: string | null
+          distance_miles: number | null
+          end_location: Json | null
+          estimated_travel_time_hours: number | null
+          fuel_stop_frequency: number | null
+          id: string
+          route_difficulty: string | null
+          route_name: string | null
+          route_points: Json | null
+          rv_friendly_rating: number | null
+          scenic_rating: number | null
+          start_location: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          best_travel_months?: Json | null
+          created_at?: string | null
+          distance_miles?: number | null
+          end_location?: Json | null
+          estimated_travel_time_hours?: number | null
+          fuel_stop_frequency?: number | null
+          id?: string
+          route_difficulty?: string | null
+          route_name?: string | null
+          route_points?: Json | null
+          rv_friendly_rating?: number | null
+          scenic_rating?: number | null
+          start_location?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          best_travel_months?: Json | null
+          created_at?: string | null
+          distance_miles?: number | null
+          end_location?: Json | null
+          estimated_travel_time_hours?: number | null
+          fuel_stop_frequency?: number | null
+          id?: string
+          route_difficulty?: string | null
+          route_name?: string | null
+          route_points?: Json | null
+          rv_friendly_rating?: number | null
+          scenic_rating?: number | null
+          start_location?: Json | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -927,6 +1424,48 @@ export type Database = {
         }
         Relationships: []
       }
+      recommendation_interactions: {
+        Row: {
+          created_at: string | null
+          id: string
+          interaction_data: Json | null
+          interaction_type: string
+          recommendation_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          interaction_data?: Json | null
+          interaction_type: string
+          recommendation_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          interaction_data?: Json | null
+          interaction_type?: string
+          recommendation_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_interactions_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "active_recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_interactions_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "pam_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       route_data: {
         Row: {
           country: string | null
@@ -981,6 +1520,72 @@ export type Database = {
           query_text?: string
           timestamp?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      rv_services: {
+        Row: {
+          accepts_walkins: boolean | null
+          address: string
+          appointment_required: boolean | null
+          business_name: string
+          created_at: string | null
+          email: string | null
+          emergency_service: boolean | null
+          id: string
+          latitude: number
+          longitude: number
+          operating_hours: Json | null
+          phone_number: string | null
+          pricing_info: Json | null
+          rv_experience_level: string | null
+          service_type: string | null
+          services_offered: Json | null
+          updated_at: string | null
+          user_ratings: number | null
+          website: string | null
+        }
+        Insert: {
+          accepts_walkins?: boolean | null
+          address: string
+          appointment_required?: boolean | null
+          business_name: string
+          created_at?: string | null
+          email?: string | null
+          emergency_service?: boolean | null
+          id?: string
+          latitude: number
+          longitude: number
+          operating_hours?: Json | null
+          phone_number?: string | null
+          pricing_info?: Json | null
+          rv_experience_level?: string | null
+          service_type?: string | null
+          services_offered?: Json | null
+          updated_at?: string | null
+          user_ratings?: number | null
+          website?: string | null
+        }
+        Update: {
+          accepts_walkins?: boolean | null
+          address?: string
+          appointment_required?: boolean | null
+          business_name?: string
+          created_at?: string | null
+          email?: string | null
+          emergency_service?: boolean | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          operating_hours?: Json | null
+          phone_number?: string | null
+          pricing_info?: Json | null
+          rv_experience_level?: string | null
+          service_type?: string | null
+          services_offered?: Json | null
+          updated_at?: string | null
+          user_ratings?: number | null
+          website?: string | null
         }
         Relationships: []
       }
@@ -1124,6 +1729,120 @@ export type Database = {
           upvotes?: number | null
           user_id?: string
           video_url?: string | null
+        }
+        Relationships: []
+      }
+      social_venues: {
+        Row: {
+          address: string
+          created_at: string | null
+          has_wifi: boolean | null
+          id: string
+          latitude: number
+          longitude: number
+          noise_level: string | null
+          operating_hours: Json | null
+          price_range: string | null
+          rv_parking_available: boolean | null
+          social_atmosphere_rating: number | null
+          special_offers: Json | null
+          updated_at: string | null
+          user_ratings: number | null
+          venue_name: string
+          venue_type: string | null
+          wifi_quality: string | null
+        }
+        Insert: {
+          address: string
+          created_at?: string | null
+          has_wifi?: boolean | null
+          id?: string
+          latitude: number
+          longitude: number
+          noise_level?: string | null
+          operating_hours?: Json | null
+          price_range?: string | null
+          rv_parking_available?: boolean | null
+          social_atmosphere_rating?: number | null
+          special_offers?: Json | null
+          updated_at?: string | null
+          user_ratings?: number | null
+          venue_name: string
+          venue_type?: string | null
+          wifi_quality?: string | null
+        }
+        Update: {
+          address?: string
+          created_at?: string | null
+          has_wifi?: boolean | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          noise_level?: string | null
+          operating_hours?: Json | null
+          price_range?: string | null
+          rv_parking_available?: boolean | null
+          social_atmosphere_rating?: number | null
+          special_offers?: Json | null
+          updated_at?: string | null
+          user_ratings?: number | null
+          venue_name?: string
+          venue_type?: string | null
+          wifi_quality?: string | null
+        }
+        Relationships: []
+      }
+      travel_intelligence_raw: {
+        Row: {
+          ai_processed: boolean | null
+          created_at: string | null
+          data_freshness: string | null
+          event_data: Json | null
+          gas_price_data: Json | null
+          google_maps_data: Json | null
+          id: string
+          latitude: number
+          longitude: number
+          radius_miles: number | null
+          scraped_at: string | null
+          search_type: string
+          user_id: string
+          weather_forecast: Json | null
+          weather_summary: string | null
+        }
+        Insert: {
+          ai_processed?: boolean | null
+          created_at?: string | null
+          data_freshness?: string | null
+          event_data?: Json | null
+          gas_price_data?: Json | null
+          google_maps_data?: Json | null
+          id?: string
+          latitude: number
+          longitude: number
+          radius_miles?: number | null
+          scraped_at?: string | null
+          search_type: string
+          user_id: string
+          weather_forecast?: Json | null
+          weather_summary?: string | null
+        }
+        Update: {
+          ai_processed?: boolean | null
+          created_at?: string | null
+          data_freshness?: string | null
+          event_data?: Json | null
+          gas_price_data?: Json | null
+          google_maps_data?: Json | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          radius_miles?: number | null
+          scraped_at?: string | null
+          search_type?: string
+          user_id?: string
+          weather_forecast?: Json | null
+          weather_summary?: string | null
         }
         Relationships: []
       }
@@ -1286,106 +2005,230 @@ export type Database = {
         }
         Relationships: []
       }
+      user_savings_tracking: {
+        Row: {
+          actual_savings: number | null
+          created_at: string | null
+          estimated_savings: number | null
+          id: string
+          notes: string | null
+          recommendation_id: string | null
+          saved_on_date: string | null
+          savings_category: string | null
+          user_id: string
+          user_reported: boolean | null
+          verification_method: string | null
+        }
+        Insert: {
+          actual_savings?: number | null
+          created_at?: string | null
+          estimated_savings?: number | null
+          id?: string
+          notes?: string | null
+          recommendation_id?: string | null
+          saved_on_date?: string | null
+          savings_category?: string | null
+          user_id: string
+          user_reported?: boolean | null
+          verification_method?: string | null
+        }
+        Update: {
+          actual_savings?: number | null
+          created_at?: string | null
+          estimated_savings?: number | null
+          id?: string
+          notes?: string | null
+          recommendation_id?: string | null
+          saved_on_date?: string | null
+          savings_category?: string | null
+          user_id?: string
+          user_reported?: boolean | null
+          verification_method?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_savings_tracking_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "active_recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_savings_tracking_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "pam_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_travel_preferences: {
+        Row: {
+          accessibility_needs: Json | null
+          budget_range: Json | null
+          created_at: string | null
+          dietary_restrictions: Json | null
+          id: string
+          notification_preferences: Json | null
+          preferred_activities: Json | null
+          rv_specifications: Json | null
+          social_preference: string | null
+          travel_style: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          accessibility_needs?: Json | null
+          budget_range?: Json | null
+          created_at?: string | null
+          dietary_restrictions?: Json | null
+          id?: string
+          notification_preferences?: Json | null
+          preferred_activities?: Json | null
+          rv_specifications?: Json | null
+          social_preference?: string | null
+          travel_style?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          accessibility_needs?: Json | null
+          budget_range?: Json | null
+          created_at?: string | null
+          dietary_restrictions?: Json | null
+          id?: string
+          notification_preferences?: Json | null
+          preferred_activities?: Json | null
+          rv_specifications?: Json | null
+          social_preference?: string | null
+          travel_style?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      active_recommendations: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          expires_at: string | null
+          id: string | null
+          is_expired: boolean | null
+          latitude: number | null
+          location: string | null
+          longitude: number | null
+          priority_level: string | null
+          recommendation_id: string | null
+          savings_amount: number | null
+          source_data_id: string | null
+          time_sensitive: boolean | null
+          title: string | null
+          user_acted: boolean | null
+          user_id: string | null
+          user_rating: number | null
+          user_viewed: boolean | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string | null
+          is_expired?: never
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority_level?: string | null
+          recommendation_id?: string | null
+          savings_amount?: number | null
+          source_data_id?: string | null
+          time_sensitive?: boolean | null
+          title?: string | null
+          user_acted?: boolean | null
+          user_id?: string | null
+          user_rating?: number | null
+          user_viewed?: boolean | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string | null
+          is_expired?: never
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority_level?: string | null
+          recommendation_id?: string | null
+          savings_amount?: number | null
+          source_data_id?: string | null
+          time_sensitive?: boolean | null
+          title?: string | null
+          user_acted?: boolean | null
+          user_id?: string | null
+          user_rating?: number | null
+          user_viewed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pam_recommendations_source_data_id_fkey"
+            columns: ["source_data_id"]
+            isOneToOne: false
+            referencedRelation: "travel_intelligence_raw"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_venue_density: {
+        Row: {
+          avg_rating: number | null
+          coffee_shops: number | null
+          latitude: number | null
+          longitude: number | null
+          restaurants: number | null
+          rv_friendly_venues: number | null
+          total_venues: number | null
+          wifi_venues: number | null
+        }
+        Relationships: []
+      }
+      user_savings_summary: {
+        Row: {
+          avg_savings_per_action: number | null
+          last_savings_date: string | null
+          total_actual_savings: number | null
+          total_estimated_savings: number | null
+          total_recommendations_acted_on: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      binary_quantize: {
-        Args: { "": string } | { "": unknown }
-        Returns: unknown
-      }
-      halfvec_avg: {
-        Args: { "": number[] }
-        Returns: unknown
-      }
-      halfvec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      halfvec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      hnsw_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      l2_norm: {
-        Args: { "": unknown } | { "": unknown }
-        Returns: number
-      }
-      l2_normalize: {
-        Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: string
+      get_nearby_recommendations: {
+        Args: {
+          user_lat: number
+          user_lng: number
+          radius_miles?: number
+          limit_count?: number
+        }
+        Returns: {
+          id: string
+          title: string
+          description: string
+          category: string
+          savings_amount: number
+          distance_miles: number
+          priority_level: string
+        }[]
       }
       seed_default_drawers: {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: undefined
-      }
-      sparsevec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      vector_avg: {
-        Args: { "": number[] }
-        Returns: string
-      }
-      vector_dims: {
-        Args: { "": string } | { "": unknown }
-        Returns: number
-      }
-      vector_norm: {
-        Args: { "": string }
-        Returns: number
-      }
-      vector_out: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: { "": string }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
       }
     }
     Enums: {
