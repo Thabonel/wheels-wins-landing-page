@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -182,4 +183,33 @@
 /* Ensure all flex containers wrap properly */
 .flex-container {
   @apply flex flex-wrap;
+}
+
+/* Custom styling for relocated directions control */
+.directions-control-container .mapboxgl-ctrl-directions {
+  width: 100% !important;
+  max-width: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.directions-control-container .mapboxgl-ctrl-directions .directions-control-directions {
+  display: none !important;
+}
+
+.directions-control-container .mapboxgl-ctrl-directions .directions-control-input {
+  border: 1px solid #d1d5db !important;
+  border-radius: 0.5rem !important;
+  margin-bottom: 0.75rem !important;
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.875rem !important;
+}
+
+.directions-control-container .mapboxgl-ctrl-directions .directions-control-input:focus {
+  outline: none !important;
+  ring: 2px !important;
+  ring-color: #3b82f6 !important;
+  border-color: transparent !important;
 }
