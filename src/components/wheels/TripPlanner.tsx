@@ -1,4 +1,3 @@
-
 import 'mapbox-gl/dist/mapbox-gl.css';
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
@@ -12,11 +11,11 @@ import { modes } from "./trip-planner/constants";
 import { Waypoint, Suggestion } from "./trip-planner/types";
 import MapControls from "./trip-planner/MapControls";
 import GeocodeSearch from "./trip-planner/GeocodeSearch";
-import RouteInputs from "./trip-planner/RouteInputs";
 import TravelModeButtons from "./trip-planner/TravelModeButtons";
 import TripControls from "./trip-planner/TripControls";
 import WaypointsList from "./trip-planner/WaypointsList";
 import SuggestionsGrid from "./trip-planner/SuggestionsGrid";
+import DirectionsControl from "./trip-planner/DirectionsControl";
 import { TripService } from "./trip-planner/TripService";
 import { MapPin } from "lucide-react";
 import PamAssistant from "@/components/PamAssistant";
@@ -144,7 +143,7 @@ export default function TripPlanner() {
 
             {/* Route Planning Controls */}
             <div className="flex gap-4">
-              {/* Left side - Trip controls and Route inputs */}
+              {/* Left side - Trip controls */}
               <div className="flex-1 space-y-4">
                 <div className="flex items-center gap-4">
                   <TripControls
@@ -160,40 +159,11 @@ export default function TripPlanner() {
 
               {/* Right side - Route Points and Travel Modes */}
               <div className="w-96 space-y-4">
-                {/* Route Points */}
-                <div className="bg-white rounded-lg border p-4 space-y-3">
-                  {/* Origin Input */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                      A
-                    </div>
-                    <div className="flex-1 relative">
-                      <input
-                        type="text"
-                        value={originName}
-                        onChange={(e) => setOriginName(e.target.value)}
-                        placeholder="Choose a starting place"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Destination Input */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                      B
-                    </div>
-                    <div className="flex-1 relative">
-                      <input
-                        type="text"
-                        value={destName}
-                        onChange={(e) => setDestName(e.target.value)}
-                        placeholder="Choose destination"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
+                {/* Directions Control - replaces the dummy selector */}
+                <DirectionsControl 
+                  directionsControl={directionsControl}
+                  map={map}
+                />
 
                 {/* Travel Mode Buttons */}
                 <div className="bg-white rounded-lg border p-4">
@@ -278,70 +248,37 @@ export default function TripPlanner() {
           <GeocodeSearch directionsControl={directionsControl} />
         </div>
 
-        {/* Mobile Route Inputs */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-lg border p-4 space-y-3">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Route Points</h3>
-            
-            {/* Origin Input */}
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                A
-              </div>
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={originName}
-                  onChange={(e) => setOriginName(e.target.value)}
-                  placeholder="Choose starting point"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-              </div>
-            </div>
+        {/* Mobile Directions Control - replaces the dummy inputs */}
+        <DirectionsControl 
+          directionsControl={directionsControl}
+          map={map}
+        />
 
-            {/* Destination Input */}
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                B
-              </div>
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={destName}
-                  onChange={(e) => setDestName(e.target.value)}
-                  placeholder="Choose destination"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Travel Mode Buttons */}
-          <div className="bg-white rounded-lg border p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Travel Mode</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'traffic', label: 'Traffic' },
-                { id: 'driving', label: 'Driving' },
-                { id: 'walking', label: 'Walking' },
-                { id: 'cycling', label: 'Cycling' },
-              ].map((mode) => {
-                const isActive = travelMode === mode.id;
-                return (
-                  <button
-                    key={mode.id}
-                    onClick={() => setTravelMode(mode.id)}
-                    className={`px-3 py-2 rounded-lg border transition-colors text-sm font-medium ${
-                      isActive
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {mode.label}
-                  </button>
-                );
-              })}
-            </div>
+        {/* Mobile Travel Mode Buttons */}
+        <div className="bg-white rounded-lg border p-4">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Travel Mode</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'traffic', label: 'Traffic' },
+              { id: 'driving', label: 'Driving' },
+              { id: 'walking', label: 'Walking' },
+              { id: 'cycling', label: 'Cycling' },
+            ].map((mode) => {
+              const isActive = travelMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  onClick={() => setTravelMode(mode.id)}
+                  className={`px-3 py-2 rounded-lg border transition-colors text-sm font-medium ${
+                    isActive
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 

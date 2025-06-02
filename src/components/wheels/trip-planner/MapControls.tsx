@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
@@ -59,7 +58,7 @@ export default function MapControls({
       
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-      // Directions control
+      // Create directions control but don't add it to the map yet
       const dir = new MapboxDirections({
         accessToken: mapboxgl.accessToken,
         unit: "metric",
@@ -69,9 +68,7 @@ export default function MapControls({
       });
       directionsControl.current = dir;
 
-      // Add directions to map (but hide the default UI)
-      map.current.addControl(dir);
-
+      // Set up event listeners without adding to map
       dir.on("route", async () => {
         const o = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
         const d = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
