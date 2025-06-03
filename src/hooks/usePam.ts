@@ -1,8 +1,9 @@
+
 import { useState } from "react";
 import { v4 as uuid } from "uuid";
 import { useAuth } from "@/context/AuthContext";
 
-const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/4cd18979-6ee8-451e-b4e6-095c3d7ca31a";
+const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/pam-chat";
 
 export function usePam() {
   const { user } = useAuth();
@@ -12,7 +13,13 @@ export function usePam() {
   const send = async (userMessage: string) => {
     if (!user?.id) {
       console.error("No authenticated user ID – cannot send to Pam");
-      return;
+      return {
+        id: uuid(),
+        role: "assistant",
+        content: "Please log in to chat with PAM.",
+        render: null,
+        timestamp: new Date(),
+      };
     }
 
     const userMsg = {
@@ -23,8 +30,8 @@ export function usePam() {
     };
     setMessages(prev => [...prev, userMsg]);
 
-    // 🔔 Call n8n webhook
-    let assistantContent = "Sorry, something went wrong.";
+    // Call n8n production webhook
+    let assistantContent = "I'm sorry, I didn't understand that.";
     let assistantRender = null;
 
     try {
@@ -38,16 +45,21 @@ export function usePam() {
       });
 
       if (!res.ok) {
-        throw new Error(`Webhook error ${res.status}`);
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
       const data = await res.json();
-      // Expecting { content: string, render?: any } from your n8n flow
-      assistantContent = data.content;
-      assistantRender = data.render ?? null;
+      
+      if (!data.success) {
+        throw new Error("PAM response indicates failure");
+      }
+
+      assistantContent = data.content || "I'm sorry, I didn't understand that.";
+      assistantRender = data.render || null;
+
     } catch (err: any) {
-      console.error("Error sending to Pam:", err);
-      assistantContent = "I’m having trouble reaching Pam right now.";
+      console.error("PAM API Error:", err);
+      assistantContent = "I'm having trouble connecting right now. Please try again in a moment.";
     }
 
     const assistantMsg = {
