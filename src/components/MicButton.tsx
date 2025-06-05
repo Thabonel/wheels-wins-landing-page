@@ -1,16 +1,20 @@
+
 // src/components/MicButton.tsx
 import React, { useState, useRef } from 'react';
 
 interface MicButtonProps {
   inline?: boolean;
+  disabled?: boolean;
 }
 
-export default function MicButton({ inline = false }: MicButtonProps) {
+export default function MicButton({ inline = false, disabled = false }: MicButtonProps) {
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
   const handleClick = async () => {
+    if (disabled) return;
+    
     if (!recording) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -43,7 +47,8 @@ export default function MicButton({ inline = false }: MicButtonProps) {
   };
 
   const baseClasses = `z-30 flex items-center justify-center rounded-full
-    ${recording ? 'bg-red-600' : 'bg-primary text-white'}`;
+    ${recording ? 'bg-red-600' : 'bg-primary text-white'}
+    ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`;
   const sizeClasses = inline ? 'w-8 h-8' : 'w-10 h-10';
   const positionClasses = inline
     ? ''
@@ -52,8 +57,9 @@ export default function MicButton({ inline = false }: MicButtonProps) {
   return (
     <button
       onClick={handleClick}
+      disabled={disabled}
       className={`${baseClasses} ${sizeClasses} ${positionClasses}`}
-      title={recording ? 'Stop recording' : 'Record voice'}
+      title={disabled ? 'Voice recording unavailable' : (recording ? 'Stop recording' : 'Record voice')}
     >
       {recording ? (
         <span className={inline ? 'text-sm' : 'text-lg'}>■</span>
