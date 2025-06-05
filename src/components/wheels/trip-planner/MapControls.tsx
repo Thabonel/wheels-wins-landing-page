@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
@@ -20,6 +21,7 @@ interface MapControlsProps {
   travelMode: string;
   onTravelModeChange: (mode: string) => void;
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
+  isOffline?: boolean;
 }
 
 export default function MapControls({
@@ -37,6 +39,7 @@ export default function MapControls({
   travelMode,
   onTravelModeChange,
   map,
+  isOffline = false,
 }: MapControlsProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
 
@@ -63,13 +66,15 @@ export default function MapControls({
         accessToken: mapboxgl.accessToken,
         unit: "metric",
         profile: "mapbox/driving",
-        interactive: true,
+        interactive: !isOffline, // Disable interaction when offline
         controls: { instructions: false },
       });
       directionsControl.current = dir;
 
       // Set up event listeners without adding to map
       dir.on("route", async () => {
+        if (isOffline) return; // Don't update when offline
+        
         const o = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
         const d = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
         if (o) setOriginName(await reverseGeocode(o));
@@ -83,7 +88,8 @@ export default function MapControls({
 
   // Pin-drop mode
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || isOffline) return; // Disable pin-drop when offline
+    
     const onClick = async (e: mapboxgl.MapMouseEvent) => {
       if (!adding) return;
       const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
@@ -104,12 +110,19 @@ export default function MapControls({
         map.current.off("click", onClick);
       }
     };
-  }, [adding, waypoints, setWaypoints, setAdding]);
+  }, [adding, waypoints, setWaypoints, setAdding, isOffline]);
 
   return (
     <div className="w-full h-[60vh] lg:h-[70vh] relative">
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
+        {isOffline && (
+          <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white p-4 rounded-lg shadow-lg text-center">
+              <p className="text-gray-600">Map updates disabled in offline mode</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
