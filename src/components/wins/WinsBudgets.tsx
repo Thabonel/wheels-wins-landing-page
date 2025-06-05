@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import TotalBudgetsHeader from "./budgets/TotalBudgetsHeader";
 import TotalBudgetCard from "./budgets/TotalBudgetCard";
@@ -10,10 +11,14 @@ import {
 } from "@/components/ui/select";
 import BudgetCategoriesGrid from "./budgets/BudgetCategoriesGrid";
 import PamBudgetAdvice from "./budgets/PamBudgetAdvice";
+import OfflinePamBudgetAdvice from "./budgets/OfflinePamBudgetAdvice";
+import OfflineBudgetBanner from "./budgets/OfflineBudgetBanner";
 import CategoryManagementModal from "./expenses/CategoryManagementModal";
+import { useOffline } from "@/context/OfflineContext";
 
 export default function WinsBudgets() {
   const [isEditing, setIsEditing] = useState(false);
+  const { isOffline } = useOffline();
 
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth();
@@ -36,10 +41,12 @@ export default function WinsBudgets() {
   });
 
   const handleEditClick = () => {
+    if (isOffline) return; // Disable editing when offline
     setIsEditing(true);
   };
 
   const handleMonthChange = (value: string) => {
+    if (isOffline) return; // Disable month changes when offline
     const [month, year] = value.split("-").map(Number);
     setSelectedMonth(month);
     setSelectedYear(year);
@@ -47,10 +54,12 @@ export default function WinsBudgets() {
 
   return (
     <div className="space-y-6">
+      {isOffline && <OfflineBudgetBanner />}
+      
       <TotalBudgetsHeader onEditClick={handleEditClick} />
 
       <div className="flex justify-end">
-        <Select onValueChange={handleMonthChange} defaultValue={`${selectedMonth}-${selectedYear}`}>
+        <Select onValueChange={handleMonthChange} defaultValue={`${selectedMonth}-${selectedYear}`} disabled={isOffline}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select a month" />
           </SelectTrigger>
@@ -66,9 +75,10 @@ export default function WinsBudgets() {
 
       <TotalBudgetCard />
       <BudgetCategoriesGrid />
-      <PamBudgetAdvice />
+      
+      {isOffline ? <OfflinePamBudgetAdvice /> : <PamBudgetAdvice />}
 
-      <CategoryManagementModal open={isEditing} onOpenChange={setIsEditing} />
+      <CategoryManagementModal open={isEditing && !isOffline} onOpenChange={setIsEditing} />
     </div>
   );
 }
