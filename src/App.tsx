@@ -1,8 +1,10 @@
+
 // src/App.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { OfflineProvider } from "@/context/OfflineContext";
 import Layout from "@/components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -19,7 +21,6 @@ import Safety from "./pages/Safety";
 import AdminDashboard from "./pages/AdminDashboard";
 import ScrollToTop from "@/components/ScrollToTop";
 import { ExpensesProvider } from "@/context/ExpensesContext";
-// Removed duplicate import of PamAssistant
 
 const queryClient = new QueryClient();
 
@@ -30,8 +31,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function AppRoutes() {
   const { pathname } = useLocation();
-  // Sidebar Pam is now handled in Layout, so we no longer render it here
-  const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
 
   return (
     <div className="flex w-full px-4 sm:px-6 lg:px-8 py-6 gap-6">
@@ -88,7 +87,6 @@ function AppRoutes() {
             }
           />
 
-          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
@@ -100,12 +98,14 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <Layout>
-            <ScrollToTop />
-            <AppRoutes />
-          </Layout>
-        </Router>
+        <OfflineProvider>
+          <Router>
+            <Layout>
+              <ScrollToTop />
+              <AppRoutes />
+            </Layout>
+          </Router>
+        </OfflineProvider>
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>
