@@ -1,3 +1,4 @@
+
 import 'mapbox-gl/dist/mapbox-gl.css';
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
@@ -6,6 +7,8 @@ import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import { useRegion } from "@/context/RegionContext";
 import { useAuth } from "@/context/AuthContext";
+import { useOffline } from "@/context/OfflineContext";
+import { useCachedTripData } from "@/hooks/useCachedTripData";
 import { hideGeocoderIcon } from "./trip-planner/utils";
 import { modes } from "./trip-planner/constants";
 import { Waypoint, Suggestion } from "./trip-planner/types";
@@ -16,6 +19,7 @@ import TripControls from "./trip-planner/TripControls";
 import WaypointsList from "./trip-planner/WaypointsList";
 import SuggestionsGrid from "./trip-planner/SuggestionsGrid";
 import DirectionsControl from "./trip-planner/DirectionsControl";
+import OfflineTripBanner from "./trip-planner/OfflineTripBanner";
 import { TripService } from "./trip-planner/TripService";
 import { MapPin } from "lucide-react";
 import PamAssistant from "@/components/PamAssistant";
@@ -37,6 +41,8 @@ export default function TripPlanner() {
   const [travelMode, setTravelMode] = useState('driving');
   const { region } = useRegion();
   const { user } = useAuth();
+  const { isOffline, addToQueue } = useOffline();
+  const { cachedTrip, saveTripData } = useCachedTripData();
   const isMobile = useIsMobile();
 
   // Hide default geocoder icon
@@ -44,7 +50,36 @@ export default function TripPlanner() {
     return hideGeocoderIcon();
   }, []);
 
+  // Load cached trip data when offline
+  useEffect(() => {
+    if (isOffline && cachedTrip) {
+      setOriginName(cachedTrip.originName);
+      setDestName(cachedTrip.destName);
+      setWaypoints(cachedTrip.waypoints);
+      setSuggestions(cachedTrip.suggestions);
+      setMode(cachedTrip.mode);
+    }
+  }, [isOffline, cachedTrip]);
+
   const submitTripPlan = async () => {
+    if (isOffline) {
+      // Queue the action for when back online
+      const dir = directionsControl.current!;
+      const originCoords = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
+      const destCoords = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
+      if (!user || !originCoords || !destCoords) return;
+      
+      addToQueue('log_trip', {
+        user_id: user.id,
+        origin: { name: originName, coords: originCoords },
+        destination: { name: destName, coords: destCoords },
+        stops: waypoints,
+        routeMode: dir.getProfile(),
+        travelMode: mode,
+      });
+      return;
+    }
+
     const dir = directionsControl.current!;
     const originCoords = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
     const destCoords = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
@@ -63,6 +98,11 @@ export default function TripPlanner() {
   };
 
   const fetchTripSuggestions = async () => {
+    if (isOffline) {
+      // Don't fetch when offline, use cached data
+      return;
+    }
+
     const dir = directionsControl.current!;
     const origin = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
     const dest = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
@@ -78,6 +118,19 @@ export default function TripPlanner() {
         mode
       );
       setSuggestions(suggestions);
+      
+      // Cache the trip data
+      saveTripData(
+        originName,
+        destName,
+        origin,
+        dest,
+        waypoints,
+        suggestions,
+        dir.getProfile(),
+        mode
+      );
+      
       await saveTrip();
       await submitTripPlan();
     } finally {
@@ -86,6 +139,27 @@ export default function TripPlanner() {
   };
 
   const saveTrip = async () => {
+    if (isOffline) {
+      // Queue the save action for when back online
+      const dir = directionsControl.current!;
+      const origin = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
+      const dest = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
+      if (!user || !origin || !dest) return;
+      
+      addToQueue('update_storage', {
+        userId: user.id,
+        originName,
+        destName,
+        origin,
+        dest,
+        routingProfile: dir.getProfile(),
+        suggestions,
+        mode,
+        waypoints
+      });
+      return;
+    }
+
     const dir = directionsControl.current!;
     const origin = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
     const dest = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
@@ -112,6 +186,13 @@ export default function TripPlanner() {
       <div className="hidden lg:flex h-screen">
         {/* Left side - Map and controls */}
         <div className="flex-1 flex flex-col">
+          {/* Show offline banner when offline */}
+          {isOffline && (
+            <div className="p-4 pb-2">
+              <OfflineTripBanner />
+            </div>
+          )}
+
           <p className="text-sm text-gray-500 p-4 pb-2">
             Tip: Ask Pam—"Plan my trip from {originName} to {destName}."
           </p>
@@ -133,13 +214,14 @@ export default function TripPlanner() {
               travelMode={travelMode}
               onTravelModeChange={setTravelMode}
               map={map}
+              isOffline={isOffline}
             />
           </div>
 
           {/* Controls below map */}
           <div className="p-4 space-y-4">
             {/* Search Bar */}
-            <GeocodeSearch directionsControl={directionsControl} />
+            <GeocodeSearch directionsControl={directionsControl} disabled={isOffline} />
 
             {/* Route Planning Controls */}
             <div className="flex gap-4">
@@ -153,16 +235,18 @@ export default function TripPlanner() {
                     setAdding={setAdding}
                     onSubmitTrip={submitTripPlan}
                     map={map}
+                    isOffline={isOffline}
                   />
                 </div>
               </div>
 
               {/* Right side - Route Points and Travel Modes */}
               <div className="w-96 space-y-4">
-                {/* Directions Control - replaces the dummy selector */}
+                {/* Directions Control */}
                 <DirectionsControl 
                   directionsControl={directionsControl}
                   map={map}
+                  disabled={isOffline}
                 />
 
                 {/* Travel Mode Buttons */}
@@ -178,10 +262,13 @@ export default function TripPlanner() {
                       return (
                         <button
                           key={mode.id}
-                          onClick={() => setTravelMode(mode.id)}
+                          onClick={() => !isOffline && setTravelMode(mode.id)}
+                          disabled={isOffline}
                           className={`px-3 py-2 rounded-lg border transition-colors text-sm font-medium ${
                             isActive
                               ? 'bg-blue-600 text-white border-blue-600'
+                              : isOffline
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                               : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                           }`}
                         >
@@ -199,6 +286,7 @@ export default function TripPlanner() {
               waypoints={waypoints}
               setWaypoints={setWaypoints}
               directionsControl={directionsControl}
+              disabled={isOffline}
             />
 
             {/* Loading/Saving States */}
@@ -218,6 +306,9 @@ export default function TripPlanner() {
 
       {/* Mobile/Tablet Layout */}
       <div className="lg:hidden space-y-6 w-full">
+        {/* Show offline banner when offline */}
+        {isOffline && <OfflineTripBanner />}
+
         <p className="text-sm text-gray-500">
           Tip: Ask Pam—"Plan my trip from {originName} to {destName}."
         </p>
@@ -238,6 +329,7 @@ export default function TripPlanner() {
           travelMode={travelMode}
           onTravelModeChange={setTravelMode}
           map={map}
+          isOffline={isOffline}
         />
 
         {/* Search Bar */}
@@ -245,13 +337,14 @@ export default function TripPlanner() {
           <p className="text-sm text-gray-500">
             Search for places to add to your route:
           </p>
-          <GeocodeSearch directionsControl={directionsControl} />
+          <GeocodeSearch directionsControl={directionsControl} disabled={isOffline} />
         </div>
 
-        {/* Mobile Directions Control - replaces the dummy inputs */}
+        {/* Mobile Directions Control */}
         <DirectionsControl 
           directionsControl={directionsControl}
           map={map}
+          disabled={isOffline}
         />
 
         {/* Mobile Travel Mode Buttons */}
@@ -268,10 +361,13 @@ export default function TripPlanner() {
               return (
                 <button
                   key={mode.id}
-                  onClick={() => setTravelMode(mode.id)}
+                  onClick={() => !isOffline && setTravelMode(mode.id)}
+                  disabled={isOffline}
                   className={`px-3 py-2 rounded-lg border transition-colors text-sm font-medium ${
                     isActive
                       ? 'bg-blue-600 text-white border-blue-600'
+                      : isOffline
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                   }`}
                 >
@@ -290,6 +386,7 @@ export default function TripPlanner() {
           setAdding={setAdding}
           onSubmitTrip={submitTripPlan}
           map={map}
+          isOffline={isOffline}
         />
 
         {/* Waypoints List */}
@@ -297,6 +394,7 @@ export default function TripPlanner() {
           waypoints={waypoints}
           setWaypoints={setWaypoints}
           directionsControl={directionsControl}
+          disabled={isOffline}
         />
 
         {/* Loading/Saving States */}
