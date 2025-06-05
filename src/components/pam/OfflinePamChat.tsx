@@ -11,16 +11,16 @@ export default function OfflinePamChat() {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-gray-600">
           <WifiOff className="h-5 w-5" />
-          <span>PAM is Offline</span>
+          <span>Pam is offline. Showing your last saved tips.</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-gray-600 mb-4">
-          Here are your latest saved tips while you're offline:
-        </p>
         {cachedTips.map((tip, index) => (
           <div key={tip.id} className="p-3 bg-white rounded-lg border border-gray-100">
             <p className="text-sm text-gray-800">{tip.content}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {new Date(tip.timestamp).toLocaleDateString()}
+            </p>
           </div>
         ))}
       </CardContent>

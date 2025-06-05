@@ -28,7 +28,7 @@ export function usePam() {
       return {
         id: uuid(),
         role: "assistant",
-        content: "PAM is unavailable while offline. Check your saved tips below.",
+        content: "Pam is offline. Check your saved tips below.",
         render: null,
         timestamp: new Date(),
       };
