@@ -9,6 +9,7 @@ import { useLocation } from "react-router-dom";
 import Header from "@/components/header/Header";
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
+import OfflineBanner from "@/components/OfflineBanner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -39,7 +40,9 @@ export default function Layout({ children }: LayoutProps) {
             : "flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6"
         }
       >
-       {children}
+        {/* Show offline banner on dashboard pages */}
+        {!["/", "/auth", "/onboarding"].includes(pathname) && <OfflineBanner />}
+        {children}
       </main>
 
       {/* Desktop Pam chat sidebar - hide on wheels page since it has its own Pam */}
@@ -59,9 +62,6 @@ export default function Layout({ children }: LayoutProps) {
           </button>
         </div>
       )}
-
-      {/* Optional floating MicButton */}
-      {/* {!hidePam && <MicButton />} */}
 
       <footer className="bg-white text-gray-600 py-4">
         <Footer />
