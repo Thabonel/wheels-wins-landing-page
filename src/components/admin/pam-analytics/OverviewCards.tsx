@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -59,7 +58,7 @@ const OverviewCards: React.FC<OverviewCardsProps> = ({ data, isLoading }) => {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-7xl">
         {Array.from({ length: 6 }).map((_, i) => (
           <Card key={i}>
             <CardHeader className="pb-2">
@@ -78,7 +77,7 @@ const OverviewCards: React.FC<OverviewCardsProps> = ({ data, isLoading }) => {
   if (!data) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-7xl">
       {/* Total Requests */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
