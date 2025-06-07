@@ -1118,7 +1118,7 @@ export type Database = {
           error_type?: string | null
           has_error?: boolean | null
           hour_of_day?: number | null
-          id?: number
+          id?: never
           intent?: string | null
           is_weekend?: boolean | null
           log_id?: string | null
@@ -1145,7 +1145,7 @@ export type Database = {
           error_type?: string | null
           has_error?: boolean | null
           hour_of_day?: number | null
-          id?: number
+          id?: never
           intent?: string | null
           is_weekend?: boolean | null
           log_id?: string | null

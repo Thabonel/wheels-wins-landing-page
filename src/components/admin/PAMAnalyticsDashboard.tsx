@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,7 +31,7 @@ const PAMAnalyticsDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="max-w-4xl">
+      <div className="max-w-5xl mx-auto">
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6">
             <div className="text-center">
@@ -48,7 +49,7 @@ const PAMAnalyticsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="max-w-6xl space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6 pr-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -90,11 +91,13 @@ const PAMAnalyticsDashboard: React.FC = () => {
 
       {/* Alerts Feed */}
       {alerts && alerts.length > 0 && (
-        <AlertsFeed alerts={alerts} />
+        <div className="max-w-7xl">
+          <AlertsFeed alerts={alerts} />
+        </div>
       )}
 
       {/* Detailed Analytics Tabs */}
-      <div className="max-w-5xl">
+      <div className="max-w-7xl">
         <Tabs defaultValue="intent" className="space-y-4">
           <TabsList className="grid w-full grid-cols-4 max-w-2xl">
             <TabsTrigger value="intent">Intent Analysis</TabsTrigger>
