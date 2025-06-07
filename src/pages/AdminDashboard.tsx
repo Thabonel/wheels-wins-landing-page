@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -187,11 +186,10 @@ const AdminDashboard: React.FC = () => {
       </motion.aside>
 
       {/* Main Content */}
-      <main
-        className={`flex-1 p-8 pt-20 transition-all duration-300 ${isSidebarOpen ? 'ml-0 md:ml-64' : 'ml-0'}`}
-        style={{ paddingRight: isPamChatOpen ? '20rem' : '1rem' }}
-      >
-        <div className="md:ml-0">
+      <main className={`flex-1 pt-16 transition-all duration-300 ${
+        isSidebarOpen ? 'md:ml-64' : 'md:ml-0'
+      } ${isPamChatOpen ? 'pr-0 md:pr-80' : 'pr-0'}`}>
+        <div className="p-6 h-full overflow-auto">
           {renderContent()}
         </div>
       </main>
@@ -199,7 +197,7 @@ const AdminDashboard: React.FC = () => {
       {/* Fixed Pam Chat Widget - Bottom Right */}
       <div className="fixed bottom-6 right-6 z-40">
         {isPamChatOpen ? (
-          <div className="w-80 h-96 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col">
+          <div className="w-72 h-96 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col">
             <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-blue-50 rounded-t-lg">
               <div className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-blue-600" />
