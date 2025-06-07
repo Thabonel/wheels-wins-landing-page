@@ -190,8 +190,8 @@ const AdminDashboard: React.FC = () => {
       <main className={`flex-1 pt-16 transition-all duration-300 ${
         isSidebarOpen ? 'md:ml-64' : 'md:ml-0'
       }`}>
-        <div className={`p-4 h-full overflow-auto ${isPamChatOpen ? 'pr-80' : 'pr-4'}`}>
-          <div className="max-w-6xl">
+        <div className={`p-6 h-full overflow-auto ${isPamChatOpen ? 'mr-80' : 'mr-6'}`}>
+          <div className="max-w-7xl mx-auto">
             {renderContent()}
           </div>
         </div>
