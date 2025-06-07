@@ -59,20 +59,18 @@ const OverviewCards: React.FC<OverviewCardsProps> = ({ data, isLoading }) => {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-16 mb-2" />
-                <Skeleton className="h-3 w-20" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="pb-2">
+              <Skeleton className="h-4 w-24" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="h-3 w-20" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
@@ -80,100 +78,98 @@ const OverviewCards: React.FC<OverviewCardsProps> = ({ data, isLoading }) => {
   if (!data) return null;
 
   return (
-    <div className="max-w-7xl">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {/* Total Requests */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(data.total_requests_24h)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              {getTrendIcon(data.trends.requests_trend)}
-              <span className="ml-1">
-                {Math.abs(data.trends.requests_trend)}% from yesterday
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Total Requests */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+          <Activity className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{formatNumber(data.total_requests_24h)}</div>
+          <div className="flex items-center text-xs text-muted-foreground">
+            {getTrendIcon(data.trends.requests_trend)}
+            <span className="ml-1">
+              {Math.abs(data.trends.requests_trend)}% from yesterday
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Error Rate */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
-            <Badge variant="outline" className={getErrorRateColor(data.error_rate_24h)}>
-              {data.error_rate_24h < 2 ? 'Good' : data.error_rate_24h < 5 ? 'Warning' : 'Critical'}
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${getErrorRateColor(data.error_rate_24h)}`}>
-              {data.error_rate_24h.toFixed(1)}%
-            </div>
-            <p className="text-xs text-muted-foreground">Last 24 hours</p>
-          </CardContent>
-        </Card>
+      {/* Error Rate */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
+          <Badge variant="outline" className={getErrorRateColor(data.error_rate_24h)}>
+            {data.error_rate_24h < 2 ? 'Good' : data.error_rate_24h < 5 ? 'Warning' : 'Critical'}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          <div className={`text-2xl font-bold ${getErrorRateColor(data.error_rate_24h)}`}>
+            {data.error_rate_24h.toFixed(1)}%
+          </div>
+          <p className="text-xs text-muted-foreground">Last 24 hours</p>
+        </CardContent>
+      </Card>
 
-        {/* Unique Users */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unique Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(data.unique_users_24h)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              {getTrendIcon(data.trends.users_trend)}
-              <span className="ml-1">
-                {Math.abs(data.trends.users_trend)}% from yesterday
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Unique Users */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Unique Users</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{formatNumber(data.unique_users_24h)}</div>
+          <div className="flex items-center text-xs text-muted-foreground">
+            {getTrendIcon(data.trends.users_trend)}
+            <span className="ml-1">
+              {Math.abs(data.trends.users_trend)}% from yesterday
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Average Response Time */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatTime(data.avg_response_time)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              {getTrendIcon(-data.trends.response_time_trend)}
-              <span className="ml-1">
-                {Math.abs(data.trends.response_time_trend)}% from yesterday
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Average Response Time */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+          <Clock className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{formatTime(data.avg_response_time)}</div>
+          <div className="flex items-center text-xs text-muted-foreground">
+            {getTrendIcon(-data.trends.response_time_trend)}
+            <span className="ml-1">
+              {Math.abs(data.trends.response_time_trend)}% from yesterday
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Voice Usage Rate */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Voice Usage</CardTitle>
-            <Mic className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.voice_usage_rate.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">Voice-enabled requests</p>
-          </CardContent>
-        </Card>
+      {/* Voice Usage Rate */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Voice Usage</CardTitle>
+          <Mic className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{data.voice_usage_rate.toFixed(1)}%</div>
+          <p className="text-xs text-muted-foreground">Voice-enabled requests</p>
+        </CardContent>
+      </Card>
 
-        {/* System Status */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge className={getStatusColor(data.system_status)}>
-              {data.system_status.charAt(0).toUpperCase() + data.system_status.slice(1)}
-            </Badge>
-            <p className="text-xs text-muted-foreground mt-2">All systems operational</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* System Status */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">System Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Badge className={getStatusColor(data.system_status)}>
+            {data.system_status.charAt(0).toUpperCase() + data.system_status.slice(1)}
+          </Badge>
+          <p className="text-xs text-muted-foreground mt-2">All systems operational</p>
+        </CardContent>
+      </Card>
     </div>
   );
 };
