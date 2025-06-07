@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -188,9 +189,11 @@ const AdminDashboard: React.FC = () => {
       {/* Main Content */}
       <main className={`flex-1 pt-16 transition-all duration-300 ${
         isSidebarOpen ? 'md:ml-64' : 'md:ml-0'
-      } ${isPamChatOpen ? 'pr-0 md:pr-80' : 'pr-0'}`}>
-        <div className="p-6 h-full overflow-auto">
-          {renderContent()}
+      }`}>
+        <div className={`p-4 h-full overflow-auto ${isPamChatOpen ? 'pr-80' : 'pr-4'}`}>
+          <div className="max-w-6xl">
+            {renderContent()}
+          </div>
         </div>
       </main>
 

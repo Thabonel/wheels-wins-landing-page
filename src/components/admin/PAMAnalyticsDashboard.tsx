@@ -31,7 +31,7 @@ const PAMAnalyticsDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6">
             <div className="text-center">
@@ -49,7 +49,7 @@ const PAMAnalyticsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pr-4">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -91,38 +91,34 @@ const PAMAnalyticsDashboard: React.FC = () => {
 
       {/* Alerts Feed */}
       {alerts && alerts.length > 0 && (
-        <div className="max-w-7xl">
-          <AlertsFeed alerts={alerts} />
-        </div>
+        <AlertsFeed alerts={alerts} />
       )}
 
       {/* Detailed Analytics Tabs */}
-      <div className="max-w-7xl">
-        <Tabs defaultValue="intent" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
-            <TabsTrigger value="intent">Intent Analysis</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="errors">Error Analysis</TabsTrigger>
-            <TabsTrigger value="engagement">User Engagement</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="intent" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsTrigger value="intent">Intent Analysis</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="errors">Error Analysis</TabsTrigger>
+          <TabsTrigger value="engagement">User Engagement</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="intent" className="space-y-4">
-            <IntentAnalysis data={analyticsData?.intent_analysis} isLoading={isLoading} />
-          </TabsContent>
+        <TabsContent value="intent" className="space-y-4">
+          <IntentAnalysis data={analyticsData?.intent_analysis} isLoading={isLoading} />
+        </TabsContent>
 
-          <TabsContent value="performance" className="space-y-4">
-            <PerformanceMetrics data={analyticsData?.performance_metrics} isLoading={isLoading} />
-          </TabsContent>
+        <TabsContent value="performance" className="space-y-4">
+          <PerformanceMetrics data={analyticsData?.performance_metrics} isLoading={isLoading} />
+        </TabsContent>
 
-          <TabsContent value="errors" className="space-y-4">
-            <ErrorAnalysis data={analyticsData?.error_analysis} isLoading={isLoading} />
-          </TabsContent>
+        <TabsContent value="errors" className="space-y-4">
+          <ErrorAnalysis data={analyticsData?.error_analysis} isLoading={isLoading} />
+        </TabsContent>
 
-          <TabsContent value="engagement" className="space-y-4">
-            <UserEngagement data={analyticsData?.user_engagement} isLoading={isLoading} />
-          </TabsContent>
-        </Tabs>
-      </div>
+        <TabsContent value="engagement" className="space-y-4">
+          <UserEngagement data={analyticsData?.user_engagement} isLoading={isLoading} />
+        </TabsContent>
+      </Tabs>
 
       {/* Auto-refresh indicator */}
       {autoRefresh && (
