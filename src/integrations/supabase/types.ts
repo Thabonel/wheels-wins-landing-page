@@ -1080,6 +1080,90 @@ export type Database = {
         }
         Relationships: []
       }
+      pam_analytics_logs: {
+        Row: {
+          api_calls_count: number | null
+          confidence: number | null
+          confidence_level: string | null
+          created_at: string | null
+          day_of_week: number | null
+          error_message: string | null
+          error_type: string | null
+          has_error: boolean | null
+          hour_of_day: number | null
+          id: number
+          intent: string | null
+          is_weekend: boolean | null
+          log_id: string | null
+          log_level: string | null
+          message: string | null
+          message_preview: string | null
+          raw_context: Json | null
+          response_time_ms: number | null
+          session_id: string | null
+          timestamp: string | null
+          trace_id: string | null
+          user_id: string | null
+          validation_passed: boolean | null
+          voice_enabled: boolean | null
+          workflow_name: string | null
+        }
+        Insert: {
+          api_calls_count?: number | null
+          confidence?: number | null
+          confidence_level?: string | null
+          created_at?: string | null
+          day_of_week?: number | null
+          error_message?: string | null
+          error_type?: string | null
+          has_error?: boolean | null
+          hour_of_day?: number | null
+          id?: number
+          intent?: string | null
+          is_weekend?: boolean | null
+          log_id?: string | null
+          log_level?: string | null
+          message?: string | null
+          message_preview?: string | null
+          raw_context?: Json | null
+          response_time_ms?: number | null
+          session_id?: string | null
+          timestamp?: string | null
+          trace_id?: string | null
+          user_id?: string | null
+          validation_passed?: boolean | null
+          voice_enabled?: boolean | null
+          workflow_name?: string | null
+        }
+        Update: {
+          api_calls_count?: number | null
+          confidence?: number | null
+          confidence_level?: string | null
+          created_at?: string | null
+          day_of_week?: number | null
+          error_message?: string | null
+          error_type?: string | null
+          has_error?: boolean | null
+          hour_of_day?: number | null
+          id?: number
+          intent?: string | null
+          is_weekend?: boolean | null
+          log_id?: string | null
+          log_level?: string | null
+          message?: string | null
+          message_preview?: string | null
+          raw_context?: Json | null
+          response_time_ms?: number | null
+          session_id?: string | null
+          timestamp?: string | null
+          trace_id?: string | null
+          user_id?: string | null
+          validation_passed?: boolean | null
+          voice_enabled?: boolean | null
+          workflow_name?: string | null
+        }
+        Relationships: []
+      }
       pam_config: {
         Row: {
           key: string
@@ -1421,6 +1505,24 @@ export type Database = {
           role?: string | null
           status?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      rate_limit_log: {
+        Row: {
+          id: number
+          timestamp: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: number
+          timestamp?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: number
+          timestamp?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -1789,6 +1891,33 @@ export type Database = {
           venue_name?: string
           venue_type?: string | null
           wifi_quality?: string | null
+        }
+        Relationships: []
+      }
+      support_tickets: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          status: string | null
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          status?: string | null
+          subject: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          status?: string | null
+          subject?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2209,6 +2338,10 @@ export type Database = {
       }
     }
     Functions: {
+      check_rate_limit: {
+        Args: { user_id: string; window_start: string; limit_count: number }
+        Returns: Json
+      }
       get_nearby_recommendations: {
         Args: {
           user_lat: number

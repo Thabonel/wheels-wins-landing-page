@@ -1,25 +1,29 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Users, ShieldCheck, ShoppingBag, BarChart2, Settings as SettingsIcon, Menu } from 'lucide-react';
+import { Users, ShieldCheck, ShoppingBag, BarChart2, Settings as SettingsIcon, Menu, Bot, MessageSquare, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import UserManagement from "@/components/admin/UserManagement";
 import ContentModeration from "@/components/admin/ContentModeration";
 import ShopManagement from "@/components/admin/ShopManagement";
 import ReportsAnalytics from "@/components/admin/ReportsAnalytics";
 import DashboardOverview from "@/components/admin/DashboardOverview";
 import Settings from "@/components/admin/Settings";
+import PAMAnalyticsDashboard from "@/components/admin/PAMAnalyticsDashboard";
+import PamAssistant from "@/components/PamAssistant";
 
 const AdminDashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeSection, setActiveSection] = useState('Dashboard'); // Default to Dashboard
+  const [activeSection, setActiveSection] = useState('Dashboard');
+  const [isPamChatOpen, setIsPamChatOpen] = useState(false);
  
   const sidebarVariants = {
     open: { x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } },
     closed: { x: "-100%", transition: { type: "spring", stiffness: 300, damping: 30 } },
   };
-
 
   const renderContent = () => {
     switch (activeSection) {
@@ -67,6 +71,17 @@ const AdminDashboard: React.FC = () => {
             <ReportsAnalytics />
           </motion.div>
         );
+      case 'pam-analytics':
+        return (
+          <motion.div
+            key="PAM Analytics"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <PAMAnalyticsDashboard />
+          </motion.div>
+        );
       case 'Settings':
         return (
           <motion.div
@@ -84,21 +99,21 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 relative">
       {/* Top Bar */}
-      <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-10 h-16 flex items-center justify-between px-4">
+      <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-30 h-16 flex items-center justify-between px-4">
         <div className="flex items-center">
             <button className="mr-4 md:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                 <Menu className="h-6 w-6" />
             </button>
             <h1 className="text-xl font-bold">Admin Panel</h1>
         </div>
-        <DropdownMenu modal={false}> {/* Add modal={false} to prevent body scroll issues */}
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger>
           <Avatar>
-              <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" /> {/* Example avatar */}
+              <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
               <AvatarFallback>JP</AvatarFallback>
-            </Avatar> {/* Placeholder for avatar */}
+            </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
@@ -116,7 +131,7 @@ const AdminDashboard: React.FC = () => {
         initial={{ x: '-100%' }}
         animate={isSidebarOpen ? 'open' : 'closed'}
         variants={sidebarVariants}
-        className="fixed md:relative top-0 left-0 h-full w-64 bg-gray-800 text-white shadow-md z-30 pt-16"
+        className="fixed md:relative top-0 left-0 h-full w-64 bg-gray-800 text-white shadow-md z-20 pt-16"
       >
         <nav className="flex flex-col p-4 space-y-2">
           <button
@@ -127,21 +142,21 @@ const AdminDashboard: React.FC = () => {
             {isSidebarOpen && <span>Metrics</span>}
           </button>
           <button
-            className={`flex items-center p-2 rounded-md ${activeSection === 'User Management' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
+            className={`flex items-center p-2 rounded-md ${activeSection === 'user-management' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
             onClick={() => setActiveSection('user-management')}
           >
             <Users className="h-5 w-5 mr-2" />
             {isSidebarOpen && <span>User Management</span>}
           </button>
           <button
-            className={`flex items-center p-2 rounded-md ${activeSection === 'Content Moderation' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
+            className={`flex items-center p-2 rounded-md ${activeSection === 'content-moderation' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
             onClick={() => setActiveSection('content-moderation')}
           >
             <ShieldCheck className="h-5 w-5 mr-2" />
             {isSidebarOpen && <span>Content Moderation</span>}
           </button>
           <button
-            className={`flex items-center p-2 rounded-md ${activeSection === 'Shop Management' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
+            className={`flex items-center p-2 rounded-md ${activeSection === 'shop-management' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
             onClick={() => setActiveSection('shop-management')}
           >
             <ShoppingBag className="h-5 w-5 mr-2" />
@@ -155,6 +170,13 @@ const AdminDashboard: React.FC = () => {
             {isSidebarOpen && <span>Reports & Analytics</span>}
           </button>
           <button
+            className={`flex items-center p-2 rounded-md ${activeSection === 'pam-analytics' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
+            onClick={() => setActiveSection('pam-analytics')}
+          >
+            <Bot className="h-5 w-5 mr-2" />
+            {isSidebarOpen && <span>PAM Analytics</span>}
+          </button>
+          <button
             className={`flex items-center p-2 rounded-md ${activeSection === 'Settings' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
             onClick={() => setActiveSection('Settings')}
           >
@@ -162,18 +184,51 @@ const AdminDashboard: React.FC = () => {
             {isSidebarOpen && <span>Settings</span>}
           </button>
         </nav>
-        </motion.aside>
+      </motion.aside>
+
       {/* Main Content */}
       <main
-        className={`flex-1 p-8 pt-20 transition-all duration-300 ${isSidebarOpen ? 'ml-[200px]' : 'ml-[60px]'}`}
+        className={`flex-1 p-8 pt-20 transition-all duration-300 ${isSidebarOpen ? 'ml-0 md:ml-64' : 'ml-0'}`}
+        style={{ paddingRight: isPamChatOpen ? '20rem' : '1rem' }}
       >
-         {/* On mobile, adjust margin based on sidebar state */}
         <div className="md:ml-0">
-             {renderContent()}
+          {renderContent()}
         </div>
       </main>
+
+      {/* Fixed Pam Chat Widget - Bottom Right */}
+      <div className="fixed bottom-6 right-6 z-40">
+        {isPamChatOpen ? (
+          <div className="w-80 h-96 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col">
+            <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-blue-50 rounded-t-lg">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-blue-600" />
+                <span className="font-medium text-gray-900">Admin PAM Assistant</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsPamChatOpen(false)}
+                className="h-6 w-6 p-0 hover:bg-gray-200"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <PamAssistant />
+            </div>
+          </div>
+        ) : (
+          <Button
+            onClick={() => setIsPamChatOpen(true)}
+            className="h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <MessageSquare className="h-6 w-6" />
+          </Button>
+        )}
+      </div>
     </div>
-    );
+  );
 };
 
 export default AdminDashboard;
