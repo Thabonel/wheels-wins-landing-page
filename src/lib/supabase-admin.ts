@@ -160,7 +160,7 @@ export class AdminUserService {
       // Combine auth users with profile data
       const users: AdminUser[] = authUsers.users.map(authUser => {
         const profile = profiles?.find(p => p.user_id === authUser.id);
-        const userProfile = profile?.user_profiles;
+        const userProfile = Array.isArray(profile?.user_profiles) ? profile.user_profiles[0] : profile?.user_profiles;
         
         return {
           id: authUser.id,
