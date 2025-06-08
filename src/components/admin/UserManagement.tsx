@@ -22,19 +22,17 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     if (!session) {
-      toast.error('Authentication required')
+      toast({ title: 'Authentication required', variant: 'destructive' })
       setLoading(false)
       return
     }
 
     setLoading(true)
-    const { data, error } = await supabase.functions.invoke('get-admin-users', {
-      headers: { Authorization: `Bearer ${session.access_token}` }
-    })
+    const { data, error } = await supabase.functions.invoke('get-admin-users')
 
     if (error) {
       console.error('Error fetching users:', error)
-      toast.error('Failed to fetch users')
+      toast({ title: 'Failed to fetch users', variant: 'destructive' })
       setLoading(false)
       return
     }
@@ -43,33 +41,9 @@ export default function UserManagement() {
     setLoading(false)
   }
 
-  const handleDeactivateUser = async (id: string) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ status: 'Inactive' })
-      .eq('id', id)
-    if (error) {
-      toast.error('Failed to deactivate user')
-    } else {
-      toast.success('User deactivated')
-      fetchUsers()
-    }
-  }
-
-  const handleDeleteUser = async (id: string) => {
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', id)
-    if (error) {
-      toast.error('Failed to delete user')
-    } else {
-      toast.success('User deleted')
-      fetchUsers()
-    }
-  }
-
   useEffect(() => {
+    fetchUsers()
+  }, [session])(() => {
     fetchUsers()
   }, [session])
 
