@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -205,7 +206,7 @@ const AdminDashboard: React.FC = () => {
             </button>
             <button
               className={`flex items-center p-3 rounded-md text-left ${activeSection === 'Reports & Analytics' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
-              onClick={()={() => {
+              onClick={() => {
                 setActiveSection('Reports & Analytics');
                 if (isMobile) setIsSidebarOpen(false);
               }}
