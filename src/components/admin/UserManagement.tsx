@@ -1,13 +1,27 @@
-'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { supabase } from '@/integrations/supabase'
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+
+interface AdminUser {
+  id: string;
+  email: string;
+  created_at: string;
+  region?: string;
+  status?: string;
+}
 
 export default function UserManagement() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { isAdmin } = useAdminAuth();
 
   const fetchUsers = async () => {
     if (!user) return;
@@ -15,7 +29,11 @@ export default function UserManagement() {
     // Get the session to access the access token
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
-      toast.error("Authentication required");
+      toast({
+        title: "Error",
+        description: "Authentication required",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -31,7 +49,11 @@ export default function UserManagement() {
       if (!res.ok) {
         const errorData = await res.json();
         console.error("Error fetching users:", errorData);
-        toast.error("Failed to fetch users");
+        toast({
+          title: "Error",
+          description: "Failed to fetch users",
+          variant: "destructive"
+        });
         setLoading(false);
         return;
       }
@@ -42,7 +64,11 @@ export default function UserManagement() {
       setLoading(false);
     } catch (error) {
       console.error("Network error:", error);
-      toast.error("Network error while fetching users");
+      toast({
+        title: "Error",
+        description: "Network error while fetching users",
+        variant: "destructive"
+      });
       setLoading(false);
     }
   };
@@ -50,9 +76,16 @@ export default function UserManagement() {
   const handleDeactivateUser = async (id: string) => {
     const { error } = await supabase.from("profiles").update({ status: "Inactive" }).eq("id", id);
     if (error) {
-      toast.error("Failed to deactivate user");
+      toast({
+        title: "Error",
+        description: "Failed to deactivate user",
+        variant: "destructive"
+      });
     } else {
-      toast.success("User deactivated");
+      toast({
+        title: "Success",
+        description: "User deactivated",
+      });
       fetchUsers();
     }
   };
@@ -60,9 +93,16 @@ export default function UserManagement() {
   const handleDeleteUser = async (id: string) => {
     const { error } = await supabase.from("profiles").delete().eq("id", id);
     if (error) {
-      toast.error("Failed to delete user");
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive"
+      });
     } else {
-      toast.success("User deleted");
+      toast({
+        title: "Success",
+        description: "User deleted",
+      });
       fetchUsers();
     }
   };
@@ -141,18 +181,18 @@ export default function UserManagement() {
       </Card>
 
       {isAdmin ? (
-        <Card className="border-green-200 bg-green-50">
+        <Card className="border-green-200 bg-green-50 mt-4">
           <CardContent className="pt-4">
-            <p className="text-green-800">✅ Admin access confirmed! User management would load here.</p>
+            <p className="text-green-800">✅ Admin access confirmed! User management loaded successfully.</p>
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-red-200 bg-red-50 mt-4">
           <CardContent className="pt-4">
             <p className="text-red-800">❌ Access Denied - You need admin privileges</p>
           </CardContent>
         </Card>
       )}
     </div>
-  )
+  );
 }
