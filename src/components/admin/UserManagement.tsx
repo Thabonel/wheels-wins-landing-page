@@ -18,46 +18,29 @@ import { supabase } from '@/integrations/supabase'
 export default function UserManagement() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
-  const { user } = useAuth()
+  const { session } = useAuth()
 
   const fetchUsers = async () => {
-    if (!user) return
-
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.access_token) {
+    if (!session) {
       toast.error('Authentication required')
+      setLoading(false)
       return
     }
 
-    console.log('Access token:', session.access_token)
     setLoading(true)
-    try {
-      const res = await fetch(
-        'https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/get-admin-users',
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      )
+    const { data, error } = await supabase.functions.invoke('get-admin-users', {
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    })
 
-      if (!res.ok) {
-        const errorData = await res.json()
-        console.error('Error fetching users:', errorData)
-        toast.error('Failed to fetch users')
-        setLoading(false)
-        return
-      }
-
-      const data = await res.json()
-      console.log('Fetched data:', data)
-      setUsers(data)
+    if (error) {
+      console.error('Error fetching users:', error)
+      toast.error('Failed to fetch users')
       setLoading(false)
-    } catch (error) {
-      console.error('Network error:', error)
-      toast.error('Network error while fetching users')
-      setLoading(false)
+      return
     }
+
+    setUsers(data as AdminUser[])
+    setLoading(false)
   }
 
   const handleDeactivateUser = async (id: string) => {
@@ -87,8 +70,8 @@ export default function UserManagement() {
   }
 
   useEffect(() => {
-    if (user) fetchUsers()
-  }, [user])
+    fetchUsers()
+  }, [session])
 
   return (
     <div className="p-6">
@@ -131,32 +114,22 @@ export default function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.email.split('@')[0]}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.region}</TableCell>
-                    <TableCell>
-                      {new Date(user.created_at).toLocaleString()}
-                    </TableCell>
+                {users.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell>{u.email.split('@')[0]}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>{u.region}</TableCell>
+                    <TableCell>{new Date(u.created_at).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-green-100 text-green-700">
-                        {user.status || 'Active'}
+                        {u.status || 'Active'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeactivateUser(user.id)}
-                      >
+                      <Button variant="destructive" size="sm" onClick={() => handleDeactivateUser(u.id)}>
                         Deactivate
                       </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteUser(user.id)}
-                      >
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(u.id)}>
                         Delete
                       </Button>
                     </TableCell>
@@ -173,5 +146,5 @@ export default function UserManagement() {
         )}
       </Card>
     </div>
-  )
+)
 }
