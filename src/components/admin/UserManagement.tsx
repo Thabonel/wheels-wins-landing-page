@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +30,6 @@ import {
   Users,
   UserPlus,
   Search,
-  Filter,
   Download,
   Mail,
   Ban,
@@ -44,27 +42,32 @@ import {
   Edit,
   Trash2,
   Eye,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 interface User {
   id: string;
-  name: string;
   email: string;
-  avatar?: string;
+  created_at: string;
+  full_name?: string;
+  nickname?: string;
   role: 'user' | 'admin' | 'moderator' | 'premium';
   status: 'active' | 'suspended' | 'pending';
-  joinDate: string;
-  lastLogin: string;
-  posts: number;
-  orders: number;
-  location?: string;
-  verified: boolean;
+  region?: string;
+  last_sign_in_at?: string;
+  email_confirmed_at?: string;
+  posts_count?: number;
+  profile_exists: boolean;
 }
 
 const UserManagement: React.FC = () => {
   const { toast } = useToast();
+  const { supabase } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -75,82 +78,13 @@ const UserManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(10);
 
-  // Mock user data - replace with real API call
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: '1',
-      name: 'Sarah Connor',
-      email: 'sarah.connor@email.com',
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b182?w=150',
-      role: 'admin',
-      status: 'active',
-      joinDate: '2024-01-15',
-      lastLogin: '2025-06-08',
-      posts: 45,
-      orders: 12,
-      location: 'Sydney, AU',
-      verified: true
-    },
-    {
-      id: '2',
-      name: 'John Smith',
-      email: 'john.smith@email.com',
-      role: 'user',
-      status: 'active',
-      joinDate: '2024-03-22',
-      lastLogin: '2025-06-07',
-      posts: 23,
-      orders: 5,
-      location: 'Melbourne, AU',
-      verified: true
-    },
-    {
-      id: '3',
-      name: 'Emma Wilson',
-      email: 'emma.wilson@email.com',
-      role: 'premium',
-      status: 'active',
-      joinDate: '2024-02-10',
-      lastLogin: '2025-06-06',
-      posts: 78,
-      orders: 28,
-      location: 'Brisbane, AU',
-      verified: true
-    },
-    {
-      id: '4',
-      name: 'Mike Johnson',
-      email: 'mike.johnson@email.com',
-      role: 'user',
-      status: 'suspended',
-      joinDate: '2024-05-01',
-      lastLogin: '2025-05-15',
-      posts: 12,
-      orders: 2,
-      location: 'Perth, AU',
-      verified: false
-    },
-    {
-      id: '5',
-      name: 'Lisa Anderson',
-      email: 'lisa.anderson@email.com',
-      role: 'moderator',
-      status: 'active',
-      joinDate: '2024-01-30',
-      lastLogin: '2025-06-08',
-      posts: 156,
-      orders: 8,
-      location: 'Adelaide, AU',
-      verified: true
-    }
-  ]);
-
   const [newUser, setNewUser] = useState({
-    name: '',
     email: '',
+    password: '',
+    full_name: '',
     role: 'user' as User['role'],
     status: 'active' as User['status'],
-    location: ''
+    region: 'Australia'
   });
 
   const statusColors = {
@@ -162,14 +96,125 @@ const UserManagement: React.FC = () => {
   const roleColors = {
     admin: 'bg-purple-100 text-purple-800',
     moderator: 'bg-blue-100 text-blue-800',
-    premium: 'bg-gold-100 text-gold-800',
+    premium: 'bg-yellow-100 text-yellow-800',
     user: 'bg-gray-100 text-gray-800'
   };
 
+  // Fetch users from Supabase
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      
+      // Get auth users with profiles data
+      const { data: usersData, error } = await supabase
+        .from('auth.users')
+        .select(`
+          id,
+          email,
+          created_at,
+          last_sign_in_at,
+          email_confirmed_at,
+          profiles!inner(role, status, region),
+          user_profiles(full_name, nickname)
+        `);
+
+      if (error) {
+        // Fallback: Get users from profiles table instead
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select(`
+            user_id,
+            email,
+            role,
+            status,
+            region,
+            created_at,
+            user_profiles(full_name, nickname)
+          `);
+
+        if (profilesError) {
+          console.error('Error fetching users:', profilesError);
+          toast({
+            title: "Error Loading Users",
+            description: "Failed to load user data from database.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Transform profiles data to user format
+        const transformedUsers: User[] = profilesData?.map(profile => ({
+          id: profile.user_id || '',
+          email: profile.email || '',
+          created_at: profile.created_at || '',
+          full_name: profile.user_profiles?.full_name || '',
+          nickname: profile.user_profiles?.nickname || '',
+          role: (profile.role as User['role']) || 'user',
+          status: (profile.status as User['status']) || 'active',
+          region: profile.region || '',
+          profile_exists: true,
+          posts_count: 0
+        })) || [];
+
+        setUsers(transformedUsers);
+      } else {
+        // Transform auth.users data
+        const transformedUsers: User[] = usersData?.map(user => ({
+          id: user.id,
+          email: user.email || '',
+          created_at: user.created_at,
+          last_sign_in_at: user.last_sign_in_at,
+          email_confirmed_at: user.email_confirmed_at,
+          full_name: user.user_profiles?.full_name || '',
+          nickname: user.user_profiles?.nickname || '',
+          role: (user.profiles?.role as User['role']) || 'user',
+          status: (user.profiles?.status as User['status']) || 'active',
+          region: user.profiles?.region || '',
+          profile_exists: true,
+          posts_count: 0
+        })) || [];
+
+        setUsers(transformedUsers);
+      }
+
+      // Get posts count for each user
+      const { data: postsCount } = await supabase
+        .from('social_posts')
+        .select('user_id, id');
+
+      if (postsCount) {
+        const postsCounts = postsCount.reduce((acc, post) => {
+          acc[post.user_id] = (acc[post.user_id] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        setUsers(prev => prev.map(user => ({
+          ...user,
+          posts_count: postsCounts[user.id] || 0
+        })));
+      }
+
+    } catch (error) {
+      console.error('Error in fetchUsers:', error);
+      toast({
+        title: "Database Error",
+        description: "Unable to connect to user database.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   // Filter users based on search and filters
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.nickname?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = selectedRole === 'all' || user.role === selectedRole;
     const matchesStatus = selectedStatus === 'all' || user.status === selectedStatus;
     return matchesSearch && matchesRole && matchesStatus;
@@ -181,29 +226,58 @@ const UserManagement: React.FC = () => {
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
 
-  const handleAddUser = () => {
-    const user: User = {
-      id: (users.length + 1).toString(),
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      status: newUser.status,
-      joinDate: new Date().toISOString().split('T')[0],
-      lastLogin: 'Never',
-      posts: 0,
-      orders: 0,
-      location: newUser.location,
-      verified: false
-    };
-    
-    setUsers([...users, user]);
-    setNewUser({ name: '', email: '', role: 'user', status: 'active', location: '' });
-    setIsAddUserOpen(false);
-    
-    toast({
-      title: "User Added",
-      description: `${user.name} has been added successfully.`,
-    });
+  const handleAddUser = async () => {
+    try {
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: newUser.email,
+        password: newUser.password,
+        email_confirm: true
+      });
+
+      if (authError) throw authError;
+
+      // Create profile record
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: authData.user.id,
+          email: newUser.email,
+          role: newUser.role,
+          status: newUser.status,
+          region: newUser.region
+        });
+
+      if (profileError) throw profileError;
+
+      // Create user profile record
+      if (newUser.full_name) {
+        await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: authData.user.id,
+            full_name: newUser.full_name,
+            email: newUser.email,
+            region: newUser.region
+          });
+      }
+
+      setNewUser({ email: '', password: '', full_name: '', role: 'user', status: 'active', region: 'Australia' });
+      setIsAddUserOpen(false);
+      fetchUsers(); // Refresh the list
+      
+      toast({
+        title: "User Added",
+        description: `${newUser.full_name || newUser.email} has been added successfully.`,
+      });
+    } catch (error: any) {
+      console.error('Error adding user:', error);
+      toast({
+        title: "Error Adding User",
+        description: error.message || "Failed to create user account.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEditUser = (user: User) => {
@@ -211,30 +285,85 @@ const UserManagement: React.FC = () => {
     setIsEditUserOpen(true);
   };
 
-  const handleUpdateUser = () => {
+  const handleUpdateUser = async () => {
     if (!editingUser) return;
     
-    setUsers(users.map(u => u.id === editingUser.id ? editingUser : u));
-    setIsEditUserOpen(false);
-    setEditingUser(null);
-    
-    toast({
-      title: "User Updated",
-      description: `${editingUser.name}'s details have been updated.`,
-    });
+    try {
+      // Update profile data
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          role: editingUser.role,
+          status: editingUser.status,
+          region: editingUser.region
+        })
+        .eq('user_id', editingUser.id);
+
+      if (profileError) throw profileError;
+
+      // Update user profile data
+      const { error: userProfileError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: editingUser.id,
+          full_name: editingUser.full_name,
+          nickname: editingUser.nickname,
+          region: editingUser.region,
+          email: editingUser.email
+        });
+
+      if (userProfileError) {
+        console.warn('Error updating user profile:', userProfileError);
+        // Don't throw - profile might not exist yet
+      }
+
+      setIsEditUserOpen(false);
+      setEditingUser(null);
+      fetchUsers(); // Refresh the list
+      
+      toast({
+        title: "User Updated",
+        description: `${editingUser.full_name || editingUser.email}'s details have been updated.`,
+      });
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Error Updating User",
+        description: error.message || "Failed to update user details.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    setUsers(users.filter(u => u.id !== userId));
-    
-    toast({
-      title: "User Deleted",
-      description: `${user?.name} has been removed from the system.`,
-    });
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const user = users.find(u => u.id === userId);
+      
+      // Delete profile records first
+      await supabase.from('profiles').delete().eq('user_id', userId);
+      await supabase.from('user_profiles').delete().eq('user_id', userId);
+      
+      // Delete auth user
+      const { error } = await supabase.auth.admin.deleteUser(userId);
+      if (error) throw error;
+
+      fetchUsers(); // Refresh the list
+      
+      toast({
+        title: "User Deleted",
+        description: `${user?.full_name || user?.email} has been removed from the system.`,
+      });
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Error Deleting User",
+        description: error.message || "Failed to delete user.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleBulkAction = (action: string) => {
+  const handleBulkAction = async (action: string) => {
     if (selectedUsers.length === 0) {
       toast({
         title: "No Users Selected",
@@ -244,38 +373,59 @@ const UserManagement: React.FC = () => {
       return;
     }
 
-    switch (action) {
-      case 'activate':
-        setUsers(users.map(u => 
-          selectedUsers.includes(u.id) ? { ...u, status: 'active' as User['status'] } : u
-        ));
-        toast({ title: "Users Activated", description: `${selectedUsers.length} users activated.` });
-        break;
-      case 'suspend':
-        setUsers(users.map(u => 
-          selectedUsers.includes(u.id) ? { ...u, status: 'suspended' as User['status'] } : u
-        ));
-        toast({ title: "Users Suspended", description: `${selectedUsers.length} users suspended.` });
-        break;
-      case 'delete':
-        setUsers(users.filter(u => !selectedUsers.includes(u.id)));
-        toast({ title: "Users Deleted", description: `${selectedUsers.length} users deleted.` });
-        break;
+    try {
+      switch (action) {
+        case 'activate':
+          await supabase
+            .from('profiles')
+            .update({ status: 'active' })
+            .in('user_id', selectedUsers);
+          break;
+        case 'suspend':
+          await supabase
+            .from('profiles')
+            .update({ status: 'suspended' })
+            .in('user_id', selectedUsers);
+          break;
+        case 'delete':
+          // Delete profiles first
+          await supabase.from('profiles').delete().in('user_id', selectedUsers);
+          await supabase.from('user_profiles').delete().in('user_id', selectedUsers);
+          // Delete auth users
+          for (const userId of selectedUsers) {
+            await supabase.auth.admin.deleteUser(userId);
+          }
+          break;
+      }
+
+      fetchUsers(); // Refresh the list
+      setSelectedUsers([]);
+      
+      toast({ 
+        title: `Bulk ${action} completed`, 
+        description: `${selectedUsers.length} users processed.` 
+      });
+    } catch (error: any) {
+      console.error(`Error in bulk ${action}:`, error);
+      toast({
+        title: `Bulk ${action} failed`,
+        description: error.message || "Some operations may have failed.",
+        variant: "destructive"
+      });
     }
-    setSelectedUsers([]);
   };
 
   const handleExport = () => {
     const csvContent = [
-      ['Name', 'Email', 'Role', 'Status', 'Join Date', 'Posts', 'Orders'],
+      ['Name', 'Email', 'Role', 'Status', 'Region', 'Created', 'Posts'],
       ...filteredUsers.map(user => [
-        user.name,
+        user.full_name || user.nickname || '',
         user.email,
         user.role,
         user.status,
-        user.joinDate,
-        user.posts.toString(),
-        user.orders.toString()
+        user.region || '',
+        new Date(user.created_at).toLocaleDateString(),
+        user.posts_count?.toString() || '0'
       ])
     ].map(row => row.join(',')).join('\n');
     
@@ -306,6 +456,15 @@ const UserManagement: React.FC = () => {
 
   const stats = getUserStats();
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading users...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
@@ -315,6 +474,10 @@ const UserManagement: React.FC = () => {
           <p className="text-gray-600">Manage user accounts, roles, and permissions</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => fetchUsers()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
           <Button variant="outline" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -333,20 +496,31 @@ const UserManagement: React.FC = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Email *</Label>
                   <Input
                     id="email"
                     type="email"
                     value={newUser.email}
                     onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    value={newUser.full_name}
+                    onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -379,19 +553,28 @@ const UserManagement: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    value={newUser.location}
-                    onChange={(e) => setNewUser({ ...newUser, location: e.target.value })}
-                  />
+                  <Label>Region</Label>
+                  <Select value={newUser.region} onValueChange={(value) => setNewUser({ ...newUser, region: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Australia">Australia</SelectItem>
+                      <SelectItem value="New Zealand">New Zealand</SelectItem>
+                      <SelectItem value="United States">United States</SelectItem>
+                      <SelectItem value="Canada">Canada</SelectItem>
+                      <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddUser}>Add User</Button>
+                <Button onClick={handleAddUser} disabled={!newUser.email || !newUser.password}>
+                  Add User
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -460,9 +643,9 @@ const UserManagement: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Premium</p>
-                <p className="text-2xl font-bold text-gold-600">{stats.premium}</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.premium}</p>
               </div>
-              <Activity className="h-8 w-8 text-gold-600" />
+              <Activity className="h-8 w-8 text-yellow-600" />
             </div>
           </CardContent>
         </Card>
@@ -555,8 +738,7 @@ const UserManagement: React.FC = () => {
                 <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Join Date</TableHead>
-                <TableHead>Last Login</TableHead>
+                <TableHead>Created</TableHead>
                 <TableHead>Activity</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -579,16 +761,20 @@ const UserManagement: React.FC = () => {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        <AvatarFallback>
+                          {user.full_name ? 
+                            user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2) :
+                            user.email.slice(0, 2).toUpperCase()
+                          }
+                        </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-medium">{user.name}</p>
-                          {user.verified && <CheckCircle className="h-4 w-4 text-blue-600" />}
+                          <p className="font-medium">{user.full_name || user.nickname || user.email}</p>
+                          {user.email_confirmed_at && <CheckCircle className="h-4 w-4 text-blue-600" />}
                         </div>
                         <p className="text-sm text-gray-500">{user.email}</p>
-                        {user.location && <p className="text-xs text-gray-400">{user.location}</p>}
+                        {user.region && <p className="text-xs text-gray-400">{user.region}</p>}
                       </div>
                     </div>
                   </TableCell>
@@ -602,12 +788,17 @@ const UserManagement: React.FC = () => {
                       {user.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm">{user.joinDate}</TableCell>
-                  <TableCell className="text-sm">{user.lastLogin}</TableCell>
+                  <TableCell className="text-sm">
+                    {new Date(user.created_at).toLocaleDateString()}
+                  </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <p>{user.posts} posts</p>
-                      <p className="text-gray-500">{user.orders} orders</p>
+                      <p>{user.posts_count || 0} posts</p>
+                      {user.last_sign_in_at && (
+                        <p className="text-gray-500">
+                          Last login: {new Date(user.last_sign_in_at).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -707,11 +898,19 @@ const UserManagement: React.FC = () => {
               </TabsList>
               <TabsContent value="details" className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="editName">Name</Label>
+                  <Label htmlFor="editFullName">Full Name</Label>
                   <Input
-                    id="editName"
-                    value={editingUser.name}
-                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                    id="editFullName"
+                    value={editingUser.full_name || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editNickname">Nickname</Label>
+                  <Input
+                    id="editNickname"
+                    value={editingUser.nickname || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, nickname: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -720,16 +919,28 @@ const UserManagement: React.FC = () => {
                     id="editEmail"
                     type="email"
                     value={editingUser.email}
-                    onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                    disabled
+                    className="bg-gray-100"
                   />
+                  <p className="text-xs text-gray-500">Email cannot be changed from admin panel</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="editLocation">Location</Label>
-                  <Input
-                    id="editLocation"
-                    value={editingUser.location || ''}
-                    onChange={(e) => setEditingUser({ ...editingUser, location: e.target.value })}
-                  />
+                  <Label>Region</Label>
+                  <Select 
+                    value={editingUser.region || ''} 
+                    onValueChange={(value) => setEditingUser({ ...editingUser, region: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Australia">Australia</SelectItem>
+                      <SelectItem value="New Zealand">New Zealand</SelectItem>
+                      <SelectItem value="United States">United States</SelectItem>
+                      <SelectItem value="Canada">Canada</SelectItem>
+                      <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </TabsContent>
               <TabsContent value="permissions" className="space-y-4">
@@ -766,13 +977,15 @@ const UserManagement: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="verified"
-                    checked={editingUser.verified}
-                    onCheckedChange={(checked) => setEditingUser({ ...editingUser, verified: checked as boolean })}
-                  />
-                  <Label htmlFor="verified">Email Verified</Label>
+                <div className="bg-blue-50 p-3 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    <strong>Account Created:</strong> {new Date(editingUser.created_at).toLocaleString()}
+                  </p>
+                  {editingUser.last_sign_in_at && (
+                    <p className="text-sm text-blue-800">
+                      <strong>Last Login:</strong> {new Date(editingUser.last_sign_in_at).toLocaleString()}
+                    </p>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
