@@ -171,7 +171,7 @@ export class AdminUserService {
           phone: authUser.phone,
           role: profile?.role || 'user',
           status: profile?.status || 'pending',
-          region: profile?.region || userProfile?.region,
+          region: profile?.region,
           full_name: userProfile?.full_name,
           nickname: userProfile?.nickname,
           posts_count: postCounts[authUser.id] || 0,
