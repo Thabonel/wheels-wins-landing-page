@@ -7,13 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { Search, Plus, Trash2, UserCheck, UserX, Edit, MoreHorizontal, RefreshCw } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { supabase } from '@/integrations/supabase'
 
 interface User {
   id: string
@@ -32,9 +32,6 @@ interface UserStats {
   activeUsers: number
   verifiedUsers: number
   newUsersThisPeriod: number
-  page: number
-  limit: number
-  totalPages: number
 }
 
 export default function UserManagement() {
@@ -44,9 +41,10 @@ export default function UserManagement() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editingUser, setEditingUser] = useState<any>(null)
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
 
   // Create user form
@@ -56,167 +54,217 @@ export default function UserManagement() {
     metadata: '{}'
   })
 
-  // Fetch users with pagination and search
+  // Check if current user is admin
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    checkAdminStatus()
+  }, [])
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        // Check if user has admin role in app_metadata
+        const isUserAdmin = user.app_metadata?.role === 'admin' || user.app_metadata?.is_admin === true
+        setIsAdmin(isUserAdmin)
+        
+        if (isUserAdmin) {
+          fetchUsers()
+        } else {
+          toast.error('You do not have admin privileges')
+        }
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error)
+      toast.error('Failed to verify admin status')
+    }
+  }
+
+  // Fetch users using Supabase Edge Function
   const fetchUsers = async (page = 1, search = '') => {
+    if (!isAdmin) return
+
     try {
       setLoading(true)
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20'
-      })
       
-      if (search) {
-        params.append('search', search)
+      // Call the existing Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('get-admin-users', {
+        body: {
+          page,
+          limit: 20,
+          search
+        }
+      })
+
+      if (error) {
+        console.error('Supabase function error:', error)
+        throw error
       }
 
-      const response = await fetch(`/api/admin/users?${params}`)
-      if (!response.ok) throw new Error('Failed to fetch users')
-      
-      const data = await response.json()
-      setUsers(data.users || [])
-      setStats(data)
-      setCurrentPage(page)
+      if (data) {
+        setUsers(data.users || [])
+        setStats({
+          totalUsers: data.total || 0,
+          activeUsers: data.users?.filter((u: any) => u.last_sign_in_at).length || 0,
+          verifiedUsers: data.users?.filter((u: any) => u.email_confirmed_at).length || 0,
+          newUsersThisPeriod: 0
+        })
+        setTotalPages(Math.ceil((data.total || 0) / 20))
+        setCurrentPage(page)
+      }
     } catch (error) {
       console.error('Error fetching users:', error)
-      toast.error('Failed to fetch users')
+      toast.error('Failed to fetch users. Make sure the get-admin-users function is deployed.')
+      
+      // Fallback: try to fetch from auth.users table if function fails
+      await fetchUsersFromAuthTable(page, search)
     } finally {
       setLoading(false)
     }
   }
 
-  // Create new user
-  const handleCreateUser = async () => {
+  // Fallback method using direct table access
+  const fetchUsersFromAuthTable = async (page = 1, search = '') => {
     try {
-      const userData = newUser.metadata ? JSON.parse(newUser.metadata) : {}
+      let query = supabase.from('profiles').select('*', { count: 'exact' })
       
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: newUser.email,
-          password: newUser.password,
-          userData
-        })
-      })
+      if (search) {
+        query = query.ilike('email', `%${search}%`)
+      }
+      
+      const { data: profiles, error: profilesError, count } = await query
+        .range((page - 1) * 20, page * 20 - 1)
+        .order('created_at', { ascending: false })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create user')
+      if (profilesError) {
+        throw profilesError
       }
 
-      toast.success('User created successfully')
-      setIsCreateDialogOpen(false)
-      setNewUser({ email: '', password: '', metadata: '{}' })
-      fetchUsers(currentPage, searchQuery)
+      // Convert profiles to user format
+      const formattedUsers = profiles?.map(profile => ({
+        id: profile.id,
+        email: profile.email || 'No email',
+        created_at: profile.created_at,
+        last_sign_in_at: null,
+        email_confirmed_at: profile.created_at, // Assume confirmed if in profiles
+        phone: null,
+        user_metadata: {},
+        app_metadata: {},
+        banned_until: null
+      })) || []
+
+      setUsers(formattedUsers)
+      setStats({
+        totalUsers: count || 0,
+        activeUsers: formattedUsers.length,
+        verifiedUsers: formattedUsers.length,
+        newUsersThisPeriod: 0
+      })
+      setTotalPages(Math.ceil((count || 0) / 20))
+      setCurrentPage(page)
+
+      toast.info('Showing user profiles (limited admin functionality)')
     } catch (error) {
-      console.error('Error creating user:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to create user')
+      console.error('Error fetching from profiles:', error)
+      toast.error('Unable to fetch user data')
     }
   }
 
-  // Update user
-  const handleUpdateUser = async () => {
-    if (!editingUser) return
-
+  // Create new user (simplified for Vite)
+  const handleCreateUser = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: editingUser.email,
-          user_metadata: editingUser.user_metadata,
-          app_metadata: editingUser.app_metadata
-        })
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to update user')
+      if (!isAdmin) {
+        toast.error('Admin privileges required')
+        return
       }
 
-      toast.success('User updated successfully')
+      // This would need a backend endpoint or Edge Function
+      toast.info('User creation requires backend implementation')
+      setIsCreateDialogOpen(false)
+    } catch (error) {
+      console.error('Error creating user:', error)
+      toast.error('Failed to create user')
+    }
+  }
+
+  // Update user (simplified)
+  const handleUpdateUser = async () => {
+    if (!editingUser || !isAdmin) return
+
+    try {
+      // Update in profiles table if available
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          email: editingUser.email,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingUser.id)
+
+      if (error) throw error
+
+      toast.success('User profile updated successfully')
       setIsEditDialogOpen(false)
       setEditingUser(null)
       fetchUsers(currentPage, searchQuery)
     } catch (error) {
       console.error('Error updating user:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to update user')
+      toast.error('Failed to update user')
     }
   }
 
-  // Delete single user
+  // Delete user (simplified)
   const handleDeleteUser = async (userId: string) => {
+    if (!isAdmin) {
+      toast.error('Admin privileges required')
+      return
+    }
+
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       return
     }
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE'
-      })
+      // Delete from profiles table
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId)
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to delete user')
-      }
+      if (error) throw error
 
       toast.success('User deleted successfully')
       fetchUsers(currentPage, searchQuery)
     } catch (error) {
       console.error('Error deleting user:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to delete user')
+      toast.error('Failed to delete user')
     }
   }
 
-  // Bulk operations
+  // Bulk operations (simplified)
   const handleBulkAction = async (action: string) => {
+    if (!isAdmin) {
+      toast.error('Admin privileges required')
+      return
+    }
+
     if (selectedUsers.length === 0) {
       toast.error('Please select users first')
       return
     }
 
-    if (action === 'delete' && !confirm(`Are you sure you want to delete ${selectedUsers.length} users? This action cannot be undone.`)) {
-      return
-    }
-
-    try {
-      setBulkActionLoading(true)
-      const response = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userIds: selectedUsers,
-          action
-        })
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to perform bulk action')
-      }
-
-      const result = await response.json()
-      toast.success(`Successfully ${action}d ${result.successful?.length || 0} users`)
-      
-      if (result.failed?.length > 0) {
-        toast.warning(`Failed to ${action} ${result.failed.length} users`)
-      }
-
-      setSelectedUsers([])
-      fetchUsers(currentPage, searchQuery)
-    } catch (error) {
-      console.error('Error performing bulk action:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to perform bulk action')
-    } finally {
-      setBulkActionLoading(false)
-    }
+    toast.info(`Bulk ${action} requires backend implementation`)
+    setSelectedUsers([])
   }
 
   // Handle search
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     setCurrentPage(1)
-    fetchUsers(1, query)
+    if (isAdmin) {
+      fetchUsers(1, query)
+    }
   }
 
   // Handle user selection
@@ -235,10 +283,6 @@ export default function UserManagement() {
       setSelectedUsers([])
     }
   }
-
-  useEffect(() => {
-    fetchUsers()
-  }, [])
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never'
@@ -265,6 +309,21 @@ export default function UserManagement() {
       default:
         return <Badge variant="secondary">Unknown</Badge>
     }
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-lg font-semibold text-red-600">Access Denied</p>
+              <p className="text-muted-foreground">You need admin privileges to access user management.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -365,7 +424,7 @@ export default function UserManagement() {
                   <DialogHeader>
                     <DialogTitle>Create New User</DialogTitle>
                     <DialogDescription>
-                      Create a new user account with email and password
+                      Create a new user account (requires backend implementation)
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -387,16 +446,6 @@ export default function UserManagement() {
                         value={newUser.password}
                         onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                         placeholder="Enter password"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="metadata">User Metadata (JSON)</Label>
-                      <Textarea
-                        id="metadata"
-                        value={newUser.metadata}
-                        onChange={(e) => setNewUser({ ...newUser, metadata: e.target.value })}
-                        placeholder='{"name": "John Doe", "role": "user"}'
-                        rows={3}
                       />
                     </div>
                   </div>
@@ -455,11 +504,9 @@ export default function UserManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{user.email}</div>
-                        {user.user_metadata?.name && (
-                          <div className="text-sm text-muted-foreground">
-                            {user.user_metadata.name}
-                          </div>
-                        )}
+                        <div className="text-sm text-muted-foreground">
+                          ID: {user.id.slice(0, 8)}...
+                        </div>
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(getUserStatus(user))}
@@ -499,7 +546,7 @@ export default function UserManagement() {
               </Table>
 
               {/* Pagination */}
-              {stats && stats.totalPages > 1 && (
+              {totalPages > 1 && (
                 <div className="flex justify-center gap-2 mt-6">
                   <Button
                     variant="outline"
@@ -509,12 +556,12 @@ export default function UserManagement() {
                     Previous
                   </Button>
                   <span className="flex items-center px-4">
-                    Page {currentPage} of {stats.totalPages}
+                    Page {currentPage} of {totalPages}
                   </span>
                   <Button
                     variant="outline"
                     onClick={() => fetchUsers(currentPage + 1, searchQuery)}
-                    disabled={currentPage === stats.totalPages}
+                    disabled={currentPage === totalPages}
                   >
                     Next
                   </Button>
@@ -531,7 +578,7 @@ export default function UserManagement() {
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update user information and metadata
+              Update user information
             </DialogDescription>
           </DialogHeader>
           {editingUser && (
@@ -543,22 +590,6 @@ export default function UserManagement() {
                   type="email"
                   value={editingUser.email}
                   onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-metadata">User Metadata (JSON)</Label>
-                <Textarea
-                  id="edit-metadata"
-                  value={JSON.stringify(editingUser.user_metadata, null, 2)}
-                  onChange={(e) => {
-                    try {
-                      const metadata = JSON.parse(e.target.value)
-                      setEditingUser({ ...editingUser, user_metadata: metadata })
-                    } catch {
-                      // Invalid JSON, don't update
-                    }
-                  }}
-                  rows={4}
                 />
               </div>
             </div>
