@@ -1,85 +1,177 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { useAuth } from '@/context/AuthContext'
+import toast from 'react-hot-toast'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card'
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { supabase } from '@/integrations/supabase'
 
 export default function UserManagement() {
-  const [debugInfo, setDebugInfo] = useState<string>('Starting admin check...')
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
 
-  useEffect(() => {
-    checkAdmin()
-  }, [])
+  const fetchUsers = async () => {
+    if (!user) return
 
-  const checkAdmin = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    console.log('Access token:', session.access_token)
+    setLoading(true)
     try {
-      setDebugInfo('Step 1: Getting current user...')
-      
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      
-      if (userError) {
-        setDebugInfo(`Step 1 Error: ${userError.message}`)
+      const res = await fetch(
+        'https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/get-admin-users',
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      )
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        console.error('Error fetching users:', errorData)
+        toast.error('Failed to fetch users')
+        setLoading(false)
         return
       }
 
-      if (!user) {
-        setDebugInfo('Step 1: No user logged in')
-        return
-      }
-
-      setDebugInfo(`Step 2: User found - ID: ${user.id}, Email: ${user.email || 'No email'}`)
-
-      // Check profile
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, email')
-        .eq('user_id', user.id)  // Fixed: use user_id not id
-
-      if (profileError) {
-        setDebugInfo(`Step 3 Error: Profile fetch failed - ${profileError.message}`)
-        return
-      }
-
-      if (!profiles || profiles.length === 0) {
-        setDebugInfo('Step 3: No profile found in profiles table')
-        return
-      }
-
-      const profile = profiles[0]  // Get first (should be only) result
-      const adminStatus = profile.role === 'admin'
-      setIsAdmin(adminStatus)
-      setDebugInfo(`Step 3: Profile found - Role: ${profile.role}, Email: ${profile.email}, Is Admin: ${adminStatus}`)
-
+      const data = await res.json()
+      console.log('Fetched data:', data)
+      setUsers(data)
+      setLoading(false)
     } catch (error) {
-      setDebugInfo(`Unexpected error: ${error}`)
+      console.error('Network error:', error)
+      toast.error('Network error while fetching users')
+      setLoading(false)
     }
   }
 
+  const handleDeactivateUser = async (id: string) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ status: 'Inactive' })
+      .eq('id', id)
+    if (error) {
+      toast.error('Failed to deactivate user')
+    } else {
+      toast.success('User deactivated')
+      fetchUsers()
+    }
+  }
+
+  const handleDeleteUser = async (id: string) => {
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id)
+    if (error) {
+      toast.error('Failed to delete user')
+    } else {
+      toast.success('User deleted')
+      fetchUsers()
+    }
+  }
+
+  useEffect(() => {
+    if (user) fetchUsers()
+  }, [user])
+
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">User Management Debug</h1>
-      
-      {/* Debug Info - Always visible */}
-      <Card className="mb-6 border-blue-200 bg-blue-50">
-        <CardContent className="pt-4">
-          <p className="text-blue-800 font-mono text-sm">{debugInfo}</p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <p className="text-muted-foreground text-sm">Welcome, Admin</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline">Change Admin Password</Button>
+          <Button>Add New User</Button>
+          <Button variant="outline" onClick={fetchUsers}>
+            Refresh Users
+          </Button>
+        </div>
+      </div>
 
-      {isAdmin ? (
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="pt-4">
-            <p className="text-green-800">✅ Admin access confirmed! User management would load here.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-4">
-            <p className="text-red-800">❌ Access Denied - You need admin privileges</p>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>User Management</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Manage user access and view registration details
+          </p>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading users...</p>
+          ) : users.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No users found.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Region</TableHead>
+                  <TableHead>Registration Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>{user.email.split('@')[0]}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.region}</TableCell>
+                    <TableCell>
+                      {new Date(user.created_at).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-green-100 text-green-700">
+                        {user.status || 'Active'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeactivateUser(user.id)}
+                      >
+                        Deactivate
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteUser(user.id)}
+                      >
+                        Delete
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+        {!loading && users.length > 0 && (
+          <CardFooter className="justify-end text-sm text-muted-foreground">
+            Total users: {users.length}
+          </CardFooter>
+        )}
+      </Card>
     </div>
   )
 }
