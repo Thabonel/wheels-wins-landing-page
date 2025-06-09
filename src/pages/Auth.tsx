@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -59,14 +60,14 @@ const Auth = () => {
     
     if (activeTab === "signup") {
       // Validate after a short delay to avoid too frequent updates
-      setTimeout(validateSignupForm, 300);
+      setTimeout(() => validateSignupForm(), 100);
     }
   };
 
   const handleEmailChange = (value: string) => {
     setEmail(value);
     if (activeTab === "signup") {
-      setTimeout(validateSignupForm, 300);
+      setTimeout(() => validateSignupForm(), 100);
     }
   };
 
@@ -100,7 +101,10 @@ const Auth = () => {
         if (error) throw error;
         
         // Show success message for signup
-        setError("Signup successful! Please check your email for verification.");
+        toast({
+          title: "Success!",
+          description: "Please check your email for verification.",
+        });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -114,6 +118,11 @@ const Auth = () => {
       }
     } catch (err: any) {
       setError(err.message);
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -127,13 +136,19 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/you`
+          redirectTo: `${window.location.origin}/onboarding`
         }
       });
 
       if (error) throw error;
     } catch (err: any) {
+      console.error(`${provider} OAuth error:`, err);
       setError(err.message);
+      toast({
+        title: "Authentication Error",
+        description: `Failed to sign in with ${provider}: ${err.message}`,
+        variant: "destructive"
+      });
       setLoading(false);
     }
   };
@@ -144,6 +159,13 @@ const Auth = () => {
     } else {
       setShowConfirmPassword(!showConfirmPassword);
     }
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Clear validation errors when switching tabs
+    setValidationErrors([]);
+    setError(null);
   };
 
   return (
@@ -159,7 +181,7 @@ const Auth = () => {
         </CardHeader>
         
         <CardContent>
-          <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
+          <Tabs defaultValue="login" value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2 mb-8 h-12">
               <TabsTrigger value="login" className="text-lg font-semibold">Login</TabsTrigger>
               <TabsTrigger value="signup" className="text-lg font-semibold">Sign Up</TabsTrigger>
@@ -192,7 +214,10 @@ const Auth = () => {
                         className="text-sm text-primary hover:text-primary/80 font-medium"
                         onClick={(e) => {
                           e.preventDefault();
-                          alert("Password reset functionality coming soon!");
+                          toast({
+                            title: "Coming Soon",
+                            description: "Password reset functionality will be available soon!",
+                          });
                         }}
                       >
                         Forgot password?
@@ -230,7 +255,7 @@ const Auth = () => {
                     className="w-full h-12 text-lg font-semibold" 
                     disabled={loading}
                   >
-                    {loading ? "Processing..." : "Login"}
+                    {loading ? "Signing in..." : "Sign In"}
                   </Button>
                 </div>
               </form>
@@ -325,7 +350,7 @@ const Auth = () => {
                     className="w-full h-12 text-lg font-semibold" 
                     disabled={loading || validationErrors.length > 0}
                   >
-                    {loading ? "Processing..." : "Create Account"}
+                    {loading ? "Creating account..." : "Create Account"}
                   </Button>
                 </div>
               </form>
@@ -356,7 +381,7 @@ const Auth = () => {
                 <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              Google
+              Continue with Google
             </Button>
             <Button 
               variant="outline" 
@@ -367,7 +392,7 @@ const Auth = () => {
               <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
               </svg>
-              Facebook
+              Continue with Facebook
             </Button>
           </div>
         </CardFooter>
