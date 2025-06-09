@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -20,9 +19,9 @@ const Auth = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   
-  // If user is already authenticated, redirect to homepage
+  // If user is already authenticated, redirect to You page
   if (isAuthenticated) {
-    navigate("/");
+    navigate("/you");
   }
 
   const handleAuth = async (action: "login" | "signup") => {
@@ -52,8 +51,8 @@ const Auth = () => {
 
         if (error) throw error;
         
-        // On successful login, user will be redirected by the auth state change
-        navigate("/");
+        // On successful login, redirect to You page
+        navigate("/you");
       }
     } catch (err: any) {
       setError(err.message);

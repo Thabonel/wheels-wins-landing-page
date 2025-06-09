@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -42,9 +43,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
+        console.log('Auth state change:', event, 'Session:', !!newSession);
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setIsLoading(false);
+        
+        // Handle post-login redirect to You page
+        if (event === 'SIGNED_IN' && newSession?.user) {
+          // Use setTimeout to ensure state is updated before navigation
+          setTimeout(() => {
+            if (window.location.pathname === '/auth') {
+              window.location.href = '/you';
+            }
+          }, 100);
+        }
+        
+        // Handle post-logout redirect to homepage
+        if (event === 'SIGNED_OUT') {
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 100);
+        }
       }
     );
 

@@ -13,7 +13,6 @@ const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
   const { isHomePage, showNavigation, showUserMenu } = useHeaderAppearance();
   const location = useLocation();
-  const isShopPage = location.pathname === '/shop';
 
   return (
     <HeaderContainer isHomePage={isHomePage} isScrolled={false}>
@@ -26,33 +25,31 @@ const Header = () => {
         />
       </Link>
 
-      {/* Navigation - Show based on authentication status or homepage */}
-      <NavigationLinks 
-        isVisible={isAuthenticated || isDevMode || (!isHomePage && location.pathname === '/shop')} 
-      />
+      {/* Navigation - Only show when authenticated and not on homepage */}
+      <NavigationLinks isVisible={showNavigation} />
 
       {/* Auth Buttons */}
       <div className="flex items-center space-x-4">
-        {/* Only show Shop button when user is not authenticated OR on homepage */}
-        {(!isAuthenticated && !isDevMode) || isHomePage ? (
-          <Link to="/shop">
-            <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
-              Shop
-            </Button>
-          </Link>
-        ) : null}
-        
-        {isAuthenticated ? (
-          showUserMenu && <UserMenu />
-        ) : (
+        {/* Show Shop and Login buttons only on homepage when not authenticated */}
+        {isHomePage && !isAuthenticated && !isDevMode ? (
           <>
-            {(isHomePage || isDevMode) && <LoginButton />}
-            {!isHomePage && !isDevMode && (
-              <Link to="/auth">
-                <Button variant="default">Sign In</Button>
-              </Link>
-            )}
+            <Link to="/shop">
+              <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
+                Shop
+              </Button>
+            </Link>
+            <LoginButton />
           </>
+        ) : null}
+
+        {/* Show user menu when authenticated and not on homepage */}
+        {showUserMenu && <UserMenu />}
+        
+        {/* Show auth link for non-homepage, non-authenticated users */}
+        {!isHomePage && !isAuthenticated && !isDevMode && (
+          <Link to="/auth">
+            <Button variant="default">Sign In</Button>
+          </Link>
         )}
       </div>
     </HeaderContainer>

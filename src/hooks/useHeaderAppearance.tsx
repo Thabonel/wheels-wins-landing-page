@@ -12,13 +12,11 @@ export function useHeaderAppearance() {
   // Always consider authenticated in dev mode for proper navigation
   const effectivelyAuthenticated = isAuthenticated || isDevMode;
   
-  // Show navigation ONLY when NOT on homepage
-  // This is critical for fixing the canvas navigation
-  const showNavigation = !isHomePage;
+  // Show navigation ONLY when authenticated AND NOT on homepage
+  const showNavigation = !isHomePage && effectivelyAuthenticated;
   
-  // Show user menu (avatar) ONLY when NOT on homepage
-  // This is critical for fixing the canvas navigation
-  const showUserMenu = !isHomePage;
+  // Show user menu (avatar) ONLY when authenticated AND NOT on homepage  
+  const showUserMenu = !isHomePage && effectivelyAuthenticated;
   
   return {
     isHomePage,
