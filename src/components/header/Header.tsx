@@ -30,8 +30,8 @@ const Header = () => {
 
       {/* Auth Buttons */}
       <div className="flex items-center space-x-4">
-        {/* Show Shop and Login buttons only on homepage when not authenticated */}
-        {isHomePage && !isAuthenticated && !isDevMode ? (
+        {/* Show Shop and Login buttons on homepage when not authenticated */}
+        {isHomePage && !isAuthenticated && !isDevMode && (
           <>
             <Link to="/shop">
               <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
@@ -40,7 +40,7 @@ const Header = () => {
             </Link>
             <LoginButton />
           </>
-        ) : null}
+        )}
 
         {/* Show user menu when authenticated and not on homepage */}
         {showUserMenu && <UserMenu />}

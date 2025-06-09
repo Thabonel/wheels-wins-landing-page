@@ -333,6 +333,7 @@ export type Database = {
           meetup_frequency: string | null
           member_count: number | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           activity_level?: string | null
@@ -349,6 +350,7 @@ export type Database = {
           meetup_frequency?: string | null
           member_count?: number | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           activity_level?: string | null
@@ -365,6 +367,7 @@ export type Database = {
           meetup_frequency?: string | null
           member_count?: number | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2339,7 +2342,9 @@ export type Database = {
     }
     Functions: {
       check_rate_limit: {
-        Args: { user_id: string; window_start: string; limit_count: number }
+        Args:
+          | Record<PropertyKey, never>
+          | { user_id: string; window_start: string; limit_count: number }
         Returns: Json
       }
       get_nearby_recommendations: {
@@ -2360,7 +2365,7 @@ export type Database = {
         }[]
       }
       get_user_role: {
-        Args: { check_user_id: string }
+        Args: Record<PropertyKey, never> | { check_user_id: string }
         Returns: string
       }
       seed_default_drawers: {
