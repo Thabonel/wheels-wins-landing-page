@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,9 +46,33 @@ export default function ProfilePage() {
       try {
         console.log('Fetching profile for user:', user.id);
         
+        // Fetch profile without role field to avoid permission issues
         const { data, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select(`
+            id,
+            user_id,
+            email,
+            status,
+            region,
+            full_name,
+            nickname,
+            travel_style,
+            vehicle_type,
+            vehicle_make_model,
+            fuel_type,
+            towing,
+            second_vehicle,
+            max_driving,
+            camp_types,
+            accessibility,
+            pets,
+            partner_name,
+            partner_email,
+            profile_image_url,
+            partner_profile_image_url,
+            created_at
+          `)
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -79,7 +104,7 @@ export default function ProfilePage() {
           });
         } else {
           console.log('No profile found, creating one...');
-          // Create initial profile if none exists (without role field)
+          // Create initial profile if none exists
           const newProfile = {
             user_id: user.id,
             email: user.email || '',
@@ -259,7 +284,7 @@ export default function ProfilePage() {
     setSaving(true);
 
     try {
-      // Don't include role field - let it be managed separately
+      // Prepare profile data without role field
       const profileData = {
         user_id: user.id,
         email: user.email || '',
