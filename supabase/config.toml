@@ -3,3 +3,6 @@ project_id = "kycoklimpzkyrecbjecn"
 
 [functions.create-checkout]
 verify_jwt = false
+
+[functions.delete-user]
+verify_jwt = false
