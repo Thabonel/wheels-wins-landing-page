@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +53,11 @@ export default function ProfilePage() {
 
         if (error) {
           console.error('Error fetching profile:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load profile data. Please try refreshing the page.",
+            variant: "destructive"
+          });
         } else if (data) {
           console.log('Profile data:', data);
           setProfile(data);
@@ -73,6 +77,28 @@ export default function ProfilePage() {
             partnerName: data.partner_name || "",
             partnerEmail: data.partner_email || ""
           });
+        } else {
+          console.log('No profile found, creating one...');
+          // Create initial profile if none exists
+          const newProfile = {
+            user_id: user.id,
+            email: user.email || '',
+            region: region,
+            status: 'active',
+            role: 'user'
+          };
+          
+          const { data: createdProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert(newProfile)
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Error creating initial profile:', createError);
+          } else {
+            setProfile(createdProfile);
+          }
         }
       } catch (err) {
         console.error('Unexpected error:', err);
@@ -87,7 +113,7 @@ export default function ProfilePage() {
     };
 
     fetchProfile();
-  }, [user]);
+  }, [user, region]);
 
   const convertHeicToJpeg = async (file: File): Promise<File> => {
     // Check if it's a HEIC/HEIF file
@@ -121,12 +147,12 @@ export default function ProfilePage() {
     console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
 
     const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}_${isPartner ? 'partner' : 'profile'}_${Date.now()}.${fileExt}`;
+    const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}_${Date.now()}.${fileExt}`;
     
     console.log('Upload fileName:', fileName);
 
     const { data, error } = await supabase.storage
-      .from('profile-pictures')
+      .from('user-avatars')
       .upload(fileName, file, {
         upsert: true
       });
@@ -139,7 +165,7 @@ export default function ProfilePage() {
     }
 
     const { data: { publicUrl } } = supabase.storage
-      .from('profile-pictures')
+      .from('user-avatars')
       .getPublicUrl(fileName);
 
     console.log('Public URL:', publicUrl);
@@ -184,34 +210,28 @@ export default function ProfilePage() {
         ? { partner_profile_image_url: imageUrl }
         : { profile_image_url: imageUrl };
 
-      // Create base profile data if profile doesn't exist
-      const baseProfileData = {
-        user_id: user!.id,
-        email: user!.email || '',
-        region: 'Australia',
-        status: 'active',
-        role: 'user',
-        ...updateData
-      };
-
+      // Update the existing profile
       const { error } = await supabase
         .from('profiles')
-        .upsert(baseProfileData);
+        .update(updateData)
+        .eq('user_id', user!.id);
 
       if (error) {
+        console.error('Database update error:', error);
         toast({
           title: "Error",
           description: `Failed to save picture: ${error.message}`,
           variant: "destructive"
         });
       } else {
-        setProfile(prev => ({ ...prev, ...baseProfileData }));
+        setProfile(prev => ({ ...prev, ...updateData }));
         toast({
           title: "Success",
           description: `${isPartner ? 'Partner' : 'Profile'} picture uploaded successfully`,
         });
       }
     } catch (error) {
+      console.error('Upload error:', error);
       toast({
         title: "Error",
         description: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -267,13 +287,15 @@ export default function ProfilePage() {
 
       const { error } = await supabase
         .from('profiles')
-        .upsert(profileData);
+        .upsert(profileData, {
+          onConflict: 'user_id'
+        });
 
       if (error) {
         console.error('Error saving profile:', error);
         toast({
           title: "Error",
-          description: "Failed to save profile",
+          description: `Failed to save profile: ${error.message}`,
           variant: "destructive"
         });
       } else {
@@ -281,7 +303,7 @@ export default function ProfilePage() {
           title: "Success",
           description: "Profile saved successfully",
         });
-        setProfile({ ...profileData, created_at: new Date().toISOString() });
+        setProfile(profileData);
       }
     } catch (err) {
       console.error('Error saving profile:', err);
