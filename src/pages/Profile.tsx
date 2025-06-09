@@ -15,15 +15,18 @@ import { toast } from "@/hooks/use-toast";
 export default function ProfilePage() {
   const { region, setRegion } = useRegion();
   const { user } = useAuth();
-  const [isCouple, setIsCouple] = useState(false);
-  const [fuelType, setFuelType] = useState<string>("");
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingPartnerPhoto, setUploadingPartnerPhoto] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
   const [formData, setFormData] = useState({
     fullName: "",
     nickname: "",
+    travelStyle: "solo",
     vehicleType: "",
     vehicleMakeModel: "",
+    fuelType: "",
     towing: "",
     secondVehicle: "",
     maxDriving: "",
@@ -52,13 +55,26 @@ export default function ProfilePage() {
 
         if (error) {
           console.error('Error fetching profile:', error);
-          toast({
-            title: "Info",
-            description: "Profile not found, you can create one below",
-          });
         } else if (data) {
           console.log('Profile data:', data);
           setProfile(data);
+          // Populate form with existing data
+          setFormData({
+            fullName: data.full_name || "",
+            nickname: data.nickname || "",
+            travelStyle: data.travel_style || "solo",
+            vehicleType: data.vehicle_type || "",
+            vehicleMakeModel: data.vehicle_make_model || "",
+            fuelType: data.fuel_type || "",
+            towing: data.towing || "",
+            secondVehicle: data.second_vehicle || "",
+            maxDriving: data.max_driving || "",
+            campTypes: data.camp_types || "",
+            accessibility: data.accessibility || "",
+            pets: data.pets || "",
+            partnerName: data.partner_name || "",
+            partnerEmail: data.partner_email || ""
+          });
         }
       } catch (err) {
         console.error('Unexpected error:', err);
@@ -75,6 +91,84 @@ export default function ProfilePage() {
     fetchProfile();
   }, [user]);
 
+  const uploadFile = async (file: File, isPartner = false) => {
+    if (!user) return null;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from('profile-pictures')
+      .upload(fileName, file);
+
+    if (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('profile-pictures')
+      .getPublicUrl(fileName);
+
+    return publicUrl;
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isPartner = false) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (isPartner) {
+      setUploadingPartnerPhoto(true);
+    } else {
+      setUploadingPhoto(true);
+    }
+
+    try {
+      const imageUrl = await uploadFile(file, isPartner);
+      
+      if (imageUrl) {
+        const updateData = isPartner 
+          ? { partner_profile_image_url: imageUrl }
+          : { profile_image_url: imageUrl };
+
+        const { error } = await supabase
+          .from('profiles')
+          .upsert({
+            user_id: user!.id,
+            ...updateData
+          });
+
+        if (error) {
+          console.error('Error updating profile with image:', error);
+          toast({
+            title: "Error",
+            description: "Failed to save profile picture",
+            variant: "destructive"
+          });
+        } else {
+          setProfile(prev => ({ ...prev, ...updateData }));
+          toast({
+            title: "Success",
+            description: `${isPartner ? 'Partner' : 'Profile'} picture uploaded successfully`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload picture",
+        variant: "destructive"
+      });
+    } finally {
+      if (isPartner) {
+        setUploadingPartnerPhoto(false);
+      } else {
+        setUploadingPhoto(false);
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!user) {
       toast({
@@ -85,13 +179,32 @@ export default function ProfilePage() {
       return;
     }
 
+    setSaving(true);
+
     try {
       const profileData = {
         user_id: user.id,
         email: user.email || '',
         region: region,
         status: 'active',
-        role: 'user'
+        role: 'user',
+        full_name: formData.fullName,
+        nickname: formData.nickname,
+        travel_style: formData.travelStyle,
+        vehicle_type: formData.vehicleType,
+        vehicle_make_model: formData.vehicleMakeModel,
+        fuel_type: formData.fuelType,
+        towing: formData.towing,
+        second_vehicle: formData.secondVehicle,
+        max_driving: formData.maxDriving,
+        camp_types: formData.campTypes,
+        accessibility: formData.accessibility,
+        pets: formData.pets,
+        partner_name: formData.partnerName,
+        partner_email: formData.partnerEmail,
+        // Preserve existing image URLs
+        profile_image_url: profile?.profile_image_url,
+        partner_profile_image_url: profile?.partner_profile_image_url
       };
 
       const { error } = await supabase
@@ -120,6 +233,8 @@ export default function ProfilePage() {
         description: "Failed to save profile",
         variant: "destructive"
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -185,7 +300,22 @@ export default function ProfilePage() {
         <CardContent className="space-y-4 p-6">
           <div className="space-y-2">
             <Label>Profile Picture</Label>
-            <Input type="file" />
+            <div className="flex items-center gap-4">
+              {profile?.profile_image_url && (
+                <img 
+                  src={profile.profile_image_url} 
+                  alt="Profile" 
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              )}
+              <Input 
+                type="file" 
+                accept="image/*" 
+                onChange={(e) => handleFileUpload(e, false)}
+                disabled={uploadingPhoto}
+              />
+              {uploadingPhoto && <span className="text-sm text-muted-foreground">Uploading...</span>}
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Full Name</Label>
@@ -222,8 +352,8 @@ export default function ProfilePage() {
           <div className="space-y-2">
             <Label>Travel Style</Label>
             <Select
-              value={isCouple ? "couple" : "solo"}
-              onValueChange={(val) => setIsCouple(val === "couple")}
+              value={formData.travelStyle}
+              onValueChange={(val) => setFormData(prev => ({ ...prev, travelStyle: val }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Solo or Couple?" />
@@ -235,7 +365,7 @@ export default function ProfilePage() {
             </Select>
           </div>
 
-          {isCouple && (
+          {formData.travelStyle === "couple" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Partner's Name</Label>
@@ -255,7 +385,22 @@ export default function ProfilePage() {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Partner's Profile Picture</Label>
-                <Input type="file" />
+                <div className="flex items-center gap-4">
+                  {profile?.partner_profile_image_url && (
+                    <img 
+                      src={profile.partner_profile_image_url} 
+                      alt="Partner" 
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  )}
+                  <Input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => handleFileUpload(e, true)}
+                    disabled={uploadingPartnerPhoto}
+                  />
+                  {uploadingPartnerPhoto && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                </div>
               </div>
             </div>
           )}
@@ -285,8 +430,8 @@ export default function ProfilePage() {
           <div className="space-y-2">
             <Label>Fuel Type</Label>
             <Select
-              value={fuelType}
-              onValueChange={(val) => setFuelType(val)}
+              value={formData.fuelType}
+              onValueChange={(val) => setFormData(prev => ({ ...prev, fuelType: val }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select" />
@@ -358,7 +503,9 @@ export default function ProfilePage() {
 
       {/* Save */}
       <div className="flex justify-end">
-        <Button onClick={handleSave}>Save Profile</Button>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save Profile"}
+        </Button>
       </div>
     </div>
   );

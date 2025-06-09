@@ -2,11 +2,32 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import LogoutButton from "./LogoutButton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase";
 
 const UserMenu = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('profile_image_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data?.profile_image_url) {
+        setProfileImageUrl(data.profile_image_url);
+      }
+    };
+
+    fetchProfileImage();
+  }, [user]);
 
   return (
     <div className="flex items-center space-x-4">
@@ -17,6 +38,7 @@ const UserMenu = () => {
         title="Your Profile"
       >
         <Avatar>
+          {profileImageUrl && <AvatarImage src={profileImageUrl} alt="Profile" />}
           <AvatarFallback className="bg-primary text-primary-foreground">
             {user?.email?.[0]?.toUpperCase() || "U"}
           </AvatarFallback>

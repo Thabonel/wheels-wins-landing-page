@@ -1483,34 +1483,79 @@ export type Database = {
       }
       profiles: {
         Row: {
+          accessibility: string | null
+          camp_types: string | null
           created_at: string | null
           email: string | null
+          fuel_type: string | null
+          full_name: string | null
           id: number
+          max_driving: string | null
+          nickname: string | null
+          partner_email: string | null
+          partner_name: string | null
+          partner_profile_image_url: string | null
+          pets: string | null
           profile_image_url: string | null
           region: string | null
           role: string | null
+          second_vehicle: string | null
           status: string | null
-          user_id: string | null
+          towing: string | null
+          travel_style: string | null
+          user_id: string
+          vehicle_make_model: string | null
+          vehicle_type: string | null
         }
         Insert: {
+          accessibility?: string | null
+          camp_types?: string | null
           created_at?: string | null
           email?: string | null
+          fuel_type?: string | null
+          full_name?: string | null
           id?: never
+          max_driving?: string | null
+          nickname?: string | null
+          partner_email?: string | null
+          partner_name?: string | null
+          partner_profile_image_url?: string | null
+          pets?: string | null
           profile_image_url?: string | null
           region?: string | null
           role?: string | null
+          second_vehicle?: string | null
           status?: string | null
-          user_id?: string | null
+          towing?: string | null
+          travel_style?: string | null
+          user_id: string
+          vehicle_make_model?: string | null
+          vehicle_type?: string | null
         }
         Update: {
+          accessibility?: string | null
+          camp_types?: string | null
           created_at?: string | null
           email?: string | null
+          fuel_type?: string | null
+          full_name?: string | null
           id?: never
+          max_driving?: string | null
+          nickname?: string | null
+          partner_email?: string | null
+          partner_name?: string | null
+          partner_profile_image_url?: string | null
+          pets?: string | null
           profile_image_url?: string | null
           region?: string | null
           role?: string | null
+          second_vehicle?: string | null
           status?: string | null
-          user_id?: string | null
+          towing?: string | null
+          travel_style?: string | null
+          user_id?: string
+          vehicle_make_model?: string | null
+          vehicle_type?: string | null
         }
         Relationships: []
       }
