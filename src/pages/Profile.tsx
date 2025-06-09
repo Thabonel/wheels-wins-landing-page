@@ -117,8 +117,12 @@ export default function ProfilePage() {
   const uploadFile = async (file: File, isPartner = false) => {
     if (!user) throw new Error('User not authenticated');
 
+    console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}_${isPartner ? 'partner' : 'profile'}_${Date.now()}.${fileExt}`;
+    
+    console.log('Upload fileName:', fileName);
 
     const { data, error } = await supabase.storage
       .from('profile-pictures')
@@ -126,12 +130,18 @@ export default function ProfilePage() {
         upsert: true
       });
 
-    if (error) throw error;
+    console.log('Upload result:', { data, error });
+
+    if (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
 
     const { data: { publicUrl } } = supabase.storage
       .from('profile-pictures')
       .getPublicUrl(fileName);
 
+    console.log('Public URL:', publicUrl);
     return publicUrl;
   };
 
