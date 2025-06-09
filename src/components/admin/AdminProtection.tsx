@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { Shield, AlertTriangle, Loader2, RefreshCw, Info } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useAuth } from '@/context/AuthContext';
 
@@ -53,6 +53,23 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-red-800 mb-2">Access Check Failed</h2>
             <p className="text-red-600 mb-4">{error}</p>
+            
+            {error.includes('Profile fetch failed') && (
+              <div className="bg-blue-50 p-3 rounded-md mb-4 text-left">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">Troubleshooting Steps:</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li>Check if your profile exists in the database</li>
+                      <li>Verify Row Level Security policies are correctly configured</li>
+                      <li>Ensure your user has the correct permissions</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Button 
                 variant="outline" 
@@ -62,9 +79,13 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Retry
               </Button>
-              <p className="text-xs text-gray-500">
-                Debug info: User ID {user.id} | Email: {user.email}
-              </p>
+              <div className="bg-gray-50 p-3 rounded-md">
+                <p className="text-xs text-gray-600">
+                  <strong>Debug Info:</strong><br />
+                  User ID: {user.id}<br />
+                  Email: {user.email}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
