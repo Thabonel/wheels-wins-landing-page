@@ -18,37 +18,125 @@ export default function ProfilePage() {
   const [fuelType, setFuelType] = useState<string>("");
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState<any>({});
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      
+    const fetchOrCreateProfile = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
+          .from("profiles")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
         if (error) {
-          console.error('Error fetching profile:', error);
           toast({
             title: "Error",
-            description: "Failed to load profile",
-            variant: "destructive"
+            description: "Failed to fetch profile",
+            variant: "destructive",
           });
+        }
+
+        if (!data) {
+          const { data: created, error: insertError } = await supabase
+            .from("profiles")
+            .insert({ user_id: user.id, region: region, status: "active", email: user.email })
+            .select()
+            .single();
+
+          if (insertError) {
+            toast({
+              title: "Error",
+              description: "Could not create profile",
+              variant: "destructive",
+            });
+          } else {
+            setProfile(created);
+            setFormData(created);
+          }
         } else {
           setProfile(data);
+          setFormData(data);
+          setIsCouple(data.travel_style === "couple");
+          setFuelType(data.fuel_type || "");
         }
       } catch (err) {
-        console.error('Unexpected error:', err);
+        toast({
+          title: "Error",
+          description: "Unexpected error fetching profile",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProfile();
+    fetchOrCreateProfile();
   }, [user]);
+
+  const updateForm = (field: string, value: any) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const uploadProfileImage = async (): Promise<string | null> => {
+    if (!profileImageFile || !user) return null;
+
+    const filename = `user-${user.id}-${Date.now()}.${profileImageFile.name.split(".").pop()}`;
+    const { data, error } = await supabase.storage
+      .from("user-avatars")
+      .upload(filename, profileImageFile, {
+        cacheControl: "3600",
+        upsert: true,
+      });
+
+    if (error) {
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload profile image",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    const { publicUrl } = supabase.storage.from("user-avatars").getPublicUrl(filename).data;
+    return publicUrl;
+  };
+
+  const saveProfile = async () => {
+    if (!user) return;
+
+    let profileImageUrl = formData.profile_image_url;
+    if (profileImageFile) {
+      const uploadedUrl = await uploadProfileImage();
+      if (uploadedUrl) {
+        profileImageUrl = uploadedUrl;
+        updateForm("profile_image_url", uploadedUrl);
+      }
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ ...formData, user_id: user.id, profile_image_url: profileImageUrl });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save profile",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -70,65 +158,79 @@ export default function ProfilePage() {
         {profile && (
           <div className="flex gap-2">
             <Badge variant="outline">{profile.role}</Badge>
-            <Badge variant={profile.status === 'active' ? 'default' : 'destructive'}>
+            <Badge variant={profile.status === "active" ? "default" : "destructive"}>
               {profile.status}
             </Badge>
           </div>
         )}
       </div>
 
-      {/* Profile Status */}
-      {profile && (
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-              <span className="text-green-800 font-medium">Profile Active</span>
-            </div>
-            <p className="text-sm text-green-600 mt-1">
-              Role: {profile.role} | Region: {profile.region} | Status: {profile.status}
-            </p>
+      {profile?.profile_image_url && (
+        <Card>
+          <CardContent className="p-4 flex items-center gap-4">
+            <img
+              src={profile.profile_image_url}
+              alt="Profile"
+              className="w-16 h-16 rounded-full border"
+            />
+            <span className="text-sm text-gray-600">Current profile image</span>
           </CardContent>
         </Card>
       )}
 
-      {/* Identity */}
       <Card>
         <CardContent className="space-y-4 p-6">
-          
           <div className="space-y-2">
             <Label>Profile Picture</Label>
-            <Input type="file" />
+            <Input
+              type="file"
+              accept="image/png, image/jpeg"
+              onChange={(e) => setProfileImageFile(e.target.files?.[0] || null)}
+            />
           </div>
           <div className="space-y-2">
             <Label>Full Name</Label>
-            <Input placeholder="John Smith" />
+            <Input
+              placeholder="John Smith"
+              value={formData.full_name || ""}
+              onChange={(e) => updateForm("full_name", e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label>Nickname (for social)</Label>
-            <Input placeholder="GreyNomadJohn" />
+            <Input
+              placeholder="GreyNomadJohn"
+              value={formData.nickname || ""}
+              onChange={(e) => updateForm("nickname", e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label>Email</Label>
-            <Input 
-              type="email" 
-              value={profile?.email || user?.email || ''} 
-              disabled 
+            <Input
+              type="email"
+              value={profile?.email || user?.email || ""}
+              disabled
               className="bg-gray-50"
             />
           </div>
           <div className="space-y-2">
             <Label>Region</Label>
-            <RegionSelector 
-              defaultValue={profile?.region || region} 
-              onRegionChange={setRegion} 
+            <RegionSelector
+              defaultValue={profile?.region || region}
+              onRegionChange={(val) => {
+                setRegion(val);
+                updateForm("region", val);
+              }}
             />
           </div>
           <div className="space-y-2">
             <Label>Travel Style</Label>
             <Select
               value={isCouple ? "couple" : "solo"}
-              onValueChange={(val) => setIsCouple(val === "couple")}
+              onValueChange={(val) => {
+                setIsCouple(val === "couple");
+                updateForm("travel_style", val);
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Solo or Couple?" />
@@ -140,6 +242,7 @@ export default function ProfilePage() {
             </Select>
           </div>
 
+          {/* Partner UI kept untouched */}
           {isCouple && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -159,73 +262,8 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Vehicle Info */}
-      <Card>
-        <CardContent className="space-y-4 p-6">
-          
-          <h2 className="text-lg font-semibold">Your Vehicle Setup</h2>
-          <div className="space-y-2">
-            <Label>Vehicle Type</Label>
-            <Input placeholder="RV, 4WD, Caravan..." />
-          </div>
-          <div className="space-y-2">
-            <Label>Make / Model / Year</Label>
-            <Input placeholder="Toyota LandCruiser 2022" />
-          </div>
-          <div className="space-y-2">
-            <Label>Fuel Type</Label>
-            <Select
-              value={fuelType}
-              onValueChange={(val) => setFuelType(val)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Diesel">Diesel</SelectItem>
-                <SelectItem value="Petrol">Petrol</SelectItem>
-                <SelectItem value="Electric">Electric</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Are you towing?</Label>
-            <Input placeholder="Type, weight, make/model" />
-          </div>
-          <div className="space-y-2">
-            <Label>Are you towing a second vehicle?</Label>
-            <Input placeholder="e.g. Suzuki Jimny, 1.2T" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Preferences */}
-      <Card>
-        <CardContent className="space-y-4 p-6">
-          
-          <h2 className="text-lg font-semibold">Travel Preferences</h2>
-          <div className="space-y-2">
-            <Label>Max comfortable daily driving (km)</Label>
-            <Input placeholder="e.g. 300" />
-          </div>
-          <div className="space-y-2">
-            <Label>Preferred camp types</Label>
-            <Input placeholder="Free, Paid, Bush, RV Park..." />
-          </div>
-          <div className="space-y-2">
-            <Label>Accessibility or mobility needs?</Label>
-            <Input placeholder="Optional" />
-          </div>
-          <div className="space-y-2">
-            <Label>Pets on board?</Label>
-            <Input placeholder="e.g. 2 dogs" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Save */}
       <div className="flex justify-end">
-        <Button>Save Profile</Button>
+        <Button onClick={saveProfile}>Save Profile</Button>
       </div>
     </div>
   );
