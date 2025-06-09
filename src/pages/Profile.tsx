@@ -46,7 +46,6 @@ export default function ProfilePage() {
       try {
         console.log('Fetching profile for user:', user.id);
         
-        // Fetch profile without role field to avoid permission issues
         const { data, error } = await supabase
           .from('profiles')
           .select(`
@@ -104,7 +103,6 @@ export default function ProfilePage() {
           });
         } else {
           console.log('No profile found, creating one...');
-          // Create initial profile if none exists
           const newProfile = {
             user_id: user.id,
             email: user.email || '',
@@ -140,10 +138,8 @@ export default function ProfilePage() {
   }, [user, region]);
 
   const convertHeicToJpeg = async (file: File): Promise<File> => {
-    // Check if it's a HEIC/HEIF file
     if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().includes('.heic')) {
       try {
-        // Dynamically import heic2any
         const heic2any = (await import('heic2any')).default;
         
         const convertedBlob = await heic2any({
@@ -152,7 +148,6 @@ export default function ProfilePage() {
           quality: 0.8
         }) as Blob;
         
-        // Create new File from converted blob
         return new File([convertedBlob], file.name.replace(/\.heic$/i, '.jpg'), {
           type: 'image/jpeg'
         });
@@ -165,10 +160,36 @@ export default function ProfilePage() {
     return file;
   };
 
+  const ensureBucketExists = async () => {
+    try {
+      // Check if bucket exists
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const bucketExists = buckets?.some(bucket => bucket.name === 'user-avatars');
+      
+      if (!bucketExists) {
+        console.log('Creating user-avatars bucket...');
+        const { error: bucketError } = await supabase.storage.createBucket('user-avatars', {
+          public: true
+        });
+        
+        if (bucketError) {
+          console.error('Error creating bucket:', bucketError);
+          throw new Error('Failed to create storage bucket');
+        }
+      }
+    } catch (error) {
+      console.error('Error with bucket setup:', error);
+      throw error;
+    }
+  };
+
   const uploadFile = async (file: File, isPartner = false) => {
     if (!user) throw new Error('User not authenticated');
 
     console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+    // Ensure bucket exists
+    await ensureBucketExists();
 
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}_${Date.now()}.${fileExt}`;
@@ -225,16 +246,13 @@ export default function ProfilePage() {
     }
 
     try {
-      // Convert HEIC to JPEG if needed
       const convertedFile = await convertHeicToJpeg(file);
-      
       const imageUrl = await uploadFile(convertedFile, isPartner);
       
       const updateData = isPartner 
         ? { partner_profile_image_url: imageUrl }
         : { profile_image_url: imageUrl };
 
-      // Update the existing profile
       const { error } = await supabase
         .from('profiles')
         .update(updateData)
@@ -284,7 +302,6 @@ export default function ProfilePage() {
     setSaving(true);
 
     try {
-      // Prepare profile data without role field
       const profileData = {
         user_id: user.id,
         email: user.email || '',
@@ -304,7 +321,6 @@ export default function ProfilePage() {
         pets: formData.pets,
         partner_name: formData.partnerName,
         partner_email: formData.partnerEmail,
-        // Preserve existing image URLs
         profile_image_url: profile?.profile_image_url,
         partner_profile_image_url: profile?.partner_profile_image_url
       };
