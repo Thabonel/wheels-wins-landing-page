@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,358 +37,125 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        console.log('Fetching profile for user:', user.id);
-        
-        const { data, error } = await supabase
-          .from('profiles')
-          .select(`
-            id,
-            user_id,
-            email,
-            status,
-            region,
-            full_name,
-            nickname,
-            travel_style,
-            vehicle_type,
-            vehicle_make_model,
-            fuel_type,
-            towing,
-            second_vehicle,
-            max_driving,
-            camp_types,
-            accessibility,
-            pets,
-            partner_name,
-            partner_email,
-            profile_image_url,
-            partner_profile_image_url,
-            created_at
-          `)
-          .eq('user_id', user.id)
-          .maybeSingle();
+      if (!user) return setLoading(false);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-        if (error) {
-          console.error('Error fetching profile:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load profile data. Please try refreshing the page.",
-            variant: "destructive"
-          });
-        } else if (data) {
-          console.log('Profile data:', data);
-          setProfile(data);
-          setFormData({
-            fullName: data.full_name || "",
-            nickname: data.nickname || "",
-            travelStyle: data.travel_style || "solo",
-            vehicleType: data.vehicle_type || "",
-            vehicleMakeModel: data.vehicle_make_model || "",
-            fuelType: data.fuel_type || "",
-            towing: data.towing || "",
-            secondVehicle: data.second_vehicle || "",
-            maxDriving: data.max_driving || "",
-            campTypes: data.camp_types || "",
-            accessibility: data.accessibility || "",
-            pets: data.pets || "",
-            partnerName: data.partner_name || "",
-            partnerEmail: data.partner_email || ""
-          });
-        } else {
-          console.log('No profile found, creating one...');
-          const newProfile = {
-            user_id: user.id,
-            email: user.email || '',
-            region: region,
-            status: 'active'
-          };
-          
-          const { data: createdProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert(newProfile)
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Error creating initial profile:', createError);
-          } else {
-            setProfile(createdProfile);
-          }
-        }
-      } catch (err) {
-        console.error('Unexpected error:', err);
-        toast({
-          title: "Error",
-          description: "Failed to load profile data",
-          variant: "destructive"
+      if (error) {
+        toast({ title: "Error", description: "Failed to fetch profile.", variant: "destructive" });
+      } else if (data) {
+        setProfile(data);
+        setFormData({
+          fullName: data.full_name || "",
+          nickname: data.nickname || "",
+          travelStyle: data.travel_style || "solo",
+          vehicleType: data.vehicle_type || "",
+          vehicleMakeModel: data.vehicle_make_model || "",
+          fuelType: data.fuel_type || "",
+          towing: data.towing || "",
+          secondVehicle: data.second_vehicle || "",
+          maxDriving: data.max_driving || "",
+          campTypes: data.camp_types || "",
+          accessibility: data.accessibility || "",
+          pets: data.pets || "",
+          partnerName: data.partner_name || "",
+          partnerEmail: data.partner_email || ""
         });
-      } finally {
-        setLoading(false);
+      } else {
+        const newProfile = { user_id: user.id, email: user.email, region, status: "active" };
+        const { data: created, error: createError } = await supabase.from("profiles").insert(newProfile).select().single();
+        if (!createError) setProfile(created);
       }
+      setLoading(false);
     };
-
     fetchProfile();
   }, [user, region]);
 
   const convertHeicToJpeg = async (file: File): Promise<File> => {
-    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().includes('.heic')) {
-      try {
-        const heic2any = (await import('heic2any')).default;
-        
-        const convertedBlob = await heic2any({
-          blob: file,
-          toType: 'image/jpeg',
-          quality: 0.8
-        }) as Blob;
-        
-        return new File([convertedBlob], file.name.replace(/\.heic$/i, '.jpg'), {
-          type: 'image/jpeg'
-        });
-      } catch (error) {
-        console.error('Error converting HEIC to JPEG:', error);
-        throw new Error('Failed to convert HEIC image. Please try with a JPEG or PNG image.');
-      }
+    if (file.type.includes("heic")) {
+      const heic2any = (await import("heic2any")).default;
+      const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
+      return new File([blob as Blob], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
     }
-    
     return file;
   };
 
-  const ensureBucketExists = async () => {
-    try {
-      // Check if bucket exists
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const bucketExists = buckets?.some(bucket => bucket.name === 'user-avatars');
-      
-      if (!bucketExists) {
-        console.log('Creating user-avatars bucket...');
-        const { error: bucketError } = await supabase.storage.createBucket('user-avatars', {
-          public: true
-        });
-        
-        if (bucketError) {
-          console.error('Error creating bucket:', bucketError);
-          throw new Error('Failed to create storage bucket');
-        }
-      }
-    } catch (error) {
-      console.error('Error with bucket setup:', error);
-      throw error;
-    }
-  };
-
   const uploadFile = async (file: File, isPartner = false) => {
-    if (!user) throw new Error('User not authenticated');
-
-    console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
-
-    // Ensure bucket exists
-    await ensureBucketExists();
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}_${Date.now()}.${fileExt}`;
-    
-    console.log('Upload fileName:', fileName);
-
-    const { data, error } = await supabase.storage
-      .from('user-avatars')
-      .upload(fileName, file, {
-        upsert: true
-      });
-
-    console.log('Upload result:', { data, error });
-
-    if (error) {
-      console.error('Upload error:', error);
-      throw error;
-    }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('user-avatars')
-      .getPublicUrl(fileName);
-
-    console.log('Public URL:', publicUrl);
+    if (!user) throw new Error("Not authenticated");
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/${isPartner ? "partner" : "profile"}_${Date.now()}.${ext}`;
+    const { data, error } = await supabase.storage.from("user-avatars").upload(path, file, { upsert: true });
+    if (error) throw error;
+    const { publicUrl } = supabase.storage.from("user-avatars").getPublicUrl(path).data;
     return publicUrl;
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isPartner = false) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return toast({ title: "Error", description: "Max file size is 5MB", variant: "destructive" });
 
-    if (!file.type.startsWith('image/') && !file.name.toLowerCase().includes('.heic')) {
-      toast({
-        title: "Error",
-        description: "Please select an image file",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Error", 
-        description: "File size must be less than 5MB",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (isPartner) {
-      setUploadingPartnerPhoto(true);
-    } else {
-      setUploadingPhoto(true);
-    }
-
+    isPartner ? setUploadingPartnerPhoto(true) : setUploadingPhoto(true);
     try {
-      const convertedFile = await convertHeicToJpeg(file);
-      const imageUrl = await uploadFile(convertedFile, isPartner);
-      
-      const updateData = isPartner 
-        ? { partner_profile_image_url: imageUrl }
-        : { profile_image_url: imageUrl };
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('user_id', user!.id);
-
-      if (error) {
-        console.error('Database update error:', error);
-        toast({
-          title: "Error",
-          description: `Failed to save picture: ${error.message}`,
-          variant: "destructive"
-        });
-      } else {
-        setProfile(prev => ({ ...prev, ...updateData }));
-        toast({
-          title: "Success",
-          description: `${isPartner ? 'Partner' : 'Profile'} picture uploaded successfully`,
-        });
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast({
-        title: "Error",
-        description: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        variant: "destructive"
-      });
+      const processed = await convertHeicToJpeg(file);
+      const url = await uploadFile(processed, isPartner);
+      const update = isPartner ? { partner_profile_image_url: url } : { profile_image_url: url };
+      await supabase.from("profiles").update(update).eq("user_id", user.id);
+      setProfile(prev => ({ ...prev, ...update }));
+    } catch (e) {
+      toast({ title: "Upload Error", description: (e as Error).message, variant: "destructive" });
     } finally {
-      if (isPartner) {
-        setUploadingPartnerPhoto(false);
-      } else {
-        setUploadingPhoto(false);
-      }
-      event.target.value = '';
+      isPartner ? setUploadingPartnerPhoto(false) : setUploadingPhoto(false);
+      event.target.value = "";
     }
   };
 
   const handleSave = async () => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to save profile",
-        variant: "destructive"
-      });
-      return;
-    }
-
+    if (!user) return toast({ title: "Error", description: "Not logged in", variant: "destructive" });
     setSaving(true);
+    const payload = {
+      user_id: user.id,
+      email: user.email,
+      region,
+      status: "active",
+      full_name: formData.fullName,
+      nickname: formData.nickname,
+      travel_style: formData.travelStyle,
+      vehicle_type: formData.vehicleType,
+      vehicle_make_model: formData.vehicleMakeModel,
+      fuel_type: formData.fuelType,
+      towing: formData.towing,
+      second_vehicle: formData.secondVehicle,
+      max_driving: formData.maxDriving,
+      camp_types: formData.campTypes,
+      accessibility: formData.accessibility,
+      pets: formData.pets,
+      partner_name: formData.partnerName,
+      partner_email: formData.partnerEmail,
+      profile_image_url: profile?.profile_image_url,
+      partner_profile_image_url: profile?.partner_profile_image_url
+    };
 
-    try {
-      const profileData = {
-        user_id: user.id,
-        email: user.email || '',
-        region: region,
-        status: 'active',
-        full_name: formData.fullName,
-        nickname: formData.nickname,
-        travel_style: formData.travelStyle,
-        vehicle_type: formData.vehicleType,
-        vehicle_make_model: formData.vehicleMakeModel,
-        fuel_type: formData.fuelType,
-        towing: formData.towing,
-        second_vehicle: formData.secondVehicle,
-        max_driving: formData.maxDriving,
-        camp_types: formData.campTypes,
-        accessibility: formData.accessibility,
-        pets: formData.pets,
-        partner_name: formData.partnerName,
-        partner_email: formData.partnerEmail,
-        profile_image_url: profile?.profile_image_url,
-        partner_profile_image_url: profile?.partner_profile_image_url
-      };
-
-      const { error } = await supabase
-        .from('profiles')
-        .upsert(profileData, {
-          onConflict: 'user_id'
-        });
-
-      if (error) {
-        console.error('Error saving profile:', error);
-        toast({
-          title: "Error",
-          description: `Failed to save profile: ${error.message}`,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Profile saved successfully",
-        });
-        setProfile(profileData);
-      }
-    } catch (err) {
-      console.error('Error saving profile:', err);
-      toast({
-        title: "Error",
-        description: "Failed to save profile",
-        variant: "destructive"
-      });
-    } finally {
-      setSaving(false);
+    const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      setProfile(payload);
+      toast({ title: "Success", description: "Profile saved" });
     }
+    setSaving(false);
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6 max-w-4xl mx-auto p-6">
-        <h1 className="text-2xl font-bold">Your Profile</h1>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="space-y-6 max-w-4xl mx-auto p-6">
-        <h1 className="text-2xl font-bold">Your Profile</h1>
-        <Card>
-          <CardContent className="p-6">
-            <p>Please log in to view your profile.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-6">Loading...</div>;
+  if (!user) return <div className="p-6">Please log in</div>;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto p-6">
       <ProfileHeader profile={profile} region={region} />
       <ProfileStatus profile={profile} region={region} />
-      
       <ProfileIdentity
         formData={formData}
         setFormData={setFormData}
@@ -401,14 +167,10 @@ export default function ProfilePage() {
         uploadingPartnerPhoto={uploadingPartnerPhoto}
         handleFileUpload={handleFileUpload}
       />
-
       <VehicleSetup formData={formData} setFormData={setFormData} />
       <TravelPreferences formData={formData} setFormData={setFormData} />
-
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? "Saving..." : "Save Profile"}
-        </Button>
+        <Button onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save Profile"}</Button>
       </div>
     </div>
   );
