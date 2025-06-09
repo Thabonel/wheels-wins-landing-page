@@ -11,41 +11,74 @@ export const useAdminAuth = () => {
 
   useEffect(() => {
     const checkAdminStatus = async () => {
+      console.log('🔐 Starting admin check for user:', user?.id, 'email:', user?.email);
+      
       if (!user || !session) {
+        console.log('❌ No user or session found');
         setIsAdmin(false);
         setIsLoading(false);
         return;
       }
 
       try {
-        console.log('Checking admin status for user:', user.id);
+        setError(null);
+        console.log('📋 Querying profiles table for user:', user.id);
         
-        // Query the profiles table to check if user has admin role
-        // This should now work with the fixed RLS policies
+        // Use the security definer function approach if needed, but first try direct query
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role, status')
+          .select('role, status, email')
           .eq('user_id', user.id)
           .single();
 
         if (profileError) {
-          console.error('Profile fetch error:', profileError);
-          setError(`Profile fetch failed: ${profileError.message}`);
-          setIsAdmin(false);
+          console.error('❌ Profile fetch error:', profileError);
+          
+          // If profile doesn't exist, try to create it automatically
+          if (profileError.code === 'PGRST116') {
+            console.log('📝 Profile not found, creating new profile...');
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                user_id: user.id,
+                email: user.email || '',
+                role: 'user', // Default role
+                status: 'active',
+                region: 'Australia'
+              });
+
+            if (insertError) {
+              console.error('❌ Failed to create profile:', insertError);
+              setError(`Failed to create user profile: ${insertError.message}`);
+              setIsAdmin(false);
+            } else {
+              console.log('✅ Profile created successfully as regular user');
+              setIsAdmin(false);
+              setError(null);
+            }
+          } else {
+            setError(`Profile fetch failed: ${profileError.message}`);
+            setIsAdmin(false);
+          }
         } else if (!profile) {
-          console.log('No profile found for user');
+          console.log('❌ No profile found for user');
           setError('User profile not found');
           setIsAdmin(false);
         } else {
-          console.log('User profile:', profile);
+          console.log('✅ User profile found:', {
+            role: profile.role,
+            status: profile.status,
+            email: profile.email
+          });
+          
           // Check if user has admin role and is active
           const adminStatus = profile.role === 'admin' && profile.status === 'active';
-          console.log('Is admin:', adminStatus);
+          console.log('🔑 Admin status determined:', adminStatus);
           setIsAdmin(adminStatus);
           setError(null);
         }
       } catch (err) {
-        console.error('Admin check error:', err);
+        console.error('💥 Unexpected error during admin check:', err);
         setError('Failed to verify admin status');
         setIsAdmin(false);
       } finally {
