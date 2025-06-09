@@ -125,7 +125,7 @@ export default function ProfilePage() {
     console.log('Upload fileName:', fileName);
 
     const { data, error } = await supabase.storage
-      .from('profile-pictures')
+      .from('user-avatars')  // FIXED: Changed from 'profile-pictures' to 'user-avatars'
       .upload(fileName, file, {
         upsert: true
       });
@@ -138,7 +138,7 @@ export default function ProfilePage() {
     }
 
     const { data: { publicUrl } } = supabase.storage
-      .from('profile-pictures')
+      .from('user-avatars')  // FIXED: Changed from 'profile-pictures' to 'user-avatars'
       .getPublicUrl(fileName);
 
     console.log('Public URL:', publicUrl);
