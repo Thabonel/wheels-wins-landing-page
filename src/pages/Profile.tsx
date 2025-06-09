@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -125,7 +126,7 @@ export default function ProfilePage() {
     console.log('Upload fileName:', fileName);
 
     const { data, error } = await supabase.storage
-      .from('user-avatars')  // FIXED: Changed from 'profile-pictures' to 'user-avatars'
+      .from('profile-pictures')
       .upload(fileName, file, {
         upsert: true
       });
@@ -138,7 +139,7 @@ export default function ProfilePage() {
     }
 
     const { data: { publicUrl } } = supabase.storage
-      .from('user-avatars')  // FIXED: Changed from 'profile-pictures' to 'user-avatars'
+      .from('profile-pictures')
       .getPublicUrl(fileName);
 
     console.log('Public URL:', publicUrl);
