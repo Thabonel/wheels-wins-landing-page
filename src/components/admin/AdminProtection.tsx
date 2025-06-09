@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, AlertTriangle, Loader2 } from 'lucide-react';
+import { Shield, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useAuth } from '@/context/AuthContext';
 
@@ -53,9 +53,19 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-red-800 mb-2">Access Check Failed</h2>
             <p className="text-red-600 mb-4">{error}</p>
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.reload()}
+                className="w-full"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+              <p className="text-xs text-gray-500">
+                Debug info: User ID {user.id} | Email: {user.email}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -70,10 +80,12 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
             <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-red-800 mb-2">Access Denied</h2>
             <p className="text-red-600 mb-4">You need admin privileges to access this area.</p>
-            <p className="text-sm text-gray-500 mb-4">
-              User ID: {user.id}<br />
-              Email: {user.email}
-            </p>
+            <div className="bg-gray-50 p-3 rounded-md mb-4">
+              <p className="text-sm text-gray-600">
+                <strong>User ID:</strong> {user.id}<br />
+                <strong>Email:</strong> {user.email}
+              </p>
+            </div>
             <Button variant="outline" onClick={() => window.location.href = '/'}>
               Return to Home
             </Button>

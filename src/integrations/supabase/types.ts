@@ -2359,6 +2359,10 @@ export type Database = {
           priority_level: string
         }[]
       }
+      get_user_role: {
+        Args: { check_user_id: string }
+        Returns: string
+      }
       seed_default_drawers: {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: undefined

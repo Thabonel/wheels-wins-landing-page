@@ -1,24 +1,101 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import RegionSelector from "@/components/RegionSelector";
 import { useRegion } from "@/context/RegionContext";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase";
+import { toast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
   const { region, setRegion } = useRegion();
+  const { user } = useAuth();
   const [isCouple, setIsCouple] = useState(false);
   const [fuelType, setFuelType] = useState<string>("");
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load profile",
+            variant: "destructive"
+          });
+        } else {
+          setProfile(data);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto p-6">
+        <h1 className="text-2xl font-bold">Your Profile</h1>
+        <Card>
+          <CardContent className="p-6">
+            <p>Loading profile...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold">Your Profile</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Your Profile</h1>
+        {profile && (
+          <div className="flex gap-2">
+            <Badge variant="outline">{profile.role}</Badge>
+            <Badge variant={profile.status === 'active' ? 'default' : 'destructive'}>
+              {profile.status}
+            </Badge>
+          </div>
+        )}
+      </div>
+
+      {/* Profile Status */}
+      {profile && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+              <span className="text-green-800 font-medium">Profile Active</span>
+            </div>
+            <p className="text-sm text-green-600 mt-1">
+              Role: {profile.role} | Region: {profile.region} | Status: {profile.status}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Identity */}
       <Card>
         <CardContent className="space-y-4 p-6">
+          
           <div className="space-y-2">
             <Label>Profile Picture</Label>
             <Input type="file" />
@@ -33,11 +110,19 @@ export default function ProfilePage() {
           </div>
           <div className="space-y-2">
             <Label>Email</Label>
-            <Input type="email" value="thabone10@gmail.com" disabled />
+            <Input 
+              type="email" 
+              value={profile?.email || user?.email || ''} 
+              disabled 
+              className="bg-gray-50"
+            />
           </div>
           <div className="space-y-2">
             <Label>Region</Label>
-            <RegionSelector defaultValue={region} onRegionChange={setRegion} />
+            <RegionSelector 
+              defaultValue={profile?.region || region} 
+              onRegionChange={setRegion} 
+            />
           </div>
           <div className="space-y-2">
             <Label>Travel Style</Label>
@@ -77,6 +162,7 @@ export default function ProfilePage() {
       {/* Vehicle Info */}
       <Card>
         <CardContent className="space-y-4 p-6">
+          
           <h2 className="text-lg font-semibold">Your Vehicle Setup</h2>
           <div className="space-y-2">
             <Label>Vehicle Type</Label>
@@ -116,6 +202,7 @@ export default function ProfilePage() {
       {/* Preferences */}
       <Card>
         <CardContent className="space-y-4 p-6">
+          
           <h2 className="text-lg font-semibold">Travel Preferences</h2>
           <div className="space-y-2">
             <Label>Max comfortable daily driving (km)</Label>
