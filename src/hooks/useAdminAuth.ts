@@ -21,9 +21,10 @@ export const useAdminAuth = () => {
         console.log('Checking admin status for user:', user.id);
         
         // Query the profiles table to check if user has admin role
+        // This should now work with the fixed RLS policies
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, status')
           .eq('user_id', user.id)
           .single();
 
@@ -31,9 +32,14 @@ export const useAdminAuth = () => {
           console.error('Profile fetch error:', profileError);
           setError(`Profile fetch failed: ${profileError.message}`);
           setIsAdmin(false);
+        } else if (!profile) {
+          console.log('No profile found for user');
+          setError('User profile not found');
+          setIsAdmin(false);
         } else {
           console.log('User profile:', profile);
-          const adminStatus = profile?.role === 'admin';
+          // Check if user has admin role and is active
+          const adminStatus = profile.role === 'admin' && profile.status === 'active';
           console.log('Is admin:', adminStatus);
           setIsAdmin(adminStatus);
           setError(null);
