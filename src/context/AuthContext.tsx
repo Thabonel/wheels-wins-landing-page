@@ -48,11 +48,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(newSession?.user ?? null);
         setIsLoading(false);
         
-        // Handle post-login redirect to You page
+        // Handle post-signup redirect to onboarding
         if (event === 'SIGNED_IN' && newSession?.user) {
+          // Check if this is a new user (first sign in)
+          const isNewUser = newSession.user.created_at === newSession.user.last_sign_in_at;
+          
           // Use setTimeout to ensure state is updated before navigation
           setTimeout(() => {
-            if (window.location.pathname === '/auth') {
+            if (window.location.pathname === '/signup' || (isNewUser && window.location.pathname !== '/onboarding')) {
+              window.location.href = '/onboarding';
+            } else if (window.location.pathname === '/login') {
               window.location.href = '/you';
             }
           }, 100);

@@ -1,3 +1,4 @@
+
 // src/App.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,6 +7,8 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { OfflineProvider } from "@/context/OfflineContext";
 import Layout from "@/components/Layout";
 import Index from "./pages/Index";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import You from "./pages/You";
@@ -25,7 +28,7 @@ const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isDevMode } = useAuth();
-  return isAuthenticated || isDevMode ? <>{children}</> : <Navigate to="/auth" replace />;
+  return isAuthenticated || isDevMode ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
 function AppRoutes() {
@@ -56,7 +59,9 @@ function AppRoutes() {
         <div className="flex-1 overflow-auto">
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/auth" element={<Navigate to="/login" replace />} />
             <Route path="/onboarding" element={<Onboarding />} />
 
             <Route

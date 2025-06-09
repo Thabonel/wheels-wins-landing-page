@@ -12,16 +12,16 @@ export function useHeaderAppearance() {
   // Always consider authenticated in dev mode for proper navigation
   const effectivelyAuthenticated = isAuthenticated || isDevMode;
   
-  // Show navigation ONLY when authenticated AND NOT on homepage
-  const showNavigation = !isHomePage && effectivelyAuthenticated;
+  // Show navigation when authenticated (even on homepage)
+  const showNavigation = effectivelyAuthenticated;
   
-  // Show user menu (avatar) ONLY when authenticated AND NOT on homepage  
-  const showUserMenu = !isHomePage && effectivelyAuthenticated;
+  // Show user menu (avatar) when authenticated (even on homepage)
+  const showUserMenu = effectivelyAuthenticated;
   
   return {
     isHomePage,
     isAuthenticated: effectivelyAuthenticated,
-    shouldBeTransparent: isHomePage,
+    shouldBeTransparent: isHomePage && !effectivelyAuthenticated,
     showNavigation,
     showUserMenu
   };
