@@ -1,7 +1,6 @@
 
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useLocation } from "react-router-dom";
 
 interface NavigationLinksProps {
   isVisible: boolean;
@@ -9,34 +8,24 @@ interface NavigationLinksProps {
 
 const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
   const { isAuthenticated, isDevMode } = useAuth();
-  const location = useLocation();
-  const isShopPage = location.pathname === '/shop';
   
-  // Define authenticated nav items - Safety removed from main navigation
+  // Only show navigation when authenticated (or in dev mode) AND isVisible is true
+  const shouldShowNav = isVisible && (isAuthenticated || isDevMode);
+  
+  // Define authenticated nav items
   const authenticatedNavItems = [
     { label: "You", path: "/you" },
     { label: "Wheels", path: "/wheels" },
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },
     { label: "Shop", path: "/shop" },
-    // Profile is intentionally excluded - only accessible via avatar
   ];
-  
-  // Define unauthenticated nav items for shop page
-  const unauthenticatedShopNavItems = [
-    { label: "Shop", path: "/shop" },
-  ];
-  
-  // Determine which nav items to show
-  const navItems = (isAuthenticated || isDevMode) 
-    ? authenticatedNavItems 
-    : (isShopPage ? unauthenticatedShopNavItems : []);
 
-  if (!isVisible || navItems.length === 0) return null;
+  if (!shouldShowNav) return null;
 
   return (
     <nav className="flex space-x-6">
-      {navItems.map((item) => (
+      {authenticatedNavItems.map((item) => (
         <NavLink
           key={item.path}
           to={item.path}
