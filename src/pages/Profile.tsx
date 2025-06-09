@@ -144,14 +144,19 @@ export default function ProfilePage() {
         ? { partner_profile_image_url: imageUrl }
         : { profile_image_url: imageUrl };
 
+      // Create base profile data if profile doesn't exist
+      const baseProfileData = {
+        user_id: user!.id,
+        email: user!.email || '',
+        region: region,
+        status: 'active',
+        role: 'user',
+        ...updateData
+      };
+
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          user_id: user!.id,
-          email: user!.email || '',
-          ...profile,
-          ...updateData
-        });
+        .upsert(baseProfileData);
 
       if (error) {
         toast({
@@ -160,7 +165,7 @@ export default function ProfilePage() {
           variant: "destructive"
         });
       } else {
-        setProfile(prev => ({ ...prev, ...updateData }));
+        setProfile(prev => ({ ...prev, ...baseProfileData }));
         toast({
           title: "Success",
           description: `${isPartner ? 'Partner' : 'Profile'} picture uploaded successfully`,
