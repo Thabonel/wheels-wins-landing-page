@@ -79,13 +79,12 @@ export default function ProfilePage() {
           });
         } else {
           console.log('No profile found, creating one...');
-          // Create initial profile if none exists
+          // Create initial profile if none exists (without role field)
           const newProfile = {
             user_id: user.id,
             email: user.email || '',
             region: region,
-            status: 'active',
-            role: 'user'
+            status: 'active'
           };
           
           const { data: createdProfile, error: createError } = await supabase
@@ -260,12 +259,12 @@ export default function ProfilePage() {
     setSaving(true);
 
     try {
+      // Don't include role field - let it be managed separately
       const profileData = {
         user_id: user.id,
         email: user.email || '',
         region: region,
         status: 'active',
-        role: 'user',
         full_name: formData.fullName,
         nickname: formData.nickname,
         travel_style: formData.travelStyle,
