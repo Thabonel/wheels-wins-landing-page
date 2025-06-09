@@ -15,6 +15,7 @@ interface AdminUser {
   created_at: string;
   region?: string;
   status?: string;
+  role?: string;
 }
 
 export default function UserManagement() {
@@ -37,7 +38,7 @@ export default function UserManagement() {
       return;
     }
     
-    console.log("Access token:", session.access_token);
+    console.log("Fetching users for admin dashboard");
     setLoading(true);
     try {
       const res = await fetch("https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/get-admin-users", {
@@ -51,7 +52,7 @@ export default function UserManagement() {
         console.error("Error fetching users:", errorData);
         toast({
           title: "Error",
-          description: "Failed to fetch users",
+          description: `Failed to fetch users: ${errorData.error || 'Unknown error'}`,
           variant: "destructive"
         });
         setLoading(false);
@@ -59,7 +60,7 @@ export default function UserManagement() {
       }
 
       const data = await res.json();
-      console.log("Fetched data:", data);
+      console.log("Fetched user data:", data);
       setUsers(data);
       setLoading(false);
     } catch (error) {
@@ -73,54 +74,83 @@ export default function UserManagement() {
     }
   };
 
-  const handleDeactivateUser = async (id: string) => {
-    const { error } = await supabase.from("profiles").update({ status: "Inactive" }).eq("id", id);
-    if (error) {
+  const handleUpdateUserStatus = async (userId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ status: newStatus })
+        .eq("user_id", userId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: `Failed to update user status: ${error.message}`,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `User status updated to ${newStatus}`,
+        });
+        fetchUsers(); // Refresh the list
+      }
+    } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to deactivate user",
+        description: "Failed to update user status",
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "User deactivated",
-      });
-      fetchUsers();
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
-    const { error } = await supabase.from("profiles").delete().eq("id", id);
-    if (error) {
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      // Delete from profiles table - the auth user will be handled by cascade
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: `Failed to delete user: ${error.message}`,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "User deleted successfully",
+        });
+        fetchUsers(); // Refresh the list
+      }
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to delete user",
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "User deleted",
-      });
-      fetchUsers();
     }
   };
 
   useEffect(() => {
-    if (user) fetchUsers();
-  }, [user]);
+    if (user && isAdmin) {
+      fetchUsers();
+    }
+  }, [user, isAdmin]);
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground text-sm">Welcome, Admin</p>
+          <p className="text-muted-foreground text-sm">Welcome, {user?.email}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">Change Admin Password</Button>
-          <Button>Add New User</Button>
           <Button variant="outline" onClick={fetchUsers}>Refresh Users</Button>
         </div>
       </div>
@@ -139,8 +169,8 @@ export default function UserManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Region</TableHead>
                   <TableHead>Registration Date</TableHead>
                   <TableHead>Status</TableHead>
@@ -150,20 +180,51 @@ export default function UserManagement() {
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell>{user.email.split("@")[0]}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.region}</TableCell>
-                    <TableCell>{new Date(user.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="font-medium">{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="bg-green-100 text-green-700">
-                        {user.status || "Active"}
+                      <Badge variant="outline" className={
+                        user.role === 'admin' ? 'bg-red-100 text-red-700' :
+                        user.role === 'moderator' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }>
+                        {user.role || 'user'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{user.region || 'Not specified'}</TableCell>
+                    <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={
+                        user.status === 'active' ? 'bg-green-100 text-green-700' :
+                        user.status === 'suspended' ? 'bg-red-100 text-red-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }>
+                        {user.status || 'pending'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
-                      <Button variant="destructive" size="sm" onClick={() => handleDeactivateUser(user.id)}>
-                        Deactivate
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                      {user.status !== 'suspended' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleUpdateUserStatus(user.id, 'suspended')}
+                        >
+                          Suspend
+                        </Button>
+                      )}
+                      {user.status === 'suspended' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleUpdateUserStatus(user.id, 'active')}
+                        >
+                          Activate
+                        </Button>
+                      )}
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={() => handleDeleteUser(user.id)}
+                      >
                         Delete
                       </Button>
                     </TableCell>
@@ -184,6 +245,10 @@ export default function UserManagement() {
         <Card className="border-green-200 bg-green-50 mt-4">
           <CardContent className="pt-4">
             <p className="text-green-800">✅ Admin access confirmed! User management loaded successfully.</p>
+            <p className="text-sm text-green-600 mt-2">
+              Your user ID: {user?.id}<br />
+              Your email: {user?.email}
+            </p>
           </CardContent>
         </Card>
       ) : (
