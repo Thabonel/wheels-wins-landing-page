@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,23 +95,37 @@ export default function ProfilePage() {
     }
 
     try {
-      // Create a unique filename
+      // Create a unique filename with proper path structure
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
+      const timestamp = Date.now();
+      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${timestamp}.${fileExt}`;
 
-      console.log('Uploading file:', fileName);
+      console.log('Starting upload for file:', fileName);
+      console.log('File size:', file.size, 'bytes');
+      console.log('File type:', file.type);
 
-      // Upload the file
+      // First, try to remove any existing file with similar name to avoid conflicts
+      const { error: deleteError } = await supabase.storage
+        .from('profile-pictures')
+        .remove([fileName]);
+      
+      // Don't throw on delete error, it's expected if file doesn't exist
+      if (deleteError) {
+        console.log('Delete error (expected if file doesnt exist):', deleteError);
+      }
+
+      // Upload the file with explicit options
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('profile-pictures')
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true, // Changed to true to overwrite existing files
+          contentType: file.type
         });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw uploadError;
+        console.error('Upload error details:', uploadError);
+        throw new Error(`Upload failed: ${uploadError.message}`);
       }
 
       console.log('Upload successful:', uploadData);
@@ -120,7 +135,13 @@ export default function ProfilePage() {
         .from('profile-pictures')
         .getPublicUrl(fileName);
 
-      console.log('Public URL:', publicUrl);
+      console.log('Generated public URL:', publicUrl);
+
+      // Verify the URL is accessible
+      if (!publicUrl) {
+        throw new Error('Failed to generate public URL');
+      }
+
       return publicUrl;
     } catch (error) {
       console.error('File upload failed:', error);
@@ -131,6 +152,8 @@ export default function ProfilePage() {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isPartner = false) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    console.log('File selected:', file.name, file.size, file.type);
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -159,6 +182,7 @@ export default function ProfilePage() {
     }
 
     try {
+      console.log('Starting file upload process...');
       const imageUrl = await uploadFile(file, isPartner);
       
       if (imageUrl) {
@@ -166,11 +190,16 @@ export default function ProfilePage() {
           ? { partner_profile_image_url: imageUrl }
           : { profile_image_url: imageUrl };
 
+        console.log('Updating profile with image URL:', updateData);
+
+        // Update the profile with the new image URL
         const { error } = await supabase
           .from('profiles')
           .upsert({
             user_id: user!.id,
             email: user!.email || '',
+            // Preserve all existing profile data
+            ...profile,
             ...updateData
           });
 
@@ -178,22 +207,25 @@ export default function ProfilePage() {
           console.error('Error updating profile with image:', error);
           toast({
             title: "Error",
-            description: "Failed to save profile picture",
+            description: `Failed to save ${isPartner ? 'partner' : 'profile'} picture: ${error.message}`,
             variant: "destructive"
           });
         } else {
+          // Update local state
           setProfile(prev => ({ ...prev, ...updateData }));
           toast({
             title: "Success",
             description: `${isPartner ? 'Partner' : 'Profile'} picture uploaded successfully`,
           });
+          console.log('Profile updated successfully');
         }
       }
     } catch (error) {
       console.error('Upload failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: "Error",
-        description: "Failed to upload picture. Please try again.",
+        description: `Failed to upload picture: ${errorMessage}`,
         variant: "destructive"
       });
     } finally {
