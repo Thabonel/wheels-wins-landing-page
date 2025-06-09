@@ -45,8 +45,8 @@ const Onboarding: React.FC = () => {
   // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
-      console.warn('User not authenticated, redirecting to auth page');
-      window.location.href = '/auth';
+      console.warn('User not authenticated, redirecting to signup page');
+      window.location.href = '/signup';
     }
   }, [isAuthenticated]);
 
@@ -122,9 +122,9 @@ const Onboarding: React.FC = () => {
           ask_pets: '',
         });
 
-        // Redirect to dashboard after successful submission
+        // Redirect to /you after successful submission
         setTimeout(() => {
-          window.location.href = '/';
+          window.location.href = '/you';
         }, 2000);
       } else {
         const errorText = await response.text();

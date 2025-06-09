@@ -14,7 +14,7 @@ const CallToAction = () => {
           Your travels just got easier — thanks to Pam.
         </p>
         
-        <Link to="/auth">
+        <Link to="/signup">
           <Button 
             size="lg" 
             className="text-xl font-semibold px-10 py-7 bg-accent text-accent-foreground hover:bg-accent/90"

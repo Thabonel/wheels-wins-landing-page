@@ -47,7 +47,7 @@ const Header = () => {
         
         {/* Show auth link for non-homepage, non-authenticated users */}
         {!isHomePage && !isAuthenticated && !isDevMode && (
-          <Link to="/auth">
+          <Link to="/login">
             <Button variant="default">Sign In</Button>
           </Link>
         )}
