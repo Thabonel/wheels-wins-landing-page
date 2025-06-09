@@ -2113,77 +2113,7 @@ export type Database = {
             referencedRelation: "newsletters"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "user_notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["user_id"]
-          },
         ]
-      }
-      user_profiles: {
-        Row: {
-          accessibility: string | null
-          camp_types: string | null
-          created_at: string | null
-          drive_limit: number | null
-          email: string | null
-          fuel_type: string | null
-          full_name: string | null
-          newsletter_opt_in: boolean | null
-          nickname: string | null
-          onboarded: boolean | null
-          pets: string | null
-          region: string | null
-          second_vehicle: string | null
-          towing: string | null
-          travel_style: string | null
-          user_id: string
-          vehicle_make_model_year: string | null
-          vehicle_type: string | null
-        }
-        Insert: {
-          accessibility?: string | null
-          camp_types?: string | null
-          created_at?: string | null
-          drive_limit?: number | null
-          email?: string | null
-          fuel_type?: string | null
-          full_name?: string | null
-          newsletter_opt_in?: boolean | null
-          nickname?: string | null
-          onboarded?: boolean | null
-          pets?: string | null
-          region?: string | null
-          second_vehicle?: string | null
-          towing?: string | null
-          travel_style?: string | null
-          user_id: string
-          vehicle_make_model_year?: string | null
-          vehicle_type?: string | null
-        }
-        Update: {
-          accessibility?: string | null
-          camp_types?: string | null
-          created_at?: string | null
-          drive_limit?: number | null
-          email?: string | null
-          fuel_type?: string | null
-          full_name?: string | null
-          newsletter_opt_in?: boolean | null
-          nickname?: string | null
-          onboarded?: boolean | null
-          pets?: string | null
-          region?: string | null
-          second_vehicle?: string | null
-          towing?: string | null
-          travel_style?: string | null
-          user_id?: string
-          vehicle_make_model_year?: string | null
-          vehicle_type?: string | null
-        }
-        Relationships: []
       }
       user_savings_tracking: {
         Row: {
