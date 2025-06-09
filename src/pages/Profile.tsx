@@ -88,6 +88,32 @@ export default function ProfilePage() {
     fetchProfile();
   }, [user]);
 
+  const convertHeicToJpeg = async (file: File): Promise<File> => {
+    // Check if it's a HEIC/HEIF file
+    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().includes('.heic')) {
+      try {
+        // Dynamically import heic2any
+        const heic2any = (await import('heic2any')).default;
+        
+        const convertedBlob = await heic2any({
+          blob: file,
+          toType: 'image/jpeg',
+          quality: 0.8
+        }) as Blob;
+        
+        // Create new File from converted blob
+        return new File([convertedBlob], file.name.replace(/\.heic$/i, '.jpg'), {
+          type: 'image/jpeg'
+        });
+      } catch (error) {
+        console.error('Error converting HEIC to JPEG:', error);
+        throw new Error('Failed to convert HEIC image. Please try with a JPEG or PNG image.');
+      }
+    }
+    
+    return file;
+  };
+
   const uploadFile = async (file: File, isPartner = false) => {
     if (!user) throw new Error('User not authenticated');
 
@@ -113,7 +139,7 @@ export default function ProfilePage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith('image/') && !file.name.toLowerCase().includes('.heic')) {
       toast({
         title: "Error",
         description: "Please select an image file",
@@ -138,7 +164,10 @@ export default function ProfilePage() {
     }
 
     try {
-      const imageUrl = await uploadFile(file, isPartner);
+      // Convert HEIC to JPEG if needed
+      const convertedFile = await convertHeicToJpeg(file);
+      
+      const imageUrl = await uploadFile(convertedFile, isPartner);
       
       const updateData = isPartner 
         ? { partner_profile_image_url: imageUrl }
@@ -148,7 +177,7 @@ export default function ProfilePage() {
       const baseProfileData = {
         user_id: user!.id,
         email: user!.email || '',
-        region: region,
+        region: 'Australia',
         status: 'active',
         role: 'user',
         ...updateData
