@@ -24,45 +24,20 @@ export const useAdminAuth = () => {
         setError(null);
         console.log('📋 Querying profiles table for user:', user.id);
         
-        // Use the security definer function approach if needed, but first try direct query
+        // Use maybeSingle() to handle missing profiles gracefully
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, status, email')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (profileError) {
           console.error('❌ Profile fetch error:', profileError);
-          
-          // If profile doesn't exist, try to create it automatically
-          if (profileError.code === 'PGRST116') {
-            console.log('📝 Profile not found, creating new profile...');
-            const { error: insertError } = await supabase
-              .from('profiles')
-              .insert({
-                user_id: user.id,
-                email: user.email || '',
-                role: 'user', // Default role
-                status: 'active',
-                region: 'Australia'
-              });
-
-            if (insertError) {
-              console.error('❌ Failed to create profile:', insertError);
-              setError(`Failed to create user profile: ${insertError.message}`);
-              setIsAdmin(false);
-            } else {
-              console.log('✅ Profile created successfully as regular user');
-              setIsAdmin(false);
-              setError(null);
-            }
-          } else {
-            setError(`Profile fetch failed: ${profileError.message}`);
-            setIsAdmin(false);
-          }
+          setError(`Profile fetch failed: ${profileError.message}`);
+          setIsAdmin(false);
         } else if (!profile) {
           console.log('❌ No profile found for user');
-          setError('User profile not found');
+          setError('User profile not found. Please contact an administrator.');
           setIsAdmin(false);
         } else {
           console.log('✅ User profile found:', {
