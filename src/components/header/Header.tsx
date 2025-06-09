@@ -25,7 +25,7 @@ const Header = () => {
         />
       </Link>
 
-      {/* Navigation - Only show when authenticated and not on homepage */}
+      {/* Navigation - Show when authenticated */}
       <NavigationLinks isVisible={showNavigation} />
 
       {/* Auth Buttons */}
@@ -42,7 +42,7 @@ const Header = () => {
           </>
         )}
 
-        {/* Show user menu when authenticated and not on homepage */}
+        {/* Show user menu when authenticated */}
         {showUserMenu && <UserMenu />}
         
         {/* Show auth link for non-homepage, non-authenticated users */}
