@@ -1,75 +1,91 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { useAuth } from '@/context/AuthContext'
+import { toast } from '@/components/ui/use-toast'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card'
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { supabase } from '@/integrations/supabase'
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
 
   const fetchUsers = async () => {
-    if (!user) return;
-    
-    // Get the session to access the access token
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      toast.error("Authentication required");
-      return;
+    if (!user) {
+      toast({ title: 'Authentication required', variant: 'destructive' })
+      setLoading(false)
+      return
     }
-    
-    console.log("Access token:", session.access_token);
-    setLoading(true);
-    try {
-      const res = await fetch("https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/get-admin-users", {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("Error fetching users:", errorData);
-        toast.error("Failed to fetch users");
-        setLoading(false);
-        return;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+
+      if (!token) {
+        toast({ title: 'Authentication required', variant: 'destructive' })
+        setLoading(false)
+        return
       }
 
-      const data = await res.json();
-      console.log("Fetched data:", data);
-      setUsers(data);
-      setLoading(false);
+      setLoading(true)
+
+      const res = await fetch("https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/get-admin-users", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        console.error("Error fetching users:", errorData)
+        toast({ title: 'Failed to fetch users', variant: 'destructive' })
+        setLoading(false)
+        return
+      }
+
+      const data = await res.json()
+      setUsers(data)
     } catch (error) {
-      console.error("Network error:", error);
-      toast.error("Network error while fetching users");
-      setLoading(false);
+      console.error("Network error:", error)
+      toast({ title: 'Network error while fetching users', variant: 'destructive' })
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   const handleDeactivateUser = async (id: string) => {
-    const { error } = await supabase.from("profiles").update({ status: "Inactive" }).eq("id", id);
+    const { error } = await supabase.from("profiles").update({ status: "Inactive" }).eq("id", id)
     if (error) {
-      toast.error("Failed to deactivate user");
+      toast({ title: "Failed to deactivate user", variant: "destructive" })
     } else {
-      toast.success("User deactivated");
-      fetchUsers();
+      toast({ title: "User deactivated" })
+      fetchUsers()
     }
-  };
+  }
 
   const handleDeleteUser = async (id: string) => {
-    const { error } = await supabase.from("profiles").delete().eq("id", id);
+    const { error } = await supabase.from("profiles").delete().eq("id", id)
     if (error) {
-      toast.error("Failed to delete user");
+      toast({ title: "Failed to delete user", variant: "destructive" })
     } else {
-      toast.success("User deleted");
-      fetchUsers();
+      toast({ title: "User deleted" })
+      fetchUsers()
     }
-  };
+  }
 
   useEffect(() => {
-    if (user) fetchUsers();
-  }, [user]);
+    if (user) fetchUsers()
+  }, [user])
 
   return (
     <div className="p-6">
@@ -108,22 +124,22 @@ export default function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.email.split("@")[0]}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.region}</TableCell>
-                    <TableCell>{new Date(user.created_at).toLocaleString()}</TableCell>
+                {users.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell>{u.email.split('@')[0]}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>{u.region}</TableCell>
+                    <TableCell>{new Date(u.created_at).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-green-100 text-green-700">
-                        {user.status || "Active"}
+                        {u.status || 'Active'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
-                      <Button variant="destructive" size="sm" onClick={() => handleDeactivateUser(user.id)}>
+                      <Button variant="destructive" size="sm" onClick={() => handleDeactivateUser(u.id)}>
                         Deactivate
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(u.id)}>
                         Delete
                       </Button>
                     </TableCell>
@@ -139,20 +155,6 @@ export default function UserManagement() {
           </CardFooter>
         )}
       </Card>
-
-      {isAdmin ? (
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="pt-4">
-            <p className="text-green-800">✅ Admin access confirmed! User management would load here.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-4">
-            <p className="text-red-800">❌ Access Denied - You need admin privileges</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
