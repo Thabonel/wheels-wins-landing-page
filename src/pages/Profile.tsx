@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,30 +89,68 @@ export default function ProfilePage() {
   }, [user]);
 
   const uploadFile = async (file: File, isPartner = false) => {
-    if (!user) return null;
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
-
-    const { data, error } = await supabase.storage
-      .from('profile-pictures')
-      .upload(fileName, file);
-
-    if (error) {
-      console.error('Upload error:', error);
-      throw error;
+    if (!user) {
+      throw new Error('User not authenticated');
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('profile-pictures')
-      .getPublicUrl(fileName);
+    try {
+      // Create a unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
 
-    return publicUrl;
+      console.log('Uploading file:', fileName);
+
+      // Upload the file
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(fileName);
+
+      console.log('Public URL:', publicUrl);
+      return publicUrl;
+    } catch (error) {
+      console.error('File upload failed:', error);
+      throw error;
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isPartner = false) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Error",
+        description: "Please select an image file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "File size must be less than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (isPartner) {
       setUploadingPartnerPhoto(true);
@@ -133,6 +170,7 @@ export default function ProfilePage() {
           .from('profiles')
           .upsert({
             user_id: user!.id,
+            email: user!.email || '',
             ...updateData
           });
 
@@ -155,7 +193,7 @@ export default function ProfilePage() {
       console.error('Upload failed:', error);
       toast({
         title: "Error",
-        description: "Failed to upload picture",
+        description: "Failed to upload picture. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -164,6 +202,8 @@ export default function ProfilePage() {
       } else {
         setUploadingPhoto(false);
       }
+      // Clear the input
+      event.target.value = '';
     }
   };
 
@@ -200,6 +240,7 @@ export default function ProfilePage() {
         pets: formData.pets,
         partner_name: formData.partnerName,
         partner_email: formData.partnerEmail,
+        // Preserve existing image URLs
         profile_image_url: profile?.profile_image_url,
         partner_profile_image_url: profile?.partner_profile_image_url
       };
