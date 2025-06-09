@@ -8,6 +8,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storageKey: 'wheels-and-wins-session', // <— Add this
+    storageKey: 'sb-kycoklimpzkyrecbjecn-auth-token',
   },
 });
