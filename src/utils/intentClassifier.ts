@@ -20,7 +20,7 @@ export class IntentClassifier {
     Object.entries(this.keywords).forEach(([intent, keywords]) => {
       if (intent === 'general') return;
 
-      scores[intent] = keywords.reduce((score, keyword) => {
+      scores[intent] = keywords.reduce((score: number, keyword: string) => {
         return score + (lowerMessage.includes(keyword) ? 1 : 0);
       }, 0);
     });
