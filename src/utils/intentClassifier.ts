@@ -28,8 +28,9 @@ export class IntentClassifier {
     const scoreEntries = Object.entries(scores);
     const scoreValues: number[] = scoreEntries.map(([, score]) => score);
     const maxScore = scoreValues.length > 0 ? Math.max(...scoreValues) : 0;
-    const bestIntentEntry = scoreEntries.find(([, score]) => score === maxScore);
+    const bestIntentEntry = scoreEntries.find(([intent, score]: [string, number]) => score === maxScore);
     const bestIntent = bestIntentEntry ? bestIntentEntry[0] : 'general';
+
 
     // If no specific intent detected or score is 0, default to appropriate intent
     if (maxScore === 0) {
