@@ -1,4 +1,3 @@
-
 import { PamIntent } from '@/types/pamTypes';
 
 export class IntentClassifier {
@@ -20,7 +19,7 @@ export class IntentClassifier {
     Object.entries(this.keywords).forEach(([intent, keywords]) => {
       if (intent === 'general') return;
 
-      scores[intent] = keywords.reduce<number>((score, keyword) => {
+      scores[intent] = keywords.reduce((score, keyword) => {
         return score + (lowerMessage.includes(keyword) ? 1 : 0);
       }, 0);
     });
