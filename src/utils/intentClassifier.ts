@@ -27,7 +27,7 @@ export class IntentClassifier {
 
     // Find the intent with the highest score
     const maxScore = Math.max(...Object.values(scores));
-    const bestIntent = Object.entries(scores).find(([_, score]) => score === maxScore)?.[0];
+    const bestIntent = Object.entries(scores).find(([intent, score]) => score === maxScore)?.[0];
 
     // If no specific intent detected or score is 0, default to appropriate intent
     if (!bestIntent || maxScore === 0) {
