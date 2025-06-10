@@ -4,6 +4,9 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useOffline } from "@/context/OfflineContext";
 import { useCachedPamTips } from "@/hooks/useCachedPamTips";
+import { IntentClassifier } from "@/utils/intentClassifier";
+import { usePamSession } from "@/hooks/usePamSession";
+import { PamWebhookPayload } from "@/types/pamTypes";
 import PamHeader from "./PamHeader";
 import ChatMessages from "./ChatMessages";
 import ChatInput from "./ChatInput";
@@ -24,6 +27,7 @@ const PamChatController = () => {
   const { user } = useAuth();
   const { isOffline } = useOffline();
   const { addTip } = useCachedPamTips();
+  const { sessionData, updateSession } = usePamSession(user?.id);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [region, setRegion] = useState("Australia"); // Default, could be dynamic
@@ -52,14 +56,31 @@ const PamChatController = () => {
     };
     setMessages((prev) => [...prev, userMessage]);
 
+    // Classify the intent
+    const intentResult = IntentClassifier.classifyIntent(message);
+    
+    // Update session data
+    updateSession(intentResult.type);
+
+    // Build enhanced payload
+    const payload: PamWebhookPayload = {
+      user_id: user.id,
+      message: message,
+      intent: intentResult.type,
+      is_first_time: sessionData.isFirstTime,
+      session_context: {
+        message_count: sessionData.messageCount + 1,
+        previous_intents: sessionData.previousIntents
+      }
+    };
+
+    console.log("Sending PAM payload:", payload);
+
     try {
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: user.id,
-          message: message,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {

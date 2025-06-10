@@ -3,12 +3,16 @@ import { useState } from "react";
 import { v4 as uuid } from "uuid";
 import { useAuth } from "@/context/AuthContext";
 import { useOffline } from "@/context/OfflineContext";
+import { IntentClassifier } from "@/utils/intentClassifier";
+import { usePamSession } from "@/hooks/usePamSession";
+import { PamWebhookPayload } from "@/types/pamTypes";
 
 const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/pam-chat";
 
 export function usePam() {
   const { user } = useAuth();
   const { isOffline } = useOffline();
+  const { sessionData, updateSession } = usePamSession(user?.id);
   console.log("Pam Auth User ID:", user?.id);
   const [messages, setMessages] = useState<any[]>([]);
 
@@ -42,6 +46,26 @@ export function usePam() {
     };
     setMessages(prev => [...prev, userMsg]);
 
+    // Classify the intent
+    const intentResult = IntentClassifier.classifyIntent(userMessage);
+    
+    // Update session data
+    updateSession(intentResult.type);
+
+    // Build enhanced payload
+    const payload: PamWebhookPayload = {
+      user_id: user.id,
+      message: userMessage,
+      intent: intentResult.type,
+      is_first_time: sessionData.isFirstTime,
+      session_context: {
+        message_count: sessionData.messageCount + 1,
+        previous_intents: sessionData.previousIntents
+      }
+    };
+
+    console.log("Sending PAM payload:", payload);
+
     // Call n8n production webhook
     let assistantContent = "I'm sorry, I didn't understand that.";
     let assistantRender = null;
@@ -50,10 +74,7 @@ export function usePam() {
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: user.id,
-          message: userMessage,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
