@@ -1,3 +1,4 @@
+
 import { PamIntent } from '@/types/pamTypes';
 
 export class IntentClassifier {
@@ -25,12 +26,15 @@ export class IntentClassifier {
     });
 
     // Find the intent with the highest score
-    const scoreEntries = Object.entries(scores);
-    const scoreValues: number[] = scoreEntries.map(([, score]) => score);
-    const maxScore = scoreValues.length > 0 ? Math.max(...scoreValues) : 0;
-    const bestIntentEntry = scoreEntries.find(([intent, score]: [string, number]) => score === maxScore);
-    const bestIntent = bestIntentEntry ? bestIntentEntry[0] : 'general';
-
+    let bestIntent = 'general';
+    let maxScore = 0;
+    
+    for (const [intent, score] of Object.entries(scores)) {
+      if (score > maxScore) {
+        maxScore = score;
+        bestIntent = intent;
+      }
+    }
 
     // If no specific intent detected or score is 0, default to appropriate intent
     if (maxScore === 0) {

@@ -52,10 +52,10 @@ export function usePam() {
     // Update session data
     updateSession(intentResult.type);
 
-    // Build enhanced payload
-    const payload: PamWebhookPayload = {
+    // Build enhanced payload with the correct field name expected by n8n
+    const payload = {
       user_id: user.id,
-      message: userMessage,
+      chatInput: userMessage, // Changed from 'message' to 'chatInput'
       intent: intentResult.type,
       is_first_time: sessionData.isFirstTime,
       session_context: {

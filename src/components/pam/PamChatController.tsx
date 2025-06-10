@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -62,10 +61,10 @@ const PamChatController = () => {
     // Update session data
     updateSession(intentResult.type);
 
-    // Build enhanced payload
-    const payload: PamWebhookPayload = {
+    // Build enhanced payload with the correct field name
+    const payload = {
       user_id: user.id,
-      message: message,
+      chatInput: message, // Changed from 'message' to 'chatInput'
       intent: intentResult.type,
       is_first_time: sessionData.isFirstTime,
       session_context: {
