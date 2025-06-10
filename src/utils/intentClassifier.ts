@@ -1,4 +1,3 @@
-
 import { PamIntent } from '@/types/pamTypes';
 
 export class IntentClassifier {
@@ -19,7 +18,7 @@ export class IntentClassifier {
     // Calculate scores for each intent
     Object.entries(this.keywords).forEach(([intent, keywords]) => {
       if (intent === 'general') return;
-      
+
       scores[intent] = keywords.reduce((score, keyword) => {
         return score + (lowerMessage.includes(keyword) ? 1 : 0);
       }, 0);
@@ -30,11 +29,10 @@ export class IntentClassifier {
     const scoreValues: number[] = scoreEntries.map(([, score]) => score);
     const maxScore = scoreValues.length > 0 ? Math.max(...scoreValues) : 0;
     const bestIntentEntry = scoreEntries.find(([, score]) => score === maxScore);
-    const bestIntent = bestIntentEntry ? bestIntentEntry[0] : null;
+    const bestIntent = bestIntentEntry ? bestIntentEntry[0] : 'general';
 
     // If no specific intent detected or score is 0, default to appropriate intent
-    if (!bestIntent || maxScore === 0) {
-      // Check for greeting patterns for onboarding
+    if (maxScore === 0) {
       const greetingPattern = /^(hi|hello|hey|good morning|good afternoon|good evening)\b/i;
       if (greetingPattern.test(message.trim())) {
         return { type: 'onboarding', confidence: 0.8 };
@@ -47,7 +45,7 @@ export class IntentClassifier {
 
     return {
       type: bestIntent as PamIntent['type'],
-      confidence: Math.max(confidence, 0.6) // Minimum confidence of 0.6
+      confidence: Math.max(confidence, 0.6)
     };
   }
 }
