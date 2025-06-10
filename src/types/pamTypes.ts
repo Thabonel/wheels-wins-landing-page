@@ -6,7 +6,7 @@ export interface PamIntent {
 
 export interface PamWebhookPayload {
   user_id: string;
-  message: string;
+  chatInput: string; // Updated to match n8n expectation
   intent: string;
   is_first_time?: boolean;
   session_context?: {

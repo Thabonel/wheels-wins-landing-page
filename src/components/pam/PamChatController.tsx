@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -61,10 +62,10 @@ const PamChatController = () => {
     // Update session data
     updateSession(intentResult.type);
 
-    // Build enhanced payload with the correct field name
+    // Build enhanced payload with the correct field name expected by n8n
     const payload = {
       user_id: user.id,
-      chatInput: message, // Changed from 'message' to 'chatInput'
+      chatInput: message, // Ensure we're using chatInput as expected by n8n
       intent: intentResult.type,
       is_first_time: sessionData.isFirstTime,
       session_context: {
