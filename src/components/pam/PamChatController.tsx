@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -76,14 +77,7 @@ const PamChatController = () => {
       voice_enabled: true
     };
 
-    console.log("✅ Sending to PAM webhook:", {
-      chatInput: cleanMessage,
-      user_id: user?.id,
-      session_id: `session_${user.id}`,
-      voice_enabled: true
-    });
-
-    console.log("Sending PAM payload:", payload);
+    console.log("✅ Sending to PAM webhook:", payload);
 
     try {
       const response = await fetch(WEBHOOK_URL, {
@@ -92,17 +86,22 @@ const PamChatController = () => {
         body: JSON.stringify(payload),
       });
 
+      console.log("📡 Response status:", response.status);
+      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log("📦 Response data:", data);
       
       if (!data.success) {
         throw new Error("PAM response indicates failure");
       }
 
-      const reply = data.content || "I'm sorry, I didn't understand that.";
+      // Extract the message from the correct field (n8n returns 'message', not 'content')
+      const reply = data.message || "I'm sorry, I didn't understand that.";
+      console.log("💬 AI Reply:", reply);
 
       // Cache the tip when online
       addTip(reply);
@@ -114,7 +113,7 @@ const PamChatController = () => {
       };
       setMessages((prev) => [...prev, pamMessage]);
     } catch (error) {
-      console.error("PAM API Error:", error);
+      console.error("❌ PAM API Error:", error);
       const errorMessage: ChatMessage = {
         sender: "pam",
         content: "I'm having trouble connecting right now. Please try again in a moment.",

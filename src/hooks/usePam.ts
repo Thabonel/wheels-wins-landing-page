@@ -60,7 +60,7 @@ export function usePam() {
       voice_enabled: true
     };
 
-    console.log("Sending PAM payload:", payload);
+    console.log("✅ Sending PAM payload:", payload);
 
     // Call n8n production webhook
     let assistantContent = "I'm sorry, I didn't understand that.";
@@ -73,21 +73,27 @@ export function usePam() {
         body: JSON.stringify(payload),
       });
 
+      console.log("📡 Response status:", res.status);
+
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
       const data = await res.json();
+      console.log("📦 Response data:", data);
       
       if (!data.success) {
         throw new Error("PAM response indicates failure");
       }
 
-      assistantContent = data.content || "I'm sorry, I didn't understand that.";
+      // Extract the message from the correct field (n8n returns 'message', not 'content')
+      assistantContent = data.message || "I'm sorry, I didn't understand that.";
       assistantRender = data.render || null;
+      
+      console.log("💬 AI Reply:", assistantContent);
 
     } catch (err: any) {
-      console.error("PAM API Error:", err);
+      console.error("❌ PAM API Error:", err);
       assistantContent = "I'm having trouble connecting right now. Please try again in a moment.";
     }
 
