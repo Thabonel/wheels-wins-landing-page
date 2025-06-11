@@ -5,14 +5,10 @@ export interface PamIntent {
 }
 
 export interface PamWebhookPayload {
+  chatInput: string;
   user_id: string;
-  chatInput: string; // Updated to match n8n expectation
-  intent: string;
-  is_first_time?: boolean;
-  session_context?: {
-    message_count: number;
-    previous_intents: string[];
-  };
+  session_id: string;
+  voice_enabled: boolean;
 }
 
 export interface PamSessionData {

@@ -46,22 +46,18 @@ export function usePam() {
     };
     setMessages(prev => [...prev, userMsg]);
 
-    // Classify the intent
+    // Classify the intent for session tracking (but don't send to n8n)
     const intentResult = IntentClassifier.classifyIntent(userMessage);
     
     // Update session data
     updateSession(intentResult.type);
 
-    // Build enhanced payload with the correct field name expected by n8n
-    const payload = {
+    // Build payload exactly as n8n expects
+    const payload: PamWebhookPayload = {
+      chatInput: userMessage,
       user_id: user.id,
-      chatInput: userMessage, // Changed from 'message' to 'chatInput'
-      intent: intentResult.type,
-      is_first_time: sessionData.isFirstTime,
-      session_context: {
-        message_count: sessionData.messageCount + 1,
-        previous_intents: sessionData.previousIntents
-      }
+      session_id: `session_${user.id}`,
+      voice_enabled: true
     };
 
     console.log("Sending PAM payload:", payload);
