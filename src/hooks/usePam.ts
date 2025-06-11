@@ -7,7 +7,7 @@ import { IntentClassifier } from "@/utils/intentClassifier";
 import { usePamSession } from "@/hooks/usePamSession";
 import { PamWebhookPayload } from "@/types/pamTypes";
 
-const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/pam-chat";
+const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/3049f504-af24-4ac8-8edd-f32fa48273ca";
 
 export function usePam() {
   const { user } = useAuth();
