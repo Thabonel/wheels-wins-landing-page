@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -64,14 +63,14 @@ const PamChatController = () => {
 
     // Build payload exactly as n8n expects
     const payload: PamWebhookPayload = {
-      chatInput: message,
+      chatInput: "test message", // Temporarily hardcoded for debugging
       user_id: user.id,
       session_id: `session_${user.id}`,
       voice_enabled: true
     };
 
     console.log("✅ Sending to PAM webhook:", {
-      chatInput: message,
+      chatInput: "test message", // Temporarily hardcoded for debugging
       user_id: user?.id,
       session_id: `session_${user.id}`,
       voice_enabled: true
