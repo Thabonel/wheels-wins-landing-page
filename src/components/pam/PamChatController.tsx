@@ -48,29 +48,36 @@ const PamChatController = () => {
       return;
     }
 
+    // Validate and clean the message
+    const cleanMessage = message?.trim();
+    if (!cleanMessage) {
+      console.error("Message is empty or undefined");
+      return;
+    }
+
     const userMessage: ChatMessage = {
       sender: "user",
-      content: message,
+      content: cleanMessage,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMessage]);
 
     // Classify the intent for session tracking (but don't send to n8n)
-    const intentResult = IntentClassifier.classifyIntent(message);
+    const intentResult = IntentClassifier.classifyIntent(cleanMessage);
     
     // Update session data
     updateSession(intentResult.type);
 
     // Build payload exactly as n8n expects
     const payload: PamWebhookPayload = {
-      chatInput: "test message", // Temporarily hardcoded for debugging
+      chatInput: cleanMessage,
       user_id: user.id,
       session_id: `session_${user.id}`,
       voice_enabled: true
     };
 
     console.log("✅ Sending to PAM webhook:", {
-      chatInput: "test message", // Temporarily hardcoded for debugging
+      chatInput: cleanMessage,
       user_id: user?.id,
       session_id: `session_${user.id}`,
       voice_enabled: true
