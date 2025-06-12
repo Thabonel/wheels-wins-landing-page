@@ -5,6 +5,8 @@ import PamAssistant from "@/components/PamAssistant";
 import UserCalendar from "@/components/UserCalendar";
 import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
+import TrialStatusBanner from "@/components/subscription/TrialStatusBanner";
+import SubscriptionStatusWidget from "@/components/subscription/SubscriptionStatusWidget";
 
 const You = () => {
   const user = {
@@ -18,6 +20,9 @@ const You = () => {
     <>
       {/* Main content */}
       <main className="container px-4 sm:px-6 lg:px-8 py-6">
+        {/* Trial Status Banner */}
+        <TrialStatusBanner />
+
         {/* Adjusted for Pam sidebar */}
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Column - 75% on desktop */}
@@ -25,6 +30,11 @@ const You = () => {
             <UserCalendar />
             <DashboardCards />
             <WidgetArea />
+          </div>
+          
+          {/* Right Column - Subscription Status Widget */}
+          <div className="w-full lg:w-1/4">
+            <SubscriptionStatusWidget />
           </div>
         </div>
       </main>

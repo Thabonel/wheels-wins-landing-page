@@ -2200,6 +2200,41 @@ export type Database = {
         }
         Relationships: []
       }
+      trial_notifications: {
+        Row: {
+          email_sent: boolean | null
+          id: number
+          in_app_shown: boolean | null
+          notification_type: string
+          sent_at: string | null
+          user_id: number
+        }
+        Insert: {
+          email_sent?: boolean | null
+          id?: number
+          in_app_shown?: boolean | null
+          notification_type: string
+          sent_at?: string | null
+          user_id: number
+        }
+        Update: {
+          email_sent?: boolean | null
+          id?: number
+          in_app_shown?: boolean | null
+          notification_type?: string
+          sent_at?: string | null
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trial_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_achievements: {
         Row: {
           action_description: string | null
@@ -2388,6 +2423,56 @@ export type Database = {
           },
         ]
       }
+      user_subscriptions: {
+        Row: {
+          created_at: string | null
+          id: number
+          plan_type: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_ends_at: string | null
+          subscription_started_at: string | null
+          subscription_status: string | null
+          trial_ends_at: string
+          updated_at: string | null
+          user_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          plan_type?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_ends_at?: string | null
+          subscription_started_at?: string | null
+          subscription_status?: string | null
+          trial_ends_at: string
+          updated_at?: string | null
+          user_id: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          plan_type?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_ends_at?: string | null
+          subscription_started_at?: string | null
+          subscription_status?: string | null
+          trial_ends_at?: string
+          updated_at?: string | null
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_travel_preferences: {
         Row: {
           accessibility_needs: Json | null
@@ -2430,6 +2515,33 @@ export type Database = {
           travel_style?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: number
+          name: string | null
+          password_hash: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: number
+          name?: string | null
+          password_hash: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: number
+          name?: string | null
+          password_hash?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
