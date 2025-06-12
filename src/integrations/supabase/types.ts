@@ -42,6 +42,42 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_cache: {
+        Row: {
+          audio_base64: string
+          created_at: string | null
+          duration_seconds: number | null
+          expires_at: string | null
+          file_size: number | null
+          id: string
+          text_hash: string
+          user_id: string
+          voice_settings: Json | null
+        }
+        Insert: {
+          audio_base64: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          expires_at?: string | null
+          file_size?: number | null
+          id?: string
+          text_hash: string
+          user_id?: string
+          voice_settings?: Json | null
+        }
+        Update: {
+          audio_base64?: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          expires_at?: string | null
+          file_size?: number | null
+          id?: string
+          text_hash?: string
+          user_id?: string
+          voice_settings?: Json | null
+        }
+        Relationships: []
+      }
       budgets: {
         Row: {
           budgeted_amount: number
@@ -1316,22 +1352,64 @@ export type Database = {
           content: string
           context: Json | null
           created_at: string | null
+          error_details: Json | null
           id: string
+          intent: string | null
+          intent_confidence: string | null
+          message: string | null
+          original_message: string | null
+          request_metadata: Json | null
+          response: string | null
+          response_quality: string | null
+          response_source: string | null
+          session_id: string | null
+          timestamp: string | null
+          trace_id: string | null
           user_id: string
+          validation_passed: boolean | null
+          voice_enabled: boolean | null
         }
         Insert: {
           content: string
           context?: Json | null
           created_at?: string | null
+          error_details?: Json | null
           id?: string
+          intent?: string | null
+          intent_confidence?: string | null
+          message?: string | null
+          original_message?: string | null
+          request_metadata?: Json | null
+          response?: string | null
+          response_quality?: string | null
+          response_source?: string | null
+          session_id?: string | null
+          timestamp?: string | null
+          trace_id?: string | null
           user_id: string
+          validation_passed?: boolean | null
+          voice_enabled?: boolean | null
         }
         Update: {
           content?: string
           context?: Json | null
           created_at?: string | null
+          error_details?: Json | null
           id?: string
+          intent?: string | null
+          intent_confidence?: string | null
+          message?: string | null
+          original_message?: string | null
+          request_metadata?: Json | null
+          response?: string | null
+          response_quality?: string | null
+          response_source?: string | null
+          session_id?: string | null
+          timestamp?: string | null
+          trace_id?: string | null
           user_id?: string
+          validation_passed?: boolean | null
+          voice_enabled?: boolean | null
         }
         Relationships: []
       }
@@ -1532,6 +1610,8 @@ export type Database = {
       profiles: {
         Row: {
           accessibility: string | null
+          accessibility_needs: string[] | null
+          budget_range: string | null
           camp_types: string | null
           created_at: string | null
           current_latitude: number | null
@@ -1539,10 +1619,13 @@ export type Database = {
           destination_latitude: number | null
           destination_longitude: number | null
           email: string | null
+          emergency_contact: Json | null
           fuel_type: string | null
           full_name: string | null
           id: number
+          last_active: string | null
           max_driving: string | null
+          medical_info: Json | null
           nickname: string | null
           partner_email: string | null
           partner_name: string | null
@@ -1563,6 +1646,8 @@ export type Database = {
         }
         Insert: {
           accessibility?: string | null
+          accessibility_needs?: string[] | null
+          budget_range?: string | null
           camp_types?: string | null
           created_at?: string | null
           current_latitude?: number | null
@@ -1570,10 +1655,13 @@ export type Database = {
           destination_latitude?: number | null
           destination_longitude?: number | null
           email?: string | null
+          emergency_contact?: Json | null
           fuel_type?: string | null
           full_name?: string | null
           id?: never
+          last_active?: string | null
           max_driving?: string | null
+          medical_info?: Json | null
           nickname?: string | null
           partner_email?: string | null
           partner_name?: string | null
@@ -1594,6 +1682,8 @@ export type Database = {
         }
         Update: {
           accessibility?: string | null
+          accessibility_needs?: string[] | null
+          budget_range?: string | null
           camp_types?: string | null
           created_at?: string | null
           current_latitude?: number | null
@@ -1601,10 +1691,13 @@ export type Database = {
           destination_latitude?: number | null
           destination_longitude?: number | null
           email?: string | null
+          emergency_contact?: Json | null
           fuel_type?: string | null
           full_name?: string | null
           id?: never
+          last_active?: string | null
           max_driving?: string | null
+          medical_info?: Json | null
           nickname?: string | null
           partner_email?: string | null
           partner_name?: string | null
@@ -2152,7 +2245,7 @@ export type Database = {
           status: string | null
           travel_radius_miles: number | null
           updated_at: string | null
-          user_id: number | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -2165,7 +2258,7 @@ export type Database = {
           status?: string | null
           travel_radius_miles?: number | null
           updated_at?: string | null
-          user_id?: number | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -2178,17 +2271,9 @@ export type Database = {
           status?: string | null
           travel_radius_miles?: number | null
           updated_at?: string | null
-          user_id?: number | null
+          user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_locations_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_notifications: {
         Row: {
@@ -2440,6 +2525,10 @@ export type Database = {
           | Record<PropertyKey, never>
           | { user_id: string; window_start: string; limit_count: number }
         Returns: Json
+      }
+      cleanup_expired_audio_cache: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       get_nearby_recommendations: {
         Args: {

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -17,7 +16,7 @@ import { ChatMessage } from "./types";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 
-const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/3049f504-af24-4ac8-8edd-f32fa48273ca";
+const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/pam-chat";
 
 // Define excluded routes where Pam chat should not be shown (unless mobile)
 const EXCLUDED_ROUTES = ["/", "/profile"];

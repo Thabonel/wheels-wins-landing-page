@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { v4 as uuid } from "uuid";
 import { useAuth } from "@/context/AuthContext";
@@ -7,7 +6,7 @@ import { IntentClassifier } from "@/utils/intentClassifier";
 import { usePamSession } from "@/hooks/usePamSession";
 import { PamWebhookPayload } from "@/types/pamTypes";
 
-const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/3049f504-af24-4ac8-8edd-f32fa48273ca";
+const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/pam-chat";
 
 export function usePam() {
   const { user } = useAuth();
