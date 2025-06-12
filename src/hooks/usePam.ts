@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { v4 as uuid } from "uuid";
 import { useAuth } from "@/context/AuthContext";
@@ -51,12 +52,11 @@ export function usePam() {
     // Update session data
     updateSession(intentResult.type);
 
-    // Build payload exactly as n8n expects
+    // Build payload for new pam-chat endpoint
     const payload: PamWebhookPayload = {
       chatInput: userMessage,
       user_id: user.id,
-      session_id: `session_${user.id}`,
-      voice_enabled: true
+      voice_enabled: false
     };
 
     console.log("✅ Sending PAM payload:", payload);
@@ -79,17 +79,19 @@ export function usePam() {
       }
 
       const data = await res.json();
-      console.log("📦 Response data:", data);
+      console.log("📦 Full response data:", data);
       
+      // Check if the response indicates success
       if (!data.success) {
+        console.error("❌ PAM response indicates failure:", data);
         throw new Error("PAM response indicates failure");
       }
 
-      // Extract the message from the correct field (n8n returns 'message', not 'content')
+      // Extract the message from the correct field
       assistantContent = data.message || "I'm sorry, I didn't understand that.";
       assistantRender = data.render || null;
       
-      console.log("💬 AI Reply:", assistantContent);
+      console.log("💬 AI Reply extracted:", assistantContent);
 
     } catch (err: any) {
       console.error("❌ PAM API Error:", err);

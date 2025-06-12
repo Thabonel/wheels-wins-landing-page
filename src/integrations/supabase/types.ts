@@ -1352,17 +1352,22 @@ export type Database = {
           content: string
           context: Json | null
           created_at: string | null
+          error: Json | null
           error_details: Json | null
+          error_summary: Json | null
           id: string
           intent: string | null
           intent_confidence: string | null
+          is_fallback: boolean | null
           message: string | null
+          metadata: Json | null
           original_message: string | null
           request_metadata: Json | null
           response: string | null
           response_quality: string | null
           response_source: string | null
           session_id: string | null
+          subflow_response: string | null
           timestamp: string | null
           trace_id: string | null
           user_id: string
@@ -1373,17 +1378,22 @@ export type Database = {
           content: string
           context?: Json | null
           created_at?: string | null
+          error?: Json | null
           error_details?: Json | null
+          error_summary?: Json | null
           id?: string
           intent?: string | null
           intent_confidence?: string | null
+          is_fallback?: boolean | null
           message?: string | null
+          metadata?: Json | null
           original_message?: string | null
           request_metadata?: Json | null
           response?: string | null
           response_quality?: string | null
           response_source?: string | null
           session_id?: string | null
+          subflow_response?: string | null
           timestamp?: string | null
           trace_id?: string | null
           user_id: string
@@ -1394,17 +1404,22 @@ export type Database = {
           content?: string
           context?: Json | null
           created_at?: string | null
+          error?: Json | null
           error_details?: Json | null
+          error_summary?: Json | null
           id?: string
           intent?: string | null
           intent_confidence?: string | null
+          is_fallback?: boolean | null
           message?: string | null
+          metadata?: Json | null
           original_message?: string | null
           request_metadata?: Json | null
           response?: string | null
           response_quality?: string | null
           response_source?: string | null
           session_id?: string | null
+          subflow_response?: string | null
           timestamp?: string | null
           trace_id?: string | null
           user_id?: string

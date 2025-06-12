@@ -7,7 +7,6 @@ export interface PamIntent {
 export interface PamWebhookPayload {
   chatInput: string;
   user_id: string;
-  session_id: string;
   voice_enabled: boolean;
 }
 

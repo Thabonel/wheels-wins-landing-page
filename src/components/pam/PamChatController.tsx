@@ -68,7 +68,7 @@ const PamChatController = () => {
     // Update session data
     updateSession(intentResult.type);
 
-    // Build payload exactly as n8n expects
+    // Build payload for new pam-chat endpoint
     const payload: PamWebhookPayload = {
       chatInput: cleanMessage,
       user_id: user.id,
@@ -92,15 +92,17 @@ const PamChatController = () => {
       }
 
       const data = await response.json();
-      console.log("📦 Response data:", data);
+      console.log("📦 Full response data:", data);
       
+      // Check if the response indicates success
       if (!data.success) {
+        console.error("❌ PAM response indicates failure:", data);
         throw new Error("PAM response indicates failure");
       }
 
-      // Extract the message from the correct field (n8n returns 'message', not 'content')
+      // Extract the message from the correct field
       const reply = data.message || "I'm sorry, I didn't understand that.";
-      console.log("💬 AI Reply:", reply);
+      console.log("💬 AI Reply extracted:", reply);
 
       // Cache the tip when online
       addTip(reply);
