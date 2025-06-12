@@ -75,7 +75,7 @@ const PamChatController = () => {
       voice_enabled: true
     };
 
-    console.log("🚀 SENDING TO PAM API");
+    console.log("🚀 DETAILED DEBUG - SENDING TO PAM API");
     console.log("📍 URL:", WEBHOOK_URL);
     console.log("📦 PAYLOAD:", JSON.stringify(payload, null, 2));
 
@@ -86,8 +86,8 @@ const PamChatController = () => {
         body: JSON.stringify(payload),
       });
 
-      console.log("📡 RAW RESPONSE STATUS:", response.status);
-      console.log("📡 RAW RESPONSE HEADERS:", Object.fromEntries(response.headers.entries()));
+      console.log("📡 DETAILED DEBUG - RAW RESPONSE STATUS:", response.status);
+      console.log("📡 DETAILED DEBUG - RAW RESPONSE HEADERS:", Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -95,31 +95,56 @@ const PamChatController = () => {
 
       // Get response as text first for debugging
       const responseText = await response.text();
-      console.log("📄 RAW RESPONSE TEXT:", responseText);
+      console.log("📄 DETAILED DEBUG - RAW RESPONSE TEXT LENGTH:", responseText.length);
+      console.log("📄 DETAILED DEBUG - RAW RESPONSE TEXT:", responseText);
       
       // Parse the JSON
-      const rawData = JSON.parse(responseText);
-      console.log("🔍 PARSED JSON TYPE:", typeof rawData);
-      console.log("🔍 IS ARRAY:", Array.isArray(rawData));
-      console.log("🔍 RAW DATA:", JSON.stringify(rawData, null, 2));
+      let rawData;
+      try {
+        rawData = JSON.parse(responseText);
+        console.log("🔍 DETAILED DEBUG - JSON PARSE SUCCESS");
+      } catch (parseError) {
+        console.error("❌ DETAILED DEBUG - JSON PARSE FAILED:", parseError);
+        throw new Error("Failed to parse JSON response");
+      }
+      
+      console.log("🔍 DETAILED DEBUG - PARSED JSON TYPE:", typeof rawData);
+      console.log("🔍 DETAILED DEBUG - IS ARRAY:", Array.isArray(rawData));
+      console.log("🔍 DETAILED DEBUG - ARRAY LENGTH:", Array.isArray(rawData) ? rawData.length : 'N/A');
+      console.log("🔍 DETAILED DEBUG - RAW DATA STRUCTURE:", JSON.stringify(rawData, null, 2));
       
       // Handle both array and object responses
-      const data = Array.isArray(rawData) ? rawData[0] : rawData;
-      console.log("🎯 EXTRACTED DATA:", JSON.stringify(data, null, 2));
+      let data;
+      if (Array.isArray(rawData)) {
+        console.log("🎯 DETAILED DEBUG - EXTRACTING FROM ARRAY, INDEX 0");
+        data = rawData[0];
+      } else {
+        console.log("🎯 DETAILED DEBUG - USING DIRECT OBJECT");
+        data = rawData;
+      }
+      
+      console.log("🎯 DETAILED DEBUG - EXTRACTED DATA:", JSON.stringify(data, null, 2));
+      console.log("🎯 DETAILED DEBUG - DATA TYPE:", typeof data);
+      console.log("🎯 DETAILED DEBUG - DATA KEYS:", Object.keys(data || {}));
       
       // Check if the response indicates success
-      if (!data || !data.success) {
-        console.error("❌ PAM response indicates failure or missing success field:", data);
+      console.log("✅ DETAILED DEBUG - SUCCESS FIELD:", data?.success);
+      console.log("✅ DETAILED DEBUG - SUCCESS TYPE:", typeof data?.success);
+      
+      if (!data || data.success !== true) {
+        console.error("❌ DETAILED DEBUG - PAM response indicates failure or missing success field:", data);
         throw new Error("PAM response indicates failure or is malformed");
       }
 
       // Extract the message from the correct field
       const reply = data.message;
-      console.log("💬 MESSAGE FIELD EXISTS:", typeof reply);
-      console.log("💬 MESSAGE CONTENT:", reply);
+      console.log("💬 DETAILED DEBUG - MESSAGE FIELD RAW:", reply);
+      console.log("💬 DETAILED DEBUG - MESSAGE TYPE:", typeof reply);
+      console.log("💬 DETAILED DEBUG - MESSAGE LENGTH:", reply?.length);
+      console.log("💬 DETAILED DEBUG - MESSAGE PREVIEW:", reply?.substring(0, 100));
 
       if (!reply || typeof reply !== 'string') {
-        console.error("❌ Message field is missing or not a string:", reply);
+        console.error("❌ DETAILED DEBUG - Message field is missing or not a string:", reply);
         throw new Error("Message field is missing or invalid");
       }
 
@@ -132,13 +157,15 @@ const PamChatController = () => {
         timestamp: new Date(),
       };
       
-      console.log("✅ SUCCESSFULLY EXTRACTED MESSAGE:", reply);
+      console.log("✅ DETAILED DEBUG - SUCCESSFULLY EXTRACTED MESSAGE LENGTH:", reply.length);
+      console.log("✅ DETAILED DEBUG - FINAL MESSAGE TO DISPLAY:", reply);
       setMessages((prev) => [...prev, pamMessage]);
       
     } catch (error) {
-      console.error("❌ PAM API ERROR:", error);
-      console.error("❌ ERROR TYPE:", typeof error);
-      console.error("❌ ERROR MESSAGE:", error instanceof Error ? error.message : 'Unknown error');
+      console.error("❌ DETAILED DEBUG - PAM API ERROR:", error);
+      console.error("❌ DETAILED DEBUG - ERROR TYPE:", typeof error);
+      console.error("❌ DETAILED DEBUG - ERROR MESSAGE:", error instanceof Error ? error.message : 'Unknown error');
+      console.error("❌ DETAILED DEBUG - ERROR STACK:", error instanceof Error ? error.stack : 'No stack');
       
       const errorMessage: ChatMessage = {
         sender: "pam",
