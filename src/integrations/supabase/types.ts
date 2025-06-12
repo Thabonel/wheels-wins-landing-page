@@ -226,40 +226,85 @@ export type Database = {
       }
       community_intelligence: {
         Row: {
+          category: string | null
           created_at: string | null
           data_source: string
           data_type: string
+          description: string | null
+          expires_at: string | null
           facebook_events: Json | null
           free_camping_updates: Json | null
           id: string
+          latitude: number | null
+          location: string | null
+          longitude: number | null
+          priority_level: string | null
+          recommendation_id: string | null
           reddit_discussions: Json | null
           relevance_score: number | null
           rv_forum_tips: Json | null
+          savings_amount: number | null
           scraped_at: string | null
+          source_data_id: string | null
+          time_sensitive: boolean | null
+          title: string | null
+          user_acted: boolean | null
+          user_id: string | null
+          user_viewed: boolean | null
         }
         Insert: {
+          category?: string | null
           created_at?: string | null
           data_source: string
           data_type: string
+          description?: string | null
+          expires_at?: string | null
           facebook_events?: Json | null
           free_camping_updates?: Json | null
           id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority_level?: string | null
+          recommendation_id?: string | null
           reddit_discussions?: Json | null
           relevance_score?: number | null
           rv_forum_tips?: Json | null
+          savings_amount?: number | null
           scraped_at?: string | null
+          source_data_id?: string | null
+          time_sensitive?: boolean | null
+          title?: string | null
+          user_acted?: boolean | null
+          user_id?: string | null
+          user_viewed?: boolean | null
         }
         Update: {
+          category?: string | null
           created_at?: string | null
           data_source?: string
           data_type?: string
+          description?: string | null
+          expires_at?: string | null
           facebook_events?: Json | null
           free_camping_updates?: Json | null
           id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority_level?: string | null
+          recommendation_id?: string | null
           reddit_discussions?: Json | null
           relevance_score?: number | null
           rv_forum_tips?: Json | null
+          savings_amount?: number | null
           scraped_at?: string | null
+          source_data_id?: string | null
+          time_sensitive?: boolean | null
+          title?: string | null
+          user_acted?: boolean | null
+          user_id?: string | null
+          user_viewed?: boolean | null
         }
         Relationships: []
       }
@@ -1269,18 +1314,21 @@ export type Database = {
       pam_memory: {
         Row: {
           content: string
+          context: Json | null
           created_at: string | null
           id: string
           user_id: string
         }
         Insert: {
           content: string
+          context?: Json | null
           created_at?: string | null
           id?: string
           user_id: string
         }
         Update: {
           content?: string
+          context?: Json | null
           created_at?: string | null
           id?: string
           user_id?: string
@@ -1486,6 +1534,10 @@ export type Database = {
           accessibility: string | null
           camp_types: string | null
           created_at: string | null
+          current_latitude: number | null
+          current_longitude: number | null
+          destination_latitude: number | null
+          destination_longitude: number | null
           email: string | null
           fuel_type: string | null
           full_name: string | null
@@ -1496,12 +1548,14 @@ export type Database = {
           partner_name: string | null
           partner_profile_image_url: string | null
           pets: string | null
+          preferences: Json | null
           profile_image_url: string | null
           region: string | null
           role: string | null
           second_vehicle: string | null
           status: string | null
           towing: string | null
+          travel_radius_miles: number | null
           travel_style: string | null
           user_id: string
           vehicle_make_model: string | null
@@ -1511,6 +1565,10 @@ export type Database = {
           accessibility?: string | null
           camp_types?: string | null
           created_at?: string | null
+          current_latitude?: number | null
+          current_longitude?: number | null
+          destination_latitude?: number | null
+          destination_longitude?: number | null
           email?: string | null
           fuel_type?: string | null
           full_name?: string | null
@@ -1521,12 +1579,14 @@ export type Database = {
           partner_name?: string | null
           partner_profile_image_url?: string | null
           pets?: string | null
+          preferences?: Json | null
           profile_image_url?: string | null
           region?: string | null
           role?: string | null
           second_vehicle?: string | null
           status?: string | null
           towing?: string | null
+          travel_radius_miles?: number | null
           travel_style?: string | null
           user_id: string
           vehicle_make_model?: string | null
@@ -1536,6 +1596,10 @@ export type Database = {
           accessibility?: string | null
           camp_types?: string | null
           created_at?: string | null
+          current_latitude?: number | null
+          current_longitude?: number | null
+          destination_latitude?: number | null
+          destination_longitude?: number | null
           email?: string | null
           fuel_type?: string | null
           full_name?: string | null
@@ -1546,12 +1610,14 @@ export type Database = {
           partner_name?: string | null
           partner_profile_image_url?: string | null
           pets?: string | null
+          preferences?: Json | null
           profile_image_url?: string | null
           region?: string | null
           role?: string | null
           second_vehicle?: string | null
           status?: string | null
           towing?: string | null
+          travel_radius_miles?: number | null
           travel_style?: string | null
           user_id?: string
           vehicle_make_model?: string | null
@@ -2073,6 +2139,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_locations: {
+        Row: {
+          created_at: string | null
+          current_latitude: number
+          current_longitude: number
+          destination_latitude: number | null
+          destination_longitude: number | null
+          id: number
+          preferences: Json | null
+          status: string | null
+          travel_radius_miles: number | null
+          updated_at: string | null
+          user_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_latitude: number
+          current_longitude: number
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          id?: number
+          preferences?: Json | null
+          status?: string | null
+          travel_radius_miles?: number | null
+          updated_at?: string | null
+          user_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          current_latitude?: number
+          current_longitude?: number
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          id?: number
+          preferences?: Json | null
+          status?: string | null
+          travel_radius_miles?: number | null
+          updated_at?: string | null
+          user_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_locations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_notifications: {
         Row: {

@@ -2,7 +2,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase';
-import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -24,7 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   signup: async () => {},
   logout: async () => {},
   isDevMode: false,
-  supabase: {} as typeof supabase, // Add a placeholder for the supabase client
+  supabase: {} as typeof supabase,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -44,11 +43,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         console.log('Auth state change:', event, 'Session:', !!newSession);
+        
+        // Update state immediately
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setIsLoading(false);
         
-        // Handle post-signup redirect to onboarding
+        // Handle navigation after state updates
         if (event === 'SIGNED_IN' && newSession?.user) {
           // Check if this is a new user (first sign in)
           const isNewUser = newSession.user.created_at === newSession.user.last_sign_in_at;
@@ -63,8 +64,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }, 100);
         }
         
-        // Handle post-logout redirect to homepage
+        // Handle logout navigation - ensure complete session clearing
         if (event === 'SIGNED_OUT') {
+          console.log('User signed out, clearing session and redirecting');
+          // Clear any remaining session data
+          setSession(null);
+          setUser(null);
+          
+          // Clear localStorage to ensure complete logout
+          localStorage.removeItem('supabase.auth.token');
+          
+          // Redirect to homepage after logout
           setTimeout(() => {
             window.location.href = '/';
           }, 100);
@@ -102,21 +112,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (error) throw error;
   };
   
-  // Logout function
+  // Enhanced logout function with complete session clearing
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      console.log('Initiating logout process...');
+      
+      // Clear local state immediately
+      setUser(null);
+      setSession(null);
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error:', error);
+        throw error;
+      }
+      
+      console.log('Logout successful');
+      
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Even if logout fails, clear local state
+      setUser(null);
+      setSession(null);
+      throw error;
+    }
   };
   
   return (
     <AuthContext.Provider value={{
       user,
       session,
-      isAuthenticated: !!user,
+      isAuthenticated: !!user && !!session,
       login,
       signup,
       logout,      
-      supabase, // Include the supabase instance
+      supabase,
       isDevMode
     }}>
       {!isLoading && children}
