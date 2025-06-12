@@ -72,7 +72,6 @@ const PamChatController = () => {
     const payload: PamWebhookPayload = {
       chatInput: cleanMessage,
       user_id: user.id,
-      session_id: `session_${user.id}`,
       voice_enabled: true
     };
 
