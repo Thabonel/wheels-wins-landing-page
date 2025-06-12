@@ -78,8 +78,12 @@ export function usePam() {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
-      const data = await res.json();
-      console.log("📦 Full response data:", data);
+      const rawData = await res.json();
+      console.log("📦 Raw response data:", rawData);
+      
+      // Handle both array and object responses
+      const data = Array.isArray(rawData) ? rawData[0] : rawData;
+      console.log("📦 Processed response data:", data);
       
       // Check if the response indicates success
       if (!data.success) {

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -90,8 +91,12 @@ const PamChatController = () => {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      console.log("📦 Full response data:", data);
+      const rawData = await response.json();
+      console.log("📦 Raw response data:", rawData);
+      
+      // Handle both array and object responses
+      const data = Array.isArray(rawData) ? rawData[0] : rawData;
+      console.log("📦 Processed response data:", data);
       
       // Check if the response indicates success
       if (!data.success) {
