@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -76,7 +75,9 @@ const PamChatController = () => {
       voice_enabled: true
     };
 
-    console.log("✅ Sending to PAM webhook:", payload);
+    console.log("🚀 SENDING TO PAM API");
+    console.log("📍 URL:", WEBHOOK_URL);
+    console.log("📦 PAYLOAD:", JSON.stringify(payload, null, 2));
 
     try {
       const response = await fetch(WEBHOOK_URL, {
@@ -85,28 +86,42 @@ const PamChatController = () => {
         body: JSON.stringify(payload),
       });
 
-      console.log("📡 Response status:", response.status);
+      console.log("📡 RAW RESPONSE STATUS:", response.status);
+      console.log("📡 RAW RESPONSE HEADERS:", Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const rawData = await response.json();
-      console.log("📦 Raw response data:", rawData);
+      // Get response as text first for debugging
+      const responseText = await response.text();
+      console.log("📄 RAW RESPONSE TEXT:", responseText);
+      
+      // Parse the JSON
+      const rawData = JSON.parse(responseText);
+      console.log("🔍 PARSED JSON TYPE:", typeof rawData);
+      console.log("🔍 IS ARRAY:", Array.isArray(rawData));
+      console.log("🔍 RAW DATA:", JSON.stringify(rawData, null, 2));
       
       // Handle both array and object responses
       const data = Array.isArray(rawData) ? rawData[0] : rawData;
-      console.log("📦 Processed response data:", data);
+      console.log("🎯 EXTRACTED DATA:", JSON.stringify(data, null, 2));
       
       // Check if the response indicates success
-      if (!data.success) {
-        console.error("❌ PAM response indicates failure:", data);
-        throw new Error("PAM response indicates failure");
+      if (!data || !data.success) {
+        console.error("❌ PAM response indicates failure or missing success field:", data);
+        throw new Error("PAM response indicates failure or is malformed");
       }
 
       // Extract the message from the correct field
-      const reply = data.message || "I'm sorry, I didn't understand that.";
-      console.log("💬 AI Reply extracted:", reply);
+      const reply = data.message;
+      console.log("💬 MESSAGE FIELD EXISTS:", typeof reply);
+      console.log("💬 MESSAGE CONTENT:", reply);
+
+      if (!reply || typeof reply !== 'string') {
+        console.error("❌ Message field is missing or not a string:", reply);
+        throw new Error("Message field is missing or invalid");
+      }
 
       // Cache the tip when online
       addTip(reply);
@@ -116,9 +131,15 @@ const PamChatController = () => {
         content: reply,
         timestamp: new Date(),
       };
+      
+      console.log("✅ SUCCESSFULLY EXTRACTED MESSAGE:", reply);
       setMessages((prev) => [...prev, pamMessage]);
+      
     } catch (error) {
-      console.error("❌ PAM API Error:", error);
+      console.error("❌ PAM API ERROR:", error);
+      console.error("❌ ERROR TYPE:", typeof error);
+      console.error("❌ ERROR MESSAGE:", error instanceof Error ? error.message : 'Unknown error');
+      
       const errorMessage: ChatMessage = {
         sender: "pam",
         content: "I'm having trouble connecting right now. Please try again in a moment.",
