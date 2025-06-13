@@ -55,6 +55,9 @@ export function useSubscription() {
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           setDaysRemaining(Math.max(0, diffDays));
         }
+      } else {
+        // If no subscription found, create a trial subscription
+        await createTrialSubscription();
       }
     } catch (error) {
       console.error('Error fetching subscription:', error);
