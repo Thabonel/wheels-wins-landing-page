@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 const PaymentCanceled = () => {
   return (
-    <div className="container px-4 py-16 text-center"> {/* Adjusted for Pam sidebar */}
+    <div className="container px-4 py-16 text-center">
       <div className="mb-6 flex justify-center">
         <div className="rounded-full bg-red-100 p-3">
           <XCircle className="h-12 w-12 text-red-500" />
@@ -18,10 +18,10 @@ const PaymentCanceled = () => {
       </p>
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
         <Button asChild>
-          <Link to="/">Back to Home</Link>
+          <Link to="/">Try Again</Link>
         </Button>
         <Button variant="outline" asChild>
-          <Link to="/profile">Go to Profile</Link>
+          <Link to="/you">Go to Dashboard</Link>
         </Button>
       </div>
     </div>

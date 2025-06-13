@@ -42,6 +42,42 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_cache: {
+        Row: {
+          audio_base64: string
+          created_at: string | null
+          duration_seconds: number | null
+          expires_at: string | null
+          file_size: number | null
+          id: string
+          text_hash: string
+          user_id: string
+          voice_settings: Json | null
+        }
+        Insert: {
+          audio_base64: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          expires_at?: string | null
+          file_size?: number | null
+          id?: string
+          text_hash: string
+          user_id?: string
+          voice_settings?: Json | null
+        }
+        Update: {
+          audio_base64?: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          expires_at?: string | null
+          file_size?: number | null
+          id?: string
+          text_hash?: string
+          user_id?: string
+          voice_settings?: Json | null
+        }
+        Relationships: []
+      }
       budgets: {
         Row: {
           budgeted_amount: number
@@ -226,40 +262,85 @@ export type Database = {
       }
       community_intelligence: {
         Row: {
+          category: string | null
           created_at: string | null
           data_source: string
           data_type: string
+          description: string | null
+          expires_at: string | null
           facebook_events: Json | null
           free_camping_updates: Json | null
           id: string
+          latitude: number | null
+          location: string | null
+          longitude: number | null
+          priority_level: string | null
+          recommendation_id: string | null
           reddit_discussions: Json | null
           relevance_score: number | null
           rv_forum_tips: Json | null
+          savings_amount: number | null
           scraped_at: string | null
+          source_data_id: string | null
+          time_sensitive: boolean | null
+          title: string | null
+          user_acted: boolean | null
+          user_id: string | null
+          user_viewed: boolean | null
         }
         Insert: {
+          category?: string | null
           created_at?: string | null
           data_source: string
           data_type: string
+          description?: string | null
+          expires_at?: string | null
           facebook_events?: Json | null
           free_camping_updates?: Json | null
           id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority_level?: string | null
+          recommendation_id?: string | null
           reddit_discussions?: Json | null
           relevance_score?: number | null
           rv_forum_tips?: Json | null
+          savings_amount?: number | null
           scraped_at?: string | null
+          source_data_id?: string | null
+          time_sensitive?: boolean | null
+          title?: string | null
+          user_acted?: boolean | null
+          user_id?: string | null
+          user_viewed?: boolean | null
         }
         Update: {
+          category?: string | null
           created_at?: string | null
           data_source?: string
           data_type?: string
+          description?: string | null
+          expires_at?: string | null
           facebook_events?: Json | null
           free_camping_updates?: Json | null
           id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority_level?: string | null
+          recommendation_id?: string | null
           reddit_discussions?: Json | null
           relevance_score?: number | null
           rv_forum_tips?: Json | null
+          savings_amount?: number | null
           scraped_at?: string | null
+          source_data_id?: string | null
+          time_sensitive?: boolean | null
+          title?: string | null
+          user_acted?: boolean | null
+          user_id?: string | null
+          user_viewed?: boolean | null
         }
         Relationships: []
       }
@@ -1269,21 +1350,81 @@ export type Database = {
       pam_memory: {
         Row: {
           content: string
+          context: Json | null
           created_at: string | null
+          error: Json | null
+          error_details: Json | null
+          error_summary: Json | null
           id: string
+          intent: string | null
+          intent_confidence: string | null
+          is_fallback: boolean | null
+          message: string | null
+          metadata: Json | null
+          original_message: string | null
+          request_metadata: Json | null
+          response: string | null
+          response_quality: string | null
+          response_source: string | null
+          session_id: string | null
+          subflow_response: string | null
+          timestamp: string | null
+          trace_id: string | null
           user_id: string
+          validation_passed: boolean | null
+          voice_enabled: boolean | null
         }
         Insert: {
           content: string
+          context?: Json | null
           created_at?: string | null
+          error?: Json | null
+          error_details?: Json | null
+          error_summary?: Json | null
           id?: string
+          intent?: string | null
+          intent_confidence?: string | null
+          is_fallback?: boolean | null
+          message?: string | null
+          metadata?: Json | null
+          original_message?: string | null
+          request_metadata?: Json | null
+          response?: string | null
+          response_quality?: string | null
+          response_source?: string | null
+          session_id?: string | null
+          subflow_response?: string | null
+          timestamp?: string | null
+          trace_id?: string | null
           user_id: string
+          validation_passed?: boolean | null
+          voice_enabled?: boolean | null
         }
         Update: {
           content?: string
+          context?: Json | null
           created_at?: string | null
+          error?: Json | null
+          error_details?: Json | null
+          error_summary?: Json | null
           id?: string
+          intent?: string | null
+          intent_confidence?: string | null
+          is_fallback?: boolean | null
+          message?: string | null
+          metadata?: Json | null
+          original_message?: string | null
+          request_metadata?: Json | null
+          response?: string | null
+          response_quality?: string | null
+          response_source?: string | null
+          session_id?: string | null
+          subflow_response?: string | null
+          timestamp?: string | null
+          trace_id?: string | null
           user_id?: string
+          validation_passed?: boolean | null
+          voice_enabled?: boolean | null
         }
         Relationships: []
       }
@@ -1484,24 +1625,35 @@ export type Database = {
       profiles: {
         Row: {
           accessibility: string | null
+          accessibility_needs: string[] | null
+          budget_range: string | null
           camp_types: string | null
           created_at: string | null
+          current_latitude: number | null
+          current_longitude: number | null
+          destination_latitude: number | null
+          destination_longitude: number | null
           email: string | null
+          emergency_contact: Json | null
           fuel_type: string | null
           full_name: string | null
           id: number
+          last_active: string | null
           max_driving: string | null
+          medical_info: Json | null
           nickname: string | null
           partner_email: string | null
           partner_name: string | null
           partner_profile_image_url: string | null
           pets: string | null
+          preferences: Json | null
           profile_image_url: string | null
           region: string | null
           role: string | null
           second_vehicle: string | null
           status: string | null
           towing: string | null
+          travel_radius_miles: number | null
           travel_style: string | null
           user_id: string
           vehicle_make_model: string | null
@@ -1509,24 +1661,35 @@ export type Database = {
         }
         Insert: {
           accessibility?: string | null
+          accessibility_needs?: string[] | null
+          budget_range?: string | null
           camp_types?: string | null
           created_at?: string | null
+          current_latitude?: number | null
+          current_longitude?: number | null
+          destination_latitude?: number | null
+          destination_longitude?: number | null
           email?: string | null
+          emergency_contact?: Json | null
           fuel_type?: string | null
           full_name?: string | null
           id?: never
+          last_active?: string | null
           max_driving?: string | null
+          medical_info?: Json | null
           nickname?: string | null
           partner_email?: string | null
           partner_name?: string | null
           partner_profile_image_url?: string | null
           pets?: string | null
+          preferences?: Json | null
           profile_image_url?: string | null
           region?: string | null
           role?: string | null
           second_vehicle?: string | null
           status?: string | null
           towing?: string | null
+          travel_radius_miles?: number | null
           travel_style?: string | null
           user_id: string
           vehicle_make_model?: string | null
@@ -1534,24 +1697,35 @@ export type Database = {
         }
         Update: {
           accessibility?: string | null
+          accessibility_needs?: string[] | null
+          budget_range?: string | null
           camp_types?: string | null
           created_at?: string | null
+          current_latitude?: number | null
+          current_longitude?: number | null
+          destination_latitude?: number | null
+          destination_longitude?: number | null
           email?: string | null
+          emergency_contact?: Json | null
           fuel_type?: string | null
           full_name?: string | null
           id?: never
+          last_active?: string | null
           max_driving?: string | null
+          medical_info?: Json | null
           nickname?: string | null
           partner_email?: string | null
           partner_name?: string | null
           partner_profile_image_url?: string | null
           pets?: string | null
+          preferences?: Json | null
           profile_image_url?: string | null
           region?: string | null
           role?: string | null
           second_vehicle?: string | null
           status?: string | null
           towing?: string | null
+          travel_radius_miles?: number | null
           travel_style?: string | null
           user_id?: string
           vehicle_make_model?: string | null
@@ -2026,6 +2200,41 @@ export type Database = {
         }
         Relationships: []
       }
+      trial_notifications: {
+        Row: {
+          email_sent: boolean | null
+          id: number
+          in_app_shown: boolean | null
+          notification_type: string
+          sent_at: string | null
+          user_id: number
+        }
+        Insert: {
+          email_sent?: boolean | null
+          id?: number
+          in_app_shown?: boolean | null
+          notification_type: string
+          sent_at?: string | null
+          user_id: number
+        }
+        Update: {
+          email_sent?: boolean | null
+          id?: number
+          in_app_shown?: boolean | null
+          notification_type?: string
+          sent_at?: string | null
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trial_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_achievements: {
         Row: {
           action_description: string | null
@@ -2071,6 +2280,48 @@ export type Database = {
           id?: string
           timestamp?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_locations: {
+        Row: {
+          created_at: string | null
+          current_latitude: number
+          current_longitude: number
+          destination_latitude: number | null
+          destination_longitude: number | null
+          id: number
+          preferences: Json | null
+          status: string | null
+          travel_radius_miles: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_latitude: number
+          current_longitude: number
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          id?: number
+          preferences?: Json | null
+          status?: string | null
+          travel_radius_miles?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_latitude?: number
+          current_longitude?: number
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          id?: number
+          preferences?: Json | null
+          status?: string | null
+          travel_radius_miles?: number | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2172,6 +2423,56 @@ export type Database = {
           },
         ]
       }
+      user_subscriptions: {
+        Row: {
+          created_at: string | null
+          id: number
+          plan_type: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_ends_at: string | null
+          subscription_started_at: string | null
+          subscription_status: string | null
+          trial_ends_at: string
+          updated_at: string | null
+          user_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          plan_type?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_ends_at?: string | null
+          subscription_started_at?: string | null
+          subscription_status?: string | null
+          trial_ends_at: string
+          updated_at?: string | null
+          user_id: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          plan_type?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_ends_at?: string | null
+          subscription_started_at?: string | null
+          subscription_status?: string | null
+          trial_ends_at?: string
+          updated_at?: string | null
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_travel_preferences: {
         Row: {
           accessibility_needs: Json | null
@@ -2214,6 +2515,33 @@ export type Database = {
           travel_style?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: number
+          name: string | null
+          password_hash: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: number
+          name?: string | null
+          password_hash: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: number
+          name?: string | null
+          password_hash?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -2324,6 +2652,10 @@ export type Database = {
           | Record<PropertyKey, never>
           | { user_id: string; window_start: string; limit_count: number }
         Returns: Json
+      }
+      cleanup_expired_audio_cache: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       get_nearby_recommendations: {
         Args: {

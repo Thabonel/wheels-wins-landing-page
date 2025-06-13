@@ -46,25 +46,22 @@ export function usePam() {
     };
     setMessages(prev => [...prev, userMsg]);
 
-    // Classify the intent
+    // Classify the intent for session tracking (but don't send to n8n)
     const intentResult = IntentClassifier.classifyIntent(userMessage);
     
     // Update session data
     updateSession(intentResult.type);
 
-    // Build enhanced payload with the correct field name expected by n8n
-    const payload = {
+    // Build payload for new pam-chat endpoint
+    const payload: PamWebhookPayload = {
+      chatInput: userMessage,
       user_id: user.id,
-      chatInput: userMessage, // Changed from 'message' to 'chatInput'
-      intent: intentResult.type,
-      is_first_time: sessionData.isFirstTime,
-      session_context: {
-        message_count: sessionData.messageCount + 1,
-        previous_intents: sessionData.previousIntents
-      }
+      voice_enabled: false
     };
 
-    console.log("Sending PAM payload:", payload);
+    console.log("🚀 USEPAM DETAILED DEBUG - SENDING TO PAM API");
+    console.log("📍 URL:", WEBHOOK_URL);
+    console.log("📦 PAYLOAD:", JSON.stringify(payload, null, 2));
 
     // Call n8n production webhook
     let assistantContent = "I'm sorry, I didn't understand that.";
@@ -77,21 +74,78 @@ export function usePam() {
         body: JSON.stringify(payload),
       });
 
+      console.log("📡 USEPAM DETAILED DEBUG - RAW RESPONSE STATUS:", res.status);
+      console.log("📡 USEPAM DETAILED DEBUG - RAW RESPONSE HEADERS:", Object.fromEntries(res.headers.entries()));
+
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
-      const data = await res.json();
+      // Get response as text first for debugging
+      const responseText = await res.text();
+      console.log("📄 USEPAM DETAILED DEBUG - RAW RESPONSE TEXT LENGTH:", responseText.length);
+      console.log("📄 USEPAM DETAILED DEBUG - RAW RESPONSE TEXT:", responseText);
       
-      if (!data.success) {
-        throw new Error("PAM response indicates failure");
+      // Parse the JSON
+      let rawData;
+      try {
+        rawData = JSON.parse(responseText);
+        console.log("🔍 USEPAM DETAILED DEBUG - JSON PARSE SUCCESS");
+      } catch (parseError) {
+        console.error("❌ USEPAM DETAILED DEBUG - JSON PARSE FAILED:", parseError);
+        throw new Error("Failed to parse JSON response");
+      }
+      
+      console.log("🔍 USEPAM DETAILED DEBUG - PARSED JSON TYPE:", typeof rawData);
+      console.log("🔍 USEPAM DETAILED DEBUG - IS ARRAY:", Array.isArray(rawData));
+      console.log("🔍 USEPAM DETAILED DEBUG - ARRAY LENGTH:", Array.isArray(rawData) ? rawData.length : 'N/A');
+      console.log("🔍 USEPAM DETAILED DEBUG - RAW DATA STRUCTURE:", JSON.stringify(rawData, null, 2));
+      
+      // Handle both array and object responses
+      let data;
+      if (Array.isArray(rawData)) {
+        console.log("🎯 USEPAM DETAILED DEBUG - EXTRACTING FROM ARRAY, INDEX 0");
+        data = rawData[0];
+      } else {
+        console.log("🎯 USEPAM DETAILED DEBUG - USING DIRECT OBJECT");
+        data = rawData;
+      }
+      
+      console.log("🎯 USEPAM DETAILED DEBUG - EXTRACTED DATA:", JSON.stringify(data, null, 2));
+      console.log("🎯 USEPAM DETAILED DEBUG - DATA TYPE:", typeof data);
+      console.log("🎯 USEPAM DETAILED DEBUG - DATA KEYS:", Object.keys(data || {}));
+      
+      // Check if the response indicates success
+      console.log("✅ USEPAM DETAILED DEBUG - SUCCESS FIELD:", data?.success);
+      console.log("✅ USEPAM DETAILED DEBUG - SUCCESS TYPE:", typeof data?.success);
+      
+      if (!data || data.success !== true) {
+        console.error("❌ USEPAM DETAILED DEBUG - PAM response indicates failure or missing success field:", data);
+        throw new Error("PAM response indicates failure or is malformed");
       }
 
-      assistantContent = data.content || "I'm sorry, I didn't understand that.";
+      // Extract the message from the correct field
+      assistantContent = data.message;
       assistantRender = data.render || null;
+      
+      console.log("💬 USEPAM DETAILED DEBUG - MESSAGE FIELD RAW:", assistantContent);
+      console.log("💬 USEPAM DETAILED DEBUG - MESSAGE TYPE:", typeof assistantContent);
+      console.log("💬 USEPAM DETAILED DEBUG - MESSAGE LENGTH:", assistantContent?.length);
+      console.log("💬 USEPAM DETAILED DEBUG - MESSAGE PREVIEW:", assistantContent?.substring(0, 100));
+
+      if (!assistantContent || typeof assistantContent !== 'string') {
+        console.error("❌ USEPAM DETAILED DEBUG - Message field is missing or not a string:", assistantContent);
+        assistantContent = "I'm sorry, I received a malformed response.";
+      } else {
+        console.log("✅ USEPAM DETAILED DEBUG - SUCCESSFULLY EXTRACTED MESSAGE LENGTH:", assistantContent.length);
+        console.log("✅ USEPAM DETAILED DEBUG - FINAL MESSAGE TO DISPLAY:", assistantContent);
+      }
 
     } catch (err: any) {
-      console.error("PAM API Error:", err);
+      console.error("❌ USEPAM DETAILED DEBUG - PAM API ERROR:", err);
+      console.error("❌ USEPAM DETAILED DEBUG - ERROR TYPE:", typeof err);
+      console.error("❌ USEPAM DETAILED DEBUG - ERROR MESSAGE:", err instanceof Error ? err.message : 'Unknown error');
+      console.error("❌ USEPAM DETAILED DEBUG - ERROR STACK:", err instanceof Error ? err.stack : 'No stack');
       assistantContent = "I'm having trouble connecting right now. Please try again in a moment.";
     }
 

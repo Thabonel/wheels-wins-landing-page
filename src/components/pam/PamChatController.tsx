@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -49,32 +48,36 @@ const PamChatController = () => {
       return;
     }
 
+    // Validate and clean the message
+    const cleanMessage = message?.trim();
+    if (!cleanMessage) {
+      console.error("Message is empty or undefined");
+      return;
+    }
+
     const userMessage: ChatMessage = {
       sender: "user",
-      content: message,
+      content: cleanMessage,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    // Classify the intent
-    const intentResult = IntentClassifier.classifyIntent(message);
+    // Classify the intent for session tracking (but don't send to n8n)
+    const intentResult = IntentClassifier.classifyIntent(cleanMessage);
     
     // Update session data
     updateSession(intentResult.type);
 
-    // Build enhanced payload with the correct field name expected by n8n
-    const payload = {
+    // Build payload for new pam-chat endpoint
+    const payload: PamWebhookPayload = {
+      chatInput: cleanMessage,
       user_id: user.id,
-      chatInput: message, // Ensure we're using chatInput as expected by n8n
-      intent: intentResult.type,
-      is_first_time: sessionData.isFirstTime,
-      session_context: {
-        message_count: sessionData.messageCount + 1,
-        previous_intents: sessionData.previousIntents
-      }
+      voice_enabled: true
     };
 
-    console.log("Sending PAM payload:", payload);
+    console.log("🚀 DETAILED DEBUG - SENDING TO PAM API");
+    console.log("📍 URL:", WEBHOOK_URL);
+    console.log("📦 PAYLOAD:", JSON.stringify(payload, null, 2));
 
     try {
       const response = await fetch(WEBHOOK_URL, {
@@ -83,17 +86,67 @@ const PamChatController = () => {
         body: JSON.stringify(payload),
       });
 
+      console.log("📡 DETAILED DEBUG - RAW RESPONSE STATUS:", response.status);
+      console.log("📡 DETAILED DEBUG - RAW RESPONSE HEADERS:", Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      // Get response as text first for debugging
+      const responseText = await response.text();
+      console.log("📄 DETAILED DEBUG - RAW RESPONSE TEXT LENGTH:", responseText.length);
+      console.log("📄 DETAILED DEBUG - RAW RESPONSE TEXT:", responseText);
       
-      if (!data.success) {
-        throw new Error("PAM response indicates failure");
+      // Parse the JSON
+      let rawData;
+      try {
+        rawData = JSON.parse(responseText);
+        console.log("🔍 DETAILED DEBUG - JSON PARSE SUCCESS");
+      } catch (parseError) {
+        console.error("❌ DETAILED DEBUG - JSON PARSE FAILED:", parseError);
+        throw new Error("Failed to parse JSON response");
+      }
+      
+      console.log("🔍 DETAILED DEBUG - PARSED JSON TYPE:", typeof rawData);
+      console.log("🔍 DETAILED DEBUG - IS ARRAY:", Array.isArray(rawData));
+      console.log("🔍 DETAILED DEBUG - ARRAY LENGTH:", Array.isArray(rawData) ? rawData.length : 'N/A');
+      console.log("🔍 DETAILED DEBUG - RAW DATA STRUCTURE:", JSON.stringify(rawData, null, 2));
+      
+      // Handle both array and object responses
+      let data;
+      if (Array.isArray(rawData)) {
+        console.log("🎯 DETAILED DEBUG - EXTRACTING FROM ARRAY, INDEX 0");
+        data = rawData[0];
+      } else {
+        console.log("🎯 DETAILED DEBUG - USING DIRECT OBJECT");
+        data = rawData;
+      }
+      
+      console.log("🎯 DETAILED DEBUG - EXTRACTED DATA:", JSON.stringify(data, null, 2));
+      console.log("🎯 DETAILED DEBUG - DATA TYPE:", typeof data);
+      console.log("🎯 DETAILED DEBUG - DATA KEYS:", Object.keys(data || {}));
+      
+      // Check if the response indicates success
+      console.log("✅ DETAILED DEBUG - SUCCESS FIELD:", data?.success);
+      console.log("✅ DETAILED DEBUG - SUCCESS TYPE:", typeof data?.success);
+      
+      if (!data || data.success !== true) {
+        console.error("❌ DETAILED DEBUG - PAM response indicates failure or missing success field:", data);
+        throw new Error("PAM response indicates failure or is malformed");
       }
 
-      const reply = data.content || "I'm sorry, I didn't understand that.";
+      // Extract the message from the correct field
+      const reply = data.message;
+      console.log("💬 DETAILED DEBUG - MESSAGE FIELD RAW:", reply);
+      console.log("💬 DETAILED DEBUG - MESSAGE TYPE:", typeof reply);
+      console.log("💬 DETAILED DEBUG - MESSAGE LENGTH:", reply?.length);
+      console.log("💬 DETAILED DEBUG - MESSAGE PREVIEW:", reply?.substring(0, 100));
+
+      if (!reply || typeof reply !== 'string') {
+        console.error("❌ DETAILED DEBUG - Message field is missing or not a string:", reply);
+        throw new Error("Message field is missing or invalid");
+      }
 
       // Cache the tip when online
       addTip(reply);
@@ -103,9 +156,17 @@ const PamChatController = () => {
         content: reply,
         timestamp: new Date(),
       };
+      
+      console.log("✅ DETAILED DEBUG - SUCCESSFULLY EXTRACTED MESSAGE LENGTH:", reply.length);
+      console.log("✅ DETAILED DEBUG - FINAL MESSAGE TO DISPLAY:", reply);
       setMessages((prev) => [...prev, pamMessage]);
+      
     } catch (error) {
-      console.error("PAM API Error:", error);
+      console.error("❌ DETAILED DEBUG - PAM API ERROR:", error);
+      console.error("❌ DETAILED DEBUG - ERROR TYPE:", typeof error);
+      console.error("❌ DETAILED DEBUG - ERROR MESSAGE:", error instanceof Error ? error.message : 'Unknown error');
+      console.error("❌ DETAILED DEBUG - ERROR STACK:", error instanceof Error ? error.stack : 'No stack');
+      
       const errorMessage: ChatMessage = {
         sender: "pam",
         content: "I'm having trouble connecting right now. Please try again in a moment.",
