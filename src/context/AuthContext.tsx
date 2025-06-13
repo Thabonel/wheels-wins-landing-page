@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase';
 
@@ -27,9 +27,9 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = React.useState<User | null>(null);
+  const [session, setSession] = React.useState<Session | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
   
   // Detect if we're in the Lovable preview environment
   const isDevMode = typeof window !== 'undefined' && (
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     window.location.hostname.includes('lovable.app')
   );
 
-  useEffect(() => {
+  React.useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
