@@ -36,13 +36,13 @@ export default function Layout({ children }: LayoutProps) {
           pathname === "/" 
             ? "flex-1 px-0 py-0 bg-white" 
             : isWheelsPage
-            ? "flex-1 h-full overflow-hidden bg-white"
-            : "flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white"
+            ? "flex-1 h-full overflow-hidden bg-gray-50"
+            : "flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-gray-50"
         }
       >
         {/* Show offline banner on dashboard pages */}
         {!["/", "/auth", "/onboarding"].includes(pathname) && <OfflineBanner />}
-        <div className="w-full h-full">
+        <div className={pathname === "/" ? "w-full h-full" : "w-full h-full min-h-screen"}>
           {children}
         </div>
       </main>
