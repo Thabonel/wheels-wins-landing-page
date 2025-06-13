@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -12,6 +10,10 @@ import Wheels from './pages/Wheels';
 import Profile from './pages/Profile';
 import Auth from './pages/Auth';
 import Onboarding from './pages/Onboarding';
+import You from './pages/You';
+import Wins from './pages/Wins';
+import Social from './pages/Social';
+import Shop from './pages/Shop';
 import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
@@ -35,6 +37,10 @@ function App() {
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
+                    <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
+                    <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
+                    <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
+                    <Route path="/shop" element={<ProtectedRoute><Shop /></ProtectedRoute>} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/onboarding" element={<Onboarding />} />
@@ -52,4 +58,3 @@ function App() {
 }
 
 export default App;
-
