@@ -8,13 +8,25 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isDevMode } = useAuth();
 
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/auth" replace />;
+  // Debug logging
+  console.log('ProtectedRoute Debug:', {
+    user: !!user,
+    isAuthenticated,
+    isDevMode,
+    userEmail: user?.email || 'No user'
+  });
+
+  // Allow access if authenticated OR in dev mode
+  if (isAuthenticated || isDevMode) {
+    console.log('ProtectedRoute: Allowing access');
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  // Redirect to auth page if not authenticated
+  console.log('ProtectedRoute: Redirecting to /auth');
+  return <Navigate to="/auth" replace />;
 };
 
 export default ProtectedRoute;
