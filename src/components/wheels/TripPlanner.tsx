@@ -192,20 +192,6 @@ export default function TripPlanner() {
           map={map}
           isOffline={isOffline}
         />
-        
-        {/* Overlay Components */}
-        <RouteInputs
-          directionsControl={directionsControl}
-          originName={originName}
-          destName={destName}
-          setOriginName={setOriginName}
-          setDestName={setDestName}
-        />
-        
-        <TravelModeButtons
-          activeMode={travelMode}
-          onModeChange={setTravelMode}
-        />
       </div>
 
       {/* Search Section */}
@@ -217,15 +203,36 @@ export default function TripPlanner() {
       </div>
 
       {/* Controls Section */}
+      <div className="bg-white rounded-lg border p-4 space-y-4">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+          <div className="flex-1">
+            <RouteInputs
+              directionsControl={directionsControl}
+              originName={originName}
+              destName={destName}
+              setOriginName={setOriginName}
+              setDestName={setDestName}
+            />
+          </div>
+          <div className="w-full lg:w-auto">
+            <TripControls
+              mode={mode}
+              setMode={setMode}
+              adding={adding}
+              setAdding={setAdding}
+              onSubmitTrip={handleSubmitTrip}
+              map={map}
+              isOffline={isOffline}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Travel Mode Buttons */}
       <div className="bg-white rounded-lg border p-4">
-        <TripControls
-          mode={mode}
-          setMode={setMode}
-          adding={adding}
-          setAdding={setAdding}
-          onSubmitTrip={handleSubmitTrip}
-          map={map}
-          isOffline={isOffline}
+        <TravelModeButtons
+          activeMode={travelMode}
+          onModeChange={setTravelMode}
         />
       </div>
 
