@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -5,13 +6,13 @@ import { RegionProvider } from './context/RegionContext';
 import { OfflineProvider } from './context/OfflineContext';
 import { ExpensesProvider } from './context/ExpensesContext';
 import Layout from './components/Layout';
-import Home from './pages/Home';
+import Index from './pages/Index';
 import Wheels from './pages/Wheels';
 import Profile from './pages/Profile';
 import Auth from './pages/Auth';
 import Onboarding from './pages/Onboarding';
 import ScrollToTop from './components/ScrollToTop';
-import { QueryClient, QueryClientProvider } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCanceled from "@/pages/PaymentCanceled";
@@ -30,7 +31,7 @@ function App() {
                 <ScrollToTop />
                 <Layout>
                   <Routes>
-                    <Route path="/" element={<Home />} />
+                    <Route path="/" element={<Index />} />
                     <Route path="/wheels" element={<Wheels />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/auth" element={<Auth />} />
