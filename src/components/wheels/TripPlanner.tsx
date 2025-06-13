@@ -1,4 +1,3 @@
-
 import 'mapbox-gl/dist/mapbox-gl.css';
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
@@ -48,6 +47,53 @@ export default function TripPlanner() {
   // Hide default geocoder icon
   useEffect(() => {
     return hideGeocoderIcon();
+  }, []);
+
+  // Cleanup map sources on component unmount
+  useEffect(() => {
+    return () => {
+      console.log('🧹 TripPlanner: Cleaning up map resources');
+      
+      // Clean up directions control
+      if (directionsControl.current && map.current) {
+        try {
+          // Remove directions control from map
+          map.current.removeControl(directionsControl.current);
+          
+          // Clean up map sources that might cause conflicts
+          const mapInstance = map.current;
+          
+          // Check and remove directions source if it exists
+          if (mapInstance.getSource('directions')) {
+            mapInstance.removeSource('directions');
+          }
+          
+          // Check and remove other common sources that might conflict
+          const sourcesToClean = ['directions', 'mapbox-directions-origin', 'mapbox-directions-destination', 'mapbox-directions-route'];
+          sourcesToClean.forEach(sourceId => {
+            if (mapInstance.getSource(sourceId)) {
+              try {
+                mapInstance.removeSource(sourceId);
+              } catch (error) {
+                console.warn(`Failed to remove source ${sourceId}:`, error);
+              }
+            }
+          });
+          
+        } catch (error) {
+          console.warn('Error cleaning up directions control:', error);
+        }
+      }
+      
+      // Clean up map instance
+      if (map.current) {
+        try {
+          map.current.remove();
+        } catch (error) {
+          console.warn('Error removing map:', error);
+        }
+      }
+    };
   }, []);
 
   // Load cached trip data when offline
