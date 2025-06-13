@@ -1,4 +1,3 @@
-
 // src/components/Layout.tsx
 import React from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -10,6 +9,7 @@ import Header from "@/components/header/Header";
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
 import OfflineBanner from "@/components/OfflineBanner";
+import PamSidebar from "@/components/PamSidebar";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -45,11 +45,9 @@ export default function Layout({ children }: LayoutProps) {
         {children}
       </main>
 
-      {/* Desktop Pam chat sidebar - hide on wheels page since it has its own Pam */}
-      {!hidePam && !isMobile && !isWheelsPage && (
-        <div className="fixed inset-y-[var(--header-height)] top-[var(--header-height)] right-8 w-72">
-          <PamAssistant />
-        </div>
+      {/* Desktop Pam chat sidebar */}
+      {!hidePam && !isMobile && (
+        <PamSidebar />
       )}
 
       {/* Mobile Pam floating button - show on wheels page as talk bubble */}
