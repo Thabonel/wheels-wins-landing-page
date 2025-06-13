@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -16,6 +17,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCanceled from "@/pages/PaymentCanceled";
+import ProtectedRoute from './components/ProtectedRoute';
 
 const queryClient = new QueryClient();
 
@@ -32,7 +34,7 @@ function App() {
                 <Layout>
                   <Routes>
                     <Route path="/" element={<Index />} />
-                    <Route path="/wheels" element={<Wheels />} />
+                    <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/onboarding" element={<Onboarding />} />
@@ -50,3 +52,4 @@ function App() {
 }
 
 export default App;
+
