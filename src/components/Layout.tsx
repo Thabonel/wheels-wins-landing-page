@@ -34,15 +34,17 @@ export default function Layout({ children }: LayoutProps) {
       <main
         className={
           pathname === "/" 
-            ? "flex-1 px-0 py-0" 
+            ? "flex-1 px-0 py-0 bg-white" 
             : isWheelsPage
-            ? "flex-1 h-full overflow-hidden"
-            : "flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6"
+            ? "flex-1 h-full overflow-hidden bg-white"
+            : "flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white"
         }
       >
         {/* Show offline banner on dashboard pages */}
         {!["/", "/auth", "/onboarding"].includes(pathname) && <OfflineBanner />}
-        {children}
+        <div className="w-full h-full">
+          {children}
+        </div>
       </main>
 
       {/* Desktop Pam chat sidebar - consistent for all pages */}
@@ -82,7 +84,7 @@ export default function Layout({ children }: LayoutProps) {
         </>
       )}
 
-      <footer className="bg-white text-gray-600 py-4">
+      <footer className="bg-white text-gray-600 py-4 border-t">
         <Footer />
       </footer>
     </div>
