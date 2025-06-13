@@ -14,39 +14,45 @@ export default function DirectionsControl({ directionsControl, map, disabled = f
   useEffect(() => {
     if (!containerRef.current || !directionsControl.current || !map.current) return;
 
-    // Get the directions control DOM element
-    const controlElement = directionsControl.current.onAdd(map.current);
-    
-    // Clear any existing content
-    containerRef.current.innerHTML = '';
-    
-    // Append the control to our container
-    containerRef.current.appendChild(controlElement);
+    try {
+      // Clear any existing content first
+      containerRef.current.innerHTML = '';
 
-    // Style the control to fit our design
-    const directionsContainer = containerRef.current.querySelector('.mapboxgl-ctrl-directions');
-    if (directionsContainer) {
-      (directionsContainer as HTMLElement).style.width = '100%';
-      (directionsContainer as HTMLElement).style.maxWidth = 'none';
-      (directionsContainer as HTMLElement).style.boxShadow = 'none';
-      (directionsContainer as HTMLElement).style.border = 'none';
-      (directionsContainer as HTMLElement).style.borderRadius = '0';
+      // Get the directions control DOM element
+      const controlElement = directionsControl.current.onAdd(map.current);
       
-      // Disable inputs when offline
-      if (disabled) {
-        const inputs = directionsContainer.querySelectorAll('input');
-        inputs.forEach(input => {
-          (input as HTMLInputElement).disabled = true;
-          (input as HTMLInputElement).style.backgroundColor = '#f3f4f6';
-          (input as HTMLInputElement).style.color = '#9ca3af';
-        });
-      }
-    }
+      // Append the control to our container
+      if (controlElement && containerRef.current) {
+        containerRef.current.appendChild(controlElement);
 
-    // Hide the directions list as we handle suggestions elsewhere
-    const directionsList = containerRef.current.querySelector('.directions-control-directions');
-    if (directionsList) {
-      (directionsList as HTMLElement).style.display = 'none';
+        // Style the control to fit our design
+        const directionsContainer = containerRef.current.querySelector('.mapboxgl-ctrl-directions');
+        if (directionsContainer) {
+          (directionsContainer as HTMLElement).style.width = '100%';
+          (directionsContainer as HTMLElement).style.maxWidth = 'none';
+          (directionsContainer as HTMLElement).style.boxShadow = 'none';
+          (directionsContainer as HTMLElement).style.border = 'none';
+          (directionsContainer as HTMLElement).style.borderRadius = '0';
+          
+          // Disable inputs when offline
+          if (disabled) {
+            const inputs = directionsContainer.querySelectorAll('input');
+            inputs.forEach(input => {
+              (input as HTMLInputElement).disabled = true;
+              (input as HTMLInputElement).style.backgroundColor = '#f3f4f6';
+              (input as HTMLInputElement).style.color = '#9ca3af';
+            });
+          }
+        }
+
+        // Hide the directions list as we handle suggestions elsewhere
+        const directionsList = containerRef.current.querySelector('.directions-control-directions');
+        if (directionsList) {
+          (directionsList as HTMLElement).style.display = 'none';
+        }
+      }
+    } catch (error) {
+      console.warn('Error setting up directions control DOM:', error);
     }
 
     return () => {

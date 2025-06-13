@@ -61,34 +61,63 @@ export default function MapControls({
       
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-      // Create directions control but don't add it to the map yet
-      const dir = new MapboxDirections({
-        accessToken: mapboxgl.accessToken,
-        unit: "metric",
-        profile: "mapbox/driving",
-        interactive: !isOffline, // Disable interaction when offline
-        controls: { instructions: false },
-      });
-      directionsControl.current = dir;
+      // Wait for map to load before creating directions control
+      map.current.on('load', () => {
+        if (!directionsControl.current && map.current) {
+          console.log('Creating directions control after map load');
+          
+          // Create directions control
+          const dir = new MapboxDirections({
+            accessToken: mapboxgl.accessToken,
+            unit: "metric",
+            profile: "mapbox/driving",
+            interactive: !isOffline,
+            controls: { instructions: false },
+          });
+          
+          directionsControl.current = dir;
 
-      // Set up event listeners without adding to map
-      dir.on("route", async () => {
-        if (isOffline) return; // Don't update when offline
-        
-        const o = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
-        const d = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
-        if (o) setOriginName(await reverseGeocode(o));
-        if (d) setDestName(await reverseGeocode(d));
-        onRouteChange();
+          // Set up event listeners
+          dir.on("route", async () => {
+            if (isOffline) return;
+            
+            const o = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
+            const d = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
+            if (o) setOriginName(await reverseGeocode(o));
+            if (d) setDestName(await reverseGeocode(d));
+            onRouteChange();
+          });
+        }
       });
     } else {
       map.current.jumpTo({ center });
     }
-  }, [region]);
+
+    // Cleanup function
+    return () => {
+      if (map.current && directionsControl.current) {
+        try {
+          // Remove the directions control properly
+          const mapInstance = map.current;
+          const dirControl = directionsControl.current;
+          
+          // Check if the control is actually added to the map before removing
+          if (mapInstance.hasControl && mapInstance.hasControl(dirControl)) {
+            mapInstance.removeControl(dirControl);
+          }
+          
+          // Clear the reference
+          directionsControl.current = undefined;
+        } catch (error) {
+          console.warn('Error cleaning up directions control:', error);
+        }
+      }
+    };
+  }, [region, isOffline]);
 
   // Pin-drop mode
   useEffect(() => {
-    if (!map.current || isOffline) return; // Disable pin-drop when offline
+    if (!map.current || isOffline) return;
     
     const onClick = async (e: mapboxgl.MapMouseEvent) => {
       if (!adding) return;
@@ -104,7 +133,9 @@ export default function MapControls({
       setAdding(false);
       map.current!.getCanvas().style.cursor = "";
     };
+    
     map.current.on("click", onClick);
+    
     return () => {
       if (map.current) {
         map.current.off("click", onClick);
