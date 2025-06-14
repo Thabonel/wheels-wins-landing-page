@@ -72,7 +72,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Mobile/tablet Pam floating button with modal - show on screens smaller than xl */}
       {showMobileModal && (
         <>
-          <div className="fixed bottom-4 right-4 z-50">
+          <div className="fixed bottom-20 right-4 z-50">
             <button 
               onClick={() => document.getElementById('pam-modal')?.classList.toggle('hidden')}
               className="bg-blue-600 text-white rounded-full p-3 shadow-lg hover:bg-blue-700 transition-colors"
