@@ -1,13 +1,9 @@
 
-export interface PamIntent {
-  type: 'onboarding' | 'travel_advice' | 'budget_help' | 'local_recommendations' | 'safety_tips' | 'transport_info' | 'general';
-  confidence: number;
-}
-
 export interface PamWebhookPayload {
   chatInput: string;
   user_id: string;
   voice_enabled: boolean;
+  pam_memory?: any; // Optional memory context object
 }
 
 export interface PamSessionData {
