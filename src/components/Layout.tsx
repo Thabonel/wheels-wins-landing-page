@@ -22,6 +22,23 @@ export default function Layout({ children }: LayoutProps) {
   const isWheelsPage = pathname === "/wheels";
   const { user: authUser } = useAuth();
 
+  // Check if screen is xl (1280px) or larger for desktop sidebar
+  const [isXlScreen, setIsXlScreen] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkScreenSize = () => {
+      setIsXlScreen(window.innerWidth >= 1280);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  const showDesktopSidebar = !hidePam && isXlScreen;
+  const showMobileModal = !hidePam && !isXlScreen;
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b px-6 py-4">
@@ -47,13 +64,13 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </main>
 
-      {/* Desktop Pam chat sidebar - consistent for all pages */}
-      {!hidePam && !isMobile && (
+      {/* Desktop Pam chat sidebar - only show on xl screens and above */}
+      {showDesktopSidebar && (
         <PamSidebar />
       )}
 
-      {/* Mobile Pam floating button with modal - consistent for all pages */}
-      {!hidePam && isMobile && (
+      {/* Mobile/tablet Pam floating button with modal - show on screens smaller than xl */}
+      {showMobileModal && (
         <>
           <div className="fixed bottom-4 right-4 z-50">
             <button 
@@ -66,7 +83,7 @@ export default function Layout({ children }: LayoutProps) {
             </button>
           </div>
 
-          {/* Mobile Pam modal - consistent for all pages */}
+          {/* Mobile/tablet Pam modal */}
           <div id="pam-modal" className="hidden fixed inset-0 z-40 bg-black bg-opacity-50">
             <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-auto">
               <div className="flex justify-between items-center mb-4">
