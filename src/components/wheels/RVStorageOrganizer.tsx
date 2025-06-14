@@ -1,15 +1,8 @@
-// src/components/wheels/RVStorageOrganizer.tsx
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import DrawerSelector from "./DrawerSelector";
@@ -26,26 +19,33 @@ export default function RVStorageOrganizer() {
   };
 
   useEffect(() => {
-
-    const fetchStorage = async () => {
-      const { data, error } = await supabase
-        .from("drawers")
-        .select("id, name, photo_url, items(id, name, packed)");
-
-      if (!error && data) {
-        setStorage(
-          data.map((d) => ({
-            id: d.id,
-            name: d.name,
-            photo_url: d.photo_url,
-            isOpen: false,
-            items: d.items || [],
-          }))
-        );
-      }
-    };
     fetchStorage();
   }, []);
+
+  const fetchStorage = async () => {
+    const { data, error } = await supabase
+      .from("drawers")
+      .select("id, name, photo_url, items(id, name, packed)");
+
+    if (!error && data) {
+      setStorage(
+        data.map((d) => ({
+          id: d.id,
+          name: d.name,
+          photo_url: d.photo_url,
+          isOpen: false,
+          items: d.items || [],
+        }))
+      );
+    }
+  };
+
+  const handleDrawerCreated = (newDrawer: any) => {
+    setStorage((prev) => [...prev, {
+      ...newDrawer,
+      isOpen: false
+    }]);
+  };
 
   const toggleDrawerState = (id: string) => {
     setStorage((prev) =>
@@ -112,16 +112,16 @@ export default function RVStorageOrganizer() {
 
   const openOnPhone = () => {
     if (!listId) {
- console.log("No list ID available");
- return;
- }
+      console.log("No list ID available");
+      return;
+    }
     const url = `${window.location.origin}/shopping-list/${listId}`;
- navigator.clipboard.writeText(url).then(() => {
- toast({ title: "Link copied", description: "Open this on your phone." });
- }).catch(err => {
- console.error("Clipboard error:", err);
- toast({ title: "Clipboard error", description: err.message, variant: "destructive" });
- });
+    navigator.clipboard.writeText(url).then(() => {
+      toast({ title: "Link copied", description: "Open this on your phone." });
+    }).catch(err => {
+      console.error("Clipboard error:", err);
+      toast({ title: "Clipboard error", description: err.message, variant: "destructive" });
+    });
   };
 
   return (
@@ -129,7 +129,7 @@ export default function RVStorageOrganizer() {
       <h2 className="text-2xl font-bold">RV Storage Organizer</h2>
       <div className="flex justify-end gap-2">
         <Button onClick={generateMissingItems}>Create Shopping List</Button>
-        <DrawerSelector onDrawerCreated={(drawer) => setStorage((prev) => [...prev, drawer])} />
+        <DrawerSelector onDrawerCreated={handleDrawerCreated} />
       </div>
 
       <div className="space-y-4">
@@ -210,6 +210,4 @@ export default function RVStorageOrganizer() {
       </Dialog>
     </div>
   );
-
 }
-  

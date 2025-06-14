@@ -1,5 +1,5 @@
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useRegion } from "@/context/RegionContext";
 import { useOffline } from "@/context/OfflineContext";
 import mapboxgl from "mapbox-gl";
@@ -12,8 +12,11 @@ import TripPlannerHeader from "./trip-planner/TripPlannerHeader";
 import TripPlannerControls from "./trip-planner/TripPlannerControls";
 import TripPlannerTip from "./trip-planner/TripPlannerTip";
 import TripPlannerLayout from "./trip-planner/TripPlannerLayout";
+import WeatherWidget from "./WeatherWidget";
 import { useTripPlannerState } from "./trip-planner/hooks/useTripPlannerState";
 import { useTripPlannerHandlers } from "./trip-planner/hooks/useTripPlannerHandlers";
+import { Button } from "@/components/ui/button";
+import { Cloud } from "lucide-react";
 
 // Initialize Mapbox token
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
@@ -21,6 +24,8 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 export default function TripPlanner() {
   const { region } = useRegion();
   const { isOffline } = useOffline();
+  const [showWeather, setShowWeather] = useState(false);
+  const [weatherLocation, setWeatherLocation] = useState<{lat: number, lng: number} | null>(null);
   
   // Map and directions refs
   const map = useRef<mapboxgl.Map>();
@@ -58,6 +63,18 @@ export default function TripPlanner() {
     mode,
   });
 
+  // Get weather for route destination
+  const handleGetWeather = () => {
+    if (directionsControl.current) {
+      const destination = directionsControl.current.getDestination();
+      if (destination && destination.geometry) {
+        const [lng, lat] = destination.geometry.coordinates;
+        setWeatherLocation({ lat, lng });
+        setShowWeather(true);
+      }
+    }
+  };
+
   if (!mapboxgl.accessToken) {
     return (
       <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -92,6 +109,21 @@ export default function TripPlanner() {
           map={map}
           isOffline={isOffline}
         />
+        
+        {/* Weather Widget Toggle */}
+        {destName && !isOffline && (
+          <div className="absolute top-4 right-4 z-10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGetWeather}
+              className="bg-white/90 backdrop-blur-sm"
+            >
+              <Cloud className="w-4 h-4 mr-2" />
+              Weather
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Search Section */}
@@ -119,6 +151,26 @@ export default function TripPlanner() {
         map={map}
         isOffline={isOffline}
       />
+
+      {/* Weather Widget Sidebar */}
+      {showWeather && weatherLocation && (
+        <div className="bg-white rounded-lg border p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Route Weather</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowWeather(false)}
+            >
+              Close
+            </Button>
+          </div>
+          <WeatherWidget
+            latitude={weatherLocation.lat}
+            longitude={weatherLocation.lng}
+          />
+        </div>
+      )}
 
       {/* Waypoints Section */}
       {waypoints.length > 0 && (

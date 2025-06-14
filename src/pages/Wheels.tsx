@@ -6,6 +6,7 @@ import TripPlanner from "@/components/wheels/TripPlanner";
 import FuelLog from "@/components/wheels/FuelLog";
 import VehicleMaintenance from "@/components/wheels/VehicleMaintenance";
 import RVStorageOrganizer from "@/components/wheels/RVStorageOrganizer";
+import CaravanSafety from "@/components/wheels/CaravanSafety";
 
 const Wheels = () => {
   const [activeTab, setActiveTab] = useState("trip-planner");
@@ -79,15 +80,7 @@ const Wheels = () => {
                   </TabsContent>
                   
                   <TabsContent value="caravan-safety" className="mt-0">
-                    <div className="space-y-4">
-                      <h2 className="text-xl font-semibold">Caravan Safety</h2>
-                      <p className="text-gray-600">
-                        Safety checklists, tips, and emergency procedures for caravan travel.
-                      </p>
-                      <div className="bg-gray-50 rounded-lg p-4 text-center">
-                        <p className="text-gray-500">Caravan Safety component will be implemented here</p>
-                      </div>
-                    </div>
+                    <CaravanSafety />
                   </TabsContent>
                 </div>
               </Tabs>
