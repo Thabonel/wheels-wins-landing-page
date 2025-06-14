@@ -22,27 +22,27 @@ export default function TripControls({
   isOffline = false,
 }: TripControlsProps) {
   return (
-    <div className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-4">
-        <select
-          value={mode}
-          onChange={(e) => !isOffline && setMode(e.target.value)}
-          disabled={isOffline}
-          className={`border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            isOffline 
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-              : 'bg-white'
-          }`}
-        >
-          {modes.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="space-y-3">
+      {/* Mode Selection */}
+      <select
+        value={mode}
+        onChange={(e) => !isOffline && setMode(e.target.value)}
+        disabled={isOffline}
+        className={`w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          isOffline 
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+            : 'bg-white'
+        }`}
+      >
+        {modes.map((m) => (
+          <option key={m.value} value={m.value}>
+            {m.label}
+          </option>
+        ))}
+      </select>
 
-      <div className="flex items-center gap-3">
+      {/* Action Buttons */}
+      <div className="flex flex-col gap-2">
         <Button
           variant="outline"
           onClick={() => {
@@ -50,19 +50,21 @@ export default function TripControls({
             setAdding(true);
             if (map.current) map.current.getCanvas().style.cursor = "crosshair";
           }}
-          className={adding ? "bg-gray-100" : ""}
+          className={`w-full ${adding ? "bg-gray-100" : ""}`}
           disabled={adding || isOffline}
+          size="sm"
         >
           {adding ? "Click map…" : "Add Stop"}
         </Button>
         
         <Button
           onClick={onSubmitTrip}
-          className={`text-white ${
+          className={`w-full text-white ${
             isOffline 
               ? 'bg-yellow-600 hover:bg-yellow-700' 
               : 'bg-green-600 hover:bg-green-700'
           }`}
+          size="sm"
         >
           {isOffline ? "Queue for Pam" : "Send to Pam"}
         </Button>

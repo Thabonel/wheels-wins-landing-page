@@ -202,10 +202,12 @@ export default function TripPlanner() {
         />
       </div>
 
-      {/* Controls Section */}
-      <div className="bg-white rounded-lg border p-4 space-y-4">
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-          <div className="flex-1">
+      {/* Unified Controls Section */}
+      <div className="bg-white rounded-lg border p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Route Inputs */}
+          <div className="lg:col-span-1">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Route</h3>
             <RouteInputs
               directionsControl={directionsControl}
               originName={originName}
@@ -214,7 +216,19 @@ export default function TripPlanner() {
               setDestName={setDestName}
             />
           </div>
-          <div className="w-full lg:w-auto">
+
+          {/* Travel Mode Selection */}
+          <div className="lg:col-span-1">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Travel Mode</h3>
+            <TravelModeButtons
+              activeMode={travelMode}
+              onModeChange={setTravelMode}
+            />
+          </div>
+
+          {/* Trip Controls */}
+          <div className="lg:col-span-1">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Actions</h3>
             <TripControls
               mode={mode}
               setMode={setMode}
@@ -226,14 +240,6 @@ export default function TripPlanner() {
             />
           </div>
         </div>
-      </div>
-
-      {/* Travel Mode Buttons */}
-      <div className="bg-white rounded-lg border p-4">
-        <TravelModeButtons
-          activeMode={travelMode}
-          onModeChange={setTravelMode}
-        />
       </div>
 
       {/* Waypoints Section */}

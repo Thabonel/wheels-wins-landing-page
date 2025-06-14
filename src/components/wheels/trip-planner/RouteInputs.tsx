@@ -41,9 +41,9 @@ export default function RouteInputs({
   };
 
   return (
-    <div className="absolute top-4 right-4 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-4 w-80 max-w-[calc(100vw-2rem)] lg:block hidden">
+    <div className="space-y-3">
       {/* Origin Input */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex items-center gap-3">
         <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
           A
         </div>
