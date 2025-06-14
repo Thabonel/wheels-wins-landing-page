@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
@@ -129,7 +128,12 @@ export default function MapControls({
       el.className = "text-white bg-blue-600 rounded-full w-6 h-6 flex items-center justify-center";
       el.innerText = String(waypoints.length + 1);
       new mapboxgl.Marker({ element: el }).setLngLat(coords).addTo(map.current!);
-      directionsControl.current!.addWaypoint(waypoints.length, coords);
+      
+      // FIX: Insert waypoint before destination, not replace origin
+      const currentWaypoints = directionsControl.current!.getWaypoints();
+      const insertIndex = currentWaypoints.length > 1 ? currentWaypoints.length - 1 : waypoints.length;
+      directionsControl.current!.addWaypoint(insertIndex, coords);
+      
       setAdding(false);
       map.current!.getCanvas().style.cursor = "";
     };
