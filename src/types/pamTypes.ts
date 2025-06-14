@@ -11,3 +11,8 @@ export interface PamSessionData {
   previousIntents: string[];
   isFirstTime: boolean;
 }
+
+export interface PamIntent {
+  type: 'onboarding' | 'travel_advice' | 'budget_help' | 'local_recommendations' | 'safety_tips' | 'transport_info' | 'general';
+  confidence: number;
+}
