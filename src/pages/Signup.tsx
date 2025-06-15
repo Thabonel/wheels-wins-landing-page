@@ -36,11 +36,16 @@ const Signup = () => {
         throw new Error("Passwords do not match");
       }
 
+      // Use production domain for email redirect
+      const redirectUrl = window.location.hostname === 'localhost' 
+        ? `${window.location.origin}/onboarding`
+        : `https://wheelsandwins.com/onboarding`;
+
       const { error } = await supabase.auth.signUp({ 
         email, 
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/onboarding`
+          emailRedirectTo: redirectUrl
         }
       });
       if (error) throw error;
@@ -58,10 +63,15 @@ const Signup = () => {
       setLoading(true);
       setError(null);
       
+      // Use production domain for OAuth redirect
+      const redirectUrl = window.location.hostname === 'localhost'
+        ? `${window.location.origin}/onboarding`
+        : `https://wheelsandwins.com/onboarding`;
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/onboarding`
+          redirectTo: redirectUrl
         }
       });
       

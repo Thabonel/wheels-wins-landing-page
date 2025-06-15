@@ -46,10 +46,15 @@ const Login = () => {
       setLoading(true);
       setError(null);
       
+      // Use production domain for OAuth redirect
+      const redirectUrl = window.location.hostname === 'localhost'
+        ? `${window.location.origin}/you`
+        : `https://wheelsandwins.com/you`;
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/you`
+          redirectTo: redirectUrl
         }
       });
       

@@ -102,13 +102,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (error) throw error;
   };
   
-  // Signup function - using Supabase auth
+  // Signup function - using Supabase auth with production-aware redirects
   const signup = async (email: string, password: string) => {
+    // Use production domain for email redirect
+    const redirectUrl = window.location.hostname === 'localhost'
+      ? `${window.location.origin}/onboarding`
+      : `https://wheelsandwins.com/onboarding`;
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/onboarding`
+        emailRedirectTo: redirectUrl
       }
     });
     

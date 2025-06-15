@@ -11,8 +11,8 @@ max_rows = 1000
 [auth]
 enabled = true
 port = 54322
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://localhost:3000"]
+site_url = "https://wheelsandwins.com"
+additional_redirect_urls = ["https://wheelsandwins.com/onboarding", "https://wheelsandwins.com/auth", "https://wheelsandwins.com/you"]
 jwt_expiry = 3600
 jwt_secret = "super-secret-jwt-token-with-at-least-32-characters-long"
 
