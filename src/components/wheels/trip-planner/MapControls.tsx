@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
@@ -69,12 +70,15 @@ export default function MapControls({
           const dir = new MapboxDirections({
             accessToken: mapboxgl.accessToken,
             unit: "metric",
-            profile: "mapbox/driving",
+            profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
             interactive: !isOffline,
             controls: { instructions: false },
           });
           
           directionsControl.current = dir;
+          
+          // Add the directions control to the map - this was missing!
+          map.current.addControl(dir, 'top-left');
 
           // Set up event listeners
           dir.on("route", async () => {
@@ -113,6 +117,14 @@ export default function MapControls({
       }
     };
   }, [region, isOffline]);
+
+  // Handle travel mode changes
+  useEffect(() => {
+    if (directionsControl.current && !isOffline) {
+      const profile = travelMode === 'traffic' ? 'mapbox/driving-traffic' : `mapbox/${travelMode}`;
+      directionsControl.current.setProfile(profile);
+    }
+  }, [travelMode, isOffline]);
 
   // Pin-drop mode
   useEffect(() => {
