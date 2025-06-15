@@ -9,7 +9,7 @@ import Layout from './components/Layout';
 import Index from './pages/Index';
 import Wheels from './pages/Wheels';
 import Profile from './pages/Profile';
-import Auth from './pages/Auth';
+import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Onboarding from './pages/Onboarding';
 import You from './pages/You';
@@ -44,7 +44,7 @@ function App() {
                     <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
                     <Route path="/shop" element={<ProtectedRoute><Shop /></ProtectedRoute>} />
                     <Route path="/profile" element={<Profile />} />
-                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/onboarding" element={<Onboarding />} />
                     <Route path="/payment-success" element={<PaymentSuccess />} />

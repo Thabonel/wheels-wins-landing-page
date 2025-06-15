@@ -24,9 +24,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Redirect to auth page if not authenticated
-  console.log('ProtectedRoute: Redirecting to /auth');
-  return <Navigate to="/auth" replace />;
+  // Redirect to login page if not authenticated
+  console.log('ProtectedRoute: Redirecting to /login');
+  return <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

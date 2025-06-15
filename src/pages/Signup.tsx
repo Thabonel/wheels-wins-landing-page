@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +72,7 @@ const Signup = () => {
 
           <div className="text-center text-sm">
             Already have an account?{" "}
-            <Link to="/auth" className="text-blue-600 hover:text-blue-800 font-medium">
+            <Link to="/login" className="text-blue-600 hover:text-blue-800 font-medium">
               Log in
             </Link>
           </div>
