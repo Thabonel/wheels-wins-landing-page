@@ -3,34 +3,53 @@ import { supabase } from "@/integrations/supabase";
 import { drawerItems } from '../constants';
 
 export const createDrawerWithItems = async (name: string) => {
+  console.log('🎯 Starting drawer creation for:', name);
+  
   // Get current user
   const { data: userData, error: userError } = await supabase.auth.getUser();
+  console.log('👤 Current user data:', userData?.user?.id, 'Error:', userError);
+  
   if (userError || !userData?.user) {
+    console.error('❌ Authentication failed:', userError);
     throw new Error("Authentication failed");
   }
 
   const userId = userData.user.id;
+  console.log('🔑 Using user ID:', userId);
   
-  // Create drawer
-  const { data: drawerData, error: drawerError } = await supabase
+  // Create drawer with explicit user_id
+  const drawerData = {
+    name: name.trim(),
+    photo_url: "",
+    user_id: userId
+  };
+  
+  console.log('📦 Creating drawer with data:', drawerData);
+  
+  const { data: insertedDrawer, error: drawerError } = await supabase
     .from('drawers')
-    .insert([{ name: name.trim(), photo_url: "", user_id: userId }])
+    .insert([drawerData])
     .select()
     .single();
 
   if (drawerError) {
+    console.error('❌ Drawer creation error:', drawerError);
     throw drawerError;
   }
+
+  console.log('✅ Drawer created successfully:', insertedDrawer);
 
   // Create preset items if available
   const itemsToAdd = drawerItems[name];
   let insertedItems: any[] = [];
   
-  if (itemsToAdd && drawerData) {
+  if (itemsToAdd && insertedDrawer) {
+    console.log('📝 Adding preset items:', itemsToAdd);
+    
     const itemsToInsert = itemsToAdd.map(item => ({
       name: item,
       packed: false,
-      drawer_id: drawerData.id,
+      drawer_id: insertedDrawer.id,
       quantity: 1
     }));
 
@@ -40,15 +59,16 @@ export const createDrawerWithItems = async (name: string) => {
       .select();
 
     if (itemsError) {
-      console.error("Error inserting preset items:", itemsError);
+      console.error("⚠️ Error inserting preset items:", itemsError);
       // Don't throw error for items insertion failure, drawer was created successfully
     } else {
       insertedItems = itemsData || [];
+      console.log('✅ Items created successfully:', insertedItems.length);
     }
   }
 
   return {
-    drawer: drawerData,
+    drawer: insertedDrawer,
     items: insertedItems,
     hasPresetItems: !!itemsToAdd
   };
