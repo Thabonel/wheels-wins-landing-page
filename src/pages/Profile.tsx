@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +43,7 @@ const Profile = () => {
   });
 
   // Update form data when profile loads
-  useState(() => {
+  useEffect(() => {
     if (profile) {
       setFormData({
         fullName: profile.full_name || '',
@@ -62,7 +62,7 @@ const Profile = () => {
         pets: profile.pets || ''
       });
     }
-  });
+  }, [profile]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isPartner = false) => {
     const file = event.target.files?.[0];

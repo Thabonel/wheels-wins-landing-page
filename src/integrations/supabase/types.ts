@@ -3018,6 +3018,21 @@ export type Database = {
         Args: { user_id: string }
         Returns: boolean
       }
+      search_knowledge_chunks: {
+        Args: {
+          user_id: string
+          query_embedding: string
+          match_count?: number
+          similarity_threshold?: number
+        }
+        Returns: {
+          chunk_id: string
+          content: string
+          document_name: string
+          similarity: number
+          chunk_metadata: Json
+        }[]
+      }
       seed_default_drawers: {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: undefined
