@@ -13,12 +13,94 @@ import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { TravelPreferences } from "@/components/profile/TravelPreferences";
 import { VehicleSetup } from "@/components/profile/VehicleSetup";
 import { UserKnowledgeManager } from "@/components/knowledge/UserKnowledgeManager";
+import { supabase } from "@/integrations/supabase";
+import { toast } from "sonner";
 
 const Profile = () => {
   const { user } = useAuth();
-  const { region } = useRegion();
+  const { region, setRegion } = useRegion();
   const { profile, loading } = useProfile();
   const [activeTab, setActiveTab] = useState("identity");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingPartnerPhoto, setUploadingPartnerPhoto] = useState(false);
+
+  // Form data state
+  const [formData, setFormData] = useState({
+    fullName: profile?.full_name || '',
+    nickname: profile?.nickname || '',
+    travelStyle: profile?.travel_style || 'solo',
+    partnerName: profile?.partner_name || '',
+    partnerEmail: profile?.partner_email || '',
+    vehicleType: profile?.vehicle_type || '',
+    vehicleMakeModel: profile?.vehicle_make_model || '',
+    fuelType: profile?.fuel_type || '',
+    towing: profile?.towing || '',
+    secondVehicle: profile?.second_vehicle || '',
+    maxDriving: profile?.max_driving || '',
+    campTypes: profile?.camp_types || '',
+    accessibility: profile?.accessibility || '',
+    pets: profile?.pets || ''
+  });
+
+  // Update form data when profile loads
+  useState(() => {
+    if (profile) {
+      setFormData({
+        fullName: profile.full_name || '',
+        nickname: profile.nickname || '',
+        travelStyle: profile.travel_style || 'solo',
+        partnerName: profile.partner_name || '',
+        partnerEmail: profile.partner_email || '',
+        vehicleType: profile.vehicle_type || '',
+        vehicleMakeModel: profile.vehicle_make_model || '',
+        fuelType: profile.fuel_type || '',
+        towing: profile.towing || '',
+        secondVehicle: profile.second_vehicle || '',
+        maxDriving: profile.max_driving || '',
+        campTypes: profile.camp_types || '',
+        accessibility: profile.accessibility || '',
+        pets: profile.pets || ''
+      });
+    }
+  });
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isPartner = false) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    const setUploading = isPartner ? setUploadingPartnerPhoto : setUploadingPhoto;
+    setUploading(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('profiles')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(fileName);
+
+      const updateField = isPartner ? 'partner_profile_image_url' : 'profile_image_url';
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ [updateField]: data.publicUrl })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      toast.success(`${isPartner ? 'Partner' : 'Profile'} photo updated successfully`);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload photo');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -62,16 +144,31 @@ const Profile = () => {
         </TabsList>
 
         <TabsContent value="identity" className="space-y-6">
-          <ProfileImageUpload />
-          <ProfileIdentity />
+          <ProfileIdentity
+            formData={formData}
+            setFormData={setFormData}
+            user={user}
+            profile={profile}
+            region={region}
+            setRegion={setRegion}
+            uploadingPhoto={uploadingPhoto}
+            uploadingPartnerPhoto={uploadingPartnerPhoto}
+            handleFileUpload={handleFileUpload}
+          />
         </TabsContent>
 
         <TabsContent value="travel" className="space-y-6">
-          <TravelPreferences />
+          <TravelPreferences
+            formData={formData}
+            setFormData={setFormData}
+          />
         </TabsContent>
 
         <TabsContent value="vehicle" className="space-y-6">
-          <VehicleSetup />
+          <VehicleSetup
+            formData={formData}
+            setFormData={setFormData}
+          />
         </TabsContent>
 
         <TabsContent value="knowledge" className="space-y-6">  
