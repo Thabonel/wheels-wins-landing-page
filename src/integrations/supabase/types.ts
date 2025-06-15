@@ -1325,6 +1325,7 @@ export type Database = {
           message: string | null
           timestamp: string | null
           trace_id: string | null
+          user_id: string | null
           workflow_name: string | null
         }
         Insert: {
@@ -1334,6 +1335,7 @@ export type Database = {
           message?: string | null
           timestamp?: string | null
           trace_id?: string | null
+          user_id?: string | null
           workflow_name?: string | null
         }
         Update: {
@@ -1343,6 +1345,7 @@ export type Database = {
           message?: string | null
           timestamp?: string | null
           trace_id?: string | null
+          user_id?: string | null
           workflow_name?: string | null
         }
         Relationships: []

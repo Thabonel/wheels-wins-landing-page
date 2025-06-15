@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -9,6 +10,7 @@ import Index from './pages/Index';
 import Wheels from './pages/Wheels';
 import Profile from './pages/Profile';
 import Auth from './pages/Auth';
+import Signup from './pages/Signup';
 import Onboarding from './pages/Onboarding';
 import You from './pages/You';
 import Wins from './pages/Wins';
@@ -43,6 +45,7 @@ function App() {
                     <Route path="/shop" element={<ProtectedRoute><Shop /></ProtectedRoute>} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/auth" element={<Auth />} />
+                    <Route path="/signup" element={<Signup />} />
                     <Route path="/onboarding" element={<Onboarding />} />
                     <Route path="/payment-success" element={<PaymentSuccess />} />
                     <Route path="/payment-canceled" element={<PaymentCanceled />} />

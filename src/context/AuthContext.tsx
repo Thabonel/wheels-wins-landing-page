@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setTimeout(() => {
             if (window.location.pathname === '/signup' || (isNewUser && window.location.pathname !== '/onboarding')) {
               window.location.href = '/onboarding';
-            } else if (window.location.pathname === '/login') {
+            } else if (window.location.pathname === '/auth') {
               window.location.href = '/you';
             }
           }, 100);
@@ -107,6 +107,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/onboarding`
+      }
     });
     
     if (error) throw error;
