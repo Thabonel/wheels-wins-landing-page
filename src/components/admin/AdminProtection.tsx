@@ -22,7 +22,7 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
             <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
             <p className="text-gray-600 mb-4">Please log in to access this area.</p>
-            <Button onClick={() => window.location.href = '/auth'}>
+            <Button onClick={() => window.location.href = '/login'}>
               Go to Login
             </Button>
           </CardContent>
@@ -54,21 +54,19 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
             <h2 className="text-xl font-semibold text-red-800 mb-2">Access Check Failed</h2>
             <p className="text-red-600 mb-4">{error}</p>
             
-            {error.includes('Profile fetch failed') && (
-              <div className="bg-blue-50 p-3 rounded-md mb-4 text-left">
-                <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-800">
-                    <p className="font-medium mb-1">Troubleshooting Steps:</p>
-                    <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li>Check if your profile exists in the database</li>
-                      <li>Verify Row Level Security policies are correctly configured</li>
-                      <li>Ensure your user has the correct permissions</li>
-                    </ul>
-                  </div>
+            <div className="bg-blue-50 p-3 rounded-md mb-4 text-left">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">Troubleshooting Steps:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Check if your profile exists in the database</li>
+                    <li>Verify Row Level Security policies are correctly configured</li>
+                    <li>Ensure your user has the correct permissions</li>
+                  </ul>
                 </div>
               </div>
-            )}
+            </div>
             
             <div className="space-y-2">
               <Button 
