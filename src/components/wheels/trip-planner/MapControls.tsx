@@ -110,11 +110,20 @@ export default function MapControls({
     };
   }, [region, isOffline]);
 
-  // Handle travel mode changes
+  // Handle travel mode changes - with proper initialization check
   useEffect(() => {
     if (directionsControl.current && !isOffline) {
-      const profile = travelMode === 'traffic' ? 'mapbox/driving-traffic' : `mapbox/${travelMode}`;
-      directionsControl.current.setProfile(profile);
+      // Check if the directions control has the setProfile method and is properly initialized
+      if (typeof directionsControl.current.setProfile === 'function') {
+        const profile = travelMode === 'traffic' ? 'mapbox/driving-traffic' : `mapbox/${travelMode}`;
+        try {
+          directionsControl.current.setProfile(profile);
+        } catch (error) {
+          console.warn('Error setting travel mode profile:', error);
+        }
+      } else {
+        console.log('Directions control not ready for profile change');
+      }
     }
   }, [travelMode, isOffline]);
 
@@ -133,10 +142,14 @@ export default function MapControls({
       el.innerText = String(waypoints.length + 1);
       new mapboxgl.Marker({ element: el }).setLngLat(coords).addTo(map.current!);
       
-      // Insert waypoint before destination, not replace origin
-      const currentWaypoints = directionsControl.current!.getWaypoints();
-      const insertIndex = currentWaypoints.length > 1 ? currentWaypoints.length - 1 : waypoints.length;
-      directionsControl.current!.addWaypoint(insertIndex, coords);
+      // Insert waypoint before destination, not replace origin - with safety check
+      if (directionsControl.current && typeof directionsControl.current.getWaypoints === 'function') {
+        const currentWaypoints = directionsControl.current.getWaypoints();
+        const insertIndex = currentWaypoints.length > 1 ? currentWaypoints.length - 1 : waypoints.length;
+        if (typeof directionsControl.current.addWaypoint === 'function') {
+          directionsControl.current.addWaypoint(insertIndex, coords);
+        }
+      }
       
       setAdding(false);
       map.current!.getCanvas().style.cursor = "";
