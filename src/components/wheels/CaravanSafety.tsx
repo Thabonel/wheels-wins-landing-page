@@ -204,7 +204,7 @@ export default function CaravanSafety() {
                             {item.task}
                           </span>
                           {item.critical && (
-                            <Badge variant="destructive" size="sm">Critical</Badge>
+                            <Badge variant="destructive">Critical</Badge>
                           )}
                         </div>
                         {item.description && (
