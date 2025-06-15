@@ -350,21 +350,21 @@ export type Database = {
           id: string
           name: string
           photo_url: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
           name: string
           photo_url?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
           name?: string
           photo_url?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -2656,6 +2656,14 @@ export type Database = {
       cleanup_expired_audio_cache: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      debug_auth_state: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          current_user_id: string
+          session_user_name: string
+          user_role: string
+        }[]
       }
       get_nearby_recommendations: {
         Args: {

@@ -28,13 +28,11 @@ export const useStorageData = () => {
 
   const fetchStorage = async () => {
     if (!isAuthenticated || !user) {
-      console.log("User not authenticated, skipping storage fetch");
+      setStorage([]);
       return;
     }
 
     try {
-      console.log("Fetching storage data from Supabase...");
-      
       const { data, error } = await supabase
         .from('drawers')
         .select(`
@@ -42,25 +40,26 @@ export const useStorageData = () => {
           name,
           photo_url,
           items(id, name, packed, quantity)
-        `)
-        .eq('user_id', user.id);
+        `);
 
       if (error) {
         console.error("Error fetching storage:", error);
-        if (error.code === '42501') {
-          toast({
-            title: "Permission Error",
-            description: "Unable to fetch your storage data. Please try refreshing the page.",
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Error",
+          description: "Unable to fetch your storage data. Please try refreshing the page.",
+          variant: "destructive",
+        });
         return;
       }
 
-      console.log("Storage data fetched:", data);
       setStorage(data || []);
     } catch (error) {
       console.error("Unexpected error fetching storage:", error);
+      toast({
+        title: "Error", 
+        description: "An unexpected error occurred while fetching your data.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -97,6 +96,7 @@ export const useStorageData = () => {
         return;
       }
 
+      // Update local state
       setStorage(prev => 
         prev.map(drawer => ({
           ...drawer,
@@ -107,11 +107,23 @@ export const useStorageData = () => {
       );
     } catch (error) {
       console.error("Unexpected error updating item:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while updating the item.",
+        variant: "destructive",
+      });
     }
   };
 
   const generateMissingItems = async (): Promise<boolean> => {
-    if (!isAuthenticated || !user) return false;
+    if (!isAuthenticated || !user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to create shopping lists.",
+        variant: "destructive",
+      });
+      return false;
+    }
 
     try {
       const unpackedItems = storage.flatMap(drawer => 
@@ -162,6 +174,11 @@ export const useStorageData = () => {
       return true;
     } catch (error) {
       console.error("Unexpected error generating shopping list:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while creating the shopping list.",
+        variant: "destructive",
+      });
       return false;
     }
   };
