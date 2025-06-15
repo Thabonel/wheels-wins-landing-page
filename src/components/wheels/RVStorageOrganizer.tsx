@@ -14,20 +14,50 @@ export default function RVStorageOrganizer() {
   const [checkedState, setCheckedState] = useState<{ [key: string]: boolean }>({});
   const [listId, setListId] = useState<string | null>(null);
 
-  const generateMessageText = () => {
-    return missingItems.map(item => `• ${item.name} (${item.drawerName})`).join('\n');
-  };
-
   useEffect(() => {
     fetchStorage();
   }, []);
 
   const fetchStorage = async () => {
+    console.log("Fetching storage data from Supabase...");
+    
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) {
+      toast({
+        title: "Error",
+        description: "Please log in to view your storage.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { data, error } = await supabase
       .from("drawers")
-      .select("id, name, photo_url, items(id, name, packed)");
+      .select(`
+        id,
+        name,
+        photo_url,
+        items (
+          id,
+          name,
+          packed,
+          quantity
+        )
+      `)
+      .eq('user_id', userData.user.id);
 
-    if (!error && data) {
+    if (error) {
+      console.error("Error fetching storage:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load storage data.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (data) {
+      console.log("Storage data loaded:", data);
       setStorage(
         data.map((d) => ({
           id: d.id,
@@ -41,6 +71,7 @@ export default function RVStorageOrganizer() {
   };
 
   const handleDrawerCreated = (newDrawer: any) => {
+    console.log("New drawer created:", newDrawer);
     setStorage((prev) => [...prev, {
       ...newDrawer,
       isOpen: false
@@ -60,7 +91,21 @@ export default function RVStorageOrganizer() {
     const item = drawer.items.find((i: any) => i.id === itemId);
     if (!item) return;
 
-    await supabase.from("items").update({ packed: !item.packed }).eq("id", itemId);
+    const { error } = await supabase
+      .from("items")
+      .update({ packed: !item.packed })
+      .eq("id", itemId);
+
+    if (error) {
+      console.error("Error updating item:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update item status.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setStorage((prev) =>
       prev.map((d) =>
         d.id === drawerId
@@ -76,7 +121,7 @@ export default function RVStorageOrganizer() {
   };
 
   const isDrawerComplete = (drawer: any) => {
-    return drawer.items.every((i: any) => i.packed);
+    return drawer.items.length > 0 && drawer.items.every((i: any) => i.packed);
   };
 
   const generateMissingItems = async () => {
@@ -91,6 +136,14 @@ export default function RVStorageOrganizer() {
     setMissingItems(missing);
     setCheckedState({});
 
+    if (missing.length === 0) {
+      toast({
+        title: "All packed!",
+        description: "All items are already packed.",
+      });
+      return;
+    }
+
     const { data, error } = await supabase
       .from("shopping_lists")
       .insert([{ items: missing }])
@@ -98,7 +151,12 @@ export default function RVStorageOrganizer() {
       .single();
 
     if (error) {
-      toast({ title: "Error", description: "Failed to save shopping list", variant: "destructive" });
+      console.error("Error creating shopping list:", error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to save shopping list", 
+        variant: "destructive" 
+      });
       return;
     }
 
@@ -133,50 +191,68 @@ export default function RVStorageOrganizer() {
       </div>
 
       <div className="space-y-4">
-        {storage.map((drawer) => {
-          const complete = isDrawerComplete(drawer);
-          return (
-            <Card key={drawer.id} className={`${complete ? "border-green-200" : "border-amber-200"}`}>
-              <CardContent className="p-0">
-                <div className={`p-4 flex justify-between items-center ${complete ? "bg-green-50" : "bg-amber-50"}`}>
-                  <div className="flex items-center space-x-4">
-                    {drawer.photo_url && (
-                      <img src={drawer.photo_url} alt={drawer.name} className="w-10 h-10 object-cover rounded" />
-                    )}
-                    <div>
-                      <span className="font-bold">{drawer.name}</span>
-                      <p className="text-sm text-gray-600">
-                        {drawer.items.filter((i: any) => i.packed).length} of {drawer.items.length} items packed
-                      </p>
+        {storage.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-gray-500 mb-4">No drawers created yet</p>
+              <p className="text-sm text-gray-400">Use the "Add Drawer" button above to get started</p>
+            </CardContent>
+          </Card>
+        ) : (
+          storage.map((drawer) => {
+            const complete = isDrawerComplete(drawer);
+            return (
+              <Card key={drawer.id} className={`${complete ? "border-green-200" : "border-amber-200"}`}>
+                <CardContent className="p-0">
+                  <div className={`p-4 flex justify-between items-center ${complete ? "bg-green-50" : "bg-amber-50"}`}>
+                    <div className="flex items-center space-x-4">
+                      {drawer.photo_url && (
+                        <img src={drawer.photo_url} alt={drawer.name} className="w-10 h-10 object-cover rounded" />
+                      )}
+                      <div>
+                        <span className="font-bold">{drawer.name}</span>
+                        <p className="text-sm text-gray-600">
+                          {drawer.items.filter((i: any) => i.packed).length} of {drawer.items.length} items packed
+                        </p>
+                      </div>
                     </div>
+                    <Button onClick={() => toggleDrawerState(drawer.id)} variant="outline" size="sm">
+                      {drawer.isOpen ? "Close" : "Open"}
+                    </Button>
                   </div>
-                  <Button onClick={() => toggleDrawerState(drawer.id)} variant="outline" size="sm">
-                    {drawer.isOpen ? "Close" : "Open"}
-                  </Button>
-                </div>
-                {drawer.isOpen && (
-                  <div className="p-4 pt-2 border-t">
-                    <ul className="space-y-2">
-                      {drawer.items.map((item: any) => (
-                        <li key={item.id} className="flex items-center">
-                          <label className="flex items-center w-full cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={item.packed}
-                              onChange={() => toggleItemPacked(drawer.id, item.id)}
-                              className="mr-3 h-5 w-5"
-                            />
-                            <span className={`${item.packed ? "line-through text-gray-500" : ""}`}>{item.name}</span>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+                  {drawer.isOpen && (
+                    <div className="p-4 pt-2 border-t">
+                      {drawer.items.length === 0 ? (
+                        <p className="text-gray-500 text-sm">No items in this drawer</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {drawer.items.map((item: any) => (
+                            <li key={item.id} className="flex items-center">
+                              <label className="flex items-center w-full cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={item.packed}
+                                  onChange={() => toggleItemPacked(drawer.id, item.id)}
+                                  className="mr-3 h-5 w-5"
+                                />
+                                <span className={`${item.packed ? "line-through text-gray-500" : ""}`}>
+                                  {item.name}
+                                  {item.quantity && item.quantity > 1 && (
+                                    <span className="text-gray-400 ml-2">x{item.quantity}</span>
+                                  )}
+                                </span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </div>
 
       <Dialog open={showList} onOpenChange={setShowList}>
@@ -184,24 +260,28 @@ export default function RVStorageOrganizer() {
           <DialogHeader>
             <DialogTitle>Shopping List</DialogTitle>
           </DialogHeader>
-          <ul className="space-y-2">
-            {missingItems.map((item, i) => {
-              const key = `${item.drawerName}-${item.name}`;
-              return (
-                <li key={i} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={!!checkedState[key]}
-                    onChange={() => toggleCheckbox(key)}
-                    className="mr-2"
-                  />
-                  <span className={checkedState[key] ? "line-through text-gray-400" : ""}>
-                    {item.name} ({item.drawerName})
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          {missingItems.length === 0 ? (
+            <p className="text-center text-gray-500">No unpacked items found.</p>
+          ) : (
+            <ul className="space-y-2">
+              {missingItems.map((item, i) => {
+                const key = `${item.drawerName}-${item.name}`;
+                return (
+                  <li key={i} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={!!checkedState[key]}
+                      onChange={() => toggleCheckbox(key)}
+                      className="mr-2"
+                    />
+                    <span className={checkedState[key] ? "line-through text-gray-400" : ""}>
+                      {item.name} ({item.drawerName})
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           <DialogFooter className="flex justify-between">
             <Button variant="outline" onClick={openOnPhone}>Open on Phone</Button>
             <Button onClick={() => setShowList(false)}>Close</Button>
