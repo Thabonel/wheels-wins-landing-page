@@ -18,7 +18,7 @@ const PasswordInput = ({ id, label, placeholder, value, onChange, required = fal
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      {label && <Label htmlFor={id}>{label}</Label>}
       <div className="relative">
         <Input 
           id={id} 
