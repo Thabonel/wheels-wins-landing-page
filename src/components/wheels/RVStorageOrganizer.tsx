@@ -41,6 +41,22 @@ export default function RVStorageOrganizer() {
     );
   }
 
+  // Transform storage data to ensure isOpen is always present
+  const drawersWithOpenState = storage.map(drawer => ({
+    ...drawer,
+    isOpen: drawer.isOpen ?? false
+  }));
+
+  // Create wrapper function to match expected signature
+  const handleToggleItem = (drawerId: string, itemId: string) => {
+    // Find the item to get its current packed state
+    const drawer = storage.find(d => d.id === drawerId);
+    const item = drawer?.items.find(i => i.id === itemId);
+    if (item) {
+      toggleItemPacked(itemId, !item.packed);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">RV Storage Organizer</h2>
@@ -50,9 +66,9 @@ export default function RVStorageOrganizer() {
       </div>
 
       <DrawerList
-        drawers={storage}
+        drawers={drawersWithOpenState}
         onToggleDrawer={toggleDrawerState}
-        onToggleItem={toggleItemPacked}
+        onToggleItem={handleToggleItem}
       />
 
       <ShoppingListDialog
