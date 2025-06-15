@@ -26,7 +26,7 @@ export default function Layout({ children }: LayoutProps) {
 
   React.useEffect(() => {
     const checkScreenSize = () => {
-      setIslScreen(window.innerWidth >= 1280);
+      setIsXlScreen(window.innerWidth >= 1280);
     };
     
     checkScreenSize();
