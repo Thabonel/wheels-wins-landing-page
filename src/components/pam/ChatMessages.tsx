@@ -1,5 +1,7 @@
+
 import { useRef, useEffect } from "react";
 import { ChatMessage } from "./types";
+import { PamKnowledgeIndicator } from "@/components/knowledge/PamKnowledgeIndicator";
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
@@ -31,6 +33,14 @@ const ChatMessages = ({ messages }: ChatMessagesProps) => {
             }`}
           >
             <p className="leading-relaxed">{msg.content}</p>
+            
+            {/* Show knowledge indicator for assistant messages with knowledge */}
+            {msg.sender === "pam" && (msg as any).knowledgeUsed && (msg as any).knowledgeUsed.length > 0 && (
+              <div className="mt-3">
+                <PamKnowledgeIndicator knowledgeUsed={(msg as any).knowledgeUsed} />
+              </div>
+            )}
+            
             <div
               className={`text-xs mt-2 ${
                 msg.sender === "user"

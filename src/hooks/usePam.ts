@@ -6,75 +6,10 @@ import { useOffline } from "@/context/OfflineContext";
 import { useRegion } from "@/context/RegionContext";
 import { IntentClassifier } from "@/utils/intentClassifier";
 import { usePamSession } from "@/hooks/usePamSession";
+import { getEnhancedPamMemory } from "@/hooks/useEnhancedPamMemory";
 import { PamWebhookPayload } from "@/types/pamTypes";
 
 const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/pam-chat";
-
-// Helper function to get PAM memory from available sources
-const getPamMemory = (region: string) => {
-  try {
-    // Check localStorage for various memory sources
-    const travelPrefs = localStorage.getItem('travel_preferences');
-    const vehicleInfo = localStorage.getItem('vehicle_info');
-    const budgetPrefs = localStorage.getItem('budget_preferences');
-    const userPrefs = localStorage.getItem('user_preferences');
-    
-    const memory: any = {};
-    
-    // Add region
-    if (region) {
-      memory.region = region;
-    }
-    
-    // Parse and include travel preferences
-    if (travelPrefs) {
-      try {
-        const parsed = JSON.parse(travelPrefs);
-        if (parsed.travel_style) memory.travel_style = parsed.travel_style;
-        if (parsed.preferences) memory.preferences = parsed.preferences;
-      } catch (e) {
-        console.warn('Failed to parse travel preferences:', e);
-      }
-    }
-    
-    // Parse and include vehicle info
-    if (vehicleInfo) {
-      try {
-        const parsed = JSON.parse(vehicleInfo);
-        if (parsed.vehicle_type) memory.vehicle_type = parsed.vehicle_type;
-      } catch (e) {
-        console.warn('Failed to parse vehicle info:', e);
-      }
-    }
-    
-    // Parse and include budget preferences
-    if (budgetPrefs) {
-      try {
-        const parsed = JSON.parse(budgetPrefs);
-        if (parsed.budget_focus) memory.budget_focus = parsed.budget_focus;
-      } catch (e) {
-        console.warn('Failed to parse budget preferences:', e);
-      }
-    }
-    
-    // Parse and include user preferences
-    if (userPrefs) {
-      try {
-        const parsed = JSON.parse(userPrefs);
-        if (parsed.preferences) {
-          memory.preferences = { ...memory.preferences, ...parsed.preferences };
-        }
-      } catch (e) {
-        console.warn('Failed to parse user preferences:', e);
-      }
-    }
-    
-    return Object.keys(memory).length > 0 ? memory : null;
-  } catch (error) {
-    console.warn('Error getting PAM memory:', error);
-    return null;
-  }
-};
 
 export function usePam() {
   const { user } = useAuth();
@@ -120,18 +55,16 @@ export function usePam() {
     // Update session data
     updateSession(intentResult.type);
 
+    // Get enhanced memory including personal knowledge
+    const enhancedMemory = await getEnhancedPamMemory(user.id, region, userMessage);
+
     // Build payload for new pam-chat endpoint
     const payload: PamWebhookPayload = {
       chatInput: userMessage,
       user_id: user.id,
-      voice_enabled: false
+      voice_enabled: false,
+      pam_memory: enhancedMemory
     };
-
-    // Add PAM memory if available
-    const pamMemory = getPamMemory(region);
-    if (pamMemory) {
-      payload.pam_memory = pamMemory;
-    }
 
     console.log("🚀 USEPAM DETAILED DEBUG - SENDING TO PAM API");
     console.log("📍 URL:", WEBHOOK_URL);
@@ -140,6 +73,7 @@ export function usePam() {
     // Call n8n production webhook
     let assistantContent = "I'm sorry, I didn't understand that.";
     let assistantRender = null;
+    let knowledgeUsed: any[] = [];
 
     try {
       const res = await fetch(WEBHOOK_URL, {
@@ -202,10 +136,16 @@ export function usePam() {
       assistantContent = data.message;
       assistantRender = data.render || null;
       
+      // Extract knowledge usage info if available
+      if (data.knowledge_used) {
+        knowledgeUsed = data.knowledge_used;
+      }
+      
       console.log("💬 USEPAM DETAILED DEBUG - MESSAGE FIELD RAW:", assistantContent);
       console.log("💬 USEPAM DETAILED DEBUG - MESSAGE TYPE:", typeof assistantContent);
       console.log("💬 USEPAM DETAILED DEBUG - MESSAGE LENGTH:", assistantContent?.length);
       console.log("💬 USEPAM DETAILED DEBUG - MESSAGE PREVIEW:", assistantContent?.substring(0, 100));
+      console.log("🧠 USEPAM DETAILED DEBUG - KNOWLEDGE USED:", knowledgeUsed);
 
       if (!assistantContent || typeof assistantContent !== 'string') {
         console.error("❌ USEPAM DETAILED DEBUG - Message field is missing or not a string:", assistantContent);
@@ -228,6 +168,7 @@ export function usePam() {
       role: "assistant",
       content: assistantContent,
       render: assistantRender,
+      knowledgeUsed: knowledgeUsed,
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, assistantMsg]);

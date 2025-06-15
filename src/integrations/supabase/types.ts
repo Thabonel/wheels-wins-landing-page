@@ -2484,6 +2484,133 @@ export type Database = {
         }
         Relationships: []
       }
+      user_knowledge_buckets: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_knowledge_chunks: {
+        Row: {
+          chunk_index: number
+          chunk_metadata: Json | null
+          content: string
+          created_at: string | null
+          document_id: string
+          embedding: string | null
+          id: string
+          token_count: number | null
+          user_id: string
+        }
+        Insert: {
+          chunk_index: number
+          chunk_metadata?: Json | null
+          content: string
+          created_at?: string | null
+          document_id: string
+          embedding?: string | null
+          id?: string
+          token_count?: number | null
+          user_id: string
+        }
+        Update: {
+          chunk_index?: number
+          chunk_metadata?: Json | null
+          content?: string
+          created_at?: string | null
+          document_id?: string
+          embedding?: string | null
+          id?: string
+          token_count?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_knowledge_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "user_knowledge_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_knowledge_documents: {
+        Row: {
+          bucket_id: string
+          content_type: string | null
+          created_at: string | null
+          extracted_text: string | null
+          file_path: string
+          file_size: number | null
+          filename: string
+          id: string
+          metadata: Json | null
+          processing_status: string | null
+          user_id: string
+        }
+        Insert: {
+          bucket_id: string
+          content_type?: string | null
+          created_at?: string | null
+          extracted_text?: string | null
+          file_path: string
+          file_size?: number | null
+          filename: string
+          id?: string
+          metadata?: Json | null
+          processing_status?: string | null
+          user_id: string
+        }
+        Update: {
+          bucket_id?: string
+          content_type?: string | null
+          created_at?: string | null
+          extracted_text?: string | null
+          file_path?: string
+          file_size?: number | null
+          filename?: string
+          id?: string
+          metadata?: Json | null
+          processing_status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_knowledge_documents_bucket_id_fkey"
+            columns: ["bucket_id"]
+            isOneToOne: false
+            referencedRelation: "user_knowledge_buckets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_locations: {
         Row: {
           created_at: string | null
