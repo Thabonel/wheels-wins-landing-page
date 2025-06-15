@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,49 +12,6 @@ interface AdminProtectionProps {
 
 const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
   const { user } = useAuth();
-  
-  // TEMPORARY: Bypass admin check to resolve database role issues
-  const BYPASS_ADMIN_CHECK = true;
-  
-  if (BYPASS_ADMIN_CHECK) {
-    console.log('🚨 ADMIN PROTECTION BYPASSED - This is temporary for debugging');
-    if (!user) {
-      return (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Card className="w-full max-w-md">
-            <CardContent className="p-6 text-center">
-              <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
-              <p className="text-gray-600 mb-4">Please log in to access this area.</p>
-              <Button onClick={() => window.location.href = '/login'}>
-                Go to Login
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-    
-    return (
-      <div>
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-yellow-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-yellow-700">
-                <strong>Notice:</strong> Admin protection is temporarily disabled for debugging. 
-                This should be re-enabled after fixing the database role issues.
-              </p>
-            </div>
-          </div>
-        </div>
-        {children}
-      </div>
-    );
-  }
-
   const { isAdmin, isLoading, error } = useAdminAuth();
 
   if (!user) {
@@ -100,12 +58,11 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
               <div className="flex items-start gap-2">
                 <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-blue-800">
-                  <p className="font-medium mb-1">Troubleshooting Steps:</p>
+                  <p className="font-medium mb-1">To gain admin access:</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>Check if your profile exists in the database</li>
-                    <li>Verify Row Level Security policies are correctly configured</li>
-                    <li>Ensure your user has the correct role and active status</li>
-                    <li>Database roles have been updated to resolve permission issues</li>
+                    <li>Contact an existing administrator</li>
+                    <li>Request admin role assignment in admin_users table</li>
+                    <li>Ensure your account status is 'active'</li>
                   </ul>
                 </div>
               </div>

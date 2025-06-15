@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          last_login: string | null
+          permissions: Json | null
+          region: string | null
+          role: string
+          status: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          last_login?: string | null
+          permissions?: Json | null
+          region?: string | null
+          role?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          last_login?: string | null
+          permissions?: Json | null
+          region?: string | null
+          role?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       agent_logs: {
         Row: {
           created_at: string | null
@@ -341,6 +380,54 @@ export type Database = {
           user_acted?: boolean | null
           user_id?: string | null
           user_viewed?: boolean | null
+        }
+        Relationships: []
+      }
+      content_moderation: {
+        Row: {
+          author_email: string | null
+          author_id: string | null
+          content_id: string
+          content_text: string | null
+          content_type: string
+          created_at: string | null
+          flagged_by: string | null
+          flagged_reason: string | null
+          id: string
+          moderator_id: string | null
+          moderator_notes: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          author_email?: string | null
+          author_id?: string | null
+          content_id: string
+          content_text?: string | null
+          content_type: string
+          created_at?: string | null
+          flagged_by?: string | null
+          flagged_reason?: string | null
+          id?: string
+          moderator_id?: string | null
+          moderator_notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          author_email?: string | null
+          author_id?: string | null
+          content_id?: string
+          content_text?: string | null
+          content_type?: string
+          created_at?: string | null
+          flagged_by?: string | null
+          flagged_reason?: string | null
+          id?: string
+          moderator_id?: string | null
+          moderator_notes?: string | null
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1940,6 +2027,90 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_orders: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_items: Json | null
+          payment_status: string | null
+          shipping_address: Json | null
+          status: string | null
+          total_amount: number | null
+          tracking_number: string | null
+          updated_at: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_items?: Json | null
+          payment_status?: string | null
+          shipping_address?: Json | null
+          status?: string | null
+          total_amount?: number | null
+          tracking_number?: string | null
+          updated_at?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_items?: Json | null
+          payment_status?: string | null
+          shipping_address?: Json | null
+          status?: string | null
+          total_amount?: number | null
+          tracking_number?: string | null
+          updated_at?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      shop_products: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          images: Json | null
+          inventory_count: number | null
+          name: string
+          price: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          images?: Json | null
+          inventory_count?: number | null
+          name: string
+          price?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          images?: Json | null
+          inventory_count?: number | null
+          name?: string
+          price?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       shopping_lists: {
         Row: {
           created_at: string | null
@@ -2146,6 +2317,33 @@ export type Database = {
           status?: string | null
           subject?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: Json | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value?: Json | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: Json | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -2688,6 +2886,10 @@ export type Database = {
       get_user_role: {
         Args: Record<PropertyKey, never> | { check_user_id: string }
         Returns: string
+      }
+      is_admin_user: {
+        Args: { user_id: string }
+        Returns: boolean
       }
       seed_default_drawers: {
         Args: Record<PropertyKey, never> | { user_id: string }

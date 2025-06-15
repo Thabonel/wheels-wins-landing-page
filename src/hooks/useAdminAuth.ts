@@ -10,17 +10,6 @@ export const useAdminAuth = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // TEMPORARY: Skip admin check entirely to avoid database role issues
-    const BYPASS_ADMIN_CHECK = true;
-    
-    if (BYPASS_ADMIN_CHECK) {
-      console.log('🚨 ADMIN AUTH BYPASSED - This is temporary for debugging');
-      setIsAdmin(true); // Grant admin access temporarily
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
-
     const checkAdminStatus = async () => {
       console.log('🔐 Starting admin check for user:', user?.id, 'email:', user?.email);
       
@@ -33,32 +22,31 @@ export const useAdminAuth = () => {
 
       try {
         setError(null);
-        console.log('📋 Querying profiles table for user:', user.id);
+        console.log('📋 Querying admin_users table for user:', user.id);
         
-        // Use a simple query that won't trigger role switching
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
+        const { data: adminUser, error: adminError } = await supabase
+          .from('admin_users')
           .select('role, status, email')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (profileError) {
-          console.error('❌ Profile fetch error:', profileError);
-          setError(`Profile fetch failed: ${profileError.message}`);
+        if (adminError) {
+          console.error('❌ Admin user fetch error:', adminError);
+          setError(`Admin check failed: ${adminError.message}`);
           setIsAdmin(false);
-        } else if (!profile) {
-          console.log('❌ No profile found for user');
-          setError('User profile not found. Please contact an administrator.');
+        } else if (!adminUser) {
+          console.log('❌ No admin record found for user');
+          setError('Admin access not granted. Please contact an administrator.');
           setIsAdmin(false);
         } else {
-          console.log('✅ User profile found:', {
-            role: profile.role,
-            status: profile.status,
-            email: profile.email
+          console.log('✅ Admin user found:', {
+            role: adminUser.role,
+            status: adminUser.status,
+            email: adminUser.email
           });
           
           // Check if user has admin role and is active
-          const adminStatus = profile.role === 'admin' && profile.status === 'active';
+          const adminStatus = adminUser.role === 'admin' && adminUser.status === 'active';
           console.log('🔑 Admin status determined:', adminStatus);
           setIsAdmin(adminStatus);
           setError(null);
