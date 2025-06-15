@@ -16,6 +16,7 @@ import You from './pages/You';
 import Wins from './pages/Wins';
 import Social from './pages/Social';
 import Shop from './pages/Shop';
+import AdminDashboard from './pages/AdminDashboard';
 import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
@@ -43,6 +44,7 @@ function App() {
                     <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                     <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
                     <Route path="/shop" element={<ProtectedRoute><Shop /></ProtectedRoute>} />
+                    <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
