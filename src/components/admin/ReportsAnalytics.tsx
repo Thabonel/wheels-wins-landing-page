@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import {
   BarChart,
@@ -18,7 +17,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { DatePickerWithRange } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase";
 import { toast } from "sonner";
