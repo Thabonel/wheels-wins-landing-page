@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 import DrawerSelector from "./DrawerSelector";
 import DrawerList from "./storage/DrawerList";
 import ShoppingListDialog from "./storage/ShoppingListDialog";
@@ -8,6 +9,8 @@ import { useStorageData } from "./storage/useStorageData";
 
 export default function RVStorageOrganizer() {
   const [showList, setShowList] = useState(false);
+  const { user, isAuthenticated } = useAuth();
+  
   const {
     storage,
     missingItems,
@@ -24,6 +27,19 @@ export default function RVStorageOrganizer() {
       setShowList(true);
     }
   };
+
+  // Show authentication message if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold">RV Storage Organizer</h2>
+        <div className="text-center py-8">
+          <p className="text-gray-600 mb-4">Please log in to manage your RV storage.</p>
+          <p className="text-sm text-gray-500">You need to be authenticated to create and manage drawers.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

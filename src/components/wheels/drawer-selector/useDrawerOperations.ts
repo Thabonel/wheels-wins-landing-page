@@ -12,7 +12,12 @@ export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => 
   const fetchExistingDrawers = async () => {
     try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData?.user) return;
+      if (userError || !userData?.user) {
+        console.log("No authenticated user found");
+        return;
+      }
+
+      console.log("Fetching drawers for user:", userData.user.id);
 
       const { data, error } = await supabase
         .from('drawers')
@@ -24,6 +29,7 @@ export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => 
         return;
       }
 
+      console.log("Fetched drawers:", data);
       setExistingDrawers(data?.map(d => d.name.toLowerCase()) || []);
     } catch (error) {
       console.error("Error in fetchExistingDrawers:", error);
@@ -38,6 +44,7 @@ export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => 
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
       if (userError || !userData?.user) {
+        console.error("Authentication error:", userError);
         toast({
           title: "Authentication Error",
           description: "Could not get user information. Please log in again.",
@@ -47,11 +54,20 @@ export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => 
       }
 
       const userId = userData.user.id;
+      console.log("Creating drawer for user:", userId);
       
-      // Create the drawer
+      // Create the drawer with explicit user_id
+      const drawerPayload = { 
+        name: name, 
+        photo_url: "", 
+        user_id: userId 
+      };
+      
+      console.log("Drawer payload:", drawerPayload);
+
       const { data: drawerData, error: drawerError } = await supabase
         .from('drawers')
-        .insert([{ name: name, photo_url: "", user_id: userId }])
+        .insert([drawerPayload])
         .select()
         .single();
 
@@ -65,10 +81,10 @@ export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => 
             description: "A drawer with this name already exists.",
             variant: "destructive",
           });
-        } else if (drawerError.code === '42501') {
+        } else if (drawerError.code === '42501' || drawerError.message?.includes('permission denied')) {
           toast({
             title: "Permission Error",
-            description: "You don't have permission to create drawers. Please try logging in again.",
+            description: "You don't have permission to create drawers. Please try refreshing the page and logging in again.",
             variant: "destructive",
           });
         } else {
@@ -81,17 +97,23 @@ export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => 
         return;
       }
 
+      console.log("Drawer created successfully:", drawerData);
+
       // Create preset items if available
       const itemsToAdd = drawerItems[name];
       let insertedItems: any[] = [];
       
       if (itemsToAdd && drawerData) {
+        console.log("Adding preset items:", itemsToAdd);
+        
         const itemsToInsert = itemsToAdd.map(item => ({
           name: item,
           packed: false,
           drawer_id: drawerData.id,
           quantity: 1
         }));
+
+        console.log("Items to insert:", itemsToInsert);
 
         const { data: itemsData, error: itemsError } = await supabase
           .from('items')
@@ -106,6 +128,7 @@ export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => 
           });
         } else {
           insertedItems = itemsData || [];
+          console.log("Items inserted successfully:", insertedItems);
         }
       }
 
