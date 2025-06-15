@@ -1,7 +1,7 @@
 
-import { useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
-import { reverseGeocode } from "./utils";
+import { useEffect, useRef } from "react";
+import mapboxgl from "mapbox-gl";
+import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 
 interface RouteInputsProps {
@@ -19,26 +19,72 @@ export default function RouteInputs({
   setOriginName,
   setDestName,
 }: RouteInputsProps) {
-  const [localOrigin, setLocalOrigin] = useState(originName);
-  const [localDest, setLocalDest] = useState(destName);
+  const originGeocoderContainer = useRef<HTMLDivElement>(null);
+  const destGeocoderContainer = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setLocalOrigin(originName);
-  }, [originName]);
+    if (!originGeocoderContainer.current || !directionsControl.current) return;
+
+    // Create origin geocoder
+    const originGeocoder = new MapboxGeocoder({
+      accessToken: mapboxgl.accessToken,
+      mapboxgl,
+      placeholder: "Choose starting point",
+      marker: false,
+    });
+
+    // Handle origin selection
+    originGeocoder.on('result', (e) => {
+      const coordinates = e.result.geometry.coordinates as [number, number];
+      const placeName = e.result.place_name;
+      
+      setOriginName(placeName);
+      if (directionsControl.current) {
+        directionsControl.current.setOrigin(coordinates);
+      }
+    });
+
+    const originElement = originGeocoder.onAdd();
+    originGeocoderContainer.current.appendChild(originElement);
+
+    return () => {
+      if (originGeocoderContainer.current && originElement) {
+        originGeocoderContainer.current.removeChild(originElement);
+      }
+    };
+  }, [directionsControl, setOriginName]);
 
   useEffect(() => {
-    setLocalDest(destName);
-  }, [destName]);
+    if (!destGeocoderContainer.current || !directionsControl.current) return;
 
-  const handleOriginChange = (value: string) => {
-    setLocalOrigin(value);
-    setOriginName(value);
-  };
+    // Create destination geocoder
+    const destGeocoder = new MapboxGeocoder({
+      accessToken: mapboxgl.accessToken,
+      mapboxgl,
+      placeholder: "Choose destination",
+      marker: false,
+    });
 
-  const handleDestChange = (value: string) => {
-    setLocalDest(value);
-    setDestName(value);
-  };
+    // Handle destination selection
+    destGeocoder.on('result', (e) => {
+      const coordinates = e.result.geometry.coordinates as [number, number];
+      const placeName = e.result.place_name;
+      
+      setDestName(placeName);
+      if (directionsControl.current) {
+        directionsControl.current.setDestination(coordinates);
+      }
+    });
+
+    const destElement = destGeocoder.onAdd();
+    destGeocoderContainer.current.appendChild(destElement);
+
+    return () => {
+      if (destGeocoderContainer.current && destElement) {
+        destGeocoderContainer.current.removeChild(destElement);
+      }
+    };
+  }, [directionsControl, setDestName]);
 
   return (
     <div className="space-y-3">
@@ -47,14 +93,10 @@ export default function RouteInputs({
         <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
           A
         </div>
-        <div className="flex-1 relative">
-          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            value={localOrigin}
-            onChange={(e) => handleOriginChange(e.target.value)}
-            placeholder="Choose starting point"
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+        <div className="flex-1">
+          <div
+            ref={originGeocoderContainer}
+            className="w-full [&_.mapboxgl-ctrl-geocoder]:w-full [&_.mapboxgl-ctrl-geocoder]:max-w-none [&_.mapboxgl-ctrl-geocoder]:rounded-lg [&_.mapboxgl-ctrl-geocoder]:border [&_.mapboxgl-ctrl-geocoder]:shadow-sm [&_.mapboxgl-ctrl-geocoder]:border-gray-300 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-2 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-blue-500 [&_.mapboxgl-ctrl-geocoder]:focus-within:border-transparent"
           />
         </div>
       </div>
@@ -64,14 +106,10 @@ export default function RouteInputs({
         <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
           B
         </div>
-        <div className="flex-1 relative">
-          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            value={localDest}
-            onChange={(e) => handleDestChange(e.target.value)}
-            placeholder="Choose destination"
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+        <div className="flex-1">
+          <div
+            ref={destGeocoderContainer}
+            className="w-full [&_.mapboxgl-ctrl-geocoder]:w-full [&_.mapboxgl-ctrl-geocoder]:max-w-none [&_.mapboxgl-ctrl-geocoder]:rounded-lg [&_.mapboxgl-ctrl-geocoder]:border [&_.mapboxgl-ctrl-geocoder]:shadow-sm [&_.mapboxgl-ctrl-geocoder]:border-gray-300 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-2 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-purple-500 [&_.mapboxgl-ctrl-geocoder]:focus-within:border-transparent"
           />
         </div>
       </div>

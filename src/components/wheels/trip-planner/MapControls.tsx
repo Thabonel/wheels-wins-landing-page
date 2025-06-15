@@ -77,17 +77,12 @@ export default function MapControls({
           
           directionsControl.current = dir;
           
-          // Add the directions control to the map - this was missing!
+          // Add the directions control to the map
           map.current.addControl(dir, 'top-left');
 
-          // Set up event listeners
-          dir.on("route", async () => {
+          // Set up event listeners - simplified to avoid conflicts
+          dir.on("route", () => {
             if (isOffline) return;
-            
-            const o = dir.getOrigin()?.geometry.coordinates as [number, number] | undefined;
-            const d = dir.getDestination()?.geometry.coordinates as [number, number] | undefined;
-            if (o) setOriginName(await reverseGeocode(o));
-            if (d) setDestName(await reverseGeocode(d));
             onRouteChange();
           });
         }
@@ -100,16 +95,13 @@ export default function MapControls({
     return () => {
       if (map.current && directionsControl.current) {
         try {
-          // Remove the directions control properly
           const mapInstance = map.current;
           const dirControl = directionsControl.current;
           
-          // Check if the control is actually added to the map before removing
           if (mapInstance.hasControl && mapInstance.hasControl(dirControl)) {
             mapInstance.removeControl(dirControl);
           }
           
-          // Clear the reference
           directionsControl.current = undefined;
         } catch (error) {
           console.warn('Error cleaning up directions control:', error);
@@ -141,7 +133,7 @@ export default function MapControls({
       el.innerText = String(waypoints.length + 1);
       new mapboxgl.Marker({ element: el }).setLngLat(coords).addTo(map.current!);
       
-      // FIX: Insert waypoint before destination, not replace origin
+      // Insert waypoint before destination, not replace origin
       const currentWaypoints = directionsControl.current!.getWaypoints();
       const insertIndex = currentWaypoints.length > 1 ? currentWaypoints.length - 1 : waypoints.length;
       directionsControl.current!.addWaypoint(insertIndex, coords);

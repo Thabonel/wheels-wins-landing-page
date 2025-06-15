@@ -35,13 +35,16 @@ export default function GeocodeSearch({ directionsControl, disabled = false }: G
         const destination = directionsControl.current.getDestination();
         
         if (!origin) {
+          // Set as origin if no origin exists
           directionsControl.current.setOrigin(coordinates);
         } else if (!destination) {
+          // Set as destination if no destination exists
           directionsControl.current.setDestination(coordinates);
         } else {
-          // Add as waypoint
+          // Add as waypoint between origin and destination
           const waypoints = directionsControl.current.getWaypoints();
-          directionsControl.current.addWaypoint(waypoints.length, coordinates);
+          const insertIndex = waypoints.length > 0 ? waypoints.length : 0;
+          directionsControl.current.addWaypoint(insertIndex, coordinates);
         }
       }
     });
