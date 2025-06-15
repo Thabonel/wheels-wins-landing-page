@@ -19,7 +19,7 @@ const You = () => {
   return (
     <>
       {/* Main content */}
-      <main className="container px-4 sm:px-6 lg:px-8 py-6">
+      <main className="container p-6">
         {/* Trial Status Banner */}
         <TrialStatusBanner />
 
