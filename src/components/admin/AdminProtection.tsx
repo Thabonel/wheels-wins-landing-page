@@ -62,7 +62,8 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
                   <ul className="list-disc list-inside space-y-1 text-xs">
                     <li>Check if your profile exists in the database</li>
                     <li>Verify Row Level Security policies are correctly configured</li>
-                    <li>Ensure your user has the correct permissions</li>
+                    <li>Ensure your user has the correct role and active status</li>
+                    <li>Database roles have been updated to resolve permission issues</li>
                   </ul>
                 </div>
               </div>
@@ -75,7 +76,7 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
                 className="w-full"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Retry
+                Retry Access Check
               </Button>
               <div className="bg-gray-50 p-3 rounded-md">
                 <p className="text-xs text-gray-600">

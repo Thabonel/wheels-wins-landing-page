@@ -24,7 +24,7 @@ export const useAdminAuth = () => {
         setError(null);
         console.log('📋 Querying profiles table for user:', user.id);
         
-        // Simple query without any role setting - just read the profile data
+        // Use a simple query that won't trigger role switching
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, status, email')
@@ -33,12 +33,7 @@ export const useAdminAuth = () => {
 
         if (profileError) {
           console.error('❌ Profile fetch error:', profileError);
-          // Check if this is the role-setting error
-          if (profileError.message?.includes('permission denied to set role')) {
-            setError('Database configuration issue - role permissions need to be fixed by an administrator.');
-          } else {
-            setError(`Profile fetch failed: ${profileError.message}`);
-          }
+          setError(`Profile fetch failed: ${profileError.message}`);
           setIsAdmin(false);
         } else if (!profile) {
           console.log('❌ No profile found for user');
