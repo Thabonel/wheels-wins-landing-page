@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +14,12 @@ import { VehicleSetup } from "@/components/profile/VehicleSetup";
 import { UserKnowledgeManager } from "@/components/knowledge/UserKnowledgeManager";
 import { supabase } from "@/integrations/supabase";
 import { toast } from "sonner";
+import { NotificationSettings } from "@/components/settings/NotificationSettings";
+import { PrivacySettings } from "@/components/settings/PrivacySettings";
+import { PamSettings } from "@/components/settings/PamSettings";
+import { DisplaySettings } from "@/components/settings/DisplaySettings";
+import { AccountSecurity } from "@/components/settings/AccountSecurity";
+import { AccountDeletion } from "@/components/settings/AccountDeletion";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -176,14 +181,42 @@ const Profile = () => {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Settings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Account settings coming soon...</p>
-            </CardContent>
-          </Card>
+          <div className="grid gap-6">
+            <Tabs defaultValue="security" className="w-full">
+              <TabsList className="grid w-full grid-cols-6">
+                <TabsTrigger value="security">Security</TabsTrigger>
+                <TabsTrigger value="notifications">Notifications</TabsTrigger>
+                <TabsTrigger value="privacy">Privacy</TabsTrigger>
+                <TabsTrigger value="display">Display</TabsTrigger>
+                <TabsTrigger value="pam">Pam AI</TabsTrigger>
+                <TabsTrigger value="danger">Account</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="security" className="mt-6">
+                <AccountSecurity />
+              </TabsContent>
+              
+              <TabsContent value="notifications" className="mt-6">
+                <NotificationSettings />
+              </TabsContent>
+              
+              <TabsContent value="privacy" className="mt-6">
+                <PrivacySettings />
+              </TabsContent>
+              
+              <TabsContent value="display" className="mt-6">
+                <DisplaySettings />
+              </TabsContent>
+              
+              <TabsContent value="pam" className="mt-6">
+                <PamSettings />
+              </TabsContent>
+              
+              <TabsContent value="danger" className="mt-6">
+                <AccountDeletion />
+              </TabsContent>
+            </Tabs>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      account_deletion_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          reason: string | null
+          scheduled_deletion_date: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          scheduled_deletion_date?: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          scheduled_deletion_date?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_users: {
         Row: {
           created_at: string | null
@@ -2750,6 +2777,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_settings: {
+        Row: {
+          created_at: string | null
+          display_preferences: Json | null
+          id: string
+          notification_preferences: Json | null
+          pam_preferences: Json | null
+          privacy_preferences: Json | null
+          regional_preferences: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_preferences?: Json | null
+          id?: string
+          notification_preferences?: Json | null
+          pam_preferences?: Json | null
+          privacy_preferences?: Json | null
+          regional_preferences?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          display_preferences?: Json | null
+          id?: string
+          notification_preferences?: Json | null
+          pam_preferences?: Json | null
+          privacy_preferences?: Json | null
+          regional_preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_subscriptions: {
         Row: {
