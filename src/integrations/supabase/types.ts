@@ -2487,6 +2487,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_active_sessions: {
+        Row: {
+          created_at: string | null
+          device_info: Json | null
+          expires_at: string | null
+          id: string
+          ip_address: unknown | null
+          is_current: boolean | null
+          last_activity: string | null
+          location_info: Json | null
+          session_id: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_info?: Json | null
+          expires_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          is_current?: boolean | null
+          last_activity?: string | null
+          location_info?: Json | null
+          session_id: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_info?: Json | null
+          expires_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          is_current?: boolean | null
+          last_activity?: string | null
+          location_info?: Json | null
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_feedback: {
         Row: {
           context: string | null
@@ -2677,6 +2719,42 @@ export type Database = {
           travel_radius_miles?: number | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_login_history: {
+        Row: {
+          device_info: Json | null
+          id: string
+          ip_address: unknown | null
+          location_info: Json | null
+          login_method: string | null
+          login_time: string | null
+          success: boolean | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          device_info?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          location_info?: Json | null
+          login_method?: string | null
+          login_time?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          device_info?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          location_info?: Json | null
+          login_method?: string | null
+          login_time?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -2909,6 +2987,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_two_factor_auth: {
+        Row: {
+          backup_codes: string[] | null
+          created_at: string | null
+          enabled: boolean | null
+          id: string
+          secret_key: string
+          updated_at: string | null
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          backup_codes?: string[] | null
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          secret_key: string
+          updated_at?: string | null
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          backup_codes?: string[] | null
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          secret_key?: string
+          updated_at?: string | null
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string | null
@@ -3045,6 +3156,10 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_audio_cache: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_expired_sessions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
