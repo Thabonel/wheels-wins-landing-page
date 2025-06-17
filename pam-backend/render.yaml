@@ -1,0 +1,30 @@
+
+services:
+  - type: web
+    name: pam-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+    autoDeploy: true
+
+  - type: redis
+    name: pam-redis
+    plan: free
+    ipAllowList: []
