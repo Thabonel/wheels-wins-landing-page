@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,13 +55,14 @@ export default function SocialHustleBoard() {
   const handleLike = async (ideaId: string) => {
     try {
       const isCurrentlyLiked = likedIdeas.has(ideaId);
-      const newLikeCount = isCurrentlyLiked ? -1 : 1;
+      const currentIdea = hustleIdeas.find(idea => idea.id === ideaId);
+      if (!currentIdea) return;
+
+      const newLikeCount = isCurrentlyLiked ? currentIdea.likes - 1 : currentIdea.likes + 1;
 
       const { error } = await supabase
         .from('hustle_ideas')
-        .update({ 
-          likes: supabase.sql`likes + ${newLikeCount}`
-        })
+        .update({ likes: newLikeCount })
         .eq('id', ideaId);
 
       if (error) {
@@ -85,7 +85,7 @@ export default function SocialHustleBoard() {
       setHustleIdeas(prev => 
         prev.map(idea => 
           idea.id === ideaId 
-            ? { ...idea, likes: idea.likes + newLikeCount }
+            ? { ...idea, likes: newLikeCount }
             : idea
         )
       );
