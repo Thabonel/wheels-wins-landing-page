@@ -1,6 +1,6 @@
 
 export interface SocialGroup {
-  id: number;
+  id: number | string;
   name: string;
   description: string;
   cover: string;
@@ -26,7 +26,7 @@ export interface SocialPost {
 }
 
 export interface MarketplaceListing {
-  id: number;
+  id: number | string;
   title: string;
   price: number;
   image: string;
@@ -40,7 +40,7 @@ export interface MarketplaceListing {
 }
 
 export interface HustleIdea {
-  id: number;
+  id: number | string;
   title: string;
   description: string;
   image: string;
@@ -50,3 +50,7 @@ export interface HustleIdea {
   trending: boolean;
   tags: string[];
 }
+
+// Additional types for voting and post management
+export type PostStatus = 'pending' | 'approved' | 'rejected' | 'hidden';
+export type PostLocation = 'feed' | 'group';

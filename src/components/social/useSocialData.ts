@@ -14,29 +14,107 @@ export function useSocialData() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // Fetch social posts
         const { data: postsData = [], error: postsError } = await supabase
           .from("social_posts")
-          .select("*");
-        if (postsError) throw postsError;
-        setPosts(postsData);
+          .select("*")
+          .eq("location", "feed")
+          .eq("status", "approved")
+          .order("created_at", { ascending: false });
+        
+        if (postsError) {
+          console.error("Error fetching posts:", postsError);
+        } else {
+          const formattedPosts = postsData.map(post => ({
+            id: post.id,
+            author: `User ${post.author_id?.substring(0, 5) || "Unknown"}`,
+            authorId: post.author_id || "",
+            authorAvatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png",
+            date: new Date(post.created_at).toLocaleDateString(),
+            content: post.content,
+            image: post.image_url,
+            likes: post.upvotes || 0,
+            comments: post.comment_count || 0,
+            status: post.status,
+            location: post.location,
+            isOwnPost: false // Will be updated when we have auth context
+          }));
+          setPosts(formattedPosts);
+        }
 
+        // Fetch social groups
         const { data: groupsData = [], error: groupsError } = await supabase
           .from("social_groups")
-          .select("*");
-        if (groupsError) throw groupsError;
-        setGroups(groupsData);
+          .select("*")
+          .eq("is_active", true)
+          .order("member_count", { ascending: false });
+        
+        if (groupsError) {
+          console.error("Error fetching groups:", groupsError);
+        } else {
+          const formattedGroups = groupsData.map(group => ({
+            id: group.id,
+            name: group.name,
+            description: group.description || "",
+            cover: group.cover || group.avatar_url || "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
+            members: group.member_count || 0,
+            location: group.location || "Unknown",
+            activityLevel: (group.activity_level as 'active' | 'new' | 'quiet') || 'active',
+            isAdmin: false // Will be updated when we have auth context
+          }));
+          setGroups(formattedGroups);
+        }
 
+        // Fetch marketplace listings
         const { data: listingsData = [], error: listingsError } = await supabase
           .from("marketplace_listings")
-          .select("*");
-        if (listingsError) throw listingsError;
-        setMarketplaceListings(listingsData);
+          .select("*")
+          .eq("status", "approved")
+          .order("created_at", { ascending: false });
+        
+        if (listingsError) {
+          console.error("Error fetching listings:", listingsError);
+        } else {
+          const formattedListings = listingsData.map(listing => ({
+            id: listing.id,
+            title: listing.title,
+            price: listing.price || 0,
+            image: listing.image || "",
+            seller: listing.seller || "Unknown",
+            location: listing.location || "Unknown",
+            category: listing.category || "Other",
+            condition: listing.condition || "good",
+            description: listing.description || "",
+            posted: listing.posted || "recently",
+            isFavorite: listing.is_favorite || false
+          }));
+          setMarketplaceListings(formattedListings);
+        }
 
+        // Fetch hustle ideas
         const { data: hustlesData = [], error: hustlesError } = await supabase
           .from("hustle_ideas")
-          .select("*");
-        if (hustlesError) throw hustlesError;
-        setHustles(hustlesData);
+          .select("*")
+          .eq("status", "approved")
+          .order("likes", { ascending: false });
+        
+        if (hustlesError) {
+          console.error("Error fetching hustles:", hustlesError);
+        } else {
+          const formattedHustles = hustlesData.map(hustle => ({
+            id: hustle.id,
+            title: hustle.title,
+            description: hustle.description || "",
+            image: hustle.image || "",
+            avgEarnings: hustle.avg_earnings || 0,
+            rating: hustle.rating || 0,
+            likes: hustle.likes || 0,
+            trending: hustle.trending || false,
+            tags: hustle.tags || []
+          }));
+          setHustles(formattedHustles);
+        }
+
       } catch (error) {
         console.error("Error loading social data:", error);
       } finally {
