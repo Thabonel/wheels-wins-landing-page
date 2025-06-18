@@ -17,11 +17,12 @@ import {
 } from "@/components/ui/card";
 
 export interface IncomeItem {
-  id: number;
+  id: string; // Changed from number to string to match IncomeEntry
   amount: number;
   source: string;
   date: string;
   type: string;
+  description?: string;
 }
 
 interface IncomeTableProps {
@@ -66,7 +67,7 @@ export default function IncomeTable({
       </CardContent>
       <CardFooter className="flex justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {incomeData.length} of 15 entries
+          Showing {incomeData.length} entries
         </div>
         <Button variant="outline" size="sm">
           View All
