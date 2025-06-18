@@ -24,7 +24,7 @@ export default function ArchivedIdeasSection({ archivedIdeas }: ArchivedIdeasSec
       {archivedOpen && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
           {archivedIdeas.map((idea) => (
-            <IncomeIdeaCard key={idea.id} {...idea} />
+            <IncomeIdeaCard key={idea.id} idea={idea} />
           ))}
         </div>
       )}
