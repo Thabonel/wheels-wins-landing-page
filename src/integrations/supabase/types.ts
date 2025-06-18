@@ -3420,6 +3420,10 @@ export type Database = {
       }
     }
     Functions: {
+      bootstrap_admin_user: {
+        Args: { user_email: string; user_uuid?: string }
+        Returns: boolean
+      }
       check_rate_limit: {
         Args:
           | Record<PropertyKey, never>
