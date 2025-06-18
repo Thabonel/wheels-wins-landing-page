@@ -1,14 +1,14 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
+import { supabase } from '@/integrations/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { defaultCategories, categoryColors as defaultCategoryColors } from "@/components/wins/expenses/mockData";
 import { useOffline } from "@/context/OfflineContext";
 import { useCachedBudgetData } from "./useCachedBudgetData";
 
 export function useExpenseActions() {
-  const supabase = useSupabaseClient();
-  const user = useUser();
+  const { user } = useAuth();
   const { isOffline, addToQueue } = useOffline();
   const { cachedData, updateCache } = useCachedBudgetData();
 
@@ -26,37 +26,54 @@ export function useExpenseActions() {
 
       // If offline, use cached data
       if (isOffline) {
-        setExpenses(cachedData.expenses);
-        const uniqueCategories = [...new Set(cachedData.expenses.map((e) => e.category))];
+        setExpenses(cachedData.expenses || []);
+        const uniqueCategories = [...new Set(cachedData.expenses?.map((e) => e.category) || [])];
         setCategories(uniqueCategories.length ? uniqueCategories : defaultCategories);
         setIsLoading(false);
         return;
       }
 
-      const { data: expenseData, error: expenseError } = await supabase
-        .from("expenses")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("date", { ascending: false });
+      try {
+        // Fetch expenses
+        const { data: expenseData, error: expenseError } = await supabase
+          .from("expenses")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("date", { ascending: false });
 
-      if (expenseError) {
-        setError("Failed to fetch expenses.");
-        // Fallback to cached data
-        setExpenses(cachedData.expenses);
-      } else {
-        setExpenses(expenseData || []);
-        // Update cache with fresh data
-        updateCache({ expenses: expenseData || [] });
+        if (expenseError) {
+          console.error('Error fetching expenses:', expenseError);
+          setError("Failed to fetch expenses.");
+          // Fallback to cached data
+          setExpenses(cachedData.expenses || []);
+        } else {
+          const formattedExpenses = expenseData.map(expense => ({
+            id: expense.id,
+            amount: Number(expense.amount),
+            category: expense.category,
+            description: expense.description || '',
+            date: expense.date
+          }));
+          
+          setExpenses(formattedExpenses);
+          // Update cache with fresh data
+          updateCache({ expenses: formattedExpenses });
+        }
+
+        const uniqueCategories = [...new Set((expenseData || []).map((e) => e.category))];
+        setCategories(uniqueCategories.length ? uniqueCategories : defaultCategories);
+
+      } catch (error) {
+        console.error('Error in loadData:', error);
+        setError("Failed to load expense data.");
+        setExpenses(cachedData.expenses || []);
       }
-
-      const uniqueCategories = [...new Set((expenseData || []).map((e) => e.category))];
-      setCategories(uniqueCategories.length ? uniqueCategories : defaultCategories);
 
       setIsLoading(false);
     };
 
     loadData();
-  }, [user, supabase, isOffline]);
+  }, [user, isOffline]);
 
   const addExpense = async (expense: Omit<any, "id">) => {
     if (!user) return false;
@@ -67,17 +84,38 @@ export function useExpenseActions() {
       return true;
     }
 
-    const { error } = await supabase.from("expenses").insert([
-      { ...expense, user_id: user.id }
-    ]);
+    try {
+      const { data, error } = await supabase.from("expenses").insert([
+        { 
+          ...expense, 
+          user_id: user.id,
+          amount: Number(expense.amount)
+        }
+      ]).select().single();
 
-    if (error) {
+      if (error) {
+        console.error('Error adding expense:', error);
+        toast.error("Failed to add expense");
+        return false;
+      }
+
+      // Update local state
+      const newExpense = {
+        id: data.id,
+        amount: Number(data.amount),
+        category: data.category,
+        description: data.description || '',
+        date: data.date
+      };
+      
+      setExpenses(prev => [newExpense, ...prev]);
+      toast.success("Expense added!");
+      return true;
+    } catch (error) {
+      console.error('Error in addExpense:', error);
       toast.error("Failed to add expense");
       return false;
     }
-
-    toast.success("Expense added!");
-    return true;
   };
 
   const deleteExpense = async (id: string) => {
@@ -88,22 +126,31 @@ export function useExpenseActions() {
       return false;
     }
 
-    const { error } = await supabase
-      .from("expenses")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+    try {
+      const { error } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id);
 
-    if (error) {
+      if (error) {
+        console.error('Error deleting expense:', error);
+        toast.error("Failed to delete expense");
+        return false;
+      }
+
+      // Update local state
+      setExpenses(prev => prev.filter(expense => expense.id !== id));
+      toast.success("Expense deleted!");
+      return true;
+    } catch (error) {
+      console.error('Error in deleteExpense:', error);
       toast.error("Failed to delete expense");
       return false;
     }
-
-    toast.success("Expense deleted!");
-    return true;
   };
 
-  const addCategory = (category: string) => {
+  const addCategory = async (category: string) => {
     if (isOffline) {
       toast.error("Cannot add categories while offline");
       return false;
@@ -115,19 +162,41 @@ export function useExpenseActions() {
       return false;
     }
 
-    setCategories((prev) => [...prev, category]);
+    try {
+      // Add to budget categories table
+      const { error } = await supabase.from('budget_categories').insert([
+        {
+          user_id: user?.id,
+          name: category,
+          budgeted_amount: 0,
+          spent_amount: 0
+        }
+      ]);
 
-    if (!categoryColors[category]) {
-      const colorOptions = Object.values(defaultCategoryColors);
-      const randomColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
-      setCategoryColors((prev) => ({ ...prev, [category]: randomColor }));
+      if (error) {
+        console.error('Error adding category:', error);
+        toast.error("Failed to add category");
+        return false;
+      }
+
+      setCategories((prev) => [...prev, category]);
+
+      if (!categoryColors[category]) {
+        const colorOptions = Object.values(defaultCategoryColors);
+        const randomColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
+        setCategoryColors((prev) => ({ ...prev, [category]: randomColor }));
+      }
+
+      toast.success(`Added category: ${category}`);
+      return true;
+    } catch (error) {
+      console.error('Error in addCategory:', error);
+      toast.error("Failed to add category");
+      return false;
     }
-
-    toast.success(`Added category: ${category}`);
-    return true;
   };
 
-  const deleteCategory = (category: string) => {
+  const deleteCategory = async (category: string) => {
     if (isOffline) {
       toast.error("Cannot delete categories while offline");
       return false;
@@ -138,9 +207,27 @@ export function useExpenseActions() {
       return false;
     }
 
-    setCategories((prev) => prev.filter((c) => c !== category));
-    toast.success(`Deleted category: ${category}`);
-    return true;
+    try {
+      const { error } = await supabase
+        .from('budget_categories')
+        .delete()
+        .eq('user_id', user?.id)
+        .eq('name', category);
+
+      if (error) {
+        console.error('Error deleting category:', error);
+        toast.error("Failed to delete category");
+        return false;
+      }
+
+      setCategories((prev) => prev.filter((c) => c !== category));
+      toast.success(`Deleted category: ${category}`);
+      return true;
+    } catch (error) {
+      console.error('Error in deleteCategory:', error);
+      toast.error("Failed to delete category");
+      return false;
+    }
   };
 
   return {

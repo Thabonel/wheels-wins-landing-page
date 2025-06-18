@@ -10,13 +10,19 @@ import IncomeChart from "./income/IncomeChart";
 import IncomeSummaryCards from "./income/IncomeSummaryCards";
 import AddIncomeForm from "./income/AddIncomeForm";
 import PamInsightCard from "./income/PamInsightCard";
-import { incomeData, chartData, sourceColors } from "./income/mockData";
+import { useIncomeData } from "./income/useIncomeData";
+import { sourceColors } from "./income/mockData";
 
 export default function WinsIncome() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { incomeData, chartData, addIncome, isLoading } = useIncomeData();
   
   // Calculate total income
   const totalIncome = incomeData.reduce((sum, item) => sum + item.amount, 0);
+  
+  if (isLoading) {
+    return <div className="text-center py-6">Loading income data...</div>;
+  }
   
   return (
     <div className="space-y-6">
@@ -30,7 +36,7 @@ export default function WinsIncome() {
               Add Income
             </Button>
           </DrawerTrigger>
-          <AddIncomeForm />
+          <AddIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
         </Drawer>
       </div>
       

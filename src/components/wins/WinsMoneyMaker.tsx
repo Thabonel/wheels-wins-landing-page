@@ -10,11 +10,23 @@ import ActiveIdeasSection from "./moneymaker/ActiveIdeasSection";
 import ArchivedIdeasSection from "./moneymaker/ArchivedIdeasSection";
 import IncomeIdeaForm from "./moneymaker/IncomeIdeaForm";
 import PamSuggestions from "./moneymaker/PamSuggestions";
+import HustleBoardSuggestions from "./moneymaker/HustleBoardSuggestions";
 import { useMoneyMakerData } from "./moneymaker/useMoneyMakerData";
 
 export default function WinsMoneyMaker() {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { activeIdeas, archivedIdeas, chartData, totalMonthlyIncome } = useMoneyMakerData();
+  const { 
+    activeIdeas, 
+    archivedIdeas, 
+    chartData, 
+    totalMonthlyIncome, 
+    addMoneyMakerIdea,
+    isLoading 
+  } = useMoneyMakerData();
+  
+  if (isLoading) {
+    return <div className="text-center py-6">Loading money maker ideas...</div>;
+  }
   
   return (
     <div className="space-y-6">
@@ -31,7 +43,7 @@ export default function WinsMoneyMaker() {
               Add Income Idea
             </Button>
           </DrawerTrigger>
-          <IncomeIdeaForm />
+          <IncomeIdeaForm onAddIdea={addMoneyMakerIdea} onClose={() => setDrawerOpen(false)} />
         </Drawer>
       </div>
 
@@ -40,6 +52,9 @@ export default function WinsMoneyMaker() {
       
       {/* Income comparison chart */}
       <IncomeChart chartData={chartData} />
+      
+      {/* Hustle Board Suggestions */}
+      <HustleBoardSuggestions onAddToIncome={addMoneyMakerIdea} />
       
       {/* Active Income Ideas */}
       <ActiveIdeasSection activeIdeas={activeIdeas} />

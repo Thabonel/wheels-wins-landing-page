@@ -10,6 +10,7 @@ export interface IncomeIdea {
   notes: string;
   topPerformer?: boolean;
   endDate?: string;
+  progress?: number;
 }
 
 export interface ChartDataItem {

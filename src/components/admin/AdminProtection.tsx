@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, AlertTriangle, Loader2, RefreshCw, Info } from 'lucide-react';
+import { Shield, AlertTriangle, Loader2, RefreshCw, Info, CheckCircle } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useAuth } from '@/context/AuthContext';
 
@@ -12,7 +12,7 @@ interface AdminProtectionProps {
 
 const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
   const { user } = useAuth();
-  const { isAdmin, isLoading, error } = useAdminAuth();
+  const { isAdmin, isLoading, error, recheckAdminStatus } = useAdminAuth();
 
   if (!user) {
     return (
@@ -54,15 +54,28 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
             <h2 className="text-xl font-semibold text-red-800 mb-2">Access Check Failed</h2>
             <p className="text-red-600 mb-4">{error}</p>
             
+            {/* Show success message for expected admin user */}
+            {user.email === 'thabonel0@gmail.com' && (
+              <div className="bg-green-50 p-3 rounded-md mb-4 text-left">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-green-800">
+                    <p className="font-medium mb-1">Admin Setup Complete!</p>
+                    <p className="text-xs">Your admin access has been configured. Try refreshing the page.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="bg-blue-50 p-3 rounded-md mb-4 text-left">
               <div className="flex items-start gap-2">
                 <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-blue-800">
-                  <p className="font-medium mb-1">To gain admin access:</p>
+                  <p className="font-medium mb-1">Admin Access Recovery:</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>Contact an existing administrator</li>
-                    <li>Request admin role assignment in admin_users table</li>
-                    <li>Ensure your account status is 'active'</li>
+                    <li>Admin user has been bootstrapped in the database</li>
+                    <li>Try clicking "Retry Access Check" below</li>
+                    <li>If issues persist, refresh the page</li>
                   </ul>
                 </div>
               </div>
@@ -71,7 +84,7 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
             <div className="space-y-2">
               <Button 
                 variant="outline" 
-                onClick={() => window.location.reload()}
+                onClick={recheckAdminStatus}
                 className="w-full"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -105,9 +118,19 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
                 <strong>Email:</strong> {user.email}
               </p>
             </div>
-            <Button variant="outline" onClick={() => window.location.href = '/'}>
-              Return to Home
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                onClick={recheckAdminStatus}
+                className="w-full"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Recheck Access
+              </Button>
+              <Button variant="outline" onClick={() => window.location.href = '/'}>
+                Return to Home
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

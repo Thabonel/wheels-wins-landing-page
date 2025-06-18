@@ -1,185 +1,283 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { 
+  Search, 
+  Heart, 
+  MapPin, 
+  Clock, 
+  Filter,
+  Star
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase";
 import { toast } from "sonner";
-import { Heart, Star, MapPin, Calendar, Filter, Search, PlusCircle } from "lucide-react";
-import { useSocialData } from "@/components/social/useSocialData";
+
+interface MarketplaceListing {
+  id: string;
+  title: string;
+  price: number;
+  image?: string;
+  seller: string;
+  location: string;
+  category: string;
+  condition: string;
+  description: string;
+  posted: string;
+  is_favorite?: boolean;
+  status: string;
+}
 
 export default function SocialMarketplace() {
-  const { marketplaceListings = [] } = useSocialData();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [priceRange, setPriceRange] = useState<string>("all");
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [listings, setListings] = useState<MarketplaceListing[]>([]);
+  const [filteredListings, setFilteredListings] = useState<MarketplaceListing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
-  const categories = ["all", "RV Parts", "Camping Gear", "Electronics", "Tools", "Books", "Clothing"];
-  const priceRanges = ["all", "Under $50", "$50-$200", "$200-$500", "Over $500"];
+  const categories = ["all", "Electronics", "Furniture", "Parts", "Camping", "Tools", "Other"];
 
-  const toggleFavorite = (listingId: number) => {
-    setFavorites(prev => 
-      prev.includes(listingId) 
-        ? prev.filter(id => id !== listingId)
-        : [...prev, listingId]
-    );
+  useEffect(() => {
+    fetchListings();
+  }, []);
+
+  useEffect(() => {
+    filterListings();
+  }, [listings, searchTerm, selectedCategory]);
+
+  const fetchListings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('marketplace_listings')
+        .select('*')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching marketplace listings:', error);
+        toast.error('Failed to load marketplace listings');
+        return;
+      }
+
+      setListings(data || []);
+    } catch (err) {
+      console.error('Error in fetchListings:', err);
+      toast.error('Something went wrong loading listings');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleContactSeller = (listingId: number) => {
-    toast.info("Contact seller feature coming soon!");
+  const filterListings = () => {
+    let filtered = listings;
+
+    if (searchTerm) {
+      filtered = filtered.filter(listing =>
+        listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        listing.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(listing => listing.category === selectedCategory);
+    }
+
+    setFilteredListings(filtered);
   };
 
-  const getFilteredListings = () => {
-    return marketplaceListings.filter(listing => {
-      const matchesSearch = !searchQuery || 
-        listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        listing.description.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesCategory = selectedCategory === "all" || listing.category === selectedCategory;
-      
-      const matchesPrice = priceRange === "all" || (() => {
-        switch (priceRange) {
-          case "Under $50":
-            return listing.price < 50;
-          case "$50-$200":
-            return listing.price >= 50 && listing.price <= 200;
-          case "$200-$500":
-            return listing.price >= 200 && listing.price <= 500;
-          case "Over $500":
-            return listing.price > 500;
-          default:
-            return true;
-        }
-      })();
-
-      return matchesSearch && matchesCategory && matchesPrice;
+  const toggleFavorite = (listingId: string) => {
+    setFavorites(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(listingId)) {
+        newSet.delete(listingId);
+        toast.success('Removed from favorites');
+      } else {
+        newSet.add(listingId);
+        toast.success('Added to favorites');
+      }
+      return newSet;
     });
   };
 
-  const filteredListings = getFilteredListings();
+  const getConditionColor = (condition: string) => {
+    switch (condition.toLowerCase()) {
+      case 'excellent': return 'bg-green-100 text-green-800';
+      case 'good': return 'bg-blue-100 text-blue-800';
+      case 'fair': return 'bg-yellow-100 text-yellow-800';
+      case 'poor': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        <p className="mt-2 text-muted-foreground">Loading marketplace...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="bg-yellow-50 p-6 rounded-lg mb-6">
-        <h2 className="text-xl font-bold mb-2">Pam's Marketplace Tips</h2>
-        <p className="text-gray-700 mb-4">
-          Here are some tips for buying and selling in the marketplace:
-        </p>
-        <ul className="list-disc list-inside text-gray-700 mb-4">
-          <li>Always inspect items in person if possible</li>
-          <li>Use secure payment methods</li>
-          <li>Check seller ratings and reviews</li>
-          <li>Be clear about shipping costs and return policies</li>
-        </ul>
-        <p className="text-gray-700">
-          <span className="font-semibold">Pam's tip:</span> Negotiate prices respectfully and always be honest in your listings!
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold mb-2">Community Marketplace</h2>
+        <p className="text-muted-foreground">
+          Buy and sell items with fellow travelers
         </p>
       </div>
 
-      {/* Search and Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="relative">
-          <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="relative flex-1">
+          <Search size={18} className="absolute left-3 top-3 text-muted-foreground" />
           <Input
             placeholder="Search marketplace..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="border border-gray-200 rounded-md px-3 py-2"
-        >
-          {categories.map(category => (
-            <option key={category} value={category}>
-              {category === "all" ? "All Categories" : category}
-            </option>
-          ))}
-        </select>
-        <select
-          value={priceRange}
-          onChange={(e) => setPriceRange(e.target.value)}
-          className="border border-gray-200 rounded-md px-3 py-2"
-        >
-          {priceRanges.map(range => (
-            <option key={range} value={range}>
-              {range === "all" ? "All Prices" : range}
-            </option>
-          ))}
-        </select>
+        
+        <div className="flex gap-2">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-md text-sm bg-white"
+          >
+            {categories.map(category => (
+              <option key={category} value={category}>
+                {category === "all" ? "All Categories" : category}
+              </option>
+            ))}
+          </select>
+          
+          <Button variant="outline" size="sm">
+            <Filter size={16} className="mr-1" />
+            Filter
+          </Button>
+        </div>
       </div>
 
-      {/* Listings Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredListings.map((listing) => (
-          <Card key={listing.id} className="overflow-hidden">
-            <div className="relative">
-              <img 
-                src={listing.image} 
-                alt={listing.title} 
-                className="w-full h-48 object-cover"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2 bg-white/80 hover:bg-white"
-                onClick={() => toggleFavorite(listing.id)}
-              >
-                <Heart 
-                  size={18} 
-                  className={favorites.includes(listing.id) ? "fill-red-500 text-red-500" : "text-gray-600"}
-                />
-              </Button>
-              <Badge className="absolute top-2 left-2 bg-blue-600">
-                {listing.condition}
-              </Badge>
-            </div>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <h4 className="font-semibold text-lg line-clamp-1">{listing.title}</h4>
-                <span className="text-xl font-bold text-green-600">${listing.price}</span>
+      {filteredListings.length === 0 ? (
+        <Card className="text-center py-8">
+          <CardContent>
+            {searchTerm || selectedCategory !== "all" ? (
+              <>
+                <p className="text-muted-foreground">No listings match your search criteria.</p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSelectedCategory("all");
+                  }}
+                  className="mt-2"
+                >
+                  Clear Filters
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">No marketplace listings available yet.</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Be the first to list an item for sale!
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredListings.map((listing) => (
+            <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="aspect-video bg-muted relative">
+                {listing.image ? (
+                  <img
+                    src={listing.image}
+                    alt={listing.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                    No Image
+                  </div>
+                )}
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 bg-white/80 hover:bg-white"
+                  onClick={() => toggleFavorite(listing.id)}
+                >
+                  <Heart
+                    size={16}
+                    className={favorites.has(listing.id) ? "fill-current text-red-500" : ""}
+                  />
+                </Button>
               </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <MapPin size={14} className="mr-1" />
-                {listing.location} • <Calendar size={14} className="ml-2 mr-1" /> {listing.posted}
-              </div>
-              <Badge variant="outline" className="self-start">{listing.category}</Badge>
-            </CardHeader>
-            <CardContent className="pb-2">
-              <p className="text-sm text-gray-700 line-clamp-2">{listing.description}</p>
-              <div className="flex items-center mt-2 text-sm text-gray-600">
-                <Star size={14} className="mr-1" fill="gold" stroke="gold" />
-                <span className="mr-2">4.8</span>
-                <span>Seller: {listing.seller}</span>
-              </div>
-            </CardContent>
-            <CardFooter className="pt-2">
-              <Button 
-                className="w-full" 
-                onClick={() => handleContactSeller(listing.id)}
-              >
-                Contact Seller
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
 
-      {filteredListings.length === 0 && (
-        <div className="text-center py-10">
-          <p className="text-gray-500">No listings found. Try adjusting your search or filters.</p>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <CardTitle className="text-lg line-clamp-2">{listing.title}</CardTitle>
+                  <div className="text-right">
+                    <div className="text-xl font-bold text-green-600">
+                      ${listing.price.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin size={14} />
+                  {listing.location}
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-0">
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                  {listing.description}
+                </p>
+
+                <div className="flex items-center justify-between mb-3">
+                  <Badge className={getConditionColor(listing.condition)}>
+                    {listing.condition}
+                  </Badge>
+                  <Badge variant="outline">{listing.category}</Badge>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center text-muted-foreground">
+                    <Clock size={14} className="mr-1" />
+                    {listing.posted}
+                  </div>
+                  <div className="font-medium">
+                    by {listing.seller}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex gap-2">
+                  <Button className="flex-1" size="sm">
+                    Contact Seller
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Star size={14} />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
-      <Card className="bg-gray-50 border-dashed border-2 border-gray-300 p-6 text-center">
-        <CardContent>
-          <h4 className="text-lg font-semibold">Have something to sell?</h4>
-          <p className="text-gray-700 mb-4">List your RV parts, camping gear, or anything else travelers might need!</p>
-          <Button>
-            <PlusCircle size={18} className="mr-2" /> Create a Listing
-          </Button>
+      <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-dashed">
+        <CardContent className="text-center py-8">
+          <h3 className="text-lg font-semibold mb-2">Got Something to Sell?</h3>
+          <p className="text-muted-foreground mb-4">
+            List your items and connect with fellow travelers
+          </p>
+          <Button>Create Listing</Button>
         </CardContent>
       </Card>
     </div>
