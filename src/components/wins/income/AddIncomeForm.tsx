@@ -18,20 +18,45 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 
-export default function AddIncomeForm() {
+interface AddIncomeFormProps {
+  onAddIncome: (income: { amount: number; source: string; type: string; date: string; description?: string }) => Promise<boolean>;
+  onClose: () => void;
+}
+
+export default function AddIncomeForm({ onAddIncome, onClose }: AddIncomeFormProps) {
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState("");
-  const [type, setType] = useState("");
-  const [date, setDate] = useState("");
+  const [type, setType] = useState("regular");
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleSubmit = () => {
-    // Handle form submission logic here
-    console.log({ amount, source, type, date });
-    // Reset form
-    setAmount("");
-    setSource("");
-    setType("");
-    setDate("");
+  const handleSubmit = async () => {
+    if (!amount || !source || !type || !date) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    const success = await onAddIncome({
+      amount: parseFloat(amount),
+      source,
+      type,
+      date,
+      description: description || undefined
+    });
+
+    if (success) {
+      // Reset form
+      setAmount("");
+      setSource("");
+      setType("regular");
+      setDate(new Date().toISOString().split('T')[0]);
+      setDescription("");
+      onClose();
+    }
+    
+    setIsSubmitting(false);
   };
   
   return (
@@ -71,13 +96,22 @@ export default function AddIncomeForm() {
                 <SelectValue placeholder="Select income type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="work">Work</SelectItem>
+                <SelectItem value="regular">Work</SelectItem>
                 <SelectItem value="side-hustle">Side Hustle</SelectItem>
                 <SelectItem value="passive">Passive Income</SelectItem>
                 <SelectItem value="content">Content Creation</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="grid gap-2">
+            <label htmlFor="description">Description (Optional)</label>
+            <Input 
+              id="description" 
+              placeholder="Additional details"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
           <div className="grid gap-2">
             <label htmlFor="date">Date</label>
@@ -91,7 +125,9 @@ export default function AddIncomeForm() {
         </form>
       </div>
       <DrawerFooter>
-        <Button onClick={handleSubmit}>Save Income</Button>
+        <Button onClick={handleSubmit} disabled={isSubmitting}>
+          {isSubmitting ? "Saving..." : "Save Income"}
+        </Button>
         <DrawerClose asChild>
           <Button variant="outline">Cancel</Button>
         </DrawerClose>

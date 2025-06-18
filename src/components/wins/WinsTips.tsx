@@ -16,10 +16,14 @@ import { useTipsData } from "./tips/useTipsData";
 export default function WinsTips() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [tabValue, setTabValue] = useState("tips");
-  const { tipCategories, leaderboardData } = useTipsData();
+  const { tipCategories, leaderboardData, addTip, isLoading } = useTipsData();
   
   // Reset scroll when tab changes
   useScrollReset([tabValue]);
+  
+  if (isLoading) {
+    return <div className="text-center py-6">Loading tips...</div>;
+  }
   
   return (
     <div className="space-y-6">
@@ -32,7 +36,7 @@ export default function WinsTips() {
               Share Your Tip
             </Button>
           </DrawerTrigger>
-          <TipShareForm />
+          <TipShareForm onAddTip={addTip} onClose={() => setDrawerOpen(false)} />
         </Drawer>
       </div>
       
@@ -48,9 +52,15 @@ export default function WinsTips() {
         </TabsList>
         
         <TabsContent value="tips" className="space-y-4 mt-6">
-          {tipCategories.map((category) => (
-            <TipCategorySection key={category.id} category={category} />
-          ))}
+          {tipCategories.length > 0 ? (
+            tipCategories.map((category) => (
+              <TipCategorySection key={category.id} category={category} />
+            ))
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No tips yet. Be the first to share a money-saving tip!
+            </div>
+          )}
         </TabsContent>
         
         <TabsContent value="leaderboard">

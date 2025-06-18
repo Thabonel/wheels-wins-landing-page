@@ -144,6 +144,39 @@ export type Database = {
         }
         Relationships: []
       }
+      budget_categories: {
+        Row: {
+          budgeted_amount: number
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          spent_amount: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          budgeted_amount?: number
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          spent_amount?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          budgeted_amount?: number
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          spent_amount?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       budgets: {
         Row: {
           budgeted_amount: number
@@ -151,7 +184,7 @@ export type Database = {
           created_at: string | null
           end_date: string
           id: string
-          spent: number | null
+          name: string | null
           start_date: string
           user_id: string
         }
@@ -161,7 +194,7 @@ export type Database = {
           created_at?: string | null
           end_date: string
           id?: string
-          spent?: number | null
+          name?: string | null
           start_date: string
           user_id: string
         }
@@ -171,7 +204,7 @@ export type Database = {
           created_at?: string | null
           end_date?: string
           id?: string
-          spent?: number | null
+          name?: string | null
           start_date?: string
           user_id?: string
         }
@@ -566,6 +599,42 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_tips: {
+        Row: {
+          category: string
+          content: string
+          created_at: string | null
+          id: string
+          is_shared: boolean | null
+          savings_amount: number | null
+          title: string
+          user_id: string
+          votes: number | null
+        }
+        Insert: {
+          category: string
+          content: string
+          created_at?: string | null
+          id?: string
+          is_shared?: boolean | null
+          savings_amount?: number | null
+          title: string
+          user_id: string
+          votes?: number | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_shared?: boolean | null
+          savings_amount?: number | null
+          title?: string
+          user_id?: string
+          votes?: number | null
+        }
+        Relationships: []
+      }
       food_categories: {
         Row: {
           created_at: string | null
@@ -796,6 +865,39 @@ export type Database = {
           time_commitment?: string | null
           title?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      income_entries: {
+        Row: {
+          amount: number
+          created_at: string | null
+          date: string
+          description: string | null
+          id: string
+          source: string
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          source: string
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          source?: string
+          type?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -1128,6 +1230,45 @@ export type Database = {
           notes?: string | null
           recipe_name?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      money_maker_ideas: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          id: string
+          monthly_income: number | null
+          name: string
+          progress: number | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          monthly_income?: number | null
+          name: string
+          progress?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          monthly_income?: number | null
+          name?: string
+          progress?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -3122,6 +3263,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      budget_summary: {
+        Row: {
+          budget_id: string | null
+          name: string | null
+          total_budget: number | null
+          total_remaining: number | null
+          total_spent: number | null
+          user_id: string | null
+        }
+        Relationships: []
       }
       location_venue_density: {
         Row: {

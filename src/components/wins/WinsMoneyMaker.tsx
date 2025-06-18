@@ -14,7 +14,18 @@ import { useMoneyMakerData } from "./moneymaker/useMoneyMakerData";
 
 export default function WinsMoneyMaker() {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { activeIdeas, archivedIdeas, chartData, totalMonthlyIncome } = useMoneyMakerData();
+  const { 
+    activeIdeas, 
+    archivedIdeas, 
+    chartData, 
+    totalMonthlyIncome, 
+    addMoneyMakerIdea,
+    isLoading 
+  } = useMoneyMakerData();
+  
+  if (isLoading) {
+    return <div className="text-center py-6">Loading money maker ideas...</div>;
+  }
   
   return (
     <div className="space-y-6">
@@ -31,7 +42,7 @@ export default function WinsMoneyMaker() {
               Add Income Idea
             </Button>
           </DrawerTrigger>
-          <IncomeIdeaForm />
+          <IncomeIdeaForm onAddIdea={addMoneyMakerIdea} onClose={() => setDrawerOpen(false)} />
         </Drawer>
       </div>
 
