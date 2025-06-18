@@ -27,6 +27,7 @@ Complete guides for all PAM features and capabilities:
 
 ### Troubleshooting Guides
 - [Common Issues](guides/troubleshooting/common-issues.md) - Frequent problems and solutions
+- [Admin Access Issues](guides/troubleshooting/admin-access-issues.md) - Admin dashboard access problems
 - [API Errors](guides/troubleshooting/api-errors.md) - API-specific troubleshooting
 - [Debugging Guide](guides/troubleshooting/debugging-guide.md) - Development debugging
 - [Deployment Issues](guides/troubleshooting/deployment-issues.md) - Production deployment problems
@@ -53,7 +54,8 @@ Complete guides for all PAM features and capabilities:
 1. **New to PAM?** Start with [Getting Started](guides/user-guides/getting-started.md)
 2. **Setting up development?** Check [Initial Setup](guides/setup/initial-setup.md)
 3. **Having issues?** Visit [Common Issues](guides/troubleshooting/common-issues.md)
-4. **Need API info?** See [API Documentation](technical/api-documentation.md)
+4. **Admin access problems?** See [Admin Access Issues](guides/troubleshooting/admin-access-issues.md)
+5. **Need API info?** See [API Documentation](technical/api-documentation.md)
 
 ## 🔧 Current Deployment Status
 
@@ -62,6 +64,15 @@ The PAM backend is currently in development with the following status:
 - ✅ Core components implemented
 - ⚠️ Deployment facing Python version compatibility issues
 - 📋 See [PAM Backend Deployment](technical/pam-backend-deployment.md) for current progress
+
+## 🛡️ Recent Fixes & Updates
+
+### Admin Access Issue Resolution (2025-06-18)
+- ✅ Fixed "permission denied to set role 'admin'" error
+- ✅ Implemented admin access bootstrap mechanism
+- ✅ Added automatic recovery for admin access
+- ✅ Created comprehensive troubleshooting documentation
+- 📋 See [Admin Access Issues](guides/troubleshooting/admin-access-issues.md) for details
 
 ## 📝 Contributing to Documentation
 
@@ -75,6 +86,7 @@ When updating documentation:
 ## 🆘 Need Help?
 
 - Check the [troubleshooting section](guides/troubleshooting/) first
+- For admin access issues, see [Admin Access Issues](guides/troubleshooting/admin-access-issues.md)
 - Review feature-specific documentation
 - Consult the technical reference materials
 - For deployment issues, see [deployment troubleshooting](guides/troubleshooting/deployment-issues.md)
@@ -83,3 +95,4 @@ When updating documentation:
 
 *Last updated: 2025-06-18*
 *PAM System Version: 1.0.0*
+*Recent Update: Admin Access Bootstrap Fix*

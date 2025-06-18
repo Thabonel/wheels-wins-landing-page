@@ -3,6 +3,18 @@
 
 This document covers the most frequently encountered issues and their solutions.
 
+## Admin Access Issues
+
+### Issue: "Admin check failed: permission denied to set role 'admin'"
+**Symptoms**: Cannot access admin dashboard, admin bootstrapping fails
+**Solutions**:
+1. Run the admin bootstrap migration (see [Admin Access Issues](admin-access-issues.md))
+2. Use the bootstrap function: `SELECT public.bootstrap_admin_user('your-email@example.com')`
+3. Check RLS policies on admin_users table
+4. Verify user exists in auth.users table
+
+**Quick Fix**: See the comprehensive [Admin Access Issues & Solutions guide](admin-access-issues.md) for detailed steps.
+
 ## Authentication Issues
 
 ### Issue: "Invalid JWT token" errors
@@ -118,4 +130,8 @@ npm run build --verbose
 2. Review server logs
 3. Use React DevTools for component issues
 4. Check network tab for API failures
-5. Consult specific troubleshooting guides
+5. Consult specific troubleshooting guides:
+   - [Admin Access Issues](admin-access-issues.md)
+   - [API Errors](api-errors.md)
+   - [Debugging Guide](debugging-guide.md)
+   - [Deployment Issues](deployment-issues.md)
