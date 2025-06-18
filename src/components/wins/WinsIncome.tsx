@@ -7,7 +7,7 @@ import { PlusCircle } from "lucide-react";
 // Import refactored components
 import IncomeTable from "./income/IncomeTable";
 import IncomeChart from "./income/IncomeChart";
-import IncomeSummaryCards from "./income/IncomeSumm
+import IncomeSummaryCards from "./income/IncomeSummaryCards";
 import AddIncomeForm from "./income/AddIncomeForm";
 import PamInsightCard from "./income/PamInsightCard";
 import { useIncomeData } from "./income/useIncomeData";
