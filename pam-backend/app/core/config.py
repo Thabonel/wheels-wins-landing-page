@@ -1,19 +1,18 @@
-
 from pydantic_settings import BaseSettings
 from typing import List
 import os
 
 class Settings(BaseSettings):
     # Environment
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    ENVIRONMENT: str = "development"
     
     # API Keys
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+    OPENAI_API_KEY: str = ""
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
     
     # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    SECRET_KEY: str = "your-secret-key-here"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
@@ -25,13 +24,15 @@ class Settings(BaseSettings):
     ]
     
     # Redis (for future use)
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
+    REDIS_URL: str = "redis://localhost:6379"
     
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "allow"
+    }
 
 settings = Settings()
