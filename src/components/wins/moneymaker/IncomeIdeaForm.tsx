@@ -16,13 +16,12 @@ interface IncomeIdeaFormProps {
 export default function IncomeIdeaForm({ onAddIdea, onClose }: IncomeIdeaFormProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("online");
   const [monthlyIncome, setMonthlyIncome] = useState("");
   const [status, setStatus] = useState("Active");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (!name || !category) {
+    if (!name) {
       return;
     }
 
@@ -31,7 +30,6 @@ export default function IncomeIdeaForm({ onAddIdea, onClose }: IncomeIdeaFormPro
     const success = await onAddIdea({
       name,
       notes: description,
-      category,
       monthlyIncome: parseFloat(monthlyIncome) || 0,
       status
     });
@@ -40,7 +38,6 @@ export default function IncomeIdeaForm({ onAddIdea, onClose }: IncomeIdeaFormPro
       // Reset form
       setName("");
       setDescription("");
-      setCategory("online");
       setMonthlyIncome("");
       setStatus("Active");
       onClose();
@@ -67,20 +64,6 @@ export default function IncomeIdeaForm({ onAddIdea, onClose }: IncomeIdeaFormPro
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-          </div>
-          <div className="grid gap-2">
-            <label htmlFor="category">Category</label>
-            <select 
-              id="category" 
-              className="w-full border border-gray-200 rounded-md py-2 px-3 text-sm"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="online">Online Work</option>
-              <option value="services">Services</option>
-              <option value="crafts">Crafts & Sales</option>
-              <option value="other">Other</option>
-            </select>
           </div>
           <div className="grid gap-2">
             <label htmlFor="status">Status</label>
