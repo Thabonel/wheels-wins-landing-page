@@ -6,15 +6,10 @@ import {
   DrawerFooter, DrawerHeader, DrawerTitle 
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { IncomeIdea } from "./types";
 
 interface IncomeIdeaFormProps {
-  onAddIdea: (idea: {
-    name: string;
-    description: string;
-    category: string;
-    monthlyIncome: number;
-    status: string;
-  }) => Promise<boolean>;
+  onAddIdea: (idea: Omit<IncomeIdea, 'id' | 'startDate' | 'trend' | 'growth' | 'topPerformer'>) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -23,7 +18,7 @@ export default function IncomeIdeaForm({ onAddIdea, onClose }: IncomeIdeaFormPro
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("online");
   const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [status, setStatus] = useState("active");
+  const [status, setStatus] = useState("Active");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -35,7 +30,7 @@ export default function IncomeIdeaForm({ onAddIdea, onClose }: IncomeIdeaFormPro
     
     const success = await onAddIdea({
       name,
-      description,
+      notes: description,
       category,
       monthlyIncome: parseFloat(monthlyIncome) || 0,
       status
@@ -47,7 +42,7 @@ export default function IncomeIdeaForm({ onAddIdea, onClose }: IncomeIdeaFormPro
       setDescription("");
       setCategory("online");
       setMonthlyIncome("");
-      setStatus("active");
+      setStatus("Active");
       onClose();
     }
     
@@ -95,9 +90,9 @@ export default function IncomeIdeaForm({ onAddIdea, onClose }: IncomeIdeaFormPro
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="planning">Planning</option>
+              <option value="Active">Active</option>
+              <option value="Paused">Paused</option>
+              <option value="Archived">Archived</option>
             </select>
           </div>
           <div className="grid gap-2">
