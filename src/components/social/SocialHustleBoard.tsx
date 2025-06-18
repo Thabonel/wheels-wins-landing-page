@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, TrendingUp, Heart, ExternalLink } from "lucide-react";
+import { Star, TrendingUp, Heart, ExternalLink, PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 
 interface HustleIdea {
   id: string;
@@ -21,6 +22,7 @@ interface HustleIdea {
 }
 
 export default function SocialHustleBoard() {
+  const { user } = useAuth();
   const [hustleIdeas, setHustleIdeas] = useState<HustleIdea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [likedIdeas, setLikedIdeas] = useState<Set<string>>(new Set());
@@ -93,6 +95,38 @@ export default function SocialHustleBoard() {
       toast.success(isCurrentlyLiked ? 'Like removed' : 'Idea liked!');
     } catch (err) {
       console.error('Error in handleLike:', err);
+      toast.error('Something went wrong');
+    }
+  };
+
+  const handleAddToIncome = async (idea: HustleIdea) => {
+    if (!user) {
+      toast.error("You must be logged in to add ideas to your income tracker");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('money_maker_ideas')
+        .insert({
+          user_id: user.id,
+          name: idea.title,
+          description: idea.description,
+          category: idea.tags[0] || 'general',
+          monthly_income: 0, // User will set this as they start earning
+          status: 'Active',
+          progress: 0
+        });
+
+      if (error) {
+        console.error('Error adding to income tracker:', error);
+        toast.error('Failed to add to your income tracker');
+        return;
+      }
+
+      toast.success(`"${idea.title}" added to your Money Maker tracker!`);
+    } catch (err) {
+      console.error('Error in handleAddToIncome:', err);
       toast.error('Something went wrong');
     }
   };
@@ -180,23 +214,35 @@ export default function SocialHustleBoard() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleLike(idea.id)}
-                    className={likedIdeas.has(idea.id) ? "text-red-500" : ""}
-                  >
-                    <Heart
-                      size={16}
-                      className={likedIdeas.has(idea.id) ? "fill-current" : ""}
-                    />
-                    <span className="ml-1">{idea.likes}</span>
-                  </Button>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleLike(idea.id)}
+                      className={likedIdeas.has(idea.id) ? "text-red-500" : ""}
+                    >
+                      <Heart
+                        size={16}
+                        className={likedIdeas.has(idea.id) ? "fill-current" : ""}
+                      />
+                      <span className="ml-1">{idea.likes}</span>
+                    </Button>
+                    
+                    <Button size="sm" variant="outline">
+                      <ExternalLink size={14} className="mr-1" />
+                      Learn More
+                    </Button>
+                  </div>
                   
-                  <Button size="sm" variant="outline">
-                    <ExternalLink size={14} className="mr-1" />
-                    Learn More
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    onClick={() => handleAddToIncome(idea)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <PlusCircle size={14} className="mr-1" />
+                    Add to Income
                   </Button>
                 </div>
               </CardContent>

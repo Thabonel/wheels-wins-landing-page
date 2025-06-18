@@ -10,6 +10,7 @@ import ActiveIdeasSection from "./moneymaker/ActiveIdeasSection";
 import ArchivedIdeasSection from "./moneymaker/ArchivedIdeasSection";
 import IncomeIdeaForm from "./moneymaker/IncomeIdeaForm";
 import PamSuggestions from "./moneymaker/PamSuggestions";
+import HustleBoardSuggestions from "./moneymaker/HustleBoardSuggestions";
 import { useMoneyMakerData } from "./moneymaker/useMoneyMakerData";
 
 export default function WinsMoneyMaker() {
@@ -51,6 +52,9 @@ export default function WinsMoneyMaker() {
       
       {/* Income comparison chart */}
       <IncomeChart chartData={chartData} />
+      
+      {/* Hustle Board Suggestions */}
+      <HustleBoardSuggestions onAddToIncome={addMoneyMakerIdea} />
       
       {/* Active Income Ideas */}
       <ActiveIdeasSection activeIdeas={activeIdeas} />
