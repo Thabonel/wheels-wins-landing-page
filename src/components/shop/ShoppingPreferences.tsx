@@ -8,7 +8,9 @@ import { useShoppingProfile } from "@/hooks/useShoppingProfile";
 import { usePersonalizedRecommendations } from "@/hooks/usePersonalizedRecommendations";
 import { Settings, Sparkles } from "lucide-react";
 
-const TRAVEL_STYLES = [
+type TravelStyle = 'budget' | 'mid-range' | 'luxury' | 'adventure' | 'business' | 'leisure';
+
+const TRAVEL_STYLES: Array<{ value: TravelStyle; label: string; description: string }> = [
   { value: 'budget', label: 'Budget Conscious', description: 'Looking for the best deals and value' },
   { value: 'mid-range', label: 'Mid-Range', description: 'Balance of quality and affordability' },
   { value: 'luxury', label: 'Luxury', description: 'Premium products and experiences' },
@@ -26,7 +28,7 @@ const PRODUCT_CATEGORIES = [
 export default function ShoppingPreferences() {
   const { profile, createOrUpdateProfile, isLoading } = useShoppingProfile();
   const { generateRecommendations } = usePersonalizedRecommendations();
-  const [selectedStyle, setSelectedStyle] = useState(profile?.travelStyle || 'budget');
+  const [selectedStyle, setSelectedStyle] = useState<TravelStyle>(profile?.travelStyle || 'budget');
   const [priceSensitivity, setPriceSensitivity] = useState([profile?.priceSensitivity || 0.5]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(profile?.preferredCategories || []);
   const [isSaving, setIsSaving] = useState(false);
@@ -35,7 +37,7 @@ export default function ShoppingPreferences() {
     setIsSaving(true);
     try {
       await createOrUpdateProfile({
-        travelStyle: selectedStyle as any,
+        travelStyle: selectedStyle,
         priceSensitivity: priceSensitivity[0],
         preferredCategories: selectedCategories
       });

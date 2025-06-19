@@ -1,12 +1,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase';
+
+type TravelStyle = 'budget' | 'mid-range' | 'luxury' | 'adventure' | 'business' | 'leisure';
 
 interface ShoppingProfile {
   id?: string;
   userId: string;
-  travelStyle: 'budget' | 'mid-range' | 'luxury' | 'adventure' | 'business' | 'leisure';
+  travelStyle: TravelStyle;
   priceSensitivity: number;
   preferredCategories: string[];
   seasonalPreferences: Record<string, any>;
@@ -36,7 +38,7 @@ export function useShoppingProfile() {
         setProfile({
           id: data.id,
           userId: data.user_id,
-          travelStyle: data.travel_style,
+          travelStyle: data.travel_style as TravelStyle,
           priceSensitivity: data.price_sensitivity,
           preferredCategories: data.preferred_categories || [],
           seasonalPreferences: data.seasonal_preferences || {},
@@ -73,7 +75,7 @@ export function useShoppingProfile() {
       setProfile({
         id: data.id,
         userId: data.user_id,
-        travelStyle: data.travel_style,
+        travelStyle: data.travel_style as TravelStyle,
         priceSensitivity: data.price_sensitivity,
         preferredCategories: data.preferred_categories || [],
         seasonalPreferences: data.seasonal_preferences || {},

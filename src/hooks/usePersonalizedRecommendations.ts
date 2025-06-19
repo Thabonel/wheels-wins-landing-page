@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRegion } from '@/context/RegionContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase';
 import { ShopProduct } from '@/components/shop/types';
 import { getAffiliateProducts, getDigitalProducts } from '@/components/shop/ProductsData';
 
