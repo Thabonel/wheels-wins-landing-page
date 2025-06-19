@@ -1,6 +1,6 @@
 
 import { Badge } from "@/components/ui/badge";
-import { Wifi, WifiOff } from "lucide-react";
+import { Wifi, WifiOff, Zap } from "lucide-react";
 
 interface PamConnectionStatusProps {
   isConnected: boolean;
@@ -17,9 +17,21 @@ const PamConnectionStatus = ({ isConnected, variant = "badge" }: PamConnectionSt
   }
 
   return (
-    <Badge variant={isConnected ? "default" : "destructive"} className="text-xs">
-      {isConnected ? <Wifi className="w-3 h-3 mr-1" /> : <WifiOff className="w-3 h-3 mr-1" />}
-      {isConnected ? "Backend" : "Connecting"}
+    <Badge 
+      variant={isConnected ? "default" : "secondary"} 
+      className={`text-xs ${isConnected ? 'bg-green-600' : 'bg-orange-500 text-white'}`}
+    >
+      {isConnected ? (
+        <>
+          <Wifi className="w-3 h-3 mr-1" />
+          Live
+        </>
+      ) : (
+        <>
+          <Zap className="w-3 h-3 mr-1" />
+          Demo
+        </>
+      )}
     </Badge>
   );
 };

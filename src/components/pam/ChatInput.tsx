@@ -16,17 +16,18 @@ export default function ChatInput({ onSendMessage, isConnected = true, isProcess
   const [message, setMessage] = useState("");
   const { isOffline } = useOffline();
 
-  const isDisabled = isOffline || !isConnected || isProcessing;
+  // Always allow typing unless explicitly offline
+  const isDisabled = isOffline;
 
   const handleSend = () => {
-    if (!message.trim() || isDisabled) return;
+    if (!message.trim() || isProcessing) return;
     onSendMessage(message.trim());
     setMessage("");
   };
 
   const getPlaceholderText = () => {
     if (isOffline) return "PAM is offline...";
-    if (!isConnected) return "Connecting to PAM...";
+    if (!isConnected) return "Type your message (Demo mode)...";
     if (isProcessing) return "PAM is thinking...";
     return "Type your message...";
   };
@@ -40,7 +41,7 @@ export default function ChatInput({ onSendMessage, isConnected = true, isProcess
         className="flex-1 border-blue-100 focus-visible:ring-blue-200"
         disabled={isDisabled}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && !isDisabled) {
+          if (e.key === "Enter" && !e.shiftKey && !isProcessing) {
             e.preventDefault();
             handleSend();
           }
@@ -52,7 +53,7 @@ export default function ChatInput({ onSendMessage, isConnected = true, isProcess
           type="button"
           size="icon"
           onClick={handleSend}
-          disabled={isDisabled || !message.trim()}
+          disabled={isDisabled || !message.trim() || isProcessing}
           className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50"
         >
           <ArrowUp className="h-4 w-4 rotate-45" />

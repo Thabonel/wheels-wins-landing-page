@@ -61,7 +61,9 @@ const PamMobileChat = ({
             </Avatar>
             <div>
               <h3 className="font-bold">Chat with Pam</h3>
-              <p className="text-xs opacity-90">Your {region} AI Assistant</p>
+              <p className="text-xs opacity-90">
+                Your {region} AI Assistant {!isConnected && '(Demo Mode)'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">

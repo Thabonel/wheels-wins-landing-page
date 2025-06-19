@@ -23,8 +23,9 @@ const PamQuickActions = ({ onQuickAction, isProcessing, isConnected }: PamQuickA
           size="sm"
           variant="outline"
           onClick={() => onQuickAction(action.key)}
-          className="text-xs"
-          disabled={isProcessing || !isConnected}
+          className={`text-xs ${!isConnected ? 'border-orange-200 text-orange-700' : ''}`}
+          disabled={isProcessing}
+          title={!isConnected ? 'Demo mode - limited functionality' : ''}
         >
           {action.label}
         </Button>

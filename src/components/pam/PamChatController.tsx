@@ -14,6 +14,15 @@ import PamFloatingButton from "./PamFloatingButton";
 // Define excluded routes where Pam chat should not be shown (unless mobile)
 const EXCLUDED_ROUTES = ["/", "/profile"];
 
+// Fallback responses for when WebSocket is not connected
+const DEMO_RESPONSES = [
+  "I'm running in demo mode right now. I can still help you with basic information!",
+  "Demo mode is active. While I can't access live data, I can provide general guidance.",
+  "I'm in offline mode, but I can still assist with general questions and tips.",
+  "Demo mode: I'm here to help with basic queries while the backend connects.",
+  "Running in demo mode. I can provide general assistance and helpful tips!"
+];
+
 const PamChatController = () => {
   const { pathname } = useLocation();
   const { user } = useAuth();
@@ -72,6 +81,29 @@ const PamChatController = () => {
     }
   }, [wsMessages]);
 
+  const generateDemoResponse = (userMessage: string): string => {
+    const lowerMessage = userMessage.toLowerCase();
+    
+    if (lowerMessage.includes('expense') || lowerMessage.includes('spent') || lowerMessage.includes('cost')) {
+      return "💰 I'd normally help you track that expense, but I'm in demo mode. Try: 'I spent $25 on fuel' when I'm fully connected!";
+    }
+    
+    if (lowerMessage.includes('budget') || lowerMessage.includes('money')) {
+      return "📊 In demo mode, I can't access your live budget data. When connected, I can show you detailed budget insights and spending patterns!";
+    }
+    
+    if (lowerMessage.includes('trip') || lowerMessage.includes('travel') || lowerMessage.includes('drive')) {
+      return "🚗 I'd love to help plan your trip! In demo mode, I can't access live route data, but when connected I can provide detailed travel planning and fuel estimates.";
+    }
+    
+    if (lowerMessage.includes('help') || lowerMessage.includes('what can you do')) {
+      return "🤖 I'm PAM, your AI assistant! I can help with expenses, budgets, trip planning, and more. I'm currently in demo mode - try connecting to the backend for full functionality!";
+    }
+    
+    // Return random demo response
+    return DEMO_RESPONSES[Math.floor(Math.random() * DEMO_RESPONSES.length)];
+  };
+
   const sendMessage = async (message: string) => {
     if (isOffline) return;
 
@@ -104,7 +136,7 @@ const PamChatController = () => {
     const intentResult = IntentClassifier.classifyIntent(cleanMessage);
     updateSession(intentResult.type);
 
-    // Use WebSocket-only approach (no more N8N fallback)
+    // Try WebSocket first, fallback to demo mode
     if (isConnected) {
       console.log('📤 Sending message via PAM WebSocket backend');
       const messageSent = sendWebSocketMessage({
@@ -119,21 +151,30 @@ const PamChatController = () => {
       });
 
       if (!messageSent) {
-        console.warn('WebSocket message failed, attempting reconnection...');
-        connect();
-        setIsProcessing(false);
+        console.warn('WebSocket message failed, using demo mode...');
+        // Fallback to demo response
+        setTimeout(() => {
+          const demoResponse: ChatMessage = {
+            sender: "pam",
+            content: generateDemoResponse(cleanMessage),
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, demoResponse]);
+          setIsProcessing(false);
+        }, 500);
       }
     } else {
-      console.warn('⚠️ PAM WebSocket not connected, attempting connection...');
-      connect();
-      
-      const connectingMessage: ChatMessage = {
-        sender: "pam",
-        content: "🔄 Connecting to PAM backend... Please try again in a moment.",
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, connectingMessage]);
-      setIsProcessing(false);
+      console.log('🔄 WebSocket not connected, using demo mode');
+      // Provide immediate demo response
+      setTimeout(() => {
+        const demoResponse: ChatMessage = {
+          sender: "pam",
+          content: generateDemoResponse(cleanMessage),
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, demoResponse]);
+        setIsProcessing(false);
+      }, 500);
     }
   };
 
@@ -155,7 +196,7 @@ const PamChatController = () => {
     if (user?.id && messages.length === 0) {
       const welcomeMessage: ChatMessage = {
         sender: "pam",
-        content: `🤖 Hi! I'm PAM with ${isConnected ? 'intelligent backend' : 'basic'} capabilities. I can help you manage expenses, plan trips, and more. Try saying: "I spent $25 on fuel" or "Show my budget"`,
+        content: `🤖 Hi! I'm PAM, your AI assistant. I'm ${isConnected ? 'fully connected' : 'running in demo mode'}. I can help you manage expenses, plan trips, and more. Try saying: "I spent $25 on fuel" or "Show my budget"`,
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);
