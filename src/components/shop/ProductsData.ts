@@ -2,86 +2,70 @@
 import { Region } from "@/context/RegionContext";
 import { AffiliateProduct, DigitalProduct } from "./types";
 
-// Product data with region availability
-export const getAffiliateProducts = (): AffiliateProduct[] => [
-  {
-    id: "aff-1",
-    title: "Portable Solar Panel Kit",
-    description: "Lightweight 100W solar panels perfect for boondocking. Includes charge controller and cables.",
-    image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-    externalLink: "https://example.com/solar-panel-kit",
-    isPamRecommended: true,
-    availableRegions: ["Australia", "New Zealand", "United States", "Canada"]
-  },
-  {
-    id: "aff-2",
-    title: "Compact RV Storage System",
-    description: "Maximize your storage space with these collapsible containers designed for RVs.",
-    image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-    externalLink: "https://example.com/rv-storage",
-    availableRegions: ["Australia", "United States", "Canada", "United Kingdom"]
-  },
-  {
-    id: "aff-3",
-    title: "Senior-Friendly First Aid Kit",
-    description: "Complete medical kit with large-print instructions. Essential for remote travel.",
-    image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-    externalLink: "https://example.com/first-aid",
-    isPamRecommended: true,
-    availableRegions: ["Australia", "New Zealand", "United States", "Canada", "United Kingdom"]
-  },
-  {
-    id: "aff-4",
-    title: "Water Filtration System",
-    description: "Ensure clean drinking water wherever you travel with this compact filtration system.",
-    image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-    externalLink: "https://example.com/water-filter",
-    availableRegions: ["Australia", "United States", "Canada"]
-  },
-];
+export function getDigitalProducts(region: Region): DigitalProduct[] {
+  return [
+    {
+      id: "trip-planner-pro",
+      title: "Advanced Trip Planner Pro",
+      description: "Premium trip planning tools with offline maps, weather integration, and route optimization for RV travelers.",
+      image: "/placeholder-product.jpg",
+      price: 29.99,
+      currency: "USD",
+      type: "software",
+      availableRegions: ["US", "Canada", "Australia"],
+      isNew: true
+    },
+    {
+      id: "budget-tracker",
+      title: "RV Budget Tracker & Analytics",
+      description: "Comprehensive financial tracking designed specifically for nomadic lifestyles with expense categorization.",
+      image: "/placeholder-product.jpg",
+      price: 19.99,
+      currency: "USD",
+      type: "software",
+      availableRegions: ["US", "Canada", "Australia"]
+    },
+    {
+      id: "maintenance-guide",
+      title: "Complete RV Maintenance Guide",
+      description: "Digital handbook covering all aspects of RV maintenance with step-by-step tutorials and checklists.",
+      image: "/placeholder-product.jpg",
+      price: 24.99,
+      currency: "USD",
+      type: "ebook",
+      availableRegions: ["US", "Canada", "Australia"],
+      hasBonus: true
+    }
+  ];
+}
 
-export const getDigitalProducts = (region: Region): DigitalProduct[] => [
-  {
-    id: "dig-1",
-    title: "Make Fun Travel Videos",
-    description: "Learn to film, edit, and share adventures using just your smartphone.",
-    image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-    price: 97,
-    currency: region === "Australia" || region === "New Zealand" ? "AUD" : region === "United Kingdom" ? "GBP" : "USD",
-    type: "Video Course",
-    hasBonus: true,
-    availableRegions: ["Australia", "New Zealand", "United States", "Canada", "United Kingdom"]
-  },
-  {
-    id: "dig-2",
-    title: "RV Trip Planner Pro",
-    description: "Downloadable templates for planning your next road trip with budget estimates.",
-    image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-    price: 24.99,
-    currency: region === "Australia" || region === "New Zealand" ? "AUD" : region === "United Kingdom" ? "GBP" : "USD",
-    type: "Travel Templates",
-    availableRegions: ["Australia", "New Zealand", "United States", "Canada"]
-  },
-  {
-    id: "dig-3",
-    title: "Snowbird Budget Master",
-    description: "Track and optimize your expenses while traveling south for winter.",
-    image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-    price: 19.99,
-    currency: region === "Australia" || region === "New Zealand" ? "AUD" : region === "United Kingdom" ? "GBP" : "USD",
-    type: "Budget Planner",
-    availableRegions: ["United States", "Canada"]
-  },
-  {
-    id: "dig-4",
-    title: "RV Setup & Breakdown Checklist",
-    description: "Never forget a critical step with our comprehensive checklists.",
-    image: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
-    price: 12.99,
-    currency: region === "Australia" || region === "New Zealand" ? "AUD" : region === "United Kingdom" ? "GBP" : "USD",
-    type: "Checklists",
-    hasBonus: true,
-    isNew: true,
-    availableRegions: ["Australia", "New Zealand", "United States", "Canada", "United Kingdom"]
-  },
-];
+export function getAffiliateProducts(): AffiliateProduct[] {
+  return [
+    {
+      id: "solar-panel-kit",
+      title: "Renogy 400W Solar Panel Kit",
+      description: "Complete solar power solution for RVs with high-efficiency panels and charge controller.",
+      image: "/placeholder-product.jpg",
+      externalLink: "https://example.com/solar-kit",
+      availableRegions: ["US", "Canada"],
+      isPamRecommended: true
+    },
+    {
+      id: "portable-generator",
+      title: "Honda EU2200i Portable Generator",
+      description: "Quiet, fuel-efficient generator perfect for boondocking and emergency power needs.",
+      image: "/placeholder-product.jpg",
+      externalLink: "https://example.com/generator",
+      availableRegions: ["US", "Canada", "Australia"]
+    },
+    {
+      id: "water-filter",
+      title: "Berkey Water Filter System",
+      description: "Reliable water filtration for safe drinking water anywhere your travels take you.",
+      image: "/placeholder-product.jpg",
+      externalLink: "https://example.com/water-filter",
+      availableRegions: ["US", "Canada", "Australia"],
+      isPamRecommended: true
+    }
+  ];
+}

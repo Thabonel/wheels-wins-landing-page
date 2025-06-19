@@ -1,9 +1,9 @@
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tag, Star, ArrowRight } from "lucide-react";
-import { AffiliateProduct, DigitalProduct, isAffiliateProduct, isDigitalProduct, ShopProduct } from "./types";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ExternalLink, ShoppingCart, Star } from "lucide-react";
+import { ShopProduct, isDigitalProduct, isAffiliateProduct } from "./types";
 
 interface ProductCardProps {
   product: ShopProduct;
@@ -12,92 +12,80 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onExternalLinkClick, onBuyProduct }: ProductCardProps) {
-  if (isDigitalProduct(product)) {
-    return <DigitalProductCard 
-      product={product} 
-      onBuyProduct={onBuyProduct} 
-    />;
-  }
-  
-  return <AffiliateProductCard 
-    product={product} 
-    onExternalLinkClick={onExternalLinkClick} 
-  />;
-}
+  const handleClick = () => {
+    if (isAffiliateProduct(product)) {
+      onExternalLinkClick(product.externalLink);
+    } else if (isDigitalProduct(product)) {
+      onBuyProduct(product.id);
+    }
+  };
 
-function DigitalProductCard({ product, onBuyProduct }: { product: DigitalProduct; onBuyProduct: (productId: string) => void }) {
   return (
-    <Card className="overflow-hidden border-2 border-gray-100 hover:border-blue-200 transition-colors">
-      <div className="relative h-40">
-        <img 
-          src={product.image} 
-          alt={product.title}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute top-2 right-2 flex flex-col gap-2">
-          <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
-            {product.type}
-          </Badge>
-          {product.isNew && (
-            <Badge className="bg-green-600 hover:bg-green-700">
-              New
-            </Badge>
+    <Card className="h-full flex flex-col hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-2">
+        <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+          {product.image ? (
+            <img 
+              src={product.image} 
+              alt={product.title}
+              className="w-full h-full object-cover rounded-lg"
+            />
+          ) : (
+            <div className="text-gray-400 text-sm">No image</div>
           )}
         </div>
-      </div>
-      <CardContent className="p-4">
-        <h3 className="text-lg font-semibold mb-1">{product.title}</h3>
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xl font-bold text-blue-700">
-              {product.currency === 'GBP' ? '£' : product.currency === 'AUD' ? 'A$' : '$'}{product.price} <span className="text-sm font-normal">{product.currency}</span>
-            </div>
-            {product.hasBonus && (
-              <div className="flex items-center text-xs text-green-600 mt-1">
-                <Tag className="w-3 h-3 mr-1" />
-                Includes Bonus Materials
-              </div>
-            )}
-          </div>
-          <Button 
-            onClick={() => onBuyProduct(product.id)} 
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Buy Now
-          </Button>
+        
+        <div className="flex justify-between items-start gap-2">
+          <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
+            {product.title}
+          </CardTitle>
+          
+          {isAffiliateProduct(product) && product.isPamRecommended && (
+            <Badge variant="secondary" className="text-xs shrink-0">
+              <Star className="w-3 h-3 mr-1" />
+              Pam's Pick
+            </Badge>
+          )}
+          
+          {isDigitalProduct(product) && product.isNew && (
+            <Badge className="text-xs shrink-0">New</Badge>
+          )}
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function AffiliateProductCard({ product, onExternalLinkClick }: { product: AffiliateProduct; onExternalLinkClick: (url: string) => void }) {
-  return (
-    <Card className="overflow-hidden border-2 border-gray-100 hover:border-blue-200 transition-colors">
-      <div className="relative h-40">
-        <img 
-          src={product.image} 
-          alt={product.title}
-          className="w-full h-full object-cover"
-        />
-        {product.isPamRecommended && (
-          <Badge className="absolute top-2 left-2 bg-purple-600 hover:bg-purple-700">
-            <Star className="w-3 h-3 mr-1" /> Pam Recommended
-          </Badge>
+      </CardHeader>
+      
+      <CardContent className="flex-1 pb-2">
+        <p className="text-sm text-gray-600 line-clamp-3">
+          {product.description}
+        </p>
+        
+        {isDigitalProduct(product) && (
+          <div className="mt-2">
+            <span className="text-lg font-bold text-green-600">
+              ${product.price} {product.currency}
+            </span>
+          </div>
         )}
-      </div>
-      <CardContent className="p-4">
-        <h3 className="text-lg font-semibold mb-1">{product.title}</h3>
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
-        <Button 
-          onClick={() => onExternalLinkClick(product.externalLink)} 
-          variant="outline"
-          className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
-        >
-          View Deal <ArrowRight className="ml-2 w-4 h-4" />
-        </Button>
       </CardContent>
+      
+      <CardFooter className="pt-2">
+        <Button 
+          onClick={handleClick}
+          className="w-full"
+          variant={isAffiliateProduct(product) ? "outline" : "default"}
+        >
+          {isAffiliateProduct(product) ? (
+            <>
+              <ExternalLink className="w-4 h-4 mr-2" />
+              View Deal
+            </>
+          ) : (
+            <>
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Buy Now
+            </>
+          )}
+        </Button>
+      </CardFooter>
     </Card>
   );
 }
