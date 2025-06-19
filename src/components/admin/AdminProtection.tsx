@@ -12,7 +12,7 @@ interface AdminProtectionProps {
 
 const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
   const { user } = useAuth();
-  const { isAdmin, isLoading, error, recheckAdminStatus } = useAdminAuth();
+  const { isAdmin, loading, error, recheckAdminStatus } = useAdminAuth();
 
   if (!user) {
     return (
@@ -31,7 +31,7 @@ const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
     );
   }
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Card className="w-full max-w-md">
