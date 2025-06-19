@@ -1,7 +1,71 @@
-
 import { Region } from "@/context/RegionContext";
 import { AffiliateProduct, DigitalProduct } from "./types";
+import { supabase } from "@/integrations/supabase/client";
 
+// New Supabase-connected functions
+export async function getDigitalProductsFromDB(region: Region): Promise<DigitalProduct[]> {
+  try {
+    const { data, error } = await supabase
+      .from('shop_products')
+      .select('*')
+      .eq('type', 'digital')
+      .eq('status', 'active')
+      .contains('available_regions', [region]);
+
+    if (error) {
+      console.error('Error fetching digital products from database:', error);
+      return [];
+    }
+
+    // Transform database format to match the expected DigitalProduct interface
+    return (data || []).map(product => ({
+      id: product.id,
+      title: product.name, // Map 'name' from DB to 'title' in interface
+      description: product.description || '',
+      image: product.image_url || '/placeholder-product.jpg',
+      price: product.price || 0,
+      currency: product.currency || 'USD',
+      type: product.category || 'software',
+      availableRegions: product.available_regions || [region],
+      isNew: product.is_new || false,
+      hasBonus: product.has_bonus || false
+    }));
+  } catch (error) {
+    console.error('Unexpected error fetching digital products:', error);
+    return [];
+  }
+}
+
+export async function getAffiliateProductsFromDB(): Promise<AffiliateProduct[]> {
+  try {
+    const { data, error } = await supabase
+      .from('shop_products')
+      .select('*')
+      .eq('type', 'affiliate')
+      .eq('status', 'active');
+
+    if (error) {
+      console.error('Error fetching affiliate products from database:', error);
+      return [];
+    }
+
+    // Transform database format to match the expected AffiliateProduct interface
+    return (data || []).map(product => ({
+      id: product.id,
+      title: product.name, // Map 'name' from DB to 'title' in interface
+      description: product.description || '',
+      image: product.image_url || '/placeholder-product.jpg',
+      externalLink: product.external_link || '#',
+      availableRegions: product.available_regions || ['US'],
+      isPamRecommended: product.is_pam_recommended || false
+    }));
+  } catch (error) {
+    console.error('Unexpected error fetching affiliate products:', error);
+    return [];
+  }
+}
+
+// Keep existing static functions for backward compatibility
 export function getDigitalProducts(region: Region): DigitalProduct[] {
   return [
     {

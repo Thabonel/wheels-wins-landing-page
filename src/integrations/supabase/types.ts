@@ -2337,42 +2337,54 @@ export type Database = {
       }
       shop_products: {
         Row: {
+          available_regions: string[] | null
           category: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
+          external_url: string | null
           id: string
+          image_url: string | null
           images: Json | null
           inventory_count: number | null
           name: string
           price: number | null
           status: string | null
+          type: string | null
           updated_at: string | null
         }
         Insert: {
+          available_regions?: string[] | null
           category?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          external_url?: string | null
           id?: string
+          image_url?: string | null
           images?: Json | null
           inventory_count?: number | null
           name: string
           price?: number | null
           status?: string | null
+          type?: string | null
           updated_at?: string | null
         }
         Update: {
+          available_regions?: string[] | null
           category?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          external_url?: string | null
           id?: string
+          image_url?: string | null
           images?: Json | null
           inventory_count?: number | null
           name?: string
           price?: number | null
           status?: string | null
+          type?: string | null
           updated_at?: string | null
         }
         Relationships: []
