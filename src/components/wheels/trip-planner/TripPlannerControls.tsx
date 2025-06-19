@@ -20,6 +20,10 @@ interface TripPlannerControlsProps {
   onSubmitTrip: () => void;
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
   isOffline: boolean;
+  originLocked?: boolean;
+  destinationLocked?: boolean;
+  lockOrigin?: () => void;
+  lockDestination?: () => void;
 }
 
 export default function TripPlannerControls({
@@ -37,6 +41,10 @@ export default function TripPlannerControls({
   onSubmitTrip,
   map,
   isOffline,
+  originLocked = false,
+  destinationLocked = false,
+  lockOrigin,
+  lockDestination,
 }: TripPlannerControlsProps) {
   return (
     <div className="bg-white rounded-lg border p-4">
@@ -50,6 +58,10 @@ export default function TripPlannerControls({
             destName={destName}
             setOriginName={setOriginName}
             setDestName={setDestName}
+            originLocked={originLocked}
+            destinationLocked={destinationLocked}
+            lockOrigin={lockOrigin}
+            lockDestination={lockDestination}
           />
         </div>
 

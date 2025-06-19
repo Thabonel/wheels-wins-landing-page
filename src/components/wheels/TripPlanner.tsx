@@ -12,6 +12,7 @@ import TripPlannerHeader from "./trip-planner/TripPlannerHeader";
 import TripPlannerControls from "./trip-planner/TripPlannerControls";
 import TripPlannerTip from "./trip-planner/TripPlannerTip";
 import TripPlannerLayout from "./trip-planner/TripPlannerLayout";
+import LockedPointControls from "./trip-planner/LockedPointControls";
 import WeatherWidget from "./WeatherWidget";
 import { useTripPlannerState } from "./trip-planner/hooks/useTripPlannerState";
 import { useTripPlannerHandlers } from "./trip-planner/hooks/useTripPlannerHandlers";
@@ -31,7 +32,7 @@ export default function TripPlanner() {
   const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
   
-  // State management
+  // State management with locked points
   const {
     originName,
     setOriginName,
@@ -49,6 +50,12 @@ export default function TripPlanner() {
     mode,
     setMode,
     saveTripData,
+    originLocked,
+    destinationLocked,
+    lockOrigin,
+    lockDestination,
+    unlockOrigin,
+    unlockDestination,
   } = useTripPlannerState(isOffline);
 
   // Event handlers
@@ -90,6 +97,17 @@ export default function TripPlanner() {
     <TripPlannerLayout>
       <TripPlannerHeader isOffline={isOffline} />
       
+      {/* Locked Points Controls */}
+      <LockedPointControls
+        originLocked={originLocked}
+        destinationLocked={destinationLocked}
+        originName={originName}
+        destName={destName}
+        onUnlockOrigin={unlockOrigin}
+        onUnlockDestination={unlockDestination}
+        disabled={isOffline}
+      />
+      
       {/* Main Map Section */}
       <div className="relative">
         <MapControls
@@ -108,6 +126,10 @@ export default function TripPlanner() {
           onTravelModeChange={setTravelMode}
           map={map}
           isOffline={isOffline}
+          originLocked={originLocked}
+          destinationLocked={destinationLocked}
+          lockOrigin={lockOrigin}
+          lockDestination={lockDestination}
         />
         
         {/* Weather Widget Toggle */}
@@ -150,6 +172,10 @@ export default function TripPlanner() {
         onSubmitTrip={handleSubmitTrip}
         map={map}
         isOffline={isOffline}
+        originLocked={originLocked}
+        destinationLocked={destinationLocked}
+        lockOrigin={lockOrigin}
+        lockDestination={lockDestination}
       />
 
       {/* Weather Widget Sidebar */}

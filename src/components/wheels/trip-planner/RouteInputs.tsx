@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
+import { Lock } from "lucide-react";
 
 interface RouteInputsProps {
   directionsControl: React.MutableRefObject<MapboxDirections | undefined>;
@@ -10,6 +11,10 @@ interface RouteInputsProps {
   destName: string;
   setOriginName: (name: string) => void;
   setDestName: (name: string) => void;
+  originLocked?: boolean;
+  destinationLocked?: boolean;
+  lockOrigin?: () => void;
+  lockDestination?: () => void;
 }
 
 export default function RouteInputs({
@@ -18,14 +23,18 @@ export default function RouteInputs({
   destName,
   setOriginName,
   setDestName,
+  originLocked = false,
+  destinationLocked = false,
+  lockOrigin,
+  lockDestination,
 }: RouteInputsProps) {
   const originGeocoderContainer = useRef<HTMLDivElement>(null);
   const destGeocoderContainer = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!originGeocoderContainer.current || !directionsControl.current) return;
+    if (!originGeocoderContainer.current || !directionsControl.current || originLocked) return;
 
-    // Create origin geocoder
+    // Create origin geocoder only if not locked
     const originGeocoder = new MapboxGeocoder({
       accessToken: mapboxgl.accessToken,
       mapboxgl,
@@ -42,6 +51,11 @@ export default function RouteInputs({
       if (directionsControl.current) {
         directionsControl.current.setOrigin(coordinates);
       }
+      
+      // Lock the origin after setting it
+      if (lockOrigin) {
+        lockOrigin();
+      }
     });
 
     const originElement = originGeocoder.onAdd();
@@ -52,12 +66,12 @@ export default function RouteInputs({
         originGeocoderContainer.current.removeChild(originElement);
       }
     };
-  }, [directionsControl, setOriginName]);
+  }, [directionsControl, setOriginName, originLocked, lockOrigin]);
 
   useEffect(() => {
-    if (!destGeocoderContainer.current || !directionsControl.current) return;
+    if (!destGeocoderContainer.current || !directionsControl.current || destinationLocked) return;
 
-    // Create destination geocoder
+    // Create destination geocoder only if not locked
     const destGeocoder = new MapboxGeocoder({
       accessToken: mapboxgl.accessToken,
       mapboxgl,
@@ -74,6 +88,11 @@ export default function RouteInputs({
       if (directionsControl.current) {
         directionsControl.current.setDestination(coordinates);
       }
+      
+      // Lock the destination after setting it
+      if (lockDestination) {
+        lockDestination();
+      }
     });
 
     const destElement = destGeocoder.onAdd();
@@ -84,7 +103,7 @@ export default function RouteInputs({
         destGeocoderContainer.current.removeChild(destElement);
       }
     };
-  }, [directionsControl, setDestName]);
+  }, [directionsControl, setDestName, destinationLocked, lockDestination]);
 
   return (
     <div className="space-y-3">
@@ -94,10 +113,17 @@ export default function RouteInputs({
           A
         </div>
         <div className="flex-1">
-          <div
-            ref={originGeocoderContainer}
-            className="w-full [&_.mapboxgl-ctrl-geocoder]:w-full [&_.mapboxgl-ctrl-geocoder]:max-w-none [&_.mapboxgl-ctrl-geocoder]:rounded-lg [&_.mapboxgl-ctrl-geocoder]:border [&_.mapboxgl-ctrl-geocoder]:shadow-sm [&_.mapboxgl-ctrl-geocoder]:border-gray-300 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-2 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-blue-500 [&_.mapboxgl-ctrl-geocoder]:focus-within:border-transparent"
-          />
+          {originLocked && originName ? (
+            <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <Lock className="w-4 h-4 text-blue-600" />
+              <span className="text-sm text-blue-800">{originName}</span>
+            </div>
+          ) : (
+            <div
+              ref={originGeocoderContainer}
+              className="w-full [&_.mapboxgl-ctrl-geocoder]:w-full [&_.mapboxgl-ctrl-geocoder]:max-w-none [&_.mapboxgl-ctrl-geocoder]:rounded-lg [&_.mapboxgl-ctrl-geocoder]:border [&_.mapboxgl-ctrl-geocoder]:shadow-sm [&_.mapboxgl-ctrl-geocoder]:border-gray-300 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-2 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-blue-500 [&_.mapboxgl-ctrl-geocoder]:focus-within:border-transparent"
+            />
+          )}
         </div>
       </div>
 
@@ -107,10 +133,17 @@ export default function RouteInputs({
           B
         </div>
         <div className="flex-1">
-          <div
-            ref={destGeocoderContainer}
-            className="w-full [&_.mapboxgl-ctrl-geocoder]:w-full [&_.mapboxgl-ctrl-geocoder]:max-w-none [&_.mapboxgl-ctrl-geocoder]:rounded-lg [&_.mapboxgl-ctrl-geocoder]:border [&_.mapboxgl-ctrl-geocoder]:shadow-sm [&_.mapboxgl-ctrl-geocoder]:border-gray-300 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-2 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-purple-500 [&_.mapboxgl-ctrl-geocoder]:focus-within:border-transparent"
-          />
+          {destinationLocked && destName ? (
+            <div className="flex items-center gap-2 p-2 bg-purple-50 border border-purple-200 rounded-lg">
+              <Lock className="w-4 h-4 text-purple-600" />
+              <span className="text-sm text-purple-800">{destName}</span>
+            </div>
+          ) : (
+            <div
+              ref={destGeocoderContainer}
+              className="w-full [&_.mapboxgl-ctrl-geocoder]:w-full [&_.mapboxgl-ctrl-geocoder]:max-w-none [&_.mapboxgl-ctrl-geocoder]:rounded-lg [&_.mapboxgl-ctrl-geocoder]:border [&_.mapboxgl-ctrl-geocoder]:shadow-sm [&_.mapboxgl-ctrl-geocoder]:border-gray-300 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-2 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-purple-500 [&_.mapboxgl-ctrl-geocoder]:focus-within:border-transparent"
+            />
+          )}
         </div>
       </div>
     </div>

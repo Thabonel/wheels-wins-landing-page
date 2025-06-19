@@ -1,10 +1,12 @@
 
 import { useState, useEffect } from "react";
 import { useCachedTripData } from "@/hooks/useCachedTripData";
+import { useLockedPoints } from "./useLockedPoints";
 import { Waypoint, Suggestion } from "../types";
 
 export function useTripPlannerState(isOffline: boolean) {
   const { cachedTrip, saveTripData } = useCachedTripData();
+  const lockedPointsState = useLockedPoints();
   
   // State management
   const [originName, setOriginName] = useState("");
@@ -46,5 +48,6 @@ export function useTripPlannerState(isOffline: boolean) {
     mode,
     setMode,
     saveTripData,
+    ...lockedPointsState,
   };
 }
