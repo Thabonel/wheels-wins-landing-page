@@ -2,185 +2,328 @@
 # Travel & Vehicles (Wheels)
 
 ## Overview
-The Wheels section provides comprehensive travel planning and vehicle management tools, including trip planning, maintenance tracking, fuel logging, and RV/caravan management.
+The Wheels section provides comprehensive travel planning and vehicle management tools, including trip planning, maintenance tracking, fuel logging, and RV/caravan management with integrated PAM AI assistance.
+
+## Architecture & Components
+
+### Main Structure
+```
+src/pages/Wheels.tsx                 # Main wheels page with tabbed interface
+src/components/wheels/
+├── TripPlanner.tsx                 # Complete trip planning system
+├── FuelLog.tsx                     # Fuel consumption tracking
+├── VehicleMaintenance.tsx          # Maintenance scheduling
+├── RVStorageOrganizer.tsx          # RV storage management
+├── CaravanSafety.tsx              # Safety checklists
+└── WeatherWidget.tsx              # Weather information
+```
+
+### Trip Planning System
+```
+src/components/wheels/trip-planner/
+├── TripPlannerLayout.tsx          # Main layout wrapper
+├── TripPlannerHeader.tsx          # Header with controls
+├── TripPlannerControls.tsx        # Action buttons
+├── RouteInputs.tsx                # Origin/destination inputs
+├── WaypointsList.tsx              # Route stops management
+├── SuggestionsGrid.tsx            # Suggested destinations
+├── MapControls.tsx                # Map interaction controls
+├── DirectionsControl.tsx          # Mapbox directions integration
+├── GeocodeSearch.tsx              # Location search functionality
+├── TravelModeButtons.tsx          # Transportation modes
+├── TripControls.tsx               # Trip management actions
+├── TripPlannerTip.tsx            # Helpful tips display
+├── OfflineTripBanner.tsx         # Offline functionality notice
+└── TripService.tsx               # Trip data processing service
+```
+
+### Storage & Organization
+```
+src/components/wheels/storage/
+├── DrawerCard.tsx                 # Individual drawer display
+├── DrawerList.tsx                 # All drawers overview
+└── ShoppingListDialog.tsx         # Generate shopping lists
+
+src/components/wheels/drawer-selector/
+├── DrawerSelector.tsx             # Main drawer interface
+├── NewDrawerModal.tsx            # Create new compartments
+├── services/drawerService.ts      # CRUD operations
+├── hooks/
+│   ├── useDrawerOperations.ts     # Storage operations
+│   ├── useDrawerCreation.ts       # Creation workflow
+│   ├── useDrawerFetch.ts         # Data fetching
+│   └── useAuthState.ts           # Authentication state
+├── constants.ts                   # Drawer types and categories
+└── validation.ts                  # Input validation
+```
+
+### Trip Planning Hooks & Utils
+```
+src/components/wheels/trip-planner/hooks/
+├── useTripPlannerState.ts         # State management
+└── useTripPlannerHandlers.ts      # Event handling
+
+src/components/wheels/trip-planner/
+├── types.ts                       # TypeScript definitions
+├── constants.ts                   # Default values and configs
+└── utils.ts                       # Helper functions
+```
 
 ## Features
 
 ### Trip Planning
-- **Route Planning**: Interactive maps with Mapbox integration
-- **Destination Search**: Geocoding and place search
-- **Waypoint Management**: Add stops along routes
-- **Travel Mode Selection**: Driving, walking, cycling options
-- **Cost Estimation**: Fuel and travel cost calculations
-- **Trip Suggestions**: Popular destinations and routes
-- **Offline Maps**: Basic offline functionality
+- **Interactive Maps**: Mapbox GL JS integration with custom controls
+- **Route Optimization**: Multi-waypoint routing with distance/time calculation
+- **Destination Search**: Geocoding with autocomplete suggestions
+- **Travel Modes**: Driving, walking, cycling route options
+- **Cost Estimation**: Fuel and travel expense calculations
+- **Offline Support**: Cached trip data and basic offline functionality
+- **PAM Integration**: AI-powered trip suggestions and optimization
 
 ### Vehicle Maintenance
-- **Service Tracking**: Track maintenance records
-- **Reminder System**: Maintenance due notifications
-- **Multi-vehicle Support**: Manage multiple vehicles
-- **Service History**: Complete maintenance logs
-- **PAM Maintenance Advice**: AI-powered recommendations
+- **Service Tracking**: Complete maintenance history logging
+- **Smart Reminders**: Automated notifications based on time/mileage
+- **Multi-vehicle Support**: Manage cars, RVs, motorcycles
+- **Service Categories**: Oil changes, inspections, repairs
+- **PAM Advice**: AI-powered maintenance recommendations
+- **Offline Mode**: Local storage of maintenance schedules
 
-### Fuel Logging
-- **Fuel Entry**: Log fuel purchases and consumption
-- **Efficiency Tracking**: Miles per gallon calculations
-- **Cost Analysis**: Fuel expense tracking
-- **Station Mapping**: Find nearby gas stations
-- **Trend Analysis**: Fuel efficiency over time
+### Fuel Management
+- **Consumption Tracking**: Log fuel purchases with location data
+- **Efficiency Analysis**: MPG calculations and trend analysis
+- **Cost Tracking**: Fuel expense monitoring with price alerts
+- **Station Finder**: Nearby gas stations with price comparison
+- **Route Fuel Planning**: Estimate fuel costs for planned trips
+- **PAM Insights**: AI analysis of fuel efficiency patterns
 
 ### RV & Caravan Management
-- **Storage Organization**: Manage RV storage compartments
-- **Drawer System**: Organize belongings by drawers
-- **Shopping Lists**: Generate lists based on stored items
-- **Safety Checklists**: RV safety inspections
+- **Storage Organization**: Digital inventory of RV compartments
+- **Drawer System**: Organize belongings by storage location
+- **Smart Shopping Lists**: Generate lists based on stored items
+- **Safety Checklists**: Pre-departure inspection routines
 - **Space Optimization**: Maximize storage efficiency
+- **PAM Assistance**: AI-powered organization suggestions
 
 ### Weather Integration
-- **Route Weather**: Weather conditions along routes
-- **Destination Forecast**: Weather at trip destinations
-- **Travel Advisories**: Weather-related travel warnings
-- **Seasonal Planning**: Best travel times
-
-## Components
-
-### Trip Planning Components
-- `TripPlanner.tsx` - Main trip planning interface
-- `TripPlannerLayout.tsx` - Layout wrapper
-- `TripPlannerControls.tsx` - Trip control buttons
-- `RouteInputs.tsx` - Origin/destination inputs
-- `WaypointsList.tsx` - Manage route stops
-- `SuggestionsGrid.tsx` - Suggested destinations
-- `MapControls.tsx` - Map interaction controls
-- `DirectionsControl.tsx` - Mapbox directions integration
-- `GeocodeSearch.tsx` - Location search functionality
-- `TravelModeButtons.tsx` - Transportation mode selection
-
-### Vehicle Management Components
-- `VehicleMaintenance.tsx` - Maintenance tracking dashboard
-- `FuelLog.tsx` - Fuel consumption logging
-- `CaravanSafety.tsx` - RV safety checklists
-
-### Storage & Organization
-- `RVStorageOrganizer.tsx` - RV storage management
-- `DrawerSelector.tsx` - Storage drawer interface
-- `DrawerCard.tsx` - Individual drawer display
-- `DrawerList.tsx` - All drawers overview
-- `ShoppingListDialog.tsx` - Generate shopping lists
-- `NewDrawerModal.tsx` - Create new storage compartments
-
-### Weather & Environment
-- `WeatherWidget.tsx` - Weather information display
+- **Route Weather**: Conditions along planned routes
+- **Destination Forecasts**: Multi-day weather predictions
+- **Travel Advisories**: Weather-related safety warnings
+- **Seasonal Planning**: Best travel times for destinations
+- **Real-time Updates**: Live weather data integration
 
 ## Technical Implementation
 
-### Mapping Integration
-- **Mapbox GL JS**: Interactive map rendering
-- **Directions API**: Route calculations
-- **Geocoding**: Address to coordinates conversion
-- **Custom Controls**: Trip-specific map interactions
+### Mapping Technology
+```typescript
+// Mapbox GL JS integration
+import mapboxgl from 'mapbox-gl';
+import MapboxDirections from '@mapbox/mapbox-gl-directions';
+import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 
-### Data Management
-- `useTripPlannerState.ts` - Trip planning state management
-- `useTripPlannerHandlers.ts` - Event handling logic
-- `useDrawerOperations.ts` - Storage management operations
-- `useStorageData.ts` - RV storage data management
-- `useCachedTripData.ts` - Trip data with offline support
+// Custom trip planning controls
+const DirectionsControl = () => {
+  const directions = new MapboxDirections({
+    accessToken: MAPBOX_TOKEN,
+    unit: 'metric',
+    profile: 'mapbox/driving'
+  });
+  
+  return directions;
+};
+```
 
-### Services
-- `TripService.tsx` - Trip data processing
-- `drawerService.ts` - Storage CRUD operations
+### State Management
+```typescript
+// Trip planning state
+const useTripPlannerState = () => {
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
+  const [waypoints, setWaypoints] = useState([]);
+  const [travelMode, setTravelMode] = useState('driving');
+  const [routeData, setRouteData] = useState(null);
+  
+  return {
+    origin, setOrigin,
+    destination, setDestination,
+    waypoints, setWaypoints,
+    travelMode, setTravelMode,
+    routeData, setRouteData
+  };
+};
+```
 
-### Validation
-- `validation.ts` - Input validation for trip/storage data
+### Data Services
+```typescript
+// Trip data processing
+export const TripService = {
+  calculateRoute: async (origin, destination, waypoints) => {
+    // Mapbox Directions API integration
+  },
+  
+  estimateCosts: (routeData, vehicleEfficiency) => {
+    // Fuel cost calculations
+  },
+  
+  findNearbyPOIs: (coordinates, radius) => {
+    // Points of interest discovery
+  }
+};
+```
+
+### Storage Management
+```typescript
+// RV storage operations
+const useDrawerOperations = () => {
+  const addItem = async (drawerId, item) => {
+    // Add item to storage compartment
+  };
+  
+  const generateShoppingList = (drawerIds) => {
+    // Create shopping list from stored items
+  };
+  
+  const organizeByCategory = (items) => {
+    // Smart categorization of belongings
+  };
+};
+```
+
+## PAM AI Integration
+
+### Trip Planning Assistant
+```typescript
+// PAM trip planning capabilities
+const PamTripAssistant = {
+  suggestDestinations: (userPreferences, budget, timeframe) => {
+    // AI-powered destination recommendations
+  },
+  
+  optimizeRoute: (waypoints, constraints) => {
+    // Route optimization with AI
+  },
+  
+  estimateExpenses: (tripData, userSpendingHistory) => {
+    // Personalized expense predictions
+  }
+};
+```
+
+### Maintenance Advisor
+```typescript
+// PAM maintenance intelligence
+const PamMaintenanceAdvisor = {
+  predictMaintenanceNeeds: (vehicleData, drivingPatterns) => {
+    // Predictive maintenance scheduling
+  },
+  
+  findServiceCenters: (location, serviceType, budget) => {
+    // Personalized service recommendations
+  },
+  
+  analyzeVehicleHealth: (maintenanceHistory, symptoms) => {
+    // AI-powered diagnostics
+  }
+};
+```
 
 ## Offline Functionality
 
-### Cached Data
-- Recent trip routes
-- Vehicle information
-- Maintenance schedules
-- Storage inventory
+### Cached Data Structure
+```typescript
+interface OfflineWheelsData {
+  recentTrips: Trip[];
+  savedRoutes: Route[];
+  vehicleProfiles: Vehicle[];
+  maintenanceSchedule: MaintenanceItem[];
+  rvInventory: StorageItem[];
+  fuelLogs: FuelEntry[];
+}
+```
 
 ### Offline Features
-- Basic trip planning
-- Maintenance reminders
-- Storage organization
-- Offline trip tips
+- Trip planning with cached map data
+- Maintenance reminder notifications
+- RV storage inventory access
+- Fuel log entry and tracking
+- Basic PAM assistance with cached responses
 
 ## User Experience
 
-### Interactive Maps
-- Pan and zoom controls
-- Route visualization
-- Waypoint markers
-- Real-time directions
-
 ### Mobile Optimization
 - Touch-friendly map controls
-- Responsive layout
-- Quick input methods
-- GPS integration
+- Responsive tabbed interface
+- Swipe gestures for navigation
+- Offline-first design
+- GPS integration for location services
+
+### Accessibility
+- Screen reader compatible
+- Keyboard navigation support
+- High contrast mode support
+- Voice input integration
+- Large touch targets for mobile
 
 ### Progressive Enhancement
-- Works without JavaScript
+- Works without JavaScript (basic functionality)
 - Graceful offline degradation
-- Fast loading times
-- Accessible controls
+- Fast loading with code splitting
+- Service worker caching
+- Background sync capabilities
 
-## Integration Points
+## API Integration
 
-### External APIs
-- **Mapbox**: Maps and routing
-- **Weather Services**: Route weather data
-- **Fuel Price APIs**: Gas station prices
-- **POI Services**: Points of interest
+### Backend Endpoints
+```python
+# app/api/wheels.py
+@router.post("/plan-trip")
+async def plan_trip(request: TripPlanRequest, user_id: str = Depends(verify_token))
 
-### Internal Systems
-- User authentication
-- PAM AI assistant
-- Notification system
-- Data synchronization
+@router.post("/fuel-log")
+async def log_fuel_purchase(request: FuelLogRequest, user_id: str = Depends(verify_token))
+
+@router.get("/maintenance")
+async def check_maintenance(user_id: str = Depends(verify_token))
+
+@router.post("/weather")
+async def get_weather_forecast(request: WeatherRequest, user_id: str = Depends(verify_token))
+```
+
+### External Services
+- **Mapbox**: Maps, routing, geocoding
+- **Weather APIs**: Forecast and conditions
+- **Fuel Price APIs**: Real-time gas prices
+- **POI Services**: Points of interest data
 
 ## Security & Privacy
 
-### Location Data
-- Optional location sharing
-- Secure coordinate storage
-- Privacy controls
-- Data retention policies
+### Location Data Protection
+- Optional location sharing with granular controls
+- Secure coordinate storage with encryption
+- Privacy-first design with user consent
+- Data retention policies and cleanup
+- Anonymous usage analytics
 
-### API Key Management
-- Secure key storage
-- Usage monitoring
-- Rate limiting
-- Error handling
-
-## Configuration
-
-### Map Settings
-- Default zoom levels
-- Preferred map styles
-- Route preferences
-- Unit preferences (miles/km)
-
-### Vehicle Profiles
-- Multiple vehicle support
-- Fuel efficiency settings
-- Maintenance schedules
-- Custom categories
+### API Security
+- Secure API key management
+- Rate limiting and usage monitoring
+- Input validation and sanitization
+- Error handling without data leakage
 
 ## Future Enhancements
 
 ### Planned Features
 - Real-time traffic integration
-- EV charging station finder
-- Campground reservations
-- Social trip sharing
-- Expense tracking integration
+- EV charging station network
+- Campground reservation system
+- Social trip sharing platform
+- Advanced expense tracking integration
+- Community-driven POI database
 
-### API Expansions
-- More mapping providers
-- Enhanced weather data
-- Traffic incident reporting
-- Community-driven POIs
+### AI Enhancements
+- Computer vision for maintenance issues
+- Natural language trip planning
+- Predictive travel recommendations
+- Smart packing suggestions
+- Automated expense categorization
+
+This comprehensive wheels system provides Grey Nomads and travelers with powerful tools for managing their mobile lifestyle, enhanced by PAM AI assistance and designed for reliability both online and offline.
