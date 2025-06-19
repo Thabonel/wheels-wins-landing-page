@@ -5,6 +5,8 @@ import httpx
 from bs4 import BeautifulSoup
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from scraper_service.config import DATA_SOURCES
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,7 +25,6 @@ def register_parser(domain: str):
 def parse_example(html: str, **kwargs):
     """Demo parser for example.com pages."""
     soup = BeautifulSoup(html, "html.parser")
-    # TODO: implement real extraction logic
     items = [el.get_text(strip=True) for el in soup.select("h2")]
     return [{"title": title} for title in items]
 
@@ -44,15 +45,18 @@ async def fetch_and_parse(url: str, **kwargs):
 # === Scheduled Job ===
 async def scheduled_job():
     logger.info("Running scheduled scrape job")
-    # Example usage — replace with real URLs/params
-    url = "https://example.com"
-    results = await fetch_and_parse(url)
-    logger.info(f"Scraped {len(results)} items from {url}")
+    for source in DATA_SOURCES:
+        domain = source["domain"]
+        for url in source["urls"]:
+            try:
+                results = await fetch_and_parse(url)
+                logger.info(f"Scraped {len(results)} items from {domain} ({url})")
+            except Exception as e:
+                logger.error(f"Error scraping {url}: {e}")
 
 # === Main Entrypoint ===
 def main():
     scheduler = AsyncIOScheduler()
-    # run every hour; adjust as needed
     scheduler.add_job(scheduled_job, "interval", hours=1)
     scheduler.start()
     logger.info("Scheduler started, running indefinitely…")
