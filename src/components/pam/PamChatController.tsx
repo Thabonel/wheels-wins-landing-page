@@ -1,111 +1,114 @@
+
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useOffline } from "@/context/OfflineContext";
 import { useRegion } from "@/context/RegionContext";
-import { useCachedPamTips } from "@/hooks/useCachedPamTips";
+import { usePamWebSocket } from "@/hooks/usePamWebSocket";
 import { IntentClassifier } from "@/utils/intentClassifier";
 import { usePamSession } from "@/hooks/usePamSession";
-import { PamWebhookPayload } from "@/types/pamTypes";
-import PamHeader from "./PamHeader";
-import ChatMessages from "./ChatMessages";
-import ChatInput from "./ChatInput";
-import QuickReplies from "./QuickReplies";
-import OfflinePamChat from "./OfflinePamChat";
-import { getQuickReplies } from "./chatUtils";
 import { ChatMessage } from "./types";
-import { Button } from "@/components/ui/button";
-import { Avatar } from "@/components/ui/avatar";
-
-const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/pam-chat";
+import PamMobileChat from "./PamMobileChat";
+import PamFloatingButton from "./PamFloatingButton";
 
 // Define excluded routes where Pam chat should not be shown (unless mobile)
 const EXCLUDED_ROUTES = ["/", "/profile"];
 
-// Helper function to get PAM memory from available sources
-const getPamMemory = (region: string) => {
-  try {
-    // Check localStorage for various memory sources
-    const travelPrefs = localStorage.getItem('travel_preferences');
-    const vehicleInfo = localStorage.getItem('vehicle_info');
-    const budgetPrefs = localStorage.getItem('budget_preferences');
-    const userPrefs = localStorage.getItem('user_preferences');
-    
-    const memory: any = {};
-    
-    // Add region
-    if (region) {
-      memory.region = region;
-    }
-    
-    // Parse and include travel preferences
-    if (travelPrefs) {
-      try {
-        const parsed = JSON.parse(travelPrefs);
-        if (parsed.travel_style) memory.travel_style = parsed.travel_style;
-        if (parsed.preferences) memory.preferences = parsed.preferences;
-      } catch (e) {
-        console.warn('Failed to parse travel preferences:', e);
-      }
-    }
-    
-    // Parse and include vehicle info
-    if (vehicleInfo) {
-      try {
-        const parsed = JSON.parse(vehicleInfo);
-        if (parsed.vehicle_type) memory.vehicle_type = parsed.vehicle_type;
-      } catch (e) {
-        console.warn('Failed to parse vehicle info:', e);
-      }
-    }
-    
-    // Parse and include budget preferences
-    if (budgetPrefs) {
-      try {
-        const parsed = JSON.parse(budgetPrefs);
-        if (parsed.budget_focus) memory.budget_focus = parsed.budget_focus;
-      } catch (e) {
-        console.warn('Failed to parse budget preferences:', e);
-      }
-    }
-    
-    // Parse and include user preferences
-    if (userPrefs) {
-      try {
-        const parsed = JSON.parse(userPrefs);
-        if (parsed.preferences) {
-          memory.preferences = { ...memory.preferences, ...parsed.preferences };
-        }
-      } catch (e) {
-        console.warn('Failed to parse user preferences:', e);
-      }
-    }
-    
-    return Object.keys(memory).length > 0 ? memory : null;
-  } catch (error) {
-    console.warn('Error getting PAM memory:', error);
-    return null;
-  }
-};
+// Fallback responses for when WebSocket is not connected
+const DEMO_RESPONSES = [
+  "I'm running in demo mode right now. I can still help you with basic information!",
+  "Demo mode is active. While I can't access live data, I can provide general guidance.",
+  "I'm in offline mode, but I can still assist with general questions and tips.",
+  "Demo mode: I'm here to help with basic queries while the backend connects.",
+  "Running in demo mode. I can provide general assistance and helpful tips!"
+];
 
 const PamChatController = () => {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const { isOffline } = useOffline();
   const { region } = useRegion();
-  const { addTip } = useCachedPamTips();
   const { sessionData, updateSession } = usePamSession(user?.id);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const isExcluded = EXCLUDED_ROUTES.includes(pathname);
   const isMobile = window.innerWidth < 768;
 
+  // Use WebSocket connection to our new PAM backend
+  const { isConnected, sendMessage: sendWebSocketMessage, messages: wsMessages, connect } = usePamWebSocket();
+
+  // Handle WebSocket messages from our new backend
+  useEffect(() => {
+    if (wsMessages.length > 0) {
+      const latestMessage = wsMessages[wsMessages.length - 1];
+      
+      switch (latestMessage.type) {
+        case 'chat_response':
+          const pamMessage: ChatMessage = {
+            sender: "pam",
+            content: latestMessage.message || "I'm processing your request...",
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, pamMessage]);
+          setIsProcessing(false);
+          break;
+          
+        case 'ui_actions':
+          // UI actions are handled in the usePamWebSocket hook
+          break;
+          
+        case 'error':
+          const errorMessage: ChatMessage = {
+            sender: "pam",
+            content: `❌ ${latestMessage.message}`,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, errorMessage]);
+          setIsProcessing(false);
+          break;
+
+        case 'connection':
+          const connectionMessage: ChatMessage = {
+            sender: "pam",
+            content: latestMessage.message || "Connected to PAM backend",
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, connectionMessage]);
+          break;
+      }
+    }
+  }, [wsMessages]);
+
+  const generateDemoResponse = (userMessage: string): string => {
+    const lowerMessage = userMessage.toLowerCase();
+    
+    if (lowerMessage.includes('expense') || lowerMessage.includes('spent') || lowerMessage.includes('cost')) {
+      return "💰 I'd normally help you track that expense, but I'm in demo mode. Try: 'I spent $25 on fuel' when I'm fully connected!";
+    }
+    
+    if (lowerMessage.includes('budget') || lowerMessage.includes('money')) {
+      return "📊 In demo mode, I can't access your live budget data. When connected, I can show you detailed budget insights and spending patterns!";
+    }
+    
+    if (lowerMessage.includes('trip') || lowerMessage.includes('travel') || lowerMessage.includes('drive')) {
+      return "🚗 I'd love to help plan your trip! In demo mode, I can't access live route data, but when connected I can provide detailed travel planning and fuel estimates.";
+    }
+    
+    if (lowerMessage.includes('help') || lowerMessage.includes('what can you do')) {
+      return "🤖 I'm PAM, your AI assistant! I can help with expenses, budgets, trip planning, and more. I'm currently in demo mode - try connecting to the backend for full functionality!";
+    }
+    
+    // Return random demo response
+    return DEMO_RESPONSES[Math.floor(Math.random() * DEMO_RESPONSES.length)];
+  };
+
   const sendMessage = async (message: string) => {
-    if (isOffline) return; // Don't send messages when offline
+    if (isOffline) return;
 
     if (!user?.id) {
-      console.error("No authenticated user ID – cannot send to Pam");
+      console.error("No authenticated user ID – cannot send to PAM");
       const errorMessage: ChatMessage = {
         sender: "pam",
         content: "Please log in to chat with PAM.",
@@ -115,7 +118,6 @@ const PamChatController = () => {
       return;
     }
 
-    // Validate and clean the message
     const cleanMessage = message?.trim();
     if (!cleanMessage) {
       console.error("Message is empty or undefined");
@@ -127,164 +129,99 @@ const PamChatController = () => {
       content: cleanMessage,
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
+    setIsProcessing(true);
 
-    // Classify the intent for session tracking (but don't send to n8n)
+    // Classify the intent for session tracking
     const intentResult = IntentClassifier.classifyIntent(cleanMessage);
-    
-    // Update session data
     updateSession(intentResult.type);
 
-    // Build payload for new pam-chat endpoint
-    const payload: PamWebhookPayload = {
-      chatInput: cleanMessage,
-      user_id: user.id,
-      voice_enabled: true
-    };
-
-    // Add PAM memory if available
-    const pamMemory = getPamMemory(region);
-    if (pamMemory) {
-      payload.pam_memory = pamMemory;
-    }
-
-    console.log("🚀 DETAILED DEBUG - SENDING TO PAM API");
-    console.log("📍 URL:", WEBHOOK_URL);
-    console.log("📦 PAYLOAD:", JSON.stringify(payload, null, 2));
-
-    try {
-      const response = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+    // Try WebSocket first, fallback to demo mode
+    if (isConnected) {
+      console.log('📤 Sending message via PAM WebSocket backend');
+      const messageSent = sendWebSocketMessage({
+        type: 'chat',
+        message: cleanMessage,
+        user_id: user.id,
+        context: {
+          region,
+          current_page: pathname,
+          session_data: sessionData
+        }
       });
 
-      console.log("📡 DETAILED DEBUG - RAW RESPONSE STATUS:", response.status);
-      console.log("📡 DETAILED DEBUG - RAW RESPONSE HEADERS:", Object.fromEntries(response.headers.entries()));
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!messageSent) {
+        console.warn('WebSocket message failed, using demo mode...');
+        // Fallback to demo response
+        setTimeout(() => {
+          const demoResponse: ChatMessage = {
+            sender: "pam",
+            content: generateDemoResponse(cleanMessage),
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, demoResponse]);
+          setIsProcessing(false);
+        }, 500);
       }
-
-      // Get response as text first for debugging
-      const responseText = await response.text();
-      console.log("📄 DETAILED DEBUG - RAW RESPONSE TEXT LENGTH:", responseText.length);
-      console.log("📄 DETAILED DEBUG - RAW RESPONSE TEXT:", responseText);
-      
-      // Parse the JSON
-      let rawData;
-      try {
-        rawData = JSON.parse(responseText);
-        console.log("🔍 DETAILED DEBUG - JSON PARSE SUCCESS");
-      } catch (parseError) {
-        console.error("❌ DETAILED DEBUG - JSON PARSE FAILED:", parseError);
-        throw new Error("Failed to parse JSON response");
-      }
-      
-      console.log("🔍 DETAILED DEBUG - PARSED JSON TYPE:", typeof rawData);
-      console.log("🔍 DETAILED DEBUG - IS ARRAY:", Array.isArray(rawData));
-      console.log("🔍 DETAILED DEBUG - ARRAY LENGTH:", Array.isArray(rawData) ? rawData.length : 'N/A');
-      console.log("🔍 DETAILED DEBUG - RAW DATA STRUCTURE:", JSON.stringify(rawData, null, 2));
-      
-      // Handle both array and object responses
-      let data;
-      if (Array.isArray(rawData)) {
-        console.log("🎯 DETAILED DEBUG - EXTRACTING FROM ARRAY, INDEX 0");
-        data = rawData[0];
-      } else {
-        console.log("🎯 DETAILED DEBUG - USING DIRECT OBJECT");
-        data = rawData;
-      }
-      
-      console.log("🎯 DETAILED DEBUG - EXTRACTED DATA:", JSON.stringify(data, null, 2));
-      console.log("🎯 DETAILED DEBUG - DATA TYPE:", typeof data);
-      console.log("🎯 DETAILED DEBUG - DATA KEYS:", Object.keys(data || {}));
-      
-      // Check if the response indicates success
-      console.log("✅ DETAILED DEBUG - SUCCESS FIELD:", data?.success);
-      console.log("✅ DETAILED DEBUG - SUCCESS TYPE:", typeof data?.success);
-      
-      if (!data || data.success !== true) {
-        console.error("❌ DETAILED DEBUG - PAM response indicates failure or missing success field:", data);
-        throw new Error("PAM response indicates failure or is malformed");
-      }
-
-      // Extract the message from the correct field
-      const reply = data.message;
-      console.log("💬 DETAILED DEBUG - MESSAGE FIELD RAW:", reply);
-      console.log("💬 DETAILED DEBUG - MESSAGE TYPE:", typeof reply);
-      console.log("💬 DETAILED DEBUG - MESSAGE LENGTH:", reply?.length);
-      console.log("💬 DETAILED DEBUG - MESSAGE PREVIEW:", reply?.substring(0, 100));
-
-      if (!reply || typeof reply !== 'string') {
-        console.error("❌ DETAILED DEBUG - Message field is missing or not a string:", reply);
-        throw new Error("Message field is missing or invalid");
-      }
-
-      // Cache the tip when online
-      addTip(reply);
-
-      const pamMessage: ChatMessage = {
-        sender: "pam",
-        content: reply,
-        timestamp: new Date(),
-      };
-      
-      console.log("✅ DETAILED DEBUG - SUCCESSFULLY EXTRACTED MESSAGE LENGTH:", reply.length);
-      console.log("✅ DETAILED DEBUG - FINAL MESSAGE TO DISPLAY:", reply);
-      setMessages((prev) => [...prev, pamMessage]);
-      
-    } catch (error) {
-      console.error("❌ DETAILED DEBUG - PAM API ERROR:", error);
-      console.error("❌ DETAILED DEBUG - ERROR TYPE:", typeof error);
-      console.error("❌ DETAILED DEBUG - ERROR MESSAGE:", error instanceof Error ? error.message : 'Unknown error');
-      console.error("❌ DETAILED DEBUG - ERROR STACK:", error instanceof Error ? error.stack : 'No stack');
-      
-      const errorMessage: ChatMessage = {
-        sender: "pam",
-        content: "I'm having trouble connecting right now. Please try again in a moment.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+    } else {
+      console.log('🔄 WebSocket not connected, using demo mode');
+      // Provide immediate demo response
+      setTimeout(() => {
+        const demoResponse: ChatMessage = {
+          sender: "pam",
+          content: generateDemoResponse(cleanMessage),
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, demoResponse]);
+        setIsProcessing(false);
+      }, 500);
     }
   };
 
-  useEffect(() => {
-    if (isMobile && isMobileOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
+  const handleQuickAction = (action: string) => {
+    const quickActions: Record<string, string> = {
+      'add_expense': "I spent $25 on fuel today",
+      'check_budget': "Show my budget status",
+      'plan_trip': "Help me plan a trip",
+      'add_groceries': "Add $50 groceries expense"
+    };
+    
+    if (quickActions[action]) {
+      sendMessage(quickActions[action]);
     }
-  }, [isMobileOpen, isMobile]);
+  };
+
+  // Add initial welcome message
+  useEffect(() => {
+    if (user?.id && messages.length === 0) {
+      const welcomeMessage: ChatMessage = {
+        sender: "pam",
+        content: `🤖 Hi! I'm PAM, your AI assistant. I'm ${isConnected ? 'fully connected' : 'running in demo mode'}. I can help you manage expenses, plan trips, and more. Try saying: "I spent $25 on fuel" or "Show my budget"`,
+        timestamp: new Date(),
+      };
+      setMessages([welcomeMessage]);
+    }
+  }, [user?.id, messages.length, isConnected]);
 
   return (
     <>
       {/* Mobile floating button */}
       <div className="md:hidden fixed bottom-6 right-4 z-40">
         {isMobileOpen ? (
-          <div className="w-full max-w-sm h-[80vh] rounded-xl shadow-xl bg-white border border-blue-100 flex flex-col overflow-hidden">
-            <PamHeader region={region} />
-            <div className="flex flex-col flex-1 px-4 pb-2 overflow-y-auto">
-              {isOffline ? (
-                <OfflinePamChat />
-              ) : (
-                <>
-                  <ChatMessages messages={messages} />
-                  <QuickReplies replies={getQuickReplies(region)} onReplyClick={sendMessage} region={region} />
-                  <ChatInput onSendMessage={sendMessage} />
-                </>
-              )}
-            </div>
-          </div>
+          <PamMobileChat
+            isOpen={isMobileOpen}
+            onClose={() => setIsMobileOpen(false)}
+            messages={messages}
+            isProcessing={isProcessing}
+            isConnected={isConnected}
+            onSendMessage={sendMessage}
+            onQuickAction={handleQuickAction}
+          />
         ) : (
-          <Button
-            className="h-14 w-14 rounded-full shadow-lg border border-blue-100 bg-white hover:bg-blue-100"
+          <PamFloatingButton
             onClick={() => setIsMobileOpen(true)}
-          >
-            <Avatar className="h-10 w-10">
-              <img src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp" alt="Pam" />
-            </Avatar>
-          </Button>
+            isConnected={isConnected}
+          />
         )}
       </div>
     </>
