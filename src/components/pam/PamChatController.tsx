@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -8,7 +9,6 @@ import { usePamWebSocket } from "@/hooks/usePamWebSocket";
 import { pamUIController } from "@/lib/pam/PamUIController";
 import { IntentClassifier } from "@/utils/intentClassifier";
 import { usePamSession } from "@/hooks/usePamSession";
-import { PamWebhookPayload } from "@/types/pamTypes";
 import PamHeader from "./PamHeader";
 import ChatMessages from "./ChatMessages";
 import ChatInput from "./ChatInput";
@@ -24,72 +24,6 @@ import { Loader2, Wifi, WifiOff } from "lucide-react";
 // Define excluded routes where Pam chat should not be shown (unless mobile)
 const EXCLUDED_ROUTES = ["/", "/profile"];
 
-// Helper function to get PAM memory from available sources
-const getPamMemory = (region: string) => {
-  try {
-    // Check localStorage for various memory sources
-    const travelPrefs = localStorage.getItem('travel_preferences');
-    const vehicleInfo = localStorage.getItem('vehicle_info');
-    const budgetPrefs = localStorage.getItem('budget_preferences');
-    const userPrefs = localStorage.getItem('user_preferences');
-    
-    const memory: any = {};
-    
-    // Add region
-    if (region) {
-      memory.region = region;
-    }
-    
-    // Parse and include travel preferences
-    if (travelPrefs) {
-      try {
-        const parsed = JSON.parse(travelPrefs);
-        if (parsed.travel_style) memory.travel_style = parsed.travel_style;
-        if (parsed.preferences) memory.preferences = parsed.preferences;
-      } catch (e) {
-        console.warn('Failed to parse travel preferences:', e);
-      }
-    }
-    
-    // Parse and include vehicle info
-    if (vehicleInfo) {
-      try {
-        const parsed = JSON.parse(vehicleInfo);
-        if (parsed.vehicle_type) memory.vehicle_type = parsed.vehicle_type;
-      } catch (e) {
-        console.warn('Failed to parse vehicle info:', e);
-      }
-    }
-    
-    // Parse and include budget preferences
-    if (budgetPrefs) {
-      try {
-        const parsed = JSON.parse(budgetPrefs);
-        if (parsed.budget_focus) memory.budget_focus = parsed.budget_focus;
-      } catch (e) {
-        console.warn('Failed to parse budget preferences:', e);
-      }
-    }
-    
-    // Parse and include user preferences
-    if (userPrefs) {
-      try {
-        const parsed = JSON.parse(userPrefs);
-        if (parsed.preferences) {
-          memory.preferences = { ...memory.preferences, ...parsed.preferences };
-        }
-      } catch (e) {
-        console.warn('Failed to parse user preferences:', e);
-      }
-    }
-    
-    return Object.keys(memory).length > 0 ? memory : null;
-  } catch (error) {
-    console.warn('Error getting PAM memory:', error);
-    return null;
-  }
-};
-
 const PamChatController = () => {
   const { pathname } = useLocation();
   const { user } = useAuth();
@@ -104,10 +38,10 @@ const PamChatController = () => {
   const isExcluded = EXCLUDED_ROUTES.includes(pathname);
   const isMobile = window.innerWidth < 768;
 
-  // Initialize WebSocket connection
-  const { isConnected, sendMessage: sendWebSocketMessage, messages: wsMessages } = usePamWebSocket();
+  // Initialize WebSocket connection to our new PAM backend
+  const { isConnected, sendMessage: sendWebSocketMessage, messages: wsMessages, connect } = usePamWebSocket();
 
-  // Handle WebSocket messages
+  // Handle WebSocket messages from our new backend
   useEffect(() => {
     if (wsMessages.length > 0) {
       const latestMessage = wsMessages[wsMessages.length - 1];
@@ -116,7 +50,7 @@ const PamChatController = () => {
         case 'chat_response':
           const pamMessage: ChatMessage = {
             sender: "pam",
-            content: latestMessage.message,
+            content: latestMessage.message || "I'm processing your request...",
             timestamp: new Date(),
           };
           setMessages(prev => [...prev, pamMessage]);
@@ -136,6 +70,16 @@ const PamChatController = () => {
           };
           setMessages(prev => [...prev, errorMessage]);
           setIsProcessing(false);
+          break;
+
+        case 'connection':
+          // Handle connection status messages
+          const connectionMessage: ChatMessage = {
+            sender: "pam",
+            content: latestMessage.message || "Connected to PAM backend",
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, connectionMessage]);
           break;
       }
     }
@@ -176,7 +120,7 @@ const PamChatController = () => {
     if (isOffline) return; // Don't send messages when offline
 
     if (!user?.id) {
-      console.error("No authenticated user ID – cannot send to Pam");
+      console.error("No authenticated user ID – cannot send to PAM");
       const errorMessage: ChatMessage = {
         sender: "pam",
         content: "Please log in to chat with PAM.",
@@ -201,15 +145,14 @@ const PamChatController = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsProcessing(true);
 
-    // Classify the intent for session tracking (but don't send to n8n)
+    // Classify the intent for session tracking
     const intentResult = IntentClassifier.classifyIntent(cleanMessage);
-    
-    // Update session data
     updateSession(intentResult.type);
 
-    // Send via WebSocket if connected, otherwise fallback to N8N
+    // Use WebSocket-first approach instead of N8N fallback
     if (isConnected) {
-      sendWebSocketMessage({
+      console.log('📤 Sending message via PAM WebSocket backend');
+      const messageSent = sendWebSocketMessage({
         type: 'chat',
         message: cleanMessage,
         user_id: user.id,
@@ -219,127 +162,23 @@ const PamChatController = () => {
           session_data: sessionData
         }
       });
+
+      if (!messageSent) {
+        console.warn('WebSocket message failed, attempting reconnection...');
+        connect(); // Try to reconnect
+        setIsProcessing(false);
+      }
     } else {
-      // Fallback to existing N8N webhook
-      await sendToN8NWebhook(cleanMessage);
-    }
-  };
-
-  const sendToN8NWebhook = async (message: string) => {
-    // Keep existing N8N webhook logic as fallback
-    const WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/pam-chat";
-    
-    try {
-      // Build payload for new pam-chat endpoint
-      const payload: PamWebhookPayload = {
-        chatInput: message,
-        user_id: user.id,
-        voice_enabled: true
-      };
-
-      // Add PAM memory if available
-      const pamMemory = getPamMemory(region);
-      if (pamMemory) {
-        payload.pam_memory = pamMemory;
-      }
-
-      console.log("🚀 DETAILED DEBUG - SENDING TO PAM API");
-      console.log("📍 URL:", WEBHOOK_URL);
-      console.log("📦 PAYLOAD:", JSON.stringify(payload, null, 2));
-
-      const response = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      console.log("📡 DETAILED DEBUG - RAW RESPONSE STATUS:", response.status);
-      console.log("📡 DETAILED DEBUG - RAW RESPONSE HEADERS:", Object.fromEntries(response.headers.entries()));
+      console.warn('⚠️ PAM WebSocket not connected, attempting connection...');
+      connect(); // Try to connect
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      // Get response as text first for debugging
-      const responseText = await response.text();
-      console.log("📄 DETAILED DEBUG - RAW RESPONSE TEXT LENGTH:", responseText.length);
-      console.log("📄 DETAILED DEBUG - RAW RESPONSE TEXT:", responseText);
-      
-      // Parse the JSON
-      let rawData;
-      try {
-        rawData = JSON.parse(responseText);
-        console.log("🔍 DETAILED DEBUG - JSON PARSE SUCCESS");
-      } catch (parseError) {
-        console.error("❌ DETAILED DEBUG - JSON PARSE FAILED:", parseError);
-        throw new Error("Failed to parse JSON response");
-      }
-      
-      console.log("🔍 DETAILED DEBUG - PARSED JSON TYPE:", typeof rawData);
-      console.log("🔍 DETAILED DEBUG - IS ARRAY:", Array.isArray(rawData));
-      console.log("🔍 DETAILED DEBUG - ARRAY LENGTH:", Array.isArray(rawData) ? rawData.length : 'N/A');
-      console.log("🔍 DETAILED DEBUG - RAW DATA STRUCTURE:", JSON.stringify(rawData, null, 2));
-      
-      // Handle both array and object responses
-      let data;
-      if (Array.isArray(rawData)) {
-        console.log("🎯 DETAILED DEBUG - EXTRACTING FROM ARRAY, INDEX 0");
-        data = rawData[0];
-      } else {
-        console.log("🎯 DETAILED DEBUG - USING DIRECT OBJECT");
-        data = rawData;
-      }
-      
-      console.log("🎯 DETAILED DEBUG - EXTRACTED DATA:", JSON.stringify(data, null, 2));
-      console.log("🎯 DETAILED DEBUG - DATA TYPE:", typeof data);
-      console.log("🎯 DETAILED DEBUG - DATA KEYS:", Object.keys(data || {}));
-      
-      // Check if the response indicates success
-      console.log("✅ DETAILED DEBUG - SUCCESS FIELD:", data?.success);
-      console.log("✅ DETAILED DEBUG - SUCCESS TYPE:", typeof data?.success);
-      
-      if (!data || data.success !== true) {
-        console.error("❌ DETAILED DEBUG - PAM response indicates failure or missing success field:", data);
-        throw new Error("PAM response indicates failure or is malformed");
-      }
-
-      // Extract the message from the correct field
-      const reply = data.message;
-      console.log("💬 DETAILED DEBUG - MESSAGE FIELD RAW:", reply);
-      console.log("💬 DETAILED DEBUG - MESSAGE TYPE:", typeof reply);
-      console.log("💬 DETAILED DEBUG - MESSAGE LENGTH:", reply?.length);
-      console.log("💬 DETAILED DEBUG - MESSAGE PREVIEW:", reply?.substring(0, 100));
-
-      if (!reply || typeof reply !== 'string') {
-        console.error("❌ DETAILED DEBUG - Message field is missing or not a string:", reply);
-        throw new Error("Message field is missing or invalid");
-      }
-
-      // Cache the tip when online
-      addTip(reply);
-
-      const pamMessage: ChatMessage = {
+      // Show connection attempt message
+      const connectingMessage: ChatMessage = {
         sender: "pam",
-        content: reply,
+        content: "🔄 Connecting to PAM backend... Please try again in a moment.",
         timestamp: new Date(),
       };
-      
-      console.log("✅ DETAILED DEBUG - SUCCESSFULLY EXTRACTED MESSAGE LENGTH:", reply.length);
-      console.log("✅ DETAILED DEBUG - FINAL MESSAGE TO DISPLAY:", reply);
-      setMessages((prev) => [...prev, pamMessage]);
-    } catch (error) {
-      console.error("❌ DETAILED DEBUG - PAM API ERROR:", error);
-      console.error("❌ DETAILED DEBUG - ERROR TYPE:", typeof error);
-      console.error("❌ DETAILED DEBUG - ERROR MESSAGE:", error instanceof Error ? error.message : 'Unknown error');
-      console.error("❌ DETAILED DEBUG - ERROR STACK:", error instanceof Error ? error.stack : 'No stack');
-      
-      const errorMessage: ChatMessage = {
-        sender: "pam",
-        content: "I'm having trouble connecting right now. Please try again in a moment.",
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
+      setMessages(prev => [...prev, connectingMessage]);
       setIsProcessing(false);
     }
   };
@@ -371,12 +210,12 @@ const PamChatController = () => {
     if (user?.id && messages.length === 0) {
       const welcomeMessage: ChatMessage = {
         sender: "pam",
-        content: `🤖 Hi! I'm PAM, your AI assistant. I can help you manage expenses, plan trips, and more. Try saying: "I spent $25 on fuel" or "Show my budget"`,
+        content: `🤖 Hi! I'm PAM with ${isConnected ? 'intelligent backend' : 'basic'} capabilities. I can help you manage expenses, plan trips, and more. Try saying: "I spent $25 on fuel" or "Show my budget"`,
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);
     }
-  }, [user?.id, messages.length]);
+  }, [user?.id, messages.length, isConnected]);
 
   return (
     <>
@@ -400,7 +239,7 @@ const PamChatController = () => {
                   {/* Connection Status */}
                   <Badge variant={isConnected ? "default" : "destructive"} className="text-xs">
                     {isConnected ? <Wifi className="w-3 h-3 mr-1" /> : <WifiOff className="w-3 h-3 mr-1" />}
-                    {isConnected ? "Connected" : "Offline"}
+                    {isConnected ? "Backend" : "Connecting"}
                   </Badge>
                   <Button
                     size="sm"
@@ -436,7 +275,7 @@ const PamChatController = () => {
                       variant="outline"
                       onClick={() => handleQuickAction('add_expense')}
                       className="text-xs"
-                      disabled={isProcessing}
+                      disabled={isProcessing || !isConnected}
                     >
                       💰 Add Expense
                     </Button>
@@ -445,7 +284,7 @@ const PamChatController = () => {
                       variant="outline"
                       onClick={() => handleQuickAction('check_budget')}
                       className="text-xs"
-                      disabled={isProcessing}
+                      disabled={isProcessing || !isConnected}
                     >
                       📊 Check Budget
                     </Button>
@@ -454,7 +293,7 @@ const PamChatController = () => {
                       variant="outline"
                       onClick={() => handleQuickAction('plan_trip')}
                       className="text-xs"
-                      disabled={isProcessing}
+                      disabled={isProcessing || !isConnected}
                     >
                       🚗 Plan Trip
                     </Button>
@@ -463,7 +302,7 @@ const PamChatController = () => {
                       variant="outline"
                       onClick={() => handleQuickAction('add_groceries')}
                       className="text-xs"
-                      disabled={isProcessing}
+                      disabled={isProcessing || !isConnected}
                     >
                       🛒 Groceries
                     </Button>
@@ -488,7 +327,7 @@ const PamChatController = () => {
             
             {/* Connection Status Indicator */}
             <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-              isConnected ? 'bg-green-500' : 'bg-red-500'
+              isConnected ? 'bg-green-500' : 'bg-orange-500'
             }`} />
           </div>
         )}

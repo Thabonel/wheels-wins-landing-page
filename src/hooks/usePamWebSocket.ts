@@ -20,61 +20,67 @@ export function usePamWebSocket() {
   const reconnectTimeout = useRef<NodeJS.Timeout>();
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
+  const connectionAttempted = useRef(false);
 
   const connect = useCallback(() => {
     if (!user?.id || ws.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      // Connect to your PAM backend
+      // Use the correct WebSocket URL for our PAM backend
       const wsUrl = `wss://pam-backend.onrender.com/ws/${user.id}?token=demo-token`;
       console.log('🔌 Connecting to PAM WebSocket:', wsUrl);
       
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
-        console.log('✅ PAM WebSocket connected');
+        console.log('✅ PAM WebSocket connected successfully');
         setIsConnected(true);
         reconnectAttempts.current = 0;
         
         // Send initial connection message
         setMessages(prev => [...prev, {
           type: 'connection',
-          message: '🤖 PAM is ready to assist you!'
+          message: '🤖 PAM WebSocket connected! Ready to assist with intelligent responses.'
         }]);
       };
 
       ws.current.onmessage = async (event) => {
         try {
           const message = JSON.parse(event.data) as WebSocketMessage;
-          console.log('📨 PAM WebSocket message:', message);
+          console.log('📨 PAM WebSocket message received:', message);
           setMessages(prev => [...prev, message]);
 
-          // Handle different message types
+          // Handle different message types from our new backend
           switch (message.type) {
             case 'chat_response':
-              // Message will be handled by the component
+              console.log('💬 Chat response from PAM backend:', message.message);
               break;
               
             case 'ui_actions':
+              console.log('🎯 Executing UI actions:', message.actions);
               await executeUIActions(message.actions || []);
               break;
               
             case 'action_response':
               if (message.status === 'completed') {
-                console.log('✅ Action completed:', message);
+                console.log('✅ PAM action completed:', message);
               }
               break;
               
             case 'error':
-              console.error('❌ PAM error:', message.message);
+              console.error('❌ PAM backend error:', message.message);
               break;
               
             case 'connection':
-              console.log('🔗 Connection status:', message.message);
+              console.log('🔗 PAM connection status:', message.message);
+              break;
+
+            case 'wins_update':
+              console.log('🏆 WINS data updated:', message);
               break;
           }
         } catch (error) {
-          console.error('❌ Error parsing WebSocket message:', error);
+          console.error('❌ Error parsing PAM WebSocket message:', error);
         }
       };
 
@@ -92,7 +98,7 @@ export function usePamWebSocket() {
         setIsConnected(false);
       };
     } catch (error) {
-      console.error('❌ Failed to connect WebSocket:', error);
+      console.error('❌ Failed to connect to PAM WebSocket:', error);
       scheduleReconnect();
     }
   }, [user?.id]);
@@ -100,23 +106,25 @@ export function usePamWebSocket() {
   const scheduleReconnect = useCallback(() => {
     if (reconnectAttempts.current < maxReconnectAttempts) {
       const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
-      console.log(`🔄 Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts.current + 1}/${maxReconnectAttempts})`);
+      console.log(`🔄 Scheduling PAM reconnect in ${delay}ms (attempt ${reconnectAttempts.current + 1}/${maxReconnectAttempts})`);
       
       reconnectTimeout.current = setTimeout(() => {
         reconnectAttempts.current++;
         connect();
       }, delay);
     } else {
-      console.error('❌ Max reconnect attempts reached');
+      console.error('❌ Max PAM reconnect attempts reached');
     }
   }, [connect]);
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
-      console.log('📤 Sending message to PAM:', message);
+      console.log('📤 Sending message to PAM backend:', message);
       ws.current.send(JSON.stringify(message));
+      return true;
     } else {
-      console.error('❌ WebSocket is not connected, cannot send message');
+      console.error('❌ PAM WebSocket is not connected, cannot send message');
+      return false;
     }
   }, []);
 
@@ -126,41 +134,42 @@ export function usePamWebSocket() {
         switch (action.type) {
           case 'navigate':
             await pamUIController.navigateToPage(action.target, action.params);
-            console.log('🧭 Navigated to:', action.target);
+            console.log('🧭 PAM navigated to:', action.target);
             break;
             
           case 'fill_form':
             for (const [field, value] of Object.entries(action.data || {})) {
               await pamUIController.fillInput(`#${field}`, value);
-              console.log('📝 Filled field:', field, 'with:', value);
+              console.log('📝 PAM filled field:', field, 'with:', value);
             }
             break;
             
           case 'click':
             await pamUIController.clickButton(action.selector);
-            console.log('👆 Clicked:', action.selector);
+            console.log('👆 PAM clicked:', action.selector);
             break;
             
           case 'workflow':
             await pamUIController.executeWorkflow(action.steps);
-            console.log('⚙️ Executed workflow with', action.steps.length, 'steps');
+            console.log('⚙️ PAM executed workflow with', action.steps.length, 'steps');
             break;
             
           case 'alert':
-            console.log('💡 Alert:', action.content);
+            console.log('💡 PAM alert:', action.content);
             break;
             
           default:
-            console.log('❓ Unknown action type:', action.type);
+            console.log('❓ Unknown PAM action type:', action.type);
         }
       } catch (error) {
-        console.error('❌ Error executing UI action:', error);
+        console.error('❌ Error executing PAM UI action:', error);
       }
     }
   };
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !connectionAttempted.current) {
+      connectionAttempted.current = true;
       connect();
     }
 
@@ -178,5 +187,6 @@ export function usePamWebSocket() {
     isConnected,
     sendMessage,
     messages,
+    connect, // Expose connect function for manual reconnection
   };
 }
