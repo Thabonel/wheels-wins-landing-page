@@ -1,127 +1,121 @@
 
-import { useState } from "react";
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/context/AuthContext";
-import DrawerSelector from "./DrawerSelector";
-import DrawerList from "./storage/DrawerList";
-import ShoppingListDialog from "./storage/ShoppingListDialog";
-import { useStorageData } from "./storage/useStorageData";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Package, Search } from "lucide-react";
+import { useAuth } from '@/context/AuthContext';
 
-export default function RVStorageOrganizer() {
-  const [showList, setShowList] = useState(false);
-  const { user, isAuthenticated } = useAuth();
-  
-  const {
-    storage,
-    missingItems,
-    listId,
-    handleDrawerCreated,
-    toggleDrawerState,
-    toggleItemPacked,
-    generateMissingItems,
-  } = useStorageData();
+const RVStorageOrganizer = () => {
+  const { isAuthenticated } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const handleGenerateMissingItems = async () => {
-    const success = await generateMissingItems();
-    if (success) {
-      setShowList(true);
-    }
-  };
-
-  // Enhanced authentication check with better UX
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated) {
     return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">RV Storage Organizer</h2>
-        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <div className="max-w-md mx-auto">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Authentication Required</h3>
-            <p className="text-gray-600 mb-4">Please log in to manage your RV storage and create drawers.</p>
-            <div className="text-sm text-gray-500 space-y-1">
-              <p>• Create and organize storage drawers</p>
-              <p>• Track packed and unpacked items</p>
-              <p>• Generate shopping lists for missing items</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>RV Storage Organizer</CardTitle>
+          <CardDescription>Please sign in to manage your RV storage.</CardDescription>
+        </CardHeader>
+      </Card>
     );
   }
-
-  // Transform storage data to ensure isOpen is always present
-  const drawersWithOpenState = storage.map(drawer => ({
-    ...drawer,
-    isOpen: drawer.isOpen ?? false
-  }));
-
-  // Create wrapper function to match expected signature
-  const handleToggleItem = (drawerId: string, itemId: string) => {
-    // Find the item to get its current packed state
-    const drawer = storage.find(d => d.id === drawerId);
-    const item = drawer?.items.find(i => i.id === itemId);
-    if (item) {
-      toggleItemPacked(itemId, !item.packed);
-    }
-  };
-
-  // Enhanced drawer creation handler with optimistic updates
-  const handleDrawerCreatedWithUpdate = (drawer: any) => {
-    console.log("New drawer created:", drawer);
-    handleDrawerCreated(drawer);
-    
-    // Show success feedback
-    if (drawer.items?.length > 0) {
-      console.log(`Drawer created with ${drawer.items.length} preset items`);
-    }
-  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">RV Storage Organizer</h2>
-        {process.env.NODE_ENV === 'development' && (
-          <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-            Debug: {storage.length} drawers loaded
-          </div>
-        )}
-      </div>
-      
-      <div className="flex justify-end gap-2">
-        <Button 
-          onClick={handleGenerateMissingItems}
-          disabled={storage.length === 0}
-          variant={storage.length === 0 ? "outline" : "default"}
-        >
-          Create Shopping List
-          {storage.length === 0 && (
-            <span className="ml-2 text-xs">(Add drawers first)</span>
-          )}
-        </Button>
-        <DrawerSelector onDrawerCreated={handleDrawerCreatedWithUpdate} />
-      </div>
-
-      {storage.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <div className="max-w-md mx-auto">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">No Drawers Yet</h3>
-            <p className="text-gray-600 mb-4">Get started by adding your first storage drawer.</p>
-            <p className="text-sm text-gray-500">Choose from preset drawers or create your own custom drawer.</p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold">RV Storage Organizer</h1>
+          <p className="text-muted-foreground">Keep track of your belongings and storage locations</p>
         </div>
-      ) : (
-        <DrawerList
-          drawers={drawersWithOpenState}
-          onToggleDrawer={toggleDrawerState}
-          onToggleItem={handleToggleItem}
-        />
-      )}
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Item
+        </Button>
+      </div>
 
-      <ShoppingListDialog
-        isOpen={showList}
-        onClose={() => setShowList(false)}
-        missingItems={missingItems}
-        listId={listId}
-      />
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search items..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Kitchen Storage
+            </CardTitle>
+            <CardDescription>Pantry and cooking supplies</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Rice (2 bags)</span>
+                <Badge variant="outline">Pantry</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Spices Set</span>
+                <Badge variant="outline">Upper Cabinet</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Bathroom Storage
+            </CardTitle>
+            <CardDescription>Toiletries and cleaning supplies</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Towels (4)</span>
+                <Badge variant="outline">Cabinet</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Toiletries</span>
+                <Badge variant="outline">Mirror Cabinet</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              External Storage
+            </CardTitle>
+            <CardDescription>Outside compartments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Tools</span>
+                <Badge variant="outline">Left Bay</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Water Hose</span>
+                <Badge variant="outline">Right Bay</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
-}
+};
+
+export default RVStorageOrganizer;

@@ -1,26 +1,36 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase';
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   loading: boolean;
+  isAuthenticated: boolean;
+  isDevMode: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  logout: () => Promise<void>; // Alias for signOut
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Check if we're in dev mode (for development purposes)
+  const isDevMode = process.env.NODE_ENV === 'development';
+  const isAuthenticated = !!user;
 
   useEffect(() => {
     const getSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
         setUser(session?.user ?? null);
       } catch (error) {
         console.error('Error getting session:', error);
@@ -33,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
@@ -56,8 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  // Alias for signOut to match what components expect
+  const logout = signOut;
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      loading, 
+      isAuthenticated, 
+      isDevMode, 
+      signIn, 
+      signUp, 
+      signOut, 
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );

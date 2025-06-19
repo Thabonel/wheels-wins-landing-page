@@ -1,101 +1,42 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase';
 
-// Define supported regions
-export type Region = 'Australia' | 'New Zealand' | 'United States' | 'Canada' | 'United Kingdom' | 'Rest of the World';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
+
+export type Region = 'US' | 'Canada' | 'Australia';
 
 interface RegionContextType {
   region: Region;
-  setRegion: (region: Region) => Promise<void>;
+  setRegion: (region: Region) => void;
   isLoading: boolean;
 }
 
-const RegionContext = createContext<RegionContextType>({
-  region: 'Australia',
-  setRegion: async () => {},
-  isLoading: true,
-});
+const RegionContext = createContext<RegionContextType | undefined>(undefined);
 
-export const RegionProvider = ({ children }: { children: ReactNode }) => {
-  const { user, isAuthenticated } = useAuth();
-  const [region, setRegionState] = useState<Region>('Australia');
+export function RegionProvider({ children }: { children: ReactNode }) {
+  const [region, setRegion] = useState<Region>('US');
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
-  // Load user's region from Supabase when authenticated
   useEffect(() => {
-    const loadRegion = async () => {
-      if (isAuthenticated && user) {
-        setIsLoading(true);
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('region')
-            .eq('user_id', user.id)
-            .single();
-
-          if (error) {
-            console.error('Error fetching region:', error);
-          } else if (data) {
-            const userRegion = data.region as Region;
-            if (isValidRegion(userRegion)) {
-              setRegionState(userRegion);
-            }
-          }
-        } catch (error) {
-          console.error('Error in region fetch:', error);
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
-      }
-    };
-
-    loadRegion();
-  }, [isAuthenticated, user]);
-
-  // Function to validate region
-  const isValidRegion = (region: string): region is Region => {
-    return [
-      'Australia',
-      'New Zealand',
-      'United States',
-      'Canada',
-      'United Kingdom',
-      'Rest of the World'
-    ].includes(region);
-  };
-
-  // Function to update region
-  const setRegion = async (newRegion: Region) => {
-    if (!isAuthenticated || !user) {
-      console.warn("Cannot update region: User not authenticated");
-      return;
+    // Set default region or load from user preferences
+    if (user) {
+      // Could load from user profile in the future
+      setRegion('US');
     }
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ region: newRegion })
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error updating region:', error);
-        return;
-      }
-
-      setRegionState(newRegion);
-    } catch (error) {
-      console.error('Error in region update:', error);
-    }
-  };
+    setIsLoading(false);
+  }, [user]);
 
   return (
     <RegionContext.Provider value={{ region, setRegion, isLoading }}>
       {children}
     </RegionContext.Provider>
   );
-};
+}
 
-export const useRegion = () => useContext(RegionContext);
+export function useRegion() {
+  const context = useContext(RegionContext);
+  if (context === undefined) {
+    throw new Error('useRegion must be used within a RegionProvider');
+  }
+  return context;
+}
