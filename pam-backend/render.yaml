@@ -1,8 +1,10 @@
+
 services:
   - type: web
     name: pam-backend
     env: python
     plan: free
+    runtime: python-3.12.7
     rootDir: pam-backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
