@@ -10,10 +10,7 @@ from app.nodes.you_node import you_node
 import openai
 
 # Import the scraping function
-try:
-    from scraper_service.main import fetch_and_parse
-except ImportError:
-    fetch_and_parse = None
+from scraper_service.main import fetch_and_parse
 
 logger = logging.getLogger("pam")
 
@@ -35,7 +32,7 @@ class ActionType(Enum):
     PLAN = "plan"
     TRACK = "track"
     ANALYZE = "analyze"
-    DATA_RENDER = "data_render"
+    WEB_FETCH = "web_fetch"
 
 class Intent:
     def __init__(self, domain: Domain, action: ActionType, entities: Dict[str, Any], confidence: float):
@@ -55,39 +52,48 @@ class IntentClassifier:
         entities = self._extract_entities(message, domain)
         return Intent(domain, action, entities, 0.85)
     
-    # (retain existing _detect_domain, _detect_action, _extract_entities, etc...)
-
+    # existing detection methods...
+    
 class ActionPlanner:
     def __init__(self):
         self.classifier = IntentClassifier()
+        logger.info("Orchestrator initialized with scraping support")
         
     async def plan(self, message: str, context: Dict[str, Any]) -> List[Dict[str, Any]]:
         intent = self.classifier.classify(message, context)
         message_lower = message.lower()
-        # Handle web-scraping for free camping
-        if fetch_and_parse and intent.domain == Domain.WHEELS and ("camp" in message_lower or "campsite" in message_lower):
-            # Use static Overpass API endpoint or build dynamically from context
-            overpass_url = "https://overpass-api.de/api/interpreter?data=[out:json];node[\"tourism\"=\"camp_site\"](around:50000,-33.86,151.21);out;"
-            results = await fetch_and_parse(overpass_url)
-            return [
-                {"type": "message", "content": f"Found {len(results)} free campsites near you:"},
-                {"type": ActionType.DATA_RENDER.value, "data": results}
+
+        # === Web fetch special case ===
+        if "campsite" in message_lower or "camp site" in message_lower:
+            # Use Overpass API configured in scraper
+            url = context.get("data_source_url") or settings.OVERPASS_URL
+            items = await fetch_and_parse(url)
+            # Prepare actions
+            actions = [
+                {"type": "message", "content": f"Found {len(items)} campsites:"},
+                {"type": "data_render", "content": items}
             ]
-        # Otherwise route to nodes
+            return actions
+
+        actions = []
+        user_id = context.get('user_id', 'demo_user')
         try:
             if intent.domain == Domain.WINS:
-                return await self._handle_wins_intent(intent, context["user_id"], message, context)
+                actions = await self._handle_wins_intent(intent, user_id, message, context)
             elif intent.domain == Domain.WHEELS:
-                return await self._handle_wheels_intent(intent, context["user_id"], message, context)
+                actions = await self._handle_wheels_intent(intent, user_id, message, context)
             elif intent.domain == Domain.SOCIAL:
-                return await self._handle_social_intent(intent, context["user_id"], message, context)
+                actions = await self._handle_social_intent(intent, user_id, message, context)
             elif intent.domain == Domain.YOU:
-                return await self._handle_you_intent(intent, context["user_id"], message, context)
+                actions = await self._handle_you_intent(intent, user_id, message, context)
             else:
-                return await self._handle_general_intent(intent, context["user_id"], message, context)
+                actions = await self._handle_general_intent(intent, user_id, message, context)
         except Exception as e:
             logger.error(f"Error in action planning: {e}")
-            return [{"type": "error", "content": f"I encountered an error: {str(e)}"}]
+            actions = [{"type": "error", "content": f"Error processing: {e}"}]
+        return actions
 
-# Instantiate global orchestrator
+    # existing handler methods...
+
+# Set global orchestrator
 orchestrator = ActionPlanner()
