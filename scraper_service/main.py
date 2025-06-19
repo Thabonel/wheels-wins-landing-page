@@ -28,6 +28,25 @@ def parse_example(html: str, **kwargs):
     items = [el.get_text(strip=True) for el in soup.select("h2")]
     return [{"title": title} for title in items]
 
+@register_parser("api.ioverlander.com")
+def parse_ioverlander(html: str, **kwargs):
+    """Parser for iOverlander campsites API."""
+    import json
+    data = json.loads(html)
+    items = []
+    for entry in data:
+        items.append({
+            "id": entry.get("_id", ""),
+            "name": entry.get("title", entry.get("name", "")),
+            "lat": entry.get("latitude"),
+            "lng": entry.get("longitude"),
+            "type": "campsite",
+            "info": {
+                "description": entry.get("description", ""),
+            }
+        })
+    return items
+
 # === Core Fetch & Parse ===
 async def fetch_and_parse(url: str, **kwargs):
     """Fetch a URL and run the appropriate parser."""
