@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 
 type Action = {
@@ -15,7 +16,7 @@ export default function TestOrchestrator() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: \`Bearer \${token}\`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         user_id: "demo_user",
@@ -24,9 +25,9 @@ export default function TestOrchestrator() {
     });
     const data = await res.json();
     const entries: string[] = [];
-    entries.push(\`Response text: \${data.response}\`);
+    entries.push(`Response text: ${data.response}`);
     (data.actions as Action[]).forEach((act, i) => {
-      entries.push(\`Action \${i + 1}: \${JSON.stringify(act)}\`);
+      entries.push(`Action ${i + 1}: ${JSON.stringify(act)}`);
     });
     setLog(entries);
   };
