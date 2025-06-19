@@ -4,9 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useOffline } from "@/context/OfflineContext";
 import { useRegion } from "@/context/RegionContext";
-import { useCachedPamTips } from "@/hooks/useCachedPamTips";
 import { usePamWebSocket } from "@/hooks/usePamWebSocket";
-import { pamUIController } from "@/lib/pam/PamUIController";
 import { IntentClassifier } from "@/utils/intentClassifier";
 import { usePamSession } from "@/hooks/usePamSession";
 import { ChatMessage } from "./types";
@@ -21,7 +19,6 @@ const PamChatController = () => {
   const { user } = useAuth();
   const { isOffline } = useOffline();
   const { region } = useRegion();
-  const { addTip } = useCachedPamTips();
   const { sessionData, updateSession } = usePamSession(user?.id);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -30,7 +27,7 @@ const PamChatController = () => {
   const isExcluded = EXCLUDED_ROUTES.includes(pathname);
   const isMobile = window.innerWidth < 768;
 
-  // Initialize WebSocket connection to our new PAM backend
+  // Use WebSocket connection to our new PAM backend
   const { isConnected, sendMessage: sendWebSocketMessage, messages: wsMessages, connect } = usePamWebSocket();
 
   // Handle WebSocket messages from our new backend
@@ -50,7 +47,7 @@ const PamChatController = () => {
           break;
           
         case 'ui_actions':
-          executeUIActions(latestMessage.actions);
+          // UI actions are handled in the usePamWebSocket hook
           break;
           
         case 'error':
@@ -74,36 +71,6 @@ const PamChatController = () => {
       }
     }
   }, [wsMessages]);
-
-  const executeUIActions = async (actions: any[]) => {
-    for (const action of actions) {
-      try {
-        switch (action.type) {
-          case 'navigate':
-            await pamUIController.navigateToPage(action.target, action.params);
-            break;
-          case 'fill_form':
-            for (const [field, value] of Object.entries(action.data || {})) {
-              await pamUIController.fillInput(`#${field}`, value);
-            }
-            break;
-          case 'click':
-            await pamUIController.clickButton(action.selector);
-            break;
-          case 'alert':
-            const alertMessage: ChatMessage = {
-              sender: "pam",
-              content: `💡 ${action.content}`,
-              timestamp: new Date(),
-            };
-            setMessages(prev => [...prev, alertMessage]);
-            break;
-        }
-      } catch (error) {
-        console.error('Error executing UI action:', error);
-      }
-    }
-  };
 
   const sendMessage = async (message: string) => {
     if (isOffline) return;
@@ -137,7 +104,7 @@ const PamChatController = () => {
     const intentResult = IntentClassifier.classifyIntent(cleanMessage);
     updateSession(intentResult.type);
 
-    // Use WebSocket-first approach
+    // Use WebSocket-only approach (no more N8N fallback)
     if (isConnected) {
       console.log('📤 Sending message via PAM WebSocket backend');
       const messageSent = sendWebSocketMessage({
