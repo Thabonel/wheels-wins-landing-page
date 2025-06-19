@@ -14,6 +14,7 @@ This document provides a high-level overview of the PAM system architecture, des
 │ • Hooks         │    │ • Auth Layer    │    │ • Supabase      │
 │ • Context       │    │ • Business      │    │ • Stripe        │
 │ • Utils         │    │   Logic         │    │ • Twilio        │
+│ • PAM AI        │    │ • WebSocket     │    │ • Mapbox        │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -26,8 +27,14 @@ src/
 │   ├── ui/             # Shadcn/ui base components
 │   ├── admin/          # Admin-specific components
 │   ├── auth/           # Authentication components
-│   └── [feature]/      # Feature-specific components
+│   ├── pam/            # PAM AI assistant components
+│   ├── wheels/         # Travel & vehicle management
+│   ├── wins/           # Financial management
+│   ├── social/         # Community features
+│   └── you/            # Personal organization
 ├── hooks/              # Custom React hooks
+│   ├── pam/            # PAM-specific hooks
+│   └── [feature]/      # Feature-specific hooks
 ├── context/            # React context providers
 ├── pages/              # Route components
 ├── lib/                # Utility functions
@@ -35,6 +42,29 @@ src/
 ```
 
 ### Design Patterns
+
+#### PAM AI Assistant Architecture
+```typescript
+// Modular WebSocket connection management
+const usePamWebSocketConnection = () => {
+  // Connection state, retries, error handling
+};
+
+// UI action execution
+const usePamUIActions = () => {
+  // Navigate, highlight, form filling
+};
+
+// Message processing
+const usePamMessageHandler = () => {
+  // Chat responses, error handling, fallbacks
+};
+
+// Main orchestrator
+const usePamWebSocket = () => {
+  // Combines all PAM functionality
+};
+```
 
 #### Component Composition
 ```typescript
@@ -46,28 +76,22 @@ src/
   <CardContent>Content</CardContent>
 </Card>
 
-// Hook composition
+// PAM integration pattern
+<PamChatController>
+  <PamMobileChat />
+  <PamFloatingButton />
+</PamChatController>
+```
+
+#### Hook Composition
+```typescript
 const useFeature = () => {
   const auth = useAuth();
   const data = useQuery(...);
   const mutation = useMutation(...);
+  const pam = usePamWebSocket();
   
-  return { auth, data, mutation };
-};
-```
-
-#### Context for State Management
-```typescript
-const AuthContext = createContext<AuthContextType | null>(null);
-
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  // Auth logic
-  return (
-    <AuthContext.Provider value={{ user, setUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return { auth, data, mutation, pam };
 };
 ```
 
@@ -75,51 +99,101 @@ export const AuthProvider = ({ children }) => {
 
 ### Layer Structure
 ```
-pam-backend/
-├── app/
-│   ├── api/            # API route handlers
-│   ├── core/           # Core functionality
-│   │   ├── config.py   # Configuration
-│   │   ├── security.py # Auth & security
-│   │   └── logging.py  # Logging setup
-│   ├── database/       # Database connections
-│   ├── models/         # Data models
-│   ├── services/       # Business logic
-│   └── utils/          # Utility functions
+app/
+├── api/            # API route handlers
+│   ├── chat.py     # PAM chat endpoint
+│   ├── wheels.py   # Travel management
+│   ├── wins.py     # Financial management
+│   ├── social.py   # Community features
+│   ├── you.py      # Personal organization
+│   └── demo.py     # Demo scenarios
+├── core/           # Core functionality
+│   ├── config.py   # Configuration
+│   ├── security.py # Auth & security
+│   ├── orchestrator.py # PAM routing
+│   └── websocket_manager.py # Real-time communication
+├── nodes/          # AI specialist nodes
+│   ├── wheels_node.py   # Travel AI
+│   ├── wins_node.py     # Financial AI
+│   ├── social_node.py   # Community AI
+│   └── you_node.py      # Personal AI
+├── database/       # Database connections
+└── utils/          # Utility functions
 ```
 
-### Design Patterns
-
-#### Dependency Injection
+### PAM AI Node Architecture
 ```python
-# FastAPI dependency injection
-def get_db():
-    return database_connection
+# Specialist AI nodes for different domains
+class WheelsNode:
+    async def plan_trip(self, user_id: str, trip_data: dict) -> dict
+    async def log_fuel_purchase(self, user_id: str, fuel_data: dict) -> dict
+    async def check_maintenance_schedule(self, user_id: str) -> dict
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    # Validate token and return user
-    return user
-
-@app.post("/api/protected")
-async def protected_route(
-    db: Database = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
-    # Route logic with injected dependencies
+class WinsNode:
+    async def track_expense(self, user_id: str, expense_data: dict) -> dict
+    async def analyze_budget(self, user_id: str) -> dict
+    async def find_income_opportunities(self, user_id: str) -> dict
 ```
 
-#### Service Layer Pattern
-```python
-class UserService:
-    def __init__(self, db: Database):
-        self.db = db
-    
-    async def create_user(self, user_data: UserCreate) -> User:
-        # Business logic for user creation
-        
-    async def get_user(self, user_id: str) -> User:
-        # Business logic for user retrieval
+## PAM AI Assistant System
+
+### Real-time Communication
 ```
+WebSocket Connection Flow:
+1. Frontend connects to wss://pam-backend.onrender.com
+2. Authentication via JWT token
+3. Message routing through orchestrator
+4. Specialist node processing
+5. Real-time UI actions and responses
+```
+
+### Fallback & Offline Functionality
+```typescript
+// Graceful degradation
+const PamChat = () => {
+  const { isConnected, sendMessage } = usePamWebSocket();
+  
+  // Always functional, even when disconnected
+  const handleMessage = (message: string) => {
+    if (isConnected) {
+      sendMessage(message); // Live PAM
+    } else {
+      generateDemoResponse(message); // Fallback mode
+    }
+  };
+};
+```
+
+### PAM Capabilities by Domain
+
+#### WHEELS (Travel & Vehicles)
+- Trip planning with route optimization
+- Fuel consumption tracking
+- Vehicle maintenance scheduling
+- Weather integration
+- RV/Caravan storage organization
+- Safety checklists
+
+#### WINS (Financial Management)
+- Expense tracking and categorization
+- Budget management with alerts
+- Income opportunity discovery
+- Hustle performance tracking
+- Financial analytics and insights
+
+#### SOCIAL (Community)
+- Group recommendations
+- Marketplace integration
+- Social feed management
+- Community insights
+- Peer connections
+
+#### YOU (Personal Organization)
+- Calendar and event management
+- Profile optimization
+- Personalized dashboard
+- Travel timeline planning
+- Maintenance reminders
 
 ## Database Architecture (Supabase/PostgreSQL)
 
@@ -130,164 +204,144 @@ users (profiles)
 ├── auth (Supabase Auth)
 ├── user_settings
 ├── user_knowledge
-└── user_sessions
+├── user_sessions
+└── pam_interactions
 
--- Content & Social
-posts
-├── comments
-├── likes
-└── content_moderation
+-- Travel & Vehicles (Wheels)
+trips
+├── trip_waypoints
+├── fuel_logs
+├── vehicle_maintenance
+└── rv_storage_items
 
--- Financial
-budgets
-├── budget_categories
-├── expenses
-└── income_tracking
+-- Financial (Wins)
+expenses
+├── expense_categories
+├── budgets
+├── income_records
+└── hustle_ideas
 
--- System
-system_settings
-├── audit_logs
-└── api_logs
-```
+-- Community (Social)
+social_groups
+├── group_posts
+├── marketplace_items
+└── hustle_board
 
-### Security Model
-- Row Level Security (RLS) for all tables
-- Role-based access control
-- API key authentication
-- JWT token validation
-
-## API Design
-
-### RESTful Conventions
-```
-GET    /api/users           # List users
-GET    /api/users/{id}      # Get user
-POST   /api/users           # Create user
-PUT    /api/users/{id}      # Update user
-DELETE /api/users/{id}      # Delete user
-```
-
-### Error Handling
-```python
-# Consistent error responses
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid input data",
-    "details": {...}
-  }
-}
+-- Personal (You)
+calendar_events
+├── maintenance_reminders
+├── travel_timeline
+└── personal_insights
 ```
 
 ## External Integrations
 
-### OpenAI Integration
-- Chat completions for AI responses
-- Embeddings for knowledge search
-- Rate limiting and error handling
-- Token usage monitoring
+### Mapping & Travel
+- **Mapbox GL JS**: Interactive maps and routing
+- **Directions API**: Route calculations and optimization
+- **Geocoding**: Address to coordinates conversion
+- **Weather APIs**: Route and destination weather
 
-### Supabase Integration
-- Authentication & user management
-- Real-time subscriptions
-- File storage
-- Database queries with RLS
+### AI & Communication
+- **OpenAI**: Chat completions and embeddings
+- **WebSocket**: Real-time PAM communication
+- **Intent Classification**: Message routing to appropriate nodes
 
-### Third-party Services
-- **Stripe**: Payment processing
-- **Twilio**: SMS notifications
-- **SendGrid**: Email delivery
-- **Sentry**: Error monitoring
+### Authentication & Data
+- **Supabase**: Authentication, database, real-time subscriptions
+- **Row Level Security**: Data privacy and access control
 
-## Security Architecture
+## Performance Optimizations
 
-### Authentication Flow
+### Frontend Performance
+```typescript
+// Code splitting for large components
+const WheelsPage = lazy(() => import('./pages/Wheels'));
+const PAMChat = lazy(() => import('./components/pam/PamMobileChat'));
+
+// Memoized expensive calculations
+const useBudgetCalculations = useMemo(() => {
+  return calculateBudgetInsights(expenses, budgets);
+}, [expenses, budgets]);
+
+// Virtual scrolling for large datasets
+const VirtualizedExpenseList = ({ expenses }) => {
+  // Handle thousands of expense records efficiently
+};
 ```
-1. User login → Supabase Auth
-2. JWT token generation
-3. Token validation on API requests
-4. RLS policy enforcement
-5. Audit logging
+
+### WebSocket Optimization
+```typescript
+// Connection pooling and retry logic
+const usePamWebSocketConnection = () => {
+  const [connectionState, setConnectionState] = useState('connecting');
+  const [retryCount, setRetryCount] = useState(0);
+  
+  // Exponential backoff for reconnection
+  // Message queuing during disconnection
+  // Automatic cleanup on unmount
+};
 ```
-
-### Security Layers
-- HTTPS everywhere
-- JWT token authentication
-- Row Level Security (RLS)
-- Input validation & sanitization
-- Rate limiting
-- CORS configuration
-- SQL injection protection
-
-## Performance Considerations
-
-### Frontend Optimization
-- Code splitting with React.lazy()
-- Component memoization
-- Virtual scrolling for large lists
-- Image optimization
-- Bundle size monitoring
-
-### Backend Optimization
-- Database connection pooling
-- Query optimization
-- Caching strategies
-- Async/await patterns
-- Background task processing
 
 ### Caching Strategy
 ```
-Browser Cache → CDN → Application Cache → Database
+Browser Cache → Service Worker → Application State → Supabase Cache → Database
 ```
 
-## Monitoring & Observability
+## Security Architecture
 
-### Logging
-- Structured JSON logging
-- Request/response logging
-- Error tracking
-- Performance metrics
-
-### Monitoring Tools
-- Health check endpoints
-- Application metrics
-- Database performance
-- API response times
-- Error rates and alerting
-
-## Deployment Architecture
-
-### Development
+### Multi-layer Security
 ```
-Local Development → Git → GitHub → Continuous Integration
+1. Frontend: Input validation, XSS protection
+2. WebSocket: JWT token validation, rate limiting
+3. API: Authentication middleware, request validation
+4. Database: Row Level Security (RLS), audit logging
+5. Infrastructure: HTTPS, CORS, environment isolation
 ```
 
-### Production
+### PAM Security
+- Message content filtering
+- User context isolation
+- Rate limiting per user
+- Audit logging of all interactions
+- Secure WebSocket connections
+
+## Deployment & Scalability
+
+### Current Architecture
 ```
-GitHub → Render.com (Backend) → Vercel (Frontend) → CDN
+Frontend (Vercel) ←→ Backend (Render.com) ←→ Database (Supabase)
+                ↕
+        WebSocket Connection
+                ↕
+         PAM AI Nodes
 ```
 
-### Infrastructure
-- Container-based deployment
-- Environment variable management
-- Secrets management
-- Database migrations
-- Zero-downtime deployments
+### Scaling Considerations
+- Horizontal scaling of AI nodes
+- WebSocket connection load balancing
+- Database read replicas for analytics
+- CDN for static assets and maps
+- Background job processing for heavy AI tasks
 
-## Scalability Considerations
+## Development Guidelines
 
-### Horizontal Scaling
-- Stateless API design
-- Database read replicas
-- CDN for static assets
-- Load balancing
-- Microservices potential
+### Component Organization
+- Keep components under 200 lines
+- Extract hooks for complex logic
+- Use compound components for flexibility
+- Implement progressive enhancement
 
-### Vertical Scaling
-- Database optimization
-- Connection pooling
-- Caching layers
-- Background processing
-- Resource monitoring
+### PAM Integration
+- Always provide fallback functionality
+- Handle connection states gracefully
+- Log interactions for debugging
+- Test both connected and offline modes
 
-This architecture supports the current needs while providing a foundation for future growth and feature expansion.
+### Code Quality
+- TypeScript strict mode
+- Comprehensive error boundaries
+- Unit tests for critical paths
+- E2E tests for user journeys
+
+This architecture supports the current PAM system while providing a foundation for future AI enhancements and feature expansion.
