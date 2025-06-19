@@ -22,9 +22,18 @@ export function usePersonalizedRecommendations() {
   const generateRecommendations = useCallback(async () => {
     if (!user) {
       // Fallback to static products when not authenticated
-      const fallbackProducts = [...getDigitalProducts('US'), ...getAffiliateProducts()];
-      setPersonalizedProducts(fallbackProducts.slice(0, 9));
-      setRecommendations([]);
+      try {
+        const [digitalProducts, affiliateProducts] = await Promise.all([
+          getDigitalProducts('US'),
+          getAffiliateProducts()
+        ]);
+        const fallbackProducts = [...digitalProducts, ...affiliateProducts];
+        setPersonalizedProducts(fallbackProducts.slice(0, 9));
+        setRecommendations([]);
+      } catch (error) {
+        console.error('Error loading fallback products:', error);
+        setPersonalizedProducts([]);
+      }
       return;
     }
 
@@ -43,7 +52,11 @@ export function usePersonalizedRecommendations() {
       }
 
       // Generate fallback recommendations
-      const allProducts = [...getDigitalProducts('US'), ...getAffiliateProducts()];
+      const [digitalProducts, affiliateProducts] = await Promise.all([
+        getDigitalProducts('US'),
+        getAffiliateProducts()
+      ]);
+      const allProducts = [...digitalProducts, ...affiliateProducts];
       const selectedProducts = allProducts.slice(0, 9);
       
       const fallbackRecommendations: PersonalizedRecommendation[] = selectedProducts.map((product, index) => ({
@@ -67,8 +80,17 @@ export function usePersonalizedRecommendations() {
     } catch (error) {
       console.error('Error generating recommendations:', error);
       // Final fallback
-      const allProducts = [...getDigitalProducts('US'), ...getAffiliateProducts()];
-      setPersonalizedProducts(allProducts.slice(0, 6));
+      try {
+        const [digitalProducts, affiliateProducts] = await Promise.all([
+          getDigitalProducts('US'),
+          getAffiliateProducts()
+        ]);
+        const allProducts = [...digitalProducts, ...affiliateProducts];
+        setPersonalizedProducts(allProducts.slice(0, 6));
+      } catch (fallbackError) {
+        console.error('Error loading fallback products:', fallbackError);
+        setPersonalizedProducts([]);
+      }
     } finally {
       setIsLoading(false);
     }
