@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import openai
 from app.core.config import settings
 from app.core.security import verify_token
@@ -44,24 +44,24 @@ async def process_message(
             }
         )
         
-        # Add user_id to context for orchestrator
+        # Prepare context for orchestrator
         context = request.context or {}
-        context['user_id'] = request.user_id
+        context["user_id"] = request.user_id
         
-        # Use orchestrator to plan actions
+        # Plan actions via orchestrator
         actions = await orchestrator.plan(request.message, context)
         
-        # Extract response message from actions
+        # Determine the text response from actions
         response_text = "I'm processing your request..."
-        for action in actions:
+        for action in actions or []:
             if action.get("type") == "message":
                 response_text = action.get("content", response_text)
                 break
-            elif action.get("type") == "error":
+            if action.get("type") == "error":
                 response_text = f"❌ {action.get('content', 'An error occurred')}"
                 break
         
-        # Send actions via WebSocket for real-time execution
+        # Send the full action batch over WebSocket
         if actions:
             await manager.send_personal_message({
                 "type": "action_batch",
@@ -69,22 +69,20 @@ async def process_message(
                 "message": request.message
             }, request.user_id)
         
-        response = ChatResponse(
+        return ChatResponse(
             response=response_text,
             actions=actions,
             timestamp=datetime.utcnow(),
             session_id=request.session_id or f"session_{datetime.utcnow().timestamp()}"
         )
         
-        return response
-        
     except Exception as e:
-        logger.error(f"Error processing message: {str(e)}")
+        logger.error(f"Error processing message: {e}")
         
-        # Send error via WebSocket
+        # Notify error over WebSocket
         await manager.send_personal_message({
             "type": "error",
-            "message": f"Sorry, I encountered an error: {str(e)}"
+            "message": f"Sorry, I encountered an error: {e}"
         }, request.user_id)
         
         raise HTTPException(
@@ -112,8 +110,6 @@ async def demo_expense(
     """Demo endpoint to test PAM functionality"""
     try:
         user_id = token_data.get("user_id", "demo_user")
-        
-        # Simulate adding an expense via chat
         demo_message = "I spent $25 on fuel today"
         context = {"user_id": user_id}
         
@@ -126,8 +122,8 @@ async def demo_expense(
         }
         
     except Exception as e:
-        logger.error(f"Demo error: {str(e)}")
+        logger.error(f"Demo error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Demo error: {str(e)}"
+            detail=f"Demo error: {e}"
         )
