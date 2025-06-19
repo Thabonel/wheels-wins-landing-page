@@ -14,6 +14,8 @@ import { getAffiliateProducts, getDigitalProducts } from "@/components/shop/Prod
 
 export default function Shop() {
   const [activeTab, setActiveTab] = useState<TabValue>("all");
+  const [allProducts, setAllProducts] = useState<ShopProduct[]>([]);
+  const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
   const { region } = useRegion();
   const { personalizedProducts } = usePersonalizedRecommendations();
@@ -29,22 +31,45 @@ export default function Shop() {
     };
   }, [startShoppingSession, endShoppingSession]);
 
-  // Use personalized products if available, otherwise fall back to static products
-  const allProducts = personalizedProducts.length > 0 
-    ? personalizedProducts 
-    : [...getDigitalProducts(region), ...getAffiliateProducts()].filter(
-        product => product.availableRegions.includes(region)
-      );
+  // Load products on mount and region change
+  useEffect(() => {
+    const loadProducts = async () => {
+      setLoading(true);
+      try {
+        const [digitalProducts, affiliateProducts] = await Promise.all([
+          getDigitalProducts(region),
+          getAffiliateProducts()
+        ]);
+        
+        // Filter by region
+        const filteredProducts = [...digitalProducts, ...affiliateProducts].filter(
+          product => product.availableRegions.includes(region)
+        );
+        
+        setAllProducts(filteredProducts);
+      } catch (error) {
+        console.error('Error loading shop products:', error);
+        setAllProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, [region]);
+
+  // Use personalized products if available, otherwise fall back to loaded products
+  const displayProducts = personalizedProducts.length > 0 ? personalizedProducts : allProducts;
   
   // Filter products based on active tab
   const getFilteredProducts = (): ShopProduct[] => {
     switch(activeTab) {
       case "affiliate":
-        return allProducts.filter(product => 'externalLink' in product);
+        return displayProducts.filter(product => 'externalLink' in product);
       case "digital":
-        return allProducts.filter(product => 'price' in product);
+        return displayProducts.filter(product => 'price' in product);
       default:
-        return allProducts;
+        return displayProducts;
     }
   };
   
@@ -75,6 +100,16 @@ export default function Shop() {
     });
   };
   
+  if (loading) {
+    return (
+      <div className="container p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-lg">Loading products...</div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="container p-6">
       <div className="flex flex-col lg:flex-row gap-6">
@@ -94,7 +129,7 @@ export default function Shop() {
           />
           
           {/* Featured Products Carousel */}
-          <FeaturedCarousel products={allProducts.slice(0, 6)} region={region} />
+          <FeaturedCarousel products={displayProducts.slice(0, 6)} region={region} />
           
           {/* Main Product Tabs */}
           <Tabs 

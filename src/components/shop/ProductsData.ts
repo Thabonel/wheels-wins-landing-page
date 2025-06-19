@@ -1,3 +1,4 @@
+
 import { Region } from "@/context/RegionContext";
 import { AffiliateProduct, DigitalProduct } from "./types";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,8 +66,8 @@ export async function getAffiliateProductsFromDB(): Promise<AffiliateProduct[]> 
   }
 }
 
-// Keep existing static functions for backward compatibility
-export function getDigitalProducts(region: Region): DigitalProduct[] {
+// Static data for fallback
+function getStaticDigitalProducts(region: Region): DigitalProduct[] {
   return [
     {
       id: "trip-planner-pro",
@@ -103,7 +104,7 @@ export function getDigitalProducts(region: Region): DigitalProduct[] {
   ];
 }
 
-export function getAffiliateProducts(): AffiliateProduct[] {
+function getStaticAffiliateProducts(): AffiliateProduct[] {
   return [
     {
       id: "solar-panel-kit",
@@ -132,4 +133,45 @@ export function getAffiliateProducts(): AffiliateProduct[] {
       isPamRecommended: true
     }
   ];
+}
+
+// Updated main functions with fallback pattern
+export async function getDigitalProducts(region: Region): Promise<DigitalProduct[]> {
+  try {
+    // First try to get data from database
+    const dbProducts = await getDigitalProductsFromDB(region);
+    
+    if (dbProducts.length > 0) {
+      console.log('Shop: Using digital products from database');
+      return dbProducts;
+    }
+    
+    // Fallback to static data
+    console.log('Shop: Using static digital products data');
+    return getStaticDigitalProducts(region);
+  } catch (error) {
+    console.error('Error in getDigitalProducts, falling back to static data:', error);
+    console.log('Shop: Using static digital products data (due to error)');
+    return getStaticDigitalProducts(region);
+  }
+}
+
+export async function getAffiliateProducts(): Promise<AffiliateProduct[]> {
+  try {
+    // First try to get data from database
+    const dbProducts = await getAffiliateProductsFromDB();
+    
+    if (dbProducts.length > 0) {
+      console.log('Shop: Using affiliate products from database');
+      return dbProducts;
+    }
+    
+    // Fallback to static data
+    console.log('Shop: Using static affiliate products data');
+    return getStaticAffiliateProducts();
+  } catch (error) {
+    console.error('Error in getAffiliateProducts, falling back to static data:', error);
+    console.log('Shop: Using static affiliate products data (due to error)');
+    return getStaticAffiliateProducts();
+  }
 }
