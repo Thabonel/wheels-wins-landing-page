@@ -3,12 +3,8 @@ import asyncio
 from app.core.orchestrator import orchestrator
 
 async def main():
-    # Test scraping action
     print("Requesting free campsites...")
-    actions = await orchestrator.plan(
-        "Find free campsites within 50km of Sydney", 
-        {"user_id": "demo_user"}
-    )
+    actions = await orchestrator.plan("Find free campsites within 50km of Sydney", {"user_id": "demo_user"})
     print("Actions returned:")
     for act in actions:
         print(act)
