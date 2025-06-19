@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { useRegion } from "@/context/RegionContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -7,39 +7,42 @@ import { TabValue, ShopProduct } from "@/components/shop/types";
 import FeaturedCarousel from "@/components/shop/FeaturedCarousel";
 import ProductFilters from "@/components/shop/ProductFilters";
 import ProductGrid from "@/components/shop/ProductGrid";
-import PamAssistantWrapper from "@/components/shop/PamAssistantWrapper";
+import PamRecommendations from "@/components/shop/PamRecommendations";
+import { usePersonalizedRecommendations } from "@/hooks/usePersonalizedRecommendations";
+import { useShoppingAnalytics } from "@/hooks/useShoppingAnalytics";
 import { getAffiliateProducts, getDigitalProducts } from "@/components/shop/ProductsData";
 
 export default function Shop() {
   const [activeTab, setActiveTab] = useState<TabValue>("all");
   const isMobile = useIsMobile();
   const { region } = useRegion();
+  const { personalizedProducts } = usePersonalizedRecommendations();
+  const { startShoppingSession, endShoppingSession, trackProductInteraction } = useShoppingAnalytics();
   
-  // Mock user data for Pam assistant
-  const user = {
-    name: "John",
-    avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png"
-  };
-  
-  // Filter products based on current region
-  const regionFilteredAffiliateProducts = getAffiliateProducts().filter(
-    product => product.availableRegions.includes(region)
-  );
-  
-  const regionFilteredDigitalProducts = getDigitalProducts(region).filter(
-    product => product.availableRegions.includes(region)
-  );
-  
-  // Combine products for "All" tab
-  const allProducts = [...regionFilteredDigitalProducts, ...regionFilteredAffiliateProducts];
+  // Start shopping session when component mounts
+  useEffect(() => {
+    startShoppingSession();
+    
+    // End session when component unmounts
+    return () => {
+      endShoppingSession();
+    };
+  }, [startShoppingSession, endShoppingSession]);
+
+  // Use personalized products if available, otherwise fall back to static products
+  const allProducts = personalizedProducts.length > 0 
+    ? personalizedProducts 
+    : [...getDigitalProducts(region), ...getAffiliateProducts()].filter(
+        product => product.availableRegions.includes(region)
+      );
   
   // Filter products based on active tab
   const getFilteredProducts = (): ShopProduct[] => {
     switch(activeTab) {
       case "affiliate":
-        return regionFilteredAffiliateProducts;
+        return allProducts.filter(product => 'externalLink' in product);
       case "digital":
-        return regionFilteredDigitalProducts;
+        return allProducts.filter(product => 'price' in product);
       default:
         return allProducts;
     }
@@ -52,9 +55,24 @@ export default function Shop() {
   
   // Handle digital product purchases
   const handleBuyProduct = (productId: string) => {
+    trackProductInteraction({
+      productId,
+      interactionType: 'purchase',
+      contextData: { section: 'main_grid' }
+    });
+    
     // In a real implementation, this would initiate the checkout process
     console.log(`Initiating checkout for product: ${productId}`);
     alert("Checkout functionality would be integrated with Stripe in a real implementation.");
+  };
+
+  // Track product views
+  const handleProductView = (productId: string) => {
+    trackProductInteraction({
+      productId,
+      interactionType: 'view',
+      contextData: { section: 'main_grid' }
+    });
   };
   
   return (
@@ -69,8 +87,14 @@ export default function Shop() {
             </p>
           </div>
           
+          {/* Pam's Personalized Recommendations */}
+          <PamRecommendations 
+            onExternalLinkClick={handleExternalLinkClick}
+            onBuyProduct={handleBuyProduct}
+          />
+          
           {/* Featured Products Carousel */}
-          <FeaturedCarousel products={allProducts} region={region} />
+          <FeaturedCarousel products={allProducts.slice(0, 6)} region={region} />
           
           {/* Main Product Tabs */}
           <Tabs 
@@ -97,7 +121,6 @@ export default function Shop() {
             </TabsContent>
           </Tabs>
         </div>
-        
       </div>
     </div>
   );
