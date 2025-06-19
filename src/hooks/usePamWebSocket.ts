@@ -19,16 +19,21 @@ export function usePamWebSocket() {
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
   const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
+  const maxReconnectAttempts = 3;
   const connectionAttempted = useRef(false);
 
   const connect = useCallback(() => {
     if (!user?.id || ws.current?.readyState === WebSocket.OPEN) return;
 
+    // Clear any existing timeouts
+    if (reconnectTimeout.current) {
+      clearTimeout(reconnectTimeout.current);
+    }
+
     try {
       // Use the correct WebSocket URL for our PAM backend
       const wsUrl = `wss://pam-backend.onrender.com/ws/${user.id}?token=demo-token`;
-      console.log('🔌 Connecting to PAM WebSocket:', wsUrl);
+      console.log('🔌 Attempting PAM WebSocket connection:', wsUrl);
       
       ws.current = new WebSocket(wsUrl);
 
@@ -40,7 +45,7 @@ export function usePamWebSocket() {
         // Send initial connection message
         setMessages(prev => [...prev, {
           type: 'connection',
-          message: '🤖 PAM WebSocket connected! Ready to assist with intelligent responses.'
+          message: '🤖 PAM is ready! I can help with expenses, travel planning, and more.'
         }]);
       };
 
@@ -88,7 +93,7 @@ export function usePamWebSocket() {
         console.log('🔌 PAM WebSocket disconnected:', event.code, event.reason);
         setIsConnected(false);
         
-        if (event.code !== 1000) { // Not a normal closure
+        if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
           scheduleReconnect();
         }
       };
@@ -96,16 +101,25 @@ export function usePamWebSocket() {
       ws.current.onerror = (error) => {
         console.error('❌ PAM WebSocket error:', error);
         setIsConnected(false);
+        
+        // If connection fails immediately, try to reconnect
+        if (reconnectAttempts.current < maxReconnectAttempts) {
+          scheduleReconnect();
+        }
       };
     } catch (error) {
-      console.error('❌ Failed to connect to PAM WebSocket:', error);
-      scheduleReconnect();
+      console.error('❌ Failed to create PAM WebSocket:', error);
+      setIsConnected(false);
+      
+      if (reconnectAttempts.current < maxReconnectAttempts) {
+        scheduleReconnect();
+      }
     }
   }, [user?.id]);
 
   const scheduleReconnect = useCallback(() => {
     if (reconnectAttempts.current < maxReconnectAttempts) {
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 10000);
       console.log(`🔄 Scheduling PAM reconnect in ${delay}ms (attempt ${reconnectAttempts.current + 1}/${maxReconnectAttempts})`);
       
       reconnectTimeout.current = setTimeout(() => {
@@ -114,6 +128,12 @@ export function usePamWebSocket() {
       }, delay);
     } else {
       console.error('❌ Max PAM reconnect attempts reached');
+      
+      // Set a fallback message to let user know connection failed
+      setMessages(prev => [...prev, {
+        type: 'error',
+        message: '⚠️ Unable to connect to PAM backend. Please refresh the page to try again.'
+      }]);
     }
   }, [connect]);
 
@@ -124,9 +144,15 @@ export function usePamWebSocket() {
       return true;
     } else {
       console.error('❌ PAM WebSocket is not connected, cannot send message');
+      
+      // Attempt to reconnect if not connected
+      if (!isConnected && reconnectAttempts.current < maxReconnectAttempts) {
+        connect();
+      }
+      
       return false;
     }
-  }, []);
+  }, [isConnected, connect]);
 
   const executeUIActions = async (actions: any[]) => {
     for (const action of actions) {
@@ -170,6 +196,7 @@ export function usePamWebSocket() {
   useEffect(() => {
     if (user?.id && !connectionAttempted.current) {
       connectionAttempted.current = true;
+      console.log('🚀 Initiating PAM WebSocket connection for user:', user.id);
       connect();
     }
 
@@ -178,6 +205,7 @@ export function usePamWebSocket() {
         clearTimeout(reconnectTimeout.current);
       }
       if (ws.current) {
+        console.log('🔌 Closing PAM WebSocket connection');
         ws.current.close(1000, 'Component unmounting');
       }
     };

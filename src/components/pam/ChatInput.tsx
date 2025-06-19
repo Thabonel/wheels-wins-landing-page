@@ -1,5 +1,4 @@
 
-// src/components/pam/ChatInput.tsx
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,28 +8,39 @@ import { useOffline } from "@/context/OfflineContext";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
+  isConnected?: boolean;
+  isProcessing?: boolean;
 }
 
-export default function ChatInput({ onSendMessage }: ChatInputProps) {
+export default function ChatInput({ onSendMessage, isConnected = true, isProcessing = false }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const { isOffline } = useOffline();
 
+  const isDisabled = isOffline || !isConnected || isProcessing;
+
   const handleSend = () => {
-    if (!message.trim() || isOffline) return;
+    if (!message.trim() || isDisabled) return;
     onSendMessage(message.trim());
     setMessage("");
   };
 
+  const getPlaceholderText = () => {
+    if (isOffline) return "PAM is offline...";
+    if (!isConnected) return "Connecting to PAM...";
+    if (isProcessing) return "PAM is thinking...";
+    return "Type your message...";
+  };
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 p-3 border-t bg-white">
       <Input
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder={isOffline ? "Pam is offline..." : "Type your message..."}
+        placeholder={getPlaceholderText()}
         className="flex-1 border-blue-100 focus-visible:ring-blue-200"
-        disabled={isOffline}
+        disabled={isDisabled}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && !isOffline) {
+          if (e.key === "Enter" && !e.shiftKey && !isDisabled) {
             e.preventDefault();
             handleSend();
           }
@@ -42,12 +52,12 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
           type="button"
           size="icon"
           onClick={handleSend}
-          disabled={isOffline}
+          disabled={isDisabled || !message.trim()}
           className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50"
         >
           <ArrowUp className="h-4 w-4 rotate-45" />
         </Button>
-        <MicButton inline disabled={isOffline} />
+        <MicButton inline disabled={isDisabled} />
       </div>
     </div>
   );

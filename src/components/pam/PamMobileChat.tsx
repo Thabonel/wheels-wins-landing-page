@@ -78,7 +78,7 @@ const PamMobileChat = ({
         </div>
       </div>
 
-      <div className="flex flex-col flex-1 px-4 pb-2 overflow-y-auto">
+      <div className="flex flex-col flex-1 overflow-hidden">
         {isOffline ? (
           <OfflinePamChat />
         ) : (
@@ -87,24 +87,31 @@ const PamMobileChat = ({
             
             {/* Processing Indicator */}
             {isProcessing && (
-              <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg mb-3">
+              <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg mb-3 mx-4">
                 <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                 <span className="text-sm text-blue-600">PAM is thinking...</span>
               </div>
             )}
             
-            <PamQuickActions
-              onQuickAction={onQuickAction}
-              isProcessing={isProcessing}
-              isConnected={isConnected}
-            />
+            <div className="px-4 pb-2">
+              <PamQuickActions
+                onQuickAction={onQuickAction}
+                isProcessing={isProcessing}
+                isConnected={isConnected}
+              />
+              
+              <QuickReplies 
+                replies={getQuickReplies(region)} 
+                onReplyClick={onSendMessage} 
+                region={region} 
+              />
+            </div>
             
-            <QuickReplies 
-              replies={getQuickReplies(region)} 
-              onReplyClick={onSendMessage} 
-              region={region} 
+            <ChatInput 
+              onSendMessage={onSendMessage} 
+              isConnected={isConnected}
+              isProcessing={isProcessing}
             />
-            <ChatInput onSendMessage={onSendMessage} />
           </>
         )}
       </div>
