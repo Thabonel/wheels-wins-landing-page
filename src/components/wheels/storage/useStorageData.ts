@@ -1,199 +1,93 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from "@/integrations/supabase";
-import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from '@/context/AuthContext';
 
 interface StorageItem {
   id: string;
   name: string;
-  packed: boolean;
+  location: string;
+  category: string;
   quantity: number;
 }
 
-interface StorageDrawer {
-  id: string;
-  name: string;
-  photo_url: string;
+interface StorageData {
   items: StorageItem[];
-  isOpen?: boolean;
+  categories: string[];
+  locations: string[];
 }
 
-export const useStorageData = () => {
-  const [storage, setStorage] = useState<StorageDrawer[]>([]);
-  const [missingItems, setMissingItems] = useState<any[]>([]);
-  const [listId, setListId] = useState<string | null>(null);
-  const { toast } = useToast();
-  const { user, isAuthenticated } = useAuth();
-
-  const fetchStorage = async () => {
-    if (!isAuthenticated || !user) {
-      setStorage([]);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('drawers')
-        .select(`
-          id,
-          name,
-          photo_url,
-          items(id, name, packed, quantity)
-        `);
-
-      if (error) {
-        console.error("Error fetching storage:", error);
-        toast({
-          title: "Error",
-          description: "Unable to fetch your storage data. Please try refreshing the page.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setStorage(data || []);
-    } catch (error) {
-      console.error("Unexpected error fetching storage:", error);
-      toast({
-        title: "Error", 
-        description: "An unexpected error occurred while fetching your data.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDrawerCreated = (drawer: StorageDrawer) => {
-    setStorage(prev => [...prev, drawer]);
-  };
-
-  const toggleDrawerState = (drawerId: string) => {
-    setStorage(prev => 
-      prev.map(drawer => 
-        drawer.id === drawerId 
-          ? { ...drawer, isOpen: !drawer.isOpen }
-          : drawer
-      )
-    );
-  };
-
-  const toggleItemPacked = async (itemId: string, packed: boolean) => {
-    if (!isAuthenticated || !user) return;
-
-    try {
-      const { error } = await supabase
-        .from('items')
-        .update({ packed })
-        .eq('id', itemId);
-
-      if (error) {
-        console.error("Error updating item:", error);
-        toast({
-          title: "Error",
-          description: "Failed to update item status.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Update local state
-      setStorage(prev => 
-        prev.map(drawer => ({
-          ...drawer,
-          items: drawer.items.map(item => 
-            item.id === itemId ? { ...item, packed } : item
-          )
-        }))
-      );
-    } catch (error) {
-      console.error("Unexpected error updating item:", error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred while updating the item.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const generateMissingItems = async (): Promise<boolean> => {
-    if (!isAuthenticated || !user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to create shopping lists.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    try {
-      const unpackedItems = storage.flatMap(drawer => 
-        drawer.items
-          .filter(item => !item.packed)
-          .map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            drawer: drawer.name
-          }))
-      );
-
-      if (unpackedItems.length === 0) {
-        toast({
-          title: "No Missing Items",
-          description: "All items are already packed!",
-        });
-        return false;
-      }
-
-      const { data, error } = await supabase
-        .from('shopping_lists')
-        .insert([{
-          user_id: user.id,
-          items: unpackedItems
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error creating shopping list:", error);
-        toast({
-          title: "Error",
-          description: "Failed to create shopping list.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setMissingItems(unpackedItems);
-      setListId(data.id);
-      
-      toast({
-        title: "Shopping List Created",
-        description: `Created shopping list with ${unpackedItems.length} items.`,
-      });
-
-      return true;
-    } catch (error) {
-      console.error("Unexpected error generating shopping list:", error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred while creating the shopping list.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
+export function useStorageData() {
+  const { isAuthenticated, user } = useAuth();
+  const [storageData, setStorageData] = useState<StorageData>({
+    items: [],
+    categories: [],
+    locations: []
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStorage();
+    const loadStorageData = async () => {
+      if (!isAuthenticated || !user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Mock data for now - replace with actual API calls
+        const mockData: StorageData = {
+          items: [
+            { id: '1', name: 'Rice', location: 'Pantry', category: 'Food', quantity: 2 },
+            { id: '2', name: 'Spices Set', location: 'Upper Cabinet', category: 'Food', quantity: 1 },
+            { id: '3', name: 'Towels', location: 'Bathroom Cabinet', category: 'Linens', quantity: 4 },
+            { id: '4', name: 'Tools', location: 'External Left Bay', category: 'Tools', quantity: 1 }
+          ],
+          categories: ['Food', 'Linens', 'Tools', 'Clothing'],
+          locations: ['Pantry', 'Upper Cabinet', 'Bathroom Cabinet', 'External Left Bay', 'External Right Bay']
+        };
+
+        setStorageData(mockData);
+      } catch (error) {
+        console.error('Error loading storage data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStorageData();
   }, [isAuthenticated, user]);
 
-  return {
-    storage,
-    missingItems,
-    listId,
-    handleDrawerCreated,
-    toggleDrawerState,
-    toggleItemPacked,
-    generateMissingItems,
+  const addItem = async (item: Omit<StorageItem, 'id'>) => {
+    const newItem = {
+      ...item,
+      id: Date.now().toString()
+    };
+    setStorageData(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
   };
-};
+
+  const updateItem = async (id: string, updates: Partial<StorageItem>) => {
+    setStorageData(prev => ({
+      ...prev,
+      items: prev.items.map(item => 
+        item.id === id ? { ...item, ...updates } : item
+      )
+    }));
+  };
+
+  const deleteItem = async (id: string) => {
+    setStorageData(prev => ({
+      ...prev,
+      items: prev.items.filter(item => item.id !== id)
+    }));
+  };
+
+  return {
+    storageData,
+    loading,
+    addItem,
+    updateItem,
+    deleteItem
+  };
+}
