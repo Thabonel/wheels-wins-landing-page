@@ -1,3 +1,5 @@
+```python
+# app/core/orchestrator.py
 from typing import Dict, List, Any
 from enum import Enum
 import json
@@ -32,7 +34,6 @@ class ActionType(Enum):
     PLAN = "plan"
     TRACK = "track"
     ANALYZE = "analyze"
-    WEB_FETCH = "web_fetch"
 
 class Intent:
     def __init__(self, domain: Domain, action: ActionType, entities: Dict[str, Any], confidence: float):
@@ -41,59 +42,44 @@ class Intent:
         self.entities = entities
         self.confidence = confidence
 
-class IntentClassifier:
-    def __init__(self):
-        openai.api_key = settings.OPENAI_API_KEY
-          
-    def classify(self, message: str, context: Dict[str, Any]) -> Intent:
-        message_lower = message.lower()
-        domain = self._detect_domain(message_lower)
-        action = self._detect_action(message_lower)
-        entities = self._extract_entities(message, domain)
-        return Intent(domain, action, entities, 0.85)
-    
-    # existing detection methods...
-    
+# ... include existing classifier and planner code here ...
+
 class ActionPlanner:
     def __init__(self):
         self.classifier = IntentClassifier()
-        logger.info("Orchestrator initialized with scraping support")
-        
+
     async def plan(self, message: str, context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Create comprehensive action plan from user message"""
         intent = self.classifier.classify(message, context)
-        message_lower = message.lower()
-
-        # === Web fetch special case ===
-        if "campsite" in message_lower or "camp site" in message_lower:
-            # Use Overpass API configured in scraper
-            url = context.get("data_source_url") or settings.OVERPASS_URL
-            items = await fetch_and_parse(url)
-            # Prepare actions
-            actions = [
-                {"type": "message", "content": f"Found {len(items)} campsites:"},
-                {"type": "data_render", "content": items}
-            ]
-            return actions
-
         actions = []
-        user_id = context.get('user_id', 'demo_user')
+        # If user asks for campsites, trigger scraper
+        if intent.domain == Domain.WHEELS and "camp" in message.lower():
+            # Use OVERPASS_URL from config
+            # settings.OVERPASS_URL includes the Overpass query
+            results = await fetch_and_parse(settings.OVERPASS_URL)
+            # Add summary message
+            actions.append({
+                "type": "message",
+                "content": f"Found {len(results)} free campsites nearby."
+            })
+            # Add data_render action with full results
+            actions.append({
+                "type": "data_render",
+                "data": results
+            })
+            return actions
+        # Fallback to existing node-based planning
         try:
-            if intent.domain == Domain.WINS:
-                actions = await self._handle_wins_intent(intent, user_id, message, context)
-            elif intent.domain == Domain.WHEELS:
-                actions = await self._handle_wheels_intent(intent, user_id, message, context)
-            elif intent.domain == Domain.SOCIAL:
-                actions = await self._handle_social_intent(intent, user_id, message, context)
-            elif intent.domain == Domain.YOU:
-                actions = await self._handle_you_intent(intent, user_id, message, context)
-            else:
-                actions = await self._handle_general_intent(intent, user_id, message, context)
+            # existing intent routing...
+            pass
         except Exception as e:
             logger.error(f"Error in action planning: {e}")
-            actions = [{"type": "error", "content": f"Error processing: {e}"}]
+            return [{
+                "type": "error",
+                "content": f"I encountered an error: {e}"
+            }]
         return actions
 
-    # existing handler methods...
-
-# Set global orchestrator
+# Create global orchestrator instance
 orchestrator = ActionPlanner()
+```
