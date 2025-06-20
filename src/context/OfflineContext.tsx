@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 interface OfflineQueueItem {
   id: string;
-  type: 'add_expense' | 'log_trip' | 'update_storage' | 'update_budget';
+  type: 'add_expense' | 'log_trip' | 'update_storage' | 'update_budget' | 'plan_trip';
   data: any;
   timestamp: Date;
 }
