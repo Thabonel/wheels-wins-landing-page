@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useShopWheelsIntegration } from '@/lib/shopWheelsIntegration';
 import { useWheels } from '@/context/WheelsContext';
-import ProductGrid from './ProductGrid';
+import TravelProductGrid from './TravelProductGrid';
 import { ShopProduct } from './types';
 import { MapPin, Calendar, Wrench, Shield, Fuel } from 'lucide-react';
 
@@ -85,7 +84,7 @@ export default function TravelIntegratedShop() {
         
         <div>
           <h2 className="text-2xl font-bold mb-4">Shop Products</h2>
-          <ProductGrid
+          <TravelProductGrid
             products={smartProducts}
             region="US"
             onExternalLinkClick={(url) => window.open(url, '_blank')}
@@ -216,7 +215,7 @@ export default function TravelIntegratedShop() {
       {/* Smart Product Grid */}
       <div>
         <h2 className="text-2xl font-bold mb-4">Smart Travel Products</h2>
-        <ProductGrid
+        <TravelProductGrid
           products={smartProducts}
           region="US"
           onExternalLinkClick={(url) => window.open(url, '_blank')}

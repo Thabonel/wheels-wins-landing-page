@@ -12,8 +12,11 @@ const LearningDashboard: React.FC = () => {
     totalInteractions: 0,
     learningAccuracy: 0,
     adaptationRate: 0,
-    userSatisfactionScore: 0,
-    conversionImprovement: 0
+    conversionImprovement: 0,
+    conversionRate: 0,
+    averageSessionTime: 0,
+    topCategories: [],
+    behaviorTrends: {}
   });
   const [isLoading, setIsLoading] = useState(false);
 
