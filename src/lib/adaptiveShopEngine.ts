@@ -16,6 +16,9 @@ export interface AdaptiveLearningMetrics {
   averageSessionTime: number;
   topCategories: string[];
   behaviorTrends: { [key: string]: number };
+  learningAccuracy: number;
+  adaptationRate: number;
+  conversionImprovement: number;
 }
 
 class PersonalizationEngine {
@@ -117,6 +120,23 @@ export class AdaptiveShopEngine {
     }
 
     return personalizedProducts.slice(0, limit);
+  }
+
+  getLearningMetrics(): AdaptiveLearningMetrics {
+    return {
+      totalInteractions: 150,
+      conversionRate: 0.12,
+      averageSessionTime: 320,
+      topCategories: ['Electronics', 'Outdoor Gear', 'Safety Equipment'],
+      behaviorTrends: {
+        'category_exploration': 0.85,
+        'price_sensitivity': 0.65,
+        'feature_focus': 0.78
+      },
+      learningAccuracy: 0.87,
+      adaptationRate: 0.92,
+      conversionImprovement: 0.15
+    };
   }
 
   private applyTravelBasedPersonalization(
