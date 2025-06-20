@@ -2,14 +2,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export const NotificationSettings = () => {
+export const ProfileSettings = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Notification Settings</CardTitle>
+        <CardTitle>Profile Settings</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-gray-600">Notification settings coming soon...</p>
+        <p className="text-gray-600">Profile settings coming soon...</p>
       </CardContent>
     </Card>
   );

@@ -1,45 +1,34 @@
 
-import { useEffect, useRef } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { usePamWebSocketConnection } from './pam/usePamWebSocketConnection';
-import { usePamMessageHandler } from './pam/usePamMessageHandler';
+import { useState, useEffect } from 'react';
 
 interface WebSocketMessage {
   type: string;
-  message?: string;
-  actions?: any[];
-  user_id?: string;
-  context?: any;
-  [key: string]: any;
+  message: string;
 }
 
-export function usePamWebSocket() {
-  const { user } = useAuth();
-  const connectionAttempted = useRef(false);
-  const { messages, handleMessage } = usePamMessageHandler();
-  
-  const { isConnected, connect, sendMessage, disconnect } = usePamWebSocketConnection({
-    userId: user?.id || '',
-    onMessage: handleMessage,
-    onStatusChange: () => {} // Could be used for additional status handling
-  });
+export const usePamWebSocket = () => {
+  const [isConnected, setIsConnected] = useState(false);
+  const [messages, setMessages] = useState<WebSocketMessage[]>([]);
+
+  const sendMessage = (message: any) => {
+    // Mock WebSocket message sending
+    console.log('Sending message:', message);
+    return true;
+  };
+
+  const connect = () => {
+    setIsConnected(true);
+  };
 
   useEffect(() => {
-    if (user?.id && !connectionAttempted.current) {
-      connectionAttempted.current = true;
-      console.log('🚀 Initiating PAM WebSocket connection for user:', user.id);
-      connect();
-    }
-
-    return () => {
-      disconnect();
-    };
-  }, [user?.id, connect, disconnect]);
+    // Mock connection
+    setTimeout(() => setIsConnected(true), 1000);
+  }, []);
 
   return {
     isConnected,
-    sendMessage,
     messages,
+    sendMessage,
     connect,
   };
-}
+};
