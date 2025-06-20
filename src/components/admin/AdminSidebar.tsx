@@ -1,7 +1,20 @@
 
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Users, ShieldCheck, ShoppingBag, BarChart2, Settings as SettingsIcon, Bot } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { 
+  LayoutDashboard, 
+  Users, 
+  Settings, 
+  MessageSquare, 
+  BarChart3, 
+  Shield,
+  FileText,
+  ShoppingCart,
+  Brain
+} from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AdminSidebarProps {
@@ -15,94 +28,73 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
   isSidebarOpen,
   setIsSidebarOpen,
   activeSection,
-  setActiveSection
+  setActiveSection,
 }) => {
   const isMobile = useIsMobile();
 
-  const sidebarVariants = {
-    open: { x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } },
-    closed: { x: "-100%", transition: { type: "spring", stiffness: 300, damping: 30 } },
+  const sidebarItems = [
+    { name: 'Dashboard', icon: LayoutDashboard },
+    { name: 'Users', icon: Users },
+    { name: 'Content Moderation', icon: Shield },
+    { name: 'Analytics', icon: BarChart3 },
+    { name: 'Chat Logs', icon: MessageSquare },
+    { name: 'Learning Dashboard', icon: Brain },
+    { name: 'Shop Management', icon: ShoppingCart },
+    { name: 'Support Tickets', icon: FileText },
+    { name: 'Settings', icon: Settings },
+  ];
+
+  const handleItemClick = (itemName: string) => {
+    setActiveSection(itemName);
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
   };
 
-  const handleSectionClick = (section: string) => {
-    setActiveSection(section);
-    if (isMobile) setIsSidebarOpen(false);
-  };
+  const SidebarContent = () => (
+    <div className="flex h-full flex-col">
+      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+        <div className="flex items-center gap-2 font-semibold">
+          <Shield className="h-6 w-6" />
+          <span className="">Admin Panel</span>
+        </div>
+      </div>
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col gap-2 p-4 lg:p-6">
+          {sidebarItems.map((item) => (
+            <Button
+              key={item.name}
+              variant={activeSection === item.name ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => handleItemClick(item.name)}
+            >
+              <item.icon className="mr-2 h-4 w-4" />
+              {item.name}
+            </Button>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+        <SheetContent side="left" className="p-0 w-64">
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
-    <>
-      {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={isSidebarOpen || !isMobile ? 'open' : 'closed'}
-        variants={sidebarVariants}
-        className={`
-          fixed md:relative top-0 left-0 h-full w-64 bg-gray-800 text-white shadow-md z-20
-          ${isMobile ? 'pt-14' : 'pt-16'}
-          ${!isMobile ? 'block' : ''}
-        `}
-      >
-        <nav className="flex flex-col p-4 space-y-2 h-full overflow-y-auto">
-          <button
-            className={`flex items-center p-3 rounded-md text-left ${activeSection === 'Dashboard' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
-            onClick={() => handleSectionClick('Dashboard')}
-          >
-            <BarChart2 className="h-5 w-5 mr-3" />
-            <span>Metrics</span>
-          </button>
-          <button
-            className={`flex items-center p-3 rounded-md text-left ${activeSection === 'user-management' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
-            onClick={() => handleSectionClick('user-management')}
-          >
-            <Users className="h-5 w-5 mr-3" />
-            <span>User Management</span>
-          </button>
-          <button
-            className={`flex items-center p-3 rounded-md text-left ${activeSection === 'content-moderation' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
-            onClick={() => handleSectionClick('content-moderation')}
-          >
-            <ShieldCheck className="h-5 w-5 mr-3" />
-            <span>Content Moderation</span>
-          </button>
-          <button
-            className={`flex items-center p-3 rounded-md text-left ${activeSection === 'shop-management' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
-            onClick={() => handleSectionClick('shop-management')}
-          >
-            <ShoppingBag className="h-5 w-5 mr-3" />
-            <span>Shop Management</span>
-          </button>
-          <button
-            className={`flex items-center p-3 rounded-md text-left ${activeSection === 'Reports & Analytics' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
-            onClick={() => handleSectionClick('Reports & Analytics')}
-          >
-            <BarChart2 className="h-5 w-5 mr-3" />
-            <span>Reports & Analytics</span>
-          </button>
-          <button
-            className={`flex items-center p-3 rounded-md text-left ${activeSection === 'pam-analytics' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
-            onClick={() => handleSectionClick('pam-analytics')}
-          >
-            <Bot className="h-5 w-5 mr-3" />
-            <span>PAM Analytics</span>
-          </button>
-          <button
-            className={`flex items-center p-3 rounded-md text-left ${activeSection === 'Settings' ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
-            onClick={() => handleSectionClick('Settings')}
-          >
-            <SettingsIcon className="h-5 w-5 mr-3" />
-            <span>Settings</span>
-          </button>
-        </nav>
-      </motion.aside>
-
-      {/* Mobile Sidebar Overlay */}
-      {isMobile && isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-10"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-    </>
+    <div className={`
+      fixed left-0 top-14 z-30 h-[calc(100vh-3.5rem)] w-64 transform border-r bg-background transition-transform duration-300 ease-in-out
+      ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      lg:relative lg:top-0 lg:h-screen lg:translate-x-0
+    `}>
+      <SidebarContent />
+    </div>
   );
 };
 

@@ -1,13 +1,13 @@
 
 import React from 'react';
-import { motion } from 'framer-motion';
-import UserManagement from "@/components/admin/UserManagement";
-import ContentModeration from "@/components/admin/ContentModeration";
-import ShopManagement from "@/components/admin/ShopManagement";
-import ReportsAnalytics from "@/components/admin/ReportsAnalytics";
-import DashboardOverview from "@/components/admin/DashboardOverview";
-import Settings from "@/components/admin/Settings";
-import PAMAnalyticsDashboard from "@/components/admin/PAMAnalyticsDashboard";
+import AdminOverview from './AdminOverview';
+import AdminUsers from './AdminUsers';
+import AdminContentModeration from './AdminContentModeration';
+import AdminAnalytics from './AdminAnalytics';
+import AdminChatLogs from './AdminChatLogs';
+import AdminSettings from './AdminSettings';
+import AdminSupportTickets from './AdminSupportTickets';
+import LearningDashboard from './LearningDashboard';
 
 interface AdminContentProps {
   activeSection: string;
@@ -16,78 +16,39 @@ interface AdminContentProps {
 const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
   const renderContent = () => {
     switch (activeSection) {
-      case 'user-management':
+      case 'Dashboard':
+        return <AdminOverview />;
+      case 'Users':
+        return <AdminUsers />;
+      case 'Content Moderation':
+        return <AdminContentModeration />;
+      case 'Analytics':
+        return <AdminAnalytics />;
+      case 'Chat Logs':
+        return <AdminChatLogs />;
+      case 'Learning Dashboard':
+        return <LearningDashboard />;
+      case 'Shop Management':
         return (
-          <motion.div
-            key="User Management"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-           <UserManagement />
-          </motion.div>
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Shop Management</h2>
+            <p className="text-gray-600">Shop management features coming soon...</p>
+          </div>
         );
-      case 'content-moderation':
-        return (
-          <motion.div
-            key="Content Moderation"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <ContentModeration />
-          </motion.div>
-        );
-      case 'shop-management':
-        return (
-          <motion.div
-            key="Shop Management"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-           <ShopManagement />
-          </motion.div>
-        );
-      case 'Reports & Analytics':
-        return (
-          <motion.div
-            key="Reports & Analytics"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <ReportsAnalytics />
-          </motion.div>
-        );
-      case 'pam-analytics':
-        return (
-          <motion.div
-            key="PAM Analytics"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <PAMAnalyticsDashboard />
-          </motion.div>
-        );
+      case 'Support Tickets':
+        return <AdminSupportTickets />;
       case 'Settings':
-        return (
-          <motion.div
-            key="Settings"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <Settings />
-          </motion.div>
-        );
+        return <AdminSettings />;
       default:
-        return <DashboardOverview />;
+        return <AdminOverview />;
     }
   };
 
-  return <>{renderContent()}</>;
+  return (
+    <div className="flex-1 overflow-y-auto">
+      {renderContent()}
+    </div>
+  );
 };
 
 export default AdminContent;

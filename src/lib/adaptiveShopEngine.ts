@@ -1,473 +1,489 @@
 
-import { ShopProduct, isDigitalProduct, isAffiliateProduct } from '@/components/shop/types';
-import { useShoppingBehavior } from '@/hooks/useShoppingBehavior';
-import { usePersonalizedRecommendations } from '@/hooks/usePersonalizedRecommendations';
+import { useShoppingBehavior, ShoppingBehaviorData } from '@/hooks/useShoppingBehavior';
+import { useShoppingAnalytics } from '@/hooks/useShoppingAnalytics';
+import { ShopProduct, DigitalProduct, AffiliateProduct } from '@/components/shop/types';
+import { supabase } from '@/integrations/supabase';
 
-// Import the actual type from useShoppingBehavior hook
-export type { ShoppingBehaviorData, ProductView } from '@/hooks/useShoppingBehavior';
+// Helper function to safely get product category
+const getProductCategory = (product: ShopProduct): string => {
+  if ('category' in product) {
+    return product.category;
+  }
+  // Fallback category assignment for affiliate products
+  if ('externalLink' in product) {
+    return 'travel-gear'; // Default category for affiliate products
+  }
+  return 'digital'; // Default category for digital products
+};
 
-export interface ProductPerformanceMetrics {
-  id: string;
-  viewCount: number;
-  purchaseCount: number;
-  revenue: number;
-  conversionRate: number;
-  lastInteraction: Date;
-  trendingScore: number;
-}
+// Helper function to safely get product tags
+const getProductTags = (product: ShopProduct): string[] => {
+  if ('tags' in product) {
+    return product.tags || [];
+  }
+  return [];
+};
+
+// Helper function to safely get product price
+const getProductPrice = (product: ShopProduct): number => {
+  if ('price' in product) {
+    return product.price;
+  }
+  return 0; // Affiliate products don't have direct price
+};
 
 export interface PersonalizationRule {
   id: string;
-  condition: (behaviorData: any) => boolean;
-  action: 'boost' | 'filter' | 'categorize';
-  weight: number;
-  category?: string;
+  condition: string;
+  action: string;
+  threshold: number;
+  enabled: boolean;
 }
 
 export interface InventoryRotation {
-  id: string;
   productId: string;
-  reason: 'low_performance' | 'seasonal' | 'trending' | 'user_preference';
-  scheduledDate: Date;
+  action: 'promote' | 'demote' | 'remove';
+  reason: string;
   confidence: number;
+}
+
+export interface AdaptiveLearningMetrics {
+  userEngagement: number;
+  conversionRate: number;
+  averageSessionTime: number;
+  preferenceAccuracy: number;
+  inventoryTurnover: number;
 }
 
 export interface RecommendationWithConfidence {
   id: string;
   product: ShopProduct;
   confidence: number;
-  reason: string;
-  category: string;
+  reasoning: string;
+  source: 'behavior' | 'trending' | 'seasonal' | 'collaborative';
 }
 
 export interface SeasonalAdjustment {
-  month: number;
-  categoryBoosts: Record<string, number>;
-  productBoosts: Record<string, number>;
+  category: string;
+  multiplier: number;
+  seasonStart: Date;
+  seasonEnd: Date;
 }
 
-export interface AdaptationMetrics {
-  totalAdaptations: number;
-  successRate: number;
-  averageConfidence: number;
-  userSatisfactionScore: number;
-  revenueImpact: number;
+export interface TrendingItem {
+  productId: string;
+  trendScore: number;
+  velocity: number;
+  region?: string;
 }
 
-// Helper function to extract category from product
-function getProductCategory(product: ShopProduct): string {
-  if (isDigitalProduct(product)) {
-    return product.type || 'Digital';
-  }
-  
-  // For affiliate products, infer category from title or description
-  const title = product.title.toLowerCase();
-  if (title.includes('travel') || title.includes('booking')) return 'Travel';
-  if (title.includes('outdoor') || title.includes('camping')) return 'Outdoor';
-  if (title.includes('tech') || title.includes('gadget')) return 'Technology';
-  if (title.includes('book') || title.includes('guide')) return 'Education';
-  
-  return 'General';
-}
-
-// Helper function to get product tags
-function getProductTags(product: ShopProduct): string[] {
-  const tags: string[] = [];
-  
-  if (isDigitalProduct(product)) {
-    tags.push('digital');
-    if (product.isNew) tags.push('new');
-    if (product.hasBonus) tags.push('bonus');
-  }
-  
-  if (isAffiliateProduct(product)) {
-    tags.push('affiliate');
-    if (product.isPamRecommended) tags.push('pam-recommended');
-  }
-  
-  // Add category-based tags
-  const category = getProductCategory(product);
-  tags.push(category.toLowerCase());
-  
-  return tags;
-}
-
-// Helper function to get product price
-function getProductPrice(product: ShopProduct): number | undefined {
-  if (isDigitalProduct(product)) {
-    return product.price;
-  }
-  return undefined;
-}
-
-class AdaptiveShopEngine {
-  private performanceMetrics: Map<string, ProductPerformanceMetrics> = new Map();
+export class AdaptiveShopEngine {
+  private behaviorData: ShoppingBehaviorData | null = null;
   private personalizationRules: PersonalizationRule[] = [];
-  private rotationQueue: InventoryRotation[] = [];
-  private seasonalAdjustments: SeasonalAdjustment[] = [];
-  private adaptationHistory: AdaptationMetrics[] = [];
+  private analytics: ReturnType<typeof useShoppingAnalytics> | null = null;
+  private learningEnabled: boolean = true;
 
   constructor() {
-    this.initializeDefaultRules();
-    this.initializeSeasonalAdjustments();
+    this.initializePersonalizationRules();
   }
 
-  private initializeDefaultRules() {
+  // Initialize behavior tracking integration
+  public initializeBehaviorTracking(behaviorHook: ReturnType<typeof useShoppingBehavior>) {
+    this.behaviorData = behaviorHook.behaviorData;
+    return this;
+  }
+
+  // Initialize analytics integration
+  public initializeAnalytics(analyticsHook: ReturnType<typeof useShoppingAnalytics>) {
+    this.analytics = analyticsHook;
+    return this;
+  }
+
+  // Initialize default personalization rules
+  private initializePersonalizationRules() {
     this.personalizationRules = [
       {
-        id: 'outdoor-enthusiast',
-        condition: (behaviorData) => {
-          const outdoorViews = behaviorData.categoryBrowsing
-            .filter((cat: any) => cat.category === 'Outdoor')
-            .reduce((sum: number, cat: any) => sum + cat.viewCount, 0);
-          return outdoorViews > behaviorData.productViews.length * 0.6;
-        },
-        action: 'boost',
-        weight: 1.5,
-        category: 'Outdoor'
+        id: 'outdoor-gear-preference',
+        condition: 'category_view_percentage > 60',
+        action: 'boost_category_outdoor',
+        threshold: 0.6,
+        enabled: true
       },
       {
-        id: 'digital-learner',
-        condition: (behaviorData) => {
-          const digitalViews = behaviorData.categoryBrowsing
-            .filter((cat: any) => cat.category === 'Digital')
-            .reduce((sum: number, cat: any) => sum + cat.viewCount, 0);
-          return digitalViews > behaviorData.productViews.length * 0.4;
-        },
-        action: 'boost',
-        weight: 1.3,
-        category: 'Digital'
+        id: 'digital-product-preference',
+        condition: 'digital_purchase_ratio > 70',
+        action: 'boost_digital_products',
+        threshold: 0.7,
+        enabled: true
+      },
+      {
+        id: 'price-sensitive',
+        condition: 'avg_price_viewed < 50',
+        action: 'boost_budget_items',
+        threshold: 50,
+        enabled: true
       }
     ];
   }
 
-  private initializeSeasonalAdjustments() {
-    this.seasonalAdjustments = [
-      {
-        month: 6, // June
-        categoryBoosts: { 'Outdoor': 1.4, 'Travel': 1.3 },
-        productBoosts: {}
-      },
-      {
-        month: 12, // December
-        categoryBoosts: { 'Education': 1.2, 'Digital': 1.1 },
-        productBoosts: {}
-      }
-    ];
-  }
+  // Real-time learning algorithm that updates inventory based on user patterns
+  public async adaptInventory(products: ShopProduct[]): Promise<ShopProduct[]> {
+    if (!this.behaviorData || !this.learningEnabled) {
+      return products;
+    }
 
-  async updatePerformanceMetrics(
-    products: ShopProduct[],
-    behaviorData: any
-  ): Promise<void> {
-    for (const product of products) {
-      const views = behaviorData.productViews.filter(
-        (view: any) => view.productId === product.id
-      ).length;
-
-      const purchases = behaviorData.purchasePatterns.filter(
-        (purchase: any) => purchase.productId === product.id
-      ).length;
-
-      const revenue = purchases * (getProductPrice(product) || 0);
-      const conversionRate = views > 0 ? purchases / views : 0;
-
-      const metrics: ProductPerformanceMetrics = {
-        id: product.id,
-        viewCount: views,
-        purchaseCount: purchases,
-        revenue,
-        conversionRate,
-        lastInteraction: new Date(),
-        trendingScore: this.calculateTrendingScore(product, behaviorData)
-      };
-
-      this.performanceMetrics.set(product.id, metrics);
+    try {
+      // Analyze user behavior patterns
+      const preferences = this.analyzeUserPreferences();
+      
+      // Apply personalization rules
+      const personalizedProducts = this.applyPersonalizationRules(products, preferences);
+      
+      // Apply seasonal adjustments
+      const seasonallyAdjusted = this.applySeasonalAdjustments(personalizedProducts);
+      
+      // Apply trending item boost
+      const trendingAdjusted = await this.applyTrendingBoosts(seasonallyAdjusted);
+      
+      // Sort by relevance score
+      return this.sortByRelevance(trendingAdjusted, preferences);
+    } catch (error) {
+      console.error('Error in adaptive inventory:', error);
+      return products; // Fallback to original products
     }
   }
 
-  private calculateTrendingScore(product: ShopProduct, behaviorData: any): number {
-    const recentViews = behaviorData.productViews.filter(
-      (view: any) => 
-        view.productId === product.id &&
-        new Date(view.timestamp) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    ).length;
+  // Analyze user preferences from behavior data
+  private analyzeUserPreferences() {
+    if (!this.behaviorData) return {};
 
-    const category = getProductCategory(product);
-    const categoryViews = behaviorData.categoryBrowsing
-      .filter((cat: any) => cat.category === category)
-      .reduce((sum: number, cat: any) => sum + cat.viewCount, 0);
-
-    return (recentViews * 0.7) + (categoryViews * 0.3);
-  }
-
-  applyPersonalizationRules(
-    products: ShopProduct[],
-    behaviorData: any
-  ): ShopProduct[] {
-    const scoredProducts = products.map(product => {
-      let score = 1.0;
-      const category = getProductCategory(product);
-
-      // Apply personalization rules
-      for (const rule of this.personalizationRules) {
-        if (rule.condition(behaviorData) && rule.category === category) {
-          if (rule.action === 'boost') {
-            score *= rule.weight;
-          }
-        }
-      }
-
-      // Apply seasonal adjustments
-      const currentMonth = new Date().getMonth() + 1;
-      const seasonalAdjustment = this.seasonalAdjustments.find(
-        adj => adj.month === currentMonth
-      );
-
-      if (seasonalAdjustment) {
-        const categoryBoost = seasonalAdjustment.categoryBoosts[category] || 1.0;
-        const productBoost = seasonalAdjustment.productBoosts[product.id] || 1.0;
-        score *= categoryBoost * productBoost;
-      }
-
-      return { product, score };
-    });
-
-    // Sort by score and return products
-    return scoredProducts
-      .sort((a, b) => b.score - a.score)
-      .map(item => item.product);
-  }
-
-  generateRecommendations(
-    products: ShopProduct[],
-    behaviorData: any,
-    count: number = 6
-  ): RecommendationWithConfidence[] {
-    const personalizedProducts = this.applyPersonalizationRules(products, behaviorData);
+    const preferences: Record<string, any> = {};
     
-    return personalizedProducts.slice(0, count).map((product, index) => {
-      const metrics = this.performanceMetrics.get(product.id);
-      const confidence = this.calculateConfidenceScore(product, behaviorData, metrics);
+    // Category preferences
+    const categoryViews: Record<string, number> = {};
+    this.behaviorData.productViews.forEach(view => {
+      const category = view.category || 'unknown';
+      categoryViews[category] = (categoryViews[category] || 0) + (view.viewCount || 1);
+    });
+
+    const totalViews = Object.values(categoryViews).reduce((sum, count) => sum + count, 0);
+    preferences.categoryPercentages = Object.entries(categoryViews).reduce((acc, [cat, count]) => {
+      acc[cat] = totalViews > 0 ? count / totalViews : 0;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Price preferences
+    const prices = this.behaviorData.productViews
+      .map(view => view.price)
+      .filter(price => price !== undefined && price > 0);
+    
+    preferences.averagePrice = prices.length > 0 
+      ? prices.reduce((sum, price) => sum + price!, 0) / prices.length 
+      : 0;
+
+    // Purchase patterns
+    preferences.digitalPurchaseRatio = this.calculateDigitalPurchaseRatio();
+    
+    return preferences;
+  }
+
+  // Apply personalization rules to products
+  private applyPersonalizationRules(products: ShopProduct[], preferences: any): ShopProduct[] {
+    return products.map(product => {
+      let relevanceScore = 1.0;
       
-      return {
-        id: `rec-${product.id}-${Date.now()}`,
-        product,
-        confidence,
-        reason: this.generateRecommendationReason(product, behaviorData),
-        category: getProductCategory(product)
-      };
+      this.personalizationRules.forEach(rule => {
+        if (!rule.enabled) return;
+
+        switch (rule.action) {
+          case 'boost_category_outdoor':
+            if (getProductCategory(product).includes('outdoor') && 
+                preferences.categoryPercentages?.outdoor > rule.threshold) {
+              relevanceScore *= 1.5;
+            }
+            break;
+          case 'boost_digital_products':
+            if ('price' in product && preferences.digitalPurchaseRatio > rule.threshold) {
+              relevanceScore *= 1.3;
+            }
+            break;
+          case 'boost_budget_items':
+            if (getProductPrice(product) < rule.threshold && 
+                preferences.averagePrice < rule.threshold) {
+              relevanceScore *= 1.4;
+            }
+            break;
+        }
+      });
+
+      return { ...product, relevanceScore };
     });
   }
 
-  private calculateConfidenceScore(
-    product: ShopProduct,
-    behaviorData: any,
-    metrics?: ProductPerformanceMetrics
-  ): number {
+  // Apply seasonal adjustments
+  private applySeasonalAdjustments(products: ShopProduct[]): ShopProduct[] {
+    const currentDate = new Date();
+    const seasonalAdjustments = this.getSeasonalAdjustments(currentDate);
+
+    return products.map(product => {
+      const category = getProductCategory(product);
+      const adjustment = seasonalAdjustments.find(adj => adj.category === category);
+      
+      if (adjustment) {
+        const currentScore = (product as any).relevanceScore || 1.0;
+        return { ...product, relevanceScore: currentScore * adjustment.multiplier };
+      }
+      
+      return product;
+    });
+  }
+
+  // Apply trending item boosts
+  private async applyTrendingBoosts(products: ShopProduct[]): Promise<ShopProduct[]> {
+    try {
+      const trendingItems = await this.getTrendingItems();
+      
+      return products.map(product => {
+        const trending = trendingItems.find(item => item.productId === product.id);
+        if (trending) {
+          const currentScore = (product as any).relevanceScore || 1.0;
+          const trendBoost = 1 + (trending.trendScore * 0.5);
+          return { ...product, relevanceScore: currentScore * trendBoost };
+        }
+        return product;
+      });
+    } catch (error) {
+      console.error('Error applying trending boosts:', error);
+      return products;
+    }
+  }
+
+  // Sort products by relevance score
+  private sortByRelevance(products: ShopProduct[], preferences: any): ShopProduct[] {
+    return products.sort((a, b) => {
+      const scoreA = (a as any).relevanceScore || 1.0;
+      const scoreB = (b as any).relevanceScore || 1.0;
+      return scoreB - scoreA;
+    });
+  }
+
+  // Generate recommendations with confidence scores
+  public generateRecommendations(products: ShopProduct[], count: number = 6): RecommendationWithConfidence[] {
+    if (!this.behaviorData) {
+      return products.slice(0, count).map(product => ({
+        id: product.id,
+        product,
+        confidence: 0.5,
+        reasoning: 'Default recommendation',
+        source: 'behavior' as const
+      }));
+    }
+
+    const preferences = this.analyzeUserPreferences();
+    const recommendations: RecommendationWithConfidence[] = [];
+
+    products.forEach(product => {
+      const confidence = this.calculateConfidenceScore(product, preferences);
+      const reasoning = this.generateReasoning(product, preferences);
+      
+      if (confidence > 0.3) { // Only include recommendations with decent confidence
+        recommendations.push({
+          id: product.id,
+          product,
+          confidence,
+          reasoning,
+          source: this.determineSource(product, preferences)
+        });
+      }
+    });
+
+    return recommendations
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, count);
+  }
+
+  // Calculate confidence score for a product recommendation
+  private calculateConfidenceScore(product: ShopProduct, preferences: any): number {
     let confidence = 0.5; // Base confidence
 
-    // Factor in user behavior alignment
     const category = getProductCategory(product);
-    const categoryViews = behaviorData.categoryBrowsing
-      .filter((cat: any) => cat.category === category)
-      .reduce((sum: number, cat: any) => sum + cat.viewCount, 0);
+    const price = getProductPrice(product);
 
-    if (categoryViews > 0) {
-      confidence += 0.3;
+    // Category preference boost
+    if (preferences.categoryPercentages?.[category]) {
+      confidence += preferences.categoryPercentages[category] * 0.3;
     }
 
-    // Factor in product performance
-    if (metrics) {
-      if (metrics.conversionRate > 0.05) confidence += 0.2;
-      if (metrics.trendingScore > 5) confidence += 0.1;
-    }
-
-    // Factor in Pam's recommendation
-    if (isAffiliateProduct(product) && product.isPamRecommended) {
-      confidence += 0.15;
+    // Price preference alignment
+    if (preferences.averagePrice > 0) {
+      const priceRatio = Math.min(price / preferences.averagePrice, 2);
+      const priceScore = 1 - Math.abs(1 - priceRatio);
+      confidence += priceScore * 0.2;
     }
 
     return Math.min(confidence, 1.0);
   }
 
-  private generateRecommendationReason(
-    product: ShopProduct,
-    behaviorData: any
-  ): string {
+  // Generate reasoning for recommendation
+  private generateReasoning(product: ShopProduct, preferences: any): string {
     const category = getProductCategory(product);
-    const categoryViews = behaviorData.categoryBrowsing
-      .filter((cat: any) => cat.category === category)
-      .reduce((sum: number, cat: any) => sum + cat.viewCount, 0);
+    const reasons: string[] = [];
 
-    if (categoryViews > behaviorData.productViews.length * 0.4) {
-      return `Based on your interest in ${category.toLowerCase()} products`;
+    if (preferences.categoryPercentages?.[category] > 0.3) {
+      reasons.push(`You frequently browse ${category} items`);
     }
 
-    if (isAffiliateProduct(product) && product.isPamRecommended) {
-      return "Pam's personal recommendation for travelers like you";
+    if (preferences.averagePrice > 0) {
+      const price = getProductPrice(product);
+      if (Math.abs(price - preferences.averagePrice) < preferences.averagePrice * 0.3) {
+        reasons.push('Price matches your typical range');
+      }
     }
 
-    const metrics = this.performanceMetrics.get(product.id);
-    if (metrics && metrics.trendingScore > 5) {
-      return 'Trending with other mature travelers';
-    }
-
-    return 'Curated for your travel lifestyle';
+    return reasons.length > 0 ? reasons.join(', ') : 'Based on your browsing patterns';
   }
 
-  scheduleInventoryRotation(): InventoryRotation[] {
-    const rotations: InventoryRotation[] = [];
-    const now = new Date();
+  // Determine recommendation source
+  private determineSource(product: ShopProduct, preferences: any): 'behavior' | 'trending' | 'seasonal' | 'collaborative' {
+    // This could be enhanced with more sophisticated logic
+    return 'behavior';
+  }
 
-    // Find low-performing products
-    this.performanceMetrics.forEach((metrics, productId) => {
-      if (metrics.conversionRate < 0.01 && metrics.viewCount > 10) {
-        rotations.push({
-          id: `rotation-${productId}-${now.getTime()}`,
-          productId,
-          reason: 'low_performance',
-          scheduledDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-          confidence: 0.8
+  // Automatic inventory rotation
+  public async rotateInventory(): Promise<InventoryRotation[]> {
+    try {
+      const rotations: InventoryRotation[] = [];
+      
+      // Get performance metrics for products
+      const { data: metrics } = await supabase
+        .from('product_interactions')
+        .select('product_id, interaction_type')
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
+      if (metrics) {
+        // Analyze performance and suggest rotations
+        const productPerformance = this.analyzeProductPerformance(metrics);
+        
+        // Identify bottom 20% performers for rotation
+        const sortedProducts = Object.entries(productPerformance)
+          .sort(([,a], [,b]) => a.score - b.score);
+        
+        const bottomPerformers = sortedProducts.slice(0, Math.floor(sortedProducts.length * 0.2));
+        
+        bottomPerformers.forEach(([productId, performance]) => {
+          rotations.push({
+            productId,
+            action: 'remove',
+            reason: `Low engagement: ${performance.score.toFixed(2)} score`,
+            confidence: 0.8
+          });
         });
+      }
+
+      return rotations;
+    } catch (error) {
+      console.error('Error in inventory rotation:', error);
+      return [];
+    }
+  }
+
+  // Get learning metrics
+  public async getLearningMetrics(): Promise<AdaptiveLearningMetrics> {
+    try {
+      // This would typically fetch from analytics tables
+      return {
+        userEngagement: 0.75,
+        conversionRate: 0.12,
+        averageSessionTime: 180,
+        preferenceAccuracy: 0.68,
+        inventoryTurnover: 0.85
+      };
+    } catch (error) {
+      console.error('Error getting learning metrics:', error);
+      return {
+        userEngagement: 0,
+        conversionRate: 0,
+        averageSessionTime: 0,
+        preferenceAccuracy: 0,
+        inventoryTurnover: 0
+      };
+    }
+  }
+
+  // Helper methods
+  private calculateDigitalPurchaseRatio(): number {
+    // This would calculate from actual purchase data
+    return 0.6; // Placeholder
+  }
+
+  private getSeasonalAdjustments(date: Date): SeasonalAdjustment[] {
+    const month = date.getMonth();
+    const adjustments: SeasonalAdjustment[] = [];
+
+    // Summer adjustments (June-August)
+    if (month >= 5 && month <= 7) {
+      adjustments.push({
+        category: 'outdoor',
+        multiplier: 1.5,
+        seasonStart: new Date(date.getFullYear(), 5, 1),
+        seasonEnd: new Date(date.getFullYear(), 7, 31)
+      });
+    }
+
+    return adjustments;
+  }
+
+  private async getTrendingItems(): Promise<TrendingItem[]> {
+    // This would fetch from trending analysis
+    return [];
+  }
+
+  private analyzeProductPerformance(metrics: any[]): Record<string, { score: number; views: number; interactions: number }> {
+    const performance: Record<string, { score: number; views: number; interactions: number }> = {};
+
+    metrics.forEach(metric => {
+      if (!performance[metric.product_id]) {
+        performance[metric.product_id] = { score: 0, views: 0, interactions: 0 };
+      }
+
+      if (metric.interaction_type === 'view') {
+        performance[metric.product_id].views++;
+      } else {
+        performance[metric.product_id].interactions++;
       }
     });
 
-    this.rotationQueue = rotations;
-    return rotations;
+    // Calculate scores
+    Object.keys(performance).forEach(productId => {
+      const data = performance[productId];
+      data.score = data.views * 0.1 + data.interactions * 0.9;
+    });
+
+    return performance;
   }
 
-  getAdaptationMetrics(): AdaptationMetrics {
-    const recent = this.adaptationHistory.slice(-10);
-    
-    return {
-      totalAdaptations: this.adaptationHistory.length,
-      successRate: recent.length > 0 
-        ? recent.reduce((sum, metric) => sum + metric.successRate, 0) / recent.length 
-        : 0,
-      averageConfidence: 0.75,
-      userSatisfactionScore: 0.85,
-      revenueImpact: recent.length > 0
-        ? recent.reduce((sum, metric) => sum + metric.revenueImpact, 0) / recent.length
-        : 0
-    };
-  }
-
-  async processRealTimeUpdate(
-    event: 'view' | 'purchase' | 'favorite',
-    productId: string,
-    context: any
-  ): Promise<void> {
-    const metrics = this.performanceMetrics.get(productId) || {
-      id: productId,
-      viewCount: 0,
-      purchaseCount: 0,
-      revenue: 0,
-      conversionRate: 0,
-      lastInteraction: new Date(),
-      trendingScore: 0
-    };
-
-    switch (event) {
-      case 'view':
-        metrics.viewCount++;
-        metrics.trendingScore += 0.1;
-        break;
-      case 'purchase':
-        metrics.purchaseCount++;
-        metrics.revenue += context.price || 0;
-        metrics.trendingScore += 1.0;
-        break;
-      case 'favorite':
-        metrics.trendingScore += 0.5;
-        break;
+  // Public API methods
+  public async trackProductView(productId: string, behaviorHook: ReturnType<typeof useShoppingBehavior>) {
+    if (this.analytics && behaviorHook) {
+      behaviorHook.trackProductView(productId, 'digital'); // Default type
     }
-
-    metrics.conversionRate = metrics.viewCount > 0 
-      ? metrics.purchaseCount / metrics.viewCount 
-      : 0;
-    metrics.lastInteraction = new Date();
-
-    this.performanceMetrics.set(productId, metrics);
   }
 
-  exportAnalytics() {
-    return {
-      performanceMetrics: Array.from(this.performanceMetrics.entries()),
-      personalizationRules: this.personalizationRules,
-      rotationQueue: this.rotationQueue,
-      adaptationMetrics: this.getAdaptationMetrics(),
-      seasonalAdjustments: this.seasonalAdjustments
-    };
+  public setLearningEnabled(enabled: boolean) {
+    this.learningEnabled = enabled;
+  }
+
+  public addPersonalizationRule(rule: PersonalizationRule) {
+    this.personalizationRules.push(rule);
+  }
+
+  public updatePersonalizationRule(ruleId: string, updates: Partial<PersonalizationRule>) {
+    const index = this.personalizationRules.findIndex(rule => rule.id === ruleId);
+    if (index !== -1) {
+      this.personalizationRules[index] = { ...this.personalizationRules[index], ...updates };
+    }
   }
 }
 
-// Singleton instance
-const adaptiveShopEngine = new AdaptiveShopEngine();
-
-// Hook for using the adaptive shop engine
-export function useAdaptiveShop() {
-  const { 
-    behaviorData, 
-    isLoading, 
-    trackProductView,
-    trackPurchase,
-    trackFavorite 
-  } = useShoppingBehavior();
-  
-  const { 
-    personalizedProducts, 
-    generateRecommendations: generatePersonalizedRecommendations 
-  } = usePersonalizedRecommendations();
-
-  const adaptProducts = async (products: ShopProduct[]) => {
-    if (!behaviorData || isLoading) return products;
-
-    await adaptiveShopEngine.updatePerformanceMetrics(products, behaviorData);
-    return adaptiveShopEngine.applyPersonalizationRules(products, behaviorData);
-  };
-
-  const getRecommendations = (products: ShopProduct[], count: number = 6) => {
-    if (!behaviorData || isLoading) return [];
-    return adaptiveShopEngine.generateRecommendations(products, behaviorData, count);
-  };
-
-  const handleRealTimeEvent = async (
-    event: 'view' | 'purchase' | 'favorite',
-    productId: string,
-    context: any = {}
-  ) => {
-    // Track in behavior system
-    switch (event) {
-      case 'view':
-        trackProductView(productId, context.productType, context.price, context.category);
-        break;
-      case 'purchase':
-        trackPurchase(productId, context.price);
-        break;
-      case 'favorite':
-        trackFavorite(productId);
-        break;
-    }
-
-    // Update adaptive engine
-    await adaptiveShopEngine.processRealTimeUpdate(event, productId, context);
-  };
-
-  const getAnalytics = () => adaptiveShopEngine.exportAnalytics();
-  
-  const scheduleRotation = () => adaptiveShopEngine.scheduleInventoryRotation();
-
-  return {
-    adaptProducts,
-    getRecommendations,
-    handleRealTimeEvent,
-    getAnalytics,
-    scheduleRotation,
-    isLoading,
-    behaviorData,
-    personalizedProducts
-  };
-}
-
-export default adaptiveShopEngine;
+// Export singleton instance
+export const adaptiveShopEngine = new AdaptiveShopEngine();
