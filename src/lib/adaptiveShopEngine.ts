@@ -1,6 +1,6 @@
-
 import { useShoppingAnalytics } from "@/hooks/use-shopping-analytics";
 import { useShoppingBehavior } from "@/hooks/use-shopping-behavior";
+import { useShopWheelsIntegration } from "@/lib/shopWheelsIntegration";
 import { ShopProduct } from "@/components/shop/types";
 
 // Define types for learning metrics
@@ -45,6 +45,7 @@ export class AdaptiveShopEngine {
   private personalizationRules: PersonalizationRule[] = [];
   private analytics: ReturnType<typeof useShoppingAnalytics> | null = null;
   private learningEnabled: boolean = true;
+  private travelIntegration: any = null;
 
   constructor() {
     this.initializePersonalizationRules();
@@ -52,6 +53,10 @@ export class AdaptiveShopEngine {
 
   public setAnalytics(analytics: ReturnType<typeof useShoppingAnalytics>) {
     this.analytics = analytics;
+  }
+
+  public setTravelIntegration(integration: any) {
+    this.travelIntegration = integration;
   }
 
   public disableLearning() {
@@ -78,9 +83,37 @@ export class AdaptiveShopEngine {
         });
       },
     });
+
+    // Add travel-based personalization rule
+    this.personalizationRules.push({
+      trigger: () => this.travelIntegration?.isIntegrationEnabled() || false,
+      action: async (products) => {
+        if (!this.travelIntegration) return products;
+        
+        try {
+          const travelProducts = await this.travelIntegration.getSmartShoppingList();
+          const travelProductIds = travelProducts.map((p: ShopProduct) => p.id);
+          
+          // Prioritize travel-recommended products
+          const prioritized = products.sort((a, b) => {
+            const aIsTravelRec = travelProductIds.includes(a.id);
+            const bIsTravelRec = travelProductIds.includes(b.id);
+            
+            if (aIsTravelRec && !bIsTravelRec) return -1;
+            if (!aIsTravelRec && bIsTravelRec) return 1;
+            return 0;
+          });
+          
+          return prioritized;
+        } catch (error) {
+          console.error('Error applying travel-based personalization:', error);
+          return products;
+        }
+      },
+    });
   }
 
-  public adaptProducts(products: ShopProduct[]): ShopProduct[] {
+  public async adaptProducts(products: ShopProduct[]): Promise<ShopProduct[]> {
     if (!this.behaviorData || !this.learningEnabled) {
       return products;
     }
@@ -88,7 +121,9 @@ export class AdaptiveShopEngine {
     let adaptedProducts = [...products];
     for (const rule of this.personalizationRules) {
       if (rule.trigger(this.behaviorData)) {
-        adaptedProducts = rule.action(adaptedProducts);
+        const result = rule.action(adaptedProducts);
+        // Handle both sync and async rule actions
+        adaptedProducts = result instanceof Promise ? await result : result;
       }
     }
     return adaptedProducts;
@@ -172,12 +207,26 @@ export class AdaptiveShopEngine {
   public async trackAddToCart(productId: string, behaviorHook: ReturnType<typeof useShoppingBehavior>) {
     if (this.analytics && behaviorHook) {
       await behaviorHook.trackAddToCart(productId, 'general', undefined, 'general');
+      
+      // Track travel integration if enabled
+      if (this.travelIntegration?.isIntegrationEnabled()) {
+        console.log('Tracking cart addition for travel integration:', productId);
+      }
     }
   }
 
   public async trackPurchase(productId: string, behaviorHook: ReturnType<typeof useShoppingBehavior>) {
     if (this.analytics && behaviorHook) {
       await behaviorHook.trackPurchase(productId, 'general', undefined, 'general');
+      
+      // Track travel integration if enabled
+      if (this.travelIntegration?.isIntegrationEnabled()) {
+        const products = await this.travelIntegration.getSmartShoppingList();
+        const product = products.find((p: ShopProduct) => p.id === productId);
+        if (product) {
+          await this.travelIntegration.trackPurchaseIntegration(productId, product);
+        }
+      }
     }
   }
 

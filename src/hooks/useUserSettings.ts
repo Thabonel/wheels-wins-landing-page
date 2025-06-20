@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase';
@@ -40,6 +39,12 @@ export interface UserSettings {
     units: 'metric' | 'imperial';
     timezone: string;
     date_format: string;
+  };
+  integration_preferences: {
+    shop_travel_integration: boolean;
+    auto_add_purchases_to_storage: boolean;
+    travel_based_recommendations: boolean;
+    cross_platform_analytics: boolean;
   };
 }
 
@@ -124,6 +129,12 @@ export const useUserSettings = () => {
         units: 'imperial',
         timezone: 'auto',
         date_format: 'MM/DD/YYYY',
+      },
+      integration_preferences: {
+        shop_travel_integration: true,
+        auto_add_purchases_to_storage: true,
+        travel_based_recommendations: true,
+        cross_platform_analytics: true,
       },
     };
 
