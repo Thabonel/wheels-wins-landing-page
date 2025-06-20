@@ -3164,6 +3164,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_shopping_behavior: {
+        Row: {
+          category_browsing: Json | null
+          click_through_rates: Json | null
+          conversion_metrics: Json | null
+          created_at: string | null
+          id: string
+          price_preferences: Json | null
+          product_views: Json | null
+          purchase_patterns: Json | null
+          seasonal_preferences: Json | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category_browsing?: Json | null
+          click_through_rates?: Json | null
+          conversion_metrics?: Json | null
+          created_at?: string | null
+          id?: string
+          price_preferences?: Json | null
+          product_views?: Json | null
+          purchase_patterns?: Json | null
+          seasonal_preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category_browsing?: Json | null
+          click_through_rates?: Json | null
+          conversion_metrics?: Json | null
+          created_at?: string | null
+          id?: string
+          price_preferences?: Json | null
+          product_views?: Json | null
+          purchase_patterns?: Json | null
+          seasonal_preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_subscriptions: {
         Row: {
           created_at: string | null
