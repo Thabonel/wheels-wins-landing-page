@@ -1,12 +1,6 @@
 
 import React from 'react';
 import DashboardOverview from './DashboardOverview';
-import AdminUsers from './AdminUsers';
-import AdminContentModeration from './AdminContentModeration';
-import AdminAnalytics from './AdminAnalytics';
-import AdminChatLogs from './AdminChatLogs';
-import AdminSettings from './AdminSettings';
-import AdminSupportTickets from './AdminSupportTickets';
 import LearningDashboard from './LearningDashboard';
 
 interface AdminContentProps {
@@ -19,13 +13,33 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
       case 'Dashboard':
         return <DashboardOverview />;
       case 'Users':
-        return <AdminUsers />;
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">User Management</h2>
+            <p className="text-gray-600">User management features coming soon...</p>
+          </div>
+        );
       case 'Content Moderation':
-        return <AdminContentModeration />;
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Content Moderation</h2>
+            <p className="text-gray-600">Content moderation features coming soon...</p>
+          </div>
+        );
       case 'Analytics':
-        return <AdminAnalytics />;
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Analytics</h2>
+            <p className="text-gray-600">Analytics features coming soon...</p>
+          </div>
+        );
       case 'Chat Logs':
-        return <AdminChatLogs />;
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Chat Logs</h2>
+            <p className="text-gray-600">Chat logs features coming soon...</p>
+          </div>
+        );
       case 'Learning Dashboard':
         return <LearningDashboard />;
       case 'Shop Management':
@@ -36,9 +50,19 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
           </div>
         );
       case 'Support Tickets':
-        return <AdminSupportTickets />;
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Support Tickets</h2>
+            <p className="text-gray-600">Support ticket features coming soon...</p>
+          </div>
+        );
       case 'Settings':
-        return <AdminSettings />;
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Settings</h2>
+            <p className="text-gray-600">Settings features coming soon...</p>
+          </div>
+        );
       default:
         return <DashboardOverview />;
     }
