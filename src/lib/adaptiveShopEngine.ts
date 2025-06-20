@@ -10,6 +10,14 @@ interface ShopBehavior {
   featureImportance: { [feature: string]: number };
 }
 
+export interface AdaptiveLearningMetrics {
+  totalInteractions: number;
+  conversionRate: number;
+  averageSessionTime: number;
+  topCategories: string[];
+  behaviorTrends: { [key: string]: number };
+}
+
 class PersonalizationEngine {
   personalizeProducts(products: ShopProduct[], behavior: ShopBehavior): ShopProduct[] {
     // Apply category preferences
@@ -211,3 +219,6 @@ export class AdaptiveShopEngine {
     return insights;
   }
 }
+
+// Export a default instance for convenience
+export const adaptiveShopEngine = new AdaptiveShopEngine();
