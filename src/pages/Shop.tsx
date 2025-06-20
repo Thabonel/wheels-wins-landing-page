@@ -6,10 +6,10 @@ import { useShoppingAnalytics } from '@/hooks/use-shopping-analytics';
 import { adaptiveShopEngine } from '@/lib/adaptiveShopEngine';
 import ProductGrid from '@/components/shop/ProductGrid';
 import ShopFilters from '@/components/shop/ShopFilters';
-import { ShopProduct } from '@/components/shop/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Brain, TrendingUp, Users } from 'lucide-react';
+import { ShopProduct, DigitalProduct, AffiliateProduct, isDigitalProduct } from '@/components/shop/types';
 
 const mockProducts: ShopProduct[] = [
   {
@@ -17,32 +17,32 @@ const mockProducts: ShopProduct[] = [
     title: 'Smart Watch Pro',
     description: 'Advanced fitness tracking smartwatch',
     price: 299.99,
+    currency: 'USD',
+    type: 'smartwatch',
     image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400',
-    type: 'digital' as const,
-    affiliateUrl: 'https://example.com/smartwatch'
-  },
+    availableRegions: ['US', 'AU', 'UK']
+  } as DigitalProduct,
   {
     id: '2',
     title: 'Wireless Headphones',
     description: 'Premium noise-canceling headphones',
-    price: 199.99,
+    externalLink: 'https://example.com/headphones',
     image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400',
-    type: 'digital' as const,
-    affiliateUrl: 'https://example.com/headphones'
-  }
+    availableRegions: ['US', 'AU', 'UK'],
+    isPamRecommended: true
+  } as AffiliateProduct
 ];
 
-const Shop: React.FC = () => {
+const Shop = () => {
   const { user } = useAuth();
   const behaviorHook = useShoppingBehavior();
   const analytics = useShoppingAnalytics();
-  
   const [products, setProducts] = useState<ShopProduct[]>(mockProducts);
   const [filteredProducts, setFilteredProducts] = useState<ShopProduct[]>(mockProducts);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
-  const [sortBy, setSortBy] = useState<string>('featured');
-  const [region, setRegion] = useState<string>('US');
+  const [sortBy, setSortBy] = useState('featured');
+  const [region, setRegion] = useState('US');
   const [isLearning, setIsLearning] = useState(true);
 
   // Initialize adaptive learning
@@ -70,21 +70,42 @@ const Shop: React.FC = () => {
 
       try {
         // Apply filters first
-        let filtered = products.filter(product => {
-          const matchesCategory = selectedCategory === 'all' || selectedCategory === 'digital';
-          const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
+        let filtered = products.filter((product) => {
+          const matchesCategory = selectedCategory === 'all' || 
+            (selectedCategory === 'digital' && isDigitalProduct(product)) ||
+            (selectedCategory === 'affiliate' && !isDigitalProduct(product));
+          
+          let matchesPrice = true;
+          if (isDigitalProduct(product)) {
+            matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
+          }
+          
           return matchesCategory && matchesPrice;
         });
 
         // Apply adaptive learning
-        const userPreferences = { categories: { digital: 0.8, general: 0.5 } };
+        const userPreferences = {
+          categories: {
+            digital: 0.8,
+            general: 0.5
+          }
+        };
+
         const adaptedProducts = await adaptiveShopEngine.adaptInventory(filtered, userPreferences);
-        
+
         // Apply sorting
         if (sortBy === 'price-low') {
-          adaptedProducts.sort((a, b) => a.price - b.price);
+          adaptedProducts.sort((a, b) => {
+            const priceA = isDigitalProduct(a) ? a.price : 0;
+            const priceB = isDigitalProduct(b) ? b.price : 0;
+            return priceA - priceB;
+          });
         } else if (sortBy === 'price-high') {
-          adaptedProducts.sort((a, b) => b.price - a.price);
+          adaptedProducts.sort((a, b) => {
+            const priceA = isDigitalProduct(a) ? a.price : 0;
+            const priceB = isDigitalProduct(b) ? b.price : 0;
+            return priceB - priceA;
+          });
         }
 
         setFilteredProducts(adaptedProducts);
@@ -116,13 +137,18 @@ const Shop: React.FC = () => {
     const product = products.find(p => p.id === productId);
     if (product && isLearning) {
       await adaptiveShopEngine.trackPurchase(productId, behaviorHook);
+      
+      const contextData: any = {};
+      if (isDigitalProduct(product)) {
+        contextData.price = product.price;
+      }
+      
       await analytics.trackProductInteraction({
         productId,
         interactionType: 'purchase',
-        contextData: { price: product.price }
+        contextData
       });
     }
-    
     // Handle actual purchase logic here
     console.log('Purchase initiated for product:', productId);
   };
@@ -159,7 +185,6 @@ const Shop: React.FC = () => {
           )}
         </div>
 
-        {/* Learning Status Card */}
         {user && isLearning && (
           <Card className="mb-6">
             <CardHeader>
@@ -171,51 +196,35 @@ const Shop: React.FC = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-blue-500" />
-                  <span className="text-sm">Personalizing your experience</span>
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                  <span className="text-sm">Personalizing recommendations</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Learning from your preferences</span>
+                  <Users className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm">Learning from behavior</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Brain className="h-4 w-4 text-purple-500" />
-                  <span className="text-sm">Adapting product recommendations</span>
+                  <span className="text-sm">Adapting inventory</span>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Filters Sidebar */}
-          <div className="lg:w-1/4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-1">
             <ShopFilters
               selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
+              setSelectedCategory={setSelectedCategory}
               priceRange={priceRange}
-              onPriceRangeChange={setPriceRange}
+              setPriceRange={setPriceRange}
               sortBy={sortBy}
-              onSortChange={setSortBy}
-              region={region}
-              onRegionChange={setRegion}
+              setSortBy={setSortBy}
             />
           </div>
-
-          {/* Product Grid */}
-          <div className="lg:w-3/4">
-            <div className="mb-6">
-              <p className="text-gray-600">
-                Showing {filteredProducts.length} products
-                {isLearning && user && (
-                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                    <Brain className="h-3 w-3 mr-1" />
-                    Personalized
-                  </span>
-                )}
-              </p>
-            </div>
-            
+          
+          <div className="lg:col-span-3">
             <ProductGrid
               products={filteredProducts}
               region={region}

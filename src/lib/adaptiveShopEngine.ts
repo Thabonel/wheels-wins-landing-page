@@ -28,17 +28,15 @@ interface PersonalizationRule {
 
 // Helper function to get product category
 function getProductCategory(product: ShopProduct): string {
-  if ('category' in product) {
-    return product.category;
+  if ('type' in product) {
+    return product.type;
   }
   return 'general';
 }
 
-// Helper function to get product tags
+// Helper function to get product tags (placeholder)
 function getProductTags(product: ShopProduct): string[] {
-  if ('tags' in product) {
-    return product.tags;
-  }
+  // Since tags aren't in the current product types, return empty array
   return [];
 }
 
