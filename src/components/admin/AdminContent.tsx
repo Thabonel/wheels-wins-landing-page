@@ -1,6 +1,6 @@
 
 import React from 'react';
-import AdminOverview from './AdminOverview';
+import DashboardOverview from './DashboardOverview';
 import AdminUsers from './AdminUsers';
 import AdminContentModeration from './AdminContentModeration';
 import AdminAnalytics from './AdminAnalytics';
@@ -17,7 +17,7 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
   const renderContent = () => {
     switch (activeSection) {
       case 'Dashboard':
-        return <AdminOverview />;
+        return <DashboardOverview />;
       case 'Users':
         return <AdminUsers />;
       case 'Content Moderation':
@@ -40,7 +40,7 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
       case 'Settings':
         return <AdminSettings />;
       default:
-        return <AdminOverview />;
+        return <DashboardOverview />;
     }
   };
 
