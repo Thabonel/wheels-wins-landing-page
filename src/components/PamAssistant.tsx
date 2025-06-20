@@ -11,8 +11,7 @@ import { useOffline } from '@/context/OfflineContext';
 import { usePamWebSocket } from '@/hooks/usePamWebSocket';
 import { usePamSession } from '@/hooks/usePamSession';
 import { IntentClassifier } from '@/utils/intentClassifier';
-
-// UPDATED: Now uses WebSocket instead of deprecated usePam hook
+import PamVoice from '@/components/voice/PamVoice';
 
 const PamAssistant = () => {
   const { user } = useAuth();
@@ -24,10 +23,8 @@ const PamAssistant = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Use WebSocket connection instead of old HTTP-based usePam
   const { isConnected, sendMessage: sendWebSocketMessage, messages: wsMessages } = usePamWebSocket();
 
-  // Handle WebSocket messages
   useEffect(() => {
     if (wsMessages.length > 0) {
       const latestMessage = wsMessages[wsMessages.length - 1];
@@ -60,11 +57,9 @@ const PamAssistant = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     
-    // Classify intent and update session
     const intentResult = IntentClassifier.classifyIntent(input);
     updateSession(intentResult.type);
 
-    // Send via WebSocket
     const messageSent = sendWebSocketMessage({
       type: 'chat',
       message: input.trim(),
@@ -108,6 +103,26 @@ const PamAssistant = () => {
     );
   }
 
+  const getMessageEmotion = (content: string, role: string) => {
+    if (role !== 'assistant') return undefined;
+    
+    if (content.includes('deal') || content.includes('recommend')) return 'excited';
+    if (content.includes('help') || content.includes('guide')) return 'helpful';
+    if (content.includes('congratulat') || content.includes('achievement')) return 'celebrates';
+    if (content.includes('safety') || content.includes('careful')) return 'calm';
+    
+    return 'helpful';
+  };
+
+  const getMessageContext = (content: string) => {
+    if (content.includes('shop') || content.includes('buy') || content.includes('product')) return 'shopping';
+    if (content.includes('trip') || content.includes('plan') || content.includes('route')) return 'planning';
+    if (content.includes('achievement') || content.includes('milestone')) return 'achievement';
+    if (content.includes('safety') || content.includes('warning')) return 'safety';
+    
+    return 'general';
+  };
+
   return (
     <Card className="max-w-md mx-auto h-96 flex flex-col">
       {/* Header */}
@@ -143,7 +158,20 @@ const PamAssistant = () => {
                   : 'bg-gray-200 text-gray-800'
               }`}
             >
-              {message.content}
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  {message.content}
+                </div>
+                {message.role === 'assistant' && (
+                  <PamVoice
+                    text={message.content}
+                    emotion={getMessageEmotion(message.content, message.role)}
+                    context={getMessageContext(message.content)}
+                    autoPlay={false}
+                    className="ml-2"
+                  />
+                )}
+              </div>
             </div>
           </div>
         ))}
