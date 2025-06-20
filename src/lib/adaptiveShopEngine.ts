@@ -1,255 +1,205 @@
-import { useShoppingAnalytics } from "@/hooks/use-shopping-analytics";
-import { useShoppingBehavior } from "@/hooks/use-shopping-behavior";
-import { useShopWheelsIntegration } from "@/lib/shopWheelsIntegration";
-import { ShopProduct } from "@/components/shop/types";
+import { ShopProduct } from '@/components/shop/types';
+import { getDigitalProducts, getAffiliateProducts } from '@/components/shop/ProductsData';
 
-// Define types for learning metrics
-export interface AdaptiveLearningMetrics {
-  totalInteractions: number;
-  learningAccuracy: number;
-  adaptationRate: number;
-  userSatisfactionScore: number;
-  conversionImprovement: number;
+interface ShopBehavior {
+  categoryPreferences: { [category: string]: number };
+  priceSensitivity: number;
+  brandLoyalty: number;
+  featureImportance: { [feature: string]: number };
 }
 
-// Define types for shopping behavior data
-interface ShoppingBehaviorData {
-  productViews: { productId: string; viewCount: number; lastViewed: Date; category: string; price?: number; }[];
-  categoryBrowsing: { [category: string]: number };
-  searchQueries: string[];
-  timeSpentPerCategory: { [category: string]: number };
-}
+class PersonalizationEngine {
+  personalizeProducts(products: ShopProduct[], behavior: ShopBehavior): ShopProduct[] {
+    // Apply category preferences
+    const categoryBoost = (product: ShopProduct) => {
+      let boost = 1;
+      for (const category in behavior.categoryPreferences) {
+        if (product.categories.includes(category)) {
+          boost += behavior.categoryPreferences[category];
+        }
+      }
+      return boost;
+    };
 
-// Define types for personalization rules
-interface PersonalizationRule {
-  trigger: (behaviorData: ShoppingBehaviorData) => boolean;
-  action: (products: ShopProduct[]) => ShopProduct[];
-}
+    // Apply price sensitivity
+    const priceScore = (product: ShopProduct) => {
+      const price = product.price || 50;
+      return behavior.priceSensitivity > 0 ? (1 - behavior.priceSensitivity) + (price / 100) * behavior.priceSensitivity : 1;
+    };
 
-// Helper function to get product category
-function getProductCategory(product: ShopProduct): string {
-  if ('type' in product) {
-    return product.type;
+    // Apply brand loyalty
+    const brandBoost = (product: ShopProduct) => {
+      return product.brand === 'PreferredBrand' ? 1 + behavior.brandLoyalty : 1;
+    };
+
+    // Apply feature importance
+    const featureScore = (product: ShopProduct) => {
+      let score = 1;
+      for (const feature in behavior.featureImportance) {
+        if (product.features.includes(feature)) {
+          score += behavior.featureImportance[feature];
+        }
+      }
+      return score;
+    };
+
+    // Combine all factors
+    const scoredProducts = products.map(product => ({
+      ...product,
+      personalizationScore: categoryBoost(product) * priceScore(product) * brandBoost(product) * featureScore(product)
+    }));
+
+    // Sort by personalization score
+    scoredProducts.sort((a, b) => (b.personalizationScore || 0) - (a.personalizationScore || 0));
+
+    return scoredProducts;
   }
-  return 'general';
-}
-
-// Helper function to get product tags (placeholder)
-function getProductTags(product: ShopProduct): string[] {
-  // Since tags aren't in the current product types, return empty array
-  return [];
 }
 
 export class AdaptiveShopEngine {
-  private behaviorData: ShoppingBehaviorData | null = null;
-  private personalizationRules: PersonalizationRule[] = [];
-  private analytics: ReturnType<typeof useShoppingAnalytics> | null = null;
-  private learningEnabled: boolean = true;
-  private travelIntegration: any = null;
+  private personalizationEngine: PersonalizationEngine;
+  private travelIntegrationEnabled: boolean = false;
+  private travelData: any = null;
 
   constructor() {
-    this.initializePersonalizationRules();
+    this.personalizationEngine = new PersonalizationEngine();
   }
 
-  public setAnalytics(analytics: ReturnType<typeof useShoppingAnalytics>) {
-    this.analytics = analytics;
+  enableTravelIntegration(travelData: any) {
+    this.travelIntegrationEnabled = true;
+    this.travelData = travelData;
   }
 
-  public setTravelIntegration(integration: any) {
-    this.travelIntegration = integration;
+  disableTravelIntegration() {
+    this.travelIntegrationEnabled = false;
+    this.travelData = null;
   }
 
-  public disableLearning() {
-    this.learningEnabled = false;
+  async getPersonalizedProducts(
+    behavior: ShopBehavior,
+    region: string = 'US',
+    limit: number = 12
+  ): Promise<ShopProduct[]> {
+    // Get base products
+    const [digitalProducts, affiliateProducts] = await Promise.all([
+      getDigitalProducts(region),
+      getAffiliateProducts()
+    ]);
+
+    let allProducts = [...digitalProducts, ...affiliateProducts];
+
+    // Apply personalization
+    let personalizedProducts = this.personalizationEngine.personalizeProducts(
+      allProducts,
+      behavior
+    );
+
+    // Apply travel-based personalization if enabled
+    if (this.travelIntegrationEnabled && this.travelData) {
+      personalizedProducts = this.applyTravelBasedPersonalization(
+        personalizedProducts,
+        this.travelData
+      );
+    }
+
+    return personalizedProducts.slice(0, limit);
   }
 
-  public enableLearning() {
-    this.learningEnabled = true;
-  }
+  private applyTravelBasedPersonalization(
+    products: ShopProduct[],
+    travelData: any
+  ): ShopProduct[] {
+    if (!travelData) return products;
 
-  private initializePersonalizationRules() {
-    // Example rule: Promote products frequently viewed
-    this.personalizationRules.push({
-      trigger: (behaviorData) => {
-        if (!behaviorData?.productViews) return false;
-        return behaviorData.productViews.length > 3;
-      },
-      action: (products) => {
-        // Sort products by view count (most viewed first)
-        return [...products].sort((a, b) => {
-          const viewCountA = this.behaviorData?.productViews.find(v => v.productId === a.id)?.viewCount || 0;
-          const viewCountB = this.behaviorData?.productViews.find(v => v.productId === b.id)?.viewCount || 0;
-          return viewCountB - viewCountA;
-        });
-      },
-    });
+    // Create travel-enhanced products with boosted relevance scores
+    const enhancedProducts = products.map(product => {
+      let relevanceBoost = 0;
+      const title = product.title.toLowerCase();
+      const description = product.description.toLowerCase();
 
-    // Add travel-based personalization rule
-    this.personalizationRules.push({
-      trigger: () => this.travelIntegration?.isIntegrationEnabled() || false,
-      action: async (products) => {
-        if (!this.travelIntegration) return products;
+      // Destination-based recommendations
+      if (travelData.currentTrip?.destination) {
+        const destination = travelData.currentTrip.destination.toLowerCase();
         
-        try {
-          const travelProducts = await this.travelIntegration.getSmartShoppingList();
-          const travelProductIds = travelProducts.map((p: ShopProduct) => p.id);
-          
-          // Prioritize travel-recommended products
-          const prioritized = products.sort((a, b) => {
-            const aIsTravelRec = travelProductIds.includes(a.id);
-            const bIsTravelRec = travelProductIds.includes(b.id);
-            
-            if (aIsTravelRec && !bIsTravelRec) return -1;
-            if (!aIsTravelRec && bIsTravelRec) return 1;
-            return 0;
-          });
-          
-          return prioritized;
-        } catch (error) {
-          console.error('Error applying travel-based personalization:', error);
-          return products;
+        if (destination.includes('beach') && (title.includes('sun') || title.includes('water') || title.includes('beach'))) {
+          relevanceBoost += 0.3;
         }
-      },
-    });
-  }
-
-  public async adaptProducts(products: ShopProduct[]): Promise<ShopProduct[]> {
-    if (!this.behaviorData || !this.learningEnabled) {
-      return products;
-    }
-
-    let adaptedProducts = [...products];
-    for (const rule of this.personalizationRules) {
-      if (rule.trigger(this.behaviorData)) {
-        const result = rule.action(adaptedProducts);
-        // Handle both sync and async rule actions
-        adaptedProducts = result instanceof Promise ? await result : result;
-      }
-    }
-    return adaptedProducts;
-  }
-
-  public async initializeBehaviorTracking(userId: string, behaviorHook: ReturnType<typeof useShoppingBehavior>) {
-    if (!this.learningEnabled) return;
-
-    try {
-      const data = await behaviorHook.fetchUserShoppingBehavior(userId);
-      if (data) {
-        this.behaviorData = {
-          productViews: data.productViews.map(pv => ({
-            productId: pv.product_id,
-            viewCount: pv.view_count,
-            lastViewed: new Date(pv.last_viewed),
-            category: pv.category,
-            price: pv.price
-          })),
-          categoryBrowsing: data.categoryBrowsing,
-          searchQueries: data.searchQueries,
-          timeSpentPerCategory: data.timeSpentPerCategory
-        };
-      }
-    } catch (error) {
-      console.error('Error initializing behavior tracking:', error);
-    }
-  }
-
-  public async adaptInventory(products: ShopProduct[], userPreferences: any): Promise<ShopProduct[]> {
-    if (!this.learningEnabled) return products;
-
-    // Simple adaptation logic based on user preferences
-    return products.sort((a, b) => {
-      const categoryA = getProductCategory(a);
-      const categoryB = getProductCategory(b);
-      
-      // Prioritize categories user has shown interest in
-      const preferenceA = userPreferences?.categories?.[categoryA] || 0;
-      const preferenceB = userPreferences?.categories?.[categoryB] || 0;
-      
-      return preferenceB - preferenceA;
-    });
-  }
-
-  public async rotateInventory(products: ShopProduct[]): Promise<ShopProduct[]> {
-    if (!this.learningEnabled) return products;
-
-    // Simple rotation: shuffle products to provide variety
-    const shuffled = [...products];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  }
-
-  public getLearningMetrics(): AdaptiveLearningMetrics {
-    // Return mock metrics for now
-    return {
-      totalInteractions: this.behaviorData?.productViews.length || 0,
-      learningAccuracy: 0.85,
-      adaptationRate: 0.72,
-      userSatisfactionScore: 0.91,
-      conversionImprovement: 0.15
-    };
-  }
-
-  public async trackProductView(productId: string, behaviorHook: ReturnType<typeof useShoppingBehavior>) {
-    if (this.analytics && behaviorHook) {
-      await behaviorHook.trackProductView(productId, 'general', undefined, 'general');
-    }
-  }
-
-  public async trackCategoryView(category: string, behaviorHook: ReturnType<typeof useShoppingBehavior>) {
-     if (this.analytics && behaviorHook) {
-      await behaviorHook.trackCategoryView(category, 'digital', undefined, 'general');
-    }
-  }
-
-  public async trackAddToCart(productId: string, behaviorHook: ReturnType<typeof useShoppingBehavior>) {
-    if (this.analytics && behaviorHook) {
-      await behaviorHook.trackAddToCart(productId, 'general', undefined, 'general');
-      
-      // Track travel integration if enabled
-      if (this.travelIntegration?.isIntegrationEnabled()) {
-        console.log('Tracking cart addition for travel integration:', productId);
-      }
-    }
-  }
-
-  public async trackPurchase(productId: string, behaviorHook: ReturnType<typeof useShoppingBehavior>) {
-    if (this.analytics && behaviorHook) {
-      await behaviorHook.trackPurchase(productId, 'general', undefined, 'general');
-      
-      // Track travel integration if enabled
-      if (this.travelIntegration?.isIntegrationEnabled()) {
-        const products = await this.travelIntegration.getSmartShoppingList();
-        const product = products.find((p: ShopProduct) => p.id === productId);
-        if (product) {
-          await this.travelIntegration.trackPurchaseIntegration(productId, product);
+        
+        if (destination.includes('mountain') && (title.includes('hiking') || title.includes('mountain') || title.includes('outdoor'))) {
+          relevanceBoost += 0.3;
         }
       }
-    }
-  }
 
-  public async updateBehaviorData(userId: string, behaviorHook: ReturnType<typeof useShoppingBehavior>) {
-    if (!this.learningEnabled) return;
+      // Seasonal recommendations
+      const currentSeason = this.getCurrentSeason();
+      if (title.includes(currentSeason) || description.includes(currentSeason)) {
+        relevanceBoost += 0.2;
+      }
 
-    const data = await behaviorHook.fetchUserShoppingBehavior(userId);
-    if (data) {
-      this.behaviorData = {
-        productViews: data.productViews.map(pv => ({
-          productId: pv.product_id,
-          viewCount: pv.view_count,
-          lastViewed: new Date(pv.last_viewed),
-          category: pv.category,
-          price: pv.price
-        })),
-        categoryBrowsing: data.categoryBrowsing,
-        searchQueries: data.searchQueries,
-        timeSpentPerCategory: data.timeSpentPerCategory
+      // Maintenance-based recommendations
+      if (travelData.maintenanceAlerts?.length > 0) {
+        const hasMaintenanceNeeds = travelData.maintenanceAlerts.some((alert: any) => 
+          title.includes(alert.task.toLowerCase()) || description.includes(alert.task.toLowerCase())
+        );
+        if (hasMaintenanceNeeds) {
+          relevanceBoost += 0.4;
+        }
+      }
+
+      // Safety-based recommendations
+      if (travelData.safetyRequirements?.length > 0) {
+        const hasSafetyNeeds = travelData.safetyRequirements.some((req: any) => 
+          !req.inStorage && (title.includes(req.item.toLowerCase()) || description.includes(req.item.toLowerCase()))
+        );
+        if (hasSafetyNeeds) {
+          relevanceBoost += 0.5;
+        }
+      }
+
+      return {
+        ...product,
+        travelRelevanceScore: relevanceBoost
       };
+    });
+
+    // Sort by travel relevance first, then by original order
+    return enhancedProducts.sort((a, b) => {
+      const aScore = (a as any).travelRelevanceScore || 0;
+      const bScore = (b as any).travelRelevanceScore || 0;
+      return bScore - aScore;
+    });
+  }
+
+  private getCurrentSeason(): string {
+    const month = new Date().getMonth();
+    if (month >= 2 && month <= 4) return 'spring';
+    if (month >= 5 && month <= 7) return 'summer';
+    if (month >= 8 && month <= 10) return 'autumn';
+    return 'winter';
+  }
+
+  updateBehavior(userId: string, behaviorUpdate: Partial<ShopBehavior>): void {
+    // In a real application, this would update the user's behavior profile in a database.
+    console.log(`Updating behavior for user ${userId} with:`, behaviorUpdate);
+  }
+
+  generateInsights(productsViewed: ShopProduct[], cartSize: number, purchaseHistory: ShopProduct[]): string[] {
+    const insights: string[] = [];
+
+    if (productsViewed.length > 5) {
+      const categories = new Set(productsViewed.flatMap(p => p.categories));
+      insights.push(`User is exploring multiple categories: ${Array.from(categories).join(', ')}`);
     }
+
+    if (cartSize > 3) {
+      insights.push("User is adding multiple items to the cart, indicating high purchase intent.");
+    }
+
+    if (purchaseHistory.length > 0) {
+      const totalSpent = purchaseHistory.reduce((sum, product) => sum + (product.price || 0), 0);
+      insights.push(`Loyal customer with a total spending of $${totalSpent.toFixed(2)}.`);
+    }
+
+    return insights;
   }
 }
-
-// Export singleton instance
-export const adaptiveShopEngine = new AdaptiveShopEngine();
