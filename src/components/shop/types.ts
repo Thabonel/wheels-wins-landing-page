@@ -7,6 +7,9 @@ export interface BaseProduct {
   description: string;
   image: string;
   availableRegions: Region[];
+  categories?: string[];
+  brand?: string;
+  features?: string[];
 }
 
 export interface AffiliateProduct extends BaseProduct {

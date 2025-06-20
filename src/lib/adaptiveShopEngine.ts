@@ -1,5 +1,7 @@
+
 import { ShopProduct } from '@/components/shop/types';
 import { getDigitalProducts, getAffiliateProducts } from '@/components/shop/ProductsData';
+import { Region } from '@/context/RegionContext';
 
 interface ShopBehavior {
   categoryPreferences: { [category: string]: number };
@@ -13,9 +15,11 @@ class PersonalizationEngine {
     // Apply category preferences
     const categoryBoost = (product: ShopProduct) => {
       let boost = 1;
-      for (const category in behavior.categoryPreferences) {
-        if (product.categories.includes(category)) {
-          boost += behavior.categoryPreferences[category];
+      if (product.categories) {
+        for (const category in behavior.categoryPreferences) {
+          if (product.categories.includes(category)) {
+            boost += behavior.categoryPreferences[category];
+          }
         }
       }
       return boost;
@@ -23,7 +27,7 @@ class PersonalizationEngine {
 
     // Apply price sensitivity
     const priceScore = (product: ShopProduct) => {
-      const price = product.price || 50;
+      const price = 'price' in product ? product.price : 50;
       return behavior.priceSensitivity > 0 ? (1 - behavior.priceSensitivity) + (price / 100) * behavior.priceSensitivity : 1;
     };
 
@@ -35,9 +39,11 @@ class PersonalizationEngine {
     // Apply feature importance
     const featureScore = (product: ShopProduct) => {
       let score = 1;
-      for (const feature in behavior.featureImportance) {
-        if (product.features.includes(feature)) {
-          score += behavior.featureImportance[feature];
+      if (product.features) {
+        for (const feature in behavior.featureImportance) {
+          if (product.features.includes(feature)) {
+            score += behavior.featureImportance[feature];
+          }
         }
       }
       return score;
@@ -77,7 +83,7 @@ export class AdaptiveShopEngine {
 
   async getPersonalizedProducts(
     behavior: ShopBehavior,
-    region: string = 'US',
+    region: Region = 'US' as Region,
     limit: number = 12
   ): Promise<ShopProduct[]> {
     // Get base products
@@ -187,7 +193,7 @@ export class AdaptiveShopEngine {
     const insights: string[] = [];
 
     if (productsViewed.length > 5) {
-      const categories = new Set(productsViewed.flatMap(p => p.categories));
+      const categories = new Set(productsViewed.flatMap(p => p.categories || []));
       insights.push(`User is exploring multiple categories: ${Array.from(categories).join(', ')}`);
     }
 
@@ -196,7 +202,9 @@ export class AdaptiveShopEngine {
     }
 
     if (purchaseHistory.length > 0) {
-      const totalSpent = purchaseHistory.reduce((sum, product) => sum + (product.price || 0), 0);
+      const totalSpent = purchaseHistory.reduce((sum, product) => {
+        return sum + ('price' in product ? product.price : 0);
+      }, 0);
       insights.push(`Loyal customer with a total spending of $${totalSpent.toFixed(2)}.`);
     }
 
