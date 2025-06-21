@@ -1,3 +1,4 @@
+
 import { Region } from "@/context/RegionContext";
 import { AffiliateProduct, DigitalProduct } from "./types";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,7 +84,7 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
       price: 29.99,
       currency: "USD",
       type: "software",
-      availableRegions: ["US", "Canada", "Australia"],
+      availableRegions: ["United States", "Canada", "Australia"],
       isNew: true
     },
     {
@@ -94,7 +95,7 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
       price: 19.99,
       currency: "USD",
       type: "software",
-      availableRegions: ["US", "Canada", "Australia"]
+      availableRegions: ["United States", "Canada", "Australia"]
     },
     {
       id: "maintenance-guide",
@@ -104,7 +105,7 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
       price: 24.99,
       currency: "USD",
       type: "ebook",
-      availableRegions: ["US", "Canada", "Australia"],
+      availableRegions: ["United States", "Canada", "Australia"],
       hasBonus: true
     }
   ];
@@ -124,7 +125,7 @@ export async function getAffiliateProducts(): Promise<AffiliateProduct[]> {
       description: "Complete solar power solution for RVs with high-efficiency panels and charge controller.",
       image: "/placeholder-product.jpg",
       externalLink: "https://example.com/solar-kit",
-      availableRegions: ["US", "Canada"],
+      availableRegions: ["United States", "Canada"],
       isPamRecommended: true
     },
     {
@@ -133,7 +134,7 @@ export async function getAffiliateProducts(): Promise<AffiliateProduct[]> {
       description: "Quiet, fuel-efficient generator perfect for boondocking and emergency power needs.",
       image: "/placeholder-product.jpg",
       externalLink: "https://example.com/generator",
-      availableRegions: ["US", "Canada", "Australia"]
+      availableRegions: ["United States", "Canada", "Australia"]
     },
     {
       id: "water-filter",
@@ -141,7 +142,7 @@ export async function getAffiliateProducts(): Promise<AffiliateProduct[]> {
       description: "Reliable water filtration for safe drinking water anywhere your travels take you.",
       image: "/placeholder-product.jpg",
       externalLink: "https://example.com/water-filter",
-      availableRegions: ["US", "Canada", "Australia"],
+      availableRegions: ["United States", "Canada", "Australia"],
       isPamRecommended: true
     }
   ];
