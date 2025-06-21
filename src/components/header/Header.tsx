@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useHeaderAppearance } from "@/hooks/useHeaderAppearance";
@@ -31,7 +30,7 @@ const Header = () => {
       {/* Auth Buttons */}
       <div className="flex items-center space-x-4">
         {/* Show Shop and Login buttons on homepage when not authenticated */}
-        {isHomePage && !isAuthenticated && !isDevMode && (
+        {location.pathname === "/" && !isAuthenticated && (
           <>
             <Link to="/shop">
               <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
@@ -46,7 +45,7 @@ const Header = () => {
         {showUserMenu && <UserMenu />}
         
         {/* Show auth link for non-homepage, non-authenticated users */}
-        {!isHomePage && !isAuthenticated && !isDevMode && (
+        {location.pathname !== "/" && !isAuthenticated && (
           <Link to="/login">
             <Button variant="default">Sign In</Button>
           </Link>
