@@ -57,7 +57,7 @@ export async function getAffiliateProductsFromDB(): Promise<AffiliateProduct[]> 
       description: product.description || '',
       image: product.image_url || '/placeholder-product.jpg',
       externalLink: product.external_link || '#',
-      availableRegions: product.available_regions || ['US'],
+      availableRegions: product.available_regions || ['United States'],
       isPamRecommended: product.is_pam_recommended || false
     }));
   } catch (error) {
@@ -77,7 +77,7 @@ function getStaticDigitalProducts(region: Region): DigitalProduct[] {
       price: 29.99,
       currency: "USD",
       type: "software",
-      availableRegions: ["US", "Canada", "Australia"],
+      availableRegions: ["United States", "Canada", "Australia"],
       isNew: true
     },
     {
@@ -88,7 +88,7 @@ function getStaticDigitalProducts(region: Region): DigitalProduct[] {
       price: 19.99,
       currency: "USD",
       type: "software",
-      availableRegions: ["US", "Canada", "Australia"]
+      availableRegions: ["United States", "Canada", "Australia"]
     },
     {
       id: "maintenance-guide",
@@ -98,7 +98,7 @@ function getStaticDigitalProducts(region: Region): DigitalProduct[] {
       price: 24.99,
       currency: "USD",
       type: "ebook",
-      availableRegions: ["US", "Canada", "Australia"],
+      availableRegions: ["United States", "Canada", "Australia"],
       hasBonus: true
     }
   ];
@@ -112,7 +112,7 @@ function getStaticAffiliateProducts(): AffiliateProduct[] {
       description: "Complete solar power solution for RVs with high-efficiency panels and charge controller.",
       image: "/placeholder-product.jpg",
       externalLink: "https://example.com/solar-kit",
-      availableRegions: ["US", "Canada"],
+      availableRegions: ["United States", "Canada"],
       isPamRecommended: true
     },
     {
@@ -121,7 +121,7 @@ function getStaticAffiliateProducts(): AffiliateProduct[] {
       description: "Quiet, fuel-efficient generator perfect for boondocking and emergency power needs.",
       image: "/placeholder-product.jpg",
       externalLink: "https://example.com/generator",
-      availableRegions: ["US", "Canada", "Australia"]
+      availableRegions: ["United States", "Canada", "Australia"]
     },
     {
       id: "water-filter",
@@ -129,7 +129,7 @@ function getStaticAffiliateProducts(): AffiliateProduct[] {
       description: "Reliable water filtration for safe drinking water anywhere your travels take you.",
       image: "/placeholder-product.jpg",
       externalLink: "https://example.com/water-filter",
-      availableRegions: ["US", "Canada", "Australia"],
+      availableRegions: ["United States", "Canada", "Australia"],
       isPamRecommended: true
     }
   ];

@@ -5,6 +5,7 @@ interface WheelsState {
   currentTrip: any;
   fuelEfficiency: number;
   safetyRequirements: any[];
+  maintenanceAlerts: any[];
 }
 
 interface WheelsActions {
@@ -32,7 +33,8 @@ export const WheelsProvider = ({ children }: { children: React.ReactNode }) => {
   const state: WheelsState = {
     currentTrip: null,
     fuelEfficiency: 8.5,
-    safetyRequirements: []
+    safetyRequirements: [],
+    maintenanceAlerts: []
   };
 
   const actions: WheelsActions = {

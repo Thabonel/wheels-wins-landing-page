@@ -24,7 +24,7 @@ export function usePersonalizedRecommendations() {
       // Fallback to static products when not authenticated
       try {
         const [digitalProducts, affiliateProducts] = await Promise.all([
-          getDigitalProducts('US'),
+          getDigitalProducts('United States'),
           getAffiliateProducts()
         ]);
         const fallbackProducts = [...digitalProducts, ...affiliateProducts];
@@ -53,7 +53,7 @@ export function usePersonalizedRecommendations() {
 
       // Generate fallback recommendations
       const [digitalProducts, affiliateProducts] = await Promise.all([
-        getDigitalProducts('US'),
+        getDigitalProducts('United States'),
         getAffiliateProducts()
       ]);
       const allProducts = [...digitalProducts, ...affiliateProducts];
@@ -82,7 +82,7 @@ export function usePersonalizedRecommendations() {
       // Final fallback
       try {
         const [digitalProducts, affiliateProducts] = await Promise.all([
-          getDigitalProducts('US'),
+          getDigitalProducts('United States'),
           getAffiliateProducts()
         ]);
         const allProducts = [...digitalProducts, ...affiliateProducts];

@@ -106,7 +106,7 @@ export class ShopWheelsIntegrationEngine implements ShopWheelsIntegration {
     if (!this.isIntegrationEnabled()) {
       // Return basic products if integration disabled
       const [digital, affiliate] = await Promise.all([
-        getDigitalProducts('US'),
+        getDigitalProducts('United States'),
         getAffiliateProducts()
       ]);
       return [...digital, ...affiliate].slice(0, 6);
@@ -114,7 +114,7 @@ export class ShopWheelsIntegrationEngine implements ShopWheelsIntegration {
 
     const recommendations = await this.getTravelBasedRecommendations();
     const [digitalProducts, affiliateProducts] = await Promise.all([
-      getDigitalProducts('US'),
+      getDigitalProducts('United States'),
       getAffiliateProducts()
     ]);
     
