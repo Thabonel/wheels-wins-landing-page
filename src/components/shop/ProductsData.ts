@@ -1,36 +1,36 @@
-
 import { Region } from "@/context/RegionContext";
 import { AffiliateProduct, DigitalProduct } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 
-// New Supabase-connected functions
+// New database functions
 export async function getDigitalProductsFromDB(region: Region): Promise<DigitalProduct[]> {
   try {
     const { data, error } = await supabase
-      .from('shop_products')
+      .from('v_shop_products')  // Using the view
       .select('*')
       .eq('type', 'digital')
-      .eq('status', 'active')
-      .contains('available_regions', [region]);
+      .eq('status', 'active');
 
     if (error) {
       console.error('Error fetching digital products from database:', error);
       return [];
     }
 
-    // Transform database format to match the expected DigitalProduct interface
+    console.log('Shop: Using database digital products data');
     return (data || []).map(product => ({
       id: product.id,
-      title: product.name, // Map 'name' from DB to 'title' in interface
-      description: product.description || '',
-      image: product.image_url || '/placeholder-product.jpg',
+      title: product.name,
+      description: product.description,
+      image: product.image_url || "/placeholder-product.jpg",
       price: product.price || 0,
-      currency: product.currency || 'USD',
-      type: product.category || 'software',
-      availableRegions: product.available_regions || [region],
-      isNew: product.is_new || false,
-      hasBonus: product.has_bonus || false
-    }));
+      currency: "USD",
+      type: product.category || "software",
+      availableRegions: product.available_regions || [],
+      isNew: false,
+      hasBonus: false
+    })).filter(product => 
+      product.availableRegions.includes(region) || product.availableRegions.length === 0
+    );
   } catch (error) {
     console.error('Unexpected error fetching digital products:', error);
     return [];
@@ -40,7 +40,7 @@ export async function getDigitalProductsFromDB(region: Region): Promise<DigitalP
 export async function getAffiliateProductsFromDB(): Promise<AffiliateProduct[]> {
   try {
     const { data, error } = await supabase
-      .from('shop_products')
+      .from('v_shop_products')  // Using the view
       .select('*')
       .eq('type', 'affiliate')
       .eq('status', 'active');
@@ -50,15 +50,15 @@ export async function getAffiliateProductsFromDB(): Promise<AffiliateProduct[]> 
       return [];
     }
 
-    // Transform database format to match the expected AffiliateProduct interface
+    console.log('Shop: Using database affiliate products data');
     return (data || []).map(product => ({
       id: product.id,
-      title: product.name, // Map 'name' from DB to 'title' in interface
-      description: product.description || '',
-      image: product.image_url || '/placeholder-product.jpg',
-      externalLink: product.external_link || '#',
-      availableRegions: product.available_regions || ['United States'],
-      isPamRecommended: product.is_pam_recommended || false
+      title: product.name,
+      description: product.description,
+      image: product.image_url || "/placeholder-product.jpg",
+      externalLink: product.external_url || "#",
+      availableRegions: product.available_regions || [],
+      isPamRecommended: false
     }));
   } catch (error) {
     console.error('Unexpected error fetching affiliate products:', error);
@@ -66,8 +66,14 @@ export async function getAffiliateProductsFromDB(): Promise<AffiliateProduct[]> 
   }
 }
 
-// Static data for fallback
-function getStaticDigitalProducts(region: Region): DigitalProduct[] {
+// Updated existing functions to try database first
+export async function getDigitalProducts(region: Region): Promise<DigitalProduct[]> {
+  const dbProducts = await getDigitalProductsFromDB(region);
+  if (dbProducts.length > 0) {
+    return dbProducts;
+  }
+  
+  console.log('Shop: Using static digital products data');
   return [
     {
       id: "trip-planner-pro",
@@ -77,7 +83,7 @@ function getStaticDigitalProducts(region: Region): DigitalProduct[] {
       price: 29.99,
       currency: "USD",
       type: "software",
-      availableRegions: ["United States", "Canada", "Australia"],
+      availableRegions: ["US", "Canada", "Australia"],
       isNew: true
     },
     {
@@ -88,7 +94,7 @@ function getStaticDigitalProducts(region: Region): DigitalProduct[] {
       price: 19.99,
       currency: "USD",
       type: "software",
-      availableRegions: ["United States", "Canada", "Australia"]
+      availableRegions: ["US", "Canada", "Australia"]
     },
     {
       id: "maintenance-guide",
@@ -98,13 +104,19 @@ function getStaticDigitalProducts(region: Region): DigitalProduct[] {
       price: 24.99,
       currency: "USD",
       type: "ebook",
-      availableRegions: ["United States", "Canada", "Australia"],
+      availableRegions: ["US", "Canada", "Australia"],
       hasBonus: true
     }
   ];
 }
 
-function getStaticAffiliateProducts(): AffiliateProduct[] {
+export async function getAffiliateProducts(): Promise<AffiliateProduct[]> {
+  const dbProducts = await getAffiliateProductsFromDB();
+  if (dbProducts.length > 0) {
+    return dbProducts;
+  }
+  
+  console.log('Shop: Using static affiliate products data');
   return [
     {
       id: "solar-panel-kit",
@@ -112,7 +124,7 @@ function getStaticAffiliateProducts(): AffiliateProduct[] {
       description: "Complete solar power solution for RVs with high-efficiency panels and charge controller.",
       image: "/placeholder-product.jpg",
       externalLink: "https://example.com/solar-kit",
-      availableRegions: ["United States", "Canada"],
+      availableRegions: ["US", "Canada"],
       isPamRecommended: true
     },
     {
@@ -121,7 +133,7 @@ function getStaticAffiliateProducts(): AffiliateProduct[] {
       description: "Quiet, fuel-efficient generator perfect for boondocking and emergency power needs.",
       image: "/placeholder-product.jpg",
       externalLink: "https://example.com/generator",
-      availableRegions: ["United States", "Canada", "Australia"]
+      availableRegions: ["US", "Canada", "Australia"]
     },
     {
       id: "water-filter",
@@ -129,49 +141,8 @@ function getStaticAffiliateProducts(): AffiliateProduct[] {
       description: "Reliable water filtration for safe drinking water anywhere your travels take you.",
       image: "/placeholder-product.jpg",
       externalLink: "https://example.com/water-filter",
-      availableRegions: ["United States", "Canada", "Australia"],
+      availableRegions: ["US", "Canada", "Australia"],
       isPamRecommended: true
     }
   ];
-}
-
-// Updated main functions with fallback pattern
-export async function getDigitalProducts(region: Region): Promise<DigitalProduct[]> {
-  try {
-    // First try to get data from database
-    const dbProducts = await getDigitalProductsFromDB(region);
-    
-    if (dbProducts.length > 0) {
-      console.log('Shop: Using digital products from database');
-      return dbProducts;
-    }
-    
-    // Fallback to static data
-    console.log('Shop: Using static digital products data');
-    return getStaticDigitalProducts(region);
-  } catch (error) {
-    console.error('Error in getDigitalProducts, falling back to static data:', error);
-    console.log('Shop: Using static digital products data (due to error)');
-    return getStaticDigitalProducts(region);
-  }
-}
-
-export async function getAffiliateProducts(): Promise<AffiliateProduct[]> {
-  try {
-    // First try to get data from database
-    const dbProducts = await getAffiliateProductsFromDB();
-    
-    if (dbProducts.length > 0) {
-      console.log('Shop: Using affiliate products from database');
-      return dbProducts;
-    }
-    
-    // Fallback to static data
-    console.log('Shop: Using static affiliate products data');
-    return getStaticAffiliateProducts();
-  } catch (error) {
-    console.error('Error in getAffiliateProducts, falling back to static data:', error);
-    console.log('Shop: Using static affiliate products data (due to error)');
-    return getStaticAffiliateProducts();
-  }
 }
