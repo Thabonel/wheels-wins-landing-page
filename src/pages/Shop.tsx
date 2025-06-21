@@ -14,6 +14,8 @@ import { getAffiliateProducts, getDigitalProducts } from "@/components/shop/Prod
 
 export default function Shop() {
   const [activeTab, setActiveTab] = useState<TabValue>("all");
+  const [allProducts, setAllProducts] = useState<ShopProduct[]>([]);
+  const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
   const { region } = useRegion();
   const { personalizedProducts } = usePersonalizedRecommendations();
@@ -29,12 +31,34 @@ export default function Shop() {
     };
   }, [startShoppingSession, endShoppingSession]);
 
-  // Use personalized products if available, otherwise fall back to static products
-  const allProducts = personalizedProducts.length > 0 
-    ? personalizedProducts 
-    : [...getDigitalProducts(region), ...getAffiliateProducts()].filter(
-        product => product.availableRegions.includes(region)
-      );
+  // Load products on mount and when region changes
+  useEffect(() => {
+    const loadProducts = async () => {
+      setLoading(true);
+      try {
+        // Use personalized products if available, otherwise load from API
+        if (personalizedProducts.length > 0) {
+          setAllProducts(personalizedProducts);
+        } else {
+          const [digital, affiliate] = await Promise.all([
+            getDigitalProducts(region),
+            getAffiliateProducts()
+          ]);
+          const products = [...digital, ...affiliate].filter(
+            product => product.availableRegions.includes(region)
+          );
+          setAllProducts(products);
+        }
+      } catch (error) {
+        console.error("Error loading products:", error);
+        setAllProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, [region, personalizedProducts]);
   
   // Filter products based on active tab
   const getFilteredProducts = (): ShopProduct[] => {
@@ -74,6 +98,17 @@ export default function Shop() {
       contextData: { section: 'main_grid' }
     });
   };
+
+  if (loading) {
+    return (
+      <div className="container p-6">
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+          <span className="ml-3 text-gray-600">Loading shop...</span>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container p-6">
