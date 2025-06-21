@@ -2,6 +2,12 @@
 import React from 'react';
 import DashboardOverview from './DashboardOverview';
 import LearningDashboard from './LearningDashboard';
+import UserManagement from './UserManagement';
+import ContentModeration from './ContentModeration';
+import ReportsAnalytics from './ReportsAnalytics';
+import PAMAnalyticsDashboard from './PAMAnalyticsDashboard';
+import ShopManagement from './ShopManagement';
+import Settings from './Settings';
 
 interface AdminContentProps {
   activeSection: string;
@@ -13,42 +19,17 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
       case 'Dashboard':
         return <DashboardOverview />;
       case 'Users':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">User Management</h2>
-            <p className="text-gray-600">User management features coming soon...</p>
-          </div>
-        );
+        return <UserManagement />;
       case 'Content Moderation':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Content Moderation</h2>
-            <p className="text-gray-600">Content moderation features coming soon...</p>
-          </div>
-        );
+        return <ContentModeration />;
       case 'Analytics':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Analytics</h2>
-            <p className="text-gray-600">Analytics features coming soon...</p>
-          </div>
-        );
+        return <ReportsAnalytics />;
       case 'Chat Logs':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Chat Logs</h2>
-            <p className="text-gray-600">Chat logs features coming soon...</p>
-          </div>
-        );
+        return <PAMAnalyticsDashboard />;
       case 'Learning Dashboard':
         return <LearningDashboard />;
       case 'Shop Management':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Shop Management</h2>
-            <p className="text-gray-600">Shop management features coming soon...</p>
-          </div>
-        );
+        return <ShopManagement />;
       case 'Support Tickets':
         return (
           <div className="p-6">
@@ -57,12 +38,7 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
           </div>
         );
       case 'Settings':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Settings</h2>
-            <p className="text-gray-600">Settings features coming soon...</p>
-          </div>
-        );
+        return <Settings />;
       default:
         return <DashboardOverview />;
     }
