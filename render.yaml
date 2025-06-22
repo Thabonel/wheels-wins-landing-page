@@ -27,7 +27,7 @@ services:
           name: pam-redis
           property: connectionString
       - key: GOOGLE_API_KEY
-        fromService: null   # mark this as a Secret in the Render dashboard
+        fromService: null   # mark Secret in dashboard
     autoDeploy: true
 
   - type: redis
