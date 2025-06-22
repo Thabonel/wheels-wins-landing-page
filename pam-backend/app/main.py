@@ -148,7 +148,6 @@ async def root():
 
 @app.get("/api/status")
 async def detailed_status():
-    """Comprehensive system status"""
     return {
         "🎯 system_status": "Fully Operational",
         "🚀 version": "2.0.0",
