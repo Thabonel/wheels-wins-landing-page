@@ -2,8 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
-
-from google.cloud import texttospeech
+import httpx
 
 from app.core.config import settings
 from app.core.logging import setup_logging
@@ -20,9 +19,6 @@ from app.database.supabase_client import init_supabase
 
 # Setup logging
 logger = setup_logging()
-
-# Initialize TTS client
-tts_client = texttospeech.TextToSpeechClient()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -61,25 +57,23 @@ app.include_router(you_router, prefix="/api/you", tags=["you"])
 app.include_router(demo_router, prefix="/api/demo", tags=["demo"])
 app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 
-# TTS endpoint for Pam’s voice
+# TTS endpoint for Pam’s voice using API key
 @app.post("/pam-voice")
 async def pam_voice(text: str, pitch: float = -2.0, rate: float = 0.9):
-    synthesis_input = texttospeech.SynthesisInput(text=text)
-    voice = texttospeech.VoiceSelectionParams(
-        language_code="en-AU",
-        name="en-AU-Chirp3-HD-Gacrux"
-    )
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.MP3,
-        speaking_rate=rate,
-        pitch=pitch
-    )
-    response = tts_client.synthesize_speech(
-        input=synthesis_input,
-        voice=voice,
-        audio_config=audio_config
-    )
-    return {"audioContent": response.audio_content}
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return {"error": "Google API key not configured"}
+    url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+    payload = {
+        "input": {"text": text},
+        "voice": {"languageCode": "en-AU", "name": "en-AU-Chirp3-HD-Gacrux"},
+        "audioConfig": {"audioEncoding": "MP3", "speakingRate": rate, "pitch": pitch}
+    }
+    response = httpx.post(url, json=payload)
+    data = response.json()
+    if "audioContent" not in data:
+        return {"error": data}
+    return {"audioContent": data["audioContent"]}
 
 @app.get("/")
 async def root():
