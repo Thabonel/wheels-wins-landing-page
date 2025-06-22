@@ -1,15 +1,16 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
+import os
 
 class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "development"
     
-    # API Keys (set in Render environment)
-    OPENAI_API_KEY: str
-    SUPABASE_URL: str
-    SUPABASE_KEY: str
-
+    # API Keys (optional for local development, required in production)
+    OPENAI_API_KEY: Optional[str] = None
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_KEY: Optional[str] = None
+    
     # Web scraping data source URL
     OVERPASS_URL: str = (
         "https://overpass-api.de/api/interpreter?"
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
     )
     
     # Security
-    SECRET_KEY: str = "your-secret-key-here"
+    SECRET_KEY: str = "dev-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
@@ -40,6 +41,17 @@ class Settings(BaseSettings):
         "case_sensitive": True,
         "extra": "allow"
     }
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        # Validate required fields for production
+        if self.ENVIRONMENT == "production":
+            required_fields = ["OPENAI_API_KEY", "SUPABASE_URL", "SUPABASE_KEY"]
+            missing_fields = [field for field in required_fields if getattr(self, field) is None]
+            
+            if missing_fields:
+                raise ValueError(f"Missing required environment variables for production: {', '.join(missing_fields)}")
 
-# Instantiate settings (values for API keys and URLs come from Render environment)
+# Instantiate settings
 settings = Settings()
