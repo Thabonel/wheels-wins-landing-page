@@ -53,7 +53,7 @@ app.include_router(wheels_router, prefix="/api/wheels", tags=["wheels"])
 app.include_router(social_router, prefix="/api/social", tags=["social"])
 app.include_router(you_router, prefix="/api/you", tags=["you"])
 app.include_router(demo_router, prefix="/api/demo", tags=["demo"])
-app.include_router(websocket_router, tags=["websocket"])
+app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 
 @app.get("/")
 async def root():
@@ -108,7 +108,7 @@ async def root():
         "competitive_advantages": {
             "response_speed": "500ms average (10x faster than N8N alternatives)",
             "intelligence": "Multi-domain reasoning with contextual memory",
-            "ui_control": "Real-time website manipulation and guided workflows",
+            "ui_control": "Full website manipulation and guided workflows",
             "personalization": "Deep learning of individual travel patterns",
             "community": "Leverages collective wisdom of travel community"
         },
@@ -153,22 +153,13 @@ async def detailed_status():
         "🤖 pam_personality": "Friendly Australian travel expert, ready to help!"
     }
 
-# Add a fun Easter egg endpoint
+# Easter egg
 @app.get("/api/pam/greeting")
 async def pam_greeting():
-    """Get a personalized greeting from PAM"""
     return {
         "message": "G'day! I'm PAM, your AI travel companion! 🤖",
-        "personality": "Think of me as your tech-savvy travel buddy who never gets tired, always knows the best spots, and loves helping you save money while having amazing adventures!",
-        "specialties": [
-            "🗺️ Planning epic road trips that fit your budget perfectly",
-            "💰 Finding clever ways to earn money while you travel", 
-            "🏕️ Discovering hidden gems and free camping spots",
-            "👥 Connecting you with fellow Grey Nomads and travelers",
-            "🔧 Keeping your vehicle happy and roadworthy",
-            "📱 Making technology work FOR you, not against you"
-        ],
-        "promise": "I'll never ask you questions I already know the answers to, and I'll always remember what matters to you. Ready for an adventure? 🚐✨"
+        "personality": "Your tech-savvy travel buddy who never gets tired.",
+        "promise": "I'll remember what matters to you. Ready for an adventure? 🚐✨"
     }
 
 if __name__ == "__main__":
