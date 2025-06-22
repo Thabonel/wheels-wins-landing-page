@@ -30,4 +30,3 @@ services:
     name: pam-redis
     plan: free
     ipAllowList: []
-EOF
