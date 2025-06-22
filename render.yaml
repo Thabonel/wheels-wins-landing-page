@@ -1,13 +1,9 @@
-
 services:
   - type: web
     name: pam-backend
-    env: python
+    env: docker
     plan: free
-    runtime: python-3.12.7
-    rootDir: pam-backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: pam-backend/Dockerfile
     envVars:
       - key: ENVIRONMENT
         value: production
@@ -24,6 +20,8 @@ services:
           type: redis
           name: pam-redis
           property: connectionString
+      - key: GOOGLE_API_KEY
+        fromService: null  # mark Secret in dashboard
     autoDeploy: true
 
   - type: redis
