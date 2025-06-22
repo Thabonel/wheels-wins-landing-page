@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
+
+from google.cloud import texttospeech
+
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.api.health import router as health_router
@@ -17,6 +20,9 @@ from app.database.supabase_client import init_supabase
 
 # Setup logging
 logger = setup_logging()
+
+# Initialize TTS client
+tts_client = texttospeech.TextToSpeechClient()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -55,6 +61,26 @@ app.include_router(you_router, prefix="/api/you", tags=["you"])
 app.include_router(demo_router, prefix="/api/demo", tags=["demo"])
 app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 
+# TTS endpoint for Pam’s voice
+@app.post("/pam-voice")
+async def pam_voice(text: str, pitch: float = -2.0, rate: float = 0.9):
+    synthesis_input = texttospeech.SynthesisInput(text=text)
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="en-AU",
+        name="en-AU-Chirp3-HD-Gacrux"
+    )
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3,
+        speaking_rate=rate,
+        pitch=pitch
+    )
+    response = tts_client.synthesize_speech(
+        input=synthesis_input,
+        voice=voice,
+        audio_config=audio_config
+    )
+    return {"audioContent": response.audio_content}
+
 @app.get("/")
 async def root():
     return {
@@ -65,7 +91,7 @@ async def root():
         "description": "PAM is an intelligent AI assistant specifically designed for Grey Nomads, Snowbirds, and Full-Time Travellers. She thinks, plans, and adapts to help you explore the world while managing your finances and connecting with community.",
         "why_pam_is_revolutionary": [
             "🧠 Thinks like a real travel companion - not just a chatbot",
-            "🎯 Knows your vehicle, budget, and preferences intimately", 
+            "🎯 Knows your vehicle, budget, and preferences intimately",
             "⚡ 500ms response time vs competitors' 3-5 seconds",
             "🎮 Controls your website in real-time as you watch",
             "💰 Helps you earn money while traveling with tested hustles",
@@ -74,13 +100,13 @@ async def root():
         ],
         "core_domains": {
             "🚗 WHEELS": "Trip planning, route optimization, vehicle care, fuel tracking",
-            "💰 WINS": "Budget management, expense tracking, income generation, hustle testing", 
+            "💰 WINS": "Budget management, expense tracking, income generation, hustle testing",
             "👥 SOCIAL": "Community groups, marketplace, social feed, peer connections",
             "📅 YOU": "Personal dashboard, calendar, profile, preferences, insights"
         },
         "advanced_capabilities": [
             "Natural language conversation in any context",
-            "Multi-step workflow orchestration", 
+            "Multi-step workflow orchestration",
             "Real-time weather and road condition integration",
             "Predictive maintenance scheduling",
             "Community-driven income opportunity matching",
@@ -91,7 +117,7 @@ async def root():
             "💬 chat": "/api/chat/message - Main conversation interface",
             "🎮 actions": "/api/actions/execute - UI control commands",
             "💰 wins": "/api/wins/* - Financial management endpoints",
-            "🚗 wheels": "/api/wheels/* - Travel and vehicle endpoints", 
+            "🚗 wheels": "/api/wheels/* - Travel and vehicle endpoints",
             "👥 social": "/api/social/* - Community and marketplace endpoints",
             "📅 you": "/api/you/* - Personal management endpoints",
             "🔄 websocket": "/ws/{user_id} - Real-time communication",
@@ -99,7 +125,7 @@ async def root():
         },
         "live_demo_scenarios": [
             "trip_planning - Complete adventure planning with budget optimization",
-            "expense_tracking - Smart categorization and budget alerts", 
+            "expense_tracking - Smart categorization and budget alerts",
             "hustle_discovery - Personalized income opportunity matching",
             "community_joining - Intelligent group recommendations",
             "maintenance_check - Proactive vehicle care management",
@@ -133,7 +159,7 @@ async def detailed_status():
         },
         "🧠 ai_nodes": {
             "wins_node": "✅ Operational - Budget & Income Management",
-            "wheels_node": "✅ Operational - Travel & Vehicle Management", 
+            "wheels_node": "✅ Operational - Travel & Vehicle Management",
             "social_node": "✅ Operational - Community & Marketplace",
             "you_node": "✅ Operational - Personal Dashboard"
         },
