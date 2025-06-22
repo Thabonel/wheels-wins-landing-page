@@ -1,4 +1,3 @@
-cat > render.yaml << 'EOF'
 services:
   - type: web
     name: pam-backend
@@ -6,7 +5,7 @@ services:
     plan: free
     runtime: python-3.12.7
     buildCommand: pip install -r pam-backend/requirements.txt
-    startCommand: cd pam-backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: bash -c "cd pam-backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: ENVIRONMENT
         value: production
