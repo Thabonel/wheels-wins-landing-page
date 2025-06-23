@@ -5,7 +5,7 @@ services:
     plan: free
     runtime: python-3.12.7
     buildCommand: pip install -r pam-backend/requirements.txt
-    startCommand: uvicorn pam-backend.app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python pam-backend/start.py
     envVars:
       - key: ENVIRONMENT
         value: production
