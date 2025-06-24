@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, X, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { MessageSquare, X, Loader2, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { usePamWebSocket } from '@/hooks/usePamWebSocket';
 import { pamUIController } from '@/lib/pam/PamUIController';
 import { useAuth } from '@/context/AuthContext';
@@ -9,44 +9,50 @@ export function PamAssistantEnhanced() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const { isConnected, sendMessage } = usePamWebSocket();
+  const { isConnected, sendMessage, connectionAttempts, lastError } = usePamWebSocket();
   const { user } = useAuth();
 
   const handleSendMessage = async () => {
     if (!message.trim() || isProcessing) return;
 
+    console.log('🎯 Sending message from PamAssistantEnhanced:', message.trim());
     setIsProcessing(true);
     
     // Send message via WebSocket as string
     sendMessage(message.trim());
 
-    // Also send to backend for processing
+    // Test backend health endpoint
     try {
-      const response = await fetch(`${process.env.NODE_ENV === 'production' 
-        ? 'https://pam-backend.onrender.com' 
-        : 'http://localhost:8000'}/api/chat/message`, {
-        method: 'POST',
+      const healthUrl = 'https://pam-backend.onrender.com/api/health';
+      console.log('🏥 Testing backend health at:', healthUrl);
+      
+      const response = await fetch(healthUrl, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth-token') || 'demo-token'}`
-        },
-        body: JSON.stringify({
-          message: message.trim(),
-          user_id: user?.id || 'anonymous'
-        })
+        }
+      });
+
+      console.log('🏥 Health check response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (response.ok) {
-        const data = await response.json();
-        // Handle response
-        console.log('PAM response:', data);
+        const healthData = await response.json();
+        console.log('✅ Backend health data:', healthData);
+      } else {
+        console.error('❌ Backend health check failed:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-    } finally {
+      console.error('❌ Error checking backend health:', error);
+    }
+
+    setTimeout(() => {
       setIsProcessing(false);
       setMessage('');
-    }
+    }, 2000);
   };
 
   // Demo function to show PAM's capabilities
@@ -98,6 +104,26 @@ export function PamAssistantEnhanced() {
             </button>
           </div>
 
+          {/* Connection Status Debug Info */}
+          {!isConnected && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm">
+              <div className="flex items-center">
+                <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
+                <span className="text-yellow-800">
+                  Connection Issue (Attempts: {connectionAttempts})
+                </span>
+              </div>
+              {lastError && (
+                <div className="text-yellow-700 mt-1 text-xs">
+                  {lastError}
+                </div>
+              )}
+              <div className="text-yellow-700 mt-1 text-xs">
+                Backend: https://pam-backend.onrender.com
+              </div>
+            </div>
+          )}
+
           {/* Chat Area */}
           <div className="flex-1 p-4 overflow-y-auto">
             <div className="space-y-4">
@@ -111,6 +137,13 @@ export function PamAssistantEnhanced() {
                   <li>• Schedule vehicle maintenance</li>
                   <li>• Find community tips and hustles</li>
                 </ul>
+                
+                {/* Debug Info */}
+                <div className="mt-3 text-xs text-gray-500 border-t pt-2">
+                  <div>Status: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}</div>
+                  <div>User: {user?.id ? '✅ Authenticated' : '❌ Not logged in'}</div>
+                  <div>Origin: {window.location.origin}</div>
+                </div>
               </div>
 
               {isProcessing && (
@@ -130,7 +163,7 @@ export function PamAssistantEnhanced() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Ask PAM anything..."
+                placeholder={isConnected ? "Ask PAM anything..." : "Connecting to PAM..."}
                 className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 disabled={isProcessing}
               />
@@ -143,12 +176,15 @@ export function PamAssistantEnhanced() {
               </button>
             </div>
             
-            {/* Demo Button */}
+            {/* Debug Button */}
             <button
-              onClick={demoAction}
+              onClick={() => {
+                console.log('🧪 Manual connection test initiated');
+                window.location.reload();
+              }}
               className="mt-2 text-xs text-purple-600 hover:text-purple-700"
             >
-              Demo: Add Expense
+              🔄 Test Connection
             </button>
           </div>
         </div>
