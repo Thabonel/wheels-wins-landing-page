@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -53,6 +54,7 @@ const PamChatController = () => {
       setIsProcessing(false);
     }
 
+    // Handle error role separately to avoid type mismatch
     if (latest.role === 'error') {
       const errMsg: ChatMessage = {
         sender: 'pam',

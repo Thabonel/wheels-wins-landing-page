@@ -4,9 +4,11 @@ import { useAuth } from '@/context/AuthContext';
 
 interface WebSocketMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'error';
   content: string;
   timestamp: number;
+  type?: string;
+  message?: string;
 }
 
 export const usePamWebSocket = () => {

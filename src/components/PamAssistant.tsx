@@ -13,13 +13,19 @@ import { usePamSession } from '@/hooks/usePamSession';
 import { IntentClassifier } from '@/utils/intentClassifier';
 import PamVoice from '@/components/voice/PamVoice';
 
+interface ChatMessage {
+  role: string;
+  content: string;
+  timestamp: Date;
+}
+
 const PamAssistant = () => {
   const { user } = useAuth();
   const { region } = useRegion();
   const { isOffline } = useOffline();
   const { sessionData, updateSession } = usePamSession(user?.id);
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -29,10 +35,10 @@ const PamAssistant = () => {
     if (wsMessages.length > 0) {
       const latestMessage = wsMessages[wsMessages.length - 1];
       
-      if (latestMessage.type === 'chat_response') {
-        const pamMessage = {
+      if (latestMessage.role === 'assistant') {
+        const pamMessage: ChatMessage = {
           role: "assistant",
-          content: latestMessage.message || "I'm processing your request...",
+          content: latestMessage.content || "I'm processing your request...",
           timestamp: new Date(),
         };
         setMessages(prev => [...prev, pamMessage]);
@@ -48,7 +54,7 @@ const PamAssistant = () => {
   const handleSend = async () => {
     if (!input.trim() || isLoading || isOffline || !isConnected) return;
 
-    const userMessage = {
+    const userMessage: ChatMessage = {
       role: "user",
       content: input.trim(),
       timestamp: new Date(),
@@ -60,25 +66,8 @@ const PamAssistant = () => {
     const intentResult = IntentClassifier.classifyIntent(input);
     updateSession(intentResult.type);
 
-    const messageSent = sendWebSocketMessage({
-      type: 'chat',
-      message: input.trim(),
-      user_id: user?.id,
-      context: {
-        region,
-        session_data: sessionData
-      }
-    });
-
-    if (!messageSent) {
-      setIsLoading(false);
-      const errorMessage = {
-        role: "assistant",
-        content: "Connection failed. Please try again.",
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    }
+    // Send as string content only
+    sendWebSocketMessage(input.trim());
 
     setInput('');
   };

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MessageSquare, X, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { usePamWebSocket } from '@/hooks/usePamWebSocket';
@@ -16,12 +17,8 @@ export function PamAssistantEnhanced() {
 
     setIsProcessing(true);
     
-    // Send message via WebSocket
-    sendMessage({
-      type: 'chat',
-      message: message.trim(),
-      userId: user?.id || 'anonymous'
-    });
+    // Send message via WebSocket as string
+    sendMessage(message.trim());
 
     // Also send to backend for processing
     try {
