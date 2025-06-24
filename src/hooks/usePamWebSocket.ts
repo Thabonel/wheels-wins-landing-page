@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -16,21 +17,36 @@ export const usePamWebSocket = () => {
 
   const sendMessage = (content: string) => {
     if (wsRef.current && isConnected && user?.id) {
-      const payload = { user_id: user.id, message: content };
+      const payload = { 
+        type: 'chat',
+        message: content,
+        user_id: user.id 
+      };
       wsRef.current.send(JSON.stringify(payload));
     }
   };
 
   useEffect(() => {
-    const url = import.meta.env.VITE_PAM_WS_URL;
-    const socket = new WebSocket(url);
+    if (!user?.id) return;
+
+    const wsUrl = `wss://pam-backend.onrender.com/ws/${user.id}?token=demo-token`;
+    const socket = new WebSocket(wsUrl);
     wsRef.current = socket;
 
     socket.onopen = () => setIsConnected(true);
     socket.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data) as WebSocketMessage;
-        setMessages(prev => [...prev, data]);
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'chat_response') {
+          const message: WebSocketMessage = {
+            id: data.timestamp || Date.now().toString(),
+            role: 'assistant',
+            content: data.message || 'Processing...',
+            timestamp: Date.now(),
+          };
+          setMessages(prev => [...prev, message]);
+        }
       } catch (e) {
         console.error('Invalid message format', e);
       }

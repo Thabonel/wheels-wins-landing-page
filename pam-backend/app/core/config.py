@@ -1,3 +1,4 @@
+
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 import os
@@ -27,7 +28,9 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "https://wheelsandwins.com",
-        "https://www.wheelsandwins.com"
+        "https://www.wheelsandwins.com",
+        "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",
+        "https://*.lovableproject.com"
     ]
     
     # Redis (for future use)
