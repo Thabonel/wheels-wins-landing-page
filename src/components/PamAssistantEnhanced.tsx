@@ -1,4 +1,3 @@
-import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import React, { useEffect, useState } from 'react';
 import { MessageSquare, X, Loader2, Wifi, WifiOff } from 'lucide-react';
