@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useOffline } from "@/context/OfflineContext";
 import { useRegion } from "@/context/RegionContext";
-import { usePamWebSocket } from "@/hooks/usePamWebSocket";
+import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
 import { IntentClassifier } from "@/utils/intentClassifier";
 import { usePamSession } from "@/hooks/usePamSession";
 import { ChatMessage } from "./types";
