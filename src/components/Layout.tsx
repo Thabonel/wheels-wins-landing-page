@@ -92,7 +92,7 @@ export default function Layout({ children }: LayoutProps) {
                   Close
                 </button>
               </div>
-              <PamAssistantEnhanced />
+              <PamAssistantEnhanced userId={authUser?.id || ""} authToken={authUser?.access_token || ""} />
             </div>
           </div>
         </>
