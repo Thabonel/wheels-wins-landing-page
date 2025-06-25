@@ -15,8 +15,6 @@ export default function Layout({ children }: LayoutProps) {
   const { pathname } = useLocation();
   const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
   const { user: authUser, session } = useAuth();
-
-  // Modal state (using React, not DOM methods)
   const [pamOpen, setPamOpen] = useState(false);
 
   return (
@@ -40,7 +38,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </main>
 
-      {/* Pam floating button and modal */}
+      {/* Single, global Pam button and modal */}
       {!hidePam && (
         <>
           {/* Floating Pam button */}
@@ -56,8 +54,36 @@ export default function Layout({ children }: LayoutProps) {
             </button>
           </div>
 
-          {/* Pam modal (React state-driven) */}
+          {/* Pam modal, React-state controlled */}
           {pamOpen && (
-            <div className="fixed inset-0 z-40 bg-black bg-opacity-50 flex items-end justify-center" onClick={() => setPamOpen(false)}>
+            <div
+              className="fixed inset-0 z-40 bg-black bg-opacity-50 flex items-end justify-center"
+              onClick={() => setPamOpen(false)}
+            >
               <div
-                className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-
+                className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-auto"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold">Chat with Pam</h3>
+                  <button
+                    onClick={() => setPamOpen(false)}
+                    className="text-gray-500"
+                    aria-label="Close Pam Chat"
+                  >
+                    Close
+                  </button>
+                </div>
+                <PamAssistantEnhanced userId={authUser?.id || ""} authToken={session?.access_token || ""} />
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <footer className="bg-white text-gray-600 py-4 border-t">
+        <Footer />
+      </footer>
+    </div>
+  );
+}
