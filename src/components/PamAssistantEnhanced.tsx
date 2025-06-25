@@ -9,6 +9,7 @@ interface PamAssistantEnhancedProps {
 
 const PamAssistantEnhanced: React.FC<PamAssistantEnhancedProps> = ({ userId, authToken }) => {
   const [isOpen, setIsOpen] = useState(false);
+  console.log("PAM isOpen state:", isOpen);
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
@@ -89,7 +90,7 @@ const PamAssistantEnhanced: React.FC<PamAssistantEnhancedProps> = ({ userId, aut
     <>
       {/* PAM Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { console.log("PAM button clicked, current isOpen:", isOpen); setIsOpen(!isOpen); }}
         className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-1 shadow-lg transition-all z-50"
       >
         <div className="relative">
