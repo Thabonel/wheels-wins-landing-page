@@ -355,3 +355,70 @@ class WheelsNode:
 
 # Create global instance
 wheels_node = WheelsNode()
+
+    async def process(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Process travel-related messages and route to appropriate methods"""
+        user_id = context.get('user_id')
+        message_lower = message.lower()
+        
+        try:
+            # Trip planning requests
+            if any(word in message_lower for word in ['plan', 'trip', 'travel', 'route', 'journey']):
+                # Extract origin/destination from message or use user profile
+                user_context = await self._get_user_context(user_id)
+                
+                trip_data = {
+                    'origin': user_context.get('current_location', 'Current Location'),
+                    'destination': 'User Specified Destination',  # TODO: Extract from message
+                    'constraints': {
+                        'budget': user_context.get('travel_style', 'budget'),
+                        'vehicle_type': user_context.get('vehicle_info', {}).get('type', 'unknown')
+                    }
+                }
+                
+                result = await self.plan_trip(user_id, trip_data)
+                return {
+                    "type": "message",
+                    "content": f"I'd love to help plan your trip! Based on your {trip_data['constraints']['vehicle_type']} and {trip_data['constraints']['budget']} travel style, let me create a personalized route for you. Where would you like to go?"
+                }
+            
+            # Fuel/maintenance requests  
+            elif any(word in message_lower for word in ['fuel', 'gas', 'service', 'maintenance']):
+                if 'fuel' in message_lower or 'gas' in message_lower:
+                    return {
+                        "type": "message", 
+                        "content": "I can help you track fuel purchases and find fuel stops along your route. What would you like to do with fuel tracking?"
+                    }
+                else:
+                    maintenance = await self.check_maintenance_schedule(user_id)
+                    return {
+                        "type": "message",
+                        "content": "Let me check your vehicle maintenance schedule... I can help you track service intervals and find nearby mechanics."
+                    }
+            
+            # Default travel response
+            else:
+                return {
+                    "type": "message",
+                    "content": "I can help you with trip planning, route optimization, fuel tracking, and vehicle maintenance. What would you like assistance with?"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error in wheels_node.process: {e}")
+            return {
+                "type": "error",
+                "content": "Sorry, I had trouble processing your travel request. Please try again."
+            }
+    
+    async def _get_user_context(self, user_id: str) -> Dict[str, Any]:
+        """Get user profile context for personalization"""
+        # TODO: Integration with you_node to get actual user profile
+        return {
+            "current_location": "Brisbane, QLD",
+            "travel_style": "budget", 
+            "vehicle_info": {
+                "type": "motorhome",
+                "make": "Ford",
+                "model": "Transit"
+            }
+        }
