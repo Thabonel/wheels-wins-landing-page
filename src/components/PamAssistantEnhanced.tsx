@@ -62,8 +62,13 @@ const PamAssistantEnhanced: React.FC<PamAssistantEnhancedProps> = ({ userId, aut
       
       setMessages(prev => [...prev, userMessage]);
       
-      // Send message to backend
-      sendMessage(inputMessage);
+      // Send structured message to backend
+      sendMessage({
+        type: "chat",
+        content: inputMessage,
+        userId: userId,
+        timestamp: new Date().toISOString()
+      });
       setInputMessage("");
     }
   };
