@@ -10,6 +10,7 @@ export function PamAssistantEnhanced() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
   const { user } = useAuth(); // Declare user first before using it
 
   const { isConnected, sendMessage } = usePamWebSocketConnection({
