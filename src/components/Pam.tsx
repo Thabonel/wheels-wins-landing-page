@@ -15,7 +15,7 @@ interface PamProps {
 }
 
 const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -25,6 +25,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  
+  const sessionToken = session?.access_token;
 
   // Load user context and memory when component mounts
   useEffect(() => {
@@ -39,7 +41,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const loadUserContext = async () => {
     try {
       const response = await fetch('/api/you/profile', {
-        headers: { 'Authorization': `Bearer ${user?.access_token}` }
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -53,7 +55,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const loadConversationMemory = async () => {
     try {
       const response = await fetch(`/api/pam/memory?user_id=${user?.id}&limit=10`, {
-        headers: { 'Authorization': `Bearer ${user?.access_token}` }
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -77,7 +79,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.access_token}`
+          'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
           user_id: user?.id,
@@ -96,7 +98,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     try {
       const backendUrl = import.meta.env.VITE_PAM_BACKEND_URL || "https://pam-backend.onrender.com";
-      const wsUrl = `${backendUrl.replace("https", "wss")}/ws/${user.id}?token=${user.access_token || "demo-token"}`;
+      const wsUrl = `${backendUrl.replace("https", "wss")}/ws/${user.id}?token=${sessionToken || "demo-token"}`;
       
       setConnectionStatus("Connecting");
       wsRef.current = new WebSocket(wsUrl);
@@ -129,7 +131,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     } catch (error) {
       setConnectionStatus("Disconnected");
     }
-  }, [user?.id, user?.access_token]);
+  }, [user?.id, sessionToken]);
 
   const addMessage = (content: string, sender: "user" | "pam") => {
     const newMessage: PamMessage = {

@@ -1,6 +1,6 @@
 // src/components/PamAssistantWrapper.tsx
 import { useIsMobile } from "@/hooks/use-mobile";
-import PamAssistant from "@/components/PamAssistant";
+import Pam from "@/components/Pam";
 
 export default function PamAssistantWrapper() {
   const isMobile = useIsMobile();
@@ -27,12 +27,12 @@ export default function PamAssistantWrapper() {
                 Close
               </button>
             </div>
-            <PamAssistant />
+            <Pam />
           </div>
         </div>
       </>
     );
   }
 
-  return <PamAssistant />;
+  return <Pam />;
 }
