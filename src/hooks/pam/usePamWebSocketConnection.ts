@@ -14,6 +14,7 @@ export function usePamWebSocketConnection({ userId, onMessage, onStatusChange }:
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 3;
 
+  console.log("WebSocket connection config:", { userId, onMessage, onStatusChange });
   const updateConnectionStatus = useCallback((connected: boolean) => {
     setIsConnected(connected);
     onStatusChange(connected);
