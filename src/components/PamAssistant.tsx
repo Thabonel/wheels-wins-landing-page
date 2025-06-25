@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
@@ -120,7 +119,7 @@ const PamAssistant = () => {
           <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
             {isConnected ? 'Connected' : 'Disconnected'}
           </span>
-          <PamVoice />
+          <PamVoice text={input} />
         </div>
       </div>
     </Card>
