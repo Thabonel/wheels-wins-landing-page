@@ -1,144 +1,229 @@
-
 # PAM AI Assistant
 
 ## Overview
-The PAM AI Assistant is the core feature of the system, providing intelligent conversational assistance powered by OpenAI's GPT models with enhanced memory and context awareness.
+The PAM AI Assistant is the core conversational AI feature of the WHEELS WINS system, providing intelligent assistance through WebSocket-based real-time communication. PAM is designed to help users manage expenses, plan trips, track budgets, and navigate the platform efficiently.
 
-## Features
+## Architecture
 
-### Core Capabilities
-- **Natural Language Processing**: Understanding user intents and context
-- **Memory System**: Persistent memory across sessions with enhanced knowledge
-- **Intent Classification**: Automatic categorization of user requests
-- **Multi-modal Responses**: Text responses with optional UI components
-- **Voice Integration**: Voice input and output capabilities
-- **Offline Mode**: Basic functionality when offline
+### WebSocket Communication
+PAM uses WebSocket connections for real-time bidirectional communication between the frontend and the PAM backend running on Render.com.
 
-### Specialized Knowledge
-- Financial management and budgeting
-- Travel planning and vehicle maintenance
-- Personal organization and scheduling
-- Social networking and community features
-- Shopping and marketplace guidance
+**Connection Flow:**
+1. Frontend establishes WebSocket connection to PAM backend
+2. Authentication via JWT token in connection URL
+3. Context-enriched message exchange
+4. Automatic reconnection with exponential backoff
 
-## Components
+**Backend URL:** `https://pam-backend.onrender.com`  
+**WebSocket Endpoint:** `wss://pam-backend.onrender.com/ws/{userId}?token={jwt_token}`
 
-### Chat Interface
-- `PamAssistant.tsx` - Main assistant interface
-- `PamChatController.tsx` - Chat state management
-- `ChatMessages.tsx` - Message display and rendering
-- `ChatInput.tsx` - User input with voice support
-- `QuickReplies.tsx` - Suggested response buttons
-- `PamHeader.tsx` - Assistant header with status
+### Context Enrichment System
+PAM receives rich contextual information with each message:
 
-### Specialized Views
-- `PamSidebar.tsx` - Collapsible assistant sidebar
-- `PamSpotlight.tsx` - Full-screen assistant mode
-- `OfflinePamChat.tsx` - Offline functionality
-- `AdminPamChat.tsx` - Admin-specific assistant features
+```typescript
+interface MessageContext {
+  region: string;              // User's current region
+  current_page: string;        // Current route/page
+  session_data: {              // Session tracking data
+    recent_intents: string[];
+    intent_counts: Record<string, number>;
+    last_activity: Date;
+  };
+}
+```
 
-### Supporting Components
-- `MicButton.tsx` - Voice input control
-- `PamKnowledgeIndicator.tsx` - Knowledge usage display
-- `OfflineBanner.tsx` - Offline status indicator
+## Frontend Components
 
-## Technical Implementation
+### Core Components
+- **`PamChatController`** - Main orchestrator component
+- **`PamMobileChat`** - Mobile chat interface
+- **`PamFloatingButton`** - Mobile floating action button
+- **`ChatInput`** - Message input with voice support
+- **`ChatMessages`** - Message display and rendering
+- **`PamHeader`** - Chat header with connection status
+- **`QuickReplies`** - Suggested action buttons
 
-### Core Hook
-- `usePam.ts` - Main assistant functionality and API integration
+### Hooks and Utilities
+- **`usePamWebSocketConnection`** - WebSocket connection management
+- **`usePamMessageHandler`** - Message processing and UI actions
+- **`usePamSession`** - Session tracking and intent history
+- **`usePamUIActions`** - Platform navigation and UI control
+- **`IntentClassifier`** - User intent recognition
 
-### Memory System
-- `useEnhancedPamMemory.ts` - Enhanced memory with personal knowledge
-- `usePamSession.ts` - Session tracking and context management
+## Message Types
 
-### Intent Classification
-- `intentClassifier.ts` - User intent recognition and categorization
+### Outgoing Messages (Frontend → Backend)
+```typescript
+{
+  type: 'chat',
+  message: string,
+  user_id: string,
+  context: {
+    region: string,
+    current_page: string,
+    session_data: SessionData
+  }
+}
+```
 
-### Knowledge Management
-- Personal document processing
-- Context-aware responses
-- Knowledge base integration
-- User preference learning
+### Incoming Messages (Backend → Frontend)
+- **`chat_response`** - Text response from PAM
+- **`ui_actions`** - Platform navigation/UI commands
+- **`action_response`** - Action completion status
+- **`error`** - Error messages
+- **`connection`** - Connection status updates
+- **`wins_update`** - Financial data updates
 
-## API Integration
+## Intent Classification
 
-### N8N Webhook
-- Production webhook endpoint for chat processing
-- Payload structure with user context and memory
-- Response handling with structured data
+PAM automatically classifies user intents into categories:
+- **expense** - Expense tracking and logging
+- **budget** - Budget management and insights
+- **travel** - Trip planning and vehicle management
+- **help** - General assistance requests
+- **general** - Conversational interactions
 
-### OpenAI Integration
-- GPT model selection and configuration
-- Token usage optimization
-- Rate limiting and error handling
-- Streaming responses for better UX
+## Backend Integration
 
-## Memory Architecture
+### PAM Backend (Render.com)
+The PAM backend is a FastAPI application deployed on Render.com that provides:
+- WebSocket endpoint for real-time communication
+- Context processing and enrichment
+- OpenAI GPT integration for natural language processing
+- Supabase database integration for user data
+- Intent-based response routing
 
-### Enhanced Memory Components
-1. **User Profile**: Basic user information and preferences
-2. **Regional Context**: Location-based information and services
-3. **Personal Knowledge**: User-uploaded documents and data
-4. **Session Context**: Current conversation and recent interactions
-5. **Intent History**: Previous user requests and patterns
+### WebSocket Message Flow
+1. **Connection Establishment**
+   - Frontend connects to `wss://pam-backend.onrender.com/ws/{userId}`
+   - JWT authentication in URL parameters
+   - Automatic reconnection with exponential backoff (max 3 attempts)
 
-### Knowledge Sources
-- User-uploaded documents
-- Regional/location data
-- System configuration
-- User preferences and settings
-- Historical interactions
+2. **Message Processing**
+   - Frontend sends context-enriched messages
+   - Backend processes through orchestrator
+   - AI generates responses with optional UI actions
+   - Frontend receives and renders responses
 
-## Configuration
+3. **Error Handling**
+   - Connection failures trigger automatic reconnection
+   - Fallback to demo mode when backend unavailable
+   - User-friendly error messages
 
-### Settings
-- Voice input/output preferences
-- Response format preferences
-- Memory retention settings
-- Privacy and data sharing controls
+## Demo Mode
 
-### Admin Controls
-- System prompts and behavior
-- Feature toggles
-- Rate limiting configuration
-- Content moderation settings
+When the WebSocket connection is unavailable, PAM operates in demo mode:
+- Provides context-aware demo responses
+- Maintains conversation flow
+- Indicates reduced functionality to user
+- Automatic upgrade when connection restored
+
+### Demo Response Examples
+- Expense tracking: "💰 I'd normally help you track that expense, but I'm in demo mode..."
+- Budget queries: "📊 In demo mode, I can't access your live budget data..."
+- Trip planning: "🚗 I'd love to help plan your trip! In demo mode, I can't access live route data..."
 
 ## User Experience
 
-### Chat Modes
-- **Sidebar Mode**: Quick assistance alongside other features
-- **Spotlight Mode**: Full-screen focused conversation
-- **Contextual Mode**: Feature-specific assistance
+### Mobile Interface
+- **Floating Button**: Always-accessible chat trigger
+- **Full-Screen Chat**: Immersive mobile conversation experience
+- **Quick Actions**: One-tap common tasks
+- **Connection Status**: Visual indicators for backend connectivity
 
-### Response Types
-- Text responses
-- Interactive UI components
-- Action buttons and quick replies
-- Data visualizations
-- File attachments
+### Desktop Integration
+- Currently focused on mobile experience
+- Excluded from certain routes (home page, profile)
 
-## Offline Functionality
+### Quick Actions
+- `add_expense`: "I spent $25 on fuel today"
+- `check_budget`: "Show my budget status"
+- `plan_trip`: "Help me plan a trip"
+- `add_groceries`: "Add $50 groceries expense"
 
-### Cached Tips
-- Pre-loaded helpful tips and advice
-- Category-specific guidance
-- Basic troubleshooting information
+## Performance & Reliability
 
-### Fallback Responses
-- Generic helpful responses
-- Offline status indicators
-- Connection retry mechanisms
+### Connection Management
+- Automatic reconnection with exponential backoff
+- Maximum 3 reconnection attempts
+- Graceful degradation to demo mode
+- Connection status monitoring
+
+### Error Boundaries
+- WebSocket error handling
+- Message parsing error recovery
+- Fallback response mechanisms
+- User notification for connection issues
+
+## Configuration
+
+### Environment Variables
+- `VITE_PAM_BACKEND_URL` - Backend URL (defaults to production)
+- JWT tokens stored in localStorage for authentication
+
+### Feature Flags
+- Route exclusion list for PAM availability
+- Mobile vs desktop interface selection
+- Demo mode fallback behavior
+
+## Development & Debugging
+
+### Logging
+PAM includes comprehensive logging for debugging:
+- WebSocket connection events
+- Message send/receive tracking
+- Intent classification results
+- Error conditions and recovery
+
+### Console Messages
+- `🔌` Connection events
+- `📤` Outgoing messages
+- `📨` Incoming messages  
+- `✅` Successful operations
+- `❌` Errors and failures
+- `🔄` Reconnection attempts
+
+## Future Enhancements
+
+### Planned Features
+- Voice input/output integration
+- Desktop sidebar implementation
+- Enhanced context awareness
+- Multi-language support
+- Offline functionality improvements
+
+### Technical Improvements
+- Message queuing for offline scenarios
+- Enhanced error recovery
+- Performance monitoring
+- A/B testing framework
 
 ## Troubleshooting
 
 ### Common Issues
-- API connection failures
-- Rate limiting errors
-- Memory/context loading issues
-- Voice input problems
+1. **WebSocket Connection Failures**
+   - Check backend URL configuration
+   - Verify JWT token validity
+   - Monitor network connectivity
 
-### Performance Optimization
-- Response time monitoring
-- Token usage optimization
-- Memory cleanup
-- Cache management
+2. **Demo Mode Stuck**
+   - Backend deployment status on Render
+   - Environment variable configuration
+   - CORS settings
+
+3. **Context Not Utilized**
+   - Verify context payload structure
+   - Check backend orchestrator processing
+   - Review session data tracking
+
+### Debug Commands
+```javascript
+// Check WebSocket connection status
+console.log(pamRef.current?.isConnected);
+
+// View recent messages
+console.log(pamRef.current?.messages);
+
+// Force reconnection
+pamRef.current?.connect();
+```
