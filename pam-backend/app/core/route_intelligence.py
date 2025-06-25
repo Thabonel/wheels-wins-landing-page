@@ -3,9 +3,7 @@ import math
 import logging
 from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
-# Update the import path below if your supabase client is located elsewhere
-# Example: from app.supabase_client import supabase
-from app.integrations.supabase.client import supabase  # <-- FIX THIS PATH IF NEEDED
+from app.database.supabase_client import get_supabase
 
 logger = logging.getLogger("pam")
 
@@ -40,13 +38,14 @@ class RouteIntelligenceEngine:
     destination, and travel preferences from existing profile data
     """
 
-    def init(self):
+    def __init__(self):
         self.earth_radius_miles = 3959.0  # Earth's radius in miles
+        self.supabase = get_supabase()
 
     async def get_user_profile(self, user_id: str) -> Optional[UserProfile]:
         """Fetch user profile from existing Supabase profiles table"""
         try:
-            response = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
+            response = self.supabase.table("profiles").select("*").eq("id", user_id).single().execute()
 
             if response.data:
                 data = response.data
@@ -92,8 +91,8 @@ class RouteIntelligenceEngine:
         delta_lat_rad = math.radians(lat2 - lat1)
         delta_lng_rad = math.radians(lng2 - lng1)
 
-        a = (math.sin(delta_lat_rad / 2)  2 +
-             math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lng_rad / 2)  2)
+        a = (math.sin(delta_lat_rad / 2) ** 2 +
+             math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lng_rad / 2) ** 2)
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
         return self.earth_radius_miles * c
