@@ -92,7 +92,7 @@ export default function Layout({ children }: LayoutProps) {
                   Close
                 </button>
               </div>
-              <PamAssistant />
+              <PamAssistantEnhanced />
             </div>
           </div>
         </>
