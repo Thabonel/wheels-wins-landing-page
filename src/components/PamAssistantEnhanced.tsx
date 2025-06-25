@@ -5,7 +5,7 @@ import { usePamWebSocketConnection } from '@/hooks/pam/usePamWebSocketConnection
 import { pamUIController } from '@/lib/pam/PamUIController';
 import { useAuth } from '@/context/AuthContext';
 
-const PAM_AVATAR_URL = supabase.storage.from("public-assets").getPublicUrl("avatar-placeholder.png").data.publicUrl;
+const PAM_AVATAR_URL = supabase.storage.from("public-assets").getPublicUrl("Pam.webp").data.publicUrl;
 export function PamAssistantEnhanced() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
