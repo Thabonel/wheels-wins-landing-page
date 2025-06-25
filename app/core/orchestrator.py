@@ -217,6 +217,7 @@ class ActionPlanner:
     def __init__(self):
         self.classifier = IntentClassifier()
         self.route_scraper = RouteIntelligentScraper()
+        self.memory_node = MemoryNode()
 
     async def plan(self, message: str, context: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Create comprehensive action plan from user message using route intelligence"""
