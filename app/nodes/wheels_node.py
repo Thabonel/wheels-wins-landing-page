@@ -381,5 +381,32 @@ class WheelsNode:
                 "content": "Sorry, I had trouble processing your travel request. Please try again."
             }
 
+
+    async def process(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Process travel-related messages and route to appropriate methods"""
+        user_id = context.get('user_id')
+        message_lower = message.lower()
+        
+        try:
+            # Trip planning requests
+            if any(word in message_lower for word in ['plan', 'trip', 'travel', 'route', 'journey']):
+                return {
+                    "type": "message",
+                    "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?"
+                }
+            
+            # Default travel response
+            else:
+                return {
+                    "type": "message",
+                    "content": "I can help you with trip planning, route optimization, fuel tracking, and vehicle maintenance. What would you like assistance with?"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error in wheels_node.process: {e}")
+            return {
+                "type": "error",
+                "content": "Sorry, I had trouble processing your travel request. Please try again."
+            }
 # Create global instance
 wheels_node = WheelsNode()
