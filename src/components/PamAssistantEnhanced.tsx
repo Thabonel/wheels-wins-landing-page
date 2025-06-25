@@ -34,28 +34,6 @@ export function PamAssistantEnhanced() {
       userId: user?.id || 'anonymous'
     });
 
-    // Also send to backend for processing
-    try {
-      const response = await fetch(`${process.env.NODE_ENV === 'production' 
-        ? 'https://pam-backend.onrender.com' 
-        : 'http://localhost:8000'}/api/chat/message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth-token') || 'demo-token'}`
-        },
-        body: JSON.stringify({
-          message: message.trim(),
-          user_id: user?.id || 'anonymous'
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Handle response
-        console.log('PAM response:', data);
-      }
-    } catch (error) {
       console.error('Error sending message:', error);
     } finally {
       setIsProcessing(false);
