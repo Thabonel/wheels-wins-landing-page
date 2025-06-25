@@ -1,4 +1,3 @@
-cat > app/core/orchestrator.py << 'EOF'
 # app/core/orchestrator.py
 from typing import Dict, List, Any
 from enum import Enum
@@ -85,4 +84,3 @@ class ActionPlanner:
 
 # Create global orchestrator instance
 orchestrator = ActionPlanner()
-EOF
