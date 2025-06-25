@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MessageSquare, X, Loader2, Wifi, WifiOff } from 'lucide-react';
-import { usePamWebSocket } from '@/hooks/usePamWebSocket';
+import { usePamWebSocketConnection } from '@/hooks/pam/usePamWebSocketConnection';
 import { pamUIController } from '@/lib/pam/PamUIController';
 import { useAuth } from '@/context/AuthContext';
 
