@@ -8,6 +8,8 @@ export function PamAssistantEnhanced() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const { user } = useAuth(); // Declare user first before using it
+
   const { isConnected, sendMessage } = usePamWebSocketConnection({
     userId: user?.id || "anonymous",
     onMessage: (message) => {
@@ -17,7 +19,6 @@ export function PamAssistantEnhanced() {
       console.log("PAM connection status:", connected);
     }
   });
-  const { user } = useAuth();
 
   const handleSendMessage = async () => {
     if (!message.trim() || isProcessing) return;
