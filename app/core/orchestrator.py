@@ -221,6 +221,13 @@ class ActionPlanner:
 
     async def plan(self, message: str, context: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Create comprehensive action plan from user message using route intelligence"""
+        # Get conversation context from memory
+        user_id = context.get("user_id")
+        session_id = context.get("session_id")
+        if user_id:
+            enhanced_context = await self.memory_node.get_enhanced_context(user_id, message, session_id)
+            context.update(enhanced_context)
+
         intent = self.classifier.classify(message, context)
         actions = []
         
