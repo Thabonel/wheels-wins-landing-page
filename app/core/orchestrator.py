@@ -261,6 +261,18 @@ class ActionPlanner:
                 }
             
             actions.append(result)
+            # Store interaction in memory
+            if user_id and isinstance(result, dict):
+                await self.memory_node.store_interaction(
+                    user_id=user_id,
+                    user_message=message,
+                    pam_response=result.get("content", ""),
+                    session_id=session_id or "default_session",
+                    intent=str(intent.domain.value),
+                    intent_confidence=intent.confidence,
+                    context_used=context,
+                    node_used=str(intent.domain.value)
+                )
             
         except Exception as e:
             logger.error(f"Error in action planning: {e}")
