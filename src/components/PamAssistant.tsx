@@ -15,7 +15,6 @@ import { IntentClassifier } from '@/utils/intentClassifier';
 import PamVoice from '@/components/voice/PamVoice';
 
 const PamAssistant = () => {
-  const { user } = useAuth();
   const { region } = useRegion();
   const { isOffline } = useOffline();
   const { sessionData, updateSession } = usePamSession(user?.id);
@@ -24,7 +23,6 @@ const PamAssistant = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { user } = useAuth();
   const { isConnected, sendMessage: sendWebSocketMessage } = usePamWebSocketConnection({
     userId: user?.id || "anonymous",
     onMessage: (message) => {
