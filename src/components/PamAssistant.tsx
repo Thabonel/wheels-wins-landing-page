@@ -24,7 +24,20 @@ const PamAssistant = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { isConnected, sendMessage: sendWebSocketMessage, messages: wsMessages } = usePamWebSocket();
+  const { user } = useAuth();
+  const { isConnected, sendMessage: sendWebSocketMessage } = usePamWebSocketConnection({
+    userId: user?.id || "anonymous",
+    onMessage: (message) => {
+      setMessages(prev => [...prev, {
+        type: "pam",
+        content: message.message || message.content || "Processing...",
+        timestamp: new Date()
+      }]);
+    },
+    onStatusChange: (connected) => {
+      console.log("PAM connection status:", connected);
+    }
+  });
 
   useEffect(() => {
     if (wsMessages.length > 0) {
