@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import Pam from "@/components/Pam";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
@@ -14,8 +14,6 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const { pathname } = useLocation();
   const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
-  const { user: authUser, session } = useAuth();
-  const [pamOpen, setPamOpen] = useState(false);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -38,6 +36,8 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </main>
 
+      {/* New Pam Component - handles its own button and modal */}
+      {!hidePam && <Pam />}
 
       <footer className="bg-white text-gray-600 py-4 border-t">
         <Footer />
