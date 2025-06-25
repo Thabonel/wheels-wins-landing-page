@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import PamAssistantEnhanced from '@/components/PamAssistantEnhanced';
 
 const PamSidebar: React.FC = () => {
-  const { user: authUser } = useAuth();
+  const { user: authUser, session } = useAuth();
 
   // Don't render if no authenticated user
   if (!authUser?.id) {
@@ -16,7 +16,7 @@ const PamSidebar: React.FC = () => {
         <div className="flex-1 overflow-hidden">
           <PamAssistantEnhanced 
             userId={authUser.id} 
-            authToken={authUser.access_token || ""} 
+            authToken={session?.access_token || ""} 
           />
         </div>
       </div>
