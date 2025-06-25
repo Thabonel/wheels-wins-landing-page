@@ -3,7 +3,9 @@ import math
 import logging
 from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
-from app.integrations.supabase.client import supabase
+# Update the import path below if your supabase client is located elsewhere
+# Example: from app.supabase_client import supabase
+from app.integrations.supabase.client import supabase  # <-- FIX THIS PATH IF NEEDED
 
 logger = logging.getLogger("pam")
 
