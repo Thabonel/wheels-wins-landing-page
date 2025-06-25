@@ -47,9 +47,9 @@ export default function Layout({ children }: LayoutProps) {
             aria-label="Chat with Pam"
           >
             <img
-              src="https://your-supabase-url/storage/v1/object/public/avatars/pam-avatar.png" // <-- REPLACE with your actual Pam avatar URL
+              src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
               alt="Pam avatar"
-              className="w-16 h-16 rounded-full"
+              className="w-16 h-16 rounded-full object-cover"
             />
             {/* Online indicator */}
             <span className="absolute top-1 right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></span>
@@ -70,9 +70,9 @@ export default function Layout({ children }: LayoutProps) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold flex items-center gap-2">
                 <img
-                  src="https://your-supabase-url/storage/v1/object/public/avatars/pam-avatar.png" // <-- REPLACE here too!
+                  src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
                   alt="Pam avatar"
-                  className="w-8 h-8 rounded-full"
+                  className="w-8 h-8 rounded-full object-cover"
                 />
                 Pam <span className="ml-2 text-green-500 text-xs font-normal">● online</span>
               </h3>
