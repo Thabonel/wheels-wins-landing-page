@@ -360,12 +360,33 @@ class WheelsNode:
         message_lower = message.lower()
         
         try:
-            # Trip planning requests
-            if any(word in message_lower for word in ['plan', 'trip', 'travel', 'route', 'journey']):
-                return {
-                    "type": "message",
-                    "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?"
-                }
+            # Trip planning requests - including location-based planning
+            if (any(word in message_lower for word in ["plan", "trip", "travel", "route", "journey"]) or 
+                any(word in message_lower for word in ["from", "to"]) or 
+                context.get("last_intent") == "wheels"):
+                
+                # Check if this is a location-based trip planning message
+                locations = []
+                if "from" in message_lower and "to" in message_lower:
+                    # Extract origin and destination
+                    parts = message_lower.split("from")[-1].split("to")
+                    if len(parts) >= 2:
+                        origin = parts[0].strip()
+                        destination = parts[1].strip()
+                        return {
+                            "type": "message",
+                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get("user_profile", {}).get("vehicle_info", {}).get("type", "vehicle")} and prefer {context.get("user_profile", {}).get("travel_preferences", {}).get("style", "travel")} style. Let me create a personalized route with camping options and fuel stops along the way!"
+                        }
+                elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
+                    return {
+                        "type": "message",
+                        "content": f"Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
+                    }
+                else:
+                    return {
+                        "type": "message",
+                        "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?"
+                    }
             
             # Default travel response
             else:
@@ -388,12 +409,33 @@ class WheelsNode:
         message_lower = message.lower()
         
         try:
-            # Trip planning requests
-            if any(word in message_lower for word in ['plan', 'trip', 'travel', 'route', 'journey']):
-                return {
-                    "type": "message",
-                    "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?"
-                }
+            # Trip planning requests - including location-based planning
+            if (any(word in message_lower for word in ["plan", "trip", "travel", "route", "journey"]) or 
+                any(word in message_lower for word in ["from", "to"]) or 
+                context.get("last_intent") == "wheels"):
+                
+                # Check if this is a location-based trip planning message
+                locations = []
+                if "from" in message_lower and "to" in message_lower:
+                    # Extract origin and destination
+                    parts = message_lower.split("from")[-1].split("to")
+                    if len(parts) >= 2:
+                        origin = parts[0].strip()
+                        destination = parts[1].strip()
+                        return {
+                            "type": "message",
+                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get("user_profile", {}).get("vehicle_info", {}).get("type", "vehicle")} and prefer {context.get("user_profile", {}).get("travel_preferences", {}).get("style", "travel")} style. Let me create a personalized route with camping options and fuel stops along the way!"
+                        }
+                elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
+                    return {
+                        "type": "message",
+                        "content": f"Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
+                    }
+                else:
+                    return {
+                        "type": "message",
+                        "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?"
+                    }
             
             # Default travel response
             else:
