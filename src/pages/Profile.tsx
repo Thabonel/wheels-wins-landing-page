@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -120,106 +121,132 @@ const Profile = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      <ProfileHeader profile={profile} region={region} />
-      <ProfileStatus profile={profile} region={region} />
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="identity" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Identity
-          </TabsTrigger>
-          <TabsTrigger value="travel" className="flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            Travel
-          </TabsTrigger>
-          <TabsTrigger value="vehicle" className="flex items-center gap-2">
-            <Car className="h-4 w-4" />
-            Vehicle
-          </TabsTrigger>
-          <TabsTrigger value="knowledge" className="flex items-center gap-2">
-            <Brain className="h-4 w-4" />
-            Knowledge
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Settings
-          </TabsTrigger>
-        </TabsList>
+    <ErrorBoundary>
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <ErrorBoundary>
+          <ProfileHeader profile={profile} region={region} />
+          <ProfileStatus profile={profile} region={region} />
+        </ErrorBoundary>
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="identity" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Identity
+            </TabsTrigger>
+            <TabsTrigger value="travel" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Travel
+            </TabsTrigger>
+            <TabsTrigger value="vehicle" className="flex items-center gap-2">
+              <Car className="h-4 w-4" />
+              Vehicle
+            </TabsTrigger>
+            <TabsTrigger value="knowledge" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              Knowledge
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="identity" className="space-y-6">
-          <ProfileIdentity
-            formData={formData}
-            setFormData={setFormData}
-            user={user}
-            profile={profile}
-            region={region}
-            setRegion={setRegion}
-            uploadingPhoto={uploadingPhoto}
-            uploadingPartnerPhoto={uploadingPartnerPhoto}
-            handleFileUpload={handleFileUpload}
-          />
-        </TabsContent>
+          <TabsContent value="identity" className="space-y-6">
+            <ErrorBoundary>
+              <ProfileIdentity
+                formData={formData}
+                setFormData={setFormData}
+                user={user}
+                profile={profile}
+                region={region}
+                setRegion={setRegion}
+                uploadingPhoto={uploadingPhoto}
+                uploadingPartnerPhoto={uploadingPartnerPhoto}
+                handleFileUpload={handleFileUpload}
+              />
+            </ErrorBoundary>
+          </TabsContent>
 
-        <TabsContent value="travel" className="space-y-6">
-          <TravelPreferences
-            formData={formData}
-            setFormData={setFormData}
-          />
-        </TabsContent>
+          <TabsContent value="travel" className="space-y-6">
+            <ErrorBoundary>
+              <TravelPreferences
+                formData={formData}
+                setFormData={setFormData}
+              />
+            </ErrorBoundary>
+          </TabsContent>
 
-        <TabsContent value="vehicle" className="space-y-6">
-          <VehicleSetup
-            formData={formData}
-            setFormData={setFormData}
-          />
-        </TabsContent>
+          <TabsContent value="vehicle" className="space-y-6">
+            <ErrorBoundary>
+              <VehicleSetup
+                formData={formData}
+                setFormData={setFormData}
+              />
+            </ErrorBoundary>
+          </TabsContent>
 
-        <TabsContent value="knowledge" className="space-y-6">  
-          <UserKnowledgeManager />
-        </TabsContent>
+          <TabsContent value="knowledge" className="space-y-6">  
+            <ErrorBoundary>
+              <UserKnowledgeManager />
+            </ErrorBoundary>
+          </TabsContent>
 
-        <TabsContent value="settings" className="space-y-6">
-          <div className="grid gap-6">
-            <Tabs defaultValue="security" className="w-full">
-              <TabsList className="grid w-full grid-cols-6">
-                <TabsTrigger value="security">Security</TabsTrigger>
-                <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                <TabsTrigger value="privacy">Privacy</TabsTrigger>
-                <TabsTrigger value="display">Display</TabsTrigger>
-                <TabsTrigger value="pam">Pam AI</TabsTrigger>
-                <TabsTrigger value="danger">Account</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="security" className="mt-6">
-                <AccountSecurity />
-              </TabsContent>
-              
-              <TabsContent value="notifications" className="mt-6">
-                <NotificationSettings />
-              </TabsContent>
-              
-              <TabsContent value="privacy" className="mt-6">
-                <PrivacySettings />
-              </TabsContent>
-              
-              <TabsContent value="display" className="mt-6">
-                <DisplaySettings />
-              </TabsContent>
-              
-              <TabsContent value="pam" className="mt-6">
-                <PamSettings />
-              </TabsContent>
-              
-              <TabsContent value="danger" className="mt-6">
-                <AccountDeletion />
-              </TabsContent>
-            </Tabs>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+          <TabsContent value="settings" className="space-y-6">
+            <ErrorBoundary>
+              <div className="grid gap-6">
+                <Tabs defaultValue="security" className="w-full">
+                  <TabsList className="grid w-full grid-cols-6">
+                    <TabsTrigger value="security">Security</TabsTrigger>
+                    <TabsTrigger value="notifications">Notifications</TabsTrigger>
+                    <TabsTrigger value="privacy">Privacy</TabsTrigger>
+                    <TabsTrigger value="display">Display</TabsTrigger>
+                    <TabsTrigger value="pam">Pam AI</TabsTrigger>
+                    <TabsTrigger value="danger">Account</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="security" className="mt-6">
+                    <ErrorBoundary>
+                      <AccountSecurity />
+                    </ErrorBoundary>
+                  </TabsContent>
+                  
+                  <TabsContent value="notifications" className="mt-6">
+                    <ErrorBoundary>
+                      <NotificationSettings />
+                    </ErrorBoundary>
+                  </TabsContent>
+                  
+                  <TabsContent value="privacy" className="mt-6">
+                    <ErrorBoundary>
+                      <PrivacySettings />
+                    </ErrorBoundary>
+                  </TabsContent>
+                  
+                  <TabsContent value="display" className="mt-6">
+                    <ErrorBoundary>
+                      <DisplaySettings />
+                    </ErrorBoundary>
+                  </TabsContent>
+                  
+                  <TabsContent value="pam" className="mt-6">
+                    <ErrorBoundary>
+                      <PamSettings />
+                    </ErrorBoundary>
+                  </TabsContent>
+                  
+                  <TabsContent value="danger" className="mt-6">
+                    <ErrorBoundary>
+                      <AccountDeletion />
+                    </ErrorBoundary>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </ErrorBoundary>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </ErrorBoundary>
   );
 };
 

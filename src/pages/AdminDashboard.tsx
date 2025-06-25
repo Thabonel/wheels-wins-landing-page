@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import AdminProtection from '@/components/admin/AdminProtection';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminSidebar from '@/components/admin/AdminSidebar';
@@ -14,41 +15,47 @@ const AdminDashboard: React.FC = () => {
   const isMobile = useIsMobile();
 
   return (
-    <AdminProtection>
-      <div className="flex h-screen bg-gray-100 w-full overflow-hidden">
-        {/* Header */}
-        <AdminHeader 
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
-        />
+    <ErrorBoundary>
+      <AdminProtection>
+        <div className="flex h-screen bg-gray-100 w-full overflow-hidden">
+          {/* Header */}
+          <AdminHeader 
+            isSidebarOpen={isSidebarOpen}
+            setIsSidebarOpen={setIsSidebarOpen}
+          />
 
-        {/* Sidebar */}
-        <AdminSidebar
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
-          activeSection={activeSection}
-          setActiveSection={setActiveSection}
-        />
+          {/* Sidebar */}
+          <AdminSidebar
+            isSidebarOpen={isSidebarOpen}
+            setIsSidebarOpen={setIsSidebarOpen}
+            activeSection={activeSection}
+            setActiveSection={setActiveSection}
+          />
 
-        {/* Main Content */}
-        <main
-          className={`
-            flex-1 flex flex-col h-screen overflow-hidden
-            ${isMobile ? 'pt-14' : 'md:ml-0'}
-          `}
-        >
-          <div className="flex-1 p-6 overflow-y-auto">
-            <AdminContent activeSection={activeSection} />
-          </div>
-        </main>
+          {/* Main Content */}
+          <main
+            className={`
+              flex-1 flex flex-col h-screen overflow-hidden
+              ${isMobile ? 'pt-14' : 'md:ml-0'}
+            `}
+          >
+            <div className="flex-1 p-6 overflow-y-auto">
+              <ErrorBoundary>
+                <AdminContent activeSection={activeSection} />
+              </ErrorBoundary>
+            </div>
+          </main>
 
-        {/* PAM Chat */}
-        <AdminPamChat
-          isPamChatOpen={isPamChatOpen}
-          setIsPamChatOpen={setIsPamChatOpen}
-        />
-      </div>
-    </AdminProtection>
+          {/* PAM Chat */}
+          <ErrorBoundary>
+            <AdminPamChat
+              isPamChatOpen={isPamChatOpen}
+              setIsPamChatOpen={setIsPamChatOpen}
+            />
+          </ErrorBoundary>
+        </div>
+      </AdminProtection>
+    </ErrorBoundary>
   );
 };
 
