@@ -54,47 +54,6 @@ const PamChatController = () => {
     }
   });
 
-  // Handle WebSocket messages from our new backend
-  useEffect(() => {
-    if (wsMessages.length > 0) {
-      const latestMessage = wsMessages[wsMessages.length - 1];
-      
-      switch (latestMessage.type) {
-        case 'chat_response':
-          const pamMessage: ChatMessage = {
-            sender: "pam",
-            content: latestMessage.message || "I'm processing your request...",
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, pamMessage]);
-          setIsProcessing(false);
-          break;
-          
-        case 'ui_actions':
-          // UI actions are handled in the usePamWebSocket hook
-          break;
-          
-        case 'error':
-          const errorMessage: ChatMessage = {
-            sender: "pam",
-            content: `❌ ${latestMessage.message}`,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, errorMessage]);
-          setIsProcessing(false);
-          break;
-
-        case 'connection':
-          const connectionMessage: ChatMessage = {
-            sender: "pam",
-            content: latestMessage.message || "Connected to PAM backend",
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, connectionMessage]);
-          break;
-      }
-    }
-  }, [wsMessages]);
 
   const generateDemoResponse = (userMessage: string): string => {
     const lowerMessage = userMessage.toLowerCase();
