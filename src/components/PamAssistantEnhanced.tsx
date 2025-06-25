@@ -138,6 +138,43 @@ export function PamAssistantEnhanced() {
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder="Ask PAM anything..."
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {messages.map((msg, index) => (
+                <div key={index} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg ${
+                    msg.sender === "user" 
+                      ? "bg-primary text-white" 
+                      : "bg-gray-100 text-gray-800"
+                  }`}>
+                    <p className="text-sm">{msg.content}</p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Input Section */}
+            <div className="p-4 border-t flex gap-2">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                placeholder="Ask PAM anything..."
+                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={isProcessing}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!message.trim() || isProcessing}
+                className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+              >
+                Send
+              </button>
+            </div>
                 className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 disabled={isProcessing}
               />
