@@ -33,11 +33,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       loadConversationMemory();
       connectToBackend();
     }
+    // eslint-disable-next-line
   }, [user?.id]);
 
   const loadUserContext = async () => {
     try {
-      // Load user location, preferences, and profile data
       const response = await fetch('/api/you/profile', {
         headers: { 'Authorization': `Bearer ${user?.access_token}` }
       });
@@ -52,7 +52,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadConversationMemory = async () => {
     try {
-      // Load recent conversation history from pam_life_memory
       const response = await fetch(`/api/pam/memory?user_id=${user?.id}&limit=10`, {
         headers: { 'Authorization': `Bearer ${user?.access_token}` }
       });
@@ -103,39 +102,31 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log('✅ PAM connected successfully');
         setConnectionStatus("Connected");
-        
-        // Send welcome message with context
         addMessage("🤖 Hi! I'm PAM, your intelligent travel companion. I remember our conversations and know your preferences. How can I help you today?", "pam");
       };
 
       wsRef.current.onmessage = async (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('📨 PAM message received:', message);
-          
           if (message.type === 'chat_response') {
             const content = message.message || message.content;
             addMessage(content, "pam");
             await saveToMemory(content, "pam", message.actions);
           }
         } catch (error) {
-          console.error('❌ Error parsing PAM message:', error);
+          console.error('Error parsing PAM message:', error);
         }
       };
 
       wsRef.current.onclose = () => {
-        console.log('🔌 PAM disconnected');
         setConnectionStatus("Disconnected");
       };
 
-      wsRef.current.onerror = (error) => {
-        console.error('❌ PAM connection error:', error);
+      wsRef.current.onerror = () => {
         setConnectionStatus("Disconnected");
       };
     } catch (error) {
-      console.error('❌ Failed to connect to PAM:', error);
       setConnectionStatus("Disconnected");
     }
   }, [user?.id, user?.access_token]);
@@ -153,12 +144,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const handleSendMessage = async () => {
     if (inputMessage.trim() && connectionStatus === "Connected" && wsRef.current) {
       const message = inputMessage.trim();
-      
-      // Add user message to chat
       addMessage(message, "user");
       await saveToMemory(message, "user");
-      
-      // Send to backend with full context
       const messageData = {
         type: "chat",
         content: message,
@@ -168,10 +155,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           userLocation: userContext?.current_location,
           vehicleInfo: userContext?.vehicle_info,
           travelStyle: userContext?.travel_style,
-          conversationHistory: messages.slice(-5) // Last 5 messages for context
+          conversationHistory: messages.slice(-5)
         }
       };
-
       wsRef.current.send(JSON.stringify(messageData));
       setInputMessage("");
     }
@@ -186,29 +172,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const getPersonalizedGreeting = () => {
     if (!userContext) return "Hi! I'm PAM";
-    
     const location = userContext.current_location || "your location";
     const vehicle = userContext.vehicle_info?.type || "vehicle";
-    
     return `Hi! I'm PAM, your travel companion. I see you're in ${location} with your ${vehicle}. Ready for an adventure?`;
   };
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Focus input when chat opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isOpen]);
 
+  // --- UI ---
   if (mode === "sidebar") {
     return (
       <div className="h-full flex flex-col bg-white">
-        {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b bg-primary/5">
           <div className="flex items-center space-x-3">
             <img 
@@ -225,8 +207,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             </div>
           </div>
         </div>
-
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.length === 0 ? (
             <div className="text-center text-gray-500 text-sm">
@@ -262,8 +242,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           )}
           <div ref={messagesEndRef} />
         </div>
-
-        {/* Input */}
         <div className="p-3 border-t">
           <div className="flex items-center space-x-2">
             <input
@@ -289,12 +267,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     );
   }
 
+  // Default/floating mode
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating PAM Bubble */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-3 shadow-lg transition-all z-50"
+        aria-label="Open PAM Chat"
       >
         <div className="relative">
           <img 
@@ -331,11 +311,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             <button
               onClick={() => setIsOpen(false)}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close PAM Chat"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
-
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 ? (
@@ -372,7 +352,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             )}
             <div ref={messagesEndRef} />
           </div>
-
           {/* Input */}
           <div className="p-4 border-t">
             <div className="flex items-center space-x-2">
