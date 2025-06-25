@@ -16,6 +16,15 @@ export function PamAssistantEnhanced() {
     userId: user?.id || "anonymous",
     onMessage: (message) => {
       console.log("PAM message received:", message);
+      // Add PAM's response to the chat
+      const pamResponse = {
+        type: "pam",
+        content: message.message || message.content || "I received your message!",
+        timestamp: new Date()
+      };
+      // Here we would normally add to a messages state array
+      // For now, we'll show it in a simple way
+      console.log("PAM Response:", pamResponse.content);
     },
     onStatusChange: (connected) => {
       console.log("PAM connection status:", connected);
