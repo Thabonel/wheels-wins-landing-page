@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff } from "lucide-react";
 import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
 
@@ -12,25 +12,31 @@ const PamAssistantEnhanced: React.FC<PamAssistantEnhancedProps> = ({ userId, aut
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { sendMessage, lastMessage, connectionStatus } = usePamWebSocketConnection(
-    userId,
-    authToken
-  );
+  // Handle incoming messages
+  const handleMessage = useCallback((message: any) => {
+    setMessages(prev => [...prev, {
+      id: Date.now(),
+      content: message.content || message.message || JSON.stringify(message),
+      sender: "pam",
+      timestamp: new Date().toISOString()
+    }]);
+  }, []);
 
-  // Add incoming messages to the messages array
-  useEffect(() => {
-    if (lastMessage) {
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        content: lastMessage.content || lastMessage.message || JSON.stringify(lastMessage),
-        sender: "pam",
-        timestamp: new Date().toISOString()
-      }]);
-    }
-  }, [lastMessage]);
+  // Handle connection status changes
+  const handleStatusChange = useCallback((isConnected: boolean) => {
+    setConnectionStatus(isConnected ? "Connected" : "Disconnected");
+  }, []);
+
+  // Use the WebSocket hook with correct interface
+  const { sendMessage } = usePamWebSocketConnection({
+    userId,
+    onMessage: handleMessage,
+    onStatusChange: handleStatusChange
+  });
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
