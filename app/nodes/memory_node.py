@@ -9,13 +9,13 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
-from app.database.supabase_client import get_supabase_client
+from app.database.supabase_client import get_supabase
 
 class MemoryNode:
     """Manages conversation memory and context for PAM"""
     
     def __init__(self):
-        self.supabase = get_supabase_client()
+        self.supabase = get_supabase()
         
     async def store_interaction(
         self, 
