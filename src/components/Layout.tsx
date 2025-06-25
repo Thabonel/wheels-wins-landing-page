@@ -2,7 +2,7 @@
 import React from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MicButton from "@/components/MicButton";
-import { PamAssistantEnhanced as PamAssistant } from "@/components/PamAssistantEnhanced";
+import PamAssistantEnhanced from "@/components/PamAssistantEnhanced";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Header from "@/components/header/Header";
