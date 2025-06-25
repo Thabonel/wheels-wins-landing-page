@@ -45,8 +45,9 @@ async def websocket_endpoint(
             elif data.get("type") == "chat":
                 # Process chat message through orchestrator
                 message = data.get("content", "")
-                context = {"user_id": user_id}
-                
+                context = data.get("context", {})  # <-- FIXED: get full context from frontend
+                context["user_id"] = user_id       # <-- always ensure user_id
+
                 try:
                     actions = await orchestrator.plan(message, context)
                     
