@@ -34,6 +34,13 @@ export function PamAssistantEnhanced() {
     setIsProcessing(true);
     
     try {
+      // Add user message to chat
+      const userMessage = {
+        sender: "user",
+        content: message.trim(),
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
       // Send message via WebSocket
       sendMessage({
         type: "chat",
