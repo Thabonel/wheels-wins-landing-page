@@ -88,7 +88,7 @@ export function PamAssistantEnhanced() {
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg transition-all z-50"
       >
-        <MessageSquare className="w-6 h-6" />
+        <img src={PAM_AVATAR_URL} alt="PAM" className="w-6 h-6 rounded-full" />
       </button>
 
       {/* PAM Chat Window */}
