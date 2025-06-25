@@ -96,40 +96,104 @@ Comprehensive health check with system metrics.
 }
 ```
 
-## Chat/AI Endpoints
+## WebSocket Endpoints
 
-### POST /chat/message
-Process a chat message through PAM AI assistant.
+### WebSocket /ws/{user_id}
+Real-time WebSocket connection for PAM AI assistant communication.
 
-**Headers**: `Authorization: Bearer <token>`
+**Connection URL**: `wss://pam-backend.onrender.com/ws/{user_id}?token={jwt_token}`
 
-**Request Body**:
+**Authentication**: JWT token in URL parameter
+
+**Connection Flow**:
+1. Frontend establishes WebSocket connection
+2. Backend validates JWT token
+3. Bidirectional message exchange begins
+4. Automatic reconnection on disconnect
+
+### WebSocket Message Types
+
+#### Outgoing Messages (Client → Server)
+
+**Chat Message**:
 ```json
 {
+  "type": "chat",
   "message": "Help me create a budget for groceries",
   "user_id": "user_uuid",
   "context": {
-    "current_page": "budgets",
-    "previous_messages": [],
-    "user_preferences": {}
-  },
-  "session_id": "optional_session_id"
+    "region": "US-West",
+    "current_page": "/budgets",
+    "session_data": {
+      "recent_intents": ["budget", "expense"],
+      "intent_counts": {"budget": 3, "expense": 5},
+      "last_activity": "2024-01-15T10:30:00Z"
+    }
+  }
 }
 ```
 
-**Response**:
+#### Incoming Messages (Server → Client)
+
+**Chat Response**:
 ```json
 {
-  "response": "I'd be happy to help you create a grocery budget. Based on your previous spending...",
-  "action": {
-    "type": "create_budget_category",
-    "data": {
-      "category": "groceries",
-      "suggested_amount": 400
+  "type": "chat_response",
+  "message": "I'd be happy to help you create a grocery budget. Based on your previous spending...",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+**UI Actions**:
+```json
+{
+  "type": "ui_actions",
+  "actions": [
+    {
+      "type": "navigate",
+      "target": "/budgets/create",
+      "data": {
+        "category": "groceries",
+        "suggested_amount": 400
+      }
     }
-  },
-  "timestamp": "2024-01-15T10:30:00Z",
-  "session_id": "session_uuid"
+  ]
+}
+```
+
+**Action Response**:
+```json
+{
+  "type": "action_response",
+  "status": "completed",
+  "action_id": "create_budget_123",
+  "result": {
+    "budget_id": "budget_uuid",
+    "category": "groceries",
+    "amount": 400
+  }
+}
+```
+
+**Error Response**:
+```json
+{
+  "type": "error",
+  "message": "Failed to process request",
+  "code": "PROCESSING_ERROR",
+  "details": {
+    "error_type": "validation",
+    "field": "amount"
+  }
+}
+```
+
+**Connection Status**:
+```json
+{
+  "type": "connection",
+  "message": "PAM is ready! I can help with expenses, travel planning, and more.",
+  "status": "connected"
 }
 ```
 
