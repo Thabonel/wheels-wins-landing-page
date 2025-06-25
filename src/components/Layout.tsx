@@ -19,7 +19,7 @@ export default function Layout({ children }: LayoutProps) {
   const isMobile = useIsMobile();
   const { pathname } = useLocation();
   const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
-  const { user: authUser } = useAuth();
+  const { user: authUser, session } = useAuth();
 
   // Check if screen is xl (1280px) or larger for desktop sidebar
   const [isXlScreen, setIsXlScreen] = React.useState(false);
@@ -92,7 +92,7 @@ export default function Layout({ children }: LayoutProps) {
                   Close
                 </button>
               </div>
-              <PamAssistantEnhanced userId={authUser?.id || ""} authToken={authUser?.access_token || ""} />
+              <PamAssistantEnhanced userId={authUser?.id || ""} authToken={session?.access_token || ""} />
             </div>
           </div>
         </>
