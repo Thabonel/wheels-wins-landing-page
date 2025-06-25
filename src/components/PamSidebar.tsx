@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import PamAssistantEnhanced from '@/components/PamAssistantEnhanced';
 
 const PamSidebar: React.FC = () => {
