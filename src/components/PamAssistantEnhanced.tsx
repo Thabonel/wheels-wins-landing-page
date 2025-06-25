@@ -24,20 +24,20 @@ export function PamAssistantEnhanced() {
 
   const handleSendMessage = async () => {
     if (!message.trim() || isProcessing) return;
-
     setIsProcessing(true);
     
-    // Send message via WebSocket
-    sendMessage({
-      type: 'chat',
-      message: message.trim(),
-      userId: user?.id || 'anonymous'
-    });
-
-      console.error('Error sending message:', error);
+    try {
+      // Send message via WebSocket
+      sendMessage({
+        type: "chat",
+        message: message.trim(),
+        userId: user?.id || "anonymous"
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
     } finally {
       setIsProcessing(false);
-      setMessage('');
+      setMessage("");
     }
   };
 
