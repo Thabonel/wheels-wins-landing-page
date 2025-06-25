@@ -37,7 +37,22 @@ const PamChatController = () => {
   const isMobile = window.innerWidth < 768;
 
   // Use WebSocket connection to our new PAM backend
-  const { isConnected, sendMessage: sendWebSocketMessage, messages: wsMessages, connect } = usePamWebSocket();
+  // Use real WebSocket connection to our PAM backend
+  const { isConnected, sendMessage: sendWebSocketMessage } = usePamWebSocketConnection({
+    userId: user?.id || 'anonymous',
+    onMessage: (message) => {
+      // Handle incoming WebSocket messages
+      const pamMessage: ChatMessage = {
+        sender: "pam",
+        content: message.message || message.content || "Processing...",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, pamMessage]);
+    },
+    onStatusChange: (connected) => {
+      console.log('PAM WebSocket connection status:', connected);
+    }
+  });
 
   // Handle WebSocket messages from our new backend
   useEffect(() => {
