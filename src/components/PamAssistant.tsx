@@ -21,7 +21,8 @@ const PamAssistant = () => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const { user } = useAuth();
 
   const { isConnected, sendMessage: sendWebSocketMessage } = usePamWebSocketConnection({
     userId: user?.id || "anonymous",
