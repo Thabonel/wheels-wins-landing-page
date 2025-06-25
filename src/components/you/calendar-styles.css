@@ -1,0 +1,109 @@
+
+/* FullCalendar Custom Styles */
+.fullcalendar-container .fc {
+  --fc-border-color: hsl(var(--border));
+  --fc-page-bg-color: hsl(var(--background));
+  --fc-neutral-bg-color: hsl(var(--muted));
+  --fc-list-event-hover-bg-color: hsl(var(--accent));
+  --fc-today-bg-color: rgba(59, 130, 246, 0.05);
+  
+  font-family: inherit;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+}
+
+/* Header styling */
+.fullcalendar-container .fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* Day header styling */
+.fullcalendar-container .fc .fc-col-header-cell {
+  background-color: hsl(var(--muted));
+  padding: 0.5rem;
+  font-weight: 600;
+}
+
+.fullcalendar-container .fc .fc-col-header-cell-cushion {
+  color: hsl(var(--foreground));
+  text-decoration: none !important;
+  padding: 0.5rem;
+}
+
+/* Today highlight */
+.fullcalendar-container .fc .fc-day-today {
+  background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+/* Event styling */
+.fullcalendar-container .fc .fc-event {
+  border-radius: 0.25rem;
+  cursor: pointer;
+  margin: 1px 0;
+  font-size: 0.875rem;
+}
+
+/* Event time text */
+.fullcalendar-container .fc .fc-event .fc-event-time {
+  font-weight: 500;
+  margin-right: 0.25rem;
+}
+
+/* Event title */
+.fullcalendar-container .fc .fc-event .fc-event-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Time slot styling */
+.fullcalendar-container .fc .fc-timegrid-slot {
+  height: 3rem;
+}
+
+.fullcalendar-container .fc .fc-timegrid-slot-lane {
+  border-bottom: 1px solid var(--fc-border-color);
+}
+
+/* Time labels */
+.fullcalendar-container .fc .fc-timegrid-axis-cushion {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Event drag and resize */
+.fullcalendar-container .fc .fc-event-dragging {
+  opacity: 0.75;
+}
+
+.fullcalendar-container .fc .fc-event-resizing {
+  opacity: 0.75;
+}
+
+/* Selection highlight */
+.fullcalendar-container .fc .fc-highlight {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Month view event limit */
+.fullcalendar-container .fc .fc-daygrid-day-bottom {
+  font-size: 0.75rem;
+  color: hsl(var(--primary));
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .fullcalendar-container .fc {
+    font-size: 0.75rem;
+  }
+  
+  .fullcalendar-container .fc .fc-timegrid-slot {
+    height: 2rem;
+  }
+  
+  .fullcalendar-container .fc .fc-event {
+    font-size: 0.7rem;
+  }
+}
