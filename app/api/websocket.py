@@ -44,7 +44,7 @@ async def websocket_endpoint(
                 
             elif data.get("type") == "chat":
                 # Process chat message through orchestrator
-                message = data.get("message", "")
+                message = data.get("content", "")
                 context = {"user_id": user_id}
                 
                 try:
