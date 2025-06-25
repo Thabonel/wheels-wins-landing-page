@@ -8,7 +8,7 @@ import WinsIncome from "@/components/wins/WinsIncome";
 import WinsBudgets from "@/components/wins/WinsBudgets";
 import WinsTips from "@/components/wins/WinsTips";
 import WinsMoneyMaker from "@/components/wins/WinsMoneyMaker";
-import PamAssistant from "@/components/PamAssistant";
+
 import { useScrollReset } from "@/hooks/useScrollReset";
 
 export default function Wins() {
@@ -17,12 +17,6 @@ export default function Wins() {
   
   // Use our consistent scroll reset hook
   useScrollReset([activeTab]);
-  
-  // Mock user data for Pam assistant
-  const user = {
-    name: "John",
-    avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png"
-  };
   
   const tabs = [
     { id: "overview", label: "Overview" },
@@ -94,32 +88,6 @@ export default function Wins() {
             </div>
           </Tabs>
         </div>
-        
-        {/* Pam Assistant – only mobile */}
-        {isMobile && (
-          <>
-            <button 
-              onClick={() => document.getElementById('pam-modal')?.classList.toggle('hidden')}
-              className="fixed bottom-4 right-4 z-30 bg-primary text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg"
-            >
-              <span className="text-lg font-bold">Pam</span>
-            </button>
-            <div id="pam-modal" className="hidden fixed inset-0 z-40 bg-black bg-opacity-50">
-              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-auto">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-bold">Chat with Pam</h3>
-                  <button 
-                    onClick={() => document.getElementById('pam-modal')?.classList.add('hidden')}
-                    className="text-gray-500"
-                  >
-                    Close
-                  </button>
-                </div>
-                <PamAssistant />
-              </div>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

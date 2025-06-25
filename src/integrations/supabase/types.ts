@@ -1633,6 +1633,175 @@ export type Database = {
         }
         Relationships: []
       }
+      pam_conversation_memory: {
+        Row: {
+          context_used: Json | null
+          created_at: string | null
+          detected_intent: string | null
+          entities_extracted: Json | null
+          follow_up_needed: boolean | null
+          follow_up_reason: string | null
+          id: string
+          intent_confidence: number | null
+          message_sequence: number
+          message_timestamp: string | null
+          node_used: string | null
+          pam_response: string | null
+          response_quality: number | null
+          response_time_ms: number | null
+          session_id: string | null
+          user_feedback: string | null
+          user_id: string
+          user_message: string | null
+          user_preferences_learned: Json | null
+        }
+        Insert: {
+          context_used?: Json | null
+          created_at?: string | null
+          detected_intent?: string | null
+          entities_extracted?: Json | null
+          follow_up_needed?: boolean | null
+          follow_up_reason?: string | null
+          id?: string
+          intent_confidence?: number | null
+          message_sequence: number
+          message_timestamp?: string | null
+          node_used?: string | null
+          pam_response?: string | null
+          response_quality?: number | null
+          response_time_ms?: number | null
+          session_id?: string | null
+          user_feedback?: string | null
+          user_id: string
+          user_message?: string | null
+          user_preferences_learned?: Json | null
+        }
+        Update: {
+          context_used?: Json | null
+          created_at?: string | null
+          detected_intent?: string | null
+          entities_extracted?: Json | null
+          follow_up_needed?: boolean | null
+          follow_up_reason?: string | null
+          id?: string
+          intent_confidence?: number | null
+          message_sequence?: number
+          message_timestamp?: string | null
+          node_used?: string | null
+          pam_response?: string | null
+          response_quality?: number | null
+          response_time_ms?: number | null
+          session_id?: string | null
+          user_feedback?: string | null
+          user_id?: string
+          user_message?: string | null
+          user_preferences_learned?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pam_conversation_memory_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "pam_conversation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pam_conversation_sessions: {
+        Row: {
+          created_at: string | null
+          id: string
+          intent_topics: string[] | null
+          is_active: boolean | null
+          session_context: Json | null
+          session_end: string | null
+          session_start: string | null
+          total_messages: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          intent_topics?: string[] | null
+          is_active?: boolean | null
+          session_context?: Json | null
+          session_end?: string | null
+          session_start?: string | null
+          total_messages?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          intent_topics?: string[] | null
+          is_active?: boolean | null
+          session_context?: Json | null
+          session_end?: string | null
+          session_start?: string | null
+          total_messages?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pam_conversation_threads: {
+        Row: {
+          collected_data: Json | null
+          created_at: string | null
+          expected_completion: string | null
+          id: string
+          last_activity: string | null
+          missing_data: string[] | null
+          next_question: string | null
+          progress_percentage: number | null
+          session_id: string | null
+          started_at: string | null
+          thread_status: string | null
+          thread_type: string
+          user_id: string
+        }
+        Insert: {
+          collected_data?: Json | null
+          created_at?: string | null
+          expected_completion?: string | null
+          id?: string
+          last_activity?: string | null
+          missing_data?: string[] | null
+          next_question?: string | null
+          progress_percentage?: number | null
+          session_id?: string | null
+          started_at?: string | null
+          thread_status?: string | null
+          thread_type: string
+          user_id: string
+        }
+        Update: {
+          collected_data?: Json | null
+          created_at?: string | null
+          expected_completion?: string | null
+          id?: string
+          last_activity?: string | null
+          missing_data?: string[] | null
+          next_question?: string | null
+          progress_percentage?: number | null
+          session_id?: string | null
+          started_at?: string | null
+          thread_status?: string | null
+          thread_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pam_conversation_threads_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "pam_conversation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pam_feedback: {
         Row: {
           chat_input: string | null
@@ -1659,6 +1828,89 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      pam_intent_context: {
+        Row: {
+          confidence_boost: number | null
+          context_triggers: Json
+          created_at: string | null
+          examples: Json | null
+          id: string
+          intent_name: string
+          node_assignment: string
+          required_data: string[] | null
+        }
+        Insert: {
+          confidence_boost?: number | null
+          context_triggers: Json
+          created_at?: string | null
+          examples?: Json | null
+          id?: string
+          intent_name: string
+          node_assignment: string
+          required_data?: string[] | null
+        }
+        Update: {
+          confidence_boost?: number | null
+          context_triggers?: Json
+          created_at?: string | null
+          examples?: Json | null
+          id?: string
+          intent_name?: string
+          node_assignment?: string
+          required_data?: string[] | null
+        }
+        Relationships: []
+      }
+      pam_learning_events: {
+        Row: {
+          confidence_impact: number | null
+          context_data: Json | null
+          corrected_response: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          original_response: string | null
+          related_intent: string | null
+          session_id: string | null
+          user_id: string
+          user_preference_change: Json | null
+        }
+        Insert: {
+          confidence_impact?: number | null
+          context_data?: Json | null
+          corrected_response?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          original_response?: string | null
+          related_intent?: string | null
+          session_id?: string | null
+          user_id: string
+          user_preference_change?: Json | null
+        }
+        Update: {
+          confidence_impact?: number | null
+          context_data?: Json | null
+          corrected_response?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          original_response?: string | null
+          related_intent?: string | null
+          session_id?: string | null
+          user_id?: string
+          user_preference_change?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pam_learning_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "pam_conversation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pam_life_memory: {
         Row: {
@@ -1889,6 +2141,62 @@ export type Database = {
             columns: ["source_data_id"]
             isOneToOne: false
             referencedRelation: "travel_intelligence_raw"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pam_user_context: {
+        Row: {
+          active_trip_id: string | null
+          conversation_mood: string | null
+          current_location: Json | null
+          current_session_id: string | null
+          interaction_patterns: Json | null
+          last_interaction: string | null
+          learned_preferences: Json | null
+          preferred_response_style: string | null
+          recent_intents: string[] | null
+          travel_preferences: Json | null
+          updated_at: string | null
+          user_id: string
+          vehicle_info: Json | null
+        }
+        Insert: {
+          active_trip_id?: string | null
+          conversation_mood?: string | null
+          current_location?: Json | null
+          current_session_id?: string | null
+          interaction_patterns?: Json | null
+          last_interaction?: string | null
+          learned_preferences?: Json | null
+          preferred_response_style?: string | null
+          recent_intents?: string[] | null
+          travel_preferences?: Json | null
+          updated_at?: string | null
+          user_id: string
+          vehicle_info?: Json | null
+        }
+        Update: {
+          active_trip_id?: string | null
+          conversation_mood?: string | null
+          current_location?: Json | null
+          current_session_id?: string | null
+          interaction_patterns?: Json | null
+          last_interaction?: string | null
+          learned_preferences?: Json | null
+          preferred_response_style?: string | null
+          recent_intents?: string[] | null
+          travel_preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          vehicle_info?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pam_user_context_current_session_id_fkey"
+            columns: ["current_session_id"]
+            isOneToOne: false
+            referencedRelation: "pam_conversation_sessions"
             referencedColumns: ["id"]
           },
         ]
