@@ -86,16 +86,16 @@ export function PamAssistantEnhanced() {
       {/* PAM Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg transition-all z-50"
+        className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-1 shadow-lg transition-all z-50"
       >
-        <img src={PAM_AVATAR_URL} alt="PAM" className="w-6 h-6 rounded-full" />
+        <img src={PAM_AVATAR_URL} alt="PAM" className="w-10 h-10 rounded-full" />
       </button>
 
       {/* PAM Chat Window */}
       {isOpen && (
         <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-lg shadow-2xl z-50 flex flex-col">
           {/* Header */}
-          <div className="bg-primary text-white p-4 rounded-t-lg flex items-center justify-between">
+          <div className="bg-primary text-white p-1 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img src={PAM_AVATAR_URL} alt="PAM" className="w-12 h-12 rounded-full" />
               <h3 className="font-semibold">PAM - Your AI Assistant</h3>
@@ -114,7 +114,7 @@ export function PamAssistantEnhanced() {
           </div>
 
           {/* Chat Area */}
-          <div className="flex-1 p-4 overflow-y-auto">
+          <div className="flex-1 p-1 overflow-y-auto">
             <div className="space-y-4">
               <div className="bg-primary/5 rounded-lg p-3">
                 <p className="text-sm">
@@ -138,7 +138,7 @@ export function PamAssistantEnhanced() {
           </div>
 
           {/* Input Area */}
-          <div className="border-t p-4">
+          <div className="border-t p-1">
             <div className="flex gap-2">
               <input
                 type="text"
