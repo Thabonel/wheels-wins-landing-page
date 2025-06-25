@@ -1,76 +1,77 @@
-import { supabase } from "@/integrations/supabase/client";
-import React, { useEffect, useState } from 'react';
-import { MessageSquare, X, Loader2, Wifi, WifiOff } from 'lucide-react';
-import { usePamWebSocketConnection } from '@/hooks/pam/usePamWebSocketConnection';
-import { pamUIController } from '@/lib/pam/PamUIController';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useRef, useEffect } from "react";
+import { X, Send, Mic, MicOff } from "lucide-react";
+import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
 
-const PAM_AVATAR_URL = supabase.storage.from("public-assets").getPublicUrl("Pam.webp").data.publicUrl;
-export function PamAssistantEnhanced() {
+interface PamAssistantEnhancedProps {
+  userId: string;
+  authToken: string;
+}
+
+const PamAssistantEnhanced: React.FC<PamAssistantEnhancedProps> = ({ userId, authToken }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [message, setMessage] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
-  const { user } = useAuth(); // Declare user first before using it
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const { isConnected, sendMessage } = usePamWebSocketConnection({
-    userId: user?.id || "anonymous",
-    onMessage: (message) => {
-      console.log("PAM message received:", message);
-      const pamResponse = {
+  const { sendMessage, lastMessage, connectionStatus } = usePamWebSocketConnection(
+    userId,
+    authToken
+  );
+
+  // Add incoming messages to the messages array
+  useEffect(() => {
+    if (lastMessage) {
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        content: lastMessage.content || lastMessage.message || JSON.stringify(lastMessage),
         sender: "pam",
-        content: message.message || message.content || "I received your message!",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, pamResponse]);
-    },
-    onStatusChange: (connected) => {
-      console.log("PAM connection status:", connected);
+        timestamp: new Date().toISOString()
+      }]);
     }
-  });
+  }, [lastMessage]);
 
-  const handleSendMessage = async () => {
-    if (!message.trim() || isProcessing) return;
-    setIsProcessing(true);
-    
-    try {
-      // Add user message to chat
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Focus input when chat opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const handleSendMessage = () => {
+    if (inputMessage.trim() && connectionStatus === "Connected") {
+      // Add user message to the messages array
       const userMessage = {
+        id: Date.now(),
+        content: inputMessage,
         sender: "user",
-        content: message.trim(),
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       };
+      
       setMessages(prev => [...prev, userMessage]);
-      // Send message via WebSocket
-      sendMessage({
-        type: "chat",
-        message: message.trim(),
-        userId: user?.id || "anonymous"
-      });
-    } catch (error) {
-      console.error("Error sending message:", error);
-    } finally {
-      setIsProcessing(false);
-      setMessage("");
+      
+      // Send message to backend
+      sendMessage(inputMessage);
+      setInputMessage("");
     }
   };
 
-  // Demo function to show PAM's capabilities
-  const demoAction = async () => {
-    setIsProcessing(true);
-    
-    // Example: Add expense workflow
-    await pamUIController.executeWorkflow([
-      { type: 'scroll', selector: '#expense-form' },
-      { type: 'wait', duration: 500 },
-      { type: 'fill', selector: '#amount', value: '50.00' },
-      { type: 'wait', duration: 500 },
-      { type: 'fill', selector: '#category', value: 'Fuel' },
-      { type: 'wait', duration: 500 },
-      { type: 'click', selector: '#submit-expense' }
-    ]);
-    
-    setIsProcessing(false);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const toggleVoice = () => {
+    setIsListening(!isListening);
+    // Voice recognition implementation would go here
   };
 
   return (
@@ -80,91 +81,109 @@ export function PamAssistantEnhanced() {
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-1 shadow-lg transition-all z-50"
       >
-        <img src={PAM_AVATAR_URL} alt="PAM" className="w-10 h-10 rounded-full" />
+        <div className="relative">
+          <img 
+            src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+            alt="PAM Assistant"
+            className="w-10 h-10 rounded-full"
+          />
+          <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
+            connectionStatus === "Connected" ? "bg-green-500" : 
+            connectionStatus === "Connecting" ? "bg-yellow-500" : "bg-red-500"
+          }`} />
+        </div>
       </button>
 
-      {/* PAM Chat Window */}
+      {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-lg shadow-2xl z-50 flex flex-col">
+        <div className="fixed bottom-20 right-6 w-80 h-96 bg-white rounded-lg shadow-xl border z-50 flex flex-col">
           {/* Header */}
-          <div className="bg-primary text-white p-1 rounded-t-lg flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src={PAM_AVATAR_URL} alt="PAM" className="w-12 h-12 rounded-full" />
-              <h3 className="font-semibold">PAM - Your AI Assistant</h3>
-              {isConnected ? (
-                <Wifi className="w-4 h-4 text-green-300" />
-              ) : (
-                <WifiOff className="w-4 h-4 text-red-300" />
-              )}
+          <div className="flex items-center justify-between p-4 border-b bg-primary/5 rounded-t-lg">
+            <div className="flex items-center space-x-3">
+              <img 
+                src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+                alt="PAM"
+                className="w-8 h-8 rounded-full"
+              />
+              <div>
+                <h3 className="font-semibold text-gray-800">PAM</h3>
+                <p className="text-xs text-gray-500">
+                  {connectionStatus === "Connected" ? "Online" : 
+                   connectionStatus === "Connecting" ? "Connecting..." : "Offline"}
+                </p>
+              </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="hover:bg-primary/90 rounded p-1"
+              className="text-gray-400 hover:text-gray-600 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Chat Area */}
-          <div className="flex-1 p-1 overflow-y-auto">
-            <div className="space-y-4">
-              <div className="bg-primary/5 rounded-lg p-3">
-                <p className="text-sm">
-                  Hi! I'm PAM, your AI assistant. I can help you:
-                </p>
-                <ul className="text-sm mt-2 space-y-1">
-                  <li>• Add expenses and manage budgets</li>
-                  <li>• Plan trips and track fuel</li>
-                  <li>• Schedule vehicle maintenance</li>
-                  <li>• Find community tips and hustles</li>
-                </ul>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {messages.length === 0 ? (
+              <div className="text-center text-gray-500 text-sm">
+                <p>👋 Hi! I'm PAM, your travel assistant.</p>
+                <p className="mt-2">Ask me about camping spots, routes, or travel tips!</p>
               </div>
-
-              {isProcessing && (
-                <div className="flex items-center gap-2 text-primary">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">PAM is working on that...</span>
+            ) : (
+              messages.map((msg, index) => (
+                <div key={index} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg ${
+                    msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
+                  }`}>
+                    <p className="text-sm">{msg.content}</p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
-          <div className="border-t p-1">
-            <div className="flex gap-2">
+          {/* Input */}
+          <div className="p-3 border-t">
+            <div className="flex items-center space-x-2">
               <input
+                ref={inputRef}
                 type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                disabled={!message.trim() || isProcessing}
-                className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg disabled:opacity-50"
-              >
-                Send
-              </button>
-            </div>
-                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={isProcessing}
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask PAM anything..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                disabled={connectionStatus !== "Connected"}
               />
               <button
-                onClick={handleSendMessage}
-                disabled={isProcessing || !message.trim()}
-                className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                onClick={toggleVoice}
+                className={`p-2 rounded-lg transition-colors ${
+                  isListening ? "bg-red-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
               >
-                Send
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
+                className="bg-primary text-white p-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Send className="w-4 h-4" />
               </button>
             </div>
-            
-            {/* Demo Button */}
-            <button
-              onClick={demoAction}
-              className="mt-2 text-xs text-primary hover:text-primary/90"
-            >
-              Demo: Add Expense
-            </button>
+            {connectionStatus !== "Connected" && (
+              <p className="text-xs text-red-500 mt-1">
+                {connectionStatus === "Connecting" ? "Connecting to PAM..." : "PAM is offline"}
+              </p>
+            )}
           </div>
         </div>
       )}
     </>
   );
-}
+};
+
+export default PamAssistantEnhanced;
