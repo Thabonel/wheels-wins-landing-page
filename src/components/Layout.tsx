@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import PamAssistantEnhanced from "@/components/PamAssistantEnhanced";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
@@ -16,13 +16,15 @@ export default function Layout({ children }: LayoutProps) {
   const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
   const { user: authUser, session } = useAuth();
 
+  // Modal state (using React, not DOM methods)
+  const [pamOpen, setPamOpen] = useState(false);
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b px-6 py-4">
         <Header />
       </header>
 
-      {/* Full-width hero only on homepage */}
       {pathname === "/" && <Hero />}
 
       <main
@@ -32,19 +34,19 @@ export default function Layout({ children }: LayoutProps) {
             : "flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-1 bg-gray-50"
         }
       >
-        {/* Show offline banner on dashboard pages */}
         {!["/", "/auth", "/onboarding"].includes(pathname) && <OfflineBanner />}
         <div className={pathname === "/" ? "w-full h-full" : "w-full h-full min-h-screen"}>
           {children}
         </div>
       </main>
 
-      {/* Pam floating button and modal—shown everywhere except excluded pages */}
+      {/* Pam floating button and modal */}
       {!hidePam && (
         <>
+          {/* Floating Pam button */}
           <div className="fixed bottom-20 right-4 z-50">
             <button
-              onClick={() => document.getElementById('pam-modal')?.classList.toggle('hidden')}
+              onClick={() => setPamOpen(true)}
               className="bg-blue-600 text-white rounded-full p-3 shadow-lg hover:bg-blue-700 transition-colors"
               aria-label="Chat with Pam"
             >
@@ -54,28 +56,8 @@ export default function Layout({ children }: LayoutProps) {
             </button>
           </div>
 
-          {/* Universal Pam modal */}
-          <div id="pam-modal" className="hidden fixed inset-0 z-40 bg-black bg-opacity-50">
-            <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">Chat with Pam</h3>
-                <button
-                  onClick={() => document.getElementById('pam-modal')?.classList.add('hidden')}
-                  className="text-gray-500"
-                  aria-label="Close Pam Chat"
-                >
-                  Close
-                </button>
-              </div>
-              <PamAssistantEnhanced userId={authUser?.id || ""} authToken={session?.access_token || ""} />
-            </div>
-          </div>
-        </>
-      )}
-
-      <footer className="bg-white text-gray-600 py-4 border-t">
-        <Footer />
-      </footer>
-    </div>
-  );
-}
+          {/* Pam modal (React state-driven) */}
+          {pamOpen && (
+            <div className="fixed inset-0 z-40 bg-black bg-opacity-50 flex items-end justify-center" onClick={() => setPamOpen(false)}>
+              <div
+                className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl p-4 max-h-[80vh] overflow-
