@@ -1,5 +1,4 @@
-
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 
 interface WebSocketConnectionConfig {
   userId: string;
@@ -14,7 +13,6 @@ export function usePamWebSocketConnection({ userId, onMessage, onStatusChange }:
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 3;
 
-  console.log("WebSocket connection config:", { userId, onMessage, onStatusChange });
   const updateConnectionStatus = useCallback((connected: boolean) => {
     setIsConnected(connected);
     onStatusChange(connected);
@@ -36,7 +34,7 @@ export function usePamWebSocketConnection({ userId, onMessage, onStatusChange }:
         message: '⚠️ Unable to connect to PAM backend. Please refresh the page to try again.'
       });
     }
-  }, []);
+  }, [onMessage]);
 
   const connect = useCallback(() => {
     if (!userId || ws.current?.readyState === WebSocket.OPEN) return;
@@ -99,6 +97,23 @@ export function usePamWebSocketConnection({ userId, onMessage, onStatusChange }:
       }
     }
   }, [userId, onMessage, updateConnectionStatus, scheduleReconnect]);
+
+  // Auto-connect when userId changes
+  useEffect(() => {
+    if (userId) {
+      connect();
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (reconnectTimeout.current) {
+        clearTimeout(reconnectTimeout.current);
+      }
+      if (ws.current) {
+        ws.current.close(1000, 'Component unmounting');
+      }
+    };
+  }, [userId, connect]);
 
   const sendMessage = useCallback((message: any) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
