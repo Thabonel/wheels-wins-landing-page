@@ -84,7 +84,7 @@ export function PamAssistantEnhanced() {
       {/* PAM Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transition-all z-50"
+        className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg transition-all z-50"
       >
         <MessageSquare className="w-6 h-6" />
       </button>
@@ -93,7 +93,7 @@ export function PamAssistantEnhanced() {
       {isOpen && (
         <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-lg shadow-2xl z-50 flex flex-col">
           {/* Header */}
-          <div className="bg-purple-600 text-white p-4 rounded-t-lg flex items-center justify-between">
+          <div className="bg-primary text-white p-4 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h3 className="font-semibold">PAM - Your AI Assistant</h3>
               {isConnected ? (
@@ -104,7 +104,7 @@ export function PamAssistantEnhanced() {
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="hover:bg-purple-700 rounded p-1"
+              className="hover:bg-primary/90 rounded p-1"
             >
               <X className="w-5 h-5" />
             </button>
@@ -113,7 +113,7 @@ export function PamAssistantEnhanced() {
           {/* Chat Area */}
           <div className="flex-1 p-4 overflow-y-auto">
             <div className="space-y-4">
-              <div className="bg-purple-50 rounded-lg p-3">
+              <div className="bg-primary/5 rounded-lg p-3">
                 <p className="text-sm">
                   Hi! I'm PAM, your AI assistant. I can help you:
                 </p>
@@ -126,7 +126,7 @@ export function PamAssistantEnhanced() {
               </div>
 
               {isProcessing && (
-                <div className="flex items-center gap-2 text-purple-600">
+                <div className="flex items-center gap-2 text-primary">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span className="text-sm">PAM is working on that...</span>
                 </div>
@@ -143,13 +143,13 @@ export function PamAssistantEnhanced() {
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder="Ask PAM anything..."
-                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 disabled={isProcessing}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={isProcessing || !message.trim()}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg disabled:opacity-50"
               >
                 Send
               </button>
@@ -158,7 +158,7 @@ export function PamAssistantEnhanced() {
             {/* Demo Button */}
             <button
               onClick={demoAction}
-              className="mt-2 text-xs text-purple-600 hover:text-purple-700"
+              className="mt-2 text-xs text-primary hover:text-primary/90"
             >
               Demo: Add Expense
             </button>
