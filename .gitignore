@@ -24,3 +24,19 @@ dist-ssr
 *.sw?
 __pycache__/
 *.pyc
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+
+# Node
+node_modules/
+.next/
+
+# IDE
+.vscode/
+.idea/
