@@ -97,7 +97,7 @@ export function PamAssistantEnhanced() {
           {/* Header */}
           <div className="bg-primary text-white p-4 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src={PAM_AVATAR_URL} alt="PAM" className="w-8 h-8 rounded-full" />
+              <img src={PAM_AVATAR_URL} alt="PAM" className="w-12 h-12 rounded-full" />
               <h3 className="font-semibold">PAM - Your AI Assistant</h3>
               {isConnected ? (
                 <Wifi className="w-4 h-4 text-green-300" />
