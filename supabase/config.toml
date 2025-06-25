@@ -1,0 +1,29 @@
+
+project_id = "kycoklimpzkyrecbjecn"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+port = 54322
+site_url = "https://wheelsandwins.com"
+additional_redirect_urls = ["https://wheelsandwins.com/onboarding", "https://wheelsandwins.com/auth", "https://wheelsandwins.com/you"]
+jwt_expiry = 3600
+jwt_secret = "super-secret-jwt-token-with-at-least-32-characters-long"
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[db]
+enabled = true
+port = 54323
+shadow_port = 54324
+major_version = 15
