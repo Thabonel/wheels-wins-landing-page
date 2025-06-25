@@ -1,68 +1,417 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { X, Send, Mic, MicOff, MapPin, Calendar, DollarSign } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useLocation } from "react-router-dom";
-import Header from "@/components/header/Header";
-import Hero from "@/components/Hero";
-import Footer from "@/components/Footer";
-import OfflineBanner from "@/components/OfflineBanner";
 
-interface LayoutProps {
-  children: React.ReactNode;
+interface PamMessage {
+  id: string;
+  content: string;
+  sender: "user" | "pam";
+  timestamp: string;
+  context?: any;
 }
 
-export default function Layout({ children }: LayoutProps) {
-  const { pathname } = useLocation();
-  const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
-  const { user: authUser, session } = useAuth();
+interface PamProps {
+  mode?: "floating" | "sidebar" | "modal";
+}
+
+const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
+  const { user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [messages, setMessages] = useState<PamMessage[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
+  const [userContext, setUserContext] = useState<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Load user context and memory when component mounts
+  useEffect(() => {
+    if (user?.id) {
+      loadUserContext();
+      loadConversationMemory();
+      connectToBackend();
+    }
+  }, [user?.id]);
+
+  const loadUserContext = async () => {
+    try {
+      // Load user location, preferences, and profile data
+      const response = await fetch('/api/you/profile', {
+        headers: { 'Authorization': `Bearer ${user?.access_token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUserContext(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load user context:', error);
+    }
+  };
+
+  const loadConversationMemory = async () => {
+    try {
+      // Load recent conversation history from pam_life_memory
+      const response = await fetch(`/api/pam/memory?user_id=${user?.id}&limit=10`, {
+        headers: { 'Authorization': `Bearer ${user?.access_token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const memoryMessages = data.memories?.map((memory: any) => ({
+          id: memory.id,
+          content: memory.content,
+          sender: memory.topic === 'user_message' ? 'user' : 'pam',
+          timestamp: memory.created_at,
+          context: memory.context
+        })) || [];
+        setMessages(memoryMessages);
+      }
+    } catch (error) {
+      console.error('Failed to load conversation memory:', error);
+    }
+  };
+
+  const saveToMemory = async (message: string, sender: 'user' | 'pam', context?: any) => {
+    try {
+      await fetch('/api/pam/memory', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.access_token}`
+        },
+        body: JSON.stringify({
+          user_id: user?.id,
+          content: message,
+          topic: sender === 'user' ? 'user_message' : 'pam_response',
+          context: context
+        })
+      });
+    } catch (error) {
+      console.error('Failed to save to memory:', error);
+    }
+  };
+
+  const connectToBackend = useCallback(() => {
+    if (!user?.id) return;
+
+    try {
+      const backendUrl = import.meta.env.VITE_PAM_BACKEND_URL || "https://pam-backend.onrender.com";
+      const wsUrl = `${backendUrl.replace("https", "wss")}/ws/${user.id}?token=${user.access_token || "demo-token"}`;
+      
+      setConnectionStatus("Connecting");
+      wsRef.current = new WebSocket(wsUrl);
+
+      wsRef.current.onopen = () => {
+        console.log('✅ PAM connected successfully');
+        setConnectionStatus("Connected");
+        
+        // Send welcome message with context
+        addMessage("🤖 Hi! I'm PAM, your intelligent travel companion. I remember our conversations and know your preferences. How can I help you today?", "pam");
+      };
+
+      wsRef.current.onmessage = async (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('📨 PAM message received:', message);
+          
+          if (message.type === 'chat_response') {
+            const content = message.message || message.content;
+            addMessage(content, "pam");
+            await saveToMemory(content, "pam", message.actions);
+          }
+        } catch (error) {
+          console.error('❌ Error parsing PAM message:', error);
+        }
+      };
+
+      wsRef.current.onclose = () => {
+        console.log('🔌 PAM disconnected');
+        setConnectionStatus("Disconnected");
+      };
+
+      wsRef.current.onerror = (error) => {
+        console.error('❌ PAM connection error:', error);
+        setConnectionStatus("Disconnected");
+      };
+    } catch (error) {
+      console.error('❌ Failed to connect to PAM:', error);
+      setConnectionStatus("Disconnected");
+    }
+  }, [user?.id, user?.access_token]);
+
+  const addMessage = (content: string, sender: "user" | "pam") => {
+    const newMessage: PamMessage = {
+      id: Date.now().toString(),
+      content,
+      sender,
+      timestamp: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, newMessage]);
+  };
+
+  const handleSendMessage = async () => {
+    if (inputMessage.trim() && connectionStatus === "Connected" && wsRef.current) {
+      const message = inputMessage.trim();
+      
+      // Add user message to chat
+      addMessage(message, "user");
+      await saveToMemory(message, "user");
+      
+      // Send to backend with full context
+      const messageData = {
+        type: "chat",
+        content: message,
+        userId: user?.id,
+        timestamp: new Date().toISOString(),
+        context: {
+          userLocation: userContext?.current_location,
+          vehicleInfo: userContext?.vehicle_info,
+          travelStyle: userContext?.travel_style,
+          conversationHistory: messages.slice(-5) // Last 5 messages for context
+        }
+      };
+
+      wsRef.current.send(JSON.stringify(messageData));
+      setInputMessage("");
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const getPersonalizedGreeting = () => {
+    if (!userContext) return "Hi! I'm PAM";
+    
+    const location = userContext.current_location || "your location";
+    const vehicle = userContext.vehicle_info?.type || "vehicle";
+    
+    return `Hi! I'm PAM, your travel companion. I see you're in ${location} with your ${vehicle}. Ready for an adventure?`;
+  };
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Focus input when chat opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  if (mode === "sidebar") {
+    return (
+      <div className="h-full flex flex-col bg-white">
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between p-4 border-b bg-primary/5">
+          <div className="flex items-center space-x-3">
+            <img 
+              src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+              alt="PAM"
+              className="w-8 h-8 rounded-full"
+            />
+            <div>
+              <h3 className="font-semibold text-gray-800">PAM</h3>
+              <p className="text-xs text-gray-500">
+                {connectionStatus === "Connected" ? "🟢 Online & Ready" : 
+                 connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {messages.length === 0 ? (
+            <div className="text-center text-gray-500 text-sm">
+              <p>{getPersonalizedGreeting()}</p>
+              <div className="mt-4 space-y-2">
+                <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                  <MapPin className="w-4 h-4" />
+                  Plan my next trip
+                </button>
+                <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                  <Calendar className="w-4 h-4" />
+                  Check my schedule
+                </button>
+                <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                  <DollarSign className="w-4 h-4" />
+                  Review my budget
+                </button>
+              </div>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[80%] px-3 py-2 rounded-lg ${
+                  msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
+                }`}>
+                  <p className="text-sm">{msg.content}</p>
+                  <p className="text-xs opacity-70 mt-1">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="p-3 border-t">
+          <div className="flex items-center space-x-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask PAM anything..."
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+              disabled={connectionStatus !== "Connected"}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
+              className="bg-primary text-white p-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b px-6 py-4">
-        <Header />
-      </header>
-
-      {pathname === "/" && <Hero />}
-
-      <main
-        className={
-          pathname === "/"
-            ? "flex-1 px-0 py-0 bg-white"
-            : "flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-1 bg-gray-50"
-        }
+    <>
+      {/* Floating Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-3 shadow-lg transition-all z-50"
       >
-        {!["/", "/auth", "/onboarding"].includes(pathname) && <OfflineBanner />}
-        <div className={pathname === "/" ? "w-full h-full" : "w-full h-full min-h-screen"}>
-          {children}
+        <div className="relative">
+          <img 
+            src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+            alt="PAM Assistant"
+            className="w-8 h-8 rounded-full"
+          />
+          <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
+            connectionStatus === "Connected" ? "bg-green-500" : 
+            connectionStatus === "Connecting" ? "bg-yellow-500" : "bg-red-500"
+          }`} />
         </div>
-      </main>
+      </button>
 
-      {/* Pam avatar chat trigger */}
-      {!hidePam && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <button
-            onClick={() => setPamOpen(true)}
-            className="relative rounded-full border-4 border-blue-400 shadow-lg focus:outline-none"
-            aria-label="Chat with Pam"
-          >
-            <img
-              src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
-              alt="Pam avatar"
-              className="w-16 h-16 rounded-full object-cover"
-            />
-            {/* Online indicator */}
-            <span className="absolute top-1 right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></span>
-          </button>
-        </div>
-      )}
+      {/* Chat Window */}
+      {isOpen && (
+        <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-lg shadow-xl border z-50 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b bg-primary/5 rounded-t-lg">
+            <div className="flex items-center space-x-3">
+              <img 
+                src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+                alt="PAM"
+                className="w-8 h-8 rounded-full"
+              />
+              <div>
+                <h3 className="font-semibold text-gray-800">PAM</h3>
+                <p className="text-xs text-gray-500">
+                  {connectionStatus === "Connected" ? "🟢 Online & Intelligent" : 
+                   connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-      {/* Pam modal, React-state controlled */}
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {messages.length === 0 ? (
+              <div className="text-center text-gray-500 text-sm">
+                <p>{getPersonalizedGreeting()}</p>
+                <div className="mt-4 space-y-2">
+                  <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                    <MapPin className="w-4 h-4" />
+                    Plan my next adventure
+                  </button>
+                  <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                    <Calendar className="w-4 h-4" />
+                    What's my schedule?
+                  </button>
+                  <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                    <DollarSign className="w-4 h-4" />
+                    How's my budget?
+                  </button>
+                </div>
+              </div>
+            ) : (
+              messages.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[80%] px-3 py-2 rounded-lg ${
+                    msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
+                  }`}>
+                    <p className="text-sm">{msg.content}</p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="p-4 border-t">
+            <div className="flex items-center space-x-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask PAM anything..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                disabled={connectionStatus !== "Connected"}
+              />
+              <button
+                onClick={() => setIsListening(!isListening)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isListening ? "bg-red-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
+                className="bg-primary text-white p-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+            {connectionStatus !== "Connected" && (
+              <p className="text-xs text-red-500 mt-1">
+                {connectionStatus === "Connecting" ? "Connecting to PAM..." : "PAM is offline"}
+              </p>
+            )}
           </div>
         </div>
       )}
-
-      <footer className="bg-white text-gray-600 py-4 border-t">
-        <Footer />
-      </footer>
-    </div>
+    </>
   );
-}
+};
+
+export default Pam;
