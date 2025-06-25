@@ -1,3 +1,4 @@
+cat > app/core/orchestrator.py << 'EOF'
 # app/core/orchestrator.py
 from typing import Dict, List, Any
 from enum import Enum
@@ -24,33 +25,64 @@ except ImportError as e:
 
 logger = logging.getLogger("pam")
 
-class Domain(Enum):
-    WHEELS = "wheels"
-    WINS = "wins"
-    SOCIAL = "social"
-    YOU = "you"
-    SHOP = "shop"
-    GENERAL = "general"
-
-class ActionType(Enum):
-    VIEW = "view"
-    CREATE = "create"
-    UPDATE = "update"
-    DELETE = "delete"
-    NAVIGATE = "navigate"
-    HELP = "help"
-    PLAN = "plan"
-    TRACK = "track"
-    ANALYZE = "analyze"
-
-class Intent:
-    def __init__(self, domain: Domain, action: ActionType, entities: Dict[str, Any], confidence: float):
-        self.domain = domain
-        self.action = action
-        self.entities = entities
-        self.confidence = confidence
-
-class IntentClassifier:
+class ActionPlanner:
     def __init__(self):
-        pass
-    
+        self.memory_node = MemoryNode()
+        self.intelligent_handler = IntelligentConversationHandler()
+
+    async def plan(self, message: str, context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Intelligent conversation planning using OpenAI"""
+        user_id = context.get("user_id")
+        session_id = context.get("session_id")
+        
+        # Get conversation context from memory
+        if user_id:
+            enhanced_context = await self.memory_node.get_enhanced_context(user_id, message, session_id)
+            context.update(enhanced_context)
+        
+        try:
+            # Use intelligent conversation analysis
+            analysis = await self.intelligent_handler.analyze_conversation(
+                current_message=message,
+                conversation_history=context.get("conversation_history", []),
+                user_profile=context.get("user_profile", {})
+            )
+            
+            # Extract intent from analysis
+            intent_data = analysis.get("intent", {})
+            domain_str = intent_data.get("domain", "general")
+            
+            # Create response from AI analysis
+            ai_response = analysis.get("response", {})
+            result = {
+                "type": ai_response.get("type", "message"),
+                "content": ai_response.get("content", "I'm here to help! How can I assist you today?"),
+                "suggested_actions": ai_response.get("suggested_actions", [])
+            }
+            
+            # Store interaction in memory
+            if user_id:
+                await self.memory_node.store_interaction(
+                    user_id=user_id,
+                    user_message=message,
+                    pam_response=result.get("content", ""),
+                    session_id=session_id or "default_session",
+                    intent=domain_str,
+                    intent_confidence=intent_data.get("confidence", 0.5),
+                    context_used=context,
+                    node_used="intelligent_handler"
+                )
+            
+            return [result]
+            
+        except Exception as e:
+            print(f"❌ Error in intelligent planning: {str(e)}")
+            # Fallback to simple response
+            return [{
+                "type": "message",
+                "content": "I'm here to help with your travel planning, budgeting, and social connections. What would you like to do?"
+            }]
+
+# Create global orchestrator instance
+orchestrator = ActionPlanner()
+EOF
