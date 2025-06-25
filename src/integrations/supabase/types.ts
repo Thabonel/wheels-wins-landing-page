@@ -713,6 +713,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_food_items_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "food_categories"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "food_items_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
@@ -1046,6 +1053,13 @@ export type Database = {
           quantity?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_items_drawer"
+            columns: ["drawer_id"]
+            isOneToOne: false
+            referencedRelation: "drawers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "items_drawer_id_fkey"
             columns: ["drawer_id"]
