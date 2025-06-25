@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import PamAssistantEnhanced from "@/components/PamAssistantEnhanced";
+import Pam from "@/components/Pam";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Header from "@/components/header/Header";
