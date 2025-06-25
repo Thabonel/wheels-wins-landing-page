@@ -8,6 +8,7 @@ from app.nodes.wins_node import wins_node
 from app.nodes.wheels_node import wheels_node
 from app.nodes.social_node import social_node
 from app.nodes.you_node import you_node
+from app.nodes.memory_node import MemoryNode
 
 # Import the enhanced route intelligence
 from app.core.route_intelligence import route_intelligence
