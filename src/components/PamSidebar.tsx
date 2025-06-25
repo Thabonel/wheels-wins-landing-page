@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { PamAssistantEnhanced as PamAssistant } from '@/components/PamAssistantEnhanced';
+import PamAssistantEnhanced from '@/components/PamAssistantEnhanced';
 
 const PamSidebar: React.FC = () => {
   return (
