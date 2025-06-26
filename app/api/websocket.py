@@ -45,8 +45,12 @@ async def websocket_endpoint(
             elif data.get("type") == "chat":
                 # Process chat message through orchestrator
                 message = data.get("content", "")
-                context = data.get("context", {})  # <-- FIXED: get full context from frontend
-                context["user_id"] = user_id       # <-- always ensure user_id
+                context = data.get("context", {})  # Get full context from frontend
+                context["user_id"] = user_id       # Always ensure user_id is set
+                
+                # Log context flow for debugging
+                logger.info(f"📍 Context received from frontend: {json.dumps(context, indent=2)}")
+                logger.info(f"💬 Processing message: '{message}' with user_id: {user_id}")
 
                 try:
                     actions = await orchestrator.plan(message, context)
