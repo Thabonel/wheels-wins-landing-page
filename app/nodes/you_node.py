@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from app.core.logging import setup_logging
+from app.database.supabase_client import get_supabase_client
 
 logger = setup_logging("you_node")
 
@@ -32,6 +33,7 @@ class YouNode:
     
     def __init__(self):
         self.logger = setup_logging("you_node")
+        self.supabase = get_supabase_client()
         
     async def create_calendar_event(self, user_id: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new calendar event"""
@@ -105,29 +107,108 @@ class YouNode:
                 "message": "I couldn't create your calendar event. Please check the details and try again."
             }
     
-    async def update_user_profile(self, user_id: str, profile_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update user profile information"""
+    async def get_user_profile(self, user_id: str) -> Dict[str, Any]:
+        """Get user profile from Supabase profiles table"""
         try:
+            response = self.supabase.table('profiles').select('*').eq('user_id', user_id).single().execute()
+            
+            if not response.data:
+                # Create basic profile if none exists
+                basic_profile = {
+                    "user_id": user_id,
+                    "email": "",
+                    "region": "Australia",
+                    "travel_preferences": {},
+                    "vehicle_info": {},
+                    "budget_preferences": {}
+                }
+                
+                create_response = self.supabase.table('profiles').insert(basic_profile).execute()
+                return {
+                    "success": True,
+                    "profile": create_response.data[0],
+                    "message": "Created new profile"
+                }
+            
+            profile = response.data
+            
+            # Enrich profile with default values for missing data
+            enriched_profile = await self._enrich_profile_data(profile)
+            
+            return {
+                "success": True,
+                "profile": enriched_profile,
+                "completeness": await self._calculate_profile_completeness_from_data(enriched_profile)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching user profile: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Could not retrieve profile data"
+            }
+
+    async def update_user_profile(self, user_id: str, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update user profile information in Supabase"""
+        try:
+            # Build update object with only provided fields
             updates = {}
             
-            # Handle different profile fields
-            if 'travel_style' in profile_data:
-                updates['travel_style'] = profile_data['travel_style']
+            # Handle travel preferences
+            if 'travel_preferences' in profile_data:
+                updates['travel_preferences'] = profile_data['travel_preferences']
+            elif any(key in profile_data for key in ['travel_style', 'camp_types', 'drive_limit']):
+                # Get existing travel preferences
+                existing_profile = await self.get_user_profile(user_id)
+                travel_prefs = existing_profile.get('profile', {}).get('travel_preferences', {})
+                
+                if 'travel_style' in profile_data:
+                    travel_prefs['style'] = profile_data['travel_style']
+                if 'camp_types' in profile_data:
+                    travel_prefs['camp_types'] = profile_data['camp_types']
+                if 'drive_limit' in profile_data:
+                    travel_prefs['drive_limit'] = profile_data['drive_limit']
+                    
+                updates['travel_preferences'] = travel_prefs
             
+            # Handle vehicle info
+            if 'vehicle_info' in profile_data:
+                updates['vehicle_info'] = profile_data['vehicle_info']
+            elif any(key in profile_data for key in ['vehicle_type', 'vehicle_make_model_year', 'fuel_type']):
+                # Get existing vehicle info
+                existing_profile = await self.get_user_profile(user_id)
+                vehicle_info = existing_profile.get('profile', {}).get('vehicle_info', {})
+                
+                if 'vehicle_type' in profile_data:
+                    vehicle_info['type'] = profile_data['vehicle_type']
+                if 'vehicle_make_model_year' in profile_data:
+                    vehicle_info['make_model_year'] = profile_data['vehicle_make_model_year']
+                if 'fuel_type' in profile_data:
+                    vehicle_info['fuel_type'] = profile_data['fuel_type']
+                    
+                updates['vehicle_info'] = vehicle_info
+            
+            # Handle budget preferences
             if 'budget_preferences' in profile_data:
                 updates['budget_preferences'] = profile_data['budget_preferences']
             
-            if 'location' in profile_data:
-                updates['current_location'] = profile_data['location']
-                
-            if 'vehicle_info' in profile_data:
-                updates['vehicle_info'] = profile_data['vehicle_info']
+            # Handle basic profile fields
+            for field in ['email', 'region', 'full_name', 'nickname']:
+                if field in profile_data:
+                    updates[field] = profile_data[field]
             
-            if 'interests' in profile_data:
-                updates['interests'] = profile_data['interests']
+            # Update the profile in Supabase
+            response = self.supabase.table('profiles').update(updates).eq('user_id', user_id).execute()
             
-            # Learn from profile updates
-            await self._learn_user_preferences(user_id, updates)
+            if not response.data:
+                return {
+                    "success": False,
+                    "error": "Profile not found",
+                    "message": "Could not update profile - user not found"
+                }
+            
+            updated_profile = response.data[0]
             
             # Generate personalized recommendations based on new profile
             recommendations = await self._generate_profile_recommendations(user_id, updates)
@@ -136,7 +217,8 @@ class YouNode:
                 "success": True,
                 "data": {
                     "updated_fields": list(updates.keys()),
-                    "profile_completeness": await self._calculate_profile_completeness(user_id),
+                    "profile": updated_profile,
+                    "profile_completeness": await self._calculate_profile_completeness_from_data(updated_profile),
                     "recommendations": recommendations
                 },
                 "message": f"Updated {len(updates)} profile fields successfully!",
@@ -149,11 +231,6 @@ class YouNode:
                         "type": "update_form",
                         "form_id": "profile-form",
                         "data": updates
-                    },
-                    {
-                        "type": "show_recommendations",
-                        "element": ".profile-recommendations",
-                        "recommendations": recommendations
                     }
                 ]
             }
@@ -406,31 +483,128 @@ class YouNode:
         pass
     
     async def _generate_profile_recommendations(self, user_id: str, profile_updates: Dict[str, Any]) -> List[str]:
-        """Generate recommendations based on profile"""
+        """Generate recommendations based on profile updates"""
         recommendations = []
         
-        if 'travel_style' in profile_updates:
-            style = profile_updates['travel_style']
-            if style == 'budget':
-                recommendations.append("Check out free camping spots in the WHEELS section")
-                recommendations.append("Set up budget alerts in WINS")
-            elif style == 'luxury':
-                recommendations.append("Explore premium caravan parks")
-                recommendations.append("Consider travel insurance upgrades")
+        # Check travel preferences
+        travel_prefs = profile_updates.get('travel_preferences', {})
+        if travel_prefs.get('style') == 'budget':
+            recommendations.append("Check out free camping spots in the WHEELS section")
+            recommendations.append("Set up budget alerts in WINS to track expenses")
+        elif travel_prefs.get('style') == 'luxury':
+            recommendations.append("Explore premium caravan parks with full amenities")
+            recommendations.append("Consider comprehensive travel insurance")
         
-        if 'interests' in profile_updates:
-            interests = profile_updates['interests']
-            if 'photography' in interests:
-                recommendations.append("Join the Photography group in SOCIAL")
-            if 'fishing' in interests:
-                recommendations.append("Check fishing regulations in your travel areas")
+        # Check vehicle info
+        vehicle_info = profile_updates.get('vehicle_info', {})
+        if vehicle_info.get('type') == 'motorhome':
+            recommendations.append("Look for RV-friendly fuel stations in WHEELS")
+            recommendations.append("Check height clearances on your planned routes")
+        elif vehicle_info.get('fuel_type') == 'diesel':
+            recommendations.append("Track diesel prices to find the best deals")
         
-        return recommendations
+        # Check budget preferences
+        budget_prefs = profile_updates.get('budget_preferences', {})
+        if budget_prefs.get('daily_budget'):
+            daily_budget = budget_prefs['daily_budget']
+            if daily_budget < 80:
+                recommendations.append("Consider free camping options to stretch your budget")
+            elif daily_budget > 200:
+                recommendations.append("You could explore premium experiences and destinations")
+        
+        # Add general recommendations if profile is being updated
+        if profile_updates:
+            recommendations.append("Update your preferences in other sections for better personalization")
+            
+        return recommendations[:5]  # Limit to 5 recommendations
     
-    async def _calculate_profile_completeness(self, user_id: str) -> float:
-        """Calculate how complete the user's profile is"""
-        # TODO: Check actual profile fields
-        return 0.75  # 75% complete for demo
+    async def _enrich_profile_data(self, profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Enrich profile with default values for missing data"""
+        try:
+            enriched = profile.copy()
+            
+            # Ensure travel_preferences exists and has defaults
+            if not enriched.get('travel_preferences'):
+                enriched['travel_preferences'] = {}
+            
+            travel_prefs = enriched['travel_preferences']
+            if not travel_prefs.get('style'):
+                travel_prefs['style'] = 'balanced'
+            if not travel_prefs.get('camp_types'):
+                travel_prefs['camp_types'] = ['caravan_parks', 'free_camps']
+            if not travel_prefs.get('drive_limit'):
+                travel_prefs['drive_limit'] = '500km'
+                
+            # Ensure vehicle_info exists and has defaults
+            if not enriched.get('vehicle_info'):
+                enriched['vehicle_info'] = {}
+                
+            vehicle_info = enriched['vehicle_info']
+            if not vehicle_info.get('type'):
+                vehicle_info['type'] = 'caravan'
+            if not vehicle_info.get('fuel_type'):
+                vehicle_info['fuel_type'] = 'diesel'
+            if not vehicle_info.get('fuel_efficiency'):
+                vehicle_info['fuel_efficiency'] = 8.5
+                
+            # Ensure budget_preferences exists and has defaults
+            if not enriched.get('budget_preferences'):
+                enriched['budget_preferences'] = {}
+                
+            budget_prefs = enriched['budget_preferences']
+            if not budget_prefs.get('daily_budget'):
+                budget_prefs['daily_budget'] = 100
+            if not budget_prefs.get('fuel_budget'):
+                budget_prefs['fuel_budget'] = 200
+                
+            # Set default region if missing
+            if not enriched.get('region'):
+                enriched['region'] = 'Australia'
+                
+            return enriched
+            
+        except Exception as e:
+            self.logger.error(f"Error enriching profile data: {e}")
+            return profile
+
+    async def _calculate_profile_completeness_from_data(self, profile: Dict[str, Any]) -> float:
+        """Calculate how complete the user's profile is based on actual data"""
+        try:
+            total_fields = 8
+            completed_fields = 0
+            
+            # Check basic info
+            if profile.get('email'):
+                completed_fields += 1
+            if profile.get('full_name'):
+                completed_fields += 1
+            if profile.get('region'):
+                completed_fields += 1
+                
+            # Check travel preferences
+            travel_prefs = profile.get('travel_preferences', {})
+            if travel_prefs.get('style'):
+                completed_fields += 1
+            if travel_prefs.get('camp_types'):
+                completed_fields += 1
+                
+            # Check vehicle info
+            vehicle_info = profile.get('vehicle_info', {})
+            if vehicle_info.get('type'):
+                completed_fields += 1
+            if vehicle_info.get('fuel_type'):
+                completed_fields += 1
+                
+            # Check budget preferences
+            budget_prefs = profile.get('budget_preferences', {})
+            if budget_prefs.get('daily_budget'):
+                completed_fields += 1
+                
+            return completed_fields / total_fields
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating profile completeness: {e}")
+            return 0.5
     
     async def _apply_preferences_globally(self, user_id: str, preferences: List[UserPreference]) -> List[str]:
         """Apply preferences across the platform"""
