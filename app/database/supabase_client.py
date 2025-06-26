@@ -1,4 +1,5 @@
 
+
 from typing import Optional
 from supabase import create_client, Client
 from app.core.config import settings
@@ -26,3 +27,8 @@ def get_supabase() -> Client:
     if not supabase_client:
         return init_supabase()
     return supabase_client
+
+def get_supabase_client() -> Client:
+    """Alias for get_supabase() for backward compatibility"""
+    return get_supabase()
+
