@@ -15,10 +15,12 @@ class ChatRequest(BaseModel):
     attachments: List[str] = Field(default_factory=list)
 
 class ChatResponse(BaseModel):
-    response: PamResponse
+    response: str
+    actions: Optional[List[Dict[str, Any]]] = None
     conversation_id: str
     message_id: str
     processing_time_ms: int
+    timestamp: datetime
     tokens_used: Optional[int] = None
 
 class ConversationCreateRequest(BaseModel):
@@ -39,7 +41,7 @@ class ConversationListResponse(BaseModel):
 
 class MessageHistoryResponse(BaseModel):
     messages: List[PamMessage]
-    conversation: PamConversation
+    conversation: Optional[PamConversation] = None
     has_more: bool
     next_cursor: Optional[str] = None
 
@@ -49,6 +51,12 @@ class ContextUpdateRequest(BaseModel):
     travel_plans: Optional[Dict[str, Any]] = None
     vehicle_info: Optional[Dict[str, Any]] = None
     preferences: Optional[Dict[str, Any]] = None
+
+class PamFeedbackRequest(BaseModel):
+    message_id: str = Field(..., min_length=1)
+    rating: int = Field(..., ge=1, le=5)
+    feedback_text: Optional[str] = Field(None, max_length=1000)
+    feedback_type: str = Field(..., regex="^(helpful|unhelpful|incorrect|inappropriate)$")
 
 class MemoryCreateRequest(BaseModel):
     memory_type: MemoryType
