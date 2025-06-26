@@ -1,7 +1,17 @@
-from supabase import create_client
-from app.core.config import settings
+import os
+from supabase import create_client, Client
+import logging
 
+logger = logging.getLogger(__name__)
 
-def get_supabase_client():
+# Get environment variables directly
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+def get_supabase_client() -> Client:
     """Initialize and return a Supabase client."""
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        logger.error("Missing SUPABASE_URL or SUPABASE_KEY environment variables")
+        raise ValueError("Missing Supabase configuration")
+    
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
