@@ -2,7 +2,7 @@
 #!/usr/bin/env python3
 """
 PAM Backend Complete Migration Script
-Runs verification and optionally cleanup in sequence.
+Runs verification, cleanup, and finalization in sequence.
 """
 
 import os
@@ -54,24 +54,33 @@ async def main():
     print("\n✅ Migration verification passed!")
     
     # Step 2: Ask about cleanup
-    print("\nStep 2: Old structure cleanup")
-    response = input("Would you like to remove old directories now? (yes/no): ").lower().strip()
+    print("\nStep 2: Final cleanup and old structure removal")
+    print("⚠️  This will permanently remove old /app and /pam-backend directories")
+    print("   (Backups will be created first)")
+    response = input("Proceed with final cleanup? (yes/no): ").lower().strip()
     
     if response in ['yes', 'y']:
-        cleanup_script = os.path.join(scripts_dir, "cleanup_old_structure.py")
+        cleanup_script = os.path.join(scripts_dir, "final_cleanup.py")
         if not os.path.exists(cleanup_script):
             print(f"❌ Cleanup script not found: {cleanup_script}")
             sys.exit(1)
         
-        if run_script(cleanup_script, "Old Structure Cleanup"):
-            print("\n🎉 Complete migration finished successfully!")
-            print("Your PAM backend has been fully migrated to the new structure.")
+        if run_script(cleanup_script, "Final Cleanup and Structure Removal"):
+            print("\n🎉 COMPLETE MIGRATION FINISHED SUCCESSFULLY!")
+            print("Your PAM backend has been fully migrated to the unified structure.")
+            print("\n✅ What was accomplished:")
+            print("   - All backend code consolidated in /backend/")
+            print("   - Old directories safely backed up and removed")
+            print("   - Deployment configurations updated")
+            print("   - Project structure modernized")
+            print("   - Git history preserved")
+            print("\n🚀 Ready for deployment with new configuration!")
         else:
             print("\n⚠️  Migration verification passed, but cleanup had issues.")
-            print("You can run cleanup manually later if needed.")
+            print("You can run final_cleanup.py manually later if needed.")
     else:
         print("\n✅ Migration verification complete!")
-        print("Run cleanup_old_structure.py when you're ready to remove old directories.")
+        print("Run final_cleanup.py when you're ready to remove old directories.")
     
     print(f"\nCompleted at: {datetime.now().isoformat()}")
 
