@@ -1,322 +1,380 @@
 
-import asyncio
+"""
+Enhanced Database Service with additional methods for PAM nodes
+"""
+
 import logging
-from typing import Optional, Dict, Any, List, Callable, TypeVar, Generic
-from contextlib import asynccontextmanager
-from functools import wraps
-import time
-from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
+from datetime import datetime, date
+import asyncio
 
-from supabase import create_client, Client
-from postgrest import APIError
-import httpx
+from app.models.domain.pam import PamMemory, IntentType, MemoryType
+from app.models.domain.user import UserProfile
+from app.models.domain.wheels import Trip, MaintenanceItem, FuelLog
+from app.models.domain.wins import BudgetCategory, Expense
+from app.models.domain.social import SocialPost, SocialGroup
+from app.core.exceptions import DatabaseError
+from app.database.supabase_client import get_supabase
 
-from backend.app.core.config import settings
-from backend.app.core.exceptions import DatabaseError, ExternalServiceError
-
-logger = logging.getLogger(__name__)
-
-T = TypeVar('T')
-
-class ConnectionPool:
-    """Simple connection pool for Supabase clients"""
-    
-    def __init__(self, max_connections: int = 10):
-        self.max_connections = max_connections
-        self.connections: List[Client] = []
-        self.available_connections: List[Client] = []
-        self.in_use_connections: set = set()
-        self._lock = asyncio.Lock()
-    
-    async def get_connection(self) -> Client:
-        async with self._lock:
-            if self.available_connections:
-                conn = self.available_connections.pop()
-                self.in_use_connections.add(conn)
-                return conn
-            
-            if len(self.connections) < self.max_connections:
-                conn = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-                self.connections.append(conn)
-                self.in_use_connections.add(conn)
-                return conn
-            
-            # Wait for a connection to become available
-            while not self.available_connections:
-                await asyncio.sleep(0.1)
-            
-            conn = self.available_connections.pop()
-            self.in_use_connections.add(conn)
-            return conn
-    
-    async def return_connection(self, conn: Client):
-        async with self._lock:
-            if conn in self.in_use_connections:
-                self.in_use_connections.remove(conn)
-                self.available_connections.append(conn)
-
-class QueryPerformanceLogger:
-    """Log query performance and slow queries"""
-    
-    def __init__(self, slow_query_threshold: float = 1.0):
-        self.slow_query_threshold = slow_query_threshold
-    
-    def log_query(self, query_type: str, table: str, duration: float, success: bool):
-        if duration > self.slow_query_threshold:
-            logger.warning(
-                f"Slow query detected: {query_type} on {table} took {duration:.2f}s",
-                extra={
-                    "query_type": query_type,
-                    "table": table,
-                    "duration": duration,
-                    "success": success
-                }
-            )
-        else:
-            logger.debug(
-                f"Query: {query_type} on {table} completed in {duration:.2f}s",
-                extra={
-                    "query_type": query_type,
-                    "table": table,
-                    "duration": duration,
-                    "success": success
-                }
-            )
-
-def with_retry(max_retries: int = 3, backoff_factor: float = 1.0):
-    """Decorator for automatic retry logic with exponential backoff"""
-    
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
-        @wraps(func)
-        async def wrapper(*args, **kwargs) -> T:
-            last_exception = None
-            
-            for attempt in range(max_retries + 1):
-                try:
-                    return await func(*args, **kwargs)
-                except (APIError, httpx.RequestError, Exception) as e:
-                    last_exception = e
-                    
-                    if attempt == max_retries:
-                        break
-                    
-                    # Calculate backoff delay
-                    delay = backoff_factor * (2 ** attempt)
-                    logger.warning(
-                        f"Query attempt {attempt + 1} failed, retrying in {delay}s: {str(e)}"
-                    )
-                    await asyncio.sleep(delay)
-            
-            # If we get here, all retries failed
-            logger.error(f"All {max_retries + 1} query attempts failed: {str(last_exception)}")
-            raise DatabaseError(
-                message="Database query failed after retries",
-                details={"original_error": str(last_exception), "max_retries": max_retries}
-            )
-        
-        return wrapper
-    return decorator
+logger = logging.getLogger("database_service")
 
 class DatabaseService:
-    """Singleton Supabase client with advanced features"""
-    
-    _instance: Optional['DatabaseService'] = None
-    _initialized: bool = False
-    
-    def __new__(cls) -> 'DatabaseService':
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    """Enhanced database service with comprehensive data access methods"""
     
     def __init__(self):
-        if not self._initialized:
-            self._client: Optional[Client] = None
-            self._pool: Optional[ConnectionPool] = None
-            self._performance_logger = QueryPerformanceLogger()
-            self._health_check_cache: Dict[str, Any] = {}
-            self._health_check_ttl = timedelta(minutes=5)
-            DatabaseService._initialized = True
+        self.client = get_supabase()
     
-    def initialize(self) -> 'DatabaseService':
-        """Initialize the database service"""
+    # Memory operations
+    async def store_memory(self, memory: PamMemory) -> bool:
+        """Store a memory in the database"""
         try:
-            if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
-                raise DatabaseError(
-                    message="Missing Supabase configuration",
-                    details={"url_provided": bool(settings.SUPABASE_URL), "key_provided": bool(settings.SUPABASE_KEY)}
-                )
-            
-            self._client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            self._pool = ConnectionPool(max_connections=settings.DATABASE_POOL_SIZE)
-            
-            logger.info("Database service initialized successfully")
-            return self
-            
+            data = memory.model_dump()
+            result = self.client.table('pam_memory').insert(data).execute()
+            return len(result.data) > 0
         except Exception as e:
-            logger.error(f"Failed to initialize database service: {str(e)}")
-            raise DatabaseError(
-                message="Failed to initialize database connection",
-                details={"error": str(e)}
-            )
+            logger.error(f"Failed to store memory: {str(e)}")
+            raise DatabaseError(f"Memory storage failed: {str(e)}")
     
-    @property
-    def client(self) -> Client:
-        """Get the main Supabase client"""
-        if not self._client:
-            self.initialize()
-        return self._client
-    
-    @asynccontextmanager
-    async def get_connection(self):
-        """Get a connection from the pool"""
-        if not self._pool:
-            self.initialize()
-        
-        conn = await self._pool.get_connection()
+    async def search_memories(self, user_id: str, query: str, 
+                            intent_type: Optional[IntentType] = None,
+                            limit: int = 5) -> List[PamMemory]:
+        """Search for memories"""
         try:
-            yield conn
-        finally:
-            await self._pool.return_connection(conn)
-    
-    @with_retry(max_retries=3, backoff_factor=0.5)
-    async def execute_query(
-        self,
-        table: str,
-        operation: str,
-        query_builder: Callable[[Any], Any],
-        use_pool: bool = False
-    ) -> Any:
-        """Execute a query with performance logging and retry logic"""
-        start_time = time.time()
-        success = False
-        
-        try:
-            if use_pool:
-                async with self.get_connection() as conn:
-                    query = getattr(conn.table(table), operation)
-                    result = query_builder(query).execute()
-            else:
-                query = getattr(self.client.table(table), operation)
-                result = query_builder(query).execute()
+            query_builder = self.client.table('pam_memory').select('*').eq('user_id', user_id)
             
-            success = True
-            return result
+            if intent_type:
+                query_builder = query_builder.eq('intent', intent_type.value)
             
-        except APIError as e:
-            logger.error(f"Supabase API error in {operation} on {table}: {str(e)}")
-            raise DatabaseError(
-                message=f"Database operation failed: {operation}",
-                details={"table": table, "error": str(e)}
-            )
+            # Simple text search - in production, use full-text search
+            query_builder = query_builder.ilike('content', f'%{query}%')
+            query_builder = query_builder.order('created_at', desc=True).limit(limit)
+            
+            result = query_builder.execute()
+            return [PamMemory(**item) for item in result.data]
         except Exception as e:
-            logger.error(f"Unexpected error in {operation} on {table}: {str(e)}")
-            raise DatabaseError(
-                message="Unexpected database error",
-                details={"table": table, "operation": operation, "error": str(e)}
-            )
-        finally:
-            duration = time.time() - start_time
-            self._performance_logger.log_query(operation, table, duration, success)
+            logger.error(f"Memory search failed: {str(e)}")
+            return []
     
-    async def health_check(self) -> Dict[str, Any]:
-        """Perform comprehensive database health check"""
-        # Check cache first
-        cache_key = "health_check"
-        now = datetime.utcnow()
-        
-        if (cache_key in self._health_check_cache and 
-            now - self._health_check_cache[cache_key]['timestamp'] < self._health_check_ttl):
-            return self._health_check_cache[cache_key]['result']
-        
-        health_status = {
-            "status": "healthy",
-            "timestamp": now.isoformat(),
-            "checks": {}
-        }
-        
+    async def get_user_memories(self, user_id: str, memory_type: Optional[MemoryType] = None,
+                              limit: int = 10) -> List[PamMemory]:
+        """Get recent memories for a user"""
         try:
-            # Test basic connectivity
-            start_time = time.time()
-            result = self.client.table('profiles').select('count').limit(1).execute()
-            connectivity_time = time.time() - start_time
+            query_builder = self.client.table('pam_memory').select('*').eq('user_id', user_id)
             
-            health_status["checks"]["connectivity"] = {
-                "status": "ok",
-                "response_time_ms": round(connectivity_time * 1000, 2)
-            }
-            
-            # Test connection pool if enabled
-            if self._pool:
-                start_time = time.time()
-                async with self.get_connection() as conn:
-                    conn.table('profiles').select('count').limit(1).execute()
-                pool_time = time.time() - start_time
+            if memory_type:
+                query_builder = query_builder.eq('memory_type', memory_type.value)
                 
-                health_status["checks"]["connection_pool"] = {
-                    "status": "ok",
-                    "response_time_ms": round(pool_time * 1000, 2),
-                    "active_connections": len(self._pool.in_use_connections),
-                    "available_connections": len(self._pool.available_connections)
-                }
-        
+            query_builder = query_builder.order('created_at', desc=True).limit(limit)
+            result = query_builder.execute()
+            return [PamMemory(**item) for item in result.data]
         except Exception as e:
-            health_status["status"] = "unhealthy"
-            health_status["checks"]["connectivity"] = {
-                "status": "failed",
-                "error": str(e)
+            logger.error(f"Failed to get user memories: {str(e)}")
+            return []
+    
+    # User profile operations
+    async def get_user_profile(self, user_id: str) -> Optional[UserProfile]:
+        """Get user profile"""
+        try:
+            result = self.client.table('profiles').select('*').eq('user_id', user_id).execute()
+            if result.data:
+                return UserProfile(**result.data[0])
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get user profile: {str(e)}")
+            return None
+    
+    async def get_user_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user preferences"""
+        try:
+            result = self.client.table('user_settings').select('preferences').eq('user_id', user_id).execute()
+            if result.data:
+                return result.data[0].get('preferences', {})
+            return {}
+        except Exception as e:
+            logger.error(f"Failed to get user preferences: {str(e)}")
+            return {}
+    
+    async def get_onboarding_data(self, user_id: str) -> Optional[Any]:
+        """Get user onboarding data"""
+        try:
+            result = self.client.table('onboarding_responses').select('*').eq('user_id', user_id).execute()
+            if result.data:
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get onboarding data: {str(e)}")
+            return None
+    
+    # Financial operations
+    async def get_budget_categories(self, user_id: str) -> List[BudgetCategory]:
+        """Get budget categories for user"""
+        try:
+            result = self.client.table('budget_categories').select('*').eq('user_id', user_id).execute()
+            return [BudgetCategory(**item) for item in result.data]
+        except Exception as e:
+            logger.error(f"Failed to get budget categories: {str(e)}")
+            return []
+    
+    async def get_recent_expenses(self, user_id: str, limit: int = 5) -> List[Expense]:
+        """Get recent expenses"""
+        try:
+            result = (self.client.table('expenses')
+                     .select('*')
+                     .eq('user_id', user_id)
+                     .order('date', desc=True)
+                     .limit(limit)
+                     .execute())
+            return [Expense(**item) for item in result.data]
+        except Exception as e:
+            logger.error(f"Failed to get recent expenses: {str(e)}")
+            return []
+    
+    async def get_budget_summary(self, user_id: str) -> Dict[str, float]:
+        """Get budget summary"""
+        try:
+            result = self.client.table('budget_summary').select('*').eq('user_id', user_id).execute()
+            if result.data:
+                return result.data[0]
+            return {}
+        except Exception as e:
+            logger.error(f"Failed to get budget summary: {str(e)}")
+            return {}
+    
+    async def get_monthly_spending(self, user_id: str) -> Dict[str, Any]:
+        """Get monthly spending data"""
+        try:
+            # Get current month expenses
+            result = (self.client.table('expenses')
+                     .select('category, amount')
+                     .eq('user_id', user_id)
+                     .gte('date', datetime.now().replace(day=1).date())
+                     .execute())
+            
+            spending_by_category = {}
+            total_spent = 0
+            
+            for expense in result.data:
+                category = expense['category']
+                amount = float(expense['amount'])
+                spending_by_category[category] = spending_by_category.get(category, 0) + amount
+                total_spent += amount
+            
+            return {
+                'total_spent': total_spent,
+                'by_category': spending_by_category
             }
-            logger.error(f"Database health check failed: {str(e)}")
-        
-        # Cache the result
-        self._health_check_cache[cache_key] = {
-            "result": health_status,
-            "timestamp": now
-        }
-        
-        return health_status
+        except Exception as e:
+            logger.error(f"Failed to get monthly spending: {str(e)}")
+            return {}
     
-    @asynccontextmanager
-    async def transaction(self):
-        """Simple transaction context manager (note: Supabase doesn't support transactions in REST API)"""
-        # This is a placeholder for transaction support
-        # In a real implementation, you'd need to use the Supabase database directly
-        # or implement application-level transaction logic
-        logger.warning("Transaction support not fully implemented - using single operations")
-        yield self.client
+    # Travel operations
+    async def get_recent_trips(self, user_id: str, limit: int = 3) -> List[Dict[str, Any]]:
+        """Get recent trips"""
+        try:
+            # Note: Assuming we have a trips table structure
+            result = (self.client.table('travel_plans')
+                     .select('*')
+                     .eq('user_id', user_id)
+                     .order('created_at', desc=True)
+                     .limit(limit)
+                     .execute())
+            return result.data
+        except Exception as e:
+            logger.error(f"Failed to get recent trips: {str(e)}")
+            return []
     
-    async def batch_insert(self, table: str, data: List[Dict[str, Any]]) -> Any:
-        """Batch insert with retry logic"""
-        return await self.execute_query(
-            table=table,
-            operation="insert",
-            query_builder=lambda query: query.insert(data)
-        )
+    async def get_active_trips(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get active trips"""
+        try:
+            result = (self.client.table('travel_plans')
+                     .select('*')
+                     .eq('user_id', user_id)
+                     .eq('is_active', True)
+                     .execute())
+            return result.data
+        except Exception as e:
+            logger.error(f"Failed to get active trips: {str(e)}")
+            return []
     
-    async def batch_update(self, table: str, data: List[Dict[str, Any]], match_column: str) -> List[Any]:
-        """Batch update operations"""
-        results = []
-        for item in data:
-            match_value = item.pop(match_column)
-            result = await self.execute_query(
-                table=table,
-                operation="update",
-                query_builder=lambda query: query.update(item).eq(match_column, match_value)
-            )
-            results.append(result)
-        return results
+    async def get_next_planned_trip(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get next planned trip"""
+        try:
+            result = (self.client.table('travel_plans')
+                     .select('*')
+                     .eq('user_id', user_id)
+                     .gte('start_date', datetime.now().date())
+                     .order('start_date')
+                     .limit(1)
+                     .execute())
+            return result.data[0] if result.data else None
+        except Exception as e:
+            logger.error(f"Failed to get next planned trip: {str(e)}")
+            return None
+    
+    async def get_popular_camping_locations(self, limit: int = 4) -> List[Dict[str, Any]]:
+        """Get popular camping locations"""
+        try:
+            result = (self.client.table('camping_locations')
+                     .select('*')
+                     .order('user_ratings', desc=True)
+                     .limit(limit)
+                     .execute())
+            return result.data
+        except Exception as e:
+            logger.error(f"Failed to get popular camping locations: {str(e)}")
+            return []
+    
+    async def get_recent_fuel_logs(self, user_id: str, limit: int = 3) -> List[FuelLog]:
+        """Get recent fuel logs"""
+        try:
+            result = (self.client.table('fuel_log')
+                     .select('*')
+                     .eq('user_id', user_id)
+                     .order('date', desc=True)
+                     .limit(limit)
+                     .execute())
+            return [FuelLog(**item) for item in result.data]
+        except Exception as e:
+            logger.error(f"Failed to get recent fuel logs: {str(e)}")
+            return []
+    
+    async def get_maintenance_due(self, user_id: str) -> List[MaintenanceItem]:
+        """Get maintenance items that are due"""
+        try:
+            result = (self.client.table('maintenance_records')
+                     .select('*')
+                     .eq('user_id', user_id)
+                     .in_('status', ['due', 'overdue'])
+                     .order('next_due_date')
+                     .execute())
+            return [MaintenanceItem(**item) for item in result.data]
+        except Exception as e:
+            logger.error(f"Failed to get maintenance due: {str(e)}")
+            return []
+    
+    # Social operations
+    async def get_user_groups(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get user's social groups"""
+        try:
+            result = (self.client.table('group_memberships')
+                     .select('*, social_groups(*)')
+                     .eq('user_id', user_id)
+                     .eq('is_active', True)
+                     .execute())
+            return [item['social_groups'] for item in result.data if item.get('social_groups')]
+        except Exception as e:
+            logger.error(f"Failed to get user groups: {str(e)}")
+            return []
+    
+    async def get_user_recent_posts(self, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """Get user's recent posts"""
+        try:
+            result = (self.client.table('social_posts')
+                     .select('*')
+                     .eq('user_id', user_id)
+                     .order('created_at', desc=True)
+                     .limit(limit)
+                     .execute())
+            return result.data
+        except Exception as e:
+            logger.error(f"Failed to get user recent posts: {str(e)}")
+            return []
+    
+    async def get_recommended_groups(self, user_id: str, limit: int = 4) -> List[Dict[str, Any]]:
+        """Get recommended groups for user"""
+        try:
+            # Simple implementation - get popular groups user hasn't joined
+            user_group_ids = [g.get('id') for g in await self.get_user_groups(user_id)]
+            
+            query_builder = self.client.table('social_groups').select('*')
+            if user_group_ids:
+                query_builder = query_builder.not_.in_('id', user_group_ids)
+            
+            result = (query_builder
+                     .order('member_count', desc=True)
+                     .limit(limit)
+                     .execute())
+            return result.data
+        except Exception as e:
+            logger.error(f"Failed to get recommended groups: {str(e)}")
+            return []
+    
+    async def get_trending_topics(self, limit: int = 4) -> List[Dict[str, Any]]:
+        """Get trending topics"""
+        try:
+            # Simple implementation - get most active categories
+            result = (self.client.table('social_posts')
+                     .select('category')
+                     .gte('created_at', datetime.now().replace(hour=0, minute=0, second=0))
+                     .execute())
+            
+            # Count categories
+            category_counts = {}
+            for post in result.data:
+                category = post.get('category', 'general')
+                category_counts[category] = category_counts.get(category, 0) + 1
+            
+            # Return top categories
+            sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+            return [{'name': cat, 'count': count} for cat, count in sorted_categories[:limit]]
+        except Exception as e:
+            logger.error(f"Failed to get trending topics: {str(e)}")
+            return []
+    
+    async def get_upcoming_events(self, user_id: str, limit: int = 3) -> List[Dict[str, Any]]:
+        """Get upcoming events for user"""
+        try:
+            result = (self.client.table('local_events')
+                     .select('*')
+                     .gte('start_date', datetime.now().date())
+                     .order('start_date')
+                     .limit(limit)
+                     .execute())
+            return result.data
+        except Exception as e:
+            logger.error(f"Failed to get upcoming events: {str(e)}")
+            return []
+    
+    # Utility methods
+    async def get_memory_statistics(self, user_id: str) -> Dict[str, Any]:
+        """Get memory usage statistics"""
+        try:
+            result = (self.client.table('pam_memory')
+                     .select('memory_type')
+                     .eq('user_id', user_id)
+                     .execute())
+            
+            total_memories = len(result.data)
+            memory_types = {}
+            
+            for memory in result.data:
+                mem_type = memory.get('memory_type', 'general')
+                memory_types[mem_type] = memory_types.get(mem_type, 0) + 1
+            
+            return {
+                'total_memories': total_memories,
+                'by_type': memory_types,
+                'last_updated': datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Failed to get memory statistics: {str(e)}")
+            return {}
+    
+    async def cleanup_old_memories(self, user_id: str, days_old: int = 90) -> int:
+        """Clean up old memories"""
+        try:
+            cutoff_date = datetime.now().replace(hour=0, minute=0, second=0) - timedelta(days=days_old)
+            
+            result = (self.client.table('pam_memory')
+                     .delete()
+                     .eq('user_id', user_id)
+                     .lt('created_at', cutoff_date.isoformat())
+                     .execute())
+            
+            return len(result.data) if result.data else 0
+        except Exception as e:
+            logger.error(f"Failed to cleanup old memories: {str(e)}")
+            return 0
 
-# Global database service instance
-db_service = DatabaseService()
-
-def get_database() -> DatabaseService:
-    """Get the database service instance"""
-    if not db_service._initialized:
-        db_service.initialize()
-    return db_service
-
-def get_supabase_client() -> Client:
-    """Get Supabase client (backward compatibility)"""
-    return get_database().client
-
-# Initialize on import
-db_service.initialize()
+# Create singleton instance
+database_service = DatabaseService()
