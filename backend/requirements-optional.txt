@@ -1,0 +1,54 @@
+
+# PAM Backend - Optional Dependencies
+# These are optional packages that can enhance functionality
+
+# Enhanced database support
+postgresql-dev==0.1.0
+
+# Performance optimizations
+ujson==5.8.0
+orjson==3.9.10
+python-rapidjson==1.12
+
+# Enhanced async support
+aiofiles==23.2.0
+aioredis==2.0.1
+
+# Enhanced security
+argon2-cffi==23.1.0
+
+# Enhanced monitoring
+prometheus-client==0.19.0
+grafana-api==1.0.3
+
+# Enhanced logging
+loguru==0.7.2
+colorlog==6.8.0
+
+# Enhanced HTTP handling
+aiohttp==3.9.1
+websockets==12.0
+
+# Enhanced data processing
+pandas==2.1.4
+numpy==1.26.2
+
+# Enhanced file handling
+python-magic==0.4.27
+pypdf2==3.0.1
+
+# Enhanced image processing
+pillow==10.1.0
+wand==0.6.13
+
+# Enhanced email support
+aiosmtplib==3.0.1
+jinja2==3.1.2
+
+# Enhanced caching
+python-memcached==1.62
+pymemcache==4.0.0
+
+# Enhanced validation
+cerberus==1.3.5
+jsonschema==4.20.0
