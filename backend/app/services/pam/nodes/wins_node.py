@@ -1,232 +1,386 @@
 
 """
-Wins Node - Financial management and budget tracking
+WINS Node - Financial Management
+Handles budget queries, expense logging, and income tracking.
 """
 
-import logging
-from typing import Dict, List, Any, Optional
+import json
+from typing import Dict, Any, List, Optional
 from datetime import datetime, date
+from decimal import Decimal
 
-from app.models.domain.pam import PamResponse, PamContext, PamMemory
-from app.services.pam.nodes.base_node import BaseNode
-from app.services.database import DatabaseService
-from app.services.cache import CacheService
-from app.core.exceptions import ValidationError, DatabaseError
-from pydantic import BaseModel, Field, validator
+from backend.app.core.logging import setup_logging
+from backend.app.services.database import get_database_service
+from backend.app.models.domain.pam import PamResponse
+from backend.app.services.pam.nodes.base_node import BaseNode
 
-logger = logging.getLogger("pam.wins_node")
-
-class ExpenseRequest(BaseModel):
-    amount: float = Field(..., gt=0)
-    category: str = Field(..., min_length=1)
-    description: Optional[str] = None
-    date: Optional[date] = None
-
-class BudgetRequest(BaseModel):
-    category: str = Field(..., min_length=1)
-    amount: float = Field(..., gt=0)
-    period: str = Field(default="monthly")
+logger = setup_logging()
 
 class WinsNode(BaseNode):
-    """Node for handling financial wins and budget management"""
+    """WINS node for financial management"""
     
     def __init__(self):
         super().__init__("wins")
-        self.db_service = DatabaseService()
-        self.cache_service = CacheService()
+        self.database_service = None
     
-    async def process(self, message: str, intent: Any, context: PamContext, 
-                     memories: List[PamMemory]) -> PamResponse:
-        """Process wins-related requests"""
-        start_time = datetime.now()
+    async def initialize(self):
+        """Initialize WINS node"""
+        self.database_service = await get_database_service()
+        logger.info("WINS node initialized")
+    
+    async def process(self, input_data: Dict[str, Any]) -> PamResponse:
+        """Process financial-related requests"""
+        if not self.database_service:
+            await self.initialize()
+        
+        user_id = input_data.get('user_id')
+        message = input_data.get('message', '').lower()
+        intent = input_data.get('intent')
+        entities = input_data.get('entities', {})
         
         try:
-            # Input validation
-            if not message or not message.strip():
-                raise ValidationError("Message cannot be empty")
-            
-            action = getattr(intent, 'action', None)
-            if action:
-                action = action.value if hasattr(action, 'value') else str(action)
+            if 'budget' in message or 'spent' in message or 'spending' in message:
+                return await self._handle_budget_query(user_id, message, entities)
+            elif 'expense' in message or 'cost' in message or 'paid' in message:
+                return await self._handle_expense_logging(user_id, message, entities)
+            elif 'income' in message or 'earned' in message or 'made money' in message:
+                return await self._handle_income_tracking(user_id, message, entities)
+            elif 'save' in message or 'saving' in message:
+                return await self._handle_savings_tips(user_id, message)
             else:
-                action = 'view'
-            
-            self.logger.info(f"Processing wins request with action: {action}")
-            
-            if action == 'create':
-                response = await self._handle_create_budget(message, context)
-            elif action == 'track':
-                response = await self._handle_track_expense(message, context)
-            else:
-                response = await self._handle_view_financial(message, context)
-            
-            # Performance logging
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            self.logger.info(f"Wins node processed request in {processing_time:.2f}ms")
-            
-            self._log_processing(message, response)
-            return response
+                return await self._handle_general_financial_query(user_id, message)
                 
-        except ValidationError as e:
-            logger.error(f"Validation error in wins node: {str(e)}")
-            return self._create_error_response(f"Invalid input: {str(e)}")
-        except DatabaseError as e:
-            logger.error(f"Database error in wins node: {str(e)}")
-            return self._create_error_response("I had trouble accessing your financial data. Please try again.")
         except Exception as e:
-            logger.error(f"Wins node processing failed: {str(e)}")
-            return self._create_error_response("I had trouble with your financial request. Please try again.")
-    
-    async def _handle_create_budget(self, message: str, context: PamContext) -> PamResponse:
-        """Handle budget creation request with real data"""
-        try:
-            user_id = context.user_id
-            if not user_id:
-                raise ValidationError("User ID is required for budget operations")
-            
-            # Get existing budget categories
-            cache_key = f"budget_categories:{user_id}"
-            cached_categories = await self.cache_service.get(cache_key)
-            
-            if not cached_categories:
-                categories = await self.db_service.get_budget_categories(user_id)
-                await self.cache_service.set(cache_key, [cat.model_dump() for cat in categories], ttl=300)
-            else:
-                categories = cached_categories
-            
-            suggestions = [
-                "Set fuel budget: $300/month",
-                "Create food budget: $400/month", 
-                "Add camping fees: $150/month",
-                "Track entertainment: $100/month"
-            ]
-            
-            if categories:
-                existing_names = [cat.get('name', '') for cat in categories]
-                suggestions.extend([f"Update {name} budget" for name in existing_names[:2]])
-            
+            logger.error(f"WINS node processing error: {e}")
             return PamResponse(
-                content="I'd be happy to help you create a budget! What categories would you like to include?",
-                intent=None,
-                confidence=0.9,
-                suggestions=suggestions,
-                actions=[
-                    {"type": "navigate", "target": "/wins", "label": "Go to Budget Page"}
-                ],
-                requires_followup=True,
-                context_updates={"budget_creation_started": True},
-                voice_enabled=True
+                content="I'm having trouble accessing your financial information right now. Please try again in a moment.",
+                confidence=0.3,
+                requires_followup=True
+            )
+    
+    async def _handle_budget_query(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle budget-related queries"""
+        try:
+            # Get budget summary from database
+            query = """
+                SELECT name, total_budget, total_spent, total_remaining 
+                FROM budget_summary 
+                WHERE user_id = $1 AND total_budget > 0
+                ORDER BY name
+            """
+            
+            budgets = await self.database_service.execute_query(
+                query, user_id, cache_key=f"budget_summary:{user_id}", cache_ttl=300
             )
             
-        except Exception as e:
-            logger.error(f"Error in budget creation: {str(e)}")
-            return self._create_error_response("I had trouble accessing your budget data.")
-    
-    async def _handle_track_expense(self, message: str, context: PamContext) -> PamResponse:
-        """Handle expense tracking request with real data"""
-        try:
-            user_id = context.user_id
-            if not user_id:
-                raise ValidationError("User ID is required for expense tracking")
-            
-            # Get recent expenses for suggestions
-            recent_expenses = await self.db_service.get_recent_expenses(user_id, limit=5)
-            
-            suggestions = [
-                "Fuel: $45.60",
-                "Groceries: $85.30", 
-                "Camping: $25.00",
-                "Restaurant: $32.50"
-            ]
-            
-            if recent_expenses:
-                # Add suggestions based on recent expense patterns
-                for expense in recent_expenses[:2]:
-                    suggestions.append(f"{expense.category}: ${expense.amount:.2f}")
-            
-            return PamResponse(
-                content="Let's log that expense! What did you spend money on and how much?",
-                intent=None,
-                confidence=0.9,
-                suggestions=suggestions,
-                actions=[
-                    {"type": "navigate", "target": "/wins", "label": "Add Expense"}
-                ],
-                requires_followup=True,
-                context_updates={"expense_tracking_started": True},
-                voice_enabled=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Error in expense tracking: {str(e)}")
-            return self._create_error_response("I had trouble accessing your expense data.")
-    
-    async def _handle_view_financial(self, message: str, context: PamContext) -> PamResponse:
-        """Handle financial overview request with real data"""
-        try:
-            user_id = context.user_id
-            if not user_id:
+            if not budgets:
                 return PamResponse(
-                    content="I need you to be logged in to show your financial overview.",
-                    intent=None,
+                    content="I don't see any budgets set up yet. Would you like me to help you create one?",
                     confidence=0.8,
-                    suggestions=["Log in to view finances"],
-                    actions=[],
-                    requires_followup=False,
-                    context_updates={},
-                    voice_enabled=True
+                    suggestions=[
+                        "Set up a monthly budget",
+                        "Track my expenses",
+                        "Show me savings tips"
+                    ],
+                    requires_followup=True
                 )
             
-            # Get real financial data
-            cache_key = f"financial_overview:{user_id}"
-            cached_data = await self.cache_service.get(cache_key)
+            # Build budget summary response
+            total_budgeted = sum(float(b['total_budget']) for b in budgets)
+            total_spent = sum(float(b['total_spent']) for b in budgets)
+            remaining = total_budgeted - total_spent
             
-            if not cached_data:
-                budget_summary = await self.db_service.get_budget_summary(user_id)
-                monthly_spending = await self.db_service.get_monthly_spending(user_id)
-                
-                financial_data = {
-                    'budget_summary': budget_summary,
-                    'monthly_spending': monthly_spending
-                }
-                await self.cache_service.set(cache_key, financial_data, ttl=300)
-            else:
-                financial_data = cached_data
-            
-            # Build content based on real data
-            content = "Here's your financial overview:\n"
-            
-            if financial_data.get('budget_summary'):
-                summary = financial_data['budget_summary']
-                content += f"• Total budget: ${summary.get('total_budget', 0):.2f}\n"
-                content += f"• Spent this month: ${summary.get('total_spent', 0):.2f}\n"
-                content += f"• Remaining: ${summary.get('total_remaining', 0):.2f}"
-            else:
-                content += "No budget data available. Would you like to create a budget?"
-            
-            suggestions = [
-                "Show expense breakdown",
-                "Create new budget", 
-                "Add recent expense",
-                "View spending trends"
+            response_parts = [
+                f"Here's your budget overview:",
+                f"💰 Total Budget: ${total_budgeted:,.2f}",
+                f"💸 Total Spent: ${total_spent:,.2f}",
+                f"🏦 Remaining: ${remaining:,.2f}",
+                ""
             ]
             
+            # Add category breakdown
+            if len(budgets) > 1:
+                response_parts.append("By category:")
+                for budget in budgets:
+                    spent = float(budget['total_spent'])
+                    budgeted = float(budget['total_budget'])
+                    percentage = (spent / budgeted * 100) if budgeted > 0 else 0
+                    
+                    status_emoji = "🟢" if percentage < 75 else "🟡" if percentage < 95 else "🔴"
+                    response_parts.append(
+                        f"{status_emoji} {budget['name']}: ${spent:,.2f} / ${budgeted:,.2f} ({percentage:.1f}%)"
+                    )
+            
+            suggestions = []
+            if remaining < 0:
+                suggestions.extend([
+                    "Show me where I'm overspending",
+                    "Give me money-saving tips",
+                    "How can I cut expenses?"
+                ])
+            else:
+                suggestions.extend([
+                    "Log a new expense",
+                    "Show this month's spending",
+                    "Track my income"
+                ])
+            
             return PamResponse(
-                content=content,
-                intent=None,
-                confidence=0.8,
+                content="\n".join(response_parts),
+                confidence=0.9,
                 suggestions=suggestions,
-                actions=[
-                    {"type": "navigate", "target": "/wins", "label": "View Full Dashboard"}
-                ],
-                requires_followup=False,
-                context_updates={},
-                voice_enabled=True
+                requires_followup=False
             )
             
         except Exception as e:
-            logger.error(f"Error in financial overview: {str(e)}")
-            return self._create_error_response("I had trouble accessing your financial data.")
+            logger.error(f"Budget query error: {e}")
+            raise
+    
+    async def _handle_expense_logging(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle expense logging requests"""
+        # Extract amount and category from message
+        amount = entities.get('amount')
+        category = entities.get('category', 'Other')
+        description = entities.get('description', message)
+        
+        if not amount:
+            return PamResponse(
+                content="I'd be happy to log an expense for you! What amount did you spend and on what category?",
+                confidence=0.7,
+                suggestions=[
+                    "I spent $25 on groceries",
+                    "Paid $60 for fuel",
+                    "Camping fee was $35"
+                ],
+                requires_followup=True
+            )
+        
+        try:
+            # Store the expense
+            query = """
+                INSERT INTO expenses (user_id, amount, category, description, date)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING id
+            """
+            
+            result = await self.database_service.execute_single(
+                query, user_id, amount, category, description, date.today()
+            )
+            
+            if result:
+                # Update budget if exists
+                await self._update_budget_spent(user_id, category, amount)
+                
+                return PamResponse(
+                    content=f"✅ Logged ${amount} expense in {category}. Your expense has been recorded!",
+                    confidence=0.9,
+                    suggestions=[
+                        "Show my budget status",
+                        "Log another expense",
+                        "See this month's spending"
+                    ],
+                    requires_followup=False
+                )
+            else:
+                raise Exception("Failed to store expense")
+                
+        except Exception as e:
+            logger.error(f"Expense logging error: {e}")
+            return PamResponse(
+                content="I had trouble logging that expense. Please try again.",
+                confidence=0.3,
+                requires_followup=True
+            )
+    
+    async def _handle_income_tracking(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle income tracking requests"""
+        amount = entities.get('amount')
+        source = entities.get('source', 'Other')
+        
+        if not amount:
+            return PamResponse(
+                content="Great! I can help you track your income. How much did you earn and from what source?",
+                confidence=0.7,
+                suggestions=[
+                    "Earned $500 from work",
+                    "Made $150 from side hustle",
+                    "Got $75 from content creation"
+                ],
+                requires_followup=True
+            )
+        
+        try:
+            query = """
+                INSERT INTO income_entries (user_id, amount, source, date)
+                VALUES ($1, $2, $3, $4)
+                RETURNING id
+            """
+            
+            result = await self.database_service.execute_single(
+                query, user_id, amount, source, date.today()
+            )
+            
+            if result:
+                return PamResponse(
+                    content=f"🎉 Recorded ${amount} income from {source}! Keep up the great work earning on the road!",
+                    confidence=0.9,
+                    suggestions=[
+                        "Show my total income this month",
+                        "Track another income source",
+                        "See my money-making ideas"
+                    ],
+                    requires_followup=False
+                )
+            else:
+                raise Exception("Failed to store income")
+                
+        except Exception as e:
+            logger.error(f"Income tracking error: {e}")
+            return PamResponse(
+                content="I had trouble recording that income. Please try again.",
+                confidence=0.3,
+                requires_followup=True
+            )
+    
+    async def _handle_savings_tips(self, user_id: str, message: str) -> PamResponse:
+        """Provide savings tips and financial advice"""
+        try:
+            # Get user's spending patterns
+            query = """
+                SELECT category, SUM(amount) as total 
+                FROM expenses 
+                WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '30 days'
+                GROUP BY category 
+                ORDER BY total DESC 
+                LIMIT 5
+            """
+            
+            spending = await self.database_service.execute_query(
+                query, user_id, cache_key=f"spending_patterns:{user_id}", cache_ttl=3600
+            )
+            
+            tips = [
+                "💡 Here are some RV money-saving tips:",
+                "",
+                "⛽ Fuel: Use GasBuddy to find cheapest gas stations",
+                "🏕️ Camping: Try boondocking or state parks vs private campgrounds",
+                "🛒 Groceries: Shop at discount stores like Walmart or Aldi",
+                "🔧 Maintenance: Learn basic repairs to avoid shop fees",
+                "📱 Internet: Use library WiFi when possible"
+            ]
+            
+            if spending:
+                tips.append("")
+                tips.append("Based on your spending:")
+                top_category = spending[0]
+                tips.append(f"💰 Your biggest expense is {top_category['category']} (${float(top_category['total']):.2f} this month)")
+                
+                # Category-specific tips
+                category_tips = {
+                    'Fuel': 'Consider slower driving speeds to improve MPG',
+                    'Food': 'Meal planning and cooking in your RV saves a lot!',
+                    'Camp': 'Mix free camping with paid sites to balance cost and amenities'
+                }
+                
+                if top_category['category'] in category_tips:
+                    tips.append(f"💡 Tip: {category_tips[top_category['category']]}")
+            
+            return PamResponse(
+                content="\n".join(tips),
+                confidence=0.8,
+                suggestions=[
+                    "Show me money-making ideas",
+                    "Track my expenses",
+                    "Find free camping spots"
+                ],
+                requires_followup=False
+            )
+            
+        except Exception as e:
+            logger.error(f"Savings tips error: {e}")
+            return PamResponse(
+                content="Here are some great ways to save money while RVing: Use apps like GasBuddy for fuel, try boondocking, cook your own meals, and maintain your RV yourself when possible!",
+                confidence=0.6,
+                requires_followup=False
+            )
+    
+    async def _handle_general_financial_query(self, user_id: str, message: str) -> PamResponse:
+        """Handle general financial questions"""
+        try:
+            # Get recent financial summary
+            queries = {
+                'expenses': "SELECT SUM(amount) FROM expenses WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '30 days'",
+                'income': "SELECT SUM(amount) FROM income_entries WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '30 days'"
+            }
+            
+            results = {}
+            for key, query in queries.items():
+                result = await self.database_service.execute_single(query, user_id)
+                results[key] = float(result['sum']) if result and result['sum'] else 0.0
+            
+            monthly_expenses = results['expenses']
+            monthly_income = results['income']
+            net_income = monthly_income - monthly_expenses
+            
+            response_parts = [
+                "Here's your financial snapshot for this month:",
+                f"💰 Income: ${monthly_income:,.2f}",
+                f"💸 Expenses: ${monthly_expenses:,.2f}",
+                f"📊 Net: ${net_income:,.2f}"
+            ]
+            
+            if net_income > 0:
+                response_parts.append("🎉 You're in the green! Great job managing your finances on the road!")
+            elif net_income < 0:
+                response_parts.append("⚠️ You're spending more than earning this month. Let's look at ways to cut costs or boost income.")
+            else:
+                response_parts.append("📊 You're breaking even this month.")
+            
+            suggestions = [
+                "Show my budget breakdown",
+                "Give me money-saving tips",
+                "Track a new expense",
+                "Log some income"
+            ]
+            
+            return PamResponse(
+                content="\n".join(response_parts),
+                confidence=0.8,
+                suggestions=suggestions,
+                requires_followup=False
+            )
+            
+        except Exception as e:
+            logger.error(f"General financial query error: {e}")
+            return PamResponse(
+                content="I can help you track expenses, manage budgets, log income, and give you money-saving tips for RV life! What would you like to know about your finances?",
+                confidence=0.6,
+                suggestions=[
+                    "Show my budget",
+                    "Log an expense",
+                    "Track my income",
+                    "Give me savings tips"
+                ],
+                requires_followup=True
+            )
+    
+    async def _update_budget_spent(self, user_id: str, category: str, amount: float):
+        """Update budget spent amount for category"""
+        try:
+            query = """
+                UPDATE budget_categories 
+                SET spent_amount = spent_amount + $3, updated_at = NOW()
+                WHERE user_id = $1 AND name = $2
+            """
+            
+            await self.database_service.execute_mutation(query, user_id, category, amount)
+            
+            # Invalidate cache
+            from backend.app.services.cache_service import cache_service
+            await cache_service.delete_pattern(f"budget_summary:{user_id}")
+            
+        except Exception as e:
+            logger.warning(f"Could not update budget for category {category}: {e}")
 
-# Create singleton instance
+# Global WINS node instance
 wins_node = WinsNode()

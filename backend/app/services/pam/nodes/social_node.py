@@ -1,248 +1,416 @@
 
 """
-Social Node - Community and social features
+SOCIAL Node - Community and Social Features
+Handles community interactions, group management, and social features.
 """
 
-import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime
+import json
+from typing import Dict, Any, List, Optional
+from datetime import datetime, date
 
-from app.models.domain.pam import PamResponse, PamContext, PamMemory
-from app.services.pam.nodes.base_node import BaseNode
-from app.services.database import DatabaseService
-from app.services.cache import CacheService
-from app.core.exceptions import ValidationError, DatabaseError
-from pydantic import BaseModel, Field
+from backend.app.core.logging import setup_logging
+from backend.app.services.database import get_database_service
+from backend.app.models.domain.pam import PamResponse
+from backend.app.services.pam.nodes.base_node import BaseNode
 
-logger = logging.getLogger("pam.social_node")
-
-class PostRequest(BaseModel):
-    content: str = Field(..., min_length=1, max_length=1000)
-    location: Optional[str] = None
-
-class GroupRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
+logger = setup_logging()
 
 class SocialNode(BaseNode):
-    """Node for handling social and community features"""
+    """SOCIAL node for community and social features"""
     
     def __init__(self):
         super().__init__("social")
-        self.db_service = DatabaseService()
-        self.cache_service = CacheService()
+        self.database_service = None
     
-    async def process(self, message: str, intent: Any, context: PamContext, 
-                     memories: List[PamMemory]) -> PamResponse:
-        """Process social-related requests"""
-        start_time = datetime.now()
+    async def initialize(self):
+        """Initialize SOCIAL node"""
+        self.database_service = await get_database_service()
+        logger.info("SOCIAL node initialized")
+    
+    async def process(self, input_data: Dict[str, Any]) -> PamResponse:
+        """Process social and community requests"""
+        if not self.database_service:
+            await self.initialize()
+        
+        user_id = input_data.get('user_id')
+        message = input_data.get('message', '').lower()
+        intent = input_data.get('intent')
+        entities = input_data.get('entities', {})
         
         try:
-            # Input validation
-            if not message or not message.strip():
-                raise ValidationError("Message cannot be empty")
-            
-            action = getattr(intent, 'action', None)
-            if action:
-                action = action.value if hasattr(action, 'value') else str(action)
+            if 'group' in message or 'community' in message:
+                return await self._handle_group_interactions(user_id, message, entities)
+            elif 'event' in message or 'meetup' in message:
+                return await self._handle_event_discovery(user_id, message, entities)
+            elif 'marketplace' in message or 'buy' in message or 'sell' in message:
+                return await self._handle_marketplace(user_id, message, entities)
+            elif 'friends' in message or 'connect' in message:
+                return await self._handle_social_connections(user_id, message, entities)
             else:
-                action = 'view'
-            
-            self.logger.info(f"Processing social request with action: {action}")
-            
-            if action == 'create':
-                response = await self._handle_create_post(message, context)
-            elif action == 'join':
-                response = await self._handle_join_group(message, context)
-            else:
-                response = await self._handle_social_overview(message, context)
-            
-            # Performance logging
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            self.logger.info(f"Social node processed request in {processing_time:.2f}ms")
-            
-            self._log_processing(message, response)
-            return response
+                return await self._handle_general_social_query(user_id, message)
                 
-        except ValidationError as e:
-            logger.error(f"Validation error in social node: {str(e)}")
-            return self._create_error_response(f"Invalid input: {str(e)}")
-        except DatabaseError as e:
-            logger.error(f"Database error in social node: {str(e)}")
-            return self._create_error_response("I had trouble accessing social data. Please try again.")
         except Exception as e:
-            logger.error(f"Social node processing failed: {str(e)}")
-            return self._create_error_response("I had trouble with your social request. Please try again.")
+            logger.error(f"SOCIAL node processing error: {e}")
+            return PamResponse(
+                content="I'm having trouble accessing community features right now. Please try again in a moment.",
+                confidence=0.3,
+                requires_followup=True
+            )
     
-    async def _handle_create_post(self, message: str, context: PamContext) -> PamResponse:
-        """Handle post creation request with real data"""
+    async def _handle_group_interactions(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle group and community interactions"""
+        location = entities.get('location')
+        group_type = entities.get('group_type')
+        
         try:
-            user_id = context.user_id
-            if not user_id:
-                raise ValidationError("User ID is required for posting")
+            # Get user's groups
+            query = """
+                SELECT fg.group_name, fg.location, fg.member_count, fg.group_type,
+                       fg.description, gm.role, gm.joined_at
+                FROM group_memberships gm
+                JOIN facebook_groups fg ON fg.id = gm.group_id
+                WHERE gm.user_id = $1 AND gm.is_active = true
+                ORDER BY gm.joined_at DESC
+            """
             
-            # Get user's recent posts and popular topics
-            cache_key = f"recent_posts:{user_id}"
-            cached_posts = await self.cache_service.get(cache_key)
+            user_groups = await self.database_service.execute_query(
+                query, user_id,
+                cache_key=f"user_groups:{user_id}", cache_ttl=3600
+            )
             
-            if not cached_posts:
-                recent_posts = await self.db_service.get_user_recent_posts(user_id, limit=3)
-                await self.cache_service.set(cache_key, [post.model_dump() for post in recent_posts], ttl=300)
+            # Search for groups if location specified
+            if location:
+                search_query = """
+                    SELECT group_name, location, member_count, group_type, description,
+                           admin_contact, activity_level
+                    FROM facebook_groups 
+                    WHERE location ILIKE $1 
+                    ORDER BY member_count DESC 
+                    LIMIT 5
+                """
+                
+                nearby_groups = await self.database_service.execute_query(
+                    search_query, f"%{location}%",
+                    cache_key=f"groups_location:{location}", cache_ttl=1800
+                )
             else:
-                recent_posts = cached_posts
+                nearby_groups = []
             
-            # Get trending topics
-            trending_topics = await self.db_service.get_trending_topics(limit=4)
+            response_parts = ["👥 **RV Community Groups**"]
             
-            suggestions = [
-                "Share travel tip",
-                "Post campground review",
-                "Ask for route advice",
-                "Share photo story"
-            ]
-            
-            # Add suggestions based on trending topics
-            if trending_topics:
-                for topic in trending_topics[:2]:
-                    suggestions.append(f"Post about {topic.get('name', 'topic')}")
-            
-            return PamResponse(
-                content="I'd love to help you share with the community! What would you like to post about?",
-                intent=None,
-                confidence=0.9,
-                suggestions=suggestions,
-                actions=[
-                    {"type": "navigate", "target": "/social", "label": "Create Post"}
-                ],
-                requires_followup=True,
-                context_updates={"post_creation_started": True},
-                voice_enabled=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Error in post creation: {str(e)}")
-            return self._create_error_response("I had trouble accessing the social features.")
-    
-    async def _handle_join_group(self, message: str, context: PamContext) -> PamResponse:
-        """Handle group joining request with real data"""
-        try:
-            user_id = context.user_id
-            if not user_id:
-                raise ValidationError("User ID is required for joining groups")
-            
-            # Get user's current groups and recommended groups
-            user_groups = await self.db_service.get_user_groups(user_id)
-            recommended_groups = await self.db_service.get_recommended_groups(user_id, limit=4)
-            
-            suggestions = [
-                "Find local RV groups",
-                "Join travel communities",
-                "Connect with solo travelers",
-                "Find technical help groups"
-            ]
-            
-            # Add suggestions based on recommended groups
-            if recommended_groups:
-                for group in recommended_groups[:2]:
-                    suggestions.append(f"Join {group.get('name', 'group')}")
-            
-            # Check if user has groups to suggest activities
             if user_groups:
-                suggestions.append("Check group events")
-                suggestions.append("Post in your groups")
+                response_parts.extend([
+                    "",
+                    "🏠 **Your Groups:**"
+                ])
+                for group in user_groups:
+                    role_emoji = "👑" if group['role'] == 'admin' else "👤"
+                    response_parts.extend([
+                        f"{role_emoji} **{group['group_name']}**",
+                        f"📍 {group['location']} • {group['member_count']} members",
+                        f"📝 {group['description'][:100]}..." if group['description'] else ""
+                    ])
+            
+            if nearby_groups:
+                response_parts.extend([
+                    "",
+                    f"🔍 **Groups near {location}:**"
+                ])
+                for group in nearby_groups:
+                    response_parts.extend([
+                        f"👥 **{group['group_name']}** ({group['group_type']})",
+                        f"📍 {group['location']} • {group['member_count']} members",
+                        f"⚡ Activity: {group['activity_level']}"
+                    ])
+                    if group['description']:
+                        response_parts.append(f"📝 {group['description'][:80]}...")
+            elif location:
+                response_parts.extend([
+                    "",
+                    f"🔍 I don't have specific groups for {location} yet.",
+                    "Try searching Facebook for 'RV groups [your area]' or check:",
+                    "• Escapees RV Club chapters",
+                    "• Good Sam Club chapters", 
+                    "• Local RV dealer communities",
+                    "• Campground Facebook pages"
+                ])
+            
+            if not user_groups and not nearby_groups:
+                response_parts.extend([
+                    "",
+                    "🌟 **Finding RV Communities:**",
+                    "• Search Facebook for '[Your Area] RV Group'",
+                    "• Join Escapees or Good Sam chapters",
+                    "• Connect at campgrounds and RV shows",
+                    "• Use apps like Nomad Internet or RV Trip Wizard"
+                ])
             
             return PamResponse(
-                content="Great! Let's find you some communities to connect with. What kind of groups interest you?",
-                intent=None,
-                confidence=0.9,
-                suggestions=suggestions,
-                actions=[
-                    {"type": "navigate", "target": "/social", "label": "Browse Groups"}
+                content="\n".join(response_parts),
+                confidence=0.8,
+                suggestions=[
+                    "Find RV groups near me",
+                    "Show local RV events",
+                    "Connect with other RVers",
+                    "Join a community"
                 ],
-                requires_followup=True,
-                context_updates={"group_joining_started": True},
-                voice_enabled=True
+                requires_followup=False
             )
             
         except Exception as e:
-            logger.error(f"Error in group joining: {str(e)}")
-            return self._create_error_response("I had trouble accessing group data.")
+            logger.error(f"Group interactions error: {e}")
+            return PamResponse(
+                content="I can help you find RV communities! Try looking for local Facebook groups, Escapees chapters, or Good Sam clubs in your area. RV shows and campgrounds are also great places to meet fellow RVers!",
+                confidence=0.6,
+                requires_followup=False
+            )
     
-    async def _handle_social_overview(self, message: str, context: PamContext) -> PamResponse:
-        """Handle social overview request with real data"""
+    async def _handle_event_discovery(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle event discovery and meetups"""
+        location = entities.get('location')
+        event_type = entities.get('event_type')
+        
         try:
-            user_id = context.user_id
-            if not user_id:
+            # Search for local events
+            query = """
+                SELECT event_name, event_type, start_date, end_date, venue_name,
+                       description, ticket_price, is_free, registration_required
+                FROM local_events 
+                WHERE start_date >= CURRENT_DATE
+                AND (address ILIKE $1 OR venue_name ILIKE $1)
+                ORDER BY start_date ASC 
+                LIMIT 8
+            """
+            
+            events = await self.database_service.execute_query(
+                query, f"%{location or ''}%",
+                cache_key=f"events:{location or 'general'}", cache_ttl=3600
+            )
+            
+            if not events and location:
                 return PamResponse(
-                    content="I can help you connect with the RV community! What are you looking for?",
-                    intent=None,
-                    confidence=0.8,
+                    content=f"""🎪 I don't have specific events for {location} yet, but here are great ways to find RV events:
+
+📅 **RV Event Resources:**
+• FMCA Rally schedules
+• Escapees Rallies and Convergences  
+• Good Sam Rally calendar
+• State/National park events
+• RV show schedules
+
+🌐 **Where to Look:**
+• RVLife Event Calendar
+• Eventbrite (search "RV" + your area)
+• Facebook Events in RV groups
+• Campground activity calendars
+• Local visitor bureau websites""",
+                    confidence=0.6,
                     suggestions=[
-                        "Find local RV groups",
-                        "Discover events nearby",
-                        "Join community discussions",
-                        "Share travel experiences"
+                        "Find RV rallies",
+                        "Check campground events",
+                        "Look for RV shows",
+                        "Search Facebook events"
                     ],
-                    actions=[
-                        {"type": "navigate", "target": "/social", "label": "Explore Social Features"}
-                    ],
-                    requires_followup=True,
-                    context_updates={"social_exploration_started": True},
-                    voice_enabled=True
+                    requires_followup=False
                 )
             
-            # Get real social data
-            cache_key = f"social_overview:{user_id}"
-            cached_data = await self.cache_service.get(cache_key)
+            response_parts = [f"🎪 **Upcoming Events{f' near {location}' if location else ''}:**"]
             
-            if not cached_data:
-                user_groups = await self.db_service.get_user_groups(user_id)
-                recent_posts = await self.db_service.get_user_recent_posts(user_id, limit=5)
-                upcoming_events = await self.db_service.get_upcoming_events(user_id, limit=3)
-                
-                social_data = {
-                    'groups_count': len(user_groups),
-                    'posts_count': len(recent_posts),
-                    'events_count': len(upcoming_events),
-                    'group_names': [group.get('name', '') for group in user_groups[:3]]
-                }
-                await self.cache_service.set(cache_key, social_data, ttl=300)
+            if events:
+                for event in events:
+                    response_parts.extend([
+                        "",
+                        f"🎯 **{event['event_name']}**",
+                        f"📅 {event['start_date']}"
+                    ])
+                    
+                    if event['end_date'] and event['end_date'] != event['start_date']:
+                        response_parts.append(f"   to {event['end_date']}")
+                    
+                    if event['venue_name']:
+                        response_parts.append(f"📍 {event['venue_name']}")
+                    
+                    if event['is_free']:
+                        response_parts.append("🆓 Free event!")
+                    elif event['ticket_price']:
+                        response_parts.append(f"💰 ${event['ticket_price']}")
+                    
+                    if event['registration_required']:
+                        response_parts.append("📝 Registration required")
+                    
+                    if event['description']:
+                        desc = event['description'][:100] + "..." if len(event['description']) > 100 else event['description']
+                        response_parts.append(f"📝 {desc}")
             else:
-                social_data = cached_data
-            
-            # Build content based on real data
-            content = "Here's your social overview:\n"
-            
-            if social_data.get('groups_count', 0) > 0:
-                content += f"• Member of {social_data['groups_count']} groups\n"
-                if social_data.get('group_names'):
-                    content += f"• Active in: {', '.join(social_data['group_names'][:2])}\n"
-                content += f"• Recent posts: {social_data.get('posts_count', 0)}"
-            else:
-                content += "Ready to connect with the RV community! Let's find some groups for you."
-            
-            suggestions = [
-                "Find local groups",
-                "Discover events nearby", 
-                "Create a post",
-                "Share travel tip"
-            ]
+                response_parts.extend([
+                    "",
+                    "🔍 **Popular RV Event Types:**",
+                    "• Rally gatherings and convergences",
+                    "• RV shows and exhibitions", 
+                    "• Campground social hours",
+                    "• Outdoor recreation events",
+                    "• Educational seminars and workshops"
+                ])
             
             return PamResponse(
-                content=content,
-                intent=None,
-                confidence=0.8,
-                suggestions=suggestions,
-                actions=[
-                    {"type": "navigate", "target": "/social", "label": "Social Dashboard"}
+                content="\n".join(response_parts),
+                confidence=0.7,
+                suggestions=[
+                    "Find RV rallies",
+                    "Show RV club events",
+                    "Look for workshops",
+                    "Check campground activities"
                 ],
-                requires_followup=False,
-                context_updates={},
-                voice_enabled=True
+                requires_followup=False
             )
             
         except Exception as e:
-            logger.error(f"Error in social overview: {str(e)}")
-            return self._create_error_response("I had trouble accessing your social data.")
+            logger.error(f"Event discovery error: {e}")
+            return PamResponse(
+                content="For RV events, I recommend checking FMCA and Escapees rally calendars, RV show schedules, and local campground activity boards!",
+                confidence=0.5,
+                requires_followup=False
+            )
+    
+    async def _handle_marketplace(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle marketplace interactions"""
+        try:
+            # Get recent marketplace listings
+            query = """
+                SELECT title, description, price, category, location, condition,
+                       seller, posted, status
+                FROM marketplace_listings 
+                WHERE status = 'approved'
+                ORDER BY updated_at DESC 
+                LIMIT 6
+            """
+            
+            listings = await self.database_service.execute_query(
+                query, cache_key="marketplace_recent", cache_ttl=1800
+            )
+            
+            response_parts = ["🛒 **RV Marketplace**"]
+            
+            if listings:
+                response_parts.extend([
+                    "",
+                    "🔥 **Recent Listings:**"
+                ])
+                
+                for listing in listings:
+                    response_parts.extend([
+                        "",
+                        f"📦 **{listing['title']}**",
+                        f"💰 ${listing['price']} • {listing['condition']}",
+                        f"📍 {listing['location']} • Posted {listing['posted']}"
+                    ])
+                    
+                    if listing['description']:
+                        desc = listing['description'][:80] + "..." if len(listing['description']) > 80 else listing['description']
+                        response_parts.append(f"📝 {desc}")
+            
+            response_parts.extend([
+                "",
+                "🛍️ **Popular RV Marketplace Categories:**",
+                "• RV accessories and upgrades",
+                "• Camping gear and equipment",
+                "• Electronics and solar equipment", 
+                "• Tools and maintenance supplies",
+                "• Furniture and decor",
+                "",
+                "💡 **Buying/Selling Tips:**",
+                "• Meet at safe, public locations",
+                "• Verify items work before purchasing",
+                "• Check Facebook Marketplace and RV groups",
+                "• Consider RVTrader for larger items"
+            ])
+            
+            return PamResponse(
+                content="\n".join(response_parts),
+                confidence=0.7,
+                suggestions=[
+                    "Post item for sale",
+                    "Search for RV accessories",
+                    "Find camping gear",
+                    "Browse electronics"
+                ],
+                requires_followup=False
+            )
+            
+        except Exception as e:
+            logger.error(f"Marketplace error: {e}")
+            return PamResponse(
+                content="For buying/selling RV items, I recommend Facebook Marketplace, RV-specific Facebook groups, RVTrader, and Craigslist. Always meet safely and verify items before purchasing!",
+                confidence=0.6,
+                requires_followup=False
+            )
+    
+    async def _handle_social_connections(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle social connections and networking"""
+        return PamResponse(
+            content="""👋 **Connecting with Fellow RVers**
 
-# Create singleton instance
+🤝 **Best Ways to Meet RVers:**
+• Join campground social hours and potlucks
+• Participate in RV rallies and convergences
+• Visit RV shows and exhibitions
+• Use apps like RV Trip Wizard or Nomad Internet
+• Join Facebook groups for your area/interests
+
+📱 **RV Social Apps & Platforms:**
+• RV Life App - Trip planning with social features
+• iRV2 Forums - Q&A and discussions
+• RVillage - RV social network
+• Campendium - Reviews and community
+• Facebook RV groups by region/brand
+
+🏕️ **Campground Networking:**
+• Attend campground activities
+• Offer help to fellow RVers
+• Share meals and experiences
+• Exchange contact information
+• Plan group outings
+
+⭐ **Building RV Friendships:**
+• Be helpful and friendly
+• Share knowledge and experiences  
+• Respect personal space and schedules
+• Follow up after meetings
+• Plan future meetups""",
+            confidence=0.8,
+            suggestions=[
+                "Find RV groups near me",
+                "Locate upcoming rallies",
+                "Check campground events",
+                "Join online communities"
+            ],
+            requires_followup=False
+        )
+    
+    async def _handle_general_social_query(self, user_id: str, message: str) -> PamResponse:
+        """Handle general social questions"""
+        return PamResponse(
+            content="""👥 **RV Community & Social Features**
+
+I can help you with:
+• 🏘️ Finding RV groups and communities
+• 🎪 Discovering local events and rallies  
+• 🛒 Marketplace for buying/selling
+• 🤝 Connecting with other RVers
+• 📅 Event planning and coordination
+
+The RVing community is incredibly welcoming! Most RVers are happy to help newcomers and share their experiences.
+
+What aspect of RV community life interests you most?""",
+            confidence=0.7,
+            suggestions=[
+                "Find RV groups",
+                "Discover local events",
+                "Browse marketplace",
+                "Connect with RVers"
+            ],
+            requires_followup=True
+        )
+
+# Global SOCIAL node instance
 social_node = SocialNode()
