@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff, MapPin, Calendar, DollarSign } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { pamUIController } from "@/lib/PamUIController";
 
 interface PamMessage {
   id: string;
@@ -111,10 +112,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       wsRef.current.onmessage = async (event) => {
         try {
           const message = JSON.parse(event.data);
+          
+          // Handle chat responses
           if (message.type === 'chat_response') {
             const content = message.message || message.content;
             addMessage(content, "pam");
             await saveToMemory(content, "pam", message.actions);
+          }
+          
+          // Handle UI action commands
+          if (message.type === 'ui_action') {
+            handleUIAction(message);
           }
         } catch (error) {
           console.error('Error parsing PAM message:', error);
@@ -132,6 +140,60 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       setConnectionStatus("Disconnected");
     }
   }, [user?.id, sessionToken]);
+
+  const handleUIAction = (message: any) => {
+    try {
+      const { action, payload } = message;
+      
+      // Add visual feedback with animation
+      pamUIController.showToast(`PAM is performing: ${action}`, 'default');
+      
+      switch (action) {
+        case 'navigate':
+          // Highlight navigation action
+          if (payload.elementId) {
+            pamUIController.highlightElement(payload.elementId, 2000);
+          }
+          
+          // Navigate with smooth transition
+          setTimeout(() => {
+            pamUIController.navigateToPage(payload.page, payload.params);
+          }, 500);
+          break;
+          
+        case 'fill_form':
+          // Highlight form before filling
+          if (payload.formId) {
+            pamUIController.highlightElement(payload.formId, 3000);
+          }
+          
+          // Fill form with delay for visual feedback
+          setTimeout(() => {
+            pamUIController.fillForm(payload.formId, payload.data);
+            pamUIController.showToast('Form filled successfully!');
+          }, 1000);
+          break;
+          
+        case 'highlight':
+          pamUIController.highlightElement(payload.elementId, payload.duration || 3000);
+          break;
+          
+        case 'toast':
+          pamUIController.showToast(payload.message, payload.variant);
+          break;
+          
+        default:
+          console.warn('Unknown UI action:', action);
+      }
+      
+      // Add message about the action
+      addMessage(`🔧 ${action.replace('_', ' ')} action completed`, "pam");
+      
+    } catch (error) {
+      console.error('Error handling UI action:', error);
+      pamUIController.showToast('Failed to perform UI action', 'destructive');
+    }
+  };
 
   const addMessage = (content: string, sender: "user" | "pam") => {
     const newMessage: PamMessage = {
