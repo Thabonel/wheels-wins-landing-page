@@ -1,429 +1,304 @@
 
-from fastapi import APIRouter, HTTPException, status, Depends, Query
-from typing import Optional, List
-from datetime import datetime, date
-from uuid import UUID
+"""
+WHEELS API Endpoints  
+Travel, route planning, and vehicle management endpoints.
+"""
 
-from app.api.deps import (
-    get_current_user, get_db_connection, get_cache_connection,
-    get_pam_orchestrator, apply_rate_limit, PaginationParams
+from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional, Dict, Any
+from datetime import datetime, date
+
+from backend.app.models.schemas.wheels import (
+    TripPlanRequest, RouteRequest, LocationSearchRequest,
+    TripResponse, RouteResponse, MaintenanceScheduleResponse
 )
-from app.models.schemas.wheels import (
-    TripPlanRequest, TripResponse, TripUpdateRequest,
-    FuelLogCreateRequest, MaintenanceCreateRequest, MaintenanceUpdateRequest,
-    MaintenanceScheduleResponse, FuelEfficiencyResponse,
-    RouteRequest, RouteResponse, LocationSearchRequest, LocationSearchResponse
-)
-from app.models.domain.wheels import Trip, TripStatus, FuelLog, MaintenanceItem
-from app.core.logging import setup_logging
+from backend.app.services.database import get_database_service
+from backend.app.core.logging import setup_logging
 
 router = APIRouter()
 logger = setup_logging()
 
-@router.post("/trips/plan", response_model=TripResponse)
-async def plan_trip(
-    request: TripPlanRequest,
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db_connection),
-    _rate_limit = Depends(apply_rate_limit("wheels_plan_trip"))
-):
-    """Plan a complete trip with route, stops, and attractions"""
+@router.post("/routes/search")
+async def search_routes(request: RouteRequest):
+    """Search for routes and directions"""
     try:
-        user_id = current_user["id"]
+        db_service = await get_database_service()
         
-        # Create trip record
-        trip_data = {
-            "id": str(UUID()),
-            "user_id": user_id,
-            "name": request.name,
-            "description": request.description,
-            "status": TripStatus.PLANNED,
-            "start_date": request.start_date,
-            "end_date": request.end_date,
-            "budget": request.budget,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+        # Search for relevant routes
+        query = """
+            SELECT route_name, route_description, distance_miles, estimated_time_hours,
+                   difficulty_level, scenic_rating, vehicle_requirements, safety_notes
+            FROM offroad_routes 
+            WHERE route_description ILIKE $1 OR route_name ILIKE $1
+            ORDER BY scenic_rating DESC NULLS LAST
+            LIMIT 10
+        """
+        
+        routes = await db_service.execute_query(
+            query, f"%{request.destination}%"
+        )
+        
+        return RouteResponse(
+            origin=request.origin,
+            destination=request.destination,
+            routes=[
+                {
+                    "name": route['route_name'],
+                    "description": route['route_description'],
+                    "distance_miles": float(route['distance_miles']) if route['distance_miles'] else None,
+                    "estimated_hours": float(route['estimated_time_hours']) if route['estimated_time_hours'] else None,
+                    "difficulty": route['difficulty_level'],
+                    "scenic_rating": float(route['scenic_rating']) if route['scenic_rating'] else None,
+                    "safety_notes": route['safety_notes']
+                }
+                for route in routes
+            ],
+            total_routes=len(routes)
+        )
+        
+    except Exception as e:
+        logger.error(f"Route search error: {e}")
+        raise HTTPException(status_code=500, detail="Could not search routes")
+
+@router.post("/locations/search")
+async def search_locations(request: LocationSearchRequest):
+    """Search for camping locations and POIs"""
+    try:
+        db_service = await get_database_service()
+        
+        # Search camping locations
+        query = """
+            SELECT name, type, address, latitude, longitude, price_per_night,
+                   user_ratings, amenities, hookups, max_rig_length, reservation_required
+            FROM camping_locations 
+            WHERE address ILIKE $1 OR name ILIKE $1
+            ORDER BY user_ratings DESC NULLS LAST, price_per_night ASC NULLS LAST
+            LIMIT $2
+        """
+        
+        locations = await db_service.execute_query(
+            query, f"%{request.query}%", request.limit or 20
+        )
+        
+        return {
+            "query": request.query,
+            "location_type": request.location_type,
+            "locations": [
+                {
+                    "name": loc['name'],
+                    "type": loc['type'],
+                    "address": loc['address'],
+                    "coordinates": {
+                        "latitude": float(loc['latitude']),
+                        "longitude": float(loc['longitude'])
+                    } if loc['latitude'] and loc['longitude'] else None,
+                    "price_per_night": float(loc['price_per_night']) if loc['price_per_night'] else None,
+                    "rating": float(loc['user_ratings']) if loc['user_ratings'] else None,
+                    "max_rig_length": loc['max_rig_length'],
+                    "reservation_required": loc['reservation_required'],
+                    "amenities": loc['amenities'],
+                    "hookups": loc['hookups']
+                }
+                for loc in locations
+            ],
+            "total_found": len(locations)
         }
         
-        # Insert trip into database
-        result = await db.from_("trips").insert(trip_data).execute()
+    except Exception as e:
+        logger.error(f"Location search error: {e}")
+        raise HTTPException(status_code=500, detail="Could not search locations")
+
+@router.get("/fuel-stations")
+async def get_fuel_stations(
+    location: Optional[str] = None,
+    fuel_type: str = "regular",
+    rv_friendly: bool = True,
+    limit: int = 10
+):
+    """Get fuel stations with current prices"""
+    try:
+        db_service = await get_database_service()
         
-        if result.error:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create trip"
-            )
+        where_conditions = []
+        params = []
+        param_count = 0
         
-        # TODO: Integrate with route planning service
-        estimated_costs = {
-            "fuel": 0.0,
-            "accommodation": 0.0,
-            "food": 0.0,
-            "activities": 0.0
+        if location:
+            param_count += 1
+            where_conditions.append(f"address ILIKE ${param_count}")
+            params.append(f"%{location}%")
+        
+        if rv_friendly:
+            param_count += 1
+            where_conditions.append(f"rv_friendly = ${param_count}")
+            params.append(True)
+        
+        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+        
+        query = f"""
+            SELECT station_name, address, regular_price, diesel_price, premium_price,
+                   amenities, rv_friendly, last_updated
+            FROM fuel_stations 
+            {where_clause}
+            ORDER BY regular_price ASC NULLS LAST
+            LIMIT {limit}
+        """
+        
+        stations = await db_service.execute_query(query, *params)
+        
+        return {
+            "location": location,
+            "fuel_type": fuel_type,
+            "rv_friendly": rv_friendly,
+            "stations": [
+                {
+                    "name": station['station_name'],
+                    "address": station['address'],
+                    "prices": {
+                        "regular": float(station['regular_price']) if station['regular_price'] else None,
+                        "diesel": float(station['diesel_price']) if station['diesel_price'] else None,
+                        "premium": float(station['premium_price']) if station['premium_price'] else None
+                    },
+                    "rv_friendly": station['rv_friendly'],
+                    "amenities": station['amenities'],
+                    "last_updated": station['last_updated']
+                }
+                for station in stations
+            ],
+            "total_stations": len(stations)
         }
         
-        route_summary = {
-            "total_distance": 0.0,
-            "estimated_time": 0.0,
-            "waypoints": []
-        }
-        
-        return TripResponse(
-            trip=Trip(**trip_data),
-            estimated_costs=estimated_costs,
-            route_summary=route_summary
-        )
-        
     except Exception as e:
-        logger.error(f"Error planning trip: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error planning trip"
-        )
+        logger.error(f"Fuel stations error: {e}")
+        raise HTTPException(status_code=500, detail="Could not retrieve fuel stations")
 
-@router.get("/trips", response_model=List[Trip])
-async def get_user_trips(
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db_connection),
-    status_filter: Optional[TripStatus] = Query(None),
-    pagination: PaginationParams = Depends()
-):
-    """Get user's trips with optional filtering"""
-    try:
-        user_id = current_user["id"]
-        
-        query = db.from_("trips").select("*").eq("user_id", user_id)
-        
-        if status_filter:
-            query = query.eq("status", status_filter.value)
-            
-        query = query.order("created_at", desc=True)
-        
-        if pagination.limit:
-            query = query.limit(pagination.limit)
-        if pagination.offset:
-            query = query.offset(pagination.offset)
-            
-        result = await query.execute()
-        
-        if result.error:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch trips"
-            )
-            
-        return [Trip(**trip) for trip in result.data]
-        
-    except Exception as e:
-        logger.error(f"Error fetching trips: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error fetching trips"
-        )
-
-@router.get("/trips/{trip_id}", response_model=Trip)
-async def get_trip(
-    trip_id: UUID,
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db_connection)
-):
-    """Get specific trip by ID"""
-    try:
-        user_id = current_user["id"]
-        
-        result = await db.from_("trips").select("*").eq("id", str(trip_id)).eq("user_id", user_id).single().execute()
-        
-        if result.error or not result.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Trip not found"
-            )
-            
-        return Trip(**result.data)
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching trip: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error fetching trip"
-        )
-
-@router.put("/trips/{trip_id}", response_model=Trip)
-async def update_trip(
-    trip_id: UUID,
-    request: TripUpdateRequest,
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db_connection)
-):
-    """Update trip details"""
-    try:
-        user_id = current_user["id"]
-        
-        # Check if trip exists and belongs to user
-        existing = await db.from_("trips").select("*").eq("id", str(trip_id)).eq("user_id", user_id).single().execute()
-        
-        if existing.error or not existing.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Trip not found"
-            )
-        
-        # Prepare update data
-        update_data = {"updated_at": datetime.utcnow()}
-        
-        if request.name is not None:
-            update_data["name"] = request.name
-        if request.description is not None:
-            update_data["description"] = request.description
-        if request.status is not None:
-            update_data["status"] = request.status.value
-        if request.end_date is not None:
-            update_data["end_date"] = request.end_date
-        if request.budget is not None:
-            update_data["budget"] = request.budget
-        if request.actual_cost is not None:
-            update_data["actual_cost"] = request.actual_cost
-            
-        result = await db.from_("trips").update(update_data).eq("id", str(trip_id)).execute()
-        
-        if result.error:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update trip"
-            )
-            
-        # Fetch updated trip
-        updated = await db.from_("trips").select("*").eq("id", str(trip_id)).single().execute()
-        
-        return Trip(**updated.data)
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating trip: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error updating trip"
-        )
-
-@router.delete("/trips/{trip_id}")
-async def delete_trip(
-    trip_id: UUID,
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db_connection)
-):
-    """Delete a trip"""
-    try:
-        user_id = current_user["id"]
-        
-        # Check if trip exists and belongs to user
-        existing = await db.from_("trips").select("id").eq("id", str(trip_id)).eq("user_id", user_id).single().execute()
-        
-        if existing.error or not existing.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Trip not found"
-            )
-        
-        result = await db.from_("trips").delete().eq("id", str(trip_id)).execute()
-        
-        if result.error:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete trip"
-            )
-            
-        return {"message": "Trip deleted successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting trip: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error deleting trip"
-        )
-
-@router.post("/fuel-log", response_model=FuelLog)
-async def log_fuel_purchase(
-    request: FuelLogCreateRequest,
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db_connection),
-    _rate_limit = Depends(apply_rate_limit("wheels_fuel_log"))
-):
-    """Log a fuel purchase and update efficiency tracking"""
-    try:
-        user_id = current_user["id"]
-        
-        fuel_data = {
-            "id": str(UUID()),
-            "user_id": user_id,
-            "date": request.date,
-            "fuel_type": request.fuel_type,
-            "gallons": request.gallons,
-            "price_per_gallon": request.price_per_gallon,
-            "total_cost": request.gallons * request.price_per_gallon,
-            "odometer_reading": request.odometer_reading,
-            "notes": request.notes,
-            "receipt_url": request.receipt_url,
-            "created_at": datetime.utcnow()
-        }
-        
-        # Create location data
-        location_data = {
-            "name": request.location_name,
-            "latitude": request.latitude,
-            "longitude": request.longitude,
-            "location_type": "fuel_station"
-        }
-        
-        fuel_data["location"] = location_data
-        
-        result = await db.from_("fuel_logs").insert(fuel_data).execute()
-        
-        if result.error:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to log fuel purchase"
-            )
-            
-        return FuelLog(**fuel_data)
-        
-    except Exception as e:
-        logger.error(f"Error logging fuel: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error logging fuel purchase"
-        )
-
-@router.get("/fuel-log", response_model=List[FuelLog])
-async def get_fuel_history(
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db_connection),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
-    pagination: PaginationParams = Depends()
-):
-    """Get fuel purchase history"""
-    try:
-        user_id = current_user["id"]
-        
-        query = db.from_("fuel_logs").select("*").eq("user_id", user_id)
-        
-        if start_date:
-            query = query.gte("date", start_date)
-        if end_date:
-            query = query.lte("date", end_date)
-            
-        query = query.order("date", desc=True)
-        
-        if pagination.limit:
-            query = query.limit(pagination.limit)
-        if pagination.offset:
-            query = query.offset(pagination.offset)
-            
-        result = await query.execute()
-        
-        if result.error:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch fuel history"
-            )
-            
-        return [FuelLog(**log) for log in result.data]
-        
-    except Exception as e:
-        logger.error(f"Error fetching fuel history: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error fetching fuel history"
-        )
-
-@router.post("/maintenance", response_model=MaintenanceItem)
+@router.post("/maintenance")
 async def log_maintenance(
-    request: MaintenanceCreateRequest,
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db_connection),
-    _rate_limit = Depends(apply_rate_limit("wheels_maintenance"))
+    user_id: str,
+    task: str,
+    date: date,
+    mileage: Optional[int] = None,
+    cost: Optional[float] = None,
+    notes: Optional[str] = None,
+    next_due_date: Optional[date] = None,
+    next_due_mileage: Optional[int] = None
 ):
     """Log maintenance activity"""
     try:
-        user_id = current_user["id"]
+        db_service = await get_database_service()
         
-        maintenance_data = {
-            "id": str(UUID()),
-            "user_id": user_id,
-            "vehicle_component": request.vehicle_component,
-            "task_description": request.task_description,
-            "status": "scheduled",
-            "scheduled_date": request.scheduled_date,
-            "cost": request.cost,
-            "service_provider": request.service_provider,
-            "notes": request.notes,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+        query = """
+            INSERT INTO maintenance_records 
+            (user_id, task, date, mileage, cost, notes, next_due_date, next_due_mileage, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'completed')
+            RETURNING id
+        """
+        
+        result = await db_service.execute_single(
+            query, user_id, task, date, mileage, cost, notes, 
+            next_due_date, next_due_mileage
+        )
+        
+        if not result:
+            raise HTTPException(status_code=400, detail="Failed to log maintenance")
+        
+        return {
+            "id": result['id'],
+            "status": "success",
+            "message": f"Logged maintenance: {task}"
         }
         
-        result = await db.from_("maintenance_items").insert(maintenance_data).execute()
-        
-        if result.error:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to log maintenance"
-            )
-            
-        return MaintenanceItem(**maintenance_data)
-        
     except Exception as e:
-        logger.error(f"Error logging maintenance: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error logging maintenance"
-        )
+        logger.error(f"Maintenance logging error: {e}")
+        raise HTTPException(status_code=500, detail="Could not log maintenance")
 
-@router.get("/maintenance/due", response_model=MaintenanceScheduleResponse)
-async def get_due_maintenance(
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db_connection)
-):
-    """Get due and upcoming maintenance items"""
+@router.get("/maintenance/{user_id}")
+async def get_maintenance_schedule(user_id: str):
+    """Get maintenance schedule and history"""
     try:
-        user_id = current_user["id"]
+        db_service = await get_database_service()
         
-        # Get upcoming maintenance (due within 30 days)
-        upcoming_query = db.from_("maintenance_items").select("*").eq("user_id", user_id).eq("status", "scheduled").lte("scheduled_date", datetime.now().date() + timedelta(days=30))
-        upcoming_result = await upcoming_query.execute()
+        query = """
+            SELECT task, date, mileage, next_due_date, next_due_mileage, 
+                   cost, notes, status, created_at
+            FROM maintenance_records 
+            WHERE user_id = $1 
+            ORDER BY date DESC
+        """
         
-        # Get overdue maintenance
-        overdue_query = db.from_("maintenance_items").select("*").eq("user_id", user_id).eq("status", "overdue")
-        overdue_result = await overdue_query.execute()
+        records = await db_service.execute_query(query, user_id)
         
-        # Get recently completed maintenance (last 30 days)
-        completed_query = db.from_("maintenance_items").select("*").eq("user_id", user_id).eq("status", "completed").gte("completed_date", datetime.now().date() - timedelta(days=30))
-        completed_result = await completed_query.execute()
+        # Separate overdue, upcoming, and completed
+        current_date = date.today()
+        overdue = []
+        upcoming = []
+        completed = []
         
-        upcoming = [MaintenanceItem(**item) for item in upcoming_result.data] if upcoming_result.data else []
-        overdue = [MaintenanceItem(**item) for item in overdue_result.data] if overdue_result.data else []
-        completed_recent = [MaintenanceItem(**item) for item in completed_result.data] if completed_result.data else []
+        for record in records:
+            if record['next_due_date'] and record['next_due_date'] < current_date:
+                overdue.append(record)
+            elif record['next_due_date'] and record['next_due_date'] <= current_date.replace(day=current_date.day + 30):
+                upcoming.append(record)
+            else:
+                completed.append(record)
         
-        alerts = []
-        if overdue:
-            alerts.append(f"{len(overdue)} overdue maintenance items")
-        if len([item for item in upcoming if item.scheduled_date and item.scheduled_date <= datetime.now().date() + timedelta(days=7)]) > 0:
-            alerts.append("Maintenance due within 7 days")
-            
         return MaintenanceScheduleResponse(
-            upcoming=upcoming,
-            overdue=overdue,
-            completed_recent=completed_recent,
-            alerts=alerts
+            user_id=user_id,
+            overdue_count=len(overdue),
+            upcoming_count=len(upcoming),
+            overdue_items=[
+                {
+                    "task": item['task'],
+                    "due_date": item['next_due_date'],
+                    "due_mileage": item['next_due_mileage'],
+                    "last_completed": item['date']
+                }
+                for item in overdue
+            ],
+            upcoming_items=[
+                {
+                    "task": item['task'],
+                    "due_date": item['next_due_date'],
+                    "due_mileage": item['next_due_mileage'],
+                    "last_completed": item['date']
+                }
+                for item in upcoming
+            ],
+            recent_maintenance=[
+                {
+                    "task": item['task'],
+                    "date": item['date'],
+                    "mileage": item['mileage'],
+                    "cost": float(item['cost']) if item['cost'] else None,
+                    "notes": item['notes']
+                }
+                for item in completed[:10]
+            ]
         )
         
     except Exception as e:
-        logger.error(f"Error checking maintenance: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error checking maintenance schedule"
+        logger.error(f"Maintenance schedule error: {e}")
+        raise HTTPException(status_code=500, detail="Could not retrieve maintenance schedule")
+
+@router.post("/trips")
+async def create_trip_plan(request: TripPlanRequest):
+    """Create a new trip plan"""
+    try:
+        # This would create a comprehensive trip plan
+        # For now, return a basic response
+        return TripResponse(
+            id=f"trip_{datetime.utcnow().timestamp()}",
+            user_id=request.user_id,
+            name=request.name,
+            description=request.description,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            status="planned",
+            estimated_distance=0,
+            estimated_duration_days=0,
+            created_at=datetime.utcnow()
         )
+        
+    except Exception as e:
+        logger.error(f"Trip creation error: {e}")
+        raise HTTPException(status_code=500, detail="Could not create trip plan")
