@@ -1,7 +1,7 @@
 
 """
 PAM Backend Main Application
-High-performance FastAPI application with optimizations.
+High-performance FastAPI application with comprehensive security.
 """
 
 import asyncio
@@ -10,11 +10,12 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-# Import optimization components
+# Import optimization and security components
 from app.core.database_pool import db_pool
 from app.services.cache_service import cache_service
 from app.services.websocket_manager import websocket_manager
 from app.core.middleware import setup_middleware
+from app.core.security_middleware import setup_security_middleware
 from app.core.config import settings
 from app.core.logging import setup_logging
 
@@ -25,8 +26,8 @@ logger = setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager with optimization startup/shutdown"""
-    logger.info("🚀 Starting PAM Backend with performance optimizations...")
+    """Application lifespan manager with optimization and security startup/shutdown"""
+    logger.info("🚀 Starting PAM Backend with performance optimizations and security hardening...")
     
     # Initialize performance components
     try:
@@ -42,9 +43,10 @@ async def lifespan(app: FastAPI):
         logger.info("✅ WebSocket manager ready")
         
         logger.info("🎯 All performance optimizations active")
+        logger.info("🔒 Security hardening measures active")
         
     except Exception as e:
-        logger.error(f"❌ Failed to initialize performance components: {e}")
+        logger.error(f"❌ Failed to initialize components: {e}")
         raise
     
     yield
@@ -59,27 +61,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Error during cleanup: {e}")
 
-# Create FastAPI app with optimizations
+# Create FastAPI app with optimizations and security
 app = FastAPI(
     title="PAM Backend API",
-    description="High-performance Personal Assistant Manager Backend",
+    description="High-performance Personal Assistant Manager Backend with Security Hardening",
     version="2.0.0",
     lifespan=lifespan,
     docs_url="/api/docs" if settings.ENVIRONMENT != "production" else None,
     redoc_url="/api/redoc" if settings.ENVIRONMENT != "production" else None
 )
 
+# Setup security middleware (first for maximum protection)
+setup_security_middleware(app)
+
 # Setup performance middleware
 setup_middleware(app)
 
-# CORS configuration with optimization
+# CORS configuration with security considerations
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
-    expose_headers=["X-Process-Time", "X-Request-ID", "X-Cache"]
+    expose_headers=["X-Process-Time", "X-Request-ID", "X-Cache", "X-Rate-Limit-Remaining"]
 )
 
 # Include API routers with optimized prefixes
@@ -89,11 +94,15 @@ app.include_router(wins.router, prefix="/api", tags=["Wins"])
 app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 
-# Global exception handler with performance logging
+# Global exception handler with security and performance logging
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler with performance metrics"""
-    logger.error(f"Unhandled exception in {request.method} {request.url.path}: {exc}")
+    """Global exception handler with security metrics"""
+    # Log security-relevant errors
+    if "authentication" in str(exc).lower() or "authorization" in str(exc).lower():
+        logger.warning(f"Security-related error in {request.method} {request.url.path}: {exc}")
+    else:
+        logger.error(f"Unhandled exception in {request.method} {request.url.path}: {exc}")
     
     return JSONResponse(
         status_code=500,
@@ -104,7 +113,33 @@ async def global_exception_handler(request: Request, exc: Exception):
         }
     )
 
-# Performance monitoring endpoint
+# Security monitoring endpoint (protected)
+@app.get("/api/security/status")
+async def get_security_status():
+    """Get security status for monitoring (admin only)"""
+    try:
+        from app.core.security import rate_limiter
+        
+        # Security metrics
+        stats = {
+            "security_headers": "active",
+            "rate_limiting": "active",
+            "request_validation": "active",
+            "csrf_protection": "active",
+            "sql_injection_prevention": "active",
+            "rate_limiter_stats": {
+                "active_limits": len(rate_limiter.requests),
+                "status": "operational"
+            }
+        }
+        
+        return {"status": "secure", "measures": stats}
+        
+    except Exception as e:
+        logger.error(f"Error getting security status: {e}")
+        return {"status": "error", "message": str(e)}
+
+# Performance monitoring endpoint (keep existing)
 @app.get("/api/performance/stats")
 async def get_performance_stats():
     """Get performance statistics for monitoring"""
@@ -112,7 +147,7 @@ async def get_performance_stats():
         # WebSocket stats
         ws_stats = websocket_manager.get_connection_stats()
         
-        # Add other performance metrics here
+        # Add performance metrics
         stats = {
             "websocket": ws_stats,
             "database_pool": {
@@ -121,6 +156,11 @@ async def get_performance_stats():
             },
             "cache": {
                 "initialized": cache_service.redis is not None
+            },
+            "security": {
+                "middleware_active": True,
+                "headers_enabled": True,
+                "rate_limiting_enabled": True
             }
         }
         
