@@ -38,7 +38,7 @@ python-magic==0.4.27
 pypdf2==3.0.1
 
 # Enhanced image processing
-pillow==10.1.0
+pillow==10.3.0
 wand==0.6.13
 
 # Enhanced email support
