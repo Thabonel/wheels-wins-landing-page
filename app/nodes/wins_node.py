@@ -274,5 +274,176 @@ class WinsNode:
             logger.error(f"Error categorizing expense: {str(e)}")
             return "miscellaneous"
 
+    # Hustle Recommendations
+    async def recommend_hustles(self, user_id: str, preferences: Dict[str, Any]) -> Dict[str, Any]:
+        """Recommend hustles based on user skills and available time"""
+        try:
+            # Get user's available time and skills from preferences
+            available_hours = preferences.get("available_hours_per_day", 2)
+            skills = preferences.get("skills", [])
+            experience_level = preferences.get("experience_level", "beginner")
+            
+            # Get all available hustles from youtube_hustles table
+            result = self.supabase.table("youtube_hustles").select("*").execute()
+            all_hustles = result.data
+            
+            if not all_hustles:
+                return {"success": False, "message": "No hustles available"}
+            
+            # Score hustles based on user preferences
+            recommended_hustles = []
+            for hustle in all_hustles:
+                score = 0
+                
+                # Check if hustle matches user skills (if any provided)
+                if skills:
+                    hustle_description = (hustle.get("description", "") + " " + hustle.get("title", "")).lower()
+                    for skill in skills:
+                        if skill.lower() in hustle_description:
+                            score += 10
+                
+                # Factor in initial results if available
+                initial_results = hustle.get("initial_results", {})
+                if initial_results:
+                    earnings = initial_results.get("earnings", 0)
+                    time_spent = initial_results.get("time_spent_hours", 1)
+                    if time_spent > 0:
+                        hourly_rate = earnings / time_spent
+                        score += min(hourly_rate / 10, 20)  # Cap at 20 points
+                
+                # Adjust for time requirements (prefer hustles that fit available time)
+                estimated_time = initial_results.get("time_spent_hours", available_hours)
+                if estimated_time <= available_hours:
+                    score += 5
+                
+                recommended_hustles.append({
+                    **hustle,
+                    "recommendation_score": score,
+                    "estimated_hourly_rate": initial_results.get("earnings", 0) / max(initial_results.get("time_spent_hours", 1), 1) if initial_results else 0
+                })
+            
+            # Sort by recommendation score
+            recommended_hustles.sort(key=lambda x: x["recommendation_score"], reverse=True)
+            
+            # Get top 5 recommendations
+            top_recommendations = recommended_hustles[:5]
+            
+            logger.info(f"Generated {len(top_recommendations)} hustle recommendations for user {user_id}")
+            return {
+                "success": True,
+                "recommendations": top_recommendations,
+                "total_available": len(all_hustles),
+                "user_preferences": preferences
+            }
+            
+        except Exception as e:
+            logger.error(f"Error recommending hustles: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def track_hustle_progress(self, user_id: str, hustle_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Track daily earnings and progress for a hustle attempt"""
+        try:
+            # Check if user has an active attempt for this hustle
+            attempt_result = self.supabase.table("user_hustle_attempts").select("*").eq("user_id", user_id).eq("hustle_id", hustle_id).execute()
+            
+            if not attempt_result.data:
+                # Create new attempt if none exists
+                attempt_data = {
+                    "user_id": user_id,
+                    "hustle_id": hustle_id,
+                    "start_date": data.get("date", date.today()),
+                    "earnings": float(data.get("earnings", 0)),
+                    "hours_spent": float(data.get("hours_spent", 0)),
+                    "status": data.get("status", "active"),
+                    "notes": data.get("notes", "")
+                }
+                result = self.supabase.table("user_hustle_attempts").insert(attempt_data).execute()
+                attempt = result.data[0]
+            else:
+                # Update existing attempt
+                attempt = attempt_result.data[0]
+                update_data = {
+                    "earnings": float(attempt["earnings"]) + float(data.get("earnings", 0)),
+                    "hours_spent": float(attempt["hours_spent"]) + float(data.get("hours_spent", 0)),
+                    "status": data.get("status", attempt["status"]),
+                    "notes": data.get("notes", attempt.get("notes", ""))
+                }
+                
+                result = self.supabase.table("user_hustle_attempts").update(update_data).eq("id", attempt["id"]).execute()
+                attempt = result.data[0]
+            
+            # Calculate performance metrics
+            total_earnings = float(attempt["earnings"])
+            total_hours = float(attempt["hours_spent"])
+            hourly_rate = total_earnings / total_hours if total_hours > 0 else 0
+            
+            logger.info(f"Updated hustle progress for user {user_id}, hustle {hustle_id}")
+            return {
+                "success": True,
+                "attempt": attempt,
+                "metrics": {
+                    "total_earnings": total_earnings,
+                    "total_hours": total_hours,
+                    "hourly_rate": hourly_rate,
+                    "days_active": (date.today() - date.fromisoformat(str(attempt["start_date"]))).days + 1
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error tracking hustle progress: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_hustle_leaderboard(self, hustle_id: Optional[str] = None, limit: int = 10) -> Dict[str, Any]:
+        """Get hustle leaderboard showing community success"""
+        try:
+            query = self.supabase.table("hustle_leaderboard").select("*, youtube_hustles(title)")
+            
+            if hustle_id:
+                query = query.eq("hustle_id", hustle_id)
+            
+            result = query.order("total_earnings", desc=True).limit(limit).execute()
+            leaderboard = result.data
+            
+            # Get user profiles for display names (if profiles table exists)
+            user_ids = [entry["user_id"] for entry in leaderboard]
+            if user_ids:
+                try:
+                    profiles_result = self.supabase.table("profiles").select("user_id, email").in_("user_id", user_ids).execute()
+                    profiles_map = {profile["user_id"]: profile for profile in profiles_result.data}
+                    
+                    # Merge profile data with leaderboard
+                    for entry in leaderboard:
+                        profile = profiles_map.get(entry["user_id"], {})
+                        entry["user_email"] = profile.get("email", "Anonymous")
+                except:
+                    # If profiles table doesn't exist or query fails, use anonymous
+                    for entry in leaderboard:
+                        entry["user_email"] = "Anonymous"
+            
+            # Calculate additional stats
+            if leaderboard:
+                total_participants = len(set(entry["user_id"] for entry in leaderboard))
+                avg_earnings = sum(entry["total_earnings"] for entry in leaderboard) / len(leaderboard)
+                top_success_rate = max(entry["success_rate"] for entry in leaderboard)
+            else:
+                total_participants = 0
+                avg_earnings = 0
+                top_success_rate = 0
+            
+            logger.info(f"Retrieved hustle leaderboard with {len(leaderboard)} entries")
+            return {
+                "success": True,
+                "leaderboard": leaderboard,
+                "stats": {
+                    "total_participants": total_participants,
+                    "average_earnings": avg_earnings,
+                    "top_success_rate": top_success_rate
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting hustle leaderboard: {str(e)}")
+            return {"success": False, "error": str(e)}
+
 
 wins_node = WinsNode()

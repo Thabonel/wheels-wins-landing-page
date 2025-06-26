@@ -913,6 +913,47 @@ export type Database = {
         }
         Relationships: []
       }
+      hustle_leaderboard: {
+        Row: {
+          attempts_count: number | null
+          created_at: string
+          hustle_id: string
+          id: string
+          success_rate: number | null
+          total_earnings: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts_count?: number | null
+          created_at?: string
+          hustle_id: string
+          id?: string
+          success_rate?: number | null
+          total_earnings?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts_count?: number | null
+          created_at?: string
+          hustle_id?: string
+          id?: string
+          success_rate?: number | null
+          total_earnings?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hustle_leaderboard_hustle_id_fkey"
+            columns: ["hustle_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_hustles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hustle_opportunities: {
         Row: {
           category: string | null
@@ -3147,6 +3188,53 @@ export type Database = {
         }
         Relationships: []
       }
+      user_hustle_attempts: {
+        Row: {
+          created_at: string
+          earnings: number | null
+          hours_spent: number | null
+          hustle_id: string
+          id: string
+          notes: string | null
+          start_date: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          earnings?: number | null
+          hours_spent?: number | null
+          hustle_id: string
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          earnings?: number | null
+          hours_spent?: number | null
+          hustle_id?: string
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_hustle_attempts_hustle_id_fkey"
+            columns: ["hustle_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_hustles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_knowledge_buckets: {
         Row: {
           color: string | null
@@ -3680,6 +3768,39 @@ export type Database = {
           name?: string | null
           password_hash?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      youtube_hustles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          initial_results: Json | null
+          test_date: string | null
+          title: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          initial_results?: Json | null
+          test_date?: string | null
+          title: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          initial_results?: Json | null
+          test_date?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string | null
         }
         Relationships: []
       }
