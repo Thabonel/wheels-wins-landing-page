@@ -1,11 +1,12 @@
 
+# Root render.yaml - points to backend structure
 services:
   - type: web
     name: pam-backend
     env: python
     plan: free
-    runtime: python-3.12.7
-    rootDir: pam-backend
+    runtime: python-3.11
+    rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -25,6 +26,7 @@ services:
           name: pam-redis
           property: connectionString
     autoDeploy: true
+    healthCheckPath: /api/health
 
   - type: redis
     name: pam-redis
