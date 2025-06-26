@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from app.core.logging import setup_logging
+from app.database.supabase_client import get_supabase_client
 
 logger = setup_logging("wheels_node")
 
@@ -37,6 +38,7 @@ class WheelsNode:
     
     def __init__(self):
         self.logger = setup_logging("wheels_node")
+        self.supabase = get_supabase_client()
         
     async def plan_trip(self, user_id: str, trip_data: Dict[str, Any]) -> Dict[str, Any]:
         """Plan a complete trip with routes, fuel stops, and camping"""
@@ -265,32 +267,88 @@ class WheelsNode:
     
     # Helper methods
     async def _get_user_vehicle(self, user_id: str) -> Optional[Vehicle]:
-        """Get user's vehicle information"""
-        # TODO: Replace with actual Supabase query
-        return Vehicle(
-            make="Ford",
-            model="Transit",
-            year=2020,
-            fuel_type="diesel",
-            fuel_efficiency=8.5,
-            height_meters=2.8,
-            length_meters=6.0,
-            current_odometer=45000,
-            last_service_km=40000,
-            next_service_km=50000
-        )
+        """Get user's vehicle information from Supabase profiles"""
+        try:
+            response = self.supabase.table('profiles').select('*').eq('user_id', user_id).single().execute()
+            
+            if not response.data:
+                self.logger.warning(f"No profile found for user {user_id}")
+                return None
+            
+            profile = response.data
+            
+            # Extract vehicle info from profile, with defaults if missing
+            vehicle_info = profile.get('vehicle_info', {})
+            
+            return Vehicle(
+                make=vehicle_info.get('make', 'Unknown'),
+                model=vehicle_info.get('model', 'Unknown'),
+                year=vehicle_info.get('year', 2020),
+                fuel_type=vehicle_info.get('fuel_type', 'diesel'),
+                fuel_efficiency=vehicle_info.get('fuel_efficiency', 8.5),
+                height_meters=vehicle_info.get('height_meters', 2.8),
+                length_meters=vehicle_info.get('length_meters', 6.0),
+                current_odometer=vehicle_info.get('current_odometer', 0),
+                last_service_km=vehicle_info.get('last_service_km', 0),
+                next_service_km=vehicle_info.get('next_service_km', 10000)
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching user vehicle data: {e}")
+            return None
     
     async def _calculate_routes(self, origin: str, destination: str, vehicle: Vehicle) -> List[Dict]:
-        """Calculate routes considering vehicle constraints"""
-        # Simulate route calculation
-        return [{
-            "route_id": "main",
-            "distance_km": 850,
-            "duration_hours": 9.5,
-            "waypoints": [origin, "Rest Stop 1", "Rest Stop 2", destination],
-            "max_clearance": 4.0,
-            "toll_cost": 45.0
-        }]
+        """Calculate routes considering vehicle constraints (simplified calculation)"""
+        try:
+            # Simple route calculation - can be enhanced with actual routing API later
+            # For now, calculate basic distance and time estimates
+            
+            # Estimate distance based on common Australian city distances
+            distance_estimates = {
+                ("brisbane", "sydney"): 900,
+                ("sydney", "melbourne"): 880,
+                ("melbourne", "adelaide"): 730,
+                ("adelaide", "perth"): 2130,
+                ("cairns", "brisbane"): 1700,
+                ("darwin", "alice springs"): 1500
+            }
+            
+            origin_clean = origin.lower().strip()
+            destination_clean = destination.lower().strip()
+            
+            # Look up distance or use default
+            estimated_distance = distance_estimates.get((origin_clean, destination_clean)) or \
+                               distance_estimates.get((destination_clean, origin_clean)) or \
+                               500  # Default distance
+            
+            # Calculate duration (average 90 km/h including stops)
+            estimated_duration = estimated_distance / 90.0
+            
+            # Calculate toll costs based on distance
+            toll_cost = estimated_distance * 0.05  # Rough estimate
+            
+            return [{
+                "route_id": "main",
+                "distance_km": estimated_distance,
+                "duration_hours": round(estimated_duration, 1),
+                "waypoints": [origin, f"Rest Stop - {int(estimated_distance/3)}km", f"Rest Stop - {int(2*estimated_distance/3)}km", destination],
+                "max_clearance": 4.0,
+                "toll_cost": round(toll_cost, 2),
+                "vehicle_compatible": vehicle.height_meters <= 4.0 and vehicle.length_meters <= 12.0
+            }]
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating routes: {e}")
+            # Return basic route on error
+            return [{
+                "route_id": "main",
+                "distance_km": 500,
+                "duration_hours": 6.0,
+                "waypoints": [origin, destination],
+                "max_clearance": 4.0,
+                "toll_cost": 25.0,
+                "vehicle_compatible": True
+            }]
     
     async def _find_fuel_stops(self, route: Dict, vehicle: Vehicle) -> List[Dict]:
         """Find optimal fuel stops along route"""
@@ -305,18 +363,38 @@ class WheelsNode:
         ]
     
     async def _find_camping_spots(self, route: Dict, constraints: Dict) -> List[Dict]:
-        """Find camping spots along route"""
-        return [
-            {
-                "name": "Riverside Free Camp",
-                "type": "free_camp",
-                "location": "River Road",
-                "cost_per_night": 0,
-                "amenities": ["toilets", "water", "dump_point"],
-                "max_length": 12.0,
-                "rating": 4.2
-            }
-        ]
+        """Find camping spots along route from Supabase camping_locations table"""
+        try:
+            # Query camping locations from Supabase
+            response = self.supabase.table('camping_locations').select('*').limit(10).execute()
+            
+            if not response.data:
+                self.logger.warning("No camping locations found in database")
+                return []
+            
+            camping_spots = []
+            for location in response.data:
+                spot = {
+                    "name": location.get('name', 'Unknown Campsite'),
+                    "type": location.get('type', 'campsite'),
+                    "location": location.get('address', 'Location not specified'),
+                    "cost_per_night": float(location.get('price_per_night', 0)) if location.get('price_per_night') else 0,
+                    "amenities": location.get('amenities', []),
+                    "max_length": float(location.get('max_rig_length', 12.0)) if location.get('max_rig_length') else 12.0,
+                    "rating": float(location.get('user_ratings', 4.0)) if location.get('user_ratings') else 4.0,
+                    "latitude": float(location.get('latitude')) if location.get('latitude') else None,
+                    "longitude": float(location.get('longitude')) if location.get('longitude') else None,
+                    "hookups": location.get('hookups', []),
+                    "reservation_required": location.get('reservation_required', False)
+                }
+                camping_spots.append(spot)
+            
+            return camping_spots
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching camping spots: {e}")
+            # Return empty list on error
+            return []
     
     async def _get_route_weather(self, route: Dict) -> Dict:
         """Get weather along the route"""
