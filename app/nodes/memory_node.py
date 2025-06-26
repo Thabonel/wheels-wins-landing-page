@@ -250,10 +250,165 @@ class MemoryNode:
             "likely_needs_context": has_context_reference or is_continuation
         }
 
+    async def save_interaction(
+        self,
+        user_id: str,
+        user_message: str,
+        pam_response: str,
+        session_id: str,
+        intent: str = None,
+        intent_confidence: float = None,
+        context_used: Dict = None,
+        node_used: str = None
+    ) -> bool:
+        """Store a conversation interaction in pam_conversation_memory table"""
+        try:
+            # Get the next message sequence number for this session
+            sequence_result = self.supabase.table("pam_conversation_memory")\
+                .select("message_sequence")\
+                .eq("user_id", user_id)\
+                .eq("session_id", session_id)\
+                .order("message_sequence", desc=True)\
+                .limit(1)\
+                .execute()
+            
+            next_sequence = 1
+            if sequence_result.data:
+                next_sequence = sequence_result.data[0]["message_sequence"] + 1
+            
+            # Store interaction in pam_conversation_memory table
+            interaction_data = {
+                "user_id": user_id,
+                "session_id": session_id,
+                "message_sequence": next_sequence,
+                "user_message": user_message,
+                "pam_response": pam_response,
+                "detected_intent": intent,
+                "intent_confidence": intent_confidence,
+                "context_used": context_used or {},
+                "node_used": node_used,
+                "message_timestamp": datetime.utcnow().isoformat()
+            }
+            
+            result = self.supabase.table("pam_conversation_memory").insert(interaction_data).execute()
+            
+            if result.data:
+                print(f"✅ Interaction saved to pam_conversation_memory for user {user_id}")
+                return True
+            else:
+                print(f"❌ Failed to save interaction: {result}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error saving interaction to pam_conversation_memory: {str(e)}")
+            return False
+
+    async def get_conversation_history(
+        self,
+        user_id: str,
+        session_id: str = None,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Retrieve last N messages from pam_conversation_memory table"""
+        try:
+            query = self.supabase.table("pam_conversation_memory")\
+                .select("*")\
+                .eq("user_id", user_id)
+            
+            if session_id:
+                query = query.eq("session_id", session_id)
+            
+            # Get recent messages ordered by message sequence
+            result = query.order("message_sequence", desc=True).limit(limit).execute()
+            
+            if not result.data:
+                print(f"ℹ️ No conversation history found for user {user_id}")
+                return []
+            
+            # Convert to standard format and reverse to get chronological order
+            messages = []
+            for record in reversed(result.data):
+                # Add user message
+                messages.append({
+                    "role": "user",
+                    "content": record["user_message"],
+                    "timestamp": record["message_timestamp"],
+                    "sequence": record["message_sequence"]
+                })
+                
+                # Add PAM response
+                messages.append({
+                    "role": "assistant",
+                    "content": record["pam_response"],
+                    "timestamp": record["message_timestamp"],
+                    "sequence": record["message_sequence"],
+                    "intent": record.get("detected_intent"),
+                    "node_used": record.get("node_used")
+                })
+            
+            print(f"✅ Retrieved {len(messages)} messages from conversation history for user {user_id}")
+            return messages
+            
+        except Exception as e:
+            print(f"❌ Error retrieving conversation history: {str(e)}")
+            return []
+
+    async def get_user_context(self, user_id: str) -> Dict[str, Any]:
+        """Retrieve user preferences and context data"""
+        try:
+            # First, get user profile data
+            profile_context = await self.get_user_profile_context(user_id)
+            
+            # Get recent conversation patterns for learned preferences
+            recent_interactions = await self.get_conversation_history(user_id, limit=20)
+            
+            # Get any explicit user preferences from conversation memory
+            preferences_query = self.supabase.table("pam_conversation_memory")\
+                .select("user_preferences_learned")\
+                .eq("user_id", user_id)\
+                .not_.is_("user_preferences_learned", "null")\
+                .order("message_timestamp", desc=True)\
+                .limit(10)\
+                .execute()
+            
+            # Combine learned preferences
+            learned_preferences = {}
+            if preferences_query.data:
+                for record in preferences_query.data:
+                    if record.get("user_preferences_learned"):
+                        learned_preferences.update(record["user_preferences_learned"])
+            
+            # Build comprehensive user context
+            user_context = {
+                "user_id": user_id,
+                "profile": profile_context,
+                "learned_preferences": learned_preferences,
+                "recent_interaction_count": len(recent_interactions),
+                "last_activity": recent_interactions[0]["timestamp"] if recent_interactions else None,
+                "context_retrieved_at": datetime.utcnow().isoformat()
+            }
+            
+            print(f"✅ Retrieved user context for {user_id} with {len(learned_preferences)} learned preferences")
+            return user_context
+            
+        except Exception as e:
+            print(f"❌ Error retrieving user context: {str(e)}")
+            return {
+                "user_id": user_id,
+                "profile": {},
+                "learned_preferences": {},
+                "error": str(e)
+            }
+
     async def create_session_if_needed(self, user_id: str, session_id: str = None) -> str:
         """Create a new session ID if none provided or ensure session exists"""
-        if not session_id:
-            session_id = f"session_{uuid.uuid4().hex[:12]}"
-            print(f"✅ Created new session {session_id} for user {user_id}")
-        
-        return session_id
+        try:
+            if not session_id:
+                session_id = f"session_{uuid.uuid4().hex[:12]}"
+                print(f"✅ Created new session {session_id} for user {user_id}")
+            
+            return session_id
+            
+        except Exception as e:
+            print(f"❌ Error creating session: {str(e)}")
+            return f"session_{uuid.uuid4().hex[:12]}"
