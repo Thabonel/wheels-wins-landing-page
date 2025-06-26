@@ -1,146 +1,243 @@
 
-# PAM Backend Development Scripts
+# PAM Backend Migration Scripts
 
-This directory contains development utilities for the PAM backend system.
+This directory contains scripts for migrating from the old `/app` structure to the new `/backend` structure.
 
-## Available Scripts
+## Scripts Overview
 
-### 1. seed_database.py
-Seeds the database with test data for development and testing.
+### 1. `migrate_from_old.py`
+Migrates code and configurations from the old structure to the new backend structure.
 
+**Features:**
+- Copies environment variables
+- Migrates custom code from `/app`
+- Identifies deprecated code
+- Creates migration reports
+- Handles data transformations
+- Preserves git history references
+
+**Usage:**
 ```bash
-python seed_database.py
+cd /path/to/project
+python backend/scripts/migrate_from_old.py
 ```
 
-Creates sample data for:
-- Test user profiles
-- Expenses and budget categories
-- Maintenance records
-- Fuel logs
-- Camping locations
-- Hustle ideas
-- Social posts and groups
+### 2. `verify_migration.py`
+Comprehensive verification that the migration was successful.
 
-### 2. create_admin.py
-Manages admin users in the system.
+**Checks performed:**
+- ✅ Environment variables validation
+- ✅ File structure verification
+- ✅ Python imports testing
+- ✅ Database connectivity
+- ✅ API endpoints health
+- ✅ WebSocket connections
+- ✅ Basic smoke tests
 
+**Usage:**
 ```bash
-# Create admin user
-python create_admin.py create --email admin@example.com
-
-# Create admin with specific user ID
-python create_admin.py create --email admin@example.com --user-id uuid-here
-
-# List all admin users
-python create_admin.py list
-
-# Remove admin user
-python create_admin.py remove --email admin@example.com
+cd /path/to/project
+python backend/scripts/verify_migration.py
 ```
 
-### 3. test_pam.py
-Comprehensive testing of PAM AI responses and functionality.
+**Exit codes:**
+- `0`: All checks passed
+- `1`: Some checks failed
 
+### 3. `cleanup_old_structure.py`
+Safely removes old directory structure after successful verification.
+
+**Safety features:**
+- Requires successful verification first
+- Creates backup before removal
+- Updates .gitignore
+- Commits changes to git
+- Generates cleanup report
+
+**Usage:**
 ```bash
-python test_pam.py
+cd /path/to/project
+python backend/scripts/cleanup_old_structure.py
 ```
 
-Tests include:
-- Basic response generation
-- Context and memory retention
-- Intent classification accuracy
-- Performance benchmarks
+### 4. `complete_migration.py`
+Runs the complete migration process (verification + optional cleanup).
 
-Generates detailed test reports with JSON output.
+**Process:**
+1. Runs migration verification
+2. Reports results
+3. Optionally runs cleanup if verification passes
 
-### 4. migrate_data.py
-Migrates data from old structure to new PAM backend format.
-
+**Usage:**
 ```bash
-python migrate_data.py data_file.json
+cd /path/to/project
+python backend/scripts/complete_migration.py
 ```
 
-Features:
-- Automatic backup creation
-- Data structure mapping
-- Migration progress tracking
-- Detailed migration reports
+### 5. `update_environment_vars.py`
+Utility for managing environment variables across deployment platforms.
 
-### 5. health_check.py
-Comprehensive health check for all backend services.
+**Features:**
+- Check current environment variables
+- Generate Render.com configuration
+- Generate Docker environment files
+- List required GitHub secrets
+- Create environment templates
+- Validate environment setup
 
+**Usage:**
 ```bash
-python health_check.py
+# Check current environment
+python backend/scripts/update_environment_vars.py check
+
+# Generate Render config
+python backend/scripts/update_environment_vars.py render
+
+# Generate Docker env file
+python backend/scripts/update_environment_vars.py docker
+
+# List GitHub secrets needed
+python backend/scripts/update_environment_vars.py github
+
+# Create .env template
+python backend/scripts/update_environment_vars.py template
+
+# Validate environment
+python backend/scripts/update_environment_vars.py validate
 ```
 
-Checks:
-- Database connectivity
-- Essential table accessibility
-- Row Level Security policies
-- Database functions
-- PAM AI system
-- Data integrity
+## Migration Process
 
-Exit codes:
-- 0: Healthy
-- 1: Unhealthy
-- 2: Degraded
+### Recommended Migration Steps
 
-### 6. generate_api_docs.py
-Generates OpenAPI documentation for the backend API.
+1. **Backup your project**
+   ```bash
+   git add . && git commit -m "Pre-migration backup"
+   ```
 
+2. **Run the migration**
+   ```bash
+   python backend/scripts/migrate_from_old.py
+   ```
+
+3. **Verify the migration**
+   ```bash
+   python backend/scripts/verify_migration.py
+   ```
+
+4. **Clean up old structure** (only if verification passes)
+   ```bash
+   python backend/scripts/cleanup_old_structure.py
+   ```
+
+### Or use the complete migration script:
 ```bash
-python generate_api_docs.py
+python backend/scripts/complete_migration.py
 ```
 
-Outputs:
-- `openapi.json` - OpenAPI 3.0 specification
-- `api_docs.html` - Interactive Swagger UI documentation
+## Environment Setup
 
-## Requirements
+Before running migration scripts, ensure you have:
 
-All scripts require:
-- Python 3.8+
-- Backend dependencies installed
-- Proper environment configuration
-- Supabase connection configured
+### Required Environment Variables
+- `ENVIRONMENT` - Environment name (development/production)
+- `OPENAI_API_KEY` - OpenAI API key
+- `SUPABASE_URL` - Supabase project URL
+- `SUPABASE_KEY` - Supabase anon key
+- `SECRET_KEY` - Application secret key
 
-## Usage Notes
+### Optional Environment Variables
+- `REDIS_URL` - Redis connection string
+- `SENTRY_DSN` - Sentry error tracking DSN
+- `LOG_LEVEL` - Logging level (INFO, DEBUG, etc.)
+- `MAX_CONNECTIONS` - Database connection limit
+- `RATE_LIMIT_PER_MINUTE` - API rate limiting
 
-1. **Environment**: Ensure your `.env` file is properly configured before running scripts
-2. **Permissions**: Some scripts require admin privileges or specific database permissions
-3. **Backups**: Critical scripts like `migrate_data.py` automatically create backups
-4. **Logging**: All scripts provide detailed logging output and save reports to files
+## Generated Reports
 
-## Development Workflow
+The scripts generate several reports:
 
-Typical development workflow using these scripts:
+### Migration Report
+- `migration_report_YYYYMMDD_HHMMSS.json`
+- Details what was migrated and any issues
 
-```bash
-# 1. Check system health
-python health_check.py
+### Verification Report
+- `migration_verification_report_YYYYMMDD_HHMMSS.json`
+- Results of all verification checks
 
-# 2. Seed development data
-python seed_database.py
-
-# 3. Create admin user
-python create_admin.py create --email dev@example.com
-
-# 4. Test PAM functionality
-python test_pam.py
-
-# 5. Generate API documentation
-python generate_api_docs.py
-```
+### Cleanup Report
+- `cleanup_report_YYYYMMDD_HHMMSS.json`
+- Details of what was removed and backed up
 
 ## Troubleshooting
 
-If scripts fail:
+### Common Issues
 
-1. Check database connectivity
-2. Verify environment variables
-3. Ensure required tables exist
-4. Check logs for specific error messages
-5. Run health check for system status
+1. **Import Errors**
+   - Ensure you're running from the project root
+   - Check that `backend` directory exists
+   - Verify Python path includes backend
 
-For additional help, check the individual script source code or contact the development team.
+2. **Environment Variable Missing**
+   - Use `update_environment_vars.py check` to identify missing vars
+   - Create `.env` file with required variables
+   - Check deployment platform configuration
+
+3. **Database Connection Failed**
+   - Verify Supabase credentials
+   - Check network connectivity
+   - Ensure database is accessible
+
+4. **API Endpoints Not Responding**
+   - Start the backend server first
+   - Check server logs for errors
+   - Verify endpoint URLs
+
+5. **WebSocket Connection Failed**
+   - Ensure WebSocket server is running
+   - Check firewall/network settings
+   - Verify WebSocket URL format
+
+### Getting Help
+
+If you encounter issues:
+
+1. Check the generated reports for detailed error information
+2. Review the console output for specific error messages
+3. Ensure all prerequisites are met
+4. Try running individual scripts to isolate issues
+
+## Safety Features
+
+All scripts include safety features:
+
+- **Backup creation** before destructive operations
+- **Verification checks** before cleanup
+- **Git integration** for version control
+- **Detailed logging** for troubleshooting
+- **User confirmation** for destructive operations
+- **Rollback capabilities** through backups
+
+## File Structure After Migration
+
+```
+project/
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   ├── core/
+│   │   ├── api/
+│   │   ├── services/
+│   │   └── database/
+│   ├── requirements.txt
+│   ├── requirements-dev.txt
+│   ├── render.yaml
+│   └── scripts/
+├── .github/
+│   └── workflows/
+├── frontend files...
+└── migration_backup_*/  # Created during cleanup
+```
+
+The old `/app`, `/pam-backend`, and `/scraper_service` directories will be safely backed up and removed.
