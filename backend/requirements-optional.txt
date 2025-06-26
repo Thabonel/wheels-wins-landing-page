@@ -43,7 +43,7 @@ wand==0.6.13
 
 # Enhanced email support
 aiosmtplib==3.0.1
-jinja2==3.1.2
+jinja2==3.1.6
 
 # Enhanced caching
 python-memcached==1.62
