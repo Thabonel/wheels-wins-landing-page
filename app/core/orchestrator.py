@@ -34,10 +34,15 @@ class ActionPlanner:
         user_id = context.get("user_id")
         session_id = context.get("session_id")
         
+        # Log full context received in orchestrator
+        logger.info(f"🧠 Orchestrator received context: {json.dumps(context, indent=2)}")
+        logger.info(f"🎯 Processing message: '{message}' for user: {user_id}")
+        
         # Get conversation context from memory
         if user_id:
             enhanced_context = await self.memory_node.get_enhanced_context(user_id, message, session_id)
             context.update(enhanced_context)
+            logger.info(f"🔍 Enhanced context with memory: {json.dumps(enhanced_context, indent=2)}")
         
         try:
             # Use intelligent conversation analysis
