@@ -1,17 +1,22 @@
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 
 const LogoutButton = () => {
   const { logout } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
       await logout();
+      
+      // Navigate to homepage immediately after logout
+      navigate("/");
       
       toast({
         title: "Logged out successfully",
