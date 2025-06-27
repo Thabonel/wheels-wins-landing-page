@@ -795,6 +795,6 @@ Return ONLY a JSON array of strings: ["suggestion1", "suggestion2", "suggestion3
             logger.error(f"Advanced AI conversation handling failed: {str(e)}")
             raise PAMError(f"Failed to handle conversation with AI: {str(e)}")
 
-    # For backward compatibility - alias the enhanced class
-    IntelligentConversation = AdvancedIntelligentConversation
-    IntelligentConversationService = AdvancedIntelligentConversation
+# For backward compatibility - alias the enhanced class
+IntelligentConversation = AdvancedIntelligentConversation
+IntelligentConversationService = AdvancedIntelligentConversation
