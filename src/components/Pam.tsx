@@ -99,7 +99,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     try {
       const backendUrl = import.meta.env.VITE_PAM_BACKEND_URL || "https://pam-backend.onrender.com";
-      const wsUrl = `${backendUrl.replace("https", "wss")}/ws/${user.id}?token=${sessionToken || "demo-token"}`;
+      const sanitizedBackendUrl = backendUrl.replace(/\/$/, "");
+      const wsProtocol = sanitizedBackendUrl.startsWith("https") ? "wss" : "ws";
+      const wsUrl = `${sanitizedBackendUrl.replace(/^https?/, wsProtocol)}/ws/${user.id}?token=${sessionToken || "demo-token"}`;
       
       setConnectionStatus("Connecting");
       wsRef.current = new WebSocket(wsUrl);
