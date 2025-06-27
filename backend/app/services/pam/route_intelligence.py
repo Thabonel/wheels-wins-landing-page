@@ -3,7 +3,7 @@ import math
 import logging
 from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
-from app.database.supabase_client import get_supabase
+from app.core.database import get_supabase_client as get_supabase
 
 logger = logging.getLogger("pam")
 
