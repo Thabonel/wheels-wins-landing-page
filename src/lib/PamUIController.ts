@@ -159,7 +159,7 @@ class PamUIController {
   private connectWebSocket(): void {
     try {
       // Connect to Supabase edge function WebSocket endpoint
-      const wsUrl = `wss://kycoklimpzkyrecbjecn.supabase.co/functions/v1/pam-ui-controller`;
+      const wsUrl = `ws://localhost:8000/api/v1/pam/ws`;
       
       this.websocket = new WebSocket(wsUrl);
 
