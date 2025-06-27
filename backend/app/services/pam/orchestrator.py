@@ -2,7 +2,6 @@
 PAM Orchestrator - Main coordination service
 Manages conversation flow, node routing, and memory integration.
 """
-
 import asyncio
 import json
 import uuid
@@ -21,7 +20,7 @@ from backend.app.services.pam.nodes.wheels_node import wheels_node
 from backend.app.services.pam.nodes.social_node import social_node
 from backend.app.services.pam.nodes.you_node import you_node
 from backend.app.services.pam.nodes.memory_node import MemoryNode
-from backend.app.services.pam.intelligent_conversation import IntelligentConversation
+from backend.app.services.pam.intelligent_conversation import IntelligentConversationService
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class PamOrchestrator:
     """Main PAM orchestration service"""
     
     def __init__(self):
-        self.conversation_service = IntelligentConversation()
+        self.conversation_service = IntelligentConversationService()
         self.memory_node = MemoryNode()
         self.nodes = {
             'wins': wins_node,
@@ -44,6 +43,13 @@ class PamOrchestrator:
         """Initialize orchestrator and dependencies"""
         self.database_service = await get_database_service()
         await self.conversation_service.initialize()
+        
+        # Initialize all nodes
+        for node_name, node in self.nodes.items():
+            if hasattr(node, 'initialize'):
+                await node.initialize()
+                logger.info(f"Initialized {node_name} node")
+        
         logger.info("PAM Orchestrator initialized")
     
     async def process_message(
@@ -63,6 +69,12 @@ class PamOrchestrator:
             
             # Get or create conversation context
             conversation_context = await self._get_conversation_context(user_id, session_id)
+            
+            # Add additional context if provided
+            if context:
+                conversation_context.conversation_history.extend(context.get('conversation_history', []))
+                if context.get('preferences'):
+                    conversation_context.preferences.update(context['preferences'])
             
             # Analyze intent
             intent_analysis = await self._analyze_intent(message, conversation_context)
@@ -106,13 +118,18 @@ class PamOrchestrator:
             return PamContext(**cached_context)
         
         # Build context from database
-        recent_conversations = await self.database_service.get_conversation_context(user_id)
-        user_preferences = await self.database_service.get_user_preferences(user_id)
+        try:
+            recent_conversations = await self.database_service.get_conversation_context(user_id)
+            user_preferences = await self.database_service.get_user_preferences(user_id)
+        except Exception as e:
+            logger.warning(f"Could not load user context from database: {e}")
+            recent_conversations = []
+            user_preferences = {}
         
         context = PamContext(
             user_id=user_id,
-            preferences=user_preferences,
-            conversation_history=[conv['user_message'] for conv in recent_conversations[-5:]],
+            preferences=user_preferences or {},
+            conversation_history=[conv.get('user_message', '') for conv in recent_conversations[-5:]] if recent_conversations else [],
             timestamp=datetime.now()
         )
         
@@ -127,8 +144,16 @@ class PamOrchestrator:
             # Use intelligent conversation service for intent detection
             analysis = await self.conversation_service.analyze_intent(message, context.dict())
             
+            # Map string intent to IntentType enum
+            intent_str = analysis.get('intent', 'general_chat')
+            try:
+                intent_type = IntentType(intent_str)
+            except ValueError:
+                # If intent not in enum, default to general_chat
+                intent_type = IntentType.GENERAL_CHAT
+            
             return PamIntent(
-                intent_type=IntentType(analysis.get('intent', 'general_chat')),
+                intent_type=intent_type,
                 confidence=analysis.get('confidence', 0.5),
                 entities=analysis.get('entities', {}),
                 required_data=analysis.get('required_data', []),
@@ -165,13 +190,14 @@ class PamOrchestrator:
             IntentType.FUEL_PRICES: 'wheels',
             IntentType.WEATHER_CHECK: 'wheels',
             IntentType.MAINTENANCE_REMINDER: 'wheels',
+            IntentType.SOCIAL_INTERACTION: 'social',
             IntentType.GENERAL_CHAT: 'you',
             IntentType.EMERGENCY_HELP: 'you'
         }
         
         target_node = node_mapping.get(intent, 'you')
         
-        # Prepare node input
+        # Prepare node input with full context
         node_input = {
             'user_id': user_id,
             'message': message,
@@ -179,6 +205,8 @@ class PamOrchestrator:
             'confidence': intent_analysis.confidence,
             'entities': intent_analysis.entities,
             'context': context.dict(),
+            'conversation_history': context.conversation_history,
+            'user_context': context.preferences,
             'required_data': intent_analysis.required_data
         }
         
@@ -249,49 +277,62 @@ class PamOrchestrator:
         response_time_ms: int
     ):
         """Store conversation in memory for learning"""
-        memory_data = {
-            'user_message': user_message,
-            'pam_response': pam_response.content,
-            'detected_intent': intent_analysis.intent_type.value,
-            'intent_confidence': intent_analysis.confidence,
-            'context_used': intent_analysis.context_triggers,
-            'entities_extracted': intent_analysis.entities,
-            'node_used': self._get_node_from_intent(intent_analysis.intent_type),
-            'response_time_ms': response_time_ms
-        }
-        
-        await self.database_service.store_conversation(user_id, session_id, memory_data)
-        
-        # Also store as memory for future context
-        if intent_analysis.confidence > 0.7:  # High confidence interactions
-            memory = PamMemory(
-                id=str(uuid.uuid4()),
-                user_id=user_id,
-                memory_type=MemoryType.CONVERSATION,
-                content=f"User: {user_message}\nPAM: {pam_response.content}",
-                context=intent_analysis.context_triggers,
-                confidence=intent_analysis.confidence,
-                created_at=datetime.now(),
-                updated_at=datetime.now()
-            )
+        try:
+            memory_data = {
+                'user_message': user_message,
+                'pam_response': pam_response.content,
+                'detected_intent': intent_analysis.intent_type.value,
+                'intent_confidence': intent_analysis.confidence,
+                'context_used': intent_analysis.context_triggers,
+                'entities_extracted': intent_analysis.entities,
+                'node_used': self._get_node_from_intent(intent_analysis.intent_type),
+                'response_time_ms': response_time_ms,
+                'suggestions': pam_response.suggestions,
+                'timestamp': datetime.now()
+            }
             
-            await self.database_service.store_memory(memory)
+            await self.database_service.store_conversation(user_id, session_id, memory_data)
+            
+            # Also store as memory for future context if high confidence
+            if intent_analysis.confidence > 0.7:
+                memory = PamMemory(
+                    id=str(uuid.uuid4()),
+                    user_id=user_id,
+                    memory_type=MemoryType.CONVERSATION,
+                    content=f"User: {user_message}\nPAM: {pam_response.content}",
+                    context=intent_analysis.context_triggers,
+                    confidence=intent_analysis.confidence,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )
+                
+                await self.database_service.store_memory(memory)
+                
+        except Exception as e:
+            logger.error(f"Error storing conversation memory: {e}")
     
     async def _update_conversation_context(self, user_id: str, session_id: str, intent: IntentType):
         """Update conversation context with latest interaction"""
-        cache_key = f"context:{user_id}:{session_id}"
-        context = await cache_service.get(cache_key)
-        
-        if context:
-            # Update with latest intent
-            context['conversation_history'].append(intent.value)
-            context['timestamp'] = datetime.now().isoformat()
+        try:
+            cache_key = f"context:{user_id}:{session_id}"
+            context = await cache_service.get(cache_key)
             
-            # Keep only last 10 interactions
-            if len(context['conversation_history']) > 10:
-                context['conversation_history'] = context['conversation_history'][-10:]
-            
-            await cache_service.set(cache_key, context, ttl=300)
+            if context:
+                # Update with latest intent
+                if 'conversation_history' not in context:
+                    context['conversation_history'] = []
+                
+                context['conversation_history'].append(intent.value)
+                context['timestamp'] = datetime.now().isoformat()
+                
+                # Keep only last 10 interactions
+                if len(context['conversation_history']) > 10:
+                    context['conversation_history'] = context['conversation_history'][-10:]
+                
+                await cache_service.set(cache_key, context, ttl=300)
+                
+        except Exception as e:
+            logger.error(f"Error updating conversation context: {e}")
     
     def _get_node_from_intent(self, intent: IntentType) -> str:
         """Map intent to node name"""
@@ -304,6 +345,7 @@ class PamOrchestrator:
             IntentType.FUEL_PRICES: 'wheels',
             IntentType.WEATHER_CHECK: 'wheels',
             IntentType.MAINTENANCE_REMINDER: 'wheels',
+            IntentType.SOCIAL_INTERACTION: 'social',
             IntentType.GENERAL_CHAT: 'you',
             IntentType.EMERGENCY_HELP: 'you'
         }
@@ -312,15 +354,27 @@ class PamOrchestrator:
     
     async def get_conversation_history(self, user_id: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get conversation history for user"""
-        return await self.database_service.get_conversation_context(user_id, limit)
+        try:
+            return await self.database_service.get_conversation_context(user_id, limit)
+        except Exception as e:
+            logger.error(f"Error getting conversation history: {e}")
+            return []
     
     async def get_user_memories(self, user_id: str, memory_type: MemoryType = None) -> List[Dict[str, Any]]:
         """Get user memories"""
-        return await self.database_service.get_user_memories(user_id, memory_type)
+        try:
+            return await self.database_service.get_user_memories(user_id, memory_type)
+        except Exception as e:
+            logger.error(f"Error getting user memories: {e}")
+            return []
     
     async def store_user_memory(self, memory: PamMemory) -> str:
         """Store user memory"""
-        return await self.database_service.store_memory(memory)
+        try:
+            return await self.database_service.store_memory(memory)
+        except Exception as e:
+            logger.error(f"Error storing user memory: {e}")
+            return ""
 
 # Global orchestrator instance
 orchestrator = PamOrchestrator()
