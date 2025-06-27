@@ -2,7 +2,7 @@ import asyncio
 import math
 from datetime import datetime, timedelta, date
 from typing import Dict, Any, List, Optional
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
 from app.core.logging import setup_logging
 
 logger = setup_logging("proactive_monitor")
