@@ -44,7 +44,7 @@ export function usePamWebSocketConnection({ userId, onMessage, onStatusChange }:
     }
 
     try {
-      const backendUrl = import.meta.env.VITE_PAM_BACKEND_URL || "https://pam-backend.onrender.com";
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "https://pam-backend.onrender.com";
       const wsUrl = `${backendUrl.replace("https", "wss")}/ws/${userId}?token=${localStorage.getItem("auth-token") || "demo-token"}`;
       console.log('🔌 Attempting PAM WebSocket connection:', wsUrl);
       

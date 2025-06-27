@@ -98,7 +98,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (!user?.id) return;
 
     try {
-      const backendUrl = import.meta.env.VITE_PAM_BACKEND_URL || "https://pam-backend.onrender.com";
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "https://pam-backend.onrender.com";
       const wsUrl = `${backendUrl.replace("https", "wss")}/ws/${user.id}?token=${sessionToken || "demo-token"}`;
       
       setConnectionStatus("Connecting");
