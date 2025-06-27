@@ -3,6 +3,7 @@ import Pam from "@/components/Pam";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Header from "@/components/header/Header";
+console.log("🏠 LAYOUT: About to render Header");
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
 import OfflineBanner from "@/components/OfflineBanner";

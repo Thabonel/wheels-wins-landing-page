@@ -8,6 +8,7 @@ import NavigationLinks from "./NavigationLinks";
 import LoginButton from "./LoginButton";
 import UserMenu from "./UserMenu";
 import { Button } from "@/components/ui/button";
+  console.log("🎯 HEADER COMPONENT IS RENDERING!", { isAuthenticated, isDevMode });
 
 const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
