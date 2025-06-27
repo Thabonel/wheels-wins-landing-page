@@ -1,59 +1,70 @@
-
-import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useHeaderAppearance } from "@/hooks/useHeaderAppearance";
-import { useLocation } from "react-router-dom";
-import HeaderContainer from "./HeaderContainer";
-import NavigationLinks from "./NavigationLinks";
-import LoginButton from "./LoginButton";
-import UserMenu from "./UserMenu";
+import { User, Settings, LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import LogoutButton from "./LogoutButton";
 
-const Header = () => {
-  const { isAuthenticated, isDevMode } = useAuth();
-  const { isHomePage, showNavigation, showUserMenu } = useHeaderAppearance();
-  const location = useLocation();
+const UserMenu = () => {
+  const { user, isAuthenticated, isDevMode } = useAuth();
+  const effectivelyAuthenticated = isAuthenticated || isDevMode;
+  
+  // Use the same logic as the header
+  if (!effectivelyAuthenticated) {
+    return null;
+  }
+
+  const displayName = user?.user_metadata?.full_name || user?.email || 'User';
+  const avatarUrl = user?.user_metadata?.avatar_url;
 
   return (
-    <HeaderContainer isHomePage={isHomePage} isScrolled={false}>
-      {/* Logo */}
-      <Link to="/" className="flex-shrink-0">
-        <img
-          src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/wheels%20and%20wins%20Logo%20alpha.png"
-          alt="Wheels & Wins"
-          className="h-14 object-contain drop-shadow-md"
-        />
-      </Link>
-
-      {/* Navigation - Show when authenticated */}
-      <NavigationLinks isVisible={showNavigation} />
-
-      {/* Auth Buttons */}
-      <div className="flex items-center space-x-4">
-        {/* Show Shop and Login buttons on homepage when not authenticated */}
-        {isHomePage && !isAuthenticated && !isDevMode && (
-          <>
-            <Link to="/shop">
-              <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
-                Shop
-              </Button>
-            </Link>
-            <LoginButton />
-          </>
-        )}
-
-        {/* Show user menu when authenticated */}
-        {showUserMenu && <UserMenu />}
-        
-        {/* Show auth link for non-homepage, non-authenticated users */}
-        {!isHomePage && !isAuthenticated && !isDevMode && (
-          <Link to="/login">
-            <Button variant="default">Sign In</Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={avatarUrl} alt={displayName} />
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              {displayName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{displayName}</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user?.email || 'Guest User'}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/profile" className="flex items-center cursor-pointer">
+            <User className="mr-2 h-4 w-4" />
+            <span>Profile</span>
           </Link>
-        )}
-      </div>
-    </HeaderContainer>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/settings" className="flex items-center cursor-pointer">
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Settings</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <LogoutButton />
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
-export default Header;
+export default UserMenu;
