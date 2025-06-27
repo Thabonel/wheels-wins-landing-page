@@ -11,10 +11,10 @@ from datetime import datetime, date, timedelta
 from decimal import Decimal
 import logging
 
-from backend.app.services.database import get_database_service
-from backend.app.models.domain.pam import PamResponse
-from backend.app.services.pam.nodes.base_node import BaseNode
-from backend.app.services.pam.intelligent_conversation import IntelligentConversationService
+from app.services.database import get_database_service
+from app.models.domain.pam import PamResponse
+from app.services.pam.nodes.base_node import BaseNode
+from app.services.pam.intelligent_conversation import IntelligentConversationService
 from app.core.database import get_supabase_client
 
 logger = logging.getLogger(__name__)

@@ -10,10 +10,10 @@ from decimal import Decimal
 import logging
 import re
 
-from backend.app.services.database import get_database_service
-from backend.app.models.domain.pam import PamResponse
-from backend.app.services.pam.nodes.base_node import BaseNode
-from backend.app.services.pam.intelligent_conversation import IntelligentConversationService
+from app.services.database import get_database_service
+from app.models.domain.pam import PamResponse
+from app.services.pam.nodes.base_node import BaseNode
+from app.services.pam.intelligent_conversation import IntelligentConversationService
 from app.core.database import get_supabase_client
 
 logger = logging.getLogger(__name__)
@@ -462,7 +462,7 @@ Always be helpful, encouraging, and focused on practical RV travel financial man
             await self.database_service.execute_mutation(query, user_id, category, amount)
             
             # Invalidate cache
-            from backend.app.services.cache import cache_service
+            from app.services.cache import cache_service
             await cache_service.delete_pattern(f"*context:{user_id}")
             
         except Exception as e:
