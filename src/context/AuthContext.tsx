@@ -25,6 +25,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check if we're in dev mode (for development purposes)
   const isDevMode = process.env.NODE_ENV === 'development';
   const isAuthenticated = !!user;
+  
+  console.log("🔐 AuthContext state:", {
+    user: user ? "User exists" : "No user",
+    isAuthenticated,
+    isDevMode,
+    loading
+  });
 
   useEffect(() => {
     const getSession = async () => {

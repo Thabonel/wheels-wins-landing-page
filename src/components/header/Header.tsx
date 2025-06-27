@@ -10,9 +10,20 @@ import UserMenu from "./UserMenu";
 import { Button } from "@/components/ui/button";
 
 const Header = () => {
+  console.log("🚀 Header component rendering");
+  
   const { isAuthenticated, isDevMode } = useAuth();
   const { isHomePage, showNavigation, showUserMenu } = useHeaderAppearance();
   const location = useLocation();
+
+  console.log("🚀 Header state:", {
+    isAuthenticated,
+    isDevMode,
+    isHomePage,
+    showNavigation,
+    showUserMenu,
+    pathname: location.pathname
+  });
 
   return (
     <HeaderContainer isHomePage={isHomePage} isScrolled={false}>
