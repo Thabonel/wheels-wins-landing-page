@@ -1,22 +1,22 @@
-
 """
-YOU Node - Personal Assistant and General Chat
-Handles personal conversations, goal setting, and general assistance.
+YOU Node - Personal Dashboard Data Provider
+Provides comprehensive personal data for the user's dashboard display.
 """
 
 import json
+import asyncio
 from typing import Dict, Any, List, Optional
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+import logging
 
-from backend.app.core.logging import setup_logging
 from backend.app.services.database import get_database_service
 from backend.app.models.domain.pam import PamResponse
 from backend.app.services.pam.nodes.base_node import BaseNode
 
-logger = setup_logging()
+logger = logging.getLogger(__name__)
 
 class YouNode(BaseNode):
-    """YOU node for personal assistance and general chat"""
+    """YOU node - Personal dashboard data aggregation and management"""
     
     def __init__(self):
         super().__init__("you")
@@ -28,388 +28,502 @@ class YouNode(BaseNode):
         logger.info("YOU node initialized")
     
     async def process(self, input_data: Dict[str, Any]) -> PamResponse:
-        """Process personal and general chat requests"""
+        """Generate comprehensive personal dashboard data"""
         if not self.database_service:
             await self.initialize()
         
         user_id = input_data.get('user_id')
-        message = input_data.get('message', '').lower()
-        intent = input_data.get('intent')
-        entities = input_data.get('entities', {})
+        request_type = input_data.get('request_type', 'full_dashboard')
         
         try:
-            if any(word in message for word in ['goal', 'plan', 'dream', 'want to', 'hope to']):
-                return await self._handle_goal_setting(user_id, message, entities)
-            elif any(word in message for word in ['day', 'today', 'yesterday', 'tomorrow']):
-                return await self._handle_daily_conversation(user_id, message, entities)
-            elif any(word in message for word in ['help', 'emergency', 'problem', 'issue', 'stuck']):
-                return await self._handle_help_requests(user_id, message, entities)
-            elif any(word in message for word in ['thank', 'thanks', 'good job', 'great']):
-                return await self._handle_appreciation(user_id, message)
-            elif any(word in message for word in ['how are you', 'what\'s up', 'hello', 'hi']):
-                return await self._handle_greetings(user_id, message)
+            if request_type == 'calendar_data':
+                return await self._get_calendar_data(user_id)
+            elif request_type == 'trip_status':
+                return await self._get_trip_status(user_id)
+            elif request_type == 'budget_summary':
+                return await self._get_budget_summary(user_id)
+            elif request_type == 'todos':
+                return await self._get_todos(user_id)
+            elif request_type == 'pam_suggestions':
+                return await self._get_pam_daily_suggestions(user_id)
+            elif request_type == 'subscription_status':
+                return await self._get_subscription_status(user_id)
             else:
-                return await self._handle_general_conversation(user_id, message, entities)
+                return await self._get_full_dashboard_data(user_id)
                 
         except Exception as e:
             logger.error(f"YOU node processing error: {e}")
             return PamResponse(
-                content="I'm here for you! How can I help make your RV life better today?",
-                confidence=0.6,
-                requires_followup=True
-            )
-    
-    async def _handle_goal_setting(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
-        """Handle goal setting and planning conversations"""
-        try:
-            # Store the goal/plan in life memory
-            query = """
-                INSERT INTO pam_life_memory (user_id, content, topic)
-                VALUES ($1, $2, 'goals')
-                RETURNING id
-            """
-            
-            await self.database_service.execute_single(
-                query, user_id, message, 
-            )
-            
-            # Provide encouraging response with actionable suggestions
-            goal_responses = [
-                "🎯 I love that you're setting goals! Planning is so important for RV life.",
-                "✨ That sounds like an exciting plan! Let me help you think through it.",
-                "🚀 Goals keep us moving forward! What's the first step you want to take?",
-                "💫 I'm excited to help you achieve that! Let's break it down into smaller steps."
-            ]
-            
-            import random
-            main_response = random.choice(goal_responses)
-            
-            response_parts = [main_response, ""]
-            
-            # Provide relevant suggestions based on goal type
-            if any(word in message for word in ['travel', 'visit', 'go to', 'trip']):
-                response_parts.extend([
-                    "🗺️ **For Travel Goals:**",
-                    "• Plan your route and stops",
-                    "• Research campgrounds and attractions", 
-                    "• Budget for fuel and activities",
-                    "• Check weather and road conditions",
-                    "• Make reservations if needed"
-                ])
-                suggestions = [
-                    "Help me plan this route",
-                    "Find campgrounds along the way",
-                    "Check travel costs"
-                ]
-            elif any(word in message for word in ['money', 'save', 'earn', 'budget', 'financial']):
-                response_parts.extend([
-                    "💰 **For Financial Goals:**",
-                    "• Set up a specific budget",
-                    "• Track your expenses daily",
-                    "• Look for money-saving opportunities",
-                    "• Consider income sources on the road",
-                    "• Review and adjust regularly"
-                ])
-                suggestions = [
-                    "Set up a budget plan",
-                    "Track my expenses", 
-                    "Find money-making ideas"
-                ]
-            else:
-                response_parts.extend([
-                    "📋 **Making Goals Happen:**",
-                    "• Write down specific, measurable steps",
-                    "• Set realistic timelines",
-                    "• Track your progress regularly",
-                    "• Celebrate small wins along the way",
-                    "• Adjust as needed - flexibility is key in RV life!"
-                ])
-                suggestions = [
-                    "Help me make a plan",
-                    "Set reminders for progress",
-                    "Track my achievements"
-                ]
-            
-            return PamResponse(
-                content="\n".join(response_parts),
-                confidence=0.8,
-                suggestions=suggestions,
-                requires_followup=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Goal setting error: {e}")
-            return PamResponse(
-                content="I love that you're setting goals! Planning ahead makes RV life so much more enjoyable. What's the first step you want to take toward achieving this?",
-                confidence=0.7,
-                suggestions=[
-                    "Help me make a plan",
-                    "Set up reminders",
-                    "Track my progress"
-                ],
-                requires_followup=True
-            )
-    
-    async def _handle_daily_conversation(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
-        """Handle daily life conversations"""
-        try:
-            # Store in conversation memory
-            memory_query = """
-                INSERT INTO pam_life_memory (user_id, content, topic)
-                VALUES ($1, $2, 'daily_life')
-            """
-            
-            await self.database_service.execute_mutation(memory_query, user_id, message)
-            
-            # Provide supportive responses based on content
-            if any(word in message for word in ['bad', 'terrible', 'awful', 'difficult', 'hard']):
-                return PamResponse(
-                    content="""😔 I'm sorry you're having a tough time. RV life has its challenges, but you're handling it!
-
-🤗 **Remember:**
-• Every RVer has difficult days - you're not alone
-• Tomorrow often brings new scenery and opportunities
-• The RV community is incredibly supportive
-• Sometimes a change of location helps reset your mood
-
-💪 **Things that might help:**
-• Take a walk outside and enjoy nature
-• Connect with other RVers online or at your campground
-• Plan something fun for tomorrow
-• Remember why you chose this lifestyle
-
-Is there anything specific I can help you with to improve your day?""",
-                    confidence=0.8,
-                    suggestions=[
-                        "Find nearby activities",
-                        "Connect with other RVers",
-                        "Plan tomorrow's adventure",
-                        "Show me inspiring RV stories"
-                    ],
-                    requires_followup=True
-                )
-            
-            elif any(word in message for word in ['good', 'great', 'amazing', 'wonderful', 'beautiful']):
-                return PamResponse(
-                    content="""🌟 That's wonderful to hear! I love when RVers are having great experiences!
-
-✨ **I'm so glad you're:**
-• Enjoying the freedom of RV life
-• Making positive memories on the road
-• Appreciating all the beautiful places you can explore
-
-📸 **Don't forget to:**
-• Take photos of special moments
-• Share your joy with other RVers
-• Remember this feeling on tougher days
-• Maybe plan your next amazing destination!
-
-What made today especially great for you?""",
-                    confidence=0.9,
-                    suggestions=[
-                        "Plan my next adventure",
-                        "Share with the community",
-                        "Find similar experiences",
-                        "Save this memory"
-                    ],
-                    requires_followup=True
-                )
-            
-            else:
-                return PamResponse(
-                    content="""Thanks for sharing about your day! I love hearing about RV life experiences.
-
-🚐 **Every day on the road is unique** - some are adventures, some are rest days, and some are just about enjoying the simple freedom of mobile living.
-
-What's the best part about where you are right now?""",
-                    confidence=0.7,
-                    suggestions=[
-                        "Tell me about your location",
-                        "Plan tomorrow's activities", 
-                        "Share your experience",
-                        "Find things to do nearby"
-                    ],
-                    requires_followup=True
-                )
-            
-        except Exception as e:
-            logger.error(f"Daily conversation error: {e}")
-            return PamResponse(
-                content="Thanks for sharing! I love hearing about your RV adventures. How can I help make your day even better?",
-                confidence=0.6,
-                requires_followup=True
-            )
-    
-    async def _handle_help_requests(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
-        """Handle requests for help or emergency situations"""
-        if any(word in message for word in ['emergency', 'urgent', 'stuck', 'broken down']):
-            return PamResponse(
-                content="""🚨 **RV Emergency Resources**
-
-**Immediate Safety:**
-• If life-threatening: Call 911
-• For roadside assistance: Contact your provider (Good Sam, AAA, etc.)
-• Share your location with someone you trust
-
-📞 **Common RV Emergency Contacts:**
-• Good Sam Emergency Road Service: 1-877-475-2596
-• Coach-Net: 1-800-562-5683
-• FMCA Emergency Road Service: 1-800-543-3622
-• AAA: 1-800-AAA-HELP
-
-🛠️ **Common Quick Fixes:**
-• Tire issues: Check your spare and tools
-• Electrical: Check breakers and fuses
-• Water: Know your shutoff locations
-• Propane: Keep spare tanks and know shutoffs
-
-👥 **Community Help:**
-• Post in local RV Facebook groups
-• Ask nearby campers for assistance
-• Contact campground management
-• Use RV forums for technical questions
-
-Are you safe right now? What specific issue can I help you troubleshoot?""",
-                confidence=0.9,
-                suggestions=[
-                    "Find roadside assistance",
-                    "Connect with local RVers",
-                    "Troubleshoot specific issue",
-                    "Emergency preparedness tips"
-                ],
-                requires_followup=True
-            )
-        
-        else:
-            return PamResponse(
-                content="""🤝 **I'm here to help!**
-
-I can assist you with:
-• 💰 Financial tracking and budgeting
-• 🗺️ Route planning and travel advice
-• 🏕️ Finding campgrounds and attractions
-• 👥 Connecting with the RV community  
-• 🔧 Basic RV maintenance reminders
-• 📱 General RV life questions and support
-
-What specific area would you like help with? Don't hesitate to ask - the RV community is all about helping each other!""",
-                confidence=0.8,
-                suggestions=[
-                    "Help with my budget",
-                    "Plan my next route",
-                    "Find nearby campgrounds", 
-                    "RV maintenance questions"
-                ],
-                requires_followup=True
-            )
-    
-    async def _handle_appreciation(self, user_id: str, message: str) -> PamResponse:
-        """Handle expressions of gratitude"""
-        appreciation_responses = [
-            "🤗 You're so welcome! I'm here to make your RV journey easier and more enjoyable.",
-            "😊 It makes me happy to help! That's what the RV community is all about - supporting each other.",
-            "✨ Thank you for the kind words! I love being part of your RV adventure.",
-            "🚐 Glad I could help! Safe travels and happy camping!"
-        ]
-        
-        import random
-        response = random.choice(appreciation_responses)
-        
-        return PamResponse(
-            content=f"{response}\n\nIs there anything else I can help you with today?",
-            confidence=0.9,
-            suggestions=[
-                "Plan my next stop",
-                "Check my budget",
-                "Find things to do",
-                "Just chat"
-            ],
-            requires_followup=False
-        )
-    
-    async def _handle_greetings(self, user_id: str, message: str) -> PamResponse:
-        """Handle greetings and casual conversation starters"""
-        try:
-            # Get time-based greeting
-            current_hour = datetime.now().hour
-            if current_hour < 12:
-                time_greeting = "Good morning"
-            elif current_hour < 17:
-                time_greeting = "Good afternoon" 
-            else:
-                time_greeting = "Good evening"
-            
-            greeting_responses = [
-                f"{time_greeting}! Ready for another day of RV adventures?",
-                f"{time_greeting}! How's life on the road treating you today?",
-                f"{time_greeting}! What can I help you with in your RV journey?",
-                f"{time_greeting}! Hope you're enjoying the freedom of the open road!"
-            ]
-            
-            import random
-            main_greeting = random.choice(greeting_responses)
-            
-            return PamResponse(
-                content=f"👋 {main_greeting}",
-                confidence=0.8,
-                suggestions=[
-                    "What's the weather like ahead?",
-                    "Help me plan my route",
-                    "Check my budget status",
-                    "Find campgrounds nearby"
-                ],
-                requires_followup=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Greeting handling error: {e}")
-            return PamResponse(
-                content="👋 Hello there! I'm PAM, your RV life assistant. How can I help make your journey better today?",
-                confidence=0.7,
-                requires_followup=True
-            )
-    
-    async def _handle_general_conversation(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
-        """Handle general conversation that doesn't fit other categories"""
-        try:
-            # Store in general conversation memory
-            memory_query = """
-                INSERT INTO pam_life_memory (user_id, content, topic)
-                VALUES ($1, $2, 'general')
-            """
-            
-            await self.database_service.execute_mutation(memory_query, user_id, message)
-            
-            return PamResponse(
-                content="""That's interesting! I love learning about your RV experiences and thoughts.
-
-🚐 **I'm here to chat about anything related to your RV life:**
-• Your daily adventures and experiences
-• Questions about RV living
-• Planning future trips and goals
-• Managing life on the road
-• Connecting with the RV community
-
-RV life is about so much more than just travel - it's about freedom, community, and making every day an adventure!
-
-What's on your mind today?""",
-                confidence=0.6,
-                suggestions=[
-                    "Tell me about your current location",
-                    "Help me plan something fun",
-                    "Share RV life tips",
-                    "Just keep chatting"
-                ],
-                requires_followup=True
-            )
-            
-        except Exception as e:
-            logger.error(f"General conversation error: {e}")
-            return PamResponse(
-                content="I'm here to chat and help with whatever's on your mind about RV life! What would you like to talk about?",
+                content="Dashboard data temporarily unavailable",
                 confidence=0.5,
-                requires_followup=True
+                requires_followup=False
             )
+    
+    async def _get_full_dashboard_data(self, user_id: str) -> PamResponse:
+        """Get all dashboard components in one response"""
+        try:
+            # Run all dashboard queries concurrently for speed
+            dashboard_tasks = [
+                self._fetch_calendar_events(user_id),
+                self._fetch_trip_status(user_id),
+                self._fetch_budget_summary(user_id),
+                self._fetch_user_todos(user_id),
+                self._generate_pam_suggestions(user_id),
+                self._fetch_subscription_info(user_id),
+                self._fetch_user_preferences(user_id)
+            ]
+            
+            results = await asyncio.gather(*dashboard_tasks, return_exceptions=True)
+            
+            calendar_data, trip_status, budget_summary, todos, pam_suggestions, subscription, preferences = results
+            
+            dashboard_data = {
+                'calendar': calendar_data if not isinstance(calendar_data, Exception) else {},
+                'trip_status': trip_status if not isinstance(trip_status, Exception) else {},
+                'budget_summary': budget_summary if not isinstance(budget_summary, Exception) else {},
+                'todos': todos if not isinstance(todos, Exception) else [],
+                'pam_suggestions': pam_suggestions if not isinstance(pam_suggestions, Exception) else {},
+                'subscription': subscription if not isinstance(subscription, Exception) else {},
+                'preferences': preferences if not isinstance(preferences, Exception) else {},
+                'last_updated': datetime.now().isoformat()
+            }
+            
+            return PamResponse(
+                content=json.dumps(dashboard_data),
+                confidence=1.0,
+                requires_followup=False
+            )
+            
+        except Exception as e:
+            logger.error(f"Full dashboard data error: {e}")
+            return PamResponse(
+                content=json.dumps({'error': 'Dashboard temporarily unavailable'}),
+                confidence=0.3,
+                requires_followup=False
+            )
+    
+    async def _fetch_calendar_events(self, user_id: str) -> Dict[str, Any]:
+        """Fetch calendar events populated by PAM"""
+        try:
+            # Get events for the next 30 days
+            start_date = date.today()
+            end_date = start_date + timedelta(days=30)
+            
+            query = """
+                SELECT id, title, description, start_time, end_time, event_type, 
+                       location, all_day, created_by_pam, pam_confidence, reminders
+                FROM user_calendar_events 
+                WHERE user_id = $1 
+                AND date(start_time) BETWEEN $2 AND $3
+                ORDER BY start_time ASC
+            """
+            
+            events = await self.database_service.execute_query(
+                query, user_id, start_date, end_date,
+                cache_key=f"calendar:{user_id}", cache_ttl=300
+            )
+            
+            # Format events for calendar display
+            formatted_events = []
+            for event in events:
+                formatted_events.append({
+                    'id': event['id'],
+                    'title': event['title'],
+                    'description': event['description'],
+                    'start': event['start_time'].isoformat(),
+                    'end': event['end_time'].isoformat(),
+                    'type': event['event_type'],
+                    'location': event['location'],
+                    'allDay': event['all_day'],
+                    'createdByPam': event['created_by_pam'],
+                    'pamConfidence': event['pam_confidence'],
+                    'reminders': event['reminders'] or []
+                })
+            
+            return {
+                'events': formatted_events,
+                'total_events': len(formatted_events),
+                'pam_created_count': len([e for e in formatted_events if e['createdByPam']])
+            }
+            
+        except Exception as e:
+            logger.error(f"Calendar fetch error: {e}")
+            return {'events': [], 'error': 'Calendar data unavailable'}
+    
+    async def _fetch_trip_status(self, user_id: str) -> Dict[str, Any]:
+        """Fetch current trip status and next destination"""
+        try:
+            # Get current trip information
+            trip_query = """
+                SELECT current_location, next_destination, departure_date, 
+                       estimated_arrival, distance_remaining, route_progress
+                FROM user_current_trips 
+                WHERE user_id = $1 AND status = 'active'
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """
+            
+            current_trip = await self.database_service.execute_single(trip_query, user_id)
+            
+            if not current_trip:
+                return {'status': 'no_active_trip', 'message': 'No active trip planned'}
+            
+            # Get weather for next destination
+            weather_data = await self._get_destination_weather(current_trip['next_destination'])
+            
+            # Calculate trip metrics
+            days_until_departure = None
+            if current_trip['departure_date']:
+                days_until_departure = (current_trip['departure_date'] - date.today()).days
+            
+            return {
+                'status': 'active_trip',
+                'current_location': current_trip['current_location'],
+                'next_destination': current_trip['next_destination'],
+                'departure_date': current_trip['departure_date'].isoformat() if current_trip['departure_date'] else None,
+                'estimated_arrival': current_trip['estimated_arrival'].isoformat() if current_trip['estimated_arrival'] else None,
+                'distance_remaining': current_trip['distance_remaining'],
+                'route_progress': current_trip['route_progress'],
+                'days_until_departure': days_until_departure,
+                'destination_weather': weather_data
+            }
+            
+        except Exception as e:
+            logger.error(f"Trip status fetch error: {e}")
+            return {'status': 'error', 'message': 'Trip status unavailable'}
+    
+    async def _fetch_budget_summary(self, user_id: str) -> Dict[str, Any]:
+        """Fetch weekly budget breakdown"""
+        try:
+            # Get current week's expenses
+            week_start = date.today() - timedelta(days=date.today().weekday())
+            week_end = week_start + timedelta(days=6)
+            
+            expense_query = """
+                SELECT category, SUM(amount) as total
+                FROM expenses 
+                WHERE user_id = $1 
+                AND date BETWEEN $2 AND $3
+                GROUP BY category
+                ORDER BY total DESC
+            """
+            
+            expenses = await self.database_service.execute_query(
+                expense_query, user_id, week_start, week_end,
+                cache_key=f"budget_week:{user_id}:{week_start}", cache_ttl=1800
+            )
+            
+            # Get budget targets
+            budget_query = """
+                SELECT category, weekly_target 
+                FROM budget_categories 
+                WHERE user_id = $1
+            """
+            
+            budgets = await self.database_service.execute_query(budget_query, user_id)
+            budget_targets = {b['category']: b['weekly_target'] for b in budgets}
+            
+            # Calculate summary
+            total_spent = sum(float(exp['total']) for exp in expenses)
+            total_budget = sum(budget_targets.values())
+            
+            expense_breakdown = {}
+            for exp in expenses:
+                category = exp['category']
+                spent = float(exp['total'])
+                target = budget_targets.get(category, 0)
+                
+                expense_breakdown[category] = {
+                    'spent': spent,
+                    'target': target,
+                    'percentage': (spent / target * 100) if target > 0 else 0,
+                    'status': 'over' if spent > target else 'under' if target > 0 else 'no_budget'
+                }
+            
+            return {
+                'week_start': week_start.isoformat(),
+                'week_end': week_end.isoformat(),
+                'total_spent': total_spent,
+                'total_budget': total_budget,
+                'remaining_budget': total_budget - total_spent,
+                'expense_breakdown': expense_breakdown,
+                'budget_status': 'over' if total_spent > total_budget else 'on_track'
+            }
+            
+        except Exception as e:
+            logger.error(f"Budget summary fetch error: {e}")
+            return {'error': 'Budget data unavailable'}
+    
+    async def _fetch_user_todos(self, user_id: str) -> List[Dict[str, Any]]:
+        """Fetch user's todos and tasks"""
+        try:
+            query = """
+                SELECT id, title, description, due_date, priority, completed,
+                       category, created_by_pam, pam_suggestion_type
+                FROM user_todos 
+                WHERE user_id = $1 
+                AND (completed = false OR completed_at > NOW() - INTERVAL '7 days')
+                ORDER BY 
+                    CASE priority 
+                        WHEN 'high' THEN 1 
+                        WHEN 'medium' THEN 2 
+                        WHEN 'low' THEN 3 
+                    END,
+                    due_date ASC NULLS LAST
+                LIMIT 20
+            """
+            
+            todos = await self.database_service.execute_query(
+                query, user_id,
+                cache_key=f"todos:{user_id}", cache_ttl=300
+            )
+            
+            formatted_todos = []
+            for todo in todos:
+                formatted_todos.append({
+                    'id': todo['id'],
+                    'title': todo['title'],
+                    'description': todo['description'],
+                    'due_date': todo['due_date'].isoformat() if todo['due_date'] else None,
+                    'priority': todo['priority'],
+                    'completed': todo['completed'],
+                    'category': todo['category'],
+                    'created_by_pam': todo['created_by_pam'],
+                    'pam_suggestion_type': todo['pam_suggestion_type'],
+                    'overdue': todo['due_date'] < date.today() if todo['due_date'] else False
+                })
+            
+            return formatted_todos
+            
+        except Exception as e:
+            logger.error(f"Todos fetch error: {e}")
+            return []
+    
+    async def _generate_pam_suggestions(self, user_id: str) -> Dict[str, Any]:
+        """Generate PAM's daily suggestions"""
+        try:
+            # Get user context for suggestions
+            user_location = await self._get_user_current_location(user_id)
+            recent_expenses = await self._get_recent_expense_patterns(user_id)
+            travel_plans = await self._get_upcoming_travel_plans(user_id)
+            
+            suggestions = {
+                'expenses': [],
+                'fuel_stations': [],
+                'campgrounds': [],
+                'activities': [],
+                'maintenance': []
+            }
+            
+            # Generate expense suggestions based on patterns
+            if recent_expenses:
+                expense_suggestions = await self._analyze_expense_patterns_for_suggestions(user_id, recent_expenses)
+                suggestions['expenses'] = expense_suggestions
+            
+            # Generate fuel station suggestions if traveling
+            if travel_plans:
+                fuel_suggestions = await self._generate_fuel_suggestions(user_location, travel_plans)
+                suggestions['fuel_stations'] = fuel_suggestions
+            
+            # Generate campground suggestions
+            campground_suggestions = await self._generate_campground_suggestions(user_location, travel_plans)
+            suggestions['campgrounds'] = campground_suggestions
+            
+            # Generate activity suggestions
+            activity_suggestions = await self._generate_activity_suggestions(user_location)
+            suggestions['activities'] = activity_suggestions
+            
+            # Generate maintenance reminders
+            maintenance_suggestions = await self._generate_maintenance_suggestions(user_id)
+            suggestions['maintenance'] = maintenance_suggestions
+            
+            return {
+                'generated_at': datetime.now().isoformat(),
+                'location_based': user_location,
+                'suggestions': suggestions,
+                'total_suggestions': sum(len(v) for v in suggestions.values())
+            }
+            
+        except Exception as e:
+            logger.error(f"PAM suggestions generation error: {e}")
+            return {'error': 'Suggestions temporarily unavailable'}
+    
+    async def _fetch_subscription_info(self, user_id: str) -> Dict[str, Any]:
+        """Fetch user's subscription status"""
+        try:
+            query = """
+                SELECT subscription_type, status, trial_end_date, billing_cycle,
+                       next_billing_date, features_access, video_course_access
+                FROM user_subscriptions 
+                WHERE user_id = $1 AND status IN ('active', 'trial')
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """
+            
+            subscription = await self.database_service.execute_single(query, user_id)
+            
+            if not subscription:
+                return {
+                    'status': 'no_subscription',
+                    'message': 'No active subscription found'
+                }
+            
+            # Calculate trial days remaining
+            trial_days_remaining = None
+            if subscription['trial_end_date']:
+                trial_days_remaining = (subscription['trial_end_date'] - date.today()).days
+            
+            return {
+                'subscription_type': subscription['subscription_type'],
+                'status': subscription['status'],
+                'trial_end_date': subscription['trial_end_date'].isoformat() if subscription['trial_end_date'] else None,
+                'trial_days_remaining': trial_days_remaining,
+                'billing_cycle': subscription['billing_cycle'],
+                'next_billing_date': subscription['next_billing_date'].isoformat() if subscription['next_billing_date'] else None,
+                'features_access': subscription['features_access'],
+                'video_course_access': subscription['video_course_access'],
+                'needs_upgrade': trial_days_remaining is not None and trial_days_remaining <= 3
+            }
+            
+        except Exception as e:
+            logger.error(f"Subscription info fetch error: {e}")
+            return {'error': 'Subscription data unavailable'}
+    
+    # Helper methods for data fetching
+    async def _get_destination_weather(self, destination: str) -> Dict[str, Any]:
+        """Get weather for destination"""
+        # This would integrate with weather API
+        return {
+            'temperature': 72,
+            'condition': 'Partly Cloudy',
+            'forecast': '3-day forecast data'
+        }
+    
+    async def _get_user_current_location(self, user_id: str) -> str:
+        """Get user's current location"""
+        try:
+            query = "SELECT current_location FROM user_profiles WHERE user_id = $1"
+            result = await self.database_service.execute_single(query, user_id)
+            return result['current_location'] if result else 'Unknown'
+        except:
+            return 'Unknown'
+    
+    async def _get_recent_expense_patterns(self, user_id: str) -> List[Dict]:
+        """Analyze recent expense patterns"""
+        try:
+            query = """
+                SELECT category, AVG(amount) as avg_amount, COUNT(*) as frequency
+                FROM expenses 
+                WHERE user_id = $1 
+                AND date >= CURRENT_DATE - INTERVAL '30 days'
+                GROUP BY category
+            """
+            return await self.database_service.execute_query(query, user_id)
+        except:
+            return []
+    
+    async def _get_upcoming_travel_plans(self, user_id: str) -> Dict:
+        """Get upcoming travel plans"""
+        try:
+            query = """
+                SELECT next_destination, departure_date, estimated_arrival
+                FROM user_current_trips 
+                WHERE user_id = $1 AND status = 'planned'
+                ORDER BY departure_date ASC LIMIT 1
+            """
+            result = await self.database_service.execute_single(query, user_id)
+            return result or {}
+        except:
+            return {}
+    
+    # Suggestion generation methods
+    async def _analyze_expense_patterns_for_suggestions(self, user_id: str, recent_expenses: List) -> List[Dict]:
+        """Generate expense-related suggestions"""
+        suggestions = []
+        
+        for expense in recent_expenses:
+            if expense['avg_amount'] > 100:  # High spending category
+                suggestions.append({
+                    'type': 'expense_alert',
+                    'message': f"High spending in {expense['category']} - consider reviewing",
+                    'category': expense['category'],
+                    'avg_amount': expense['avg_amount']
+                })
+        
+        return suggestions[:3]  # Limit to top 3
+    
+    async def _generate_fuel_suggestions(self, location: str, travel_plans: Dict) -> List[Dict]:
+        """Generate fuel station suggestions"""
+        # This would integrate with fuel price APIs
+        return [
+            {
+                'station_name': 'Flying J',
+                'price': '$3.45/gal',
+                'distance': '2.3 miles',
+                'rv_friendly': True
+            }
+        ]
+    
+    async def _generate_campground_suggestions(self, location: str, travel_plans: Dict) -> List[Dict]:
+        """Generate campground suggestions"""
+        # This would integrate with campground APIs
+        return [
+            {
+                'name': 'State Park Campground',
+                'price': '$35/night',
+                'availability': 'Available',
+                'rating': 4.5
+            }
+        ]
+    
+    async def _generate_activity_suggestions(self, location: str) -> List[Dict]:
+        """Generate activity suggestions"""
+        return [
+            {
+                'activity': 'Local hiking trail',
+                'distance': '1.5 miles away',
+                'type': 'outdoor'
+            }
+        ]
+    
+    async def _generate_maintenance_suggestions(self, user_id: str) -> List[Dict]:
+        """Generate RV maintenance suggestions"""
+        try:
+            query = """
+                SELECT task, next_due_date, priority 
+                FROM maintenance_schedule 
+                WHERE user_id = $1 
+                AND next_due_date <= CURRENT_DATE + INTERVAL '30 days'
+                ORDER BY next_due_date ASC
+            """
+            
+            maintenance_items = await self.database_service.execute_query(query, user_id)
+            
+            return [
+                {
+                    'task': item['task'],
+                    'due_date': item['next_due_date'].isoformat(),
+                    'priority': item['priority']
+                }
+                for item in maintenance_items
+            ]
+        except:
+            return []
+    
+    async def _fetch_user_preferences(self, user_id: str) -> Dict[str, Any]:
+        """Fetch user preferences for dashboard customization"""
+        try:
+            query = """
+                SELECT dashboard_layout, news_sources, notification_preferences,
+                       timezone, currency, measurement_units
+                FROM user_preferences 
+                WHERE user_id = $1
+            """
+            
+            prefs = await self.database_service.execute_single(query, user_id)
+            return prefs or {}
+        except:
+            return {}
 
 # Global YOU node instance
 you_node = YouNode()
