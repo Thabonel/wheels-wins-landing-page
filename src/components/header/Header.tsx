@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useHeaderAppearance } from "@/hooks/useHeaderAppearance.tsx";
+import { useHeaderAppearance } from "@/hooks/useHeaderAppearance";
 import { useLocation } from "react-router-dom";
 import HeaderContainer from "./HeaderContainer";
 import NavigationLinks from "./NavigationLinks";
