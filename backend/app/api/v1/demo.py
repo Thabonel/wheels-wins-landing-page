@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from app.core.security import verify_token
 from app.core.logging import setup_logging
-from app.core.orchestrator import orchestrator
+from app.services.pam.orchestrator import orchestrator
 
 router = APIRouter()
 logger = setup_logging()

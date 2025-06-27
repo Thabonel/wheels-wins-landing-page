@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from app.core.security import verify_token
 from app.core.logging import setup_logging
-from app.nodes.you_node import you_node
+from app.services.pam.nodes.you_node import you_node
 
 router = APIRouter()
 logger = setup_logging()
