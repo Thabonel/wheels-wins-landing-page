@@ -6,11 +6,11 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
-from backend.app.models.domain.pam import PamMemory, IntentType, MemoryType, PamResponse
-from backend.app.services.database import get_database_service
-from backend.app.services.cache import cache_service
-from backend.app.core.exceptions import PAMError
-from backend.app.services.pam.nodes.base_node import BaseNode
+from app.models.domain.pam import PamMemory, IntentType, MemoryType, PamResponse
+from app.services.database import get_database_service
+from app.services.cache import cache_service
+from app.core.exceptions import PAMError
+from app.services.pam.nodes.base_node import BaseNode
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)

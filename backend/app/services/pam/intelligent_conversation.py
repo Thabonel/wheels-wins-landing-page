@@ -13,9 +13,9 @@ from enum import Enum
 from dataclasses import dataclass
 import asyncio
 
-from backend.app.models.domain.pam import PamResponse, PamContext, PamMemory
-from backend.app.core.exceptions import PAMError
-from backend.app.core.config import settings
+from app.models.domain.pam import PamResponse, PamContext, PamMemory
+from app.core.exceptions import PAMError
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

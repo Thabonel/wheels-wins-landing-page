@@ -3,7 +3,7 @@
 Cache Service
 """
 
-from backend.app.services.cache_service import cache_service
+from app.services.cache_service import cache_service
 
 # Re-export for backward compatibility
 CacheService = cache_service.__class__

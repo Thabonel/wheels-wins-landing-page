@@ -9,9 +9,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, date, timedelta
 import logging
 
-from backend.app.services.database import get_database_service
-from backend.app.models.domain.pam import PamResponse
-from backend.app.services.pam.nodes.base_node import BaseNode
+from app.services.database import get_database_service
+from app.models.domain.pam import PamResponse
+from app.services.pam.nodes.base_node import BaseNode
 
 logger = logging.getLogger(__name__)
 

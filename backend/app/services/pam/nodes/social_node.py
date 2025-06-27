@@ -13,10 +13,10 @@ import logging
 import re
 from dataclasses import dataclass
 
-from backend.app.services.database import get_database_service
-from backend.app.models.domain.pam import PamResponse
-from backend.app.services.pam.nodes.base_node import BaseNode
-from backend.app.core.config import settings
+from app.services.database import get_database_service
+from app.models.domain.pam import PamResponse
+from app.services.pam.nodes.base_node import BaseNode
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

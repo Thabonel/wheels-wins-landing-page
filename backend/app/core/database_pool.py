@@ -5,7 +5,6 @@ Optimizes database connections with connection pooling.
 """
 
 import asyncio
-import asyncpg
 from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
 from app.core.config import settings
@@ -17,7 +16,6 @@ class DatabasePool:
     """Database connection pool manager with optimizations"""
     
     def __init__(self):
-        self.pool: Optional[asyncpg.Pool] = None
         self._pool_lock = asyncio.Lock()
     
     async def initialize(self):
@@ -30,7 +28,6 @@ class DatabasePool:
                 return
                 
             try:
-                self.pool = await asyncpg.create_pool(
                     settings.DATABASE_URL,
                     min_size=5,  # Minimum connections
                     max_size=20,  # Maximum connections
