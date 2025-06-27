@@ -527,6 +527,130 @@ class YouNode(BaseNode):
 
 # Global YOU node instance
 
+    async def set_user_preferences(self, user_id: str, preferences: Dict[str, Any]) -> Dict[str, Any]:
+        """Set user preferences for the system"""
+        try:
+            query = """
+                INSERT INTO user_preferences 
+                (user_id, dashboard_layout, notification_preferences, privacy_settings)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (user_id) DO UPDATE
+                SET dashboard_layout = COALESCE($2, user_preferences.dashboard_layout),
+                    notification_preferences = COALESCE($3, user_preferences.notification_preferences),
+                    privacy_settings = COALESCE($4, user_preferences.privacy_settings)
+            """
+            
+            await self.database_service.execute_write(
+                query,
+                user_id,
+                preferences.get('dashboard_layout'),
+                preferences.get('notification_preferences'),
+                preferences.get('privacy_settings')
+            )
+            
+            return {"success": True, "message": "Preferences updated"}
+            
+        except Exception as e:
+            logger.error(f"Error setting preferences: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_personalized_dashboard(self, user_id: str) -> Dict[str, Any]:
+        """Get personalized dashboard data for the user"""
+        try:
+            # Fetch user's dashboard preferences
+            prefs = await self._fetch_user_preferences(user_id)
+            
+            # Get various dashboard components
+            calendar_events = await self._fetch_calendar_events(user_id)
+            trip_status = await self._fetch_trip_status(user_id)
+            budget_summary = await self._fetch_budget_summary(user_id)
+            todos = await self._fetch_user_todos(user_id)
+            
+            return {
+                "success": True,
+                "dashboard": {
+                    "layout": prefs.get('dashboard_layout', 'default'),
+                    "widgets": {
+                        "calendar": calendar_events,
+                        "trip_status": trip_status,
+                        "budget": budget_summary,
+                        "todos": todos
+                    },
+                    "last_updated": datetime.now().isoformat()
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting dashboard: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def schedule_maintenance_reminder(self, user_id: str, maintenance_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Schedule a maintenance reminder for the user's vehicle"""
+        try:
+            maintenance_type = maintenance_data.get('type')
+            due_date = maintenance_data.get('due_date')
+            mileage_due = maintenance_data.get('mileage_due')
+            notes = maintenance_data.get('notes', '')
+            
+            query = """
+                INSERT INTO maintenance_reminders
+                (user_id, maintenance_type, due_date, mileage_due, notes, is_active)
+                VALUES ($1, $2, $3, $4, $5, true)
+                RETURNING id
+            """
+            
+            result = await self.database_service.execute_single(
+                query, user_id, maintenance_type, due_date, mileage_due, notes
+            )
+            
+            return {
+                "success": True,
+                "reminder_id": result['id'] if result else None,
+                "message": f"Maintenance reminder set for {maintenance_type}"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error scheduling maintenance: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_travel_timeline(self, user_id: str, timeframe: str = "month") -> Dict[str, Any]:
+        """Get user's travel timeline for planning"""
+        try:
+            # Calculate date range
+            start_date = datetime.now()
+            if timeframe == "week":
+                end_date = start_date + timedelta(days=7)
+            elif timeframe == "month":
+                end_date = start_date + timedelta(days=30)
+            else:
+                end_date = start_date + timedelta(days=90)
+            
+            # Get travel events
+            query = """
+                SELECT * FROM travel_plans
+                WHERE user_id = $1 
+                AND start_date BETWEEN $2 AND $3
+                ORDER BY start_date
+            """
+            
+            events = await self.database_service.execute_many(
+                query, user_id, start_date, end_date
+            )
+            
+            return {
+                "success": True,
+                "timeline": {
+                    "timeframe": timeframe,
+                    "events": events or [],
+                    "total_days": (end_date - start_date).days
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting travel timeline: {e}")
+            return {"success": False, "error": str(e)}
+
+
     async def create_calendar_event(self, user_id: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new calendar event"""
         try:
