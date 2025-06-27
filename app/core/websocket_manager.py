@@ -1,6 +1,6 @@
 
 # Legacy compatibility import
-from backend.app.services.websocket_manager import websocket_manager as manager
+# from backend.app.services.websocket_manager import websocket_manager as manager
 
 # Keep the existing simple interface for backward compatibility
 class ConnectionManager:
