@@ -50,7 +50,9 @@ export function usePamWebSocketConnection({
 
 1. **Initialization**
    ```typescript
-   const wsUrl = `${backendUrl.replace("https", "wss")}/ws/${userId}?token=${authToken}`;
+   // Support both http and https URLs when constructing the WebSocket URL
+   const wsProtocol = backendUrl.startsWith("https") ? "wss" : "ws";
+   const wsUrl = `${backendUrl.replace(/^https?/, wsProtocol)}/ws/${userId}?token=${authToken}`;
    ws.current = new WebSocket(wsUrl);
    ```
 
