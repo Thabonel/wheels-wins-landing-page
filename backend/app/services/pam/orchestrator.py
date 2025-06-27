@@ -9,18 +9,18 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 import logging
 
-from backend.app.models.domain.pam import (
+from app.models.domain.pam import (
     PamMessage, PamConversation, PamMemory, PamIntent, PamContext, 
     PamResponse, IntentType, MemoryType, ConversationStatus
 )
-from backend.app.services.database import get_database_service
-from backend.app.services.cache import cache_service
-from backend.app.services.pam.nodes.wins_node import wins_node
-from backend.app.services.pam.nodes.wheels_node import wheels_node
-from backend.app.services.pam.nodes.social_node import social_node
-from backend.app.services.pam.nodes.you_node import you_node
-from backend.app.services.pam.nodes.memory_node import MemoryNode
-from backend.app.services.pam.intelligent_conversation import IntelligentConversationService
+from app.services.database import get_database_service
+from app.services.cache import cache_service
+from app.services.pam.nodes.wins_node import wins_node
+from app.services.pam.nodes.wheels_node import wheels_node
+from app.services.pam.nodes.social_node import social_node
+from app.services.pam.nodes.you_node import you_node
+from app.services.pam.nodes.memory_node import MemoryNode
+from app.services.pam.intelligent_conversation import IntelligentConversationService
 
 logger = logging.getLogger(__name__)
 
