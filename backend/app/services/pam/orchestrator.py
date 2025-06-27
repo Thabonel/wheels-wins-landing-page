@@ -21,6 +21,8 @@ from app.services.pam.nodes.social_node import social_node
 from app.services.pam.nodes.you_node import you_node
 from app.services.pam.nodes.memory_node import MemoryNode
 from app.services.pam.intelligent_conversation import IntelligentConversationService
+from app.services.pam.route_intelligence import RouteIntelligenceService
+from app.services.pam.context_manager import ContextManager
 
 logger = logging.getLogger(__name__)
 
