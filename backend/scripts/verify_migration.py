@@ -165,7 +165,7 @@ class MigrationVerifier:
         
         try:
             # Import Supabase client
-            from backend.app.database.supabase_client import get_supabase_client
+            from app.database.supabase_client import get_supabase_client
             
             start_time = time.time()
             supabase = get_supabase_client()
@@ -301,7 +301,7 @@ class MigrationVerifier:
         
         # Test 1: Config loading
         try:
-            from backend.app.core.config import settings
+            from app.core.config import settings
             assert settings.ENVIRONMENT is not None
             check_result["test_results"]["config_loading"] = {"status": "PASS"}
             check_result["tests_passed"] += 1
@@ -313,7 +313,7 @@ class MigrationVerifier:
         
         # Test 2: Logger initialization
         try:
-            from backend.app.core.logging import setup_logging
+            from app.core.logging import setup_logging
             logger = setup_logging()
             logger.info("Test log message")
             check_result["test_results"]["logging_setup"] = {"status": "PASS"}
@@ -326,7 +326,7 @@ class MigrationVerifier:
         
         # Test 3: Service initialization
         try:
-            from backend.app.services.database import DatabaseService
+            from app.services.database import DatabaseService
             db_service = DatabaseService()
             check_result["test_results"]["service_init"] = {"status": "PASS"}
             check_result["tests_passed"] += 1

@@ -9,9 +9,9 @@ from typing import Dict, Any, List, Optional
 import uuid
 from datetime import datetime
 
-from backend.app.models.schemas.pam import ChatRequest, ChatResponse
-from backend.app.services.pam.orchestrator import get_orchestrator
-from backend.app.core.logging import setup_logging
+from app.models.schemas.pam import ChatRequest, ChatResponse
+from app.services.pam.orchestrator import get_orchestrator
+from app.core.logging import setup_logging
 
 router = APIRouter()
 logger = setup_logging()

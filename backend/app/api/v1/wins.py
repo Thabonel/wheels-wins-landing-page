@@ -8,12 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 from datetime import datetime, date
 
-from backend.app.models.schemas.wins import (
+from app.models.schemas.wins import (
     BudgetCreateRequest, ExpenseCreateRequest, IncomeSourceCreateRequest,
     BudgetResponse, ExpenseAnalyticsResponse, FinancialSummaryResponse
 )
-from backend.app.services.database import get_database_service
-from backend.app.core.logging import setup_logging
+from app.services.database import get_database_service
+from app.core.logging import setup_logging
 
 router = APIRouter()
 logger = setup_logging()

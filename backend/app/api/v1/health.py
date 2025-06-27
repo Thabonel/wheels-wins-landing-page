@@ -10,9 +10,9 @@ from typing import Dict, Any
 import asyncio
 from datetime import datetime
 
-from backend.app.core.config import settings
-from backend.app.services.database import get_database_service
-from backend.app.services.cache_service import cache_service
+from app.core.config import settings
+from app.services.database import get_database_service
+from app.services.cache_service import cache_service
 
 router = APIRouter()
 

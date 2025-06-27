@@ -1,16 +1,41 @@
+# Core FastAPI and server
 fastapi==0.111.0
 uvicorn[standard]==0.30.1
+
+# Data validation and settings
 pydantic==2.8.2
 pydantic-settings==2.3.4
+
+# Authentication and security
 python-jose[cryptography]==3.3.0
+
+# AI and external APIs
 openai==1.35.3
+
+# Database (Supabase - no asyncpg needed)
 supabase==2.5.0
+
+# Background tasks and caching
 redis==5.0.7
 celery==5.4.0
+
+# HTTP client
 httpx==0.27.0
+
+# File uploads
 python-multipart==0.0.18
+
+# Email validation
 email-validator==2.2.0
+
+# System monitoring
 psutil==6.0.0
+
+# Error tracking
 sentry-sdk[fastapi]==2.7.1
+
+# Web scraping
 beautifulsoup4==4.12.3
+
+# Task scheduling
 apscheduler==3.10.4
