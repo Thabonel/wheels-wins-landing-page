@@ -19,7 +19,6 @@ supabase==2.5.0
 
 # Database and caching
 redis==5.0.7
-asyncpg==0.29.0
 sqlalchemy[asyncio]==2.0.23
 
 # Background tasks

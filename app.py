@@ -1,7 +1,6 @@
 """
 Production entry point for Wheels & Wins Backend
 Handles both development and production environments
-Uses Supabase for database operations (no asyncpg needed)
 """
 import sys
 import os
