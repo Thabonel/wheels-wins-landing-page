@@ -1,17 +1,10 @@
+
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
 export function useHeaderAppearance() {
   const location = useLocation();
   const { isAuthenticated, isDevMode } = useAuth();
-  
-  // DEBUG LOGGING
-  console.log("🔍 DEBUG useHeaderAppearance:", {
-    pathname: location.pathname,
-    isAuthenticated,
-    isDevMode,
-    nodeEnv: process.env.NODE_ENV
-  });
   
   // Explicitly check if we're on homepage
   const isHomePage = location.pathname === "/";
@@ -24,13 +17,6 @@ export function useHeaderAppearance() {
   
   // Show user menu (avatar) when authenticated (even on homepage)
   const showUserMenu = effectivelyAuthenticated;
-  
-  console.log("🔍 DEBUG RESULTS:", {
-    isHomePage,
-    effectivelyAuthenticated,
-    showNavigation,
-    showUserMenu
-  });
   
   return {
     isHomePage,
