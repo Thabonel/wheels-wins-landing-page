@@ -1,4 +1,3 @@
-
 """
 WHEELS Node - Travel and Route Management
 Handles route planning, campground searches, fuel information, and maintenance.
@@ -7,13 +6,13 @@ Handles route planning, campground searches, fuel information, and maintenance.
 import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date, timedelta
+import logging
 
-from backend.app.core.logging import setup_logging
 from backend.app.services.database import get_database_service
 from backend.app.models.domain.pam import PamResponse
 from backend.app.services.pam.nodes.base_node import BaseNode
 
-logger = setup_logging()
+logger = logging.getLogger(__name__)
 
 class WheelsNode(BaseNode):
     """WHEELS node for travel and route management"""
@@ -292,20 +291,20 @@ class WheelsNode(BaseNode):
                     content="""⛽ Here are some fuel-saving tips for RVers:
                     
 🏪 **Best Apps for Fuel Prices:**
-• GasBuddy - Real-time prices and reviews
-• Waze - Navigation with gas prices
-• Gas Guru - Price comparison
+- GasBuddy - Real-time prices and reviews
+- Waze - Navigation with gas prices
+- Gas Guru - Price comparison
 
 🚛 **RV-Friendly Stations:**
-• Pilot/Flying J - Big rig access
-• Love's Travel Centers - RV lanes
-• TA/Petro - Truck stops with space
+- Pilot/Flying J - Big rig access
+- Love's Travel Centers - RV lanes
+- TA/Petro - Truck stops with space
 
 💡 **Money-Saving Tips:**
-• Fill up at truck stops (often cheaper diesel)
-• Use loyalty programs (MyRewards, Good Sam)
-• Avoid highway exit stations
-• Drive 60-65 mph for best fuel economy""",
+- Fill up at truck stops (often cheaper diesel)
+- Use loyalty programs (MyRewards, Good Sam)
+- Avoid highway exit stations
+- Drive 60-65 mph for best fuel economy""",
                     confidence=0.7,
                     suggestions=[
                         "Log my fuel purchase",
@@ -374,21 +373,21 @@ class WheelsNode(BaseNode):
             content=f"""🌤️ For current weather information{f' in {location}' if location else ''}, I recommend:
 
 📱 **Best Weather Apps for RVers:**
-• Weather Underground - Detailed forecasts
-• NOAA Weather Radar - Official forecasts
-• WeatherBug - Real-time conditions
-• Dark Sky - Hyper-local predictions
+- Weather Underground - Detailed forecasts
+- NOAA Weather Radar - Official forecasts
+- WeatherBug - Real-time conditions
+- Dark Sky - Hyper-local predictions
 
 ⚠️ **RV Weather Considerations:**
-• High wind warnings (30+ mph)
-• Severe thunderstorm alerts  
-• Temperature extremes affecting propane/batteries
-• Road conditions for mountain passes
+- High wind warnings (30+ mph)
+- Severe thunderstorm alerts  
+- Temperature extremes affecting propane/batteries
+- Road conditions for mountain passes
 
 🌡️ **Seasonal Travel Tips:**
-• Summer: Avoid desert areas, seek elevation
-• Winter: Watch for freezing temps, pipe protection
-• Spring/Fall: Best travel weather in most areas
+- Summer: Avoid desert areas, seek elevation
+- Winter: Watch for freezing temps, pipe protection
+- Spring/Fall: Best travel weather in most areas
 
 Would you like tips for weatherproofing your RV or preparing for specific conditions?""",
             confidence=0.7,
@@ -430,95 +429,3 @@ Would you like tips for weatherproofing your RV or preparing for specific condit
                         upcoming_items.append(record)
             
             response_parts = ["🔧 **RV Maintenance Status:**"]
-            
-            if overdue_items:
-                response_parts.extend([
-                    "",
-                    "⚠️ **OVERDUE Items:**"
-                ])
-                for item in overdue_items:
-                    response_parts.append(f"🔴 {item['task']} (due {item['next_due_date']})")
-            
-            if upcoming_items:
-                response_parts.extend([
-                    "",
-                    "📅 **Coming Up (Next 30 Days):**"
-                ])
-                for item in upcoming_items:
-                    response_parts.append(f"🟡 {item['task']} (due {item['next_due_date']})")
-            
-            if not overdue_items and not upcoming_items:
-                response_parts.extend([
-                    "",
-                    "✅ No urgent maintenance items!",
-                    "",
-                    "📋 **Regular RV Maintenance Checklist:**",
-                    "• Oil change every 3,000-5,000 miles",
-                    "• Tire pressure check monthly", 
-                    "• Roof inspection every 3 months",
-                    "• Generator exercise monthly",
-                    "• Water system sanitization every 6 months",
-                    "• Slide-out lubrication annually"
-                ])
-            
-            # Add general maintenance tips
-            response_parts.extend([
-                "",
-                "💡 **Maintenance Tips:**",
-                "• Keep maintenance log with dates/mileage",
-                "• Check tire pressure when cold",
-                "• Inspect roof seals regularly",
-                "• Test smoke/CO detectors monthly"
-            ])
-            
-            return PamResponse(
-                content="\n".join(response_parts),
-                confidence=0.8,
-                suggestions=[
-                    "Log maintenance completed",
-                    "Set maintenance reminder",
-                    "Find RV service centers",
-                    "RV maintenance checklist"
-                ],
-                requires_followup=False
-            )
-            
-        except Exception as e:
-            logger.error(f"Maintenance reminder error: {e}")
-            return PamResponse(
-                content="I can help you track RV maintenance! Regular maintenance includes oil changes, tire checks, roof inspections, and generator exercise. Would you like me to help you log a maintenance task?",
-                confidence=0.6,
-                suggests=[
-                    "Log maintenance task",
-                    "Set reminder",
-                    "Show maintenance checklist"
-                ],
-                requires_followup=True
-            )
-    
-    async def _handle_general_travel_query(self, user_id: str, message: str) -> PamResponse:
-        """Handle general travel questions"""
-        return PamResponse(
-            content="""🚐 **I'm here to help with your RV travels!**
-
-I can assist you with:
-• 🗺️ Route planning and directions
-• 🏕️ Campground recommendations  
-• ⛽ Fuel prices and stations
-• 🌤️ Weather considerations
-• 🔧 Maintenance reminders
-• 🛣️ RV-friendly routes and restrictions
-
-What aspect of your journey can I help you with today?""",
-            confidence=0.7,
-            suggestions=[
-                "Plan a route",
-                "Find campgrounds", 
-                "Check fuel prices",
-                "Maintenance reminders"
-            ],
-            requires_followup=True
-        )
-
-# Global WHEELS node instance  
-wheels_node = WheelsNode()
