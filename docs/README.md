@@ -43,11 +43,12 @@ Complete guides for all PAM features and capabilities:
 - [Advanced Usage](guides/user-guides/advanced-usage.md) - Power user features
 
 ### Technical Documentation
-- [API Documentation](technical/api-documentation.md) - API reference
+- [API Documentation](technical/api-documentation.md) - Complete API reference
+- [Backend Architecture](technical/backend-architecture.md) - System architecture guide
+- [Development Guide](technical/development-guide.md) - Developer setup and workflow
 - [Database Schema](technical/database-schema.md) - Database structure
 - [Integration Patterns](technical/integration-patterns.md) - Integration guidelines
 - [Security Considerations](technical/security-considerations.md) - Security practices
-- [PAM Backend Deployment](technical/pam-backend-deployment.md) - Backend deployment progress
 
 ## 🚀 Quick Start
 

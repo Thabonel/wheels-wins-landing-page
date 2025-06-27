@@ -1,15 +1,28 @@
 
-# API Documentation
+# PAM Backend API Documentation
 
 Complete reference for the PAM Backend API endpoints, authentication, and integration patterns.
 
 ## Base Information
 
-**Base URL**: `https://pam-backend.render.com/api` (Production)  
+**Base URL**: `https://your-backend-domain.com/api` (Production)  
 **Local Development**: `http://localhost:8000/api`  
 **API Version**: v1  
 **Content-Type**: `application/json`  
 **Authentication**: Bearer Token (JWT)
+**WebSocket URL**: `wss://your-backend-domain.com/api/pam/ws`
+
+## Current Implementation Status
+
+The PAM Backend is built with FastAPI 0.111.0 and includes:
+- ✅ Real-time WebSocket communication
+- ✅ REST API endpoints
+- ✅ AI orchestration system
+- ✅ Multi-node architecture
+- ✅ Comprehensive monitoring
+- ✅ Security middleware
+- ✅ Rate limiting
+- ✅ Error tracking (Sentry)
 
 ## Authentication
 
@@ -98,12 +111,13 @@ Comprehensive health check with system metrics.
 
 ## WebSocket Endpoints
 
-### WebSocket /ws/{user_id}
+### WebSocket /api/pam/ws
 Real-time WebSocket connection for PAM AI assistant communication.
 
-**Connection URL**: `wss://pam-backend.onrender.com/ws/{user_id}?token={jwt_token}`
+**Connection URL**: `wss://your-backend-domain.com/api/pam/ws?token={jwt_token}`
 
-**Authentication**: JWT token in URL parameter
+**Authentication**: JWT token in query parameter
+**Rate Limiting**: Standard rate limits apply
 
 **Connection Flow**:
 1. Frontend establishes WebSocket connection
@@ -119,10 +133,9 @@ Real-time WebSocket connection for PAM AI assistant communication.
 ```json
 {
   "type": "chat",
-  "message": "Help me create a budget for groceries",
-  "user_id": "user_uuid",
+  "content": "Help me create a budget for groceries",
   "context": {
-    "region": "US-West",
+    "region": "Australia",
     "current_page": "/budgets",
     "session_data": {
       "recent_intents": ["budget", "expense"],
