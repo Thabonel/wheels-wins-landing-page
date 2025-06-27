@@ -1,4 +1,3 @@
-
 """
 WINS Node - Financial Management
 Handles budget queries, expense logging, and income tracking.
@@ -8,13 +7,13 @@ import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date
 from decimal import Decimal
+import logging
 
-from backend.app.core.logging import setup_logging
 from backend.app.services.database import get_database_service
 from backend.app.models.domain.pam import PamResponse
 from backend.app.services.pam.nodes.base_node import BaseNode
 
-logger = setup_logging()
+logger = logging.getLogger(__name__)
 
 class WinsNode(BaseNode):
     """WINS node for financial management"""
@@ -376,7 +375,7 @@ class WinsNode(BaseNode):
             await self.database_service.execute_mutation(query, user_id, category, amount)
             
             # Invalidate cache
-            from backend.app.services.cache_service import cache_service
+            from backend.app.services.cache import cache_service
             await cache_service.delete_pattern(f"budget_summary:{user_id}")
             
         except Exception as e:
