@@ -17,7 +17,7 @@ from app.models.schemas.pam import (
     ContextUpdateRequest, PamFeedbackRequest
 )
 from app.models.schemas.common import SuccessResponse, PaginationParams
-from app.core.websocket_manager import manager
+from app.services.websocket_manager import manager
 from app.core.logging import setup_logging
 from app.core.exceptions import PAMError
 
