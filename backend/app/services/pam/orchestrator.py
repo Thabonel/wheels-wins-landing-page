@@ -31,6 +31,8 @@ class PamOrchestrator:
     
     def __init__(self):
         self.conversation_service = IntelligentConversationService()
+        self.route_intelligence = RouteIntelligenceService()
+        self.context_manager = ContextManager()
         self.memory_node = MemoryNode()
         self.nodes = {
             'wins': wins_node,
