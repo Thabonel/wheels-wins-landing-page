@@ -24,7 +24,6 @@ pyopenssl==23.3.0
 certifi==2023.11.17
 
 # Database drivers
-asyncpg==0.29.0
 psycopg2-binary==2.9.9
 
 # Redis

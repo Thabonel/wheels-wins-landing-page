@@ -12,7 +12,6 @@ python-jose[cryptography]==3.3.0
 # AI and external APIs
 openai==1.35.3
 
-# Database (Supabase - no asyncpg needed)
 supabase==2.5.0
 
 # Background tasks and caching
