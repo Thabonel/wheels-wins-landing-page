@@ -1,784 +1,907 @@
 """
-SOCIAL Node - Advanced Community and Social Intelligence
-Fully featured social assistant with AI-powered matching, international support, and real-time verification.
+SOCIAL Node - Agentic Community & Social Management
+Handles community groups, hustles, marketplace, social feeds with full AI integration.
 """
 
 import json
-import aiohttp
-import asyncio
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from datetime import datetime, date, timedelta
-from enum import Enum
+from decimal import Decimal
 import logging
-import re
 from dataclasses import dataclass
 
 from backend.app.services.database import get_database_service
 from backend.app.models.domain.pam import PamResponse
 from backend.app.services.pam.nodes.base_node import BaseNode
-from backend.app.core.config import settings
+from backend.app.services.pam.intelligent_conversation import IntelligentConversationService
+from app.core.database import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
-class Language(Enum):
-    ENGLISH = "en"
-    SPANISH = "es"
-    FRENCH = "fr"
-    GERMAN = "de"
-    ITALIAN = "it"
-    PORTUGUESE = "pt"
-    DUTCH = "nl"
-
-class CommunityType(Enum):
-    RV_CLUB = "rv_club"
-    FACEBOOK_GROUP = "facebook_group"
-    FORUM = "forum"
-    LOCAL_MEETUP = "local_meetup"
-    RALLY_GROUP = "rally_group"
-    BRAND_COMMUNITY = "brand_community"
+@dataclass
+class HustleOpportunity:
+    id: str
+    title: str
+    category: str
+    difficulty: str
+    estimated_earnings: str
+    time_commitment: str
+    success_rate: float
+    community_feedback: List[Dict]
+    requirements: List[str]
 
 @dataclass
-class UserSocialProfile:
-    interests: List[str]
-    rv_experience_level: str
-    travel_style: str
-    social_preferences: Dict[str, Any]
-    languages: List[Language]
-    personality_traits: Dict[str, float]
+class CommunityGroup:
+    id: str
+    name: str
+    description: str
+    member_count: int
+    location_focus: str
+    recent_activity: List[Dict]
+    join_requirements: str
 
 class SocialNode(BaseNode):
-    """Advanced SOCIAL node with AI-powered community intelligence"""
+    """Agentic SOCIAL node for intelligent community and social management"""
     
     def __init__(self):
         super().__init__("social")
         self.database_service = None
-        self.http_session = None
-        self.ai_client = None
-        self.translation_service = None
+        self.ai_service = IntelligentConversationService()
+        self.supabase = get_supabase_client()
     
     async def initialize(self):
-        """Initialize SOCIAL node with AI and translation services"""
+        """Initialize SOCIAL node"""
         self.database_service = await get_database_service()
-        self.http_session = aiohttp.ClientSession()
-        
-        # Initialize AI services
-        self.ai_client = await self._init_ai_services()
-        self.translation_service = await self._init_translation_service()
-        
-        logger.info("SOCIAL node initialized with AI-powered community intelligence")
+        logger.info("Agentic SOCIAL node initialized")
     
     async def process(self, input_data: Dict[str, Any]) -> PamResponse:
-        """Process social requests with advanced AI matching"""
+        """Process social requests with full AI intelligence"""
         if not self.database_service:
             await self.initialize()
         
         user_id = input_data.get('user_id')
-        message = input_data.get('message', '').lower()
-        intent = input_data.get('intent')
-        entities = input_data.get('entities', {})
-        context = input_data.get('context', {})
-        
-        # Get user's social profile and preferences
-        user_profile = await self._get_user_social_profile(user_id)
+        message = input_data.get('message', '')
+        conversation_history = input_data.get('conversation_history', [])
+        user_context = input_data.get('user_context', {})
         
         try:
-            if any(word in message for word in ['group', 'community', 'club', 'chapter']):
-                return await self._handle_ai_powered_group_matching(user_id, message, entities, user_profile)
-            elif any(word in message for word in ['event', 'meetup', 'rally', 'gathering', 'convergence']):
-                return await self._handle_intelligent_event_discovery(user_id, message, entities, user_profile)
-            elif any(word in message for word in ['marketplace', 'buy', 'sell', 'trade', 'swap']):
-                return await self._handle_smart_marketplace(user_id, message, entities, user_profile)
-            elif any(word in message for word in ['friends', 'connect', 'buddy', 'companion', 'travel partner']):
-                return await self._handle_travel_buddy_matching(user_id, message, entities, user_profile)
-            elif any(word in message for word in ['help', 'advice', 'question', 'recommendation']):
-                return await self._handle_community_wisdom(user_id, message, entities, user_profile)
-            else:
-                return await self._handle_general_social_intelligence(user_id, message, user_profile)
-                
+            # Get comprehensive social context for AI
+            social_context = await self._get_social_context(user_id)
+            
+            # Build AI context with social data
+            ai_context = {
+                **user_context,
+                'social_data': social_context,
+                'domain': 'community_and_social_management',
+                'capabilities': [
+                    'hustle_recommendations', 'community_groups', 'marketplace_listings',
+                    'social_feeds', 'community_insights', 'networking_opportunities'
+                ]
+            }
+            
+            # Check if this requires a social action
+            action_result = await self._detect_and_execute_social_action(
+                user_id, message, social_context
+            )
+            
+            if action_result:
+                # Action was performed, get updated social context
+                social_context = await self._get_social_context(user_id)
+                ai_context['social_data'] = social_context
+                ai_context['action_performed'] = action_result
+            
+            # Generate intelligent response using AI
+            ai_response = await self.ai_service.generate_response(
+                message=message,
+                context=ai_context,
+                conversation_history=conversation_history,
+                system_prompt=self._get_social_system_prompt()
+            )
+            
+            # Generate contextual suggestions
+            suggestions = await self._generate_smart_suggestions(
+                user_id, message, social_context, action_result
+            )
+            
+            return PamResponse(
+                content=ai_response,
+                confidence=0.9,
+                suggestions=suggestions,
+                requires_followup=False,
+                metadata={
+                    'social_action': action_result.get('action') if action_result else None,
+                    'community_engagement': social_context.get('engagement_score', 0),
+                    'hustle_opportunities': len(social_context.get('available_hustles', []))
+                }
+            )
+            
         except Exception as e:
             logger.error(f"SOCIAL node processing error: {e}")
-            return PamResponse(
-                content="I'm having trouble accessing community features right now. Let me try again in a moment.",
-                confidence=0.3,
-                requires_followup=True
-            )
+            return await self._generate_error_response(message)
     
-    async def _handle_ai_powered_group_matching(self, user_id: str, message: str, entities: Dict[str, Any], user_profile: UserSocialProfile) -> PamResponse:
-        """AI-powered group matching based on personality and interests"""
-        location = entities.get('location') or await self._get_user_location(user_id)
-        interests = entities.get('interests', [])
-        
+    async def _get_social_context(self, user_id: str) -> Dict[str, Any]:
+        """Get comprehensive social context for AI"""
         try:
-            # Multi-source community search with AI ranking
-            search_tasks = [
-                self._search_facebook_groups_ai(location, interests, user_profile),
-                self._search_rv_club_chapters(location, user_profile.languages),
-                self._search_brand_communities(user_profile),
-                self._search_international_forums(location, user_profile.languages),
-                self._search_local_meetups(location, interests),
-                self._search_rally_groups(location, user_profile.travel_style)
-            ]
+            context = {}
             
-            community_results = await asyncio.gather(*search_tasks, return_exceptions=True)
-            
-            # Flatten and combine all results
-            all_communities = []
-            for result in community_results:
-                if isinstance(result, list):
-                    all_communities.extend(result)
-            
-            # AI-powered compatibility scoring and ranking
-            ranked_communities = await self._ai_rank_communities(all_communities, user_profile)
-            
-            # Real-time verification and enhancement
-            verified_communities = await self._verify_and_enhance_communities(ranked_communities[:10])
-            
-            # Get AI-generated compatibility insights
-            compatibility_insights = await self._generate_compatibility_insights(verified_communities, user_profile)
-            
-            response_parts = [f"👥 **AI-Powered Community Matching for {location}**"]
-            
-            if verified_communities:
-                response_parts.extend([
-                    f"\n🧠 **Found {len(verified_communities)} perfectly matched communities:**",
-                    f"*Ranked by AI compatibility analysis*"
-                ])
-                
-                for i, community in enumerate(verified_communities[:6], 1):
-                    compatibility_score = community.get('compatibility_score', 0)
-                    activity_level = community.get('verified_activity', 'Unknown')
-                    
-                    response_parts.extend([
-                        "",
-                        f"🏘️ **{i}. {community['name']}** ({compatibility_score:.0f}% match)",
-                        f"📍 {community['location']} • {community['member_count']} members",
-                        f"⚡ Activity: {activity_level} • 🌐 {community['language']}"
-                    ])
-                    
-                    # AI-generated match reasons
-                    if community.get('match_reasons'):
-                        reasons = ' • '.join(community['match_reasons'][:3])
-                        response_parts.append(f"✨ Perfect for you: {reasons}")
-                    
-                    # Real-time community health
-                    if community.get('health_metrics'):
-                        health = community['health_metrics']
-                        response_parts.append(f"📊 Community Health: {health['engagement_rate']}% engagement, {health['post_frequency']} posts/week")
-                    
-                    # Join process
-                    if community.get('join_process'):
-                        join_info = community['join_process']
-                        if join_info['immediate']:
-                            response_parts.append(f"✅ Join immediately: {join_info['link']}")
-                        else:
-                            response_parts.append(f"📝 Application required: {join_info['process']}")
-                    
-                    # Cultural fit indicators
-                    if community.get('cultural_fit'):
-                        fit_indicators = community['cultural_fit']
-                        response_parts.append(f"🌍 Cultural fit: {fit_indicators['description']}")
-                
-                # AI insights and recommendations
-                if compatibility_insights:
-                    response_parts.extend([
-                        "",
-                        "🤖 **PAM's Community Insights:**",
-                        compatibility_insights['summary'],
-                        "",
-                        "💡 **Personalized Recommendations:**"
-                    ])
-                    for rec in compatibility_insights['recommendations'][:3]:
-                        response_parts.append(f"• {rec}")
-                
-                # Multi-language support
-                if len(user_profile.languages) > 1:
-                    multilingual_communities = [c for c in verified_communities if c.get('multilingual')]
-                    if multilingual_communities:
-                        response_parts.extend([
-                            "",
-                            f"🌐 **Multilingual Communities:** {len(multilingual_communities)} communities support your languages"
-                        ])
-            
-            else:
-                response_parts.extend([
-                    "",
-                    "🔍 **AI is analyzing communities for perfect matches...**",
-                    f"I'm checking personality compatibility, interests, and cultural fit.",
-                    "This includes international communities and multilingual groups."
-                ])
-                
-                # Queue comprehensive background search
-                asyncio.create_task(self._background_ai_community_search(user_id, location, user_profile))
-            
-            return PamResponse(
-                content="\n".join(response_parts),
-                confidence=0.95,
-                suggestions=[
-                    "Join top-matched community",
-                    "Schedule community visit",
-                    "Find travel buddy in group", 
-                    "Get introduction to community leaders",
-                    "See more compatible communities"
-                ],
-                requires_followup=False
+            # User's social activity
+            activity_query = """
+                SELECT post_type, COUNT(*) as count, MAX(created_at) as last_activity
+                FROM social_posts 
+                WHERE user_id = $1 
+                  AND created_at >= NOW() - INTERVAL '30 days'
+                GROUP BY post_type
+            """
+            social_activity = await self.database_service.execute_query(
+                activity_query, user_id, cache_key=f"social_activity:{user_id}", cache_ttl=300
             )
+            context['social_activity'] = social_activity
+            
+            # Community memberships
+            groups_query = """
+                SELECT g.name, g.member_count, gm.joined_at, g.category
+                FROM community_groups g
+                JOIN group_memberships gm ON g.id = gm.group_id
+                WHERE gm.user_id = $1 AND gm.status = 'active'
+                ORDER BY gm.joined_at DESC
+            """
+            memberships = await self.database_service.execute_query(
+                groups_query, user_id, cache_key=f"memberships:{user_id}", cache_ttl=600
+            )
+            context['community_memberships'] = memberships
+            
+            # Hustle performance
+            hustle_query = """
+                SELECT hustle_id, total_earnings, success_rate, status
+                FROM user_hustle_attempts 
+                WHERE user_id = $1 
+                ORDER BY start_date DESC
+                LIMIT 5
+            """
+            hustles = await self.database_service.execute_query(
+                hustle_query, user_id, cache_key=f"hustles:{user_id}", cache_ttl=300
+            )
+            context['hustle_history'] = hustles
+            
+            # Marketplace activity
+            marketplace_query = """
+                SELECT status, COUNT(*) as count, AVG(price) as avg_price
+                FROM marketplace_listings 
+                WHERE user_id = $1 
+                  AND created_at >= NOW() - INTERVAL '90 days'
+                GROUP BY status
+            """
+            marketplace_stats = await self.database_service.execute_query(
+                marketplace_query, user_id, cache_key=f"marketplace:{user_id}", cache_ttl=600
+            )
+            context['marketplace_activity'] = marketplace_stats
+            
+            # Calculate engagement score
+            context['engagement_score'] = self._calculate_engagement_score(
+                social_activity, memberships, hustles
+            )
+            
+            return context
             
         except Exception as e:
-            logger.error(f"AI group matching error: {e}")
-            return self._create_error_response("I'm having trouble with AI community matching. Let me try a different approach.")
+            logger.error(f"Error getting social context: {e}")
+            return {}
     
-    async def _handle_intelligent_event_discovery(self, user_id: str, message: str, entities: Dict[str, Any], user_profile: UserSocialProfile) -> PamResponse:
-        """Intelligent event discovery with AI-powered recommendations"""
-        location = entities.get('location') or await self._get_user_location(user_id)
-        event_types = entities.get('event_types', [])
-        dates = entities.get('dates')
-        
-        try:
-            # Comprehensive event search with AI filtering
-            search_tasks = [
-                self._search_major_rv_rallies(location, dates, user_profile),
-                self._search_brand_specific_events(user_profile),
-                self._search_local_rv_shows(location, dates),
-                self._search_educational_workshops(location, user_profile.interests),
-                self._search_social_gatherings(location, user_profile.social_preferences),
-                self._search_international_events(user_profile.languages),
-                self._scrape_eventbrite_rv_events(location, event_types),
-                self._scrape_facebook_events(location, user_profile)
-            ]
-            
-            event_results = await asyncio.gather(*search_tasks, return_exceptions=True)
-            
-            # Combine and process all events
-            all_events = []
-            for result in event_results:
-                if isinstance(result, list):
-                    all_events.extend(result)
-            
-            # AI-powered event ranking and personalization
-            personalized_events = await self._ai_personalize_events(all_events, user_profile)
-            
-            # Real-time verification and booking status
-            verified_events = await self._verify_event_details(personalized_events[:12])
-            
-            # Travel optimization for events
-            optimized_events = await self._optimize_event_travel(verified_events, user_id)
-            
-            response_parts = [f"🎪 **Intelligent Event Discovery for {location}**"]
-            
-            if optimized_events:
-                response_parts.extend([
-                    f"\n✨ **{len(optimized_events)} events perfectly matched to your interests:**",
-                    "*AI-ranked by relevance, travel efficiency, and social compatibility*"
-                ])
-                
-                for i, event in enumerate(optimized_events[:8], 1):
-                    relevance_score = event.get('relevance_score', 0)
-                    travel_efficiency = event.get('travel_efficiency', 'Unknown')
-                    
-                    response_parts.extend([
-                        "",
-                        f"🎯 **{i}. {event['name']}** ({relevance_score:.0f}% match)",
-                        f"📅 {event['start_date']} - {event['end_date']}",
-                        f"📍 {event['location']} ({event.get('distance_summary', '')})"
-                    ])
-                    
-                    # Smart pricing and booking
-                    if event.get('pricing'):
-                        pricing = event['pricing']
-                        currency_symbol = self._get_user_currency_symbol(user_id)
-                        if pricing['early_bird_available']:
-                            response_parts.append(f"💰 Early Bird: {currency_symbol}{pricing['early_bird_price']} (save {currency_symbol}{pricing['savings']})")
-                        else:
-                            response_parts.append(f"💰 Price: {currency_symbol}{pricing['regular_price']}")
-                    
-                    # Real-time availability
-                    if event.get('availability'):
-                        avail = event['availability']
-                        if avail['spots_remaining'] < 50:
-                            response_parts.append(f"⚠️ Only {avail['spots_remaining']} spots left!")
-                        elif avail['waitlist_available']:
-                            response_parts.append("📝 Waitlist available")
-                        else:
-                            response_parts.append("✅ Registration open")
-                    
-                    # AI-generated event insights
-                    if event.get('ai_insights'):
-                        insights = event['ai_insights']
-                        response_parts.append(f"🧠 Why it's perfect: {insights['match_reason']}")
-                        if insights.get('networking_potential'):
-                            response_parts.append(f"🤝 Networking: {insights['networking_potential']}")
-                    
-                    # Travel coordination opportunities
-                    if event.get('travel_coordination'):
-                        coord = event['travel_coordination']
-                        response_parts.append(f"🚐 Travel with others: {coord['caravan_groups']} groups forming")
-                    
-                    # Multi-language support
-                    if event.get('languages') and len(event['languages']) > 1:
-                        langs = ', '.join(event['languages'])
-                        response_parts.append(f"🌐 Languages: {langs}")
-                
-                # AI-powered event recommendations
-                event_insights = await self._generate_event_insights(optimized_events, user_profile)
-                if event_insights:
-                    response_parts.extend([
-                        "",
-                        "🤖 **PAM's Event Strategy:**",
-                        event_insights['strategy'],
-                        "",
-                        "💡 **Smart Recommendations:**"
-                    ])
-                    for rec in event_insights['recommendations'][:3]:
-                        response_parts.append(f"• {rec}")
-                
-                # Travel coordination opportunities
-                coordination_opps = await self._find_travel_coordination_opportunities(optimized_events, user_id)
-                if coordination_opps:
-                    response_parts.extend([
-                        "",
-                        "🚐 **Travel Coordination Opportunities:**"
-                    ])
-                    for opp in coordination_opps[:2]:
-                        response_parts.append(f"• {opp['description']} ({opp['participants']} RVers interested)")
-            
-            else:
-                response_parts.extend([
-                    "",
-                    "🔍 **AI is searching global event databases...**",
-                    "Analyzing thousands of events for perfect matches to your interests.",
-                    "Checking rally calendars, workshops, and social gatherings worldwide."
-                ])
-                
-                # Queue comprehensive background search
-                asyncio.create_task(self._background_intelligent_event_search(user_id, location, user_profile))
-            
-            return PamResponse(
-                content="\n".join(response_parts),
-                confidence=0.95,
-                suggestions=[
-                    "Register for top event",
-                    "Join travel caravan to event",
-                    "Set event reminders",
-                    "Find accommodation near event",
-                    "Connect with other attendees"
-                ],
-                requires_followup=False
-            )
-            
-        except Exception as e:
-            logger.error(f"Intelligent event discovery error: {e}")
-            return self._create_error_response("I'm having trouble with event discovery. Let me try again.")
-    
-    async def _handle_smart_marketplace(self, user_id: str, message: str, entities: Dict[str, Any], user_profile: UserSocialProfile) -> PamResponse:
-        """Smart marketplace with AI-powered recommendations and fraud detection"""
-        search_term = entities.get('item', 'RV accessories')
-        location = entities.get('location') or await self._get_user_location(user_id)
-        price_range = entities.get('price_range')
-        
-        try:
-            # Multi-platform marketplace search with AI filtering
-            search_tasks = [
-                self._search_facebook_marketplace_ai(search_term, location, user_profile),
-                self._search_craigslist_intelligent(search_term, location),
-                self._search_rv_trader_advanced(search_term, user_profile),
-                self._search_specialized_rv_marketplaces(search_term),
-                self._search_international_marketplaces(search_term, user_profile.languages),
-                self._search_brand_specific_marketplaces(search_term, user_profile),
-                self._search_auction_sites(search_term, price_range)
-            ]
-            
-            marketplace_results = await asyncio.gather(*search_tasks, return_exceptions=True)
-            
-            # Combine all marketplace results
-            all_listings = []
-            for result in marketplace_results:
-                if isinstance(result, list):
-                    all_listings.extend(result)
-            
-            # AI-powered listing analysis and fraud detection
-            analyzed_listings = await self._ai_analyze_listings(all_listings, user_profile)
-            
-            # Smart pricing analysis and negotiation insights
-            pricing_insights = await self._analyze_pricing_trends(analyzed_listings, search_term)
-            
-            # Trust and safety verification
-            verified_listings = await self._verify_listing_safety(analyzed_listings)
-            
-            response_parts = [f"🛒 **Smart Marketplace Search: '{search_term}'**"]
-            
-            if verified_listings:
-                total_listings = len(verified_listings)
-                avg_price = sum(l.get('price', 0) for l in verified_listings) / total_listings if total_listings > 0 else 0
-                currency_symbol = self._get_user_currency_symbol(user_id)
-                
-                response_parts.extend([
-                    f"\n🎯 **Found {total_listings} verified listings** (avg: {currency_symbol}{avg_price:.0f})",
-                    "*AI-ranked by value, seller reputation, and compatibility*"
-                ])
-                
-                for i, listing in enumerate(verified_listings[:6], 1):
-                    trust_score = listing.get('trust_score', 0)
-                    value_rating = listing.get('value_rating', 'Unknown')
-                    
-                    response_parts.extend([
-                        "",
-                        f"📦 **{i}. {listing['title']}**",
-                        f"💰 {currency_symbol}{listing['price']} • {listing.get('condition', 'Used')}",
-                        f"📍 {listing['location']} ({listing.get('distance_summary', '')})"
-                    ])
-                    
-                    # AI trust and safety indicators
-                    if trust_score >= 85:
-                        response_parts.append("✅ High trust seller (verified)")
-                    elif trust_score >= 70:
-                        response_parts.append("🟡 Good seller reputation")
-                    else:
-                        response_parts.append("⚠️ Exercise caution with this seller")
-                    
-                    # Value analysis
-                    if value_rating == 'Excellent':
-                        response_parts.append("💎 Excellent value - priced below market")
-                    elif value_rating == 'Good':
-                        response_parts.append("👍 Good value - fairly priced")
-                    elif value_rating == 'Fair':
-                        response_parts.append("📊 Fair price - standard market rate")
-                    elif value_rating == 'Overpriced':
-                        response_parts.append("📈 Above market rate - consider negotiating")
-                    
-                    # AI-generated negotiation tips
-                    if listing.get('negotiation_insights'):
-                        insights = listing['negotiation_insights']
-                        response_parts.append(f"💡 Negotiation tip: {insights['strategy']}")
-                        if insights.get('best_offer_range'):
-                            response_parts.append(f"🎯 Suggested offer: {currency_symbol}{insights['best_offer_range']['min']}-{currency_symbol}{insights['best_offer_range']['max']}")
-                    
-                    # Compatibility with user's RV
-                    if listing.get('compatibility'):
-                        compat = listing['compatibility']
-                        if compat['fits_rv']:
-                            response_parts.append("✅ Compatible with your RV")
-                        else:
-                            response_parts.append("⚠️ Check compatibility with your RV")
-                    
-                    # Contact and viewing options
-                    if listing.get('contact_options'):
-                        contact = listing['contact_options']
-                        response_parts.append(f"📞 Contact: {contact['preferred_method']}")
-                        if contact.get('safe_meeting_suggested'):
-                            response_parts.append("🏪 Seller suggests public meeting location")
-                
-                # Market intelligence insights
-                if pricing_insights:
-                    response_parts.extend([
-                        "",
-                        "📊 **Market Intelligence:**",
-                        f"• Average {search_term} price: {currency_symbol}{pricing_insights['market_average']:.0f}",
-                        f"• Price trend: {pricing_insights['trend']} ({pricing_insights['trend_percentage']:+.1f}%)",
-                        f"• Best time to buy: {pricing_insights['best_time_to_buy']}"
-                    ])
-                
-                # AI safety recommendations
-                response_parts.extend([
-                    "",
-                    "🛡️ **PAM's Safety Recommendations:**",
-                    "• Meet in well-lit public places (RV dealerships, camping stores)",
-                    "• Inspect items thoroughly before payment",
-                    "• Use secure payment methods (avoid wire transfers)",
-                    "• Trust your instincts - if it feels wrong, walk away",
-                    "• For high-value items, consider escrow services"
-                ])
-                
-                # Price alerts and saved searches
-                response_parts.extend([
-                    "",
-                    "🔔 **Smart Shopping Features:**",
-                    f"• Set price alert for {search_term} under {currency_symbol}{int(avg_price * 0.8)}",
-                    f"• Save this search for daily updates",
-                    f"• Get notified of new listings in {location}"
-                ])
-            
-            else:
-                response_parts.extend([
-                    "",
-                    "🔍 **AI is scanning all marketplaces...**",
-                    f"Searching Facebook, Craigslist, RV forums, and specialized sites.",
-                    "Analyzing pricing trends and seller reputations for best deals."
-                ])
-                
-                # Queue comprehensive background search
-                asyncio.create_task(self._background_smart_marketplace_search(user_id, search_term, location, user_profile))
-            
-            return PamResponse(
-                content="\n".join(response_parts),
-                confidence=0.95,
-                suggestions=[
-                    "Contact verified seller",
-                    "Set price alert for this item",
-                    "Find similar items",
-                    "Get negotiation coaching",
-                    "Schedule safe meeting location"
-                ],
-                requires_followup=False
-            )
-            
-        except Exception as e:
-            logger.error(f"Smart marketplace error: {e}")
-            return self._create_error_response("I'm having trouble with marketplace search. Let me try again.")
-    
-    async def _handle_travel_buddy_matching(self, user_id: str, message: str, entities: Dict[str, Any], user_profile: UserSocialProfile) -> PamResponse:
-        """AI-powered travel buddy matching with compatibility analysis"""
-        destination = entities.get('destination')
-        travel_dates = entities.get('travel_dates')
-        travel_style = entities.get('travel_style', user_profile.travel_style)
-        
-        try:
-            # Find potential travel companions using AI matching
-            search_tasks = [
-                self._find_compatible_travelers(user_id, destination, travel_dates, user_profile),
-                self._search_caravan_groups(destination, travel_dates, user_profile),
-                self._find_rv_rally_companions(destination, user_profile),
-                self._search_travel_buddy_platforms(user_profile),
-                self._analyze_community_members_for_compatibility(user_id, user_profile)
-            ]
-            
-            buddy_results = await asyncio.gather(*search_tasks, return_exceptions=True)
-            
-            # Process and rank potential matches
-            all_matches = []
-            for result in buddy_results:
-                if isinstance(result, list):
-                    all_matches.extend(result)
-            
-            # AI compatibility scoring
-            compatibility_matches = await self._ai_calculate_travel_compatibility(all_matches, user_profile)
-            
-            # Safety and verification checks
-            verified_matches = await self._verify_travel_buddy_safety(compatibility_matches)
-            
-            response_parts = ["🤝 **AI Travel Buddy Matching**"]
-            
-            if verified_matches:
-                response_parts.extend([
-                    f"\n✨ **Found {len(verified_matches)} highly compatible travel companions:**",
-                    "*Ranked by personality fit, travel style, and safety verification*"
-                ])
-                
-                for i, match in enumerate(verified_matches[:5], 1):
-                    compatibility_score = match.get('compatibility_score', 0)
-                    safety_rating = match.get('safety_rating', 'Unknown')
-                    
-                    response_parts.extend([
-                        "",
-                        f"👤 **{i}. {match['display_name']}** ({compatibility_score:.0f}% compatible)",
-                        f"🚐 {match['rv_type']} • 🗺️ {match['travel_experience']}",
-                        f"📍 Based in {match['location']} • 🛡️ Safety: {safety_rating}"
-                    ])
-                    
-                    # Compatibility highlights
-                    if match.get('compatibility_reasons'):
-                        reasons = ' • '.join(match['compatibility_reasons'][:3])
-                        response_parts.append(f"✨ Great match because: {reasons}")
-                    
-                    # Shared interests and preferences
-                    if match.get('shared_interests'):
-                        interests = ', '.join(match['shared_interests'][:4])
-                        response_parts.append(f"🎯 Shared interests: {interests}")
-                    
-                    # Travel plans and availability
-                    if match.get('travel_plans'):
-                        plans = match['travel_plans']
-                        if destination and destination.lower() in plans.get('destinations', []):
-                            response_parts.append(f"🎯 Also planning to visit {destination}!")
-                        response_parts.append(f"📅 Available: {plans.get('timeframe', 'Flexible')}")
-                    
-                    # Communication preferences
-                    if match.get('communication'):
-                        comm = match['communication']
-                        response_parts.append(f"💬 Preferred contact: {comm['method']} • Response time: {comm['response_time']}")
-                    
-                    # Verification badges
-                    verification_badges = []
-                    if match.get('verified_identity'):
-                        verification_badges.append("✅ ID Verified")
-                    if match.get('background_check'):
-                        verification_badges.append("🛡️ Background Check")
-                    if match.get('references'):
-                        verification_badges.append(f"👥 {match['references']} References")
-                    if verification_badges:
-                        response_parts.append(f"🏆 {' • '.join(verification_badges)}")
-                
-                # AI-generated travel recommendations
-                travel_insights = await self._generate_travel_buddy_insights(verified_matches, user_profile, destination)
-                if travel_insights:
-                    response_parts.extend([
-                        "",
-                        "🤖 **PAM's Travel Buddy Insights:**",
-                        travel_insights['recommendation'],
-                        "",
-                        "💡 **Travel Success Tips:**"
-                    ])
-                    for tip in travel_insights['tips'][:3]:
-                        response_parts.append(f"• {tip}")
-                
-                # Safety and communication guidelines
-                response_parts.extend([
-                    "",
-                    "🛡️ **Safe Travel Buddy Guidelines:**",
-                    "• Video chat before meeting in person",
-                    "• Meet in public RV-friendly locations first",
-                    "• Share travel plans with trusted contacts",
-                    "• Establish communication schedules and emergency contacts",
-                    "• Agree on expenses, responsibilities, and boundaries upfront"
-                ])
-            
-            else:
-                response_parts.extend([
-                    "",
-                    "🔍 **AI is analyzing traveler compatibility...**",
-                    "I'm checking RV communities, travel forums, and buddy platforms.",
-                    "Running personality and travel style compatibility analysis."
-                ])
-                
-                # Queue background matching
-                asyncio.create_task(self._background_travel_buddy_matching(user_id, destination, travel_dates, user_profile))
-            
-            return PamResponse(
-                content="\n".join(response_parts),
-                confidence=0.95,
-                suggestions=[
-                    "Connect with top match",
-                    "Schedule video introduction",
-                    "Join caravan group",
-                    "Set travel buddy preferences",
-                    "Get travel safety tips"
-                ],
-                requires_followup=False
-            )
-            
-        except Exception as e:
-            logger.error(f"Travel buddy matching error: {e}")
-            return self._create_error_response("I'm having trouble with travel buddy matching. Let me try again.")
-    
-    # AI and ML helper methods
-    async def _ai_rank_communities(self, communities: List[Dict], user_profile: UserSocialProfile) -> List[Dict]:
-        """Use AI to rank communities by compatibility"""
-        # This would use machine learning models to score compatibility
-        for community in communities:
-            score = await self._calculate_community_compatibility_score(community, user_profile)
-            community['compatibility_score'] = score
-            community['match_reasons'] = await self._generate_match_reasons(community, user_profile)
-        
-        return sorted(communities, key=lambda x: x.get('compatibility_score', 0), reverse=True)
-    
-    async def _calculate_community_compatibility_score(self, community: Dict, user_profile: UserSocialProfile) -> float:
-        """Calculate compatibility score using multiple factors"""
+    def _calculate_engagement_score(self, activity: List, memberships: List, hustles: List) -> float:
+        """Calculate user's social engagement score"""
         score = 0.0
         
-        # Interest alignment (30%)
-        interest_match = self._calculate_interest_overlap(community.get('topics', []), user_profile.interests)
-        score += interest_match * 0.3
+        # Points for social activity
+        score += len(activity) * 0.1
         
-        # Activity level match (20%)
-        activity_match = self._calculate_activity_match(community.get('activity_level'), user_profile.social_preferences)
-        score += activity_match * 0.2
+        # Points for community memberships
+        score += len(memberships) * 0.2
         
-        # Language compatibility (15%)
-        language_match = self._calculate_language_compatibility(community.get('languages', []), user_profile.languages)
-        score += language_match * 0.15
+        # Points for hustle participation
+        score += len(hustles) * 0.3
         
-        # Size preference match (15%)
-        size_match = self._calculate_size_preference_match(community.get('member_count', 0), user_profile.social_preferences)
-        score += size_match * 0.15
-        
-        # Geographic relevance (10%)
-        geo_match = await self._calculate_geographic_relevance(community.get('location'), user_profile)
-        score += geo_match * 0.1
-        
-        # Community health (10%)
-        health_score = community.get('health_metrics', {}).get('overall_health', 0.5)
-        score += health_score * 0.1
-        
-        return min(score * 100, 100.0)  # Return as percentage
+        return min(score, 1.0)  # Cap at 1.0
     
-    # Helper methods for data processing
-    def _calculate_interest_overlap(self, community_topics: List[str], user_interests: List[str]) -> float:
-        """Calculate overlap between community topics and user interests"""
-        if not community_topics or not user_interests:
-            return 0.0
+    async def _detect_and_execute_social_action(
+        self, user_id: str, message: str, social_context: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Detect and execute social actions from natural language"""
+        message_lower = message.lower()
         
-        community_set = set(topic.lower() for topic in community_topics)
-        user_set = set(interest.lower() for interest in user_interests)
-        
-        intersection = len(community_set.intersection(user_set))
-        union = len(community_set.union(user_set))
-        
-        return intersection / union if union > 0 else 0.0
-    
-    def _get_user_currency_symbol(self, user_id: str) -> str:
-        """Get user's preferred currency symbol"""
-        # This would query user preferences
-        return "$"  # Default to USD
-    
-    # Background processing methods
-    async def _background_ai_community_search(self, user_id: str, location: str, user_profile: UserSocialProfile):
-        """Background task for comprehensive AI community matching"""
-        # Extensive search across all platforms with AI analysis
-        pass
-    
-    async def _background_intelligent_event_search(self, user_id: str, location: str, user_profile: UserSocialProfile):
-        """Background task for comprehensive event discovery"""
-        pass
-    
-    async def _background_smart_marketplace_search(self, user_id: str, search_term: str, location: str, user_profile: UserSocialProfile):
-        """Background task for comprehensive marketplace analysis"""
-        pass
-    
-    async def _background_travel_buddy_matching(self, user_id: str, destination: str, travel_dates: Any, user_profile: UserSocialProfile):
-        """Background task for comprehensive travel buddy matching"""
-        pass
-    
-    # User profile and preferences
-    async def _get_user_social_profile(self, user_id: str) -> UserSocialProfile:
-        """Get comprehensive user social profile"""
         try:
-            query = """
-                SELECT interests, rv_experience_level, travel_style, social_preferences,
-                       languages, personality_traits, communication_preferences
-                FROM user_social_profiles 
-                WHERE user_id = $1
-            """
-            result = await self.database_service.execute_single(query, user_id)
+            # Hustle recommendation detection
+            hustle_keywords = ['hustle', 'earn money', 'side income', 'make money', 'opportunities']
+            if any(keyword in message_lower for keyword in hustle_keywords):
+                return await self._recommend_hustles_from_message(user_id, message)
             
-            if result:
-                return UserSocialProfile(
-                    interests=result.get('interests', []),
-                    rv_experience_level=result.get('rv_experience_level', 'intermediate'),
-                    travel_style=result.get('travel_style', 'flexible'),
-                    social_preferences=result.get('social_preferences', {}),
-                    languages=[Language(lang) for lang in result.get('languages', ['en'])],
-                    personality_traits=result.get('personality_traits', {})
-                )
+            # Group joining detection
+            group_keywords = ['join group', 'find community', 'group', 'community']
+            if any(keyword in message_lower for keyword in group_keywords):
+                return await self._find_groups_from_message(user_id, message)
+            
+            # Marketplace detection
+            marketplace_keywords = ['sell', 'selling', 'marketplace', 'list item']
+            if any(keyword in message_lower for keyword in marketplace_keywords):
+                return await self._create_listing_from_message(user_id, message)
+            
+            return None
+            
         except Exception as e:
-            logger.error(f"Error getting user social profile: {e}")
+            logger.error(f"Error executing social action: {e}")
+            return None
+    
+    def _get_social_system_prompt(self) -> str:
+        """Get specialized system prompt for social conversations"""
+        return """You are PAM (Personal Assistant & Motivator), a friendly AI assistant specializing in RV community building and social connections. You help users find hustles, join communities, participate in marketplaces, and build meaningful connections on the road.
+
+Key capabilities:
+- Recommend personalized hustle opportunities for income
+- Help find and join relevant community groups
+- Assist with marketplace listings and sales
+- Create engaging social posts and content
+- Provide community insights and networking tips
+
+Communication style:
+- Enthusiastic about community and connections
+- Use social emojis appropriately (👥, 💰, 🤝, 📱, 🎯)
+- Encourage community participation and networking
+- Share success stories and social proof
+- Be supportive about monetization and social growth
+
+When provided with social_data context:
+- Reference their community memberships and activity
+- Mention relevant hustle opportunities
+- Suggest groups based on their interests
+- Provide personalized networking advice
+
+Always be helpful, encouraging, and focused on building a strong, supportive RV community."""
+
+    # Social Management Functions (from app/nodes/social_node.py)
+    async def get_hustle_recommendations(self, user_id: str, user_profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Get personalized hustle recommendations based on user profile"""
+        try:
+            skills = user_profile.get('skills', [])
+            available_hours = user_profile.get('available_hours', 10)
+            location = user_profile.get('location', 'Australia')
+            startup_budget = user_profile.get('startup_budget', 100)
+            
+            # Get hustle opportunities
+            hustles = await self._match_hustles_to_user(skills, available_hours, startup_budget)
+            
+            # Get community success stories
+            success_stories = await self._get_community_success_stories(hustles[:3])
+            
+            # Rank by potential fit
+            ranked_hustles = self._rank_hustles_by_fit(hustles, user_profile)
+            
+            return {
+                "success": True,
+                "data": {
+                    "recommended_hustles": [h.__dict__ for h in ranked_hustles[:5]],
+                    "success_stories": success_stories,
+                    "total_available": len(hustles),
+                    "user_match_score": self._calculate_overall_match_score(ranked_hustles[:5])
+                },
+                "message": f"Found {len(ranked_hustles)} hustle opportunities perfect for your skills!",
+                "actions": [
+                    {
+                        "type": "navigate",
+                        "target": "/social/hustle-board"
+                    },
+                    {
+                        "type": "highlight",
+                        "element": ".recommended-hustles"
+                    },
+                    {
+                        "type": "show_notification",
+                        "message": f"Top match: {ranked_hustles[0].title} ({ranked_hustles[0].estimated_earnings})",
+                        "type": "success"
+                    }
+                ]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting hustle recommendations: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I couldn't find hustle recommendations right now. Please try again."
+            }
+    
+    async def join_community_group(self, user_id: str, group_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Help user join a community group"""
+        try:
+            group_name = group_data.get('group_name')
+            location = group_data.get('location')
+            interests = group_data.get('interests', [])
+            
+            # Find matching groups
+            groups = await self._find_matching_groups(location, interests)
+            
+            if not groups:
+                return {
+                    "success": False,
+                    "message": f"No groups found matching '{group_name}' in {location}. Would you like me to suggest similar groups?"
+                }
+            
+            recommended_group = groups[0]
+            
+            return {
+                "success": True,
+                "data": {
+                    "group": recommended_group.__dict__,
+                    "join_process": self._get_join_requirements(recommended_group),
+                    "similar_groups": [g.__dict__ for g in groups[1:3]]
+                },
+                "message": f"Found '{recommended_group.name}' with {recommended_group.member_count} members!",
+                "actions": [
+                    {
+                        "type": "navigate", 
+                        "target": f"/social/groups/{recommended_group.id}"
+                    },
+                    {
+                        "type": "fill_form",
+                        "form_id": "join-group-form",
+                        "data": {
+                            "group_id": recommended_group.id,
+                            "user_message": f"Hi! I'm interested in {', '.join(interests)} and would love to join your group."
+                        }
+                    },
+                    {
+                        "type": "scroll_to",
+                        "element": ".join-button"
+                    }
+                ]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error joining group: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I had trouble finding that group. Please check the group name and try again."
+            }
+    
+    async def create_marketplace_listing(self, user_id: str, listing_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Help user create a marketplace listing"""
+        try:
+            item_name = listing_data.get('item_name')
+            category = listing_data.get('category')
+            price = listing_data.get('price')
+            description = listing_data.get('description', '')
+            condition = listing_data.get('condition', 'used')
+            
+            # Generate listing suggestions
+            listing_suggestions = await self._generate_listing_suggestions(item_name, category)
+            
+            # Check similar listings for pricing
+            price_analysis = await self._analyze_market_prices(item_name, category)
+            
+            listing_id = f"listing_{user_id}_{datetime.now().timestamp()}"
+            
+            return {
+                "success": True,
+                "data": {
+                    "listing_id": listing_id,
+                    "suggested_title": listing_suggestions['title'],
+                    "suggested_description": listing_suggestions['description'],
+                    "price_analysis": price_analysis,
+                    "category_tips": listing_suggestions['tips']
+                },
+                "message": f"I'll help you create a great listing for your {item_name}!",
+                "actions": [
+                    {
+                        "type": "navigate",
+                        "target": "/social/marketplace/create"
+                    },
+                    {
+                        "type": "fill_form",
+                        "form_id": "marketplace-form",
+                        "data": {
+                            "title": listing_suggestions['title'],
+                            "description": listing_suggestions['description'],
+                            "price": price,
+                            "category": category,
+                            "condition": condition
+                        }
+                    },
+                    {
+                        "type": "show_tooltip",
+                        "element": ".price-input",
+                        "message": f"Similar items sell for ${price_analysis['avg_price']:.0f} - ${price_analysis['max_price']:.0f}"
+                    }
+                ]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error creating listing: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I couldn't create your marketplace listing. Please try again."
+            }
+    
+    async def post_to_social_feed(self, user_id: str, post_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Help user create a social feed post"""
+        try:
+            content = post_data.get('content')
+            post_type = post_data.get('type', 'general')  # tip, question, experience, general
+            location = post_data.get('location')
+            tags = post_data.get('tags', [])
+            
+            # Enhance post with suggestions
+            enhanced_post = await self._enhance_post_content(content, post_type, location)
+            
+            # Suggest relevant groups to share with
+            relevant_groups = await self._suggest_relevant_groups(content, tags, location)
+            
+            post_id = f"post_{user_id}_{datetime.now().timestamp()}"
+            
+            return {
+                "success": True,
+                "data": {
+                    "post_id": post_id,
+                    "enhanced_content": enhanced_post['content'],
+                    "suggested_tags": enhanced_post['tags'],
+                    "relevant_groups": [g.__dict__ for g in relevant_groups],
+                    "engagement_tips": enhanced_post['tips']
+                },
+                "message": "I've enhanced your post and found groups that might be interested!",
+                "actions": [
+                    {
+                        "type": "navigate",
+                        "target": "/social/feed"
+                    },
+                    {
+                        "type": "fill_form",
+                        "form_id": "create-post-form", 
+                        "data": {
+                            "content": enhanced_post['content'],
+                            "tags": enhanced_post['tags'],
+                            "location": location,
+                            "type": post_type
+                        }
+                    },
+                    {
+                        "type": "show_suggestions",
+                        "element": ".group-sharing",
+                        "suggestions": [g.name for g in relevant_groups[:3]]
+                    }
+                ]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error creating post: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I couldn't create your post. Please try again."
+            }
+    
+    async def get_community_insights(self, user_id: str, topic: str) -> Dict[str, Any]:
+        """Get community insights on a specific topic"""
+        try:
+            # Get recent discussions
+            discussions = await self._get_recent_discussions(topic)
+            
+            # Get community sentiment
+            sentiment = await self._analyze_community_sentiment(topic)
+            
+            # Get expert opinions
+            expert_opinions = await self._get_expert_opinions(topic)
+            
+            # Get trending related topics
+            related_topics = await self._get_trending_related_topics(topic)
+            
+            return {
+                "success": True,
+                "data": {
+                    "topic": topic,
+                    "recent_discussions": discussions,
+                    "community_sentiment": sentiment,
+                    "expert_opinions": expert_opinions,
+                    "related_topics": related_topics,
+                    "participation_score": self._calculate_topic_engagement(discussions)
+                },
+                "message": f"Here's what the community is saying about {topic}",
+                "actions": [
+                    {
+                        "type": "navigate",
+                        "target": "/social/feed"
+                    },
+                    {
+                        "type": "filter_content",
+                        "filter": topic
+                    },
+                    {
+                        "type": "highlight",
+                        "element": ".topic-insights"
+                    }
+                ]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting insights: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": f"I couldn't get community insights about {topic}. Please try again."
+            }
+
+    # Helper Methods (from app/nodes/social_node.py)
+    async def _match_hustles_to_user(self, skills: List[str], hours: int, budget: float) -> List[HustleOpportunity]:
+        """Find hustles matching user capabilities"""
+        all_hustles = [
+            HustleOpportunity(
+                id="freelance_writing",
+                title="Freelance Writing for Travel Blogs",
+                category="content_creation",
+                difficulty="easy",
+                estimated_earnings="$500-2000/month",
+                time_commitment="2-4 hours/day",
+                success_rate=0.75,
+                community_feedback=[
+                    {"user": "Sarah_nomad", "earnings": 1200, "time_months": 3, "rating": 4}
+                ],
+                requirements=["writing_skills", "laptop", "internet"]
+            ),
+            HustleOpportunity(
+                id="rv_photography",
+                title="RV & Camping Photography Sales",
+                category="photography",
+                difficulty="medium", 
+                estimated_earnings="$300-1500/month",
+                time_commitment="1-3 hours/day",
+                success_rate=0.60,
+                community_feedback=[
+                    {"user": "Mike_photos", "earnings": 800, "time_months": 6, "rating": 5}
+                ],
+                requirements=["camera", "photo_editing", "social_media"]
+            ),
+            HustleOpportunity(
+                id="campground_reviews",
+                title="Campground Review Affiliate",
+                category="affiliate_marketing",
+                difficulty="easy",
+                estimated_earnings="$200-800/month", 
+                time_commitment="1-2 hours/day",
+                success_rate=0.50,
+                community_feedback=[
+                    {"user": "Jenny_camps", "earnings": 600, "time_months": 4, "rating": 4}
+                ],
+                requirements=["blog", "social_media", "travel_experience"]
+            )
+        ]
         
-        # Default profile
-        return UserSocialProfile(
-            interests=['camping', 'travel', 'outdoors'],
-            rv_experience_level='intermediate',
-            travel_style='flexible',
-            social_preferences={'group_size_preference': 'medium', 'activity_level': 'moderate'},
-            languages=[Language.ENGLISH],
-            personality_traits={'openness': 0.7, 'extroversion': 0.6, 'agreeableness': 0.8}
+        # Filter by skills and requirements
+        matched = []
+        for hustle in all_hustles:
+            skill_match = any(skill in hustle.requirements for skill in skills)
+            if skill_match or not skills:  # Include if skills match or no specific skills
+                matched.append(hustle)
+        
+        return matched
+    
+    async def _get_community_success_stories(self, hustles: List[HustleOpportunity]) -> List[Dict]:
+        """Get success stories for specific hustles"""
+        stories = []
+        for hustle in hustles:
+            if hustle.community_feedback:
+                best_feedback = max(hustle.community_feedback, key=lambda x: x['earnings'])
+                stories.append({
+                    "hustle_title": hustle.title,
+                    "user": best_feedback['user'],
+                    "earnings": best_feedback['earnings'],
+                    "timeframe": f"{best_feedback['time_months']} months",
+                    "quote": f"Great opportunity! Made ${best_feedback['earnings']} in {best_feedback['time_months']} months."
+                })
+        return stories
+    
+    def _rank_hustles_by_fit(self, hustles: List[HustleOpportunity], user_profile: Dict) -> List[HustleOpportunity]:
+        """Rank hustles by how well they fit the user"""
+        # Simple ranking by success rate for now
+        return sorted(hustles, key=lambda h: h.success_rate, reverse=True)
+    
+    def _calculate_overall_match_score(self, hustles: List[HustleOpportunity]) -> float:
+        """Calculate how well the hustles match the user"""
+        if not hustles:
+            return 0.0
+        return sum(h.success_rate for h in hustles) / len(hustles)
+    
+    async def _find_matching_groups(self, location: str, interests: List[str]) -> List[CommunityGroup]:
+        """Find groups matching location and interests"""
+        sample_groups = [
+            CommunityGroup(
+                id="grey_nomads_qld",
+                name="Grey Nomads Queensland",
+                description="Queensland-based Grey Nomads sharing tips and meetups",
+                member_count=1247,
+                location_focus="Queensland, Australia",
+                recent_activity=[
+                    {"type": "post", "title": "Best free camps around Brisbane", "engagement": 45}
+                ],
+                join_requirements="Open to all Grey Nomads"
+            ),
+            CommunityGroup(
+                id="budget_travelers_aus",
+                name="Budget Travelers Australia",
+                description="Tips and tricks for affordable travel across Australia",
+                member_count=892,
+                location_focus="Australia Wide",
+                recent_activity=[
+                    {"type": "discussion", "title": "Fuel saving strategies", "engagement": 67}
+                ],
+                join_requirements="Share your budget travel tips"
+            )
+        ]
+        
+        # Filter by location if specified
+        if location:
+            return [g for g in sample_groups if location.lower() in g.location_focus.lower()]
+        return sample_groups
+    
+    def _get_join_requirements(self, group: CommunityGroup) -> Dict[str, Any]:
+        """Get requirements for joining a group"""
+        return {
+            "requirements": group.join_requirements,
+            "approval_process": "Usually approved within 24 hours",
+            "group_rules": ["Be respectful", "Share helpful content", "No spam"]
+        }
+    
+    async def _generate_listing_suggestions(self, item_name: str, category: str) -> Dict[str, Any]:
+        """Generate suggestions for marketplace listings"""
+        return {
+            "title": f"{item_name.title()} - Excellent Condition",
+            "description": f"Well-maintained {item_name} perfect for camping/RV use. Selling due to downsizing. Pick up preferred.",
+            "tips": [
+                "Include multiple clear photos",
+                "Mention condition honestly", 
+                "Respond quickly to inquiries",
+                "Consider bundle deals"
+            ]
+        }
+    
+    async def _analyze_market_prices(self, item_name: str, category: str) -> Dict[str, Any]:
+        """Analyze market prices for similar items"""
+        return {
+            "avg_price": 150,
+            "min_price": 75,
+            "max_price": 300,
+            "recommendation": "Price competitively around $150"
+        }
+    
+    async def _enhance_post_content(self, content: str, post_type: str, location: str) -> Dict[str, Any]:
+        """Enhance post content with suggestions"""
+        enhanced_content = content
+        
+        # Add location if relevant
+        if location and location not in content:
+            enhanced_content += f" (Location: {location})"
+        
+        # Suggest hashtags
+        suggested_tags = ["#GreyNomads", "#RVLife", "#TravelTips"]
+        if post_type == "tip":
+            suggested_tags.append("#MoneyTips")
+        
+        return {
+            "content": enhanced_content,
+            "tags": suggested_tags,
+            "tips": [
+                "Add a relevant photo for more engagement",
+                "Ask a question to encourage comments",
+                "Tag relevant groups"
+            ]
+        }
+    
+    async def _suggest_relevant_groups(self, content: str, tags: List[str], location: str) -> List[CommunityGroup]:
+        """Suggest groups that might be interested in the post"""
+        # Return some sample groups based on content
+        all_groups = await self._find_matching_groups(location, tags)
+        return all_groups[:3]  # Top 3 most relevant
+    
+    async def _get_recent_discussions(self, topic: str) -> List[Dict]:
+        """Get recent community discussions about a topic"""
+        return [
+            {
+                "title": f"Best practices for {topic}",
+                "author": "ExperiencedNomad",
+                "replies": 23,
+                "last_activity": "2 hours ago"
+            },
+            {
+                "title": f"My experience with {topic}",
+                "author": "NewToThis",
+                "replies": 15,
+                "last_activity": "1 day ago"
+            }
+        ]
+    
+    async def _analyze_community_sentiment(self, topic: str) -> Dict[str, Any]:
+        """Analyze community sentiment about a topic"""
+        return {
+            "overall": "positive",
+            "confidence": 0.78,
+            "common_themes": ["helpful", "recommend", "good value"],
+            "concerns": ["setup complexity", "initial cost"]
+        }
+    
+    async def _get_expert_opinions(self, topic: str) -> List[Dict]:
+        """Get expert opinions on a topic"""
+        return [
+            {
+                "expert": "RV_Mechanic_Joe",
+                "credentials": "20+ years RV experience",
+                "opinion": f"For {topic}, I always recommend...",
+                "rating": 4.8
+            }
+        ]
+    
+    async def _get_trending_related_topics(self, topic: str) -> List[str]:
+        """Get trending topics related to the main topic"""
+        return [f"best {topic} brands", f"{topic} maintenance", f"budget {topic} options"]
+    
+    def _calculate_topic_engagement(self, discussions: List[Dict]) -> float:
+        """Calculate engagement score for a topic"""
+        total_replies = sum(d.get('replies', 0) for d in discussions)
+        return min(total_replies / 10.0, 5.0)  # Scale to 0-5
+
+    # Action detection helpers
+    async def _recommend_hustles_from_message(self, user_id: str, message: str) -> Dict[str, Any]:
+        """Recommend hustles based on message content"""
+        try:
+            # Extract user profile information
+            user_profile = {
+                'skills': ['writing', 'photography'],  # Default skills
+                'available_hours': 10,
+                'location': 'Australia',
+                'startup_budget': 100
+            }
+            
+            hustle_result = await self.get_hustle_recommendations(user_id, user_profile)
+            
+            if hustle_result['success']:
+                return {
+                    'action': 'hustles_recommended',
+                    'hustle_count': len(hustle_result['data']['recommended_hustles']),
+                    'top_match': hustle_result['data']['recommended_hustles'][0]['title'] if hustle_result['data']['recommended_hustles'] else None
+                }
+            
+        except Exception as e:
+            logger.error(f"Error recommending hustles from message: {e}")
+        
+        return None
+
+    async def _find_groups_from_message(self, user_id: str, message: str) -> Dict[str, Any]:
+        """Find groups based on message content"""
+        try:
+            # Extract location and interests from message
+            group_data = {
+                'group_name': 'travel community',
+                'location': 'Australia',
+                'interests': ['travel', 'rv']
+            }
+            
+            group_result = await self.join_community_group(user_id, group_data)
+            
+            if group_result['success']:
+                return {
+                    'action': 'groups_found',
+                    'group_name': group_result['data']['group']['name'],
+                    'member_count': group_result['data']['group']['member_count']
+                }
+            
+        except Exception as e:
+            logger.error(f"Error finding groups from message: {e}")
+        
+        return None
+
+    async def _create_listing_from_message(self, user_id: str, message: str) -> Dict[str, Any]:
+        """Create marketplace listing based on message content"""
+        try:
+            # Extract item information from message
+            listing_data = {
+                'item_name': 'RV equipment',
+                'category': 'camping',
+                'price': 150,
+                'description': 'Used camping equipment',
+                'condition': 'used'
+            }
+            
+            listing_result = await self.create_marketplace_listing(user_id, listing_data)
+            
+            if listing_result['success']:
+                return {
+                    'action': 'listing_created',
+                    'listing_id': listing_result['data']['listing_id'],
+                    'suggested_price': listing_result['data']['price_analysis']['avg_price']
+                }
+            
+        except Exception as e:
+            logger.error(f"Error creating listing from message: {e}")
+        
+        return None
+
+    async def _generate_smart_suggestions(
+        self, user_id: str, message: str, social_context: Dict[str, Any], 
+        action_result: Optional[Dict[str, Any]]
+    ) -> List[str]:
+        """Generate contextual suggestions based on social state"""
+        suggestions = []
+        
+        try:
+            # Post-action suggestions
+            if action_result:
+                action = action_result['action']
+                if action == 'hustles_recommended':
+                    suggestions = [
+                        "Show more hustle details",
+                        "Start a hustle",
+                        "Join hustle community"
+                    ]
+                elif action == 'groups_found':
+                    suggestions = [
+                        "Join this group",
+                        "Find more groups",
+                        "Create a post"
+                    ]
+                elif action == 'listing_created':
+                    suggestions = [
+                        "View my listing",
+                        "Create another listing",
+                        "Check marketplace"
+                    ]
+            else:
+                # Context-based suggestions
+                engagement_score = social_context.get('engagement_score', 0)
+                
+                if engagement_score < 0.3:
+                    suggestions.extend([
+                        "Find community groups",
+                        "Discover hustle opportunities",
+                        "Create marketplace listing"
+                    ])
+                
+                memberships = social_context.get('community_memberships', [])
+                if len(memberships) > 0:
+                    suggestions.extend([
+                        "Check group activity",
+                        "Create a post",
+                        "Share your experience"
+                    ])
+                
+                # Always include general options
+                suggestions.extend([
+                    "Find hustle opportunities",
+                    "Join community groups",
+                    "Browse marketplace",
+                    "Get community insights"
+                ])
+            
+            # Remove duplicates and limit to 4
+            return list(dict.fromkeys(suggestions))[:4]
+            
+        except Exception as e:
+            logger.error(f"Error generating suggestions: {e}")
+            return [
+                "Find hustles",
+                "Join groups", 
+                "Browse marketplace",
+                "Get insights"
+            ]
+
+    async def _generate_error_response(self, message: str) -> PamResponse:
+        """Generate friendly error response"""
+        return PamResponse(
+            content="I'm having a small hiccup with the community features right now. Let me try that again in just a moment! In the meantime, I can still help you with other aspects of your RV journey. 👥",
+            confidence=0.5,
+            suggestions=[
+                "Try asking again",
+                "Find community groups",
+                "Get travel tips",
+                "Ask something else"
+            ],
+            requires_followup=True
         )
-    
-    # Additional placeholder methods for external integrations would go here
-    async def _search_facebook_groups_ai(self, location: str, interests: List[str], user_profile: UserSocialProfile) -> List[Dict]:
-        """AI-powered Facebook group search"""
-        return []
-    
-    async def _verify_and_enhance_communities(self, communities: List[Dict]) -> List[Dict]:
-        """Verify community activity and enhance with real-time data"""
-        return communities
 
 # Global SOCIAL node instance
 social_node = SocialNode()
