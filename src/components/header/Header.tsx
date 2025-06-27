@@ -11,9 +11,20 @@ import { Button } from "@/components/ui/button";
   console.log("🎯 HEADER COMPONENT IS RENDERING!", { isAuthenticated, isDevMode });
 
 const Header = () => {
+  console.log("🚀 Header component rendering");
+  
   const { isAuthenticated, isDevMode } = useAuth();
   const { isHomePage, showNavigation, showUserMenu } = useHeaderAppearance();
   const location = useLocation();
+
+  console.log("🚀 Header state:", {
+    isAuthenticated,
+    isDevMode,
+    isHomePage,
+    showNavigation,
+    showUserMenu,
+    pathname: location.pathname
+  });
 
   return (
     <HeaderContainer isHomePage={isHomePage} isScrolled={false}>
