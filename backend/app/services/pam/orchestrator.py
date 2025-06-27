@@ -23,6 +23,7 @@ from app.services.pam.nodes.memory_node import MemoryNode
 from app.services.pam.intelligent_conversation import IntelligentConversationService
 from app.services.pam.route_intelligence import RouteIntelligenceService
 from app.services.pam.context_manager import ContextManager
+from app.services.analytics.analytics import AnalyticsService
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class PamOrchestrator:
         self.conversation_service = IntelligentConversationService()
         self.route_intelligence = RouteIntelligenceService()
         self.context_manager = ContextManager()
+        self.analytics = AnalyticsService()
         self.memory_node = MemoryNode()
         self.nodes = {
             'wins': wins_node,
@@ -47,6 +49,10 @@ class PamOrchestrator:
         """Initialize orchestrator and dependencies"""
         self.database_service = await get_database_service()
         await self.conversation_service.initialize()
+        
+        # Initialize analytics service
+        await self.analytics.initialize()
+        logger.info("Analytics service initialized")
         
         # Initialize all nodes
         for node_name, node in self.nodes.items():
@@ -71,17 +77,35 @@ class PamOrchestrator:
             if not session_id:
                 session_id = str(uuid.uuid4())
             
-            # Get or create conversation context
-            conversation_context = await self._get_conversation_context(user_id, session_id)
+            # Track user message event
+            await self.analytics.track_event(
+                event_type="user_message",
+                user_id=user_id,
+                session_id=session_id,
+                metadata={"message_length": len(message)}
+            )
             
-            # Add additional context if provided
-            if context:
-                conversation_context.conversation_history.extend(context.get('conversation_history', []))
-                if context.get('preferences'):
-                    conversation_context.preferences.update(context['preferences'])
+            # Get or create conversation context using context manager
+            conversation_context = await self._get_enhanced_context(user_id, session_id, context)
             
             # Analyze intent
             intent_analysis = await self._analyze_intent(message, conversation_context)
+            
+            # Track intent detection
+            await self.analytics.track_event(
+                event_type="intent_detected",
+                user_id=user_id,
+                session_id=session_id,
+                metadata={
+                    "intent": intent_analysis.intent_type.value,
+                    "confidence": intent_analysis.confidence
+                }
+            )
+            
+            # Check if route planning is needed and use route intelligence
+            if intent_analysis.intent_type in [IntentType.ROUTE_PLANNING, IntentType.CAMPGROUND_SEARCH]:
+                route_context = await self._enhance_with_route_intelligence(user_id, conversation_context)
+                conversation_context.preferences.update(route_context)
             
             # Route to appropriate node
             node_response = await self._route_to_node(
@@ -92,8 +116,22 @@ class PamOrchestrator:
                 intent_analysis
             )
             
-            # Store conversation memory
+            # Calculate response time
             response_time = int((datetime.now() - start_time).total_seconds() * 1000)
+            
+            # Track PAM response
+            await self.analytics.track_event(
+                event_type="pam_response",
+                user_id=user_id,
+                session_id=session_id,
+                metadata={
+                    "response_time_ms": response_time,
+                    "confidence": node_response.confidence,
+                    "node_used": self._get_node_from_intent(intent_analysis.intent_type)
+                }
+            )
+            
+            # Store conversation memory
             await self._store_conversation_memory(
                 user_id, session_id, message, node_response, 
                 intent_analysis, response_time
@@ -102,15 +140,78 @@ class PamOrchestrator:
             # Update conversation context
             await self._update_conversation_context(user_id, session_id, intent_analysis.intent_type)
             
+            # Update analytics metrics
+            await self.analytics.update_metric(
+                metric_name="average_response_time",
+                value=response_time,
+                aggregation="average"
+            )
+            
             return node_response
             
         except Exception as e:
             logger.error(f"Error processing message: {e}")
+            
+            # Track error
+            await self.analytics.track_event(
+                event_type="error_occurred",
+                user_id=user_id,
+                session_id=session_id,
+                metadata={"error": str(e), "context": "message_processing"}
+            )
+            
             return PamResponse(
                 content="I'm having trouble processing your request right now. Please try again.",
                 confidence=0.0,
                 requires_followup=False
             )
+    
+    async def _get_enhanced_context(self, user_id: str, session_id: str, additional_context: Dict[str, Any] = None) -> PamContext:
+        """Get enhanced conversation context using context manager"""
+        # Get base context
+        base_context = await self._get_conversation_context(user_id, session_id)
+        
+        # Enhance with context manager
+        enhanced_data = self.context_manager.enhance_context({
+            "user_id": user_id,
+            "session_id": session_id,
+            "base_context": base_context.dict(),
+            "additional_context": additional_context or {}
+        })
+        
+        # Update context with enhanced data
+        if enhanced_data.get("enhanced_preferences"):
+            base_context.preferences.update(enhanced_data["enhanced_preferences"])
+        
+        return base_context
+    
+    async def _enhance_with_route_intelligence(self, user_id: str, context: PamContext) -> Dict[str, Any]:
+        """Enhance context with route intelligence data"""
+        try:
+            # Get user's current location and destination from context
+            current_location = context.preferences.get("current_location")
+            destination = context.preferences.get("destination")
+            
+            if current_location and destination:
+                # Use route intelligence to get route insights
+                route_data = await self.route_intelligence.analyze_route(
+                    start_location=current_location,
+                    end_location=destination,
+                    user_preferences=context.preferences
+                )
+                
+                return {
+                    "route_insights": route_data,
+                    "nearby_campgrounds": route_data.get("campgrounds", []),
+                    "weather_along_route": route_data.get("weather", {}),
+                    "fuel_stops": route_data.get("fuel_stops", [])
+                }
+            
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error enhancing with route intelligence: {e}")
+            return {}
     
     async def _get_conversation_context(self, user_id: str, session_id: str) -> PamContext:
         """Get conversation context from cache and database"""
@@ -201,6 +302,13 @@ class PamOrchestrator:
         
         target_node = node_mapping.get(intent, 'you')
         
+        # Track node execution
+        await self.analytics.track_event(
+            event_type="node_execution",
+            user_id=user_id,
+            metadata={"node": target_node, "intent": intent.value}
+        )
+        
         # Prepare node input with full context
         node_input = {
             'user_id': user_id,
@@ -236,6 +344,14 @@ class PamOrchestrator:
                 
         except Exception as e:
             logger.error(f"Node processing error for {target_node}: {e}")
+            
+            # Track node error
+            await self.analytics.track_event(
+                event_type="error_occurred",
+                user_id=user_id,
+                metadata={"error": str(e), "node": target_node, "context": "node_execution"}
+            )
+            
             return await self._default_response(message, context)
     
     async def _default_response(self, message: str, context: PamContext) -> PamResponse:
@@ -379,6 +495,14 @@ class PamOrchestrator:
         except Exception as e:
             logger.error(f"Error storing user memory: {e}")
             return ""
+    
+    async def get_analytics_summary(self, user_id: str, time_range: str = "day") -> Dict[str, Any]:
+        """Get analytics summary for user"""
+        try:
+            return await self.analytics.get_user_summary(user_id, time_range)
+        except Exception as e:
+            logger.error(f"Error getting analytics summary: {e}")
+            return {}
 
 # Global orchestrator instance
 orchestrator = PamOrchestrator()
