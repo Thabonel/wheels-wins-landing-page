@@ -27,12 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!user;
 
   useEffect(() => {
-    console.log('AuthContext: Starting initialization');
     const getSession = async () => {
       try {
-        console.log('AuthContext: Getting session...');
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('AuthContext: Session retrieved:', session);
         setSession(session);
         setUser(session?.user ?? null);
       } catch (error) {
@@ -44,10 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     getSession();
 
-    console.log('AuthContext: Setting up auth state listener');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('AuthContext: Auth state changed:', event, session);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -76,14 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = signOut;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
