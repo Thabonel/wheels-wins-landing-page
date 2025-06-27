@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 from dataclasses import dataclass, asdict
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
 from app.core.logging import setup_logging
 
 logger = setup_logging("analytics")
