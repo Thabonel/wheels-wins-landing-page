@@ -1,4 +1,3 @@
-
 """
 PAM Orchestrator - Main coordination service
 Manages conversation flow, node routing, and memory integration.
@@ -9,14 +8,14 @@ import json
 import uuid
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
+import logging
 
-from backend.app.core.logging import setup_logging
 from backend.app.models.domain.pam import (
     PamMessage, PamConversation, PamMemory, PamIntent, PamContext, 
     PamResponse, IntentType, MemoryType, ConversationStatus
 )
 from backend.app.services.database import get_database_service
-from backend.app.services.cache_service import cache_service
+from backend.app.services.cache import cache_service
 from backend.app.services.pam.nodes.wins_node import wins_node
 from backend.app.services.pam.nodes.wheels_node import wheels_node
 from backend.app.services.pam.nodes.social_node import social_node
@@ -24,7 +23,7 @@ from backend.app.services.pam.nodes.you_node import you_node
 from backend.app.services.pam.nodes.memory_node import MemoryNode
 from backend.app.services.pam.intelligent_conversation import IntelligentConversation
 
-logger = setup_logging()
+logger = logging.getLogger(__name__)
 
 class PamOrchestrator:
     """Main PAM orchestration service"""
