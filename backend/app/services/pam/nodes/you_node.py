@@ -526,4 +526,107 @@ class YouNode(BaseNode):
             return {}
 
 # Global YOU node instance
+
+    async def create_calendar_event(self, user_id: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new calendar event"""
+        try:
+            title = event_data.get('title')
+            description = event_data.get('description', '')
+            start_time = event_data.get('start_time')
+            duration_hours = event_data.get('duration_hours', 1)
+            location = event_data.get('location', '')
+            event_type = event_data.get('type', 'general')
+            
+            # Parse start time
+            if isinstance(start_time, str):
+                start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            else:
+                start_dt = start_time
+                
+            end_dt = start_dt + timedelta(hours=duration_hours)
+            
+            # Store in database
+            query = """
+                INSERT INTO calendar_events 
+                (user_id, title, description, start_time, end_time, location, event_type)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING id
+            """
+            
+            result = await self.database_service.execute_single(
+                query, user_id, title, description, start_dt, end_dt, location, event_type
+            )
+            
+            return {
+                "success": True,
+                "event_id": result['id'] if result else None,
+                "message": f"Created '{title}' for {start_dt.strftime('%B %d at %I:%M %p')}"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error creating calendar event: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_user_profile(self, user_id: str) -> Dict[str, Any]:
+        """Get complete user profile"""
+        try:
+            query = """
+                SELECT u.*, p.travel_style, p.budget_preferences, p.vehicle_info
+                FROM users u
+                LEFT JOIN user_profiles p ON u.id = p.user_id
+                WHERE u.id = $1
+            """
+            
+            profile = await self.database_service.execute_single(query, user_id)
+            return profile or {}
+            
+        except Exception as e:
+            logger.error(f"Error getting user profile: {e}")
+            return {}
+
+    async def update_user_profile(self, user_id: str, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update user profile information"""
+        try:
+            # Update main user info if provided
+            if any(key in profile_data for key in ['name', 'email', 'phone']):
+                user_query = """
+                    UPDATE users 
+                    SET name = COALESCE($2, name),
+                        email = COALESCE($3, email),
+                        phone = COALESCE($4, phone),
+                        updated_at = NOW()
+                    WHERE id = $1
+                """
+                await self.database_service.execute_write(
+                    user_query,
+                    user_id,
+                    profile_data.get('name'),
+                    profile_data.get('email'),
+                    profile_data.get('phone')
+                )
+            
+            # Update profile details
+            profile_query = """
+                INSERT INTO user_profiles (user_id, travel_style, budget_preferences, vehicle_info)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (user_id) DO UPDATE
+                SET travel_style = COALESCE($2, user_profiles.travel_style),
+                    budget_preferences = COALESCE($3, user_profiles.budget_preferences),
+                    vehicle_info = COALESCE($4, user_profiles.vehicle_info)
+            """
+            
+            await self.database_service.execute_write(
+                profile_query,
+                user_id,
+                profile_data.get('travel_style'),
+                profile_data.get('budget_preferences'),
+                profile_data.get('vehicle_info')
+            )
+            
+            return {"success": True, "message": "Profile updated successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error updating profile: {e}")
+            return {"success": False, "error": str(e)}
+
 you_node = YouNode()
