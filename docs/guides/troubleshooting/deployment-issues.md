@@ -61,6 +61,31 @@ git commit -m "Force rebuild"
 git push origin main
 ```
 
+### ModuleNotFoundError: No module named `app`
+
+#### Symptom
+```
+ModuleNotFoundError: No module named 'app'
+```
+
+This happens when Render runs the start command from the repository root, so
+Python cannot locate the `backend/app` package.
+
+#### Fix
+Update `startCommand` in `render.yaml` to change into the backend directory:
+
+```yaml
+startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Similarly update `buildCommand`:
+
+```yaml
+buildCommand: cd backend && pip install -r requirements.txt
+```
+
+Re-deploy after committing these changes.
+
 ### Service Not Responding
 
 #### Verification Steps
