@@ -18,7 +18,7 @@ class PamUIController {
   private isConnected = false;
 
   constructor() {
-    this.connectWebSocket();
+    // this.connectWebSocket(); // Temporarily disabled
   }
 
   /**
@@ -184,7 +184,7 @@ class PamUIController {
         // Attempt to reconnect after 5 seconds
         setTimeout(() => {
           if (!this.isConnected) {
-            this.connectWebSocket();
+            // this.connectWebSocket(); // Temporarily disabled
           }
         }, 5000);
       };
