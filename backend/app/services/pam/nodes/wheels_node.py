@@ -1,247 +1,524 @@
 
 """
-Wheels Node - Travel planning and route management
+WHEELS Node - Travel and Route Management
+Handles route planning, campground searches, fuel information, and maintenance.
 """
 
-import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime, date
+import json
+from typing import Dict, Any, List, Optional
+from datetime import datetime, date, timedelta
 
-from app.models.domain.pam import PamResponse, PamContext, PamMemory
-from app.services.pam.nodes.base_node import BaseNode
-from app.services.database import DatabaseService
-from app.services.cache import CacheService
-from app.core.exceptions import ValidationError, DatabaseError
-from pydantic import BaseModel, Field
+from backend.app.core.logging import setup_logging
+from backend.app.services.database import get_database_service
+from backend.app.models.domain.pam import PamResponse
+from backend.app.services.pam.nodes.base_node import BaseNode
 
-logger = logging.getLogger("pam.wheels_node")
-
-class TripPlanRequest(BaseModel):
-    origin: str = Field(..., min_length=1)
-    destination: str = Field(..., min_length=1)
-    start_date: Optional[date] = None
-
-class RouteRequest(BaseModel):
-    origin: str = Field(..., min_length=1)
-    destination: str = Field(..., min_length=1)
+logger = setup_logging()
 
 class WheelsNode(BaseNode):
-    """Node for handling travel and route planning"""
+    """WHEELS node for travel and route management"""
     
     def __init__(self):
         super().__init__("wheels")
-        self.db_service = DatabaseService()
-        self.cache_service = CacheService()
+        self.database_service = None
     
-    async def process(self, message: str, intent: Any, context: PamContext, 
-                     memories: List[PamMemory]) -> PamResponse:
-        """Process wheels-related requests"""
-        start_time = datetime.now()
+    async def initialize(self):
+        """Initialize WHEELS node"""
+        self.database_service = await get_database_service()
+        logger.info("WHEELS node initialized")
+    
+    async def process(self, input_data: Dict[str, Any]) -> PamResponse:
+        """Process travel-related requests"""
+        if not self.database_service:
+            await self.initialize()
+        
+        user_id = input_data.get('user_id')
+        message = input_data.get('message', '').lower()
+        intent = input_data.get('intent')
+        entities = input_data.get('entities', {})
         
         try:
-            # Input validation
-            if not message or not message.strip():
-                raise ValidationError("Message cannot be empty")
-            
-            action = getattr(intent, 'action', None)
-            if action:
-                action = action.value if hasattr(action, 'value') else str(action)
+            if 'route' in message or 'drive' in message or 'directions' in message:
+                return await self._handle_route_planning(user_id, message, entities)
+            elif 'campground' in message or 'camping' in message or 'camp' in message:
+                return await self._handle_campground_search(user_id, message, entities)
+            elif 'fuel' in message or 'gas' in message or 'diesel' in message:
+                return await self._handle_fuel_prices(user_id, message, entities)
+            elif 'weather' in message:
+                return await self._handle_weather_check(user_id, message, entities)
+            elif 'maintenance' in message or 'service' in message or 'repair' in message:
+                return await self._handle_maintenance_reminder(user_id, message, entities)
             else:
-                action = 'view'
-            
-            self.logger.info(f"Processing wheels request with action: {action}")
-            
-            if action == 'plan':
-                response = await self._handle_route_planning(message, context)
-            elif action == 'track':
-                response = await self._handle_travel_tracking(message, context)
-            else:
-                response = await self._handle_view_travel(message, context)
-            
-            # Performance logging
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            self.logger.info(f"Wheels node processed request in {processing_time:.2f}ms")
-            
-            self._log_processing(message, response)
-            return response
+                return await self._handle_general_travel_query(user_id, message)
                 
-        except ValidationError as e:
-            logger.error(f"Validation error in wheels node: {str(e)}")
-            return self._create_error_response(f"Invalid input: {str(e)}")
-        except DatabaseError as e:
-            logger.error(f"Database error in wheels node: {str(e)}")
-            return self._create_error_response("I had trouble accessing your travel data. Please try again.")
         except Exception as e:
-            logger.error(f"Wheels node processing failed: {str(e)}")
-            return self._create_error_response("I had trouble with your travel request. Please try again.")
+            logger.error(f"WHEELS node processing error: {e}")
+            return PamResponse(
+                content="I'm having trouble accessing travel information right now. Please try again in a moment.",
+                confidence=0.3,
+                requires_followup=True
+            )
     
-    async def _handle_route_planning(self, message: str, context: PamContext) -> PamResponse:
-        """Handle route planning request with real data"""
+    async def _handle_route_planning(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle route planning requests"""
+        destination = entities.get('destination')
+        origin = entities.get('origin')
+        
+        if not destination:
+            return PamResponse(
+                content="I'd love to help you plan a route! Where are you headed?",
+                confidence=0.7,
+                suggestions=[
+                    "Plan route to Yellowstone",
+                    "Find scenic drive to California",
+                    "Show me routes avoiding mountains"
+                ],
+                requires_followup=True
+            )
+        
         try:
-            user_id = context.user_id
-            if not user_id:
-                raise ValidationError("User ID is required for route planning")
+            # Get user's vehicle info for route optimization
+            query = """
+                SELECT vehicle_type, fuel_type, preferences 
+                FROM onboarding_responses 
+                WHERE user_id = $1
+            """
             
-            # Get user's recent trips and favorite destinations
-            cache_key = f"recent_trips:{user_id}"
-            cached_trips = await self.cache_service.get(cache_key)
+            user_info = await self.database_service.execute_single(query, user_id)
             
-            if not cached_trips:
-                recent_trips = await self.db_service.get_recent_trips(user_id, limit=3)
-                await self.cache_service.set(cache_key, [trip.model_dump() for trip in recent_trips], ttl=600)
+            # Search for relevant routes or attractions
+            route_query = """
+                SELECT route_name, route_description, distance_miles, estimated_time_hours,
+                       difficulty_level, scenic_rating, vehicle_requirements
+                FROM offroad_routes 
+                WHERE route_description ILIKE $1 
+                OR route_name ILIKE $1
+                LIMIT 3
+            """
+            
+            routes = await self.database_service.execute_query(
+                route_query, f"%{destination}%", 
+                cache_key=f"routes:{destination}", cache_ttl=3600
+            )
+            
+            response_parts = [f"🗺️ Here's what I found for routes to {destination}:"]
+            
+            if routes:
+                for route in routes:
+                    response_parts.extend([
+                        "",
+                        f"📍 **{route['route_name']}**",
+                        f"📏 Distance: {route['distance_miles']} miles",
+                        f"⏱️ Time: {route['estimated_time_hours']} hours",
+                        f"⭐ Scenic Rating: {route['scenic_rating']}/5",
+                        f"📝 {route['route_description']}"
+                    ])
+                    
+                    if route['difficulty_level']:
+                        response_parts.append(f"🚧 Difficulty: {route['difficulty_level']}")
             else:
-                recent_trips = cached_trips
+                response_parts.extend([
+                    "",
+                    f"I don't have specific route data for {destination} yet, but I can help you with:",
+                    "• General driving tips for RVs",
+                    "• Campground recommendations along the way", 
+                    "• Fuel stop planning",
+                    "• Weather considerations"
+                ])
             
-            # Get popular camping locations
-            popular_locations = await self.db_service.get_popular_camping_locations(limit=4)
-            
-            suggestions = [
-                "Plan trip to Yellowstone",
-                "Find campgrounds nearby",
-                "Route to Grand Canyon", 
-                "Show fuel stops"
-            ]
-            
-            # Add suggestions based on user's travel history
-            if recent_trips:
-                for trip in recent_trips[:2]:
-                    destination = trip.get('destination', {}).get('name', '')
-                    if destination:
-                        suggestions.append(f"Return to {destination}")
-            
-            # Add popular destinations
-            if popular_locations:
-                for location in popular_locations[:2]:
-                    suggestions.append(f"Visit {location.get('name', 'popular spot')}")
+            # Add RV-specific advice
+            if user_info and user_info.get('vehicle_type'):
+                vehicle_type = user_info['vehicle_type']
+                response_parts.extend([
+                    "",
+                    f"🚐 RV Tips for your {vehicle_type}:",
+                    "• Check bridge heights and weight limits",
+                    "• Plan for slower speeds on hills",
+                    "• Book reservations ahead at popular destinations"
+                ])
             
             return PamResponse(
-                content="I'll help you plan your route! Where would you like to go?",
-                intent=None,
-                confidence=0.9,
-                suggestions=suggestions,
-                actions=[
-                    {"type": "navigate", "target": "/wheels", "label": "Open Route Planner"}
+                content="\n".join(response_parts),
+                confidence=0.8,
+                suggestions=[
+                    f"Find campgrounds near {destination}",
+                    "Check weather forecast",
+                    "Show fuel stops along the way"
                 ],
-                requires_followup=True,
-                context_updates={"route_planning_started": True},
-                voice_enabled=True
+                requires_followup=False
             )
             
         except Exception as e:
-            logger.error(f"Error in route planning: {str(e)}")
-            return self._create_error_response("I had trouble accessing your travel data.")
-    
-    async def _handle_travel_tracking(self, message: str, context: PamContext) -> PamResponse:
-        """Handle travel tracking request with real data"""
-        try:
-            user_id = context.user_id
-            if not user_id:
-                raise ValidationError("User ID is required for travel tracking")
-            
-            # Get recent fuel logs and maintenance records
-            recent_fuel = await self.db_service.get_recent_fuel_logs(user_id, limit=3)
-            maintenance_due = await self.db_service.get_maintenance_due(user_id)
-            
-            suggestions = [
-                "Log fuel stop",
-                "Record mileage",
-                "Add campground review",
-                "Note maintenance needed"
-            ]
-            
-            # Add contextual suggestions based on data
-            if recent_fuel:
-                last_fuel = recent_fuel[0]
-                suggestions.append(f"Update from {last_fuel.location}")
-            
-            if maintenance_due:
-                next_maintenance = maintenance_due[0]
-                suggestions.append(f"Schedule {next_maintenance.task}")
-            
+            logger.error(f"Route planning error: {e}")
             return PamResponse(
-                content="Let's track your travel! What would you like to log?",
-                intent=None,
-                confidence=0.9,
-                suggestions=suggestions,
-                actions=[
-                    {"type": "navigate", "target": "/wheels", "label": "Travel Log"}
+                content=f"I'd recommend checking your favorite mapping app for the best route to {destination}. Don't forget to filter for RV-friendly roads and check for low bridges!",
+                confidence=0.5,
+                requires_followup=False
+            )
+    
+    async def _handle_campground_search(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle campground search requests"""
+        location = entities.get('location')
+        camp_type = entities.get('camp_type', 'any')
+        
+        if not location:
+            return PamResponse(
+                content="I can help you find great campgrounds! What area are you looking for?",
+                confidence=0.7,
+                suggestions=[
+                    "Find campgrounds near me",
+                    "Show free camping in Utah",
+                    "RV parks with full hookups in Florida"
                 ],
-                requires_followup=True,
-                context_updates={"travel_tracking_started": True},
-                voice_enabled=True
+                requires_followup=True
+            )
+        
+        try:
+            # Search camping locations
+            query = """
+                SELECT name, type, address, price_per_night, user_ratings,
+                       amenities, hookups, max_rig_length, reservation_required
+                FROM camping_locations 
+                WHERE address ILIKE $1 OR name ILIKE $1
+                ORDER BY user_ratings DESC NULLS LAST, price_per_night ASC NULLS LAST
+                LIMIT 5
+            """
+            
+            campgrounds = await self.database_service.execute_query(
+                query, f"%{location}%",
+                cache_key=f"campgrounds:{location}", cache_ttl=1800
             )
             
-        except Exception as e:
-            logger.error(f"Error in travel tracking: {str(e)}")
-            return self._create_error_response("I had trouble accessing your tracking data.")
-    
-    async def _handle_view_travel(self, message: str, context: PamContext) -> PamResponse:
-        """Handle travel overview request with real data"""
-        try:
-            user_id = context.user_id
-            if not user_id:
+            if not campgrounds:
                 return PamResponse(
-                    content="I need you to be logged in to show your travel overview.",
-                    intent=None,
-                    confidence=0.8,
-                    suggestions=["Log in to view travel data"],
-                    actions=[],
-                    requires_followup=False,
-                    context_updates={},
-                    voice_enabled=True
+                    content=f"I don't have specific campground data for {location} yet. I recommend checking Campendium, iOverlander, or Recreation.gov for the most up-to-date options!",
+                    confidence=0.6,
+                    suggestions=[
+                        "Try searching a nearby city",
+                        "Look for state parks in the area",
+                        "Check for free camping options"
+                    ],
+                    requires_followup=True
                 )
             
-            # Get real travel data
-            cache_key = f"travel_overview:{user_id}"
-            cached_data = await self.cache_service.get(cache_key)
+            response_parts = [f"🏕️ Found {len(campgrounds)} campgrounds near {location}:"]
             
-            if not cached_data:
-                active_trips = await self.db_service.get_active_trips(user_id)
-                next_trip = await self.db_service.get_next_planned_trip(user_id)
+            for camp in campgrounds:
+                response_parts.extend([
+                    "",
+                    f"📍 **{camp['name']}** ({camp['type']})",
+                    f"📍 {camp['address']}"
+                ])
                 
-                travel_data = {
-                    'active_trips': len(active_trips),
-                    'next_destination': next_trip.destination.name if next_trip and next_trip.destination else None
-                }
-                await self.cache_service.set(cache_key, travel_data, ttl=300)
-            else:
-                travel_data = cached_data
-            
-            # Build content based on real data
-            content = "Here's your travel overview:\n"
-            
-            if travel_data.get('active_trips', 0) > 0:
-                content += f"• Active trips: {travel_data['active_trips']}\n"
-                if travel_data.get('next_destination'):
-                    content += f"• Next destination: {travel_data['next_destination']}"
-                else:
-                    content += "• Next destination: Check your planned trips"
-            else:
-                content += "No active travel plans. Ready to plan your next adventure?"
-            
-            suggestions = [
-                "Plan new trip",
-                "View travel history",
-                "Find campgrounds",
-                "Check vehicle maintenance"
-            ]
+                if camp['price_per_night']:
+                    response_parts.append(f"💰 ${camp['price_per_night']}/night")
+                elif camp['type'] == 'free':
+                    response_parts.append("🆓 Free camping!")
+                
+                if camp['user_ratings']:
+                    rating_stars = "⭐" * int(float(camp['user_ratings']))
+                    response_parts.append(f"{rating_stars} {camp['user_ratings']}/5")
+                
+                if camp['max_rig_length']:
+                    response_parts.append(f"🚐 Max RV: {camp['max_rig_length']} ft")
+                
+                if camp['hookups']:
+                    hookups = camp['hookups']
+                    if isinstance(hookups, dict):
+                        hookup_list = [k for k, v in hookups.items() if v]
+                        if hookup_list:
+                            response_parts.append(f"🔌 Hookups: {', '.join(hookup_list)}")
+                
+                if camp['reservation_required']:
+                    response_parts.append("📞 Reservations required")
             
             return PamResponse(
-                content=content,
-                intent=None,
+                content="\n".join(response_parts),
                 confidence=0.8,
-                suggestions=suggestions,
-                actions=[
-                    {"type": "navigate", "target": "/wheels", "label": "Travel Dashboard"}
+                suggestions=[
+                    "Check availability",
+                    "Get directions",
+                    "Find more free camping",
+                    "Show nearby attractions"
                 ],
-                requires_followup=False,
-                context_updates={},
-                voice_enabled=True
+                requires_followup=False
             )
             
         except Exception as e:
-            logger.error(f"Error in travel overview: {str(e)}")
-            return self._create_error_response("I had trouble accessing your travel data.")
+            logger.error(f"Campground search error: {e}")
+            return PamResponse(
+                content="I recommend checking Campendium or Recreation.gov for campgrounds in that area. They have the most current availability and reviews!",
+                confidence=0.5,
+                requires_followup=False
+            )
+    
+    async def _handle_fuel_prices(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle fuel price requests"""
+        location = entities.get('location')
+        fuel_type = entities.get('fuel_type', 'regular')
+        
+        try:
+            # Get fuel stations data
+            query = """
+                SELECT station_name, address, regular_price, diesel_price, 
+                       premium_price, amenities, rv_friendly
+                FROM fuel_stations 
+                WHERE address ILIKE $1
+                AND (regular_price IS NOT NULL OR diesel_price IS NOT NULL)
+                ORDER BY regular_price ASC NULLS LAST
+                LIMIT 5
+            """
+            
+            stations = await self.database_service.execute_query(
+                query, f"%{location or ''}%",
+                cache_key=f"fuel:{location or 'general'}", cache_ttl=1800
+            )
+            
+            if not stations and location:
+                return PamResponse(
+                    content=f"I don't have current fuel prices for {location}. I recommend using GasBuddy or Waze to find the cheapest stations nearby!",
+                    confidence=0.6,
+                    suggestions=[
+                        "Use GasBuddy app",
+                        "Check Pilot/Flying J locations",
+                        "Look for Walmart gas stations"
+                    ],
+                    requires_followup=False
+                )
+            
+            # Provide general fuel saving tips if no specific data
+            if not stations:
+                return PamResponse(
+                    content="""⛽ Here are some fuel-saving tips for RVers:
+                    
+🏪 **Best Apps for Fuel Prices:**
+• GasBuddy - Real-time prices and reviews
+• Waze - Navigation with gas prices
+• Gas Guru - Price comparison
 
-# Create singleton instance
+🚛 **RV-Friendly Stations:**
+• Pilot/Flying J - Big rig access
+• Love's Travel Centers - RV lanes
+• TA/Petro - Truck stops with space
+
+💡 **Money-Saving Tips:**
+• Fill up at truck stops (often cheaper diesel)
+• Use loyalty programs (MyRewards, Good Sam)
+• Avoid highway exit stations
+• Drive 60-65 mph for best fuel economy""",
+                    confidence=0.7,
+                    suggestions=[
+                        "Log my fuel purchase",
+                        "Track my MPG",
+                        "Find RV-friendly gas stations"
+                    ],
+                    requires_followup=False
+                )
+            
+            response_parts = [f"⛽ Fuel stations near {location}:"]
+            
+            for station in stations:
+                response_parts.extend([
+                    "",
+                    f"🏪 **{station['station_name']}**",
+                    f"📍 {station['address']}"
+                ])
+                
+                prices = []
+                if station['regular_price']:
+                    prices.append(f"Regular: ${station['regular_price']:.2f}")
+                if station['diesel_price']:
+                    prices.append(f"Diesel: ${station['diesel_price']:.2f}")
+                if station['premium_price']:
+                    prices.append(f"Premium: ${station['premium_price']:.2f}")
+                
+                if prices:
+                    response_parts.append(f"💰 {' | '.join(prices)}")
+                
+                if station['rv_friendly']:
+                    response_parts.append("🚐 RV Friendly")
+                
+                if station['amenities']:
+                    amenities = station['amenities']
+                    if isinstance(amenities, dict):
+                        features = [k for k, v in amenities.items() if v]
+                        if features:
+                            response_parts.append(f"🛠️ {', '.join(features)}")
+            
+            return PamResponse(
+                content="\n".join(response_parts),
+                confidence=0.8,
+                suggestions=[
+                    "Log fuel purchase",
+                    "Get directions",
+                    "Find more stations",
+                    "Track my fuel expenses"
+                ],
+                requires_followup=False
+            )
+            
+        except Exception as e:
+            logger.error(f"Fuel prices error: {e}")
+            return PamResponse(
+                content="For the most current fuel prices, I recommend using GasBuddy or checking at truck stops like Pilot/Flying J which are usually RV-friendly!",
+                confidence=0.5,
+                requires_followup=False
+            )
+    
+    async def _handle_weather_check(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle weather check requests"""
+        location = entities.get('location')
+        
+        # Since we don't have real-time weather API, provide general guidance
+        return PamResponse(
+            content=f"""🌤️ For current weather information{f' in {location}' if location else ''}, I recommend:
+
+📱 **Best Weather Apps for RVers:**
+• Weather Underground - Detailed forecasts
+• NOAA Weather Radar - Official forecasts
+• WeatherBug - Real-time conditions
+• Dark Sky - Hyper-local predictions
+
+⚠️ **RV Weather Considerations:**
+• High wind warnings (30+ mph)
+• Severe thunderstorm alerts  
+• Temperature extremes affecting propane/batteries
+• Road conditions for mountain passes
+
+🌡️ **Seasonal Travel Tips:**
+• Summer: Avoid desert areas, seek elevation
+• Winter: Watch for freezing temps, pipe protection
+• Spring/Fall: Best travel weather in most areas
+
+Would you like tips for weatherproofing your RV or preparing for specific conditions?""",
+            confidence=0.7,
+            suggestions=[
+                "RV winterization tips",
+                "Hot weather camping advice", 
+                "Preparing for storms",
+                "Best travel seasons by region"
+            ],
+            requires_followup=False
+        )
+    
+    async def _handle_maintenance_reminder(self, user_id: str, message: str, entities: Dict[str, Any]) -> PamResponse:
+        """Handle maintenance reminders and tracking"""
+        try:
+            # Get recent maintenance records
+            query = """
+                SELECT task, date, mileage, next_due_date, next_due_mileage, cost
+                FROM maintenance_records 
+                WHERE user_id = $1 
+                ORDER BY date DESC 
+                LIMIT 10
+            """
+            
+            records = await self.database_service.execute_query(
+                query, user_id,
+                cache_key=f"maintenance:{user_id}", cache_ttl=3600
+            )
+            
+            current_date = date.today()
+            overdue_items = []
+            upcoming_items = []
+            
+            if records:
+                for record in records:
+                    if record['next_due_date'] and record['next_due_date'] < current_date:
+                        overdue_items.append(record)
+                    elif record['next_due_date'] and record['next_due_date'] <= current_date + timedelta(days=30):
+                        upcoming_items.append(record)
+            
+            response_parts = ["🔧 **RV Maintenance Status:**"]
+            
+            if overdue_items:
+                response_parts.extend([
+                    "",
+                    "⚠️ **OVERDUE Items:**"
+                ])
+                for item in overdue_items:
+                    response_parts.append(f"🔴 {item['task']} (due {item['next_due_date']})")
+            
+            if upcoming_items:
+                response_parts.extend([
+                    "",
+                    "📅 **Coming Up (Next 30 Days):**"
+                ])
+                for item in upcoming_items:
+                    response_parts.append(f"🟡 {item['task']} (due {item['next_due_date']})")
+            
+            if not overdue_items and not upcoming_items:
+                response_parts.extend([
+                    "",
+                    "✅ No urgent maintenance items!",
+                    "",
+                    "📋 **Regular RV Maintenance Checklist:**",
+                    "• Oil change every 3,000-5,000 miles",
+                    "• Tire pressure check monthly", 
+                    "• Roof inspection every 3 months",
+                    "• Generator exercise monthly",
+                    "• Water system sanitization every 6 months",
+                    "• Slide-out lubrication annually"
+                ])
+            
+            # Add general maintenance tips
+            response_parts.extend([
+                "",
+                "💡 **Maintenance Tips:**",
+                "• Keep maintenance log with dates/mileage",
+                "• Check tire pressure when cold",
+                "• Inspect roof seals regularly",
+                "• Test smoke/CO detectors monthly"
+            ])
+            
+            return PamResponse(
+                content="\n".join(response_parts),
+                confidence=0.8,
+                suggestions=[
+                    "Log maintenance completed",
+                    "Set maintenance reminder",
+                    "Find RV service centers",
+                    "RV maintenance checklist"
+                ],
+                requires_followup=False
+            )
+            
+        except Exception as e:
+            logger.error(f"Maintenance reminder error: {e}")
+            return PamResponse(
+                content="I can help you track RV maintenance! Regular maintenance includes oil changes, tire checks, roof inspections, and generator exercise. Would you like me to help you log a maintenance task?",
+                confidence=0.6,
+                suggests=[
+                    "Log maintenance task",
+                    "Set reminder",
+                    "Show maintenance checklist"
+                ],
+                requires_followup=True
+            )
+    
+    async def _handle_general_travel_query(self, user_id: str, message: str) -> PamResponse:
+        """Handle general travel questions"""
+        return PamResponse(
+            content="""🚐 **I'm here to help with your RV travels!**
+
+I can assist you with:
+• 🗺️ Route planning and directions
+• 🏕️ Campground recommendations  
+• ⛽ Fuel prices and stations
+• 🌤️ Weather considerations
+• 🔧 Maintenance reminders
+• 🛣️ RV-friendly routes and restrictions
+
+What aspect of your journey can I help you with today?""",
+            confidence=0.7,
+            suggestions=[
+                "Plan a route",
+                "Find campgrounds", 
+                "Check fuel prices",
+                "Maintenance reminders"
+            ],
+            requires_followup=True
+        )
+
+# Global WHEELS node instance  
 wheels_node = WheelsNode()
