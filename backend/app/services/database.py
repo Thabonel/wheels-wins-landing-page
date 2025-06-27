@@ -8,10 +8,10 @@ import asyncio
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import asyncpg
-from backend.app.core.database_pool import db_pool
-from backend.app.core.logging import setup_logging
-from backend.app.services.cache_service import cache_service
-from backend.app.models.domain.pam import PamMemory, IntentType, MemoryType
+from app.core.database_pool import db_pool
+from app.core.logging import setup_logging
+from app.services.cache_service import cache_service
+from app.models.domain.pam import PamMemory, IntentType, MemoryType
 
 logger = setup_logging()
 
