@@ -1,4 +1,3 @@
-
 """
 PAM Backend Main Application
 High-performance FastAPI application with comprehensive monitoring and security.
@@ -25,7 +24,7 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 
 # Import API routers
-from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam
+from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, actions, demo, you
 
 logger = setup_logging()
 
@@ -109,6 +108,9 @@ app.include_router(wins.router, prefix="/api", tags=["Wins"])
 app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api", tags=["PAM"])
+app.include_router(actions.router, prefix="/api", tags=["Actions"])
+app.include_router(demo.router, prefix="/api", tags=["Demo"])
+app.include_router(you.router, prefix="/api", tags=["You"])
 
 # Global exception handler with monitoring
 @app.exception_handler(Exception)
