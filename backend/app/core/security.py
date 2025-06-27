@@ -1,323 +1,201 @@
 
-from datetime import datetime, timedelta
-from typing import Optional, Any, Dict, List
-import jwt
-import bcrypt
-import hashlib
+"""
+Security Hardening Module
+Implements request signing, CSRF protection, and security utilities.
+"""
+
 import hmac
+import hashlib
 import secrets
-from functools import wraps
-from fastapi import HTTPException, status, Depends, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 import time
-import re
-from .config import settings
-from .exceptions import (
-    AuthenticationError,
-    AuthorizationError,
-    RateLimitError,
-    ValidationError
-)
+from typing import Optional, Dict, Any
+from datetime import datetime, timedelta
+from fastapi import HTTPException, Request, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.core.config import settings
+from app.core.logging import setup_logging
 
-# Security scheme for JWT tokens
-security = HTTPBearer()
+logger = setup_logging()
 
-# Rate limiting storage (in production, use Redis)
-rate_limit_storage = {}
-
-class SecurityManager:
-    """Central security management class"""
+# Request signing for internal services
+class RequestSigner:
+    """Handles request signing for internal service communication"""
     
-    @staticmethod
-    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create JWT access token"""
-        to_encode = data.copy()
-        
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        
-        to_encode.update({"exp": expire})
-        
-        try:
-            encoded_jwt = jwt.encode(
-                to_encode, 
-                settings.SECRET_KEY, 
-                algorithm=settings.ALGORITHM
-            )
-            return encoded_jwt
-        except Exception as e:
-            raise AuthenticationError(
-                message="Failed to create access token",
-                details={"error": str(e)}
-            )
-
-    @staticmethod
-    def create_refresh_token(user_id: str) -> str:
-        """Create JWT refresh token"""
-        data = {
-            "sub": user_id,
-            "type": "refresh",
-            "exp": datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-        }
-        
-        try:
-            return jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-        except Exception as e:
-            raise AuthenticationError(
-                message="Failed to create refresh token",
-                details={"error": str(e)}
-            )
-
-    @staticmethod
-    def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
-        """Verify JWT token and return payload"""
-        token = credentials.credentials
-        
-        try:
-            payload = jwt.decode(
-                token, 
-                settings.SECRET_KEY, 
-                algorithms=[settings.ALGORITHM]
-            )
-            
-            # Check if token is expired
-            exp = payload.get("exp")
-            if exp and datetime.utcnow().timestamp() > exp:
-                raise AuthenticationError(
-                    message="Token has expired",
-                    error_code="TOKEN_EXPIRED"
-                )
-            
-            return payload
-            
-        except jwt.ExpiredSignatureError:
-            raise AuthenticationError(
-                message="Token has expired",
-                error_code="TOKEN_EXPIRED"
-            )
-        except jwt.JWTError as e:
-            raise AuthenticationError(
-                message="Could not validate credentials",
-                error_code="INVALID_TOKEN",
-                details={"error": str(e)}
-            )
-
-    @staticmethod
-    def verify_refresh_token(token: str) -> Dict[str, Any]:
-        """Verify refresh token"""
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            
-            if payload.get("type") != "refresh":
-                raise AuthenticationError(
-                    message="Invalid token type",
-                    error_code="INVALID_TOKEN_TYPE"
-                )
-            
-            return payload
-            
-        except jwt.ExpiredSignatureError:
-            raise AuthenticationError(
-                message="Refresh token has expired",
-                error_code="REFRESH_TOKEN_EXPIRED"
-            )
-        except jwt.JWTError:
-            raise AuthenticationError(
-                message="Invalid refresh token",
-                error_code="INVALID_REFRESH_TOKEN"
-            )
-
-class PasswordManager:
-    """Password hashing and verification utilities"""
+    def __init__(self, secret_key: str = None):
+        self.secret_key = secret_key or settings.SECRET_KEY
     
-    @staticmethod
-    def hash_password(password: str) -> str:
-        """Hash password using bcrypt"""
-        if len(password) < 8:
-            raise ValidationError(
-                message="Password must be at least 8 characters long",
-                error_code="PASSWORD_TOO_SHORT"
-            )
+    def sign_request(self, method: str, path: str, body: str = "", timestamp: int = None) -> str:
+        """Generate HMAC signature for request"""
+        timestamp = timestamp or int(time.time())
         
-        salt = bcrypt.gensalt()
-        hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-        return hashed.decode('utf-8')
-
-    @staticmethod
-    def verify_password(password: str, hashed_password: str) -> bool:
-        """Verify password against hash"""
+        # Create signature payload
+        payload = f"{method.upper()}|{path}|{body}|{timestamp}"
+        
+        # Generate HMAC signature
+        signature = hmac.new(
+            self.secret_key.encode(),
+            payload.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        return f"{timestamp}.{signature}"
+    
+    def verify_signature(self, method: str, path: str, body: str, signature: str, max_age: int = 300) -> bool:
+        """Verify request signature"""
         try:
-            return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
-        except Exception:
+            timestamp_str, sig = signature.split('.', 1)
+            timestamp = int(timestamp_str)
+            
+            # Check timestamp validity (prevent replay attacks)
+            current_time = int(time.time())
+            if current_time - timestamp > max_age:
+                logger.warning(f"Request signature expired: {timestamp}")
+                return False
+            
+            # Verify signature
+            expected_sig = self.sign_request(method, path, body, timestamp).split('.', 1)[1]
+            
+            return hmac.compare_digest(sig, expected_sig)
+            
+        except (ValueError, IndexError) as e:
+            logger.warning(f"Invalid signature format: {e}")
             return False
 
-    @staticmethod
-    def generate_secure_password(length: int = 16) -> str:
-        """Generate a secure random password"""
-        import string
-        characters = string.ascii_letters + string.digits + "!@#$%^&*"
-        return ''.join(secrets.choice(characters) for _ in range(length))
+# CSRF Protection
+class CSRFProtection:
+    """CSRF token generation and validation"""
+    
+    def __init__(self, secret_key: str = None):
+        self.secret_key = secret_key or settings.SECRET_KEY
+    
+    def generate_token(self, session_id: str) -> str:
+        """Generate CSRF token for session"""
+        timestamp = str(int(time.time()))
+        payload = f"{session_id}|{timestamp}"
+        
+        token = hmac.new(
+            self.secret_key.encode(),
+            payload.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        return f"{timestamp}.{token}"
+    
+    def validate_token(self, token: str, session_id: str, max_age: int = 3600) -> bool:
+        """Validate CSRF token"""
+        try:
+            timestamp_str, token_hash = token.split('.', 1)
+            timestamp = int(timestamp_str)
+            
+            # Check token age
+            current_time = int(time.time())
+            if current_time - timestamp > max_age:
+                return False
+            
+            # Verify token
+            expected_token = self.generate_token(session_id).split('.', 1)[1]
+            return hmac.compare_digest(token_hash, expected_token)
+            
+        except (ValueError, IndexError):
+            return False
 
-class APIKeyManager:
-    """API key validation and management"""
+# SQL Injection Prevention
+class SQLSanitizer:
+    """SQL injection prevention utilities"""
     
     @staticmethod
-    def validate_openai_key(api_key: str) -> bool:
-        """Validate OpenAI API key format"""
-        if not api_key or not api_key.startswith('sk-'):
-            return False
-        return len(api_key) > 20
-
-    @staticmethod
-    def validate_supabase_key(api_key: str) -> bool:
-        """Validate Supabase API key format"""
-        if not api_key:
-            return False
-        return len(api_key) > 50
-
-    @staticmethod
-    def generate_api_key() -> str:
-        """Generate secure API key"""
-        return f"pam_{secrets.token_urlsafe(32)}"
-
-    @staticmethod
-    def hash_api_key(api_key: str) -> str:
-        """Hash API key for storage"""
-        return hashlib.sha256(api_key.encode()).hexdigest()
-
-def rate_limit(max_requests: int = 60, window_minutes: int = 1):
-    """Rate limiting decorator"""
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(request: Request, *args, **kwargs):
-            # Get client identifier (IP address or user ID)
-            client_id = request.client.host if request.client else "unknown"
-            
-            # Get user ID from token if available
-            try:
-                auth_header = request.headers.get("Authorization")
-                if auth_header and auth_header.startswith("Bearer "):
-                    token = auth_header.split(" ")[1]
-                    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-                    client_id = payload.get("sub", client_id)
-            except:
-                pass  # Use IP address as fallback
-            
-            current_time = time.time()
-            window_start = current_time - (window_minutes * 60)
-            
-            # Clean old entries
-            if client_id in rate_limit_storage:
-                rate_limit_storage[client_id] = [
-                    timestamp for timestamp in rate_limit_storage[client_id]
-                    if timestamp > window_start
-                ]
-            else:
-                rate_limit_storage[client_id] = []
-            
-            # Check rate limit
-            if len(rate_limit_storage[client_id]) >= max_requests:
-                raise RateLimitError(
-                    message=f"Rate limit exceeded. Max {max_requests} requests per {window_minutes} minute(s)",
-                    error_code="RATE_LIMIT_EXCEEDED"
-                )
-            
-            # Add current request
-            rate_limit_storage[client_id].append(current_time)
-            
-            return await func(request, *args, **kwargs)
-        return wrapper
-    return decorator
-
-class RequestSanitizer:
-    """Request sanitization utilities"""
+    def sanitize_identifier(identifier: str) -> str:
+        """Sanitize SQL identifiers (table/column names)"""
+        # Remove any non-alphanumeric characters except underscores
+        sanitized = ''.join(c for c in identifier if c.isalnum() or c == '_')
+        
+        # Ensure it doesn't start with a number
+        if sanitized and sanitized[0].isdigit():
+            sanitized = f"_{sanitized}"
+        
+        return sanitized
     
     @staticmethod
-    def sanitize_input(text: str) -> str:
-        """Sanitize user input to prevent XSS and injection attacks"""
-        if not text:
-            return ""
-        
-        # Remove potentially dangerous characters
-        sanitized = re.sub(r'[<>"\';()&+]', '', text)
-        
-        # Limit length
-        if len(sanitized) > 1000:
-            sanitized = sanitized[:1000]
-        
-        return sanitized.strip()
-
+    def validate_order_by(column: str, allowed_columns: list) -> str:
+        """Validate ORDER BY column against whitelist"""
+        if column not in allowed_columns:
+            raise ValueError(f"Invalid column for ordering: {column}")
+        return column
+    
     @staticmethod
-    def validate_email(email: str) -> bool:
-        """Validate email format"""
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        return re.match(pattern, email) is not None
+    def validate_limit(limit: int, max_limit: int = 1000) -> int:
+        """Validate and cap LIMIT values"""
+        if limit < 1:
+            return 1
+        return min(limit, max_limit)
 
-    @staticmethod
-    def validate_uuid(uuid_string: str) -> bool:
-        """Validate UUID format"""
-        pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        return re.match(pattern, uuid_string.lower()) is not None
-
-def get_cors_middleware():
-    """Configure CORS middleware"""
-    return CORSMiddleware(
-        allow_origins=settings.ALLOWED_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allow_headers=["*"],
-        expose_headers=["X-Request-ID", "X-Rate-Limit-Remaining"],
+# Security Headers
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' wss: https:; "
+        "font-src 'self' data:; "
+        "object-src 'none'; "
+        "media-src 'self'; "
+        "frame-src 'none';"
+    ),
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": (
+        "geolocation=(), microphone=(), camera=(), "
+        "payment=(), usb=(), magnetometer=(), gyroscope=()"
     )
+}
 
-def get_security_headers():
-    """Get security headers for responses"""
-    return {
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
-    }
-
-def create_secure_response(data: Any, status_code: int = 200) -> JSONResponse:
-    """Create response with security headers"""
-    response = JSONResponse(content=data, status_code=status_code)
+# Rate limiting storage (in-memory for simplicity, use Redis in production)
+class RateLimiter:
+    """Simple rate limiter for API endpoints"""
     
-    # Add security headers
-    for header, value in get_security_headers().items():
-        response.headers[header] = value
+    def __init__(self):
+        self.requests = {}
     
-    return response
+    def is_allowed(self, key: str, limit: int, window: int) -> bool:
+        """Check if request is within rate limit"""
+        current_time = time.time()
+        window_start = current_time - window
+        
+        # Clean old entries
+        if key in self.requests:
+            self.requests[key] = [req_time for req_time in self.requests[key] if req_time > window_start]
+        else:
+            self.requests[key] = []
+        
+        # Check current count
+        if len(self.requests[key]) >= limit:
+            return False
+        
+        # Add current request
+        self.requests[key].append(current_time)
+        return True
 
-def require_permission(permission: str):
-    """Decorator to require specific permission"""
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # This would integrate with your user permission system
-            # For now, just a placeholder
-            return await func(*args, **kwargs)
-        return wrapper
-    return decorator
+# Security utilities
+def generate_secure_token(length: int = 32) -> str:
+    """Generate cryptographically secure random token"""
+    return secrets.token_urlsafe(length)
 
-# Signature verification for webhooks
-def verify_webhook_signature(payload: bytes, signature: str, secret: str) -> bool:
-    """Verify webhook signature"""
-    expected_signature = hmac.new(
-        secret.encode('utf-8'),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
-    
-    return hmac.compare_digest(f"sha256={expected_signature}", signature)
+def hash_password(password: str) -> str:
+    """Hash password using secure method"""
+    import bcrypt
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-# Initialize security utilities
-security_manager = SecurityManager()
-password_manager = PasswordManager()
-api_key_manager = APIKeyManager()
-request_sanitizer = RequestSanitizer()
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify password against hash"""
+    import bcrypt
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+# Initialize global instances
+request_signer = RequestSigner()
+csrf_protection = CSRFProtection()
+sql_sanitizer = SQLSanitizer()
+rate_limiter = RateLimiter()

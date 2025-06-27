@@ -1,380 +1,199 @@
 
 """
-Enhanced Database Service with additional methods for PAM nodes
+Database Service
+Centralized database operations with connection pooling and caching.
 """
 
-import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime, date
 import asyncio
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
+import asyncpg
+from backend.app.core.database_pool import db_pool
+from backend.app.core.logging import setup_logging
+from backend.app.services.cache_service import cache_service
+from backend.app.models.domain.pam import PamMemory, IntentType, MemoryType
 
-from app.models.domain.pam import PamMemory, IntentType, MemoryType
-from app.models.domain.user import UserProfile
-from app.models.domain.wheels import Trip, MaintenanceItem, FuelLog
-from app.models.domain.wins import BudgetCategory, Expense
-from app.models.domain.social import SocialPost, SocialGroup
-from app.core.exceptions import DatabaseError
-from app.database.supabase_client import get_supabase
-
-logger = logging.getLogger("database_service")
+logger = setup_logging()
 
 class DatabaseService:
-    """Enhanced database service with comprehensive data access methods"""
+    """Enhanced database service with pooling and caching"""
     
     def __init__(self):
-        self.client = get_supabase()
+        self.pool = None
+        self.cache = cache_service
     
-    # Memory operations
-    async def store_memory(self, memory: PamMemory) -> bool:
-        """Store a memory in the database"""
-        try:
-            data = memory.model_dump()
-            result = self.client.table('pam_memory').insert(data).execute()
-            return len(result.data) > 0
-        except Exception as e:
-            logger.error(f"Failed to store memory: {str(e)}")
-            raise DatabaseError(f"Memory storage failed: {str(e)}")
+    async def initialize(self):
+        """Initialize database connection pool"""
+        self.pool = await db_pool.get_pool()
+        logger.info("Database service initialized with connection pool")
     
-    async def search_memories(self, user_id: str, query: str, 
-                            intent_type: Optional[IntentType] = None,
-                            limit: int = 5) -> List[PamMemory]:
-        """Search for memories"""
+    async def get_connection(self):
+        """Get database connection from pool"""
+        if not self.pool:
+            await self.initialize()
+        return await self.pool.acquire()
+    
+    async def release_connection(self, connection):
+        """Release connection back to pool"""
+        if self.pool:
+            await self.pool.release(connection)
+    
+    async def execute_query(self, query: str, *args, cache_key: str = None, cache_ttl: int = 300):
+        """Execute query with optional caching"""
+        if cache_key:
+            cached_result = await self.cache.get(cache_key)
+            if cached_result:
+                return cached_result
+        
+        connection = await self.get_connection()
         try:
-            query_builder = self.client.table('pam_memory').select('*').eq('user_id', user_id)
+            result = await connection.fetch(query, *args)
             
-            if intent_type:
-                query_builder = query_builder.eq('intent', intent_type.value)
+            if cache_key and result:
+                await self.cache.set(cache_key, result, cache_ttl)
             
-            # Simple text search - in production, use full-text search
-            query_builder = query_builder.ilike('content', f'%{query}%')
-            query_builder = query_builder.order('created_at', desc=True).limit(limit)
-            
-            result = query_builder.execute()
-            return [PamMemory(**item) for item in result.data]
-        except Exception as e:
-            logger.error(f"Memory search failed: {str(e)}")
-            return []
+            return result
+        finally:
+            await self.release_connection(connection)
     
-    async def get_user_memories(self, user_id: str, memory_type: Optional[MemoryType] = None,
-                              limit: int = 10) -> List[PamMemory]:
-        """Get recent memories for a user"""
+    async def execute_single(self, query: str, *args):
+        """Execute query returning single result"""
+        connection = await self.get_connection()
         try:
-            query_builder = self.client.table('pam_memory').select('*').eq('user_id', user_id)
-            
-            if memory_type:
-                query_builder = query_builder.eq('memory_type', memory_type.value)
-                
-            query_builder = query_builder.order('created_at', desc=True).limit(limit)
-            result = query_builder.execute()
-            return [PamMemory(**item) for item in result.data]
-        except Exception as e:
-            logger.error(f"Failed to get user memories: {str(e)}")
-            return []
+            return await connection.fetchrow(query, *args)
+        finally:
+            await self.release_connection(connection)
     
-    # User profile operations
-    async def get_user_profile(self, user_id: str) -> Optional[UserProfile]:
-        """Get user profile"""
+    async def execute_mutation(self, query: str, *args):
+        """Execute insert/update/delete query"""
+        connection = await self.get_connection()
         try:
-            result = self.client.table('profiles').select('*').eq('user_id', user_id).execute()
-            if result.data:
-                return UserProfile(**result.data[0])
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get user profile: {str(e)}")
-            return None
+            return await connection.execute(query, *args)
+        finally:
+            await self.release_connection(connection)
     
-    async def get_user_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Get user preferences"""
-        try:
-            result = self.client.table('user_settings').select('preferences').eq('user_id', user_id).execute()
-            if result.data:
-                return result.data[0].get('preferences', {})
-            return {}
-        except Exception as e:
-            logger.error(f"Failed to get user preferences: {str(e)}")
-            return {}
+    # PAM-specific methods
+    async def get_user_memories(self, user_id: str, memory_type: MemoryType = None, limit: int = 100):
+        """Get user memories with caching"""
+        cache_key = f"memories:{user_id}:{memory_type}:{limit}"
+        
+        if memory_type:
+            query = """
+                SELECT * FROM pam_memory 
+                WHERE user_id = $1 AND memory_type = $2 
+                ORDER BY created_at DESC LIMIT $3
+            """
+            return await self.execute_query(query, user_id, memory_type.value, limit, cache_key=cache_key)
+        else:
+            query = """
+                SELECT * FROM pam_memory 
+                WHERE user_id = $1 
+                ORDER BY created_at DESC LIMIT $2
+            """
+            return await self.execute_query(query, user_id, limit, cache_key=cache_key)
     
-    async def get_onboarding_data(self, user_id: str) -> Optional[Any]:
-        """Get user onboarding data"""
-        try:
-            result = self.client.table('onboarding_responses').select('*').eq('user_id', user_id).execute()
-            if result.data:
-                return result.data[0]
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get onboarding data: {str(e)}")
-            return None
+    async def store_memory(self, memory: PamMemory):
+        """Store new memory and invalidate cache"""
+        query = """
+            INSERT INTO pam_memory (user_id, memory_type, content, context, confidence, expires_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id
+        """
+        
+        result = await self.execute_single(
+            query,
+            memory.user_id,
+            memory.memory_type.value,
+            memory.content,
+            memory.context,
+            memory.confidence,
+            memory.expires_at
+        )
+        
+        # Invalidate related caches
+        await self.cache.delete_pattern(f"memories:{memory.user_id}:*")
+        
+        return result['id'] if result else None
     
-    # Financial operations
-    async def get_budget_categories(self, user_id: str) -> List[BudgetCategory]:
-        """Get budget categories for user"""
-        try:
-            result = self.client.table('budget_categories').select('*').eq('user_id', user_id).execute()
-            return [BudgetCategory(**item) for item in result.data]
-        except Exception as e:
-            logger.error(f"Failed to get budget categories: {str(e)}")
-            return []
+    async def get_conversation_context(self, user_id: str, limit: int = 10):
+        """Get recent conversation context"""
+        cache_key = f"context:{user_id}:{limit}"
+        
+        query = """
+            SELECT user_message, pam_response, detected_intent, created_at
+            FROM pam_conversation_memory 
+            WHERE user_id = $1 
+            ORDER BY created_at DESC LIMIT $2
+        """
+        
+        return await self.execute_query(query, user_id, limit, cache_key=cache_key, cache_ttl=60)
     
-    async def get_recent_expenses(self, user_id: str, limit: int = 5) -> List[Expense]:
-        """Get recent expenses"""
-        try:
-            result = (self.client.table('expenses')
-                     .select('*')
-                     .eq('user_id', user_id)
-                     .order('date', desc=True)
-                     .limit(limit)
-                     .execute())
-            return [Expense(**item) for item in result.data]
-        except Exception as e:
-            logger.error(f"Failed to get recent expenses: {str(e)}")
-            return []
+    async def store_conversation(self, user_id: str, session_id: str, message_data: Dict[str, Any]):
+        """Store conversation with cache invalidation"""
+        query = """
+            INSERT INTO pam_conversation_memory 
+            (user_id, session_id, user_message, pam_response, detected_intent, 
+             intent_confidence, context_used, entities_extracted, node_used, response_time_ms)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        """
+        
+        await self.execute_mutation(
+            query,
+            user_id,
+            session_id,
+            message_data.get('user_message'),
+            message_data.get('pam_response'),
+            message_data.get('detected_intent'),
+            message_data.get('intent_confidence'),
+            message_data.get('context_used'),
+            message_data.get('entities_extracted'),
+            message_data.get('node_used'),
+            message_data.get('response_time_ms')
+        )
+        
+        # Invalidate context cache
+        await self.cache.delete_pattern(f"context:{user_id}:*")
     
-    async def get_budget_summary(self, user_id: str) -> Dict[str, float]:
-        """Get budget summary"""
-        try:
-            result = self.client.table('budget_summary').select('*').eq('user_id', user_id).execute()
-            if result.data:
-                return result.data[0]
-            return {}
-        except Exception as e:
-            logger.error(f"Failed to get budget summary: {str(e)}")
-            return {}
+    async def get_user_preferences(self, user_id: str):
+        """Get user preferences with caching"""
+        cache_key = f"preferences:{user_id}"
+        
+        query = """
+            SELECT preferences FROM user_profiles WHERE user_id = $1
+        """
+        
+        result = await self.execute_single(query, user_id)
+        return result['preferences'] if result else {}
     
-    async def get_monthly_spending(self, user_id: str) -> Dict[str, Any]:
-        """Get monthly spending data"""
-        try:
-            # Get current month expenses
-            result = (self.client.table('expenses')
-                     .select('category, amount')
-                     .eq('user_id', user_id)
-                     .gte('date', datetime.now().replace(day=1).date())
-                     .execute())
-            
-            spending_by_category = {}
-            total_spent = 0
-            
-            for expense in result.data:
-                category = expense['category']
-                amount = float(expense['amount'])
-                spending_by_category[category] = spending_by_category.get(category, 0) + amount
-                total_spent += amount
-            
-            return {
-                'total_spent': total_spent,
-                'by_category': spending_by_category
-            }
-        except Exception as e:
-            logger.error(f"Failed to get monthly spending: {str(e)}")
-            return {}
+    async def update_user_preferences(self, user_id: str, preferences: Dict[str, Any]):
+        """Update user preferences and invalidate cache"""
+        query = """
+            UPDATE user_profiles 
+            SET preferences = preferences || $2, updated_at = NOW()
+            WHERE user_id = $1
+        """
+        
+        await self.execute_mutation(query, user_id, preferences)
+        await self.cache.delete(f"preferences:{user_id}")
     
-    # Travel operations
-    async def get_recent_trips(self, user_id: str, limit: int = 3) -> List[Dict[str, Any]]:
-        """Get recent trips"""
-        try:
-            # Note: Assuming we have a trips table structure
-            result = (self.client.table('travel_plans')
-                     .select('*')
-                     .eq('user_id', user_id)
-                     .order('created_at', desc=True)
-                     .limit(limit)
-                     .execute())
-            return result.data
-        except Exception as e:
-            logger.error(f"Failed to get recent trips: {str(e)}")
-            return []
-    
-    async def get_active_trips(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get active trips"""
-        try:
-            result = (self.client.table('travel_plans')
-                     .select('*')
-                     .eq('user_id', user_id)
-                     .eq('is_active', True)
-                     .execute())
-            return result.data
-        except Exception as e:
-            logger.error(f"Failed to get active trips: {str(e)}")
-            return []
-    
-    async def get_next_planned_trip(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Get next planned trip"""
-        try:
-            result = (self.client.table('travel_plans')
-                     .select('*')
-                     .eq('user_id', user_id)
-                     .gte('start_date', datetime.now().date())
-                     .order('start_date')
-                     .limit(1)
-                     .execute())
-            return result.data[0] if result.data else None
-        except Exception as e:
-            logger.error(f"Failed to get next planned trip: {str(e)}")
-            return None
-    
-    async def get_popular_camping_locations(self, limit: int = 4) -> List[Dict[str, Any]]:
-        """Get popular camping locations"""
-        try:
-            result = (self.client.table('camping_locations')
-                     .select('*')
-                     .order('user_ratings', desc=True)
-                     .limit(limit)
-                     .execute())
-            return result.data
-        except Exception as e:
-            logger.error(f"Failed to get popular camping locations: {str(e)}")
-            return []
-    
-    async def get_recent_fuel_logs(self, user_id: str, limit: int = 3) -> List[FuelLog]:
-        """Get recent fuel logs"""
-        try:
-            result = (self.client.table('fuel_log')
-                     .select('*')
-                     .eq('user_id', user_id)
-                     .order('date', desc=True)
-                     .limit(limit)
-                     .execute())
-            return [FuelLog(**item) for item in result.data]
-        except Exception as e:
-            logger.error(f"Failed to get recent fuel logs: {str(e)}")
-            return []
-    
-    async def get_maintenance_due(self, user_id: str) -> List[MaintenanceItem]:
-        """Get maintenance items that are due"""
-        try:
-            result = (self.client.table('maintenance_records')
-                     .select('*')
-                     .eq('user_id', user_id)
-                     .in_('status', ['due', 'overdue'])
-                     .order('next_due_date')
-                     .execute())
-            return [MaintenanceItem(**item) for item in result.data]
-        except Exception as e:
-            logger.error(f"Failed to get maintenance due: {str(e)}")
-            return []
-    
-    # Social operations
-    async def get_user_groups(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get user's social groups"""
-        try:
-            result = (self.client.table('group_memberships')
-                     .select('*, social_groups(*)')
-                     .eq('user_id', user_id)
-                     .eq('is_active', True)
-                     .execute())
-            return [item['social_groups'] for item in result.data if item.get('social_groups')]
-        except Exception as e:
-            logger.error(f"Failed to get user groups: {str(e)}")
-            return []
-    
-    async def get_user_recent_posts(self, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """Get user's recent posts"""
-        try:
-            result = (self.client.table('social_posts')
-                     .select('*')
-                     .eq('user_id', user_id)
-                     .order('created_at', desc=True)
-                     .limit(limit)
-                     .execute())
-            return result.data
-        except Exception as e:
-            logger.error(f"Failed to get user recent posts: {str(e)}")
-            return []
-    
-    async def get_recommended_groups(self, user_id: str, limit: int = 4) -> List[Dict[str, Any]]:
-        """Get recommended groups for user"""
-        try:
-            # Simple implementation - get popular groups user hasn't joined
-            user_group_ids = [g.get('id') for g in await self.get_user_groups(user_id)]
-            
-            query_builder = self.client.table('social_groups').select('*')
-            if user_group_ids:
-                query_builder = query_builder.not_.in_('id', user_group_ids)
-            
-            result = (query_builder
-                     .order('member_count', desc=True)
-                     .limit(limit)
-                     .execute())
-            return result.data
-        except Exception as e:
-            logger.error(f"Failed to get recommended groups: {str(e)}")
-            return []
-    
-    async def get_trending_topics(self, limit: int = 4) -> List[Dict[str, Any]]:
-        """Get trending topics"""
-        try:
-            # Simple implementation - get most active categories
-            result = (self.client.table('social_posts')
-                     .select('category')
-                     .gte('created_at', datetime.now().replace(hour=0, minute=0, second=0))
-                     .execute())
-            
-            # Count categories
-            category_counts = {}
-            for post in result.data:
-                category = post.get('category', 'general')
-                category_counts[category] = category_counts.get(category, 0) + 1
-            
-            # Return top categories
-            sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
-            return [{'name': cat, 'count': count} for cat, count in sorted_categories[:limit]]
-        except Exception as e:
-            logger.error(f"Failed to get trending topics: {str(e)}")
-            return []
-    
-    async def get_upcoming_events(self, user_id: str, limit: int = 3) -> List[Dict[str, Any]]:
-        """Get upcoming events for user"""
-        try:
-            result = (self.client.table('local_events')
-                     .select('*')
-                     .gte('start_date', datetime.now().date())
-                     .order('start_date')
-                     .limit(limit)
-                     .execute())
-            return result.data
-        except Exception as e:
-            logger.error(f"Failed to get upcoming events: {str(e)}")
-            return []
-    
-    # Utility methods
-    async def get_memory_statistics(self, user_id: str) -> Dict[str, Any]:
-        """Get memory usage statistics"""
-        try:
-            result = (self.client.table('pam_memory')
-                     .select('memory_type')
-                     .eq('user_id', user_id)
-                     .execute())
-            
-            total_memories = len(result.data)
-            memory_types = {}
-            
-            for memory in result.data:
-                mem_type = memory.get('memory_type', 'general')
-                memory_types[mem_type] = memory_types.get(mem_type, 0) + 1
-            
-            return {
-                'total_memories': total_memories,
-                'by_type': memory_types,
-                'last_updated': datetime.now().isoformat()
-            }
-        except Exception as e:
-            logger.error(f"Failed to get memory statistics: {str(e)}")
-            return {}
-    
-    async def cleanup_old_memories(self, user_id: str, days_old: int = 90) -> int:
-        """Clean up old memories"""
-        try:
-            cutoff_date = datetime.now().replace(hour=0, minute=0, second=0) - timedelta(days=days_old)
-            
-            result = (self.client.table('pam_memory')
-                     .delete()
-                     .eq('user_id', user_id)
-                     .lt('created_at', cutoff_date.isoformat())
-                     .execute())
-            
-            return len(result.data) if result.data else 0
-        except Exception as e:
-            logger.error(f"Failed to cleanup old memories: {str(e)}")
-            return 0
+    async def cleanup_expired_data(self):
+        """Clean up expired memories and sessions"""
+        queries = [
+            "DELETE FROM pam_memory WHERE expires_at < NOW()",
+            "DELETE FROM pam_conversation_sessions WHERE session_end < NOW() - INTERVAL '7 days'",
+            "DELETE FROM audio_cache WHERE expires_at < NOW()"
+        ]
+        
+        for query in queries:
+            await self.execute_mutation(query)
+        
+        logger.info("Cleanup completed for expired data")
 
-# Create singleton instance
+# Global database service instance
 database_service = DatabaseService()
+
+async def get_database_service() -> DatabaseService:
+    """Get database service instance"""
+    if not database_service.pool:
+        await database_service.initialize()
+    return database_service

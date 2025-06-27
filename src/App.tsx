@@ -42,7 +42,7 @@ function App() {
                     <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
                     <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                     <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
-                    <Route path="/shop" element={<ProtectedRoute><Shop /></ProtectedRoute>} />
+                    <Route path="/shop" element={<Shop />} />
                     <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/login" element={<Login />} />

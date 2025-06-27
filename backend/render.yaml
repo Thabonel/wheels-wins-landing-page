@@ -1,0 +1,83 @@
+
+services:
+  - type: web
+    name: pam-backend
+    env: python
+    plan: free
+    runtime: python-3.11
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+    autoDeploy: true
+    healthCheckPath: /api/health
+
+  - type: redis
+    name: pam-redis
+    plan: free
+    ipAllowList: []
+
+  - type: worker
+    name: pam-celery-worker
+    env: python
+    runtime: python-3.11
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.workers.celery worker --loglevel=info
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+    autoDeploy: true
+
+  - type: worker
+    name: pam-celery-beat
+    env: python
+    runtime: python-3.11
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.workers.celery beat --loglevel=info
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+    autoDeploy: true

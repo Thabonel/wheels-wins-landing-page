@@ -7,13 +7,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase";
 
 const UserMenu = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isDevMode } = useAuth();
   const navigate = useNavigate();
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfileImage = async () => {
-      if (!user || !isAuthenticated) return;
+      if (!user || (!isAuthenticated && !isDevMode)) return;
 
       const { data } = await supabase
         .from('profiles')
@@ -27,10 +27,11 @@ const UserMenu = () => {
     };
 
     fetchProfileImage();
-  }, [user, isAuthenticated]);
+  }, [user, isAuthenticated, isDevMode]);
 
-  // Don't render if not authenticated
-  if (!isAuthenticated || !user) {
+  // Don't render if not authenticated (including dev mode check)
+  const effectivelyAuthenticated = isAuthenticated || isDevMode;
+  if (!effectivelyAuthenticated || !user) {
     return null;
   }
 
