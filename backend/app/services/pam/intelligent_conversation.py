@@ -797,3 +797,4 @@ Return ONLY a JSON array of strings: ["suggestion1", "suggestion2", "suggestion3
 
 # For backward compatibility - alias the enhanced class
 IntelligentConversation = AdvancedIntelligentConversation
+IntelligentConversationService = AdvancedIntelligentConversation
