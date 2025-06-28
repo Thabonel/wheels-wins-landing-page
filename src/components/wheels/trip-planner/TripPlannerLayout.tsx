@@ -105,7 +105,7 @@ export default function TripPlannerLayout({
         {/* Map Overlays */}
         <div className="absolute inset-0 pointer-events-none">
           {/* Friends Layer - Always render but conditionally visible */}
-          <FriendsLayer />
+          <FriendsLayer map={null} isVisible={true} />
 
           {/* PAM Suggestions Overlay */}
           {integratedState.pam.suggestions.length > 0 && (
@@ -121,6 +121,8 @@ export default function TripPlannerLayout({
               <MeetupSuggestions 
                 suggestions={integratedState.social.meetupSuggestions}
                 onAcceptMeetup={(suggestion) => console.log('Accept meetup:', suggestion)}
+                isVisible={true}
+                onDismissMeetup={(suggestion) => console.log('Dismiss meetup:', suggestion)}
               />
             </div>
           )}
@@ -174,6 +176,9 @@ export default function TripPlannerLayout({
                 friends={integratedState.social.friends}
                 groupTrips={integratedState.social.groupTrips}
                 onCreateGroupTrip={() => console.log('Create group trip')}
+                isOpen={true}
+                onClose={() => integratedState.toggleFeature('social')}
+                calendarEvents={[]}
               />
             )}
           </div>
@@ -217,10 +222,13 @@ export default function TripPlannerLayout({
             </div>
             <div className="p-4">
               <NavigationExportHub 
-                onExport={(options) => {
-                  console.log('Exporting with options:', options);
-                  integratedState.toggleFeature('export');
-                }}
+                isOpen={true}
+                onClose={() => integratedState.toggleFeature('export')}
+                origin="Origin"
+                destination="Destination"
+                waypoints={[]}
+                dailyRoutes={[]}
+                estimatedCosts={{}}
               />
             </div>
           </div>
