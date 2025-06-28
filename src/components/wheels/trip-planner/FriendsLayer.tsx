@@ -111,7 +111,7 @@ export default function FriendsLayer({ map, isVisible }: FriendsLayerProps) {
 
   // Create and update friend markers on map
   useEffect(() => {
-    if (!map.current || !isVisible) {
+    if (!map?.current || !isVisible) {
       // Remove all markers if not visible
       Object.values(markersRef.current).forEach(marker => marker.remove());
       markersRef.current = {};
