@@ -28,6 +28,7 @@ import IntegratedTripPlanner from './trip-planner/IntegratedTripPlanner';
 import PAMTripChat from './trip-planner/PAMTripChat';
 import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
 import PAMTripSuggestions from './trip-planner/PAMTripSuggestions';
+import BudgetSidebar from './trip-planner/BudgetSidebar';
 import { useIntegratedTripState } from './trip-planner/hooks/useIntegratedTripState';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -586,10 +587,8 @@ export default function TripPlannerApp() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="text-center py-12">
-                <DollarSign className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Budget Management</h2>
-                <p className="text-muted-foreground">Budget tracking and expense management coming soon!</p>
+              <div className="flex h-[600px]">
+                <BudgetSidebar isVisible={true} onClose={() => {}} />
               </div>
             </motion.div>
           )}
@@ -602,11 +601,12 @@ export default function TripPlannerApp() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Social Trip Coordination</h2>
-                <p className="text-muted-foreground">Plan trips with friends and family coming soon!</p>
-              </div>
+              <SocialTripCoordinator 
+                isOpen={true} 
+                onClose={() => {}}
+                currentRoute={integratedState.route}
+                currentBudget={integratedState.budget}
+              />
             </motion.div>
           )}
         </AnimatePresence>
