@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { defaultCategories, categoryColors as defaultCategoryColors } from "@/components/wins/expenses/mockData";
 import { useOffline } from "@/context/OfflineContext";

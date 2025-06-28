@@ -13,7 +13,7 @@ import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { TravelPreferences } from "@/components/profile/TravelPreferences";
 import { VehicleSetup } from "@/components/profile/VehicleSetup";
 import { UserKnowledgeManager } from "@/components/knowledge/UserKnowledgeManager";
-import { supabase } from "@/integrations/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { PrivacySettings } from "@/components/settings/PrivacySettings";
