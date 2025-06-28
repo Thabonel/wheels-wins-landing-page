@@ -38,6 +38,7 @@ const PamChatController = () => {
 
   // Use WebSocket connection to our new PAM backend
   // Use real WebSocket connection to our PAM backend
+  const { token } = useAuth();
   const { isConnected, sendMessage: sendWebSocketMessage } = usePamWebSocketConnection({
     userId: user?.id || 'anonymous',
     onMessage: (message) => {
