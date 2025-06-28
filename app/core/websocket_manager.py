@@ -1,23 +1,40 @@
+from typing import List, Dict
+import asyncio
+import json
+from fastapi import WebSocket
 
-# Legacy compatibility import
-# from backend.app.services.websocket_manager import websocket_manager as manager
-
-# Keep the existing simple interface for backward compatibility
 class ConnectionManager:
     def __init__(self):
-        self.manager = manager
+        self.active_connections: List[WebSocket] = []
+        self.user_connections: Dict[str, WebSocket] = {}
 
-    async def connect(self, websocket, user_id: str, connection_id: str):
-        await self.manager.connect(websocket, user_id, connection_id)
+    async def connect(self, websocket: WebSocket, user_id: str = None):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        if user_id:
+            self.user_connections[user_id] = websocket
 
-    async def disconnect(self, user_id: str, connection_id: str):
-        await self.manager.disconnect(user_id, connection_id)
+    def disconnect(self, websocket: WebSocket, user_id: str = None):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        if user_id and user_id in self.user_connections:
+            del self.user_connections[user_id]
 
-    async def send_personal_message(self, message: dict, user_id: str):
-        return await self.manager.send_personal_message(message, user_id)
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
 
-    async def broadcast(self, message: dict):
-        await self.manager.broadcast(message)
+    async def send_message_to_user(self, message: str, user_id: str):
+        if user_id in self.user_connections:
+            websocket = self.user_connections[user_id]
+            await websocket.send_text(message)
 
-# Keep existing manager instance for backward compatibility
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(message)
+            except:
+                # Remove dead connections
+                self.active_connections.remove(connection)
+
+# Create the manager instance
 manager = ConnectionManager()
