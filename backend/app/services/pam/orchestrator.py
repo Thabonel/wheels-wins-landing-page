@@ -21,9 +21,9 @@ from app.services.pam.nodes.social_node import social_node
 from app.services.pam.nodes.you_node import you_node
 from app.services.pam.nodes.memory_node import MemoryNode
 from app.services.pam.intelligent_conversation import IntelligentConversationService
-from app.services.pam.route_intelligence import RouteIntelligenceService
+from app.services.analytics.analytics import Analytics
+from app.services.pam.route_intelligence import RouteIntelligence
 from app.services.pam.context_manager import ContextManager
-from app.services.analytics.analytics import AnalyticsService
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +32,9 @@ class PamOrchestrator:
     
     def __init__(self):
         self.conversation_service = IntelligentConversationService()
-        self.route_intelligence = RouteIntelligenceService()
+        self.route_intelligence = RouteIntelligence()
         self.context_manager = ContextManager()
-        self.analytics = AnalyticsService()
+        self.analytics = Analytics()
         self.memory_node = MemoryNode()
         self.nodes = {
             'wins': wins_node,
@@ -503,6 +503,9 @@ class PamOrchestrator:
         except Exception as e:
             logger.error(f"Error getting analytics summary: {e}")
             return {}
+
+# Backwards compatible class name
+PAMOrchestrator = PamOrchestrator
 
 # Global orchestrator instance
 orchestrator = PamOrchestrator()
