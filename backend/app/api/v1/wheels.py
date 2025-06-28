@@ -13,13 +13,14 @@ from app.models.schemas.wheels import (
     TripResponse, RouteResponse, MaintenanceScheduleResponse
 )
 from app.services.database import get_database_service
+from app.services.pam.route_intelligence import route_intelligence
 from app.core.logging import setup_logging
 
 router = APIRouter()
 logger = setup_logging()
 
 @router.post("/routes/search")
-async def search_routes(request: RouteRequest):
+async def search_routes(request: RouteRequest, user_id: Optional[str] = None):
     """Search for routes and directions"""
     try:
         db_service = await get_database_service()
@@ -37,6 +38,10 @@ async def search_routes(request: RouteRequest):
         routes = await db_service.execute_query(
             query, f"%{request.destination}%"
         )
+
+        search_zones = []
+        if user_id:
+            search_zones = [z.__dict__ for z in await route_intelligence.calculate_search_zones(user_id)]
         
         return RouteResponse(
             origin=request.origin,
@@ -53,7 +58,8 @@ async def search_routes(request: RouteRequest):
                 }
                 for route in routes
             ],
-            total_routes=len(routes)
+            total_routes=len(routes),
+            extra={"search_zones": search_zones}
         )
         
     except Exception as e:
@@ -61,7 +67,7 @@ async def search_routes(request: RouteRequest):
         raise HTTPException(status_code=500, detail="Could not search routes")
 
 @router.post("/locations/search")
-async def search_locations(request: LocationSearchRequest):
+async def search_locations(request: LocationSearchRequest, user_id: Optional[str] = None):
     """Search for camping locations and POIs"""
     try:
         db_service = await get_database_service()
@@ -79,6 +85,10 @@ async def search_locations(request: LocationSearchRequest):
         locations = await db_service.execute_query(
             query, f"%{request.query}%", request.limit or 20
         )
+
+        filters = {}
+        if user_id:
+            filters = await route_intelligence.get_content_filters(user_id)
         
         return {
             "query": request.query,
@@ -101,7 +111,8 @@ async def search_locations(request: LocationSearchRequest):
                 }
                 for loc in locations
             ],
-            "total_found": len(locations)
+            "total_found": len(locations),
+            "applied_filters": filters
         }
         
     except Exception as e:
