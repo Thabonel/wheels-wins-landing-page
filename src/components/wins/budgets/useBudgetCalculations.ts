@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { BudgetCategory, BudgetSummary } from "./types";
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/context/OfflineContext';
 import { useCachedBudgetData } from '@/hooks/useCachedBudgetData';
 
