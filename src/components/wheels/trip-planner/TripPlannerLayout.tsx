@@ -105,18 +105,12 @@ export default function TripPlannerLayout({
         {/* Map Overlays */}
         <div className="absolute inset-0 pointer-events-none">
           {/* Friends Layer - Always render but conditionally visible */}
-          <FriendsLayer 
-            friends={integratedState.social.friends}
-          />
+          <FriendsLayer />
 
           {/* PAM Suggestions Overlay */}
           {integratedState.pam.suggestions.length > 0 && (
             <div className="absolute top-4 left-4 right-4 pointer-events-auto">
-              <PAMTripSuggestions 
-                suggestions={integratedState.pam.suggestions}
-                onAcceptSuggestion={(suggestion) => console.log('Accept suggestion:', suggestion)}
-                onDismissSuggestion={(suggestion) => console.log('Dismiss suggestion:', suggestion)}
-              />
+              <PAMTripSuggestions />
             </div>
           )}
 
@@ -127,7 +121,6 @@ export default function TripPlannerLayout({
               <MeetupSuggestions 
                 suggestions={integratedState.social.meetupSuggestions}
                 onAcceptMeetup={(suggestion) => console.log('Accept meetup:', suggestion)}
-                onDeclineMeetup={(suggestion) => console.log('Decline meetup:', suggestion)}
               />
             </div>
           )}
@@ -180,7 +173,7 @@ export default function TripPlannerLayout({
               <SocialSidebar 
                 friends={integratedState.social.friends}
                 groupTrips={integratedState.social.groupTrips}
-                onCreateGroupTrip={integratedState.social.createGroupTrip}
+                onCreateGroupTrip={() => console.log('Create group trip')}
               />
             )}
           </div>
@@ -224,7 +217,6 @@ export default function TripPlannerLayout({
             </div>
             <div className="p-4">
               <NavigationExportHub 
-                route={integratedState.route}
                 onExport={(options) => {
                   console.log('Exporting with options:', options);
                   integratedState.toggleFeature('export');
