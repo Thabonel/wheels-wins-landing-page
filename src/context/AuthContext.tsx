@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -9,7 +11,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  session: { access_token: string } | null;
+  session: Session | null;
   loading: boolean;
   isAuthenticated: boolean;
   isDevMode: boolean;
@@ -21,137 +23,85 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [session, setSession] = useState<{ access_token: string } | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isDevMode = false; // Remove dev mode dependency
-  const isAuthenticated = !!user && !!token;
+  const isDevMode = false;
+  const isAuthenticated = !!user && !!session;
 
   useEffect(() => {
-    // Check for existing token on app load
-    const savedToken = localStorage.getItem('auth_token');
-    if (savedToken) {
-      setToken(savedToken);
-      setSession({ access_token: savedToken });
-      fetchCurrentUser(savedToken);
-    } else {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setToken(session?.access_token ?? null);
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email!,
+            full_name: session.user.user_metadata?.full_name
+          });
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setToken(session?.access_token ?? null);
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          full_name: session.user.user_metadata?.full_name
+        });
+      }
       setLoading(false);
-    }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const fetchCurrentUser = async (authToken: string) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        // Token invalid, clear it
-        localStorage.removeItem('auth_token');
-        setToken(null);
-        setSession(null);
-        setUser(null);
-      }
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      localStorage.removeItem('auth_token');
-      setToken(null);
-      setSession(null);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const signIn = async (email: string, password: string) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Login failed');
-      }
-
-      const data = await response.json();
-      const authToken = data.access_token;
-      
-      setToken(authToken);
-      setSession({ access_token: authToken });
-      localStorage.setItem('auth_token', authToken);
-      
-      await fetchCurrentUser(authToken);
-    } catch (error) {
-      console.error('Sign in error:', error);
+    if (error) {
       throw error;
     }
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          email, 
-          password, 
-          full_name: fullName 
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Registration failed');
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          full_name: fullName
+        }
       }
+    });
 
-      const data = await response.json();
-      const authToken = data.access_token;
-      
-      setToken(authToken);
-      setSession({ access_token: authToken });
-      localStorage.setItem('auth_token', authToken);
-      
-      await fetchCurrentUser(authToken);
-    } catch (error) {
-      console.error('Sign up error:', error);
+    if (error) {
       throw error;
     }
   };
 
   const signOut = async () => {
-    try {
-      if (token) {
-        await fetch(`${BACKEND_URL}/api/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
-    } catch (error) {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
       console.error('Logout error:', error);
-    } finally {
-      setToken(null);
-      setSession(null);
-      setUser(null);
-      localStorage.removeItem('auth_token');
     }
   };
 
