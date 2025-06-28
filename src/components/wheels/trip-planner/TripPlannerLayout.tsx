@@ -104,8 +104,8 @@ export default function TripPlannerLayout({
 
         {/* Map Overlays */}
         <div className="absolute inset-0 pointer-events-none">
-          {/* Friends Layer - Always render but conditionally visible */}
-          <FriendsLayer map={null} isVisible={true} />
+          {/* Friends Layer - Only render when map is available */}
+          {/* FriendsLayer map={mapRef} isVisible={true} */}
 
           {/* PAM Suggestions Overlay */}
           {integratedState.pam.suggestions.length > 0 && (

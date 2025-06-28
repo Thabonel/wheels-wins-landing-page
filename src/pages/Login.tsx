@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,11 @@ const Login = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
-  if (isAuthenticated) navigate("/you");
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/you");
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleLoginSuccess = () => {
     navigate("/you");
