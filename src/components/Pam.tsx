@@ -100,7 +100,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (!user?.id) return;
 
     try {
-      const wsUrl = `${getWebSocketUrl('/api/pam/ws')}?token=${sessionToken || 'demo-token'}`;
+      const wsUrl = `${getWebSocketUrl('/api/ws')}?token=${sessionToken || 'demo-token'}`;
       
       setConnectionStatus("Connecting");
       wsRef.current = new WebSocket(wsUrl);
