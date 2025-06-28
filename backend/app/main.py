@@ -109,6 +109,7 @@ app.include_router(wins.router, prefix="/api", tags=["Wins"])
 app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api", tags=["PAM"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 
 # Global exception handler with monitoring
 @app.exception_handler(Exception)
