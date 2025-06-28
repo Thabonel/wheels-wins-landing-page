@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { Loader2 } from "lucide-react";
 import { useRegion } from "@/context/RegionContext";
 import { useOffline } from "@/context/OfflineContext";
@@ -57,7 +58,7 @@ const PamMobileChat = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <img src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp" alt="Pam" />
+              <img src={getPublicAssetUrl('Pam.webp')} alt="Pam" />
             </Avatar>
             <div>
               <h3 className="font-bold">Chat with Pam</h3>

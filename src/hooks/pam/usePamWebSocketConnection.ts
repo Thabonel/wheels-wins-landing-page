@@ -3,11 +3,12 @@ import { getWebSocketUrl } from '@/services/api';
 
 interface WebSocketConnectionConfig {
   userId: string;
+  token?: string;
   onMessage: (message: any) => void;
   onStatusChange: (isConnected: boolean) => void;
 }
 
-export function usePamWebSocketConnection({ userId, onMessage, onStatusChange }: WebSocketConnectionConfig) {
+export function usePamWebSocketConnection({ userId, token, onMessage, onStatusChange }: WebSocketConnectionConfig) {
   const ws = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
@@ -45,7 +46,7 @@ export function usePamWebSocketConnection({ userId, onMessage, onStatusChange }:
     }
 
     try {
-      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}?token=${token || "demo-token"}`;
+      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}?token=${token || 'demo-token'}`;
       console.log('🔌 Attempting PAM WebSocket connection:', wsUrl);
       
       ws.current = new WebSocket(wsUrl);
@@ -96,7 +97,7 @@ export function usePamWebSocketConnection({ userId, onMessage, onStatusChange }:
         scheduleReconnect();
       }
     }
-  }, [userId, onMessage, updateConnectionStatus, scheduleReconnect]);
+  }, [userId, token, onMessage, updateConnectionStatus, scheduleReconnect]);
 
   // Auto-connect when userId changes
   useEffect(() => {

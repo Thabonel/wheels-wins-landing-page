@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { useAuth } from "@/context/AuthContext";
 import { SocialGroup, SocialPost } from "./types";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
@@ -65,7 +66,7 @@ export default function SocialGroups() {
           id: group.id,
           name: group.name,
           description: group.description || '',
-          cover: group.avatar_url || 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg',
+          cover: group.avatar_url || getPublicAssetUrl('placeholder.svg'),
           members: group.member_count || 0,
           location: 'Unknown',
           activityLevel: 'active' as 'active' | 'new' | 'quiet',
@@ -135,7 +136,7 @@ export default function SocialGroups() {
           id: post.id,
           author: `User ${post.user_id?.substring(0, 5) || 'Unknown'}`,
           authorId: post.user_id || '',
-          authorAvatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png",
+          authorAvatar: getPublicAssetUrl('avatar-placeholder.png'),
           date: new Date(post.created_at).toLocaleDateString(),
           content: post.content,
           image: post.image_url || undefined,
