@@ -3,7 +3,7 @@ import { TripPayload, Waypoint, Suggestion } from "./types";
 import { apiFetch } from "@/services/api";
 
 export class TripService {
-  private static TRIP_API_URL = "/api/v1/trips";
+  private static TRIP_API_URL = "/api/trips";
 
   static async submitTripPlan(payload: TripPayload): Promise<void> {
     try {
