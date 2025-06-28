@@ -95,8 +95,14 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         
         logger.info(f"Processing chat message: '{message}' for user: {user_id}")
         
-        # Process through orchestrator
-        actions = await orchestrator.plan(message, context)
+        # Process through orchestrator using real service
+        pam_response = await orchestrator.process_message(
+            user_id,
+            message,
+            session_id=context.get("session_id"),
+            context=context
+        )
+        actions = pam_response.actions
         
         # Determine response message
         response_message = "I'm processing your request..."
@@ -170,20 +176,23 @@ async def chat_endpoint(
         
         logger.info(f"Processing chat request for user {current_user.id}")
         
-        # Process through orchestrator
-        actions = await orchestrator.plan(request.message, context)
+        # Process through orchestrator using real service
+        pam_response = await orchestrator.process_message(
+            str(current_user.id),
+            request.message,
+            session_id=request.conversation_id,
+            context=context
+        )
+        actions = pam_response.actions
         
         # Calculate processing time
         processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-        
+
         # Determine response message
-        response_text = "I'm processing your request..."
+        response_text = pam_response.content or "I'm processing your request..."
         for action in actions or []:
-            if action.get("type") == "message":
-                response_text = action.get("content", response_text)
-                break
-            elif action.get("type") == "error":
-                response_text = f"❌ {action.get('content', 'An error occurred')}"
+            if action.get("type") == "error":
+                response_text = f"❌ {action.get('content', response_text)}"
                 break
         
         return ChatResponse(
@@ -212,10 +221,12 @@ async def get_conversation_history(
 ):
     """Get conversation history for the user"""
     try:
-        # Implementation would fetch from pam_conversation_memory table
-        # This is a simplified response
+        history = await orchestrator.get_conversation_history(
+            str(current_user.id),
+            limit=pagination.limit
+        )
         return MessageHistoryResponse(
-            messages=[],
+            messages=history,
             conversation=None,
             has_more=False,
             next_cursor=None
@@ -233,13 +244,18 @@ async def get_conversation_history(
 async def clear_conversation_history(
     conversation_id: Optional[str] = None,
     current_user = Depends(get_current_user),
-    db = Depends(get_database)
+    orchestrator = Depends(get_pam_orchestrator)
 ):
     """Clear conversation history for the user"""
     try:
-        # Implementation would clear from pam_conversation_memory table
-        logger.info(f"Clearing conversation history for user {current_user.id}")
-        
+        client = orchestrator.database_service.get_client()
+        query = client.table("pam_conversation_memory").delete().eq(
+            "user_id", str(current_user.id)
+        )
+        if conversation_id:
+            query = query.eq("session_id", conversation_id)
+        query.execute()
+
         return SuccessResponse(
             success=True,
             message="Conversation history cleared successfully"
@@ -256,23 +272,15 @@ async def clear_conversation_history(
 @router.get("/context")
 async def get_user_context(
     current_user = Depends(get_current_user),
-    db = Depends(get_database)
+    orchestrator = Depends(get_pam_orchestrator)
 ):
     """Get current user context for PAM"""
     try:
-        # Implementation would fetch user context from various tables
-        context = {
-            "user_id": str(current_user.id),
-            "region": getattr(current_user, 'region', 'Australia'),
-            "preferences": {},
-            "recent_activity": [],
-            "current_location": None,
-            "travel_plans": {},
-            "budget_status": {},
-            "vehicle_info": {}
-        }
-        
-        return {"context": context}
+        context = await orchestrator._get_enhanced_context(
+            str(current_user.id),
+            session_id="default"
+        )
+        return {"context": context.dict()}
         
     except Exception as e:
         logger.error(f"Context retrieval error: {str(e)}")
@@ -286,16 +294,20 @@ async def get_user_context(
 async def update_user_context(
     request: ContextUpdateRequest,
     current_user = Depends(get_current_user),
-    db = Depends(get_database),
+    orchestrator = Depends(get_pam_orchestrator),
     _validate_context = Depends(validate_user_context)
 ):
     """Update user context for PAM"""
     try:
         logger.info(f"Updating context for user {current_user.id}")
-        
-        # Implementation would update context in relevant tables
-        # Update location, preferences, travel plans, etc.
-        
+
+        enriched = orchestrator.context_manager.validate_and_enrich_context(
+            {**request.dict(exclude_unset=True), "user_id": str(current_user.id)}
+        )
+
+        client = orchestrator.database_service.get_client()
+        client.table("user_context").upsert(enriched).execute()
+
         return SuccessResponse(
             success=True,
             message="User context updated successfully"
@@ -313,7 +325,7 @@ async def update_user_context(
 async def submit_pam_feedback(
     request: PamFeedbackRequest,
     current_user = Depends(get_current_user),
-    db = Depends(get_database),
+    orchestrator = Depends(get_pam_orchestrator),
     _rate_limit = Depends(apply_rate_limit("feedback", 10, 60))  # 10 feedback per minute
 ):
     """Submit feedback on PAM responses"""
@@ -331,8 +343,21 @@ async def submit_pam_feedback(
             "created_at": datetime.utcnow()
         }
         
-        # Implementation would insert into database
-        
+        client = orchestrator.database_service.get_client()
+        client.table("pam_feedback").insert(feedback_data).execute()
+
+        # Track feedback via analytics
+        from app.services.analytics.analytics import AnalyticsEvent, EventType
+
+        await orchestrator.analytics.track_event(
+            AnalyticsEvent(
+                event_type=EventType.FEATURE_USAGE,
+                user_id=str(current_user.id),
+                timestamp=datetime.utcnow(),
+                event_data={"feature": "pam_feedback", "rating": request.rating}
+            )
+        )
+
         return SuccessResponse(
             success=True,
             message="Feedback submitted successfully"
@@ -352,18 +377,15 @@ async def pam_health_check(
 ):
     """Check PAM service health"""
     try:
-        # Check orchestrator and node availability
-        health_status = {
-            "status": "healthy",
+        db_status = await orchestrator.database_service.health_check()
+        return {
+            "status": "healthy" if db_status.get("status") == "healthy" else "degraded",
             "timestamp": datetime.utcnow().isoformat(),
             "services": {
                 "orchestrator": "available",
-                "websocket_manager": "available",
-                "database": "available"
+                "database": db_status.get("status")
             }
         }
-        
-        return health_status
         
     except Exception as e:
         logger.error(f"Health check error: {str(e)}")
