@@ -13,6 +13,7 @@ from app.models.schemas.wins import (
     BudgetResponse, ExpenseAnalyticsResponse, FinancialSummaryResponse
 )
 from app.services.database import get_database_service
+from app.services.analytics.analytics import analytics, FeatureUsageEvent
 from app.core.logging import setup_logging
 
 router = APIRouter()
@@ -38,6 +39,15 @@ async def create_budget(request: BudgetCreateRequest):
         
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create budget")
+
+        await analytics.track_feature_usage(
+            FeatureUsageEvent(
+                feature_name="create_budget",
+                feature_category="wins",
+                user_id=request.user_id,
+                usage_context="api"
+            )
+        )
         
         return BudgetResponse(
             id=result['id'],
@@ -108,6 +118,16 @@ async def create_expense(request: ExpenseCreateRequest):
         
         await db_service.execute_mutation(
             update_query, request.user_id, request.category, request.amount
+        )
+
+        await analytics.track_feature_usage(
+            FeatureUsageEvent(
+                feature_name="create_expense",
+                feature_category="wins",
+                user_id=request.user_id,
+                usage_context="api",
+                parameters={"category": request.category}
+            )
         )
         
         return {
@@ -199,10 +219,20 @@ async def create_income_entry(request: IncomeSourceCreateRequest):
         
         if not result:
             raise HTTPException(status_code=400, detail="Failed to log income")
-        
+
+        await analytics.track_feature_usage(
+            FeatureUsageEvent(
+                feature_name="create_income",
+                feature_category="wins",
+                user_id=request.user_id,
+                usage_context="api",
+                parameters={"source": request.source_name}
+            )
+        )
+
         return {
             "id": result['id'],
-            "status": "success", 
+            "status": "success",
             "message": f"Logged ${request.amount} income from {request.source_name}"
         }
         
@@ -245,7 +275,17 @@ async def get_financial_summary(user_id: str, days: int = 30):
         total_expenses = sum(float(exp['category_total']) for exp in expenses)
         total_income = float(income_result['total_income']) if income_result['total_income'] else 0
         net_income = total_income - total_expenses
-        
+
+        await analytics.track_feature_usage(
+            FeatureUsageEvent(
+                feature_name="financial_summary",
+                feature_category="wins",
+                user_id=user_id,
+                usage_context="api",
+                parameters={"days": days}
+            )
+        )
+
         return FinancialSummaryResponse(
             user_id=user_id,
             period_days=days,
