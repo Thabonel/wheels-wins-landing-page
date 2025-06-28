@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Pie, PieChart } from "recharts";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { DollarSign, TrendingUp, Calendar } from "lucide-react";
 
 export default function WinsOverview() {
@@ -128,11 +129,11 @@ export default function WinsOverview() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span className="bg-blue-100 p-1 rounded-full">
-                <img 
-                  src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
-                  alt="Pam"
-                  className="h-6 w-6 rounded-full"
-                />
+                  <img
+                    src={getPublicAssetUrl('Pam.webp')}
+                    alt="Pam"
+                    className="h-6 w-6 rounded-full"
+                  />
               </span>
               <span>Pam's Financial Summary</span>
             </CardTitle>

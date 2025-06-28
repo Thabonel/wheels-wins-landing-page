@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 const PamSpotlight = () => {
   return (
@@ -7,7 +8,7 @@ const PamSpotlight = () => {
         <div className="flex flex-col md:flex-row items-center gap-10">
           <div className="w-full md:w-1/2 order-2 md:order-1">
             <img
-              src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//Pam.webp"
+              src={getPublicAssetUrl('Pam.webp')}
               alt="Pam AI Assistant"
               className="rounded-2xl shadow-lg w-full max-w-md mx-auto"
             />

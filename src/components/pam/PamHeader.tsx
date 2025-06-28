@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 interface PamHeaderProps {
   region: string;
@@ -15,7 +16,7 @@ const PamHeader = ({ region }: PamHeaderProps) => {
         <div className="relative">
           <Avatar className="h-16 w-16 border-2 border-blue-200/50 shadow-sm animate-pulse-slow">
             <AvatarImage
-              src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+              src={getPublicAssetUrl('Pam.webp')}
               alt="Pam"
               className="object-cover"
             />

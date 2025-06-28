@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SocialPost, SocialGroup, MarketplaceListing, HustleIdea } from "./types";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 export function useSocialData() {
   const [posts, setPosts] = useState<SocialPost[]>([]);
@@ -29,7 +30,7 @@ export function useSocialData() {
             id: post.id,
             author: `User ${post.user_id?.substring(0, 5) || "Unknown"}`,
             authorId: post.user_id || "",
-            authorAvatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png",
+            authorAvatar: getPublicAssetUrl('avatar-placeholder.png'),
             date: new Date(post.created_at).toLocaleDateString(),
             content: post.content,
             image: post.image_url,
@@ -56,7 +57,7 @@ export function useSocialData() {
             id: group.id,
             name: group.name,
             description: group.description || "",
-            cover: group.cover || group.avatar_url || "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/placeholder.svg",
+            cover: group.cover || group.avatar_url || getPublicAssetUrl('placeholder.svg'),
             members: group.member_count || 0,
             location: group.location || "Unknown",
             activityLevel: (group.activity_level as 'active' | 'new' | 'quiet') || 'active',
