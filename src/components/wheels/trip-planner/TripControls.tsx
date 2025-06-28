@@ -62,11 +62,11 @@ export default function TripControls({
           className={`w-full text-white ${
             isOffline 
               ? 'bg-yellow-600 hover:bg-yellow-700' 
-              : 'bg-green-600 hover:bg-green-700'
+              : 'bg-primary hover:bg-primary/90'
           }`}
           size="sm"
         >
-          {isOffline ? "Queue for Pam" : "Send to Pam"}
+          {isOffline ? "Queue for PAM" : "Optimize Route"}
         </Button>
       </div>
     </div>
