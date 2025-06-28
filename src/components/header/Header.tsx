@@ -1,8 +1,8 @@
-
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useHeaderAppearance } from "@/hooks/useHeaderAppearance";
 import { useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import HeaderContainer from "./HeaderContainer";
 import NavigationLinks from "./NavigationLinks";
 import LoginButton from "./LoginButton";
@@ -14,9 +14,19 @@ const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
   const { isHomePage, showNavigation, showUserMenu } = useHeaderAppearance();
   const location = useLocation();
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <HeaderContainer isHomePage={isHomePage} isScrolled={false}>
+    <HeaderContainer isHomePage={isHomePage} isScrolled={isScrolled}>
       {/* Logo */}
       <Link to="/" className="flex-shrink-0">
         <img
@@ -25,10 +35,8 @@ const Header = () => {
           className="h-14 object-contain drop-shadow-md"
         />
       </Link>
-
       {/* Navigation - Show when authenticated */}
       <NavigationLinks isVisible={showNavigation} />
-
       {/* Auth Buttons */}
       <div className="flex items-center space-x-4">
         {/* Show Shop and Login buttons on homepage when not authenticated */}
@@ -42,7 +50,6 @@ const Header = () => {
             <LoginButton />
           </>
         )}
-
         {/* Show user menu when authenticated */}
         {showUserMenu && <UserMenu />}
         

@@ -15,20 +15,14 @@ export default function Layout({ children }: LayoutProps) {
   const { pathname } = useLocation();
   const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
   const isHomePage = pathname === "/";
-
+  
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      {/* Conditional header styling - transparent on homepage, solid elsewhere */}
-      {isHomePage ? (
-        <Header />
-      ) : (
-        <header className="relative z-50 bg-white shadow-sm border-b px-6 py-4">
-          <Header />
-        </header>
-      )}
-
+      {/* Header - let HeaderContainer handle its own styling */}
+      <Header />
+      
       {pathname === "/" && <Hero />}
-
+      
       <main
         className={
           pathname === "/"
@@ -41,10 +35,10 @@ export default function Layout({ children }: LayoutProps) {
           {children}
         </div>
       </main>
-
+      
       {/* New Pam Component - handles its own button and modal */}
       {!hidePam && <Pam />}
-
+      
       <footer className="bg-white text-gray-600 py-4 border-t">
         <Footer />
       </footer>
