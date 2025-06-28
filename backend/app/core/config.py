@@ -68,5 +68,10 @@ class Settings(BaseSettings):
         "extra": "allow"
     }
 
+
 # Global settings instance
 settings = Settings()
+
+def get_settings() -> Settings:
+    """Retrieve the global settings."""
+    return settings
