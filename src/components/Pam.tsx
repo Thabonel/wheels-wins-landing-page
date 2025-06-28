@@ -3,6 +3,7 @@ import { X, Send, Mic, MicOff, MapPin, Calendar, DollarSign } from "lucide-react
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
 import { getWebSocketUrl } from "@/services/api";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 interface PamMessage {
   id: string;
@@ -257,8 +258,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       <div className="h-full flex flex-col bg-white">
         <div className="flex items-center justify-between p-4 border-b bg-primary/5">
           <div className="flex items-center space-x-3">
-            <img 
-              src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+            <img
+              src={getPublicAssetUrl('Pam.webp')}
               alt="PAM"
               className="w-8 h-8 rounded-full"
             />
@@ -340,12 +341,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-3 shadow-lg transition-all z-50"
         aria-label="Open PAM Chat"
       >
-        <div className="relative">
-          <img 
-            src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
-            alt="PAM Assistant"
-            className="w-8 h-8 rounded-full"
-          />
+          <div className="relative">
+            <img
+              src={getPublicAssetUrl('Pam.webp')}
+              alt="PAM Assistant"
+              className="w-8 h-8 rounded-full"
+            />
           <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
             connectionStatus === "Connected" ? "bg-green-500" : 
             connectionStatus === "Connecting" ? "bg-yellow-500" : "bg-red-500"
@@ -359,8 +360,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b bg-primary/5 rounded-t-lg">
             <div className="flex items-center space-x-3">
-              <img 
-                src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+              <img
+                src={getPublicAssetUrl('Pam.webp')}
                 alt="PAM"
                 className="w-8 h-8 rounded-full"
               />

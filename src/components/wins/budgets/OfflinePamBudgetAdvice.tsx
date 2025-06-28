@@ -1,6 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCachedBudgetData } from "@/hooks/useCachedBudgetData";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 export default function OfflinePamBudgetAdvice() {
   const { cachedData } = useCachedBudgetData();
@@ -11,7 +12,7 @@ export default function OfflinePamBudgetAdvice() {
         <CardTitle className="flex items-center gap-2 text-base">
           <span className="bg-blue-100 p-1 rounded-full">
             <img
-              src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+              src={getPublicAssetUrl('Pam.webp')}
               alt="Pam"
               className="h-5 w-5 rounded-full"
             />

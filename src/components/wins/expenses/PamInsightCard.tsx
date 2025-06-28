@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 interface PamInsightCardProps {
   title?: string;
@@ -21,7 +22,7 @@ export default function PamInsightCard({
         <CardTitle className="flex items-center gap-2 text-base">
           <span className="bg-blue-100 p-1 rounded-full">
             <img
-              src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp"
+              src={getPublicAssetUrl('Pam.webp')}
               alt="Pam"
               className="h-5 w-5 rounded-full"
             />

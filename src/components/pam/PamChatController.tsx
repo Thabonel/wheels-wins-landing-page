@@ -41,6 +41,7 @@ const PamChatController = () => {
   const { token } = useAuth();
   const { isConnected, sendMessage: sendWebSocketMessage } = usePamWebSocketConnection({
     userId: user?.id || 'anonymous',
+    token,
     onMessage: (message) => {
       // Handle incoming WebSocket messages
       const pamMessage: ChatMessage = {

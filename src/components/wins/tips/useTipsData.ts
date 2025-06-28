@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { TipCategory, LeaderboardUser } from "./types";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 export function useTipsData() {
   const { user } = useAuth();
@@ -61,13 +62,13 @@ export function useTipsData() {
       setTipCategories(Array.from(categoriesMap.values()));
 
       // Mock leaderboard data for now - could be calculated from tips
-      setLeaderboardData([
-        { name: "RVAdventures", points: 1250, avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png" },
-        { name: "WanderingFamily", points: 950, avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png" },
-        { name: "RoadTripQueen", points: 820, avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png" },
-        { name: "FrugalTraveler", points: 780, avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png" },
-        { name: "BoondockerLife", points: 675, avatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png" }
-      ]);
+        setLeaderboardData([
+          { name: "RVAdventures", points: 1250, avatar: getPublicAssetUrl('avatar-placeholder.png') },
+          { name: "WanderingFamily", points: 950, avatar: getPublicAssetUrl('avatar-placeholder.png') },
+          { name: "RoadTripQueen", points: 820, avatar: getPublicAssetUrl('avatar-placeholder.png') },
+          { name: "FrugalTraveler", points: 780, avatar: getPublicAssetUrl('avatar-placeholder.png') },
+          { name: "BoondockerLife", points: 675, avatar: getPublicAssetUrl('avatar-placeholder.png') }
+        ]);
 
     } catch (error) {
       console.error('Error in fetchTipsData:', error);
