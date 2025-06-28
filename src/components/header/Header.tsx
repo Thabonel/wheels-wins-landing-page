@@ -28,9 +28,6 @@ const Header = () => {
                 <Link to="/wins" className="text-foreground hover:text-primary transition-colors">
                   Wins
                 </Link>
-                <Link to="/marketplace" className="text-foreground hover:text-primary transition-colors">
-                  Marketplace
-                </Link>
                 <Link to="/social" className="text-foreground hover:text-primary transition-colors">
                   Social
                 </Link>
