@@ -27,8 +27,8 @@ export function useSocialData() {
         } else {
           const formattedPosts = postsData.map(post => ({
             id: post.id,
-            author: `User ${post.author_id?.substring(0, 5) || "Unknown"}`,
-            authorId: post.author_id || "",
+            author: `User ${post.user_id?.substring(0, 5) || "Unknown"}`,
+            authorId: post.user_id || "",
             authorAvatar: "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/avatar-placeholder.png",
             date: new Date(post.created_at).toLocaleDateString(),
             content: post.content,

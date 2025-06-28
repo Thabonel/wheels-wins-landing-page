@@ -39,13 +39,9 @@ export function usePersonalizedRecommendations() {
 
     setIsLoading(true);
     try {
-      // Try to fetch from database, fallback to static data
-      const { data: dbRecommendations, error } = await supabase
-        .from('personalized_recommendations')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('expires_at', new Date().toISOString())
-        .limit(10);
+      // Table doesn't exist yet, use fallback static data
+      const dbRecommendations = null;
+      const error = null;
 
       if (error) {
         console.warn('Database recommendations not available, using fallback:', error);

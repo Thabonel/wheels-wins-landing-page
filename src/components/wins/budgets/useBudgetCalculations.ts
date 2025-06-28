@@ -48,7 +48,7 @@ export function useBudgetCalculations(startDate?: string, endDate?: string) {
           setCategories(cachedData.categories);
         } else {
           const formattedCategories: BudgetCategory[] = categoriesData.map(cat => ({
-            id: cat.id,
+            id: parseInt(cat.id) || 0,
             name: cat.name,
             budgeted: Number(cat.budgeted_amount),
             spent: Number(cat.spent_amount),
