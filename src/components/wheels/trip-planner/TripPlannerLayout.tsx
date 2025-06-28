@@ -224,11 +224,11 @@ export default function TripPlannerLayout({
               <NavigationExportHub 
                 isOpen={true}
                 onClose={() => integratedState.toggleFeature('export')}
-                origin="Origin"
-                destination="Destination"
+                origin={{ name: "Origin", coordinates: [-122.4194, 37.7749] }}
+                destination={{ name: "Destination", coordinates: [-118.2437, 34.0522] }}
                 waypoints={[]}
-                dailyRoutes={[]}
-                estimatedCosts={{}}
+                totalDistance={500}
+                estimatedTime={8}
               />
             </div>
           </div>

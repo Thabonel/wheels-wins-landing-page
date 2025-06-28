@@ -14,6 +14,8 @@ import { useIntegratedTripState } from "./hooks/useIntegratedTripState";
 import { useTripPlannerHandlers } from "./hooks/useTripPlannerHandlers";
 import { PAMProvider } from "./PAMContext";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Users, DollarSign } from "lucide-react";
 
 interface IntegratedTripPlannerProps {
   isOffline?: boolean;
@@ -32,7 +34,11 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
     directionsControl,
     originName: integratedState.route.originName,
     destName: integratedState.route.destName,
-    waypoints: integratedState.route.waypoints
+    waypoints: integratedState.route.waypoints,
+    setSuggestions: integratedState.setSuggestions,
+    saveTripData: integratedState.saveTripData,
+    routeProfile: integratedState.travelMode,
+    mode: integratedState.mode
   });
 
   // Initialize map
@@ -160,22 +166,26 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
                 className="h-[600px] w-full rounded-lg border shadow-sm"
               />
               
-              {/* Map Controls Overlay */}
+              {/* Map Controls Overlay - Simplified */}
               {mapLoaded && (
-                <MapControls 
-                  map={map}
-                  region="Australia"
-                  waypoints={integratedState.route.waypoints}
-                  setWaypoints={() => {}}
-                  adding={integratedState.adding}
-                  setAdding={integratedState.setAdding}
-                  travelMode={integratedState.travelMode}
-                  originName={integratedState.route.originName}
-                  destName={integratedState.route.destName}
-                  directionsControl={directionsControl}
-                  onSubmitTrip={handleSubmitTrip}
-                  isOffline={isOffline}
-                />
+                <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2">
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => integratedState.toggleFeature('social')}
+                    >
+                      <Users className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => integratedState.toggleFeature('budget')}
+                    >
+                      <DollarSign className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
 
