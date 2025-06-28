@@ -83,7 +83,7 @@ const TRIP_TEMPLATES: TripTemplate[] = [
 export default function TripPlannerApp() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'planner' | 'templates' | 'details'>('planner');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'planner' | 'templates' | 'details' | 'budget' | 'social'>('planner');
   const [isPlannerInitialized, setIsPlannerInitialized] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
   const [showWelcome, setShowWelcome] = useState(!user);
@@ -508,6 +508,32 @@ export default function TripPlannerApp() {
                 Trip Details
               </Button>
             </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button 
+                onClick={() => setCurrentView('budget')}
+                variant={currentView === 'budget' ? 'default' : 'outline'}
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                Budget
+              </Button>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button 
+                onClick={() => setCurrentView('social')}
+                variant={currentView === 'social' ? 'default' : 'outline'}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Social
+              </Button>
+            </motion.div>
           </div>
         </div>
       </div>
@@ -549,6 +575,38 @@ export default function TripPlannerApp() {
               transition={{ duration: 0.3 }}
             >
               <TripDashboard />
+            </motion.div>
+          )}
+
+          {currentView === 'budget' && (
+            <motion.div
+              key="budget"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="text-center py-12">
+                <DollarSign className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2">Budget Management</h2>
+                <p className="text-muted-foreground">Budget tracking and expense management coming soon!</p>
+              </div>
+            </motion.div>
+          )}
+
+          {currentView === 'social' && (
+            <motion.div
+              key="social"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2">Social Trip Coordination</h2>
+                <p className="text-muted-foreground">Plan trips with friends and family coming soon!</p>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
