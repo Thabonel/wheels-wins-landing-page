@@ -96,7 +96,16 @@ export default function TripPlanner() {
   }
 
   return (
-    <TripPlannerLayout>
+    <TripPlannerLayout 
+      showSidebar={showBudget}
+      sidebar={
+        <BudgetSidebar
+          directionsControl={directionsControl}
+          isVisible={showBudget}
+          onClose={() => setShowBudget(false)}
+        />
+      }
+    >
       <TripPlannerHeader isOffline={isOffline} />
       
       {/* Locked Points Controls */}
@@ -208,13 +217,6 @@ export default function TripPlanner() {
           />
         </div>
       )}
-
-      {/* Budget Intelligence Sidebar */}
-      <BudgetSidebar
-        directionsControl={directionsControl}
-        isVisible={showBudget}
-        onClose={() => setShowBudget(false)}
-      />
 
       {/* Waypoints Section */}
       {waypoints.length > 0 && (
