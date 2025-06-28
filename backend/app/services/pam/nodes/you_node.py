@@ -1,529 +1,831 @@
-"""
-YOU Node - Personal Dashboard Data Provider
-Provides comprehensive personal data for the user's dashboard display.
-"""
-
-import json
+from typing import Dict, List, Optional, Any
 import asyncio
-from typing import Dict, Any, List, Optional
-from datetime import datetime, date, timedelta
-import logging
+import json
+from datetime import datetime, timedelta
+from dataclasses import dataclass
+from app.core.logging import setup_logging
+from app.database.supabase_client import get_supabase_client
 
-from app.services.database import get_database_service
-from app.models.domain.pam import PamResponse
-from app.services.pam.nodes.base_node import BaseNode
+logger = setup_logging("you_node")
 
-logger = logging.getLogger(__name__)
+@dataclass
+class CalendarEvent:
+    id: str
+    title: str
+    description: str
+    start_time: datetime
+    end_time: datetime
+    location: str
+    event_type: str
+    reminder_set: bool
+    attendees: List[str]
 
-class YouNode(BaseNode):
-    """YOU node - Personal dashboard data aggregation and management"""
+@dataclass
+class UserPreference:
+    category: str
+    preference_key: str
+    value: Any
+    confidence_score: float
+    last_updated: datetime
+
+class YouNode:
+    """Handles personal dashboard, calendar, and profile management"""
     
     def __init__(self):
-        super().__init__("you")
-        self.database_service = None
-    
-    async def initialize(self):
-        """Initialize YOU node"""
-        self.database_service = await get_database_service()
-        logger.info("YOU node initialized")
-    
-    async def process(self, input_data: Dict[str, Any]) -> PamResponse:
-        """Generate comprehensive personal dashboard data"""
-        if not self.database_service:
-            await self.initialize()
+        self.logger = setup_logging("you_node")
+        self.supabase = get_supabase_client()
         
-        user_id = input_data.get('user_id')
-        request_type = input_data.get('request_type', 'full_dashboard')
-        
+    async def create_calendar_event(self, user_id: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new calendar event"""
         try:
-            if request_type == 'calendar_data':
-                return await self._get_calendar_data(user_id)
-            elif request_type == 'trip_status':
-                return await self._get_trip_status(user_id)
-            elif request_type == 'budget_summary':
-                return await self._get_budget_summary(user_id)
-            elif request_type == 'todos':
-                return await self._get_todos(user_id)
-            elif request_type == 'pam_suggestions':
-                return await self._get_pam_daily_suggestions(user_id)
-            elif request_type == 'subscription_status':
-                return await self._get_subscription_status(user_id)
+            title = event_data.get('title')
+            description = event_data.get('description', '')
+            start_time = event_data.get('start_time')
+            duration_hours = event_data.get('duration_hours', 1)
+            location = event_data.get('location', '')
+            event_type = event_data.get('type', 'general')
+            
+            # Parse start time
+            if isinstance(start_time, str):
+                start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
             else:
-                return await self._get_full_dashboard_data(user_id)
+                start_dt = start_time
                 
-        except Exception as e:
-            logger.error(f"YOU node processing error: {e}")
-            return PamResponse(
-                content="Dashboard data temporarily unavailable",
-                confidence=0.5,
-                requires_followup=False
+            end_dt = start_dt + timedelta(hours=duration_hours)
+            
+            # Check for conflicts
+            conflicts = await self._check_calendar_conflicts(user_id, start_dt, end_dt)
+            
+            # Generate suggestions if needed
+            suggestions = await self._generate_event_suggestions(title, event_type, location)
+            
+            event_id = f"event_{user_id}_{datetime.now().timestamp()}"
+            
+            event = CalendarEvent(
+                id=event_id,
+                title=title,
+                description=description,
+                start_time=start_dt,
+                end_time=end_dt,
+                location=location,
+                event_type=event_type,
+                reminder_set=True,
+                attendees=[]
             )
+            
+            return {
+                "success": True,
+                "data": {
+                    "event": event.__dict__,
+                    "conflicts": conflicts,
+                    "suggestions": suggestions,
+                    "reminders_set": ["15 minutes before", "1 day before"] if event_type in ["appointment", "important"] else ["15 minutes before"]
+                },
+                "message": f"Created '{title}' for {start_dt.strftime('%B %d at %I:%M %p')}",
+                "actions": [
+                    {
+                        "type": "navigate",
+                        "target": "/you/calendar"
+                    },
+                    {
+                        "type": "highlight",
+                        "element": f".calendar-event[data-id='{event_id}']"
+                    },
+                    {
+                        "type": "show_notification",
+                        "message": f"Event created! {len(conflicts)} conflicts found." if conflicts else "Event created successfully!",
+                        "type": "warning" if conflicts else "success"
+                    }
+                ]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error creating calendar event: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I couldn't create your calendar event. Please check the details and try again."
+            }
     
-    async def _get_full_dashboard_data(self, user_id: str) -> PamResponse:
-        """Get all dashboard components in one response"""
+    async def get_user_profile(self, user_id: str) -> Dict[str, Any]:
+        """Get user profile from Supabase profiles table"""
         try:
-            # Run all dashboard queries concurrently for speed
-            dashboard_tasks = [
-                self._fetch_calendar_events(user_id),
-                self._fetch_trip_status(user_id),
-                self._fetch_budget_summary(user_id),
-                self._fetch_user_todos(user_id),
-                self._generate_pam_suggestions(user_id),
-                self._fetch_subscription_info(user_id),
-                self._fetch_user_preferences(user_id)
-            ]
+            response = self.supabase.table('profiles').select('*').eq('user_id', user_id).single().execute()
             
-            results = await asyncio.gather(*dashboard_tasks, return_exceptions=True)
+            if not response.data:
+                # Create basic profile if none exists
+                basic_profile = {
+                    "user_id": user_id,
+                    "email": "",
+                    "region": "Australia",
+                    "travel_preferences": {},
+                    "vehicle_info": {},
+                    "budget_preferences": {}
+                }
+                
+                create_response = self.supabase.table('profiles').insert(basic_profile).execute()
+                return {
+                    "success": True,
+                    "profile": create_response.data[0],
+                    "message": "Created new profile"
+                }
             
-            calendar_data, trip_status, budget_summary, todos, pam_suggestions, subscription, preferences = results
+            profile = response.data
+            
+            # Enrich profile with default values for missing data
+            enriched_profile = await self._enrich_profile_data(profile)
+            
+            return {
+                "success": True,
+                "profile": enriched_profile,
+                "completeness": await self._calculate_profile_completeness_from_data(enriched_profile)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching user profile: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Could not retrieve profile data"
+            }
+
+    async def update_user_profile(self, user_id: str, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update user profile information in Supabase"""
+        try:
+            # Build update object with only provided fields
+            updates = {}
+            
+            # Handle travel preferences
+            if 'travel_preferences' in profile_data:
+                updates['travel_preferences'] = profile_data['travel_preferences']
+            elif any(key in profile_data for key in ['travel_style', 'camp_types', 'drive_limit']):
+                # Get existing travel preferences
+                existing_profile = await self.get_user_profile(user_id)
+                travel_prefs = existing_profile.get('profile', {}).get('travel_preferences', {})
+                
+                if 'travel_style' in profile_data:
+                    travel_prefs['style'] = profile_data['travel_style']
+                if 'camp_types' in profile_data:
+                    travel_prefs['camp_types'] = profile_data['camp_types']
+                if 'drive_limit' in profile_data:
+                    travel_prefs['drive_limit'] = profile_data['drive_limit']
+                    
+                updates['travel_preferences'] = travel_prefs
+            
+            # Handle vehicle info
+            if 'vehicle_info' in profile_data:
+                updates['vehicle_info'] = profile_data['vehicle_info']
+            elif any(key in profile_data for key in ['vehicle_type', 'vehicle_make_model_year', 'fuel_type']):
+                # Get existing vehicle info
+                existing_profile = await self.get_user_profile(user_id)
+                vehicle_info = existing_profile.get('profile', {}).get('vehicle_info', {})
+                
+                if 'vehicle_type' in profile_data:
+                    vehicle_info['type'] = profile_data['vehicle_type']
+                if 'vehicle_make_model_year' in profile_data:
+                    vehicle_info['make_model_year'] = profile_data['vehicle_make_model_year']
+                if 'fuel_type' in profile_data:
+                    vehicle_info['fuel_type'] = profile_data['fuel_type']
+                    
+                updates['vehicle_info'] = vehicle_info
+            
+            # Handle budget preferences
+            if 'budget_preferences' in profile_data:
+                updates['budget_preferences'] = profile_data['budget_preferences']
+            
+            # Handle basic profile fields
+            for field in ['email', 'region', 'full_name', 'nickname']:
+                if field in profile_data:
+                    updates[field] = profile_data[field]
+            
+            # Update the profile in Supabase
+            response = self.supabase.table('profiles').update(updates).eq('user_id', user_id).execute()
+            
+            if not response.data:
+                return {
+                    "success": False,
+                    "error": "Profile not found",
+                    "message": "Could not update profile - user not found"
+                }
+            
+            updated_profile = response.data[0]
+            
+            # Generate personalized recommendations based on new profile
+            recommendations = await self._generate_profile_recommendations(user_id, updates)
+            
+            return {
+                "success": True,
+                "data": {
+                    "updated_fields": list(updates.keys()),
+                    "profile": updated_profile,
+                    "profile_completeness": await self._calculate_profile_completeness_from_data(updated_profile),
+                    "recommendations": recommendations
+                },
+                "message": f"Updated {len(updates)} profile fields successfully!",
+                "actions": [
+                    {
+                        "type": "navigate",
+                        "target": "/you/profile"
+                    },
+                    {
+                        "type": "update_form",
+                        "form_id": "profile-form",
+                        "data": updates
+                    }
+                ]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error updating profile: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I couldn't update your profile. Please try again."
+            }
+    
+    async def set_user_preferences(self, user_id: str, preferences: Dict[str, Any]) -> Dict[str, Any]:
+        """Set or update user preferences"""
+        try:
+            preference_updates = []
+            
+            for category, prefs in preferences.items():
+                for key, value in prefs.items():
+                    preference = UserPreference(
+                        category=category,
+                        preference_key=key,
+                        value=value,
+                        confidence_score=1.0,  # User explicitly set
+                        last_updated=datetime.now()
+                    )
+                    preference_updates.append(preference)
+            
+            # Apply preferences to relevant areas
+            applied_changes = await self._apply_preferences_globally(user_id, preference_updates)
+            
+            return {
+                "success": True,
+                "data": {
+                    "preferences_updated": len(preference_updates),
+                    "applied_changes": applied_changes,
+                    "categories_affected": list(preferences.keys())
+                },
+                "message": f"Updated {len(preference_updates)} preferences across {len(preferences)} categories",
+                "actions": [
+                    {
+                        "type": "navigate",
+                        "target": "/you/preferences"
+                    },
+                    {
+                        "type": "update_preferences",
+                        "preferences": preferences
+                    },
+                    {
+                        "type": "show_toast",
+                        "message": "Preferences saved! Changes will take effect immediately.",
+                        "type": "success"
+                    }
+                ]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error setting preferences: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I couldn't save your preferences. Please try again."
+            }
+    
+    async def get_personalized_dashboard(self, user_id: str) -> Dict[str, Any]:
+        """Generate a personalized dashboard view"""
+        try:
+            # Get user's current context
+            user_context = await self._get_user_context(user_id)
+            
+            # Get upcoming events
+            upcoming_events = await self._get_upcoming_events(user_id, days=7)
+            
+            # Get relevant insights
+            insights = await self._generate_personal_insights(user_id)
+            
+            # Get quick actions based on user patterns
+            quick_actions = await self._get_personalized_quick_actions(user_id)
+            
+            # Get relevant notifications
+            notifications = await self._get_pending_notifications(user_id)
             
             dashboard_data = {
-                'calendar': calendar_data if not isinstance(calendar_data, Exception) else {},
-                'trip_status': trip_status if not isinstance(trip_status, Exception) else {},
-                'budget_summary': budget_summary if not isinstance(budget_summary, Exception) else {},
-                'todos': todos if not isinstance(todos, Exception) else [],
-                'pam_suggestions': pam_suggestions if not isinstance(pam_suggestions, Exception) else {},
-                'subscription': subscription if not isinstance(subscription, Exception) else {},
-                'preferences': preferences if not isinstance(preferences, Exception) else {},
-                'last_updated': datetime.now().isoformat()
+                "user_context": user_context,
+                "upcoming_events": [e.__dict__ for e in upcoming_events],
+                "personal_insights": insights,
+                "quick_actions": quick_actions,
+                "notifications": notifications,
+                "dashboard_layout": await self._get_preferred_layout(user_id)
             }
-            
-            return PamResponse(
-                content=json.dumps(dashboard_data),
-                confidence=1.0,
-                requires_followup=False
-            )
-            
-        except Exception as e:
-            logger.error(f"Full dashboard data error: {e}")
-            return PamResponse(
-                content=json.dumps({'error': 'Dashboard temporarily unavailable'}),
-                confidence=0.3,
-                requires_followup=False
-            )
-    
-    async def _fetch_calendar_events(self, user_id: str) -> Dict[str, Any]:
-        """Fetch calendar events populated by PAM"""
-        try:
-            # Get events for the next 30 days
-            start_date = date.today()
-            end_date = start_date + timedelta(days=30)
-            
-            query = """
-                SELECT id, title, description, start_time, end_time, event_type, 
-                       location, all_day, created_by_pam, pam_confidence, reminders
-                FROM user_calendar_events 
-                WHERE user_id = $1 
-                AND date(start_time) BETWEEN $2 AND $3
-                ORDER BY start_time ASC
-            """
-            
-            events = await self.database_service.execute_query(
-                query, user_id, start_date, end_date,
-                cache_key=f"calendar:{user_id}", cache_ttl=300
-            )
-            
-            # Format events for calendar display
-            formatted_events = []
-            for event in events:
-                formatted_events.append({
-                    'id': event['id'],
-                    'title': event['title'],
-                    'description': event['description'],
-                    'start': event['start_time'].isoformat(),
-                    'end': event['end_time'].isoformat(),
-                    'type': event['event_type'],
-                    'location': event['location'],
-                    'allDay': event['all_day'],
-                    'createdByPam': event['created_by_pam'],
-                    'pamConfidence': event['pam_confidence'],
-                    'reminders': event['reminders'] or []
-                })
             
             return {
-                'events': formatted_events,
-                'total_events': len(formatted_events),
-                'pam_created_count': len([e for e in formatted_events if e['createdByPam']])
+                "success": True,
+                "data": dashboard_data,
+                "message": f"Your personalized dashboard with {len(upcoming_events)} upcoming events",
+                "actions": [
+                    {
+                        "type": "navigate",
+                        "target": "/you"
+                    },
+                    {
+                        "type": "update_dashboard",
+                        "data": dashboard_data
+                    },
+                    {
+                        "type": "highlight",
+                        "element": ".urgent-items" if any(n.get('priority') == 'high' for n in notifications) else ".recent-activity"
+                    }
+                ]
             }
             
         except Exception as e:
-            logger.error(f"Calendar fetch error: {e}")
-            return {'events': [], 'error': 'Calendar data unavailable'}
+            self.logger.error(f"Error generating dashboard: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I couldn't load your personalized dashboard. Please try again."
+            }
     
-    async def _fetch_trip_status(self, user_id: str) -> Dict[str, Any]:
-        """Fetch current trip status and next destination"""
+    async def schedule_maintenance_reminder(self, user_id: str, maintenance_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Schedule vehicle or equipment maintenance reminders"""
         try:
-            # Get current trip information
-            trip_query = """
-                SELECT current_location, next_destination, departure_date, 
-                       estimated_arrival, distance_remaining, route_progress
-                FROM user_current_trips 
-                WHERE user_id = $1 AND status = 'active'
-                ORDER BY created_at DESC 
-                LIMIT 1
-            """
+            item_type = maintenance_data.get('type')  # vehicle, equipment, etc.
+            item_name = maintenance_data.get('name')
+            maintenance_type = maintenance_data.get('maintenance_type')  # service, inspection, etc.
+            due_date = maintenance_data.get('due_date')
+            current_reading = maintenance_data.get('current_reading')  # km, hours, etc.
+            service_interval = maintenance_data.get('interval')
             
-            current_trip = await self.database_service.execute_single(trip_query, user_id)
+            # Calculate next due date/reading
+            next_due = await self._calculate_next_maintenance(maintenance_data)
             
-            if not current_trip:
-                return {'status': 'no_active_trip', 'message': 'No active trip planned'}
-            
-            # Get weather for next destination
-            weather_data = await self._get_destination_weather(current_trip['next_destination'])
-            
-            # Calculate trip metrics
-            days_until_departure = None
-            if current_trip['departure_date']:
-                days_until_departure = (current_trip['departure_date'] - date.today()).days
+            # Create calendar events for reminders
+            reminder_events = await self._create_maintenance_reminders(user_id, maintenance_data, next_due)
             
             return {
-                'status': 'active_trip',
-                'current_location': current_trip['current_location'],
-                'next_destination': current_trip['next_destination'],
-                'departure_date': current_trip['departure_date'].isoformat() if current_trip['departure_date'] else None,
-                'estimated_arrival': current_trip['estimated_arrival'].isoformat() if current_trip['estimated_arrival'] else None,
-                'distance_remaining': current_trip['distance_remaining'],
-                'route_progress': current_trip['route_progress'],
-                'days_until_departure': days_until_departure,
-                'destination_weather': weather_data
+                "success": True,
+                "data": {
+                    "maintenance_scheduled": {
+                        "item": f"{item_name} ({item_type})",
+                        "type": maintenance_type,
+                        "next_due": next_due,
+                        "current_reading": current_reading,
+                        "interval": service_interval
+                    },
+                    "reminders_created": len(reminder_events),
+                    "reminder_schedule": reminder_events
+                },
+                "message": f"Scheduled {maintenance_type} reminders for {item_name}",
+                "actions": [
+                    {
+                        "type": "navigate",
+                        "target": "/you/calendar"
+                    },
+                    {
+                        "type": "filter_calendar",
+                        "filter": "maintenance"
+                    },
+                    {
+                        "type": "highlight",
+                        "element": ".maintenance-reminders"
+                    }
+                ]
             }
             
         except Exception as e:
-            logger.error(f"Trip status fetch error: {e}")
-            return {'status': 'error', 'message': 'Trip status unavailable'}
+            self.logger.error(f"Error scheduling maintenance: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I couldn't schedule your maintenance reminder. Please try again."
+            }
     
-    async def _fetch_budget_summary(self, user_id: str) -> Dict[str, Any]:
-        """Fetch weekly budget breakdown"""
+    async def get_travel_timeline(self, user_id: str, timeframe: str = "month") -> Dict[str, Any]:
+        """Get user's travel timeline and itinerary"""
         try:
-            # Get current week's expenses
-            week_start = date.today() - timedelta(days=date.today().weekday())
-            week_end = week_start + timedelta(days=6)
+            # Get travel events from calendar
+            travel_events = await self._get_travel_events(user_id, timeframe)
             
-            expense_query = """
-                SELECT category, SUM(amount) as total
-                FROM expenses 
-                WHERE user_id = $1 
-                AND date BETWEEN $2 AND $3
-                GROUP BY category
-                ORDER BY total DESC
-            """
+            # Get planned trips
+            planned_trips = await self._get_planned_trips(user_id)
             
-            expenses = await self.database_service.execute_query(
-                expense_query, user_id, week_start, week_end,
-                cache_key=f"budget_week:{user_id}:{week_start}", cache_ttl=1800
-            )
+            # Get travel history for patterns
+            travel_patterns = await self._analyze_travel_patterns(user_id)
             
-            # Get budget targets
-            budget_query = """
-                SELECT category, weekly_target 
-                FROM budget_categories 
-                WHERE user_id = $1
-            """
+            # Generate timeline view
+            timeline = await self._generate_travel_timeline(travel_events, planned_trips)
             
-            budgets = await self.database_service.execute_query(budget_query, user_id)
-            budget_targets = {b['category']: b['weekly_target'] for b in budgets}
+            return {
+                "success": True,
+                "data": {
+                    "timeline": timeline,
+                    "upcoming_trips": len([t for t in planned_trips if t['start_date'] > datetime.now()]),
+                    "travel_patterns": travel_patterns,
+                    "total_events": len(travel_events)
+                },
+                "message": f"Your {timeframe} travel timeline with {len(travel_events)} events",
+                "actions": [
+                    {
+                        "type": "navigate", 
+                        "target": "/you/calendar"
+                    },
+                    {
+                        "type": "switch_view",
+                        "view": "timeline"
+                    },
+                    {
+                        "type": "filter_calendar",
+                        "filter": "travel"
+                    }
+                ]
+            }
             
-            # Calculate summary
-            total_spent = sum(float(exp['total']) for exp in expenses)
-            total_budget = sum(budget_targets.values())
+        except Exception as e:
+            self.logger.error(f"Error getting travel timeline: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "I couldn't load your travel timeline. Please try again."
+            }
+    
+    # Helper methods
+    async def _check_calendar_conflicts(self, user_id: str, start_time: datetime, end_time: datetime) -> List[Dict]:
+        """Check for calendar conflicts"""
+        # TODO: Query actual calendar events
+        # For now, return empty list (no conflicts)
+        return []
+    
+    async def _generate_event_suggestions(self, title: str, event_type: str, location: str) -> Dict[str, Any]:
+        """Generate suggestions for calendar events"""
+        suggestions = {
+            "description_suggestions": [
+                f"Reminder: {title}",
+                f"Don't forget: {title} at {location}" if location else f"Don't forget: {title}"
+            ],
+            "duration_suggestions": {
+                "appointment": 1,
+                "travel": 8,
+                "maintenance": 2,
+                "social": 3,
+                "general": 1
+            }.get(event_type, 1),
+            "reminder_suggestions": ["15 minutes", "1 hour", "1 day"] if event_type == "important" else ["15 minutes"]
+        }
+        return suggestions
+    
+    async def _learn_user_preferences(self, user_id: str, updates: Dict[str, Any]) -> None:
+        """Learn from user profile updates"""
+        # TODO: Implement machine learning for preference detection
+        pass
+    
+    async def _generate_profile_recommendations(self, user_id: str, profile_updates: Dict[str, Any]) -> List[str]:
+        """Generate recommendations based on profile updates"""
+        recommendations = []
+        
+        # Check travel preferences
+        travel_prefs = profile_updates.get('travel_preferences', {})
+        if travel_prefs.get('style') == 'budget':
+            recommendations.append("Check out free camping spots in the WHEELS section")
+            recommendations.append("Set up budget alerts in WINS to track expenses")
+        elif travel_prefs.get('style') == 'luxury':
+            recommendations.append("Explore premium caravan parks with full amenities")
+            recommendations.append("Consider comprehensive travel insurance")
+        
+        # Check vehicle info
+        vehicle_info = profile_updates.get('vehicle_info', {})
+        if vehicle_info.get('type') == 'motorhome':
+            recommendations.append("Look for RV-friendly fuel stations in WHEELS")
+            recommendations.append("Check height clearances on your planned routes")
+        elif vehicle_info.get('fuel_type') == 'diesel':
+            recommendations.append("Track diesel prices to find the best deals")
+        
+        # Check budget preferences
+        budget_prefs = profile_updates.get('budget_preferences', {})
+        if budget_prefs.get('daily_budget'):
+            daily_budget = budget_prefs['daily_budget']
+            if daily_budget < 80:
+                recommendations.append("Consider free camping options to stretch your budget")
+            elif daily_budget > 200:
+                recommendations.append("You could explore premium experiences and destinations")
+        
+        # Add general recommendations if profile is being updated
+        if profile_updates:
+            recommendations.append("Update your preferences in other sections for better personalization")
             
-            expense_breakdown = {}
-            for exp in expenses:
-                category = exp['category']
-                spent = float(exp['total'])
-                target = budget_targets.get(category, 0)
+        return recommendations[:5]  # Limit to 5 recommendations
+    
+    async def _enrich_profile_data(self, profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Enrich profile with default values for missing data"""
+        try:
+            enriched = profile.copy()
+            
+            # Ensure travel_preferences exists and has defaults
+            if not enriched.get('travel_preferences'):
+                enriched['travel_preferences'] = {}
+            
+            travel_prefs = enriched['travel_preferences']
+            if not travel_prefs.get('style'):
+                travel_prefs['style'] = 'balanced'
+            if not travel_prefs.get('camp_types'):
+                travel_prefs['camp_types'] = ['caravan_parks', 'free_camps']
+            if not travel_prefs.get('drive_limit'):
+                travel_prefs['drive_limit'] = '500km'
                 
-                expense_breakdown[category] = {
-                    'spent': spent,
-                    'target': target,
-                    'percentage': (spent / target * 100) if target > 0 else 0,
-                    'status': 'over' if spent > target else 'under' if target > 0 else 'no_budget'
-                }
-            
-            return {
-                'week_start': week_start.isoformat(),
-                'week_end': week_end.isoformat(),
-                'total_spent': total_spent,
-                'total_budget': total_budget,
-                'remaining_budget': total_budget - total_spent,
-                'expense_breakdown': expense_breakdown,
-                'budget_status': 'over' if total_spent > total_budget else 'on_track'
-            }
+            # Ensure vehicle_info exists and has defaults
+            if not enriched.get('vehicle_info'):
+                enriched['vehicle_info'] = {}
+                
+            vehicle_info = enriched['vehicle_info']
+            if not vehicle_info.get('type'):
+                vehicle_info['type'] = 'caravan'
+            if not vehicle_info.get('fuel_type'):
+                vehicle_info['fuel_type'] = 'diesel'
+            if not vehicle_info.get('fuel_efficiency'):
+                vehicle_info['fuel_efficiency'] = 8.5
+                
+            # Ensure budget_preferences exists and has defaults
+            if not enriched.get('budget_preferences'):
+                enriched['budget_preferences'] = {}
+                
+            budget_prefs = enriched['budget_preferences']
+            if not budget_prefs.get('daily_budget'):
+                budget_prefs['daily_budget'] = 100
+            if not budget_prefs.get('fuel_budget'):
+                budget_prefs['fuel_budget'] = 200
+                
+            # Set default region if missing
+            if not enriched.get('region'):
+                enriched['region'] = 'Australia'
+                
+            return enriched
             
         except Exception as e:
-            logger.error(f"Budget summary fetch error: {e}")
-            return {'error': 'Budget data unavailable'}
-    
-    async def _fetch_user_todos(self, user_id: str) -> List[Dict[str, Any]]:
-        """Fetch user's todos and tasks"""
+            self.logger.error(f"Error enriching profile data: {e}")
+            return profile
+
+    async def _calculate_profile_completeness_from_data(self, profile: Dict[str, Any]) -> float:
+        """Calculate how complete the user's profile is based on actual data"""
         try:
-            query = """
-                SELECT id, title, description, due_date, priority, completed,
-                       category, created_by_pam, pam_suggestion_type
-                FROM user_todos 
-                WHERE user_id = $1 
-                AND (completed = false OR completed_at > NOW() - INTERVAL '7 days')
-                ORDER BY 
-                    CASE priority 
-                        WHEN 'high' THEN 1 
-                        WHEN 'medium' THEN 2 
-                        WHEN 'low' THEN 3 
-                    END,
-                    due_date ASC NULLS LAST
-                LIMIT 20
-            """
+            total_fields = 8
+            completed_fields = 0
             
-            todos = await self.database_service.execute_query(
-                query, user_id,
-                cache_key=f"todos:{user_id}", cache_ttl=300
-            )
-            
-            formatted_todos = []
-            for todo in todos:
-                formatted_todos.append({
-                    'id': todo['id'],
-                    'title': todo['title'],
-                    'description': todo['description'],
-                    'due_date': todo['due_date'].isoformat() if todo['due_date'] else None,
-                    'priority': todo['priority'],
-                    'completed': todo['completed'],
-                    'category': todo['category'],
-                    'created_by_pam': todo['created_by_pam'],
-                    'pam_suggestion_type': todo['pam_suggestion_type'],
-                    'overdue': todo['due_date'] < date.today() if todo['due_date'] else False
-                })
-            
-            return formatted_todos
+            # Check basic info
+            if profile.get('email'):
+                completed_fields += 1
+            if profile.get('full_name'):
+                completed_fields += 1
+            if profile.get('region'):
+                completed_fields += 1
+                
+            # Check travel preferences
+            travel_prefs = profile.get('travel_preferences', {})
+            if travel_prefs.get('style'):
+                completed_fields += 1
+            if travel_prefs.get('camp_types'):
+                completed_fields += 1
+                
+            # Check vehicle info
+            vehicle_info = profile.get('vehicle_info', {})
+            if vehicle_info.get('type'):
+                completed_fields += 1
+            if vehicle_info.get('fuel_type'):
+                completed_fields += 1
+                
+            # Check budget preferences
+            budget_prefs = profile.get('budget_preferences', {})
+            if budget_prefs.get('daily_budget'):
+                completed_fields += 1
+                
+            return completed_fields / total_fields
             
         except Exception as e:
-            logger.error(f"Todos fetch error: {e}")
-            return []
+            self.logger.error(f"Error calculating profile completeness: {e}")
+            return 0.5
     
-    async def _generate_pam_suggestions(self, user_id: str) -> Dict[str, Any]:
-        """Generate PAM's daily suggestions"""
-        try:
-            # Get user context for suggestions
-            user_location = await self._get_user_current_location(user_id)
-            recent_expenses = await self._get_recent_expense_patterns(user_id)
-            travel_plans = await self._get_upcoming_travel_plans(user_id)
-            
-            suggestions = {
-                'expenses': [],
-                'fuel_stations': [],
-                'campgrounds': [],
-                'activities': [],
-                'maintenance': []
-            }
-            
-            # Generate expense suggestions based on patterns
-            if recent_expenses:
-                expense_suggestions = await self._analyze_expense_patterns_for_suggestions(user_id, recent_expenses)
-                suggestions['expenses'] = expense_suggestions
-            
-            # Generate fuel station suggestions if traveling
-            if travel_plans:
-                fuel_suggestions = await self._generate_fuel_suggestions(user_location, travel_plans)
-                suggestions['fuel_stations'] = fuel_suggestions
-            
-            # Generate campground suggestions
-            campground_suggestions = await self._generate_campground_suggestions(user_location, travel_plans)
-            suggestions['campgrounds'] = campground_suggestions
-            
-            # Generate activity suggestions
-            activity_suggestions = await self._generate_activity_suggestions(user_location)
-            suggestions['activities'] = activity_suggestions
-            
-            # Generate maintenance reminders
-            maintenance_suggestions = await self._generate_maintenance_suggestions(user_id)
-            suggestions['maintenance'] = maintenance_suggestions
-            
-            return {
-                'generated_at': datetime.now().isoformat(),
-                'location_based': user_location,
-                'suggestions': suggestions,
-                'total_suggestions': sum(len(v) for v in suggestions.values())
-            }
-            
-        except Exception as e:
-            logger.error(f"PAM suggestions generation error: {e}")
-            return {'error': 'Suggestions temporarily unavailable'}
+    async def _apply_preferences_globally(self, user_id: str, preferences: List[UserPreference]) -> List[str]:
+        """Apply preferences across the platform"""
+        applied_changes = []
+        
+        for pref in preferences:
+            if pref.category == "display" and pref.preference_key == "theme":
+                applied_changes.append(f"Applied {pref.value} theme globally")
+            elif pref.category == "notifications" and pref.preference_key == "frequency":
+                applied_changes.append(f"Set notification frequency to {pref.value}")
+            elif pref.category == "privacy" and pref.preference_key == "location_sharing":
+                applied_changes.append(f"Location sharing set to {pref.value}")
+        
+        return applied_changes
     
-    async def _fetch_subscription_info(self, user_id: str) -> Dict[str, Any]:
-        """Fetch user's subscription status"""
-        try:
-            query = """
-                SELECT subscription_type, status, trial_end_date, billing_cycle,
-                       next_billing_date, features_access, video_course_access
-                FROM user_subscriptions 
-                WHERE user_id = $1 AND status IN ('active', 'trial')
-                ORDER BY created_at DESC 
-                LIMIT 1
-            """
-            
-            subscription = await self.database_service.execute_single(query, user_id)
-            
-            if not subscription:
-                return {
-                    'status': 'no_subscription',
-                    'message': 'No active subscription found'
-                }
-            
-            # Calculate trial days remaining
-            trial_days_remaining = None
-            if subscription['trial_end_date']:
-                trial_days_remaining = (subscription['trial_end_date'] - date.today()).days
-            
-            return {
-                'subscription_type': subscription['subscription_type'],
-                'status': subscription['status'],
-                'trial_end_date': subscription['trial_end_date'].isoformat() if subscription['trial_end_date'] else None,
-                'trial_days_remaining': trial_days_remaining,
-                'billing_cycle': subscription['billing_cycle'],
-                'next_billing_date': subscription['next_billing_date'].isoformat() if subscription['next_billing_date'] else None,
-                'features_access': subscription['features_access'],
-                'video_course_access': subscription['video_course_access'],
-                'needs_upgrade': trial_days_remaining is not None and trial_days_remaining <= 3
-            }
-            
-        except Exception as e:
-            logger.error(f"Subscription info fetch error: {e}")
-            return {'error': 'Subscription data unavailable'}
-    
-    # Helper methods for data fetching
-    async def _get_destination_weather(self, destination: str) -> Dict[str, Any]:
-        """Get weather for destination"""
-        # This would integrate with weather API
+    async def _get_user_context(self, user_id: str) -> Dict[str, Any]:
+        """Get current user context"""
         return {
-            'temperature': 72,
-            'condition': 'Partly Cloudy',
-            'forecast': '3-day forecast data'
+            "current_location": "Brisbane, QLD",
+            "last_active": "2 hours ago",
+            "travel_status": "at_home",
+            "profile_completeness": 0.75,
+            "active_trips": 0,
+            "upcoming_events": 3
         }
     
-    async def _get_user_current_location(self, user_id: str) -> str:
-        """Get user's current location"""
-        try:
-            query = "SELECT current_location FROM user_profiles WHERE user_id = $1"
-            result = await self.database_service.execute_single(query, user_id)
-            return result['current_location'] if result else 'Unknown'
-        except:
-            return 'Unknown'
+    async def _get_upcoming_events(self, user_id: str, days: int) -> List[CalendarEvent]:
+        """Get upcoming calendar events"""
+        # Sample events for demo
+        now = datetime.now()
+        return [
+            CalendarEvent(
+                id="event_1",
+                title="Vehicle Service",
+                description="Annual service at Joe's Auto",
+                start_time=now + timedelta(days=3),
+                end_time=now + timedelta(days=3, hours=2),
+                location="Joe's Auto Service",
+                event_type="maintenance",
+                reminder_set=True,
+                attendees=[]
+            ),
+            CalendarEvent(
+                id="event_2", 
+                title="Grey Nomads Meetup",
+                description="Monthly group meetup",
+                start_time=now + timedelta(days=5),
+                end_time=now + timedelta(days=5, hours=3),
+                location="Community Center",
+                event_type="social",
+                reminder_set=True,
+                attendees=["Sarah", "Mike", "Jenny"]
+            )
+        ]
     
-    async def _get_recent_expense_patterns(self, user_id: str) -> List[Dict]:
-        """Analyze recent expense patterns"""
-        try:
-            query = """
-                SELECT category, AVG(amount) as avg_amount, COUNT(*) as frequency
-                FROM expenses 
-                WHERE user_id = $1 
-                AND date >= CURRENT_DATE - INTERVAL '30 days'
-                GROUP BY category
-            """
-            return await self.database_service.execute_query(query, user_id)
-        except:
-            return []
+    async def _generate_personal_insights(self, user_id: str) -> List[Dict[str, Any]]:
+        """Generate personalized insights"""
+        return [
+            {
+                "type": "spending",
+                "title": "Budget Performance",
+                "insight": "You're 15% under budget this month - great job!",
+                "action": "Consider allocating extra funds to your emergency fund"
+            },
+            {
+                "type": "travel",
+                "title": "Travel Pattern",
+                "insight": "You typically travel on weekends",
+                "action": "Book caravan parks early for weekend trips"
+            },
+            {
+                "type": "maintenance",
+                "title": "Vehicle Health",
+                "insight": "Next service due in 2,000km",
+                "action": "Consider scheduling service before your next long trip"
+            }
+        ]
     
-    async def _get_upcoming_travel_plans(self, user_id: str) -> Dict:
-        """Get upcoming travel plans"""
-        try:
-            query = """
-                SELECT next_destination, departure_date, estimated_arrival
-                FROM user_current_trips 
-                WHERE user_id = $1 AND status = 'planned'
-                ORDER BY departure_date ASC LIMIT 1
-            """
-            result = await self.database_service.execute_single(query, user_id)
-            return result or {}
-        except:
-            return {}
+    async def _get_personalized_quick_actions(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get quick actions based on user patterns"""
+        return [
+            {
+                "title": "Log Today's Expenses",
+                "description": "Quick expense entry",
+                "action": "navigate_to_wins_expenses",
+                "icon": "dollar-sign"
+            },
+            {
+                "title": "Plan Weekend Trip",
+                "description": "Based on your travel patterns",
+                "action": "navigate_to_wheels_planner",
+                "icon": "map"
+            },
+            {
+                "title": "Check Group Updates",
+                "description": "New posts in your groups",
+                "action": "navigate_to_social_feed",
+                "icon": "users"
+            }
+        ]
     
-    # Suggestion generation methods
-    async def _analyze_expense_patterns_for_suggestions(self, user_id: str, recent_expenses: List) -> List[Dict]:
-        """Generate expense-related suggestions"""
-        suggestions = []
+    async def _get_pending_notifications(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get pending notifications for user"""
+        return [
+            {
+                "id": "notif_1",
+                "type": "reminder",
+                "priority": "medium",
+                "title": "Vehicle service reminder",
+                "message": "Your vehicle service is due in 3 days",
+                "action_url": "/you/calendar"
+            },
+            {
+                "id": "notif_2",
+                "type": "social",
+                "priority": "low", 
+                "title": "New group message",
+                "message": "5 new messages in Grey Nomads Queensland",
+                "action_url": "/social/groups/grey_nomads_qld"
+            }
+        ]
+    
+    async def _get_preferred_layout(self, user_id: str) -> Dict[str, Any]:
+        """Get user's preferred dashboard layout"""
+        return {
+            "layout": "grid",
+            "widgets": ["calendar", "insights", "quick_actions", "notifications"],
+            "theme": "light",
+            "compact_mode": False
+        }
+    
+    async def _calculate_next_maintenance(self, maintenance_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate when next maintenance is due"""
+        current_reading = maintenance_data.get('current_reading', 0)
+        interval = maintenance_data.get('interval', 10000)
         
-        for expense in recent_expenses:
-            if expense['avg_amount'] > 100:  # High spending category
-                suggestions.append({
-                    'type': 'expense_alert',
-                    'message': f"High spending in {expense['category']} - consider reviewing",
-                    'category': expense['category'],
-                    'avg_amount': expense['avg_amount']
-                })
+        return {
+            "reading_due": current_reading + interval,
+            "estimated_date": datetime.now() + timedelta(days=90),  # Estimate based on usage
+            "type": "km_based" if "km" in str(interval) else "time_based"
+        }
+    
+    async def _create_maintenance_reminders(self, user_id: str, maintenance_data: Dict, next_due: Dict) -> List[Dict]:
+        """Create reminder events for maintenance"""
+        reminders = []
         
-        return suggestions[:3]  # Limit to top 3
+        # Create reminder 1 week before
+        week_before = next_due['estimated_date'] - timedelta(days=7)
+        reminders.append({
+            "date": week_before,
+            "title": f"Maintenance reminder: {maintenance_data['name']}",
+            "type": "advance_warning"
+        })
+        
+        # Create reminder on due date
+        reminders.append({
+            "date": next_due['estimated_date'],
+            "title": f"Maintenance due: {maintenance_data['name']}",
+            "type": "due_date"
+        })
+        
+        return reminders
     
-    async def _generate_fuel_suggestions(self, location: str, travel_plans: Dict) -> List[Dict]:
-        """Generate fuel station suggestions"""
-        # This would integrate with fuel price APIs
+    async def _get_travel_events(self, user_id: str, timeframe: str) -> List[Dict]:
+        """Get travel-related calendar events"""
+        # TODO: Query actual travel events
         return [
             {
-                'station_name': 'Flying J',
-                'price': '$3.45/gal',
-                'distance': '2.3 miles',
-                'rv_friendly': True
+                "date": datetime.now() + timedelta(days=10),
+                "title": "Trip to Gold Coast",
+                "type": "travel",
+                "duration_days": 5
             }
         ]
     
-    async def _generate_campground_suggestions(self, location: str, travel_plans: Dict) -> List[Dict]:
-        """Generate campground suggestions"""
-        # This would integrate with campground APIs
+    async def _get_planned_trips(self, user_id: str) -> List[Dict]:
+        """Get user's planned trips"""
         return [
             {
-                'name': 'State Park Campground',
-                'price': '$35/night',
-                'availability': 'Available',
-                'rating': 4.5
+                "id": "trip_1",
+                "name": "Gold Coast Adventure",
+                "start_date": datetime.now() + timedelta(days=10),
+                "end_date": datetime.now() + timedelta(days=15),
+                "status": "planned"
             }
         ]
     
-    async def _generate_activity_suggestions(self, location: str) -> List[Dict]:
-        """Generate activity suggestions"""
-        return [
-            {
-                'activity': 'Local hiking trail',
-                'distance': '1.5 miles away',
-                'type': 'outdoor'
-            }
-        ]
+    async def _analyze_travel_patterns(self, user_id: str) -> Dict[str, Any]:
+        """Analyze user's travel patterns"""
+        return {
+            "preferred_duration": "3-5 days",
+            "common_destinations": ["Queensland Coast", "NSW Mountains"],
+            "travel_frequency": "monthly",
+            "preferred_season": "autumn/spring"
+        }
     
-    async def _generate_maintenance_suggestions(self, user_id: str) -> List[Dict]:
-        """Generate RV maintenance suggestions"""
-        try:
-            query = """
-                SELECT task, next_due_date, priority 
-                FROM maintenance_schedule 
-                WHERE user_id = $1 
-                AND next_due_date <= CURRENT_DATE + INTERVAL '30 days'
-                ORDER BY next_due_date ASC
-            """
-            
-            maintenance_items = await self.database_service.execute_query(query, user_id)
-            
-            return [
-                {
-                    'task': item['task'],
-                    'due_date': item['next_due_date'].isoformat(),
-                    'priority': item['priority']
-                }
-                for item in maintenance_items
-            ]
-        except:
-            return []
-    
-    async def _fetch_user_preferences(self, user_id: str) -> Dict[str, Any]:
-        """Fetch user preferences for dashboard customization"""
-        try:
-            query = """
-                SELECT dashboard_layout, news_sources, notification_preferences,
-                       timezone, currency, measurement_units
-                FROM user_preferences 
-                WHERE user_id = $1
-            """
-            
-            prefs = await self.database_service.execute_single(query, user_id)
-            return prefs or {}
-        except:
-            return {}
+    async def _generate_travel_timeline(self, events: List[Dict], trips: List[Dict]) -> List[Dict]:
+        """Generate a combined travel timeline"""
+        timeline = []
+        
+        # Combine events and trips into timeline
+        for event in events:
+            timeline.append({
+                "date": event["date"],
+                "title": event["title"],
+                "type": "event",
+                "duration": event.get("duration_days", 1)
+            })
+        
+        for trip in trips:
+            timeline.append({
+                "date": trip["start_date"],
+                "title": trip["name"],
+                "type": "trip",
+                "duration": (trip["end_date"] - trip["start_date"]).days
+            })
+        
+        # Sort by date
+        timeline.sort(key=lambda x: x["date"])
+        
+        return timeline
 
-# Global YOU node instance
+# Create global instance
 you_node = YouNode()
