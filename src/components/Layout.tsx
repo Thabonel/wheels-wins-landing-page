@@ -17,7 +17,7 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b px-6 py-4">
+      <header className="relative z-50 bg-white shadow-sm border-b px-6 py-4">
         <Header />
       </header>
 

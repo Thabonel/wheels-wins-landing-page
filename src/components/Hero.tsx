@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 const Hero = () => {
-  return <section className="w-full h-screen flex items-center justify-center overflow-hidden">
+  return <section className="relative w-full h-screen flex items-center justify-center overflow-hidden">
       <div className="absolute inset-0 bg-cover bg-center" style={{
       backgroundImage: "url('https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//WheelsnadwinsHero.jpg')"
     }}>
