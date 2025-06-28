@@ -1,84 +1,160 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase';
+
+interface User {
+  id: string;
+  email: string;
+  full_name?: string;
+}
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
+  token: string | null;
   loading: boolean;
   isAuthenticated: boolean;
   isDevMode: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signOut: () => Promise<void>;
-  logout: () => Promise<void>; // Alias for signOut
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const BACKEND_URL = 'https://pam-backend.onrender.com';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check if we're in dev mode (for development purposes)
-  const isDevMode = process.env.NODE_ENV === 'development';
-  const isAuthenticated = !!user;
-  console.log("Auth Debug:", { user, session, isAuthenticated, isDevMode, loading });
+  const isDevMode = false; // Remove dev mode dependency
+  const isAuthenticated = !!user && !!token;
 
   useEffect(() => {
-    const getSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-      } catch (error) {
-        console.error('Error getting session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    // Check for existing token on app load
+    const savedToken = localStorage.getItem('auth_token');
+    if (savedToken) {
+      setToken(savedToken);
+      fetchCurrentUser(savedToken);
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+  const fetchCurrentUser = async (authToken: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/v1/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        // Token invalid, clear it
+        localStorage.removeItem('auth_token');
+        setToken(null);
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      localStorage.removeItem('auth_token');
+      setToken(null);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
+  const signIn = async (email: string, password: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Login failed');
+      }
+
+      const data = await response.json();
+      const authToken = data.access_token;
+      
+      setToken(authToken);
+      localStorage.setItem('auth_token', authToken);
+      
+      await fetchCurrentUser(authToken);
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
+    }
+  };
+
+  const signUp = async (email: string, password: string, fullName?: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          email, 
+          password, 
+          full_name: fullName 
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Registration failed');
+      }
+
+      const data = await response.json();
+      const authToken = data.access_token;
+      
+      setToken(authToken);
+      localStorage.setItem('auth_token', authToken);
+      
+      await fetchCurrentUser(authToken);
+    } catch (error) {
+      console.error('Sign up error:', error);
+      throw error;
+    }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      if (token) {
+        await fetch(`${BACKEND_URL}/api/v1/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem('auth_token');
+    }
   };
 
-  // Alias for signOut to match what components expect
-  const logout = signOut;
+  const logout = signOut; // Alias
 
-  if (loading) {
-    return null;
-  }
+  console.log("Auth Debug - user:", user, "isAuthenticated:", isAuthenticated, "isDevMode:", isDevMode, "loading:", loading);
 
   return (
     <AuthContext.Provider value={{ 
       user, 
-      session, 
+      token,
       loading, 
       isAuthenticated, 
       isDevMode, 
