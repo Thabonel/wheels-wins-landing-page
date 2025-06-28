@@ -43,7 +43,7 @@ const Header = () => {
             {effectivelyAuthenticated ? (
               <UserMenu />
             ) : (
-              <Link to="/auth" className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
+              <Link to="/login" className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
                 Sign In
               </Link>
             )}
