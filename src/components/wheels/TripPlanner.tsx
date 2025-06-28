@@ -103,6 +103,7 @@ export default function TripPlanner() {
           directionsControl={directionsControl}
           isVisible={showBudget}
           onClose={() => setShowBudget(false)}
+          waypoints={waypoints}
         />
       }
     >
