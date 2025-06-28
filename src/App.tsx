@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { RegionProvider } from './context/RegionContext';
 import { OfflineProvider } from './context/OfflineContext';
 import { ExpensesProvider } from './context/ExpensesContext';
+import { WheelsProvider } from './context/WheelsContext';
 import Layout from './components/Layout';
 import Index from './pages/Index';
 import Wheels from './pages/Wheels';
@@ -29,34 +30,36 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Toaster />
-      <Router>
-        <AuthProvider>
-          <RegionProvider>
-            <OfflineProvider>
-              <ExpensesProvider>
-                <ScrollToTop />
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
-                    <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
-                    <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
-                    <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
-                    <Route path="/shop" element={<Shop />} />
-                    <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route path="/onboarding" element={<Onboarding />} />
-                    <Route path="/payment-success" element={<PaymentSuccess />} />
-                    <Route path="/payment-canceled" element={<PaymentCanceled />} />
-                  </Routes>
-                </Layout>
-              </ExpensesProvider>
-            </OfflineProvider>
-          </RegionProvider>
-        </AuthProvider>
-      </Router>
+        <Router>
+          <AuthProvider>
+            <RegionProvider>
+              <OfflineProvider>
+                <ExpensesProvider>
+                  <WheelsProvider>
+                    <ScrollToTop />
+                    <Layout>
+                      <Routes>
+                        <Route path="/" element={<Index />} />
+                        <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
+                        <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
+                        <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
+                        <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
+                        <Route path="/shop" element={<Shop />} />
+                        <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+                        <Route path="/profile" element={<Profile />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/signup" element={<Signup />} />
+                        <Route path="/onboarding" element={<Onboarding />} />
+                        <Route path="/payment-success" element={<PaymentSuccess />} />
+                        <Route path="/payment-canceled" element={<PaymentCanceled />} />
+                      </Routes>
+                    </Layout>
+                  </WheelsProvider>
+                </ExpensesProvider>
+              </OfflineProvider>
+            </RegionProvider>
+          </AuthProvider>
+        </Router>
     </QueryClientProvider>
   );
 }
