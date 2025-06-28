@@ -1,13 +1,13 @@
 
-import { supabase } from "@/integrations/supabase/client";
 import { TripPayload, Waypoint, Suggestion } from "./types";
+import { apiFetch } from "@/services/api";
 
 export class TripService {
-  private static TRIP_WEBHOOK_URL = import.meta.env.VITE_N8N_TRIP_WEBHOOK;
+  private static TRIP_API_URL = "/api/v1/trips";
 
   static async submitTripPlan(payload: TripPayload): Promise<void> {
     try {
-      await fetch(this.TRIP_WEBHOOK_URL, {
+      await apiFetch(TripService.TRIP_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -33,7 +33,7 @@ export class TripService {
         mode,
       };
       
-      const res = await fetch(this.TRIP_WEBHOOK_URL, {
+      const res = await apiFetch(TripService.TRIP_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

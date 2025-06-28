@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import type { EnhancedPamMemory, KnowledgeSearchResult } from '@/types/knowledgeTypes';
+import { apiFetch } from '@/services/api';
 
 // Helper function to get enhanced PAM memory including personal knowledge
 export const getEnhancedPamMemory = async (userId: string, region: string, currentContext?: string): Promise<EnhancedPamMemory> => {
@@ -65,13 +66,13 @@ export const getEnhancedPamMemory = async (userId: string, region: string, curre
       try {
         console.log('🔍 Searching personal knowledge for context:', currentContext);
         
-        const { data: searchResults, error } = await supabase.functions.invoke('search-user-knowledge', {
-          body: {
-            userId,
-            query: currentContext,
-            limit: 3
-          }
+        const response = await apiFetch('/api/v1/knowledge/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, query: currentContext, limit: 3 })
         });
+        const searchResults = response.ok ? await response.json() : null;
+        const error = response.ok ? null : new Error('Request failed');
 
         if (error) {
           console.error('❌ Knowledge search error:', error);

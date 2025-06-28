@@ -1,6 +1,7 @@
 
 // src/components/MicButton.tsx
 import React, { useState, useRef } from 'react';
+import { apiFetch } from '@/services/api';
 
 interface MicButtonProps {
   inline?: boolean;
@@ -28,7 +29,7 @@ export default function MicButton({ inline = false, disabled = false }: MicButto
       recorder.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         try {
-          await fetch(import.meta.env.VITE_N8N_VOICE_WEBHOOK_URL, {
+          await apiFetch('/api/v1/pam/voice', {
             method: 'POST',
             body: blob,
           });
