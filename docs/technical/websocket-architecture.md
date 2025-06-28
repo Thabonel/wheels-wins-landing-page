@@ -331,7 +331,7 @@ VITE_PAM_BACKEND_URL=https://pam-backend.onrender.com
 ```bash
 OPENAI_API_KEY=sk-...
 SUPABASE_URL=https://...supabase.co
-SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_KEY=<token>
 JWT_SECRET=your-jwt-secret
 ENVIRONMENT=production
 ```
