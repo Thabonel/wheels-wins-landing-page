@@ -728,6 +728,42 @@ export type Database = {
           },
         ]
       }
+      friend_locations: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_public: boolean | null
+          last_updated: string | null
+          latitude: number
+          location_name: string | null
+          longitude: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_public?: boolean | null
+          last_updated?: string | null
+          latitude: number
+          location_name?: string | null
+          longitude: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_public?: boolean | null
+          last_updated?: string | null
+          latitude?: number
+          location_name?: string | null
+          longitude?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       fuel_log: {
         Row: {
           consumption: number | null
@@ -864,6 +900,86 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      group_trip_participants: {
+        Row: {
+          id: string
+          joined_at: string | null
+          role: string
+          status: string
+          trip_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          role?: string
+          status?: string
+          trip_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          role?: string
+          status?: string
+          trip_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_trip_participants_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "group_trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_trips: {
+        Row: {
+          budget_coordination: Json | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          end_date: string | null
+          id: string
+          meeting_point: Json | null
+          route_data: Json | null
+          start_date: string | null
+          status: string
+          trip_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          budget_coordination?: Json | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          meeting_point?: Json | null
+          route_data?: Json | null
+          start_date?: string | null
+          status?: string
+          trip_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          budget_coordination?: Json | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          meeting_point?: Json | null
+          route_data?: Json | null
+          start_date?: string | null
+          status?: string
+          trip_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       hustle_ideas: {
         Row: {
@@ -1383,6 +1499,51 @@ export type Database = {
           notes?: string | null
           recipe_name?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      meetup_suggestions: {
+        Row: {
+          confidence_score: number | null
+          cost_impact: number | null
+          created_at: string | null
+          distance_deviation_km: number | null
+          expires_at: string | null
+          friend_id: string
+          id: string
+          status: string
+          suggested_date: string | null
+          suggested_location: Json
+          trip_day: number | null
+          user_id: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          cost_impact?: number | null
+          created_at?: string | null
+          distance_deviation_km?: number | null
+          expires_at?: string | null
+          friend_id: string
+          id?: string
+          status?: string
+          suggested_date?: string | null
+          suggested_location: Json
+          trip_day?: number | null
+          user_id: string
+        }
+        Update: {
+          confidence_score?: number | null
+          cost_impact?: number | null
+          created_at?: string | null
+          distance_deviation_km?: number | null
+          expires_at?: string | null
+          friend_id?: string
+          id?: string
+          status?: string
+          suggested_date?: string | null
+          suggested_location?: Json
+          trip_day?: number | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -3188,6 +3349,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_friends: {
+        Row: {
+          accepted_at: string | null
+          created_at: string | null
+          friend_id: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string | null
+          friend_id: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string | null
+          friend_id?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_hustle_attempts: {
         Row: {
           created_at: string
@@ -3613,6 +3801,45 @@ export type Database = {
           seasonal_preferences?: Json | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_social_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          display_name: string | null
+          friends_can_see_route: boolean | null
+          id: string
+          location_sharing_enabled: boolean | null
+          rv_info: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          friends_can_see_route?: boolean | null
+          id?: string
+          location_sharing_enabled?: boolean | null
+          rv_info?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          friends_can_see_route?: boolean | null
+          id?: string
+          location_sharing_enabled?: boolean | null
+          rv_info?: Json | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
