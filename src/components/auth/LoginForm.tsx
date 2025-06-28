@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import PasswordInput from "./PasswordInput";
 
 interface LoginFormProps {
@@ -19,6 +19,7 @@ interface LoginFormProps {
 const LoginForm = ({ loading, setLoading, error, setError, onSuccess }: LoginFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { signIn } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,9 +29,7 @@ const LoginForm = ({ loading, setLoading, error, setError, onSuccess }: LoginFor
     try {
       if (!email || !password) throw new Error("Please enter both email and password");
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-
+      await signIn(email, password);
       onSuccess();
     } catch (err: any) {
       setError(err.message);
