@@ -16,8 +16,14 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis
@@ -45,8 +51,14 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis
@@ -69,8 +81,14 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis
