@@ -14,51 +14,69 @@ import {
   AlertTriangle,
   CheckCircle,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  XCircle,
+  Mountain,
+  Settings,
+  MessageSquare,
+  X
 } from 'lucide-react';
 import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
+import { 
+  BudgetCalculator, 
+  BudgetSettings, 
+  RouteData, 
+  CostBreakdown, 
+  BudgetStatus, 
+  PAMSuggestion 
+} from './services/BudgetCalculator';
+import { Waypoint } from './types';
+import { cn } from '@/lib/utils';
 
 interface BudgetSidebarProps {
   directionsControl?: React.MutableRefObject<MapboxDirections | undefined>;
   isVisible: boolean;
   onClose: () => void;
+  waypoints?: Waypoint[];
 }
 
-interface BudgetSettings {
-  totalBudget: number;
-  fuelMpg: number;
-  fuelPrice: number;
-  campgroundCostPerNight: number;
-  foodCostPerDay: number;
-  activityBudgetPerDay: number;
-  tripDurationDays: number;
-}
+const iconMap = {
+  'check-circle': CheckCircle,
+  'alert-triangle': AlertTriangle,
+  'x-circle': XCircle,
+  'trending-up': TrendingUp,
+  'trending-down': TrendingDown,
+  'tent': Tent,
+  'mountain': Mountain,
+  'route': MapPin,
+};
 
-interface CostBreakdown {
-  fuel: number;
-  campground: number;
-  food: number;
-  activities: number;
-  total: number;
-}
-
-export default function BudgetSidebar({ directionsControl, isVisible, onClose }: BudgetSidebarProps) {
+export default function BudgetSidebar({ 
+  directionsControl, 
+  isVisible, 
+  onClose, 
+  waypoints = [] 
+}: BudgetSidebarProps) {
+  const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<BudgetSettings>({
     totalBudget: 1500,
-    fuelMpg: 8,
-    fuelPrice: 3.50,
-    campgroundCostPerNight: 35,
-    foodCostPerDay: 50,
-    activityBudgetPerDay: 75,
-    tripDurationDays: 7,
+    fuelPrice: 3.89,
+    campgroundCostPerNight: 90,
+    foodCostPerDay: 14,
+    activityBudgetPerDay: 25,
+    tripDurationDays: 9,
+    rvProfile: {
+      mpg: 8.5,
+      fuelTankCapacity: 100,
+      preferredDailyDistance: 300,
+      vehicleType: 'motorhome',
+    },
   });
 
-  const [routeData, setRouteData] = useState<{
-    distance: number;
-    duration: number;
-  }>({
-    distance: 0,
-    duration: 0,
+  const [routeData, setRouteData] = useState<RouteData>({
+    distance: 2850 * 1.60934, // Default 2850 miles in km for demo
+    duration: 45, // hours
+    waypoints: waypoints,
   });
 
   // Extract route data from directions control
@@ -74,6 +92,7 @@ export default function BudgetSidebar({ directionsControl, isVisible, onClose }:
             setRouteData({
               distance: totalDistance / 1000, // Convert to km
               duration: totalDuration / 3600, // Convert to hours
+              waypoints: waypoints,
             });
           }
         } catch (error) {
@@ -88,242 +107,196 @@ export default function BudgetSidebar({ directionsControl, isVisible, onClose }:
         directionsControl.current?.off?.('route', updateRouteData);
       };
     }
-  }, [directionsControl]);
+  }, [directionsControl, waypoints]);
 
-  // Calculate costs based on route and settings
+  // Calculate costs and budget status
   const costBreakdown = useMemo((): CostBreakdown => {
-    const distanceMiles = routeData.distance * 0.621371; // Convert km to miles
-    
-    const fuel = (distanceMiles / settings.fuelMpg) * settings.fuelPrice;
-    const campground = settings.campgroundCostPerNight * (settings.tripDurationDays - 1); // Assuming last night at home
-    const food = settings.foodCostPerDay * settings.tripDurationDays;
-    const activities = settings.activityBudgetPerDay * settings.tripDurationDays;
-    
-    return {
-      fuel: Math.round(fuel * 100) / 100,
-      campground: Math.round(campground * 100) / 100,
-      food: Math.round(food * 100) / 100,
-      activities: Math.round(activities * 100) / 100,
-      total: Math.round((fuel + campground + food + activities) * 100) / 100,
-    };
+    return BudgetCalculator.calculateCosts(routeData, settings);
   }, [routeData, settings]);
 
-  const budgetStatus = useMemo(() => {
-    const remaining = settings.totalBudget - costBreakdown.total;
-    const percentage = (costBreakdown.total / settings.totalBudget) * 100;
-    
-    return {
-      remaining,
-      percentage: Math.min(percentage, 100),
-      isOverBudget: costBreakdown.total > settings.totalBudget,
-      isNearLimit: percentage > 85 && percentage <= 100,
-    };
-  }, [settings.totalBudget, costBreakdown.total]);
+  const budgetStatus = useMemo((): BudgetStatus => {
+    return BudgetCalculator.calculateBudgetStatus(costBreakdown.total, settings.totalBudget);
+  }, [costBreakdown.total, settings.totalBudget]);
 
-  const pamSuggestions = useMemo(() => {
-    const suggestions = [];
-    
-    if (budgetStatus.isOverBudget) {
-      suggestions.push({
-        type: 'cost-reduction',
-        title: 'Reduce Campground Costs',
-        description: `Try boondocking or state parks to save ~$${Math.round((settings.campgroundCostPerNight - 15) * (settings.tripDurationDays - 1))}`,
-        icon: Tent,
-        color: 'text-red-600',
-      });
-      
-      suggestions.push({
-        type: 'route-optimization',
-        title: 'Optimize Route',
-        description: 'Consider a more direct route to reduce fuel costs',
-        icon: Fuel,
-        color: 'text-orange-600',
-      });
-    }
-    
-    if (costBreakdown.fuel > costBreakdown.total * 0.4) {
-      suggestions.push({
-        type: 'fuel-efficiency',
-        title: 'Improve Fuel Efficiency',
-        description: 'Reduce speed by 5-10 mph to improve MPG by 15-20%',
-        icon: TrendingDown,
-        color: 'text-blue-600',
-      });
-    }
+  const pamSuggestions = useMemo((): PAMSuggestion[] => {
+    return BudgetCalculator.generatePAMSuggestions(costBreakdown, budgetStatus, settings, routeData);
+  }, [costBreakdown, budgetStatus, settings, routeData]);
 
-    if (budgetStatus.remaining > 200) {
-      suggestions.push({
-        type: 'upgrade-opportunity',
-        title: 'Upgrade Opportunities',
-        description: `You have $${Math.round(budgetStatus.remaining)} remaining for activities or better campsites`,
-        icon: TrendingUp,
-        color: 'text-green-600',
-      });
-    }
-
-    return suggestions;
-  }, [budgetStatus, costBreakdown, settings]);
+  const StatusIcon = iconMap[BudgetCalculator.getStatusIcon(budgetStatus.status) as keyof typeof iconMap];
+  const statusColor = BudgetCalculator.getStatusColor(budgetStatus.status);
 
   if (!isVisible) return null;
 
   return (
-    <Card className="w-full max-w-md bg-white border shadow-lg">
+    <Card className="w-full bg-white border shadow-lg h-fit">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-primary" />
-            Budget Intelligence
+            Trip Budget Tracker
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            ×
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowSettings(!showSettings)}
+              className="h-8 w-8 p-0"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onClose}
+              className="h-8 w-8 p-0"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Total Trip Cost */}
-        <div className="text-center p-4 bg-muted rounded-lg">
-          <div className="text-3xl font-bold text-primary">
-            ${costBreakdown.total.toLocaleString()}
+        {/* Total Trip Cost Header */}
+        <div className="text-center p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border">
+          <div className="text-4xl font-bold text-primary mb-2">
+            {BudgetCalculator.formatCurrency(costBreakdown.total)}
           </div>
-          <div className="text-sm text-muted-foreground">Total Trip Cost</div>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            {budgetStatus.isOverBudget ? (
-              <>
-                <AlertTriangle className="w-4 h-4 text-red-500" />
-                <Badge variant="destructive">Over Budget</Badge>
-              </>
-            ) : budgetStatus.isNearLimit ? (
-              <>
-                <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                <Badge variant="secondary">Near Limit</Badge>
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <Badge variant="secondary" className="bg-green-100 text-green-700">
-                  On Track
-                </Badge>
-              </>
-            )}
+          <div className="text-sm text-muted-foreground mb-3">Total Trip Cost</div>
+          <div className="flex items-center justify-center gap-2">
+            <StatusIcon className={cn("w-5 h-5", statusColor)} />
+            <Badge 
+              variant={budgetStatus.status === 'under_budget' ? 'secondary' : 'destructive'}
+              className={cn(
+                "font-medium",
+                budgetStatus.status === 'under_budget' && "bg-green-100 text-green-700 hover:bg-green-100",
+                budgetStatus.status === 'near_limit' && "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
+              )}
+            >
+              {budgetStatus.status === 'under_budget' && 'Under Budget'}
+              {budgetStatus.status === 'near_limit' && 'Near Limit'}
+              {budgetStatus.status === 'over_budget' && 'Over Budget'}
+            </Badge>
           </div>
         </div>
 
-        {/* Budget Progress */}
-        <div>
-          <div className="flex justify-between text-sm mb-2">
-            <span>Budget Used</span>
-            <span>${costBreakdown.total} / ${settings.totalBudget}</span>
+        {/* Budget Progress Bar */}
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium">Budget Progress</span>
+            <span className="text-muted-foreground">
+              {BudgetCalculator.formatCurrency(costBreakdown.total)} / {BudgetCalculator.formatCurrency(settings.totalBudget)}
+            </span>
           </div>
           <Progress 
             value={budgetStatus.percentage} 
-            className={`h-3 ${budgetStatus.isOverBudget ? 'bg-red-100' : budgetStatus.isNearLimit ? 'bg-yellow-100' : 'bg-green-100'}`}
+            className={cn(
+              "h-3",
+              budgetStatus.status === 'over_budget' && "[&>div]:bg-red-500",
+              budgetStatus.status === 'near_limit' && "[&>div]:bg-yellow-500",
+              budgetStatus.status === 'under_budget' && "[&>div]:bg-green-500"
+            )}
           />
-          <div className="text-xs text-muted-foreground mt-1">
+          <div className="text-xs text-muted-foreground">
             {budgetStatus.isOverBudget 
-              ? `$${Math.abs(budgetStatus.remaining)} over budget`
-              : `$${budgetStatus.remaining} remaining`
+              ? `${BudgetCalculator.formatCurrency(Math.abs(budgetStatus.remaining))} over budget`
+              : `${BudgetCalculator.formatCurrency(budgetStatus.remaining)} remaining`
             }
           </div>
         </div>
 
-        {/* Cost Breakdown */}
-        <div className="space-y-3">
-          <h4 className="font-medium">Cost Breakdown</h4>
+        {/* Detailed Cost Breakdown */}
+        <div className="space-y-4">
+          <h4 className="font-semibold text-base flex items-center gap-2">
+            💰 Cost Breakdown
+          </h4>
           
-          <div className="space-y-2">
-            <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-              <div className="flex items-center gap-2">
-                <Fuel className="w-4 h-4 text-blue-600" />
-                <span className="text-sm">Fuel ({Math.round(routeData.distance)} km)</span>
+          <div className="space-y-3">
+            {/* Fuel Costs */}
+            <div className="p-4 rounded-lg bg-blue-50 border border-blue-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                    <Fuel className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="font-medium">🛣️ Fuel</span>
+                </div>
+                <span className="text-lg font-bold text-blue-700">
+                  {BudgetCalculator.formatCurrency(costBreakdown.fuel.cost)}
+                </span>
               </div>
-              <span className="font-medium">${costBreakdown.fuel}</span>
-            </div>
-            
-            <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-              <div className="flex items-center gap-2">
-                <Tent className="w-4 h-4 text-green-600" />
-                <span className="text-sm">Campgrounds ({settings.tripDurationDays - 1} nights)</span>
+              <div className="text-xs text-blue-600 ml-10">
+                {costBreakdown.fuel.details}
               </div>
-              <span className="font-medium">${costBreakdown.campground}</span>
+              <Progress 
+                value={(costBreakdown.fuel.cost / costBreakdown.total) * 100} 
+                className="mt-2 h-2 bg-blue-100 [&>div]:bg-blue-500"
+              />
             </div>
-            
-            <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-              <div className="flex items-center gap-2">
-                <UtensilsCrossed className="w-4 h-4 text-orange-600" />
-                <span className="text-sm">Food ({settings.tripDurationDays} days)</span>
-              </div>
-              <span className="font-medium">${costBreakdown.food}</span>
-            </div>
-            
-            <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-purple-600" />
-                <span className="text-sm">Activities ({settings.tripDurationDays} days)</span>
-              </div>
-              <span className="font-medium">${costBreakdown.activities}</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Budget Settings (Collapsible) */}
-        <div className="space-y-3">
-          <h4 className="font-medium">Settings</h4>
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div>
-              <Label>Total Budget</Label>
-              <Input
-                type="number"
-                value={settings.totalBudget}
-                onChange={(e) => setSettings(prev => ({ ...prev, totalBudget: Number(e.target.value) }))}
-                className="h-8"
+            {/* Campground Costs */}
+            <div className="p-4 rounded-lg bg-green-50 border border-green-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                    <Tent className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="font-medium">🏕️ Campgrounds</span>
+                </div>
+                <span className="text-lg font-bold text-green-700">
+                  {BudgetCalculator.formatCurrency(costBreakdown.campground.cost)}
+                </span>
+              </div>
+              <div className="text-xs text-green-600 ml-10">
+                {costBreakdown.campground.details}
+              </div>
+              <Progress 
+                value={(costBreakdown.campground.cost / costBreakdown.total) * 100} 
+                className="mt-2 h-2 bg-green-100 [&>div]:bg-green-500"
               />
             </div>
-            <div>
-              <Label>Trip Days</Label>
-              <Input
-                type="number"
-                value={settings.tripDurationDays}
-                onChange={(e) => setSettings(prev => ({ ...prev, tripDurationDays: Number(e.target.value) }))}
-                className="h-8"
+
+            {/* Food Costs */}
+            <div className="p-4 rounded-lg bg-orange-50 border border-orange-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                    <UtensilsCrossed className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="font-medium">🍽️ Food</span>
+                </div>
+                <span className="text-lg font-bold text-orange-700">
+                  {BudgetCalculator.formatCurrency(costBreakdown.food.cost)}
+                </span>
+              </div>
+              <div className="text-xs text-orange-600 ml-10">
+                {costBreakdown.food.details}
+              </div>
+              <Progress 
+                value={(costBreakdown.food.cost / costBreakdown.total) * 100} 
+                className="mt-2 h-2 bg-orange-100 [&>div]:bg-orange-500"
               />
             </div>
-            <div>
-              <Label>RV MPG</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={settings.fuelMpg}
-                onChange={(e) => setSettings(prev => ({ ...prev, fuelMpg: Number(e.target.value) }))}
-                className="h-8"
-              />
-            </div>
-            <div>
-              <Label>Fuel $/gal</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={settings.fuelPrice}
-                onChange={(e) => setSettings(prev => ({ ...prev, fuelPrice: Number(e.target.value) }))}
-                className="h-8"
-              />
-            </div>
-            <div>
-              <Label>Camp $/night</Label>
-              <Input
-                type="number"
-                value={settings.campgroundCostPerNight}
-                onChange={(e) => setSettings(prev => ({ ...prev, campgroundCostPerNight: Number(e.target.value) }))}
-                className="h-8"
-              />
-            </div>
-            <div>
-              <Label>Food $/day</Label>
-              <Input
-                type="number"
-                value={settings.foodCostPerDay}
-                onChange={(e) => setSettings(prev => ({ ...prev, foodCostPerDay: Number(e.target.value) }))}
-                className="h-8"
+
+            {/* Activities */}
+            <div className="p-4 rounded-lg bg-purple-50 border border-purple-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                    <MapPin className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="font-medium">🎯 Activities</span>
+                </div>
+                <span className="text-lg font-bold text-purple-700">
+                  {BudgetCalculator.formatCurrency(costBreakdown.activities.cost)}
+                </span>
+              </div>
+              <div className="text-xs text-purple-600 ml-10">
+                {costBreakdown.activities.details}
+              </div>
+              <Progress 
+                value={(costBreakdown.activities.cost / costBreakdown.total) * 100} 
+                className="mt-2 h-2 bg-purple-100 [&>div]:bg-purple-500"
               />
             </div>
           </div>
@@ -331,22 +304,102 @@ export default function BudgetSidebar({ directionsControl, isVisible, onClose }:
 
         {/* PAM AI Suggestions */}
         {pamSuggestions.length > 0 && (
-          <div className="space-y-3">
-            <h4 className="font-medium">PAM Suggestions</h4>
-            <div className="space-y-2">
+          <div className="space-y-4">
+            <h4 className="font-semibold text-base flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              💡 PAM Suggests
+            </h4>
+            <div className="space-y-3">
               {pamSuggestions.map((suggestion, index) => (
-                <div key={index} className="p-3 border rounded-lg bg-background">
-                  <div className="flex items-start gap-2">
-                    <suggestion.icon className={`w-4 h-4 mt-0.5 ${suggestion.color}`} />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{suggestion.title}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
+                <div key={index} className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <MessageSquare className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm text-primary mb-1">
+                        "{suggestion.title}"
+                      </div>
+                      <div className="text-xs text-muted-foreground">
                         {suggestion.description}
                       </div>
+                      {suggestion.potentialSavings && (
+                        <div className="text-xs font-medium text-green-600 mt-1">
+                          Potential savings: {BudgetCalculator.formatCurrency(suggestion.potentialSavings)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Settings Panel */}
+        {showSettings && (
+          <div className="space-y-4 p-4 bg-muted/50 rounded-lg border-t">
+            <h4 className="font-medium">Budget Settings</h4>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <Label className="text-xs">Total Budget</Label>
+                <Input
+                  type="number"
+                  value={settings.totalBudget}
+                  onChange={(e) => setSettings(prev => ({ ...prev, totalBudget: Number(e.target.value) }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Trip Days</Label>
+                <Input
+                  type="number"
+                  value={settings.tripDurationDays}
+                  onChange={(e) => setSettings(prev => ({ ...prev, tripDurationDays: Number(e.target.value) }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">RV MPG</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={settings.rvProfile.mpg}
+                  onChange={(e) => setSettings(prev => ({ 
+                    ...prev, 
+                    rvProfile: { ...prev.rvProfile, mpg: Number(e.target.value) }
+                  }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Fuel $/gal</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={settings.fuelPrice}
+                  onChange={(e) => setSettings(prev => ({ ...prev, fuelPrice: Number(e.target.value) }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Camp $/night</Label>
+                <Input
+                  type="number"
+                  value={settings.campgroundCostPerNight}
+                  onChange={(e) => setSettings(prev => ({ ...prev, campgroundCostPerNight: Number(e.target.value) }))}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Food $/day</Label>
+                <Input
+                  type="number"
+                  value={settings.foodCostPerDay}
+                  onChange={(e) => setSettings(prev => ({ ...prev, foodCostPerDay: Number(e.target.value) }))}
+                  className="h-8 text-xs"
+                />
+              </div>
             </div>
           </div>
         )}
