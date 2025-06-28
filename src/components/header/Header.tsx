@@ -4,6 +4,7 @@ import UserMenu from "./UserMenu";
 
 const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
+  console.log("Header Auth State:", { isAuthenticated, isDevMode, effectivelyAuthenticated: isAuthenticated || isDevMode });
   const effectivelyAuthenticated = isAuthenticated || isDevMode;
 
   return (
