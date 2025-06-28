@@ -109,10 +109,7 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
 
   return (
     <PAMProvider>
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <TripPlannerHeader isOffline={isOffline} />
-
+      <div className="bg-background">
         {/* Offline Banner */}
         {isOffline && <OfflineTripBanner />}
 

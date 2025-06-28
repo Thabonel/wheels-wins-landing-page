@@ -122,6 +122,16 @@ export default function TripPlannerApp() {
 
   const TripDashboard = () => (
     <div className="space-y-6">
+      {/* Map Container - Moved to top */}
+      <div className="relative">
+        <div className="h-[400px] w-full rounded-lg border shadow-sm bg-muted/30 flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <MapPin className="w-12 h-12 text-muted-foreground mx-auto" />
+            <p className="text-muted-foreground">Click "Plan Trip" to start route planning</p>
+          </div>
+        </div>
+      </div>
+
       {/* Trip Progress Overview */}
       <Card className="border-l-4 border-l-primary">
         <CardHeader>
@@ -455,63 +465,80 @@ export default function TripPlannerApp() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AnimatePresence mode="wait">
-        {currentView === 'dashboard' && (
-          <motion.div
-            key="dashboard"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="container mx-auto px-4 py-6"
-          >
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="text-3xl font-bold">Trip Planner</h1>
-                <p className="text-muted-foreground">
-                  {user ? `Welcome back, ${user.email}` : 'Plan your next RV adventure'}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setCurrentView('templates')}>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Templates
-                </Button>
-                <Button onClick={handleStartPlanning}>
-                  <Route className="w-4 h-4 mr-2" />
-                  Plan Trip
-                </Button>
-              </div>
-            </div>
-            <TripDashboard />
-          </motion.div>
-        )}
+      {/* Header with animated controls - Always visible */}
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex gap-2 justify-center">
+            {/* Action Buttons */}
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button 
+                onClick={() => setCurrentView('templates')}
+                variant="outline"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Trip Templates
+              </Button>
+            </motion.div>
+            
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button 
+                onClick={handleStartPlanning}
+              >
+                <Route className="w-4 h-4 mr-2" />
+                {isPlannerInitialized ? 'Continue Planning' : 'Plan Trip'}
+              </Button>
+            </motion.div>
+          </div>
+        </div>
+      </div>
 
-        {currentView === 'templates' && (
-          <motion.div
-            key="templates"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="container mx-auto px-4 py-6"
-          >
-            <TemplateGallery />
-          </motion.div>
-        )}
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-6">
+        <AnimatePresence mode="wait">
+          {currentView === 'dashboard' && (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TripDashboard />
+            </motion.div>
+          )}
 
-        {currentView === 'planner' && isPlannerInitialized && (
-          <motion.div
-            key="planner"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <IntegratedTripPlanner />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {currentView === 'templates' && (
+            <motion.div
+              key="templates"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TemplateGallery />
+            </motion.div>
+          )}
+
+          {currentView === 'planner' && isPlannerInitialized && (
+            <motion.div
+              key="planner"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <IntegratedTripPlanner />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
