@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import PamConnectionStatus from "./PamConnectionStatus";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 interface PamFloatingButtonProps {
   onClick: () => void;
@@ -16,7 +17,7 @@ const PamFloatingButton = ({ onClick, isConnected }: PamFloatingButtonProps) => 
         onClick={onClick}
       >
         <Avatar className="h-10 w-10">
-          <img src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/Pam.webp" alt="Pam" />
+          <img src={getPublicAssetUrl('Pam.webp')} alt="Pam" />
         </Avatar>
       </Button>
       

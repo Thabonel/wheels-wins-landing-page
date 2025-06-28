@@ -8,6 +8,7 @@ import NavigationLinks from "./NavigationLinks";
 import LoginButton from "./LoginButton";
 import UserMenu from "./UserMenu";
 import { Button } from "@/components/ui/button";
+import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
@@ -19,7 +20,7 @@ const Header = () => {
       {/* Logo */}
       <Link to="/" className="flex-shrink-0">
         <img
-          src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/wheels%20and%20wins%20Logo%20alpha.png"
+          src={getPublicAssetUrl('wheels and wins Logo alpha.png')}
           alt="Wheels & Wins"
           className="h-14 object-contain drop-shadow-md"
         />
