@@ -83,7 +83,7 @@ const TRIP_TEMPLATES: TripTemplate[] = [
 export default function TripPlannerApp() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'planner' | 'templates'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'planner' | 'templates' | 'details'>('planner');
   const [isPlannerInitialized, setIsPlannerInitialized] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
   const [showWelcome, setShowWelcome] = useState(!user);
@@ -469,14 +469,14 @@ export default function TripPlannerApp() {
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex gap-2 justify-center">
-            {/* Action Buttons */}
+            {/* Navigation Buttons */}
             <motion.div
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               <Button 
                 onClick={() => setCurrentView('templates')}
-                variant="outline"
+                variant={currentView === 'templates' ? 'default' : 'outline'}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Trip Templates
@@ -488,10 +488,24 @@ export default function TripPlannerApp() {
               whileTap={{ scale: 0.98 }}
             >
               <Button 
-                onClick={handleStartPlanning}
+                onClick={() => setCurrentView('planner')}
+                variant={currentView === 'planner' ? 'default' : 'outline'}
               >
                 <Route className="w-4 h-4 mr-2" />
-                {isPlannerInitialized ? 'Continue Planning' : 'Plan Trip'}
+                Plan Trip
+              </Button>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button 
+                onClick={() => setCurrentView('details')}
+                variant={currentView === 'details' ? 'default' : 'outline'}
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Trip Details
               </Button>
             </motion.div>
           </div>
@@ -501,18 +515,6 @@ export default function TripPlannerApp() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         <AnimatePresence mode="wait">
-          {currentView === 'dashboard' && (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <TripDashboard />
-            </motion.div>
-          )}
-
           {currentView === 'templates' && (
             <motion.div
               key="templates"
@@ -525,7 +527,7 @@ export default function TripPlannerApp() {
             </motion.div>
           )}
 
-          {currentView === 'planner' && isPlannerInitialized && (
+          {currentView === 'planner' && (
             <motion.div
               key="planner"
               initial={{ opacity: 0, y: 20 }}
@@ -535,6 +537,18 @@ export default function TripPlannerApp() {
               className="space-y-6"
             >
               <IntegratedTripPlanner />
+            </motion.div>
+          )}
+
+          {currentView === 'details' && (
+            <motion.div
+              key="details"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TripDashboard />
             </motion.div>
           )}
         </AnimatePresence>
