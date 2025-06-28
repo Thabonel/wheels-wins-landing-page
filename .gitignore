@@ -32,6 +32,7 @@ __pycache__/
 *.pyd
 venv/
 .env
+!src/.env
 
 # Node
 node_modules/

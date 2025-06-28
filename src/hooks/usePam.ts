@@ -8,8 +8,6 @@ import { useOffline } from "@/context/OfflineContext";
 // Use usePamWebSocket for real-time WebSocket communication instead
 // This hook is kept for backward compatibility only
 
-const DEPRECATED_WEBHOOK_URL = "https://treflip2025.app.n8n.cloud/webhook/pam-chat";
-
 export function usePam() {
   const { user } = useAuth();
   const { isOffline } = useOffline();

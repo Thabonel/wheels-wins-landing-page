@@ -1,4 +1,5 @@
 import { toast } from "@/hooks/use-toast";
+import { getWebSocketUrl } from "@/services/api";
 
 interface NavigationParams {
   [key: string]: string | number;
@@ -158,8 +159,7 @@ class PamUIController {
    */
   private connectWebSocket(): void {
     try {
-      // Connect to Supabase edge function WebSocket endpoint
-      const wsUrl = `wss://pam-backend.onrender.com/api/v1/pam/ws`;
+      const wsUrl = getWebSocketUrl('/api/v1/pam/ws');
       
       this.websocket = new WebSocket(wsUrl);
 

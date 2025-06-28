@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { apiFetch } from '@/services/api';
 
 interface Profile {
   id: number;
@@ -42,7 +43,7 @@ export const useProfile = () => {
 
       try {
         // Call your backend API instead of direct Supabase
-        const response = await fetch(`https://pam-backend.onrender.com/api/v1/users/${user.id}/profile`);
+        const response = await apiFetch(`/api/v1/users/${user.id}/profile`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch profile');
@@ -68,7 +69,7 @@ export const useProfile = () => {
     
     setLoading(true);
     try {
-      const response = await fetch(`https://pam-backend.onrender.com/api/v1/users/${user.id}/profile`);
+      const response = await apiFetch(`/api/v1/users/${user.id}/profile`);
       
       if (!response.ok) {
         throw new Error('Failed to refresh profile');

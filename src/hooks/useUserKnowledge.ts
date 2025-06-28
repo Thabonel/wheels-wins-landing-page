@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import type { UserKnowledgeBucket, UserKnowledgeDocument } from '@/types/knowledgeTypes';
@@ -190,11 +191,13 @@ export const useUserKnowledge = () => {
   // Process document (extract text and create chunks)
   const processDocument = async (documentId: string) => {
     try {
-      const { error } = await supabase.functions.invoke('process-user-document', {
-        body: { documentId }
+      const response = await apiFetch('/api/v1/knowledge/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId })
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Request failed');
     } catch (error) {
       console.error('Error processing document:', error);
       toast.error('Failed to process document');
