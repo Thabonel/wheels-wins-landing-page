@@ -13,7 +13,7 @@ export const usePamWebSocket = () => {
   const wsRef = useRef<WebSocket | null>(null);
 
   // WebSocket endpoint for the PAM backend using configured backend URL
-  const wsUrl = getWebSocketUrl('/api/v1/pam/ws');
+  const wsUrl = getWebSocketUrl('/api/pam/ws');
 
   const sendMessage = (message: any) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
