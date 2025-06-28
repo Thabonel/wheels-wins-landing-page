@@ -1,7 +1,5 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase';
 
 interface Profile {
   id: number;
@@ -43,21 +41,20 @@ export const useProfile = () => {
       }
 
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error fetching profile:', error);
-          setError(error.message);
-        } else {
-          setProfile(data);
+        // Call your backend API instead of direct Supabase
+        const response = await fetch(`https://pam-backend.onrender.com/api/v1/users/${user.id}/profile`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile');
         }
+        
+        const data = await response.json();
+        setProfile(data);
+        setError(null);
       } catch (err) {
-        console.error('Unexpected error:', err);
+        console.error('Error fetching profile:', err);
         setError('Failed to load profile');
+        setProfile(null);
       } finally {
         setLoading(false);
       }
@@ -71,19 +68,17 @@ export const useProfile = () => {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        setError(error.message);
-      } else {
-        setProfile(data);
-        setError(null);
+      const response = await fetch(`https://pam-backend.onrender.com/api/v1/users/${user.id}/profile`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to refresh profile');
       }
+      
+      const data = await response.json();
+      setProfile(data);
+      setError(null);
     } catch (err) {
+      console.error('Error refreshing profile:', err);
       setError('Failed to refresh profile');
     } finally {
       setLoading(false);
