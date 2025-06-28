@@ -9,8 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-
-const WEBHOOK_URL = 'https://treflip2025.app.n8n.cloud/webhook/79d30fcb-ac7a-4a1d-9a53-9532bde02e52';
+import { apiFetch } from '@/services/api';
 
 const Onboarding: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -88,9 +87,9 @@ const Onboarding: React.FC = () => {
         ...formData,
       };
 
-      console.log('🚀 Submitting onboarding data to Pam webhook:', payload);
+      console.log('🚀 Submitting onboarding data:', payload);
 
-      const response = await fetch(WEBHOOK_URL, {
+      const response = await apiFetch('/api/v1/onboarding', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

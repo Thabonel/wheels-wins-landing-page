@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/services/api';
 
 interface Alert {
   id: string;
@@ -85,13 +85,14 @@ export const PamAssistant: React.FC<PamAssistantProps> = ({ onAlertAction }) => 
     try {
       setIsLoading(true);
       
-      // Call the proactive monitor function
-      const { data, error } = await supabase.functions.invoke('proactive-monitor');
-      
-      if (error) {
-        console.error('Error fetching proactive alerts:', error);
+      const response = await apiFetch('/api/v1/pam/proactive-monitor');
+
+      if (!response.ok) {
+        console.error('Error fetching proactive alerts');
         return;
       }
+
+      const data = await response.json();
 
       // Mock alerts for demonstration since the function returns processing stats
       const mockAlerts: Alert[] = [

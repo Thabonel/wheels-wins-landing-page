@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/services/api';
 import { toast } from 'sonner';
 
 interface TwoFactorData {
@@ -53,13 +54,15 @@ export const useTwoFactorAuth = () => {
     if (!user) return null;
 
     try {
-      const { data, error } = await supabase.functions.invoke('setup-2fa', {
-        body: { user_id: user.id }
+      const response = await apiFetch('/api/v1/auth/setup-2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Request failed');
 
-      return data;
+      return await response.json();
     } catch (error) {
       console.error('Error setting up 2FA:', error);
       toast.error('Failed to setup 2FA');
@@ -71,11 +74,15 @@ export const useTwoFactorAuth = () => {
     if (!user) return false;
 
     try {
-      const { data, error } = await supabase.functions.invoke('verify-2fa', {
-        body: { user_id: user.id, token }
+      const response = await apiFetch('/api/v1/auth/verify-2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, token })
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Request failed');
+
+      const data = await response.json();
 
       if (data.success) {
         await fetchTwoFactorData();

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff, MapPin, Calendar, DollarSign } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
+import { getWebSocketUrl } from "@/services/api";
 
 interface PamMessage {
   id: string;
@@ -98,8 +99,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (!user?.id) return;
 
     try {
-      const backendUrl = import.meta.env.VITE_PAM_BACKEND_URL || "https://pam-backend.onrender.com";
-      const wsUrl = `${backendUrl.replace("https", "wss")}/ws/${user.id}?token=${sessionToken || "demo-token"}`;
+      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}/${user.id}?token=${sessionToken || "demo-token"}`;
       
       setConnectionStatus("Connecting");
       wsRef.current = new WebSocket(wsUrl);

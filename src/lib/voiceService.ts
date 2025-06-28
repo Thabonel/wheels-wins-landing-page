@@ -1,4 +1,5 @@
 
+import { apiFetch } from '@/services/api';
 export interface VoiceSettings {
   enabled: boolean;
   autoPlay: boolean;
@@ -47,12 +48,10 @@ class PamVoiceService {
     const formattedText = this.formatTextForTTS(options.text, options.emotion, options.context);
 
     try {
-      // Call our Supabase Edge Function
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nari-dia-tts`, {
+      const response = await apiFetch('/api/v1/pam/voice', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           text: formattedText,
