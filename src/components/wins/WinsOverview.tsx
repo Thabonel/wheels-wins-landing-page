@@ -1,11 +1,41 @@
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Pie, PieChart } from "recharts";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { DollarSign, TrendingUp, Calendar } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
+import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 
 export default function WinsOverview() {
+  const { user, token } = useAuth();
+  const { summary } = useFinancialSummary();
+  const [pamInsights, setPamInsights] = useState<string[]>([]);
+
+  const { isConnected, sendMessage } = usePamWebSocketConnection({
+    userId: user?.id || 'anonymous',
+    token,
+    onMessage: (msg) => {
+      if (msg.type === 'chat_response') {
+        setPamInsights((prev) => [...prev, msg.message || msg.content]);
+      }
+    },
+    onStatusChange: () => {}
+  });
+
+  useEffect(() => {
+    if (user && isConnected && pamInsights.length === 0) {
+      sendMessage({
+        type: 'chat',
+        message: 'Show me my financial summary for this month',
+        user_id: user.id,
+        context: { source: 'wins_overview' }
+      });
+    }
+  }, [user, isConnected]);
+
   // Sample data for charts - in a real app this would come from API/database
   const monthlyData = [
     { name: 'Jan', income: 1200, expenses: 900 },
@@ -23,26 +53,47 @@ export default function WinsOverview() {
     { name: 'Other', value: 100, fill: '#6B7280' },
   ];
   
-  const summaryStats = [
-    { 
-      title: "Remaining This Month", 
-      value: "$1,245", 
-      description: "Budget until June 4", 
-      icon: <Calendar className="h-5 w-5 text-blue-500" /> 
-    },
-    { 
-      title: "Average Daily Spend", 
-      value: "$68", 
-      description: "Last 30 days", 
-      icon: <DollarSign className="h-5 w-5 text-purple-500" /> 
-    },
-    { 
-      title: "Total Earned", 
-      value: "$7,350", 
-      description: "Year to date", 
-      icon: <TrendingUp className="h-5 w-5 text-green-500" /> 
-    },
-  ];
+  const summaryStats = summary
+    ? [
+        {
+          title: "Total Income",
+          value: `$${summary.total_income.toFixed(2)}`,
+          description: `Last ${summary.period_days} days`,
+          icon: <TrendingUp className="h-5 w-5 text-green-500" />
+        },
+        {
+          title: "Total Expenses",
+          value: `$${summary.total_expenses.toFixed(2)}`,
+          description: `Last ${summary.period_days} days`,
+          icon: <DollarSign className="h-5 w-5 text-purple-500" />
+        },
+        {
+          title: "Net Income",
+          value: `$${summary.net_income.toFixed(2)}`,
+          description: new Date(summary.generated_at).toLocaleDateString(),
+          icon: <Calendar className="h-5 w-5 text-blue-500" />
+        }
+      ]
+    : [
+        {
+          title: "Remaining This Month",
+          value: "$1,245",
+          description: "Budget until June 4",
+          icon: <Calendar className="h-5 w-5 text-blue-500" />
+        },
+        {
+          title: "Average Daily Spend",
+          value: "$68",
+          description: "Last 30 days",
+          icon: <DollarSign className="h-5 w-5 text-purple-500" />
+        },
+        {
+          title: "Total Earned",
+          value: "$7,350",
+          description: "Year to date",
+          icon: <TrendingUp className="h-5 w-5 text-green-500" />
+        }
+      ];
   
   return (
     <div className="space-y-6">
@@ -140,20 +191,15 @@ export default function WinsOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4 text-sm">
-              <div className="p-3 bg-white rounded-lg border border-blue-100">
-                <p className="font-medium text-blue-900">You're spending $68/day on average</p>
-                <p className="text-muted-foreground mt-1">At this rate, you have 22 days of budget left</p>
-              </div>
-              
-              <div className="p-3 bg-white rounded-lg border border-blue-100">
-                <p className="font-medium text-blue-900">Your daily food expenses are down 12% this week!</p>
-                <p className="text-muted-foreground mt-1">Great job on grocery shopping instead of eating out</p>
-              </div>
-              
-              <div className="p-3 bg-white rounded-lg border border-blue-100">
-                <p className="font-medium text-blue-900">Fuel costs are trending higher than usual</p>
-                <p className="text-muted-foreground mt-1">Consider planning stops at the lowest-cost fuel stations</p>
-              </div>
+              {pamInsights.length > 0 ? (
+                pamInsights.map((insight, idx) => (
+                  <div key={idx} className="p-3 bg-white rounded-lg border border-blue-100">
+                    <p className="font-medium text-blue-900">{insight}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground">Connecting to PAM...</p>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -12,6 +12,7 @@ import AddExpenseForm from "./expenses/AddExpenseForm";
 import PamInsightCard from "./expenses/PamInsightCard";
 import { chartData } from "./expenses/mockData";
 import { useExpenseActions } from "@/hooks/useExpenseActions";
+import ExpenseInput from "./expenses/ExpenseInput";
 
 export default function WinsExpenses() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -92,6 +93,9 @@ export default function WinsExpenses() {
           </Drawer>
         </div>
       </div>
+
+      {/* Natural language expense input */}
+      <ExpenseInput />
 
       {viewMode === "timeline" ? (
         <ExpenseTable 
