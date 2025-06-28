@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import TripPlannerApp from "@/components/wheels/TripPlannerApp";
+import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
 import FuelLog from "@/components/wheels/FuelLog";
 import VehicleMaintenance from "@/components/wheels/VehicleMaintenance";
 import RVStorageOrganizer from "@/components/wheels/RVStorageOrganizer";
@@ -68,7 +69,9 @@ const Wheels = () => {
               
               <div className="min-h-[600px]">
                 <TabsContent value="trip-planner" className="mt-0">
-                  <TripPlannerApp />
+                  <PAMProvider>
+                    <TripPlannerApp />
+                  </PAMProvider>
                 </TabsContent>
                 
                 <TabsContent value="fuel-log" className="mt-0">
