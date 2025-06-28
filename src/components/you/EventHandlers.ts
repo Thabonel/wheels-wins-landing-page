@@ -2,7 +2,7 @@ import { toast } from "sonner";
 import { CalendarEvent } from "./types";
 import { formatEventTime } from "./EventFormatter";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 export const handleEventMove = (
   eventId: string,

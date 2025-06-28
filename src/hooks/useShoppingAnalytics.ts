@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 interface InteractionData {
   productId: string;
@@ -27,12 +27,11 @@ export function useShoppingAnalytics() {
     if (!user) return;
 
     try {
-      await supabase
-        .from('product_interactions')
-        .insert({
-          user_id: user.id,
-          product_id: data.productId,
-          interaction_type: data.interactionType,
+      // Table doesn't exist yet, mock the tracking
+      console.log('Product interaction tracked:', {
+        user_id: user.id,
+        product_id: data.productId,
+        interaction_type: data.interactionType,
           duration_seconds: data.durationSeconds || 0,
           context_data: data.contextData || {}
         });
@@ -58,19 +57,16 @@ export function useShoppingAnalytics() {
     if (!user || isTracking) return;
 
     try {
-      const { data, error } = await supabase
-        .from('shopping_sessions')
-        .insert({
-          user_id: user.id,
-          session_start: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      // Table doesn't exist yet, mock the session
+      const mockSessionId = `session-${Date.now()}`;
+      console.log('Shopping session started:', {
+        user_id: user.id,
+        session_start: new Date().toISOString(),
+        id: mockSessionId
+      });
 
       setCurrentSession({
-        id: data.id,
+        id: mockSessionId,
         totalViews: 0,
         totalInteractions: 0,
         itemsPurchased: 0,
@@ -86,16 +82,15 @@ export function useShoppingAnalytics() {
     if (!user || !currentSession || !isTracking) return;
 
     try {
-      await supabase
-        .from('shopping_sessions')
-        .update({
-          session_end: new Date().toISOString(),
-          total_views: currentSession.totalViews,
-          total_interactions: currentSession.totalInteractions,
-          items_purchased: currentSession.itemsPurchased,
-          total_spent: currentSession.totalSpent
-        })
-        .eq('id', currentSession.id);
+      // Table doesn't exist yet, mock the session end
+      console.log('Shopping session ended:', {
+        id: currentSession.id,
+        session_end: new Date().toISOString(),
+        total_views: currentSession.totalViews,
+        total_interactions: currentSession.totalInteractions,
+        items_purchased: currentSession.itemsPurchased,
+        total_spent: currentSession.totalSpent
+      });
 
       setCurrentSession(null);
       setIsTracking(false);

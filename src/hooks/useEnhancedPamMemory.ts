@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import type { EnhancedPamMemory, KnowledgeSearchResult } from '@/types/knowledgeTypes';
 
 // Helper function to get enhanced PAM memory including personal knowledge

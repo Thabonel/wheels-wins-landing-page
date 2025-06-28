@@ -1,5 +1,5 @@
 
-import { supabase } from "@/integrations/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { drawerItems } from '../constants';
 
 export const createDrawerWithItems = async (name: string) => {

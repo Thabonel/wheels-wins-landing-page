@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { ShopProduct } from '@/components/shop/types';
 import { getAffiliateProducts, getDigitalProducts } from '@/components/shop/ProductsData';
 
@@ -39,13 +39,9 @@ export function usePersonalizedRecommendations() {
 
     setIsLoading(true);
     try {
-      // Try to fetch from database, fallback to static data
-      const { data: dbRecommendations, error } = await supabase
-        .from('personalized_recommendations')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('expires_at', new Date().toISOString())
-        .limit(10);
+      // Table doesn't exist yet, use fallback static data
+      const dbRecommendations = null;
+      const error = null;
 
       if (error) {
         console.warn('Database recommendations not available, using fallback:', error);

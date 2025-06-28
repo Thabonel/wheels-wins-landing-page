@@ -1,5 +1,5 @@
 
-import { supabase } from "@/integrations/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { TripPayload, Waypoint, Suggestion } from "./types";
 
 export class TripService {
@@ -58,10 +58,11 @@ export class TripService {
     mode: string,
     waypoints: Waypoint[]
   ): Promise<void> {
-    await supabase.from("trips").insert({
+    // Mock trip saving - no trips table exists yet
+    console.log("Trip saved:", {
       user_id: userId,
-      start_location: JSON.stringify({ name: originName, coords: origin }),
-      end_location: JSON.stringify({ name: destName, coords: dest }),
+      start_location: { name: originName, coords: origin },
+      end_location: { name: destName, coords: dest },
       start_date: new Date(),
       arrival_date: new Date(),
       route: { origin, dest, routingProfile },

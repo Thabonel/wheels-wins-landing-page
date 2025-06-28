@@ -6,7 +6,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { MessageSquare, ThumbsUp, ThumbsDown, Share2, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
 
@@ -69,7 +69,7 @@ export default function SocialFeed() {
       const { data, error } = await supabase
         .from("social_posts")
         .select(
-          `id, content, image_url, created_at, status, location, group_id, upvotes, downvotes, comments_count, author_id`
+          `id, content, image_url, created_at, status, location, group_id, upvotes, downvotes, comments_count, user_id`
         )
         .eq("location", "feed")
         .order("created_at", { ascending: false });
@@ -78,7 +78,7 @@ export default function SocialFeed() {
 
       const formatted = data?.map((post) => ({
         id: post.id.toString(), // Ensure ID is string
-        author: `User ${post.author_id?.substring(0, 5) || "Unknown"}`,
+        author: `User ${post.user_id?.substring(0, 5) || "Unknown"}`,
         authorAvatar: supabase.storage.from("public-assets").getPublicUrl("avatar-placeholder.png").data.publicUrl,
         date: new Date(post.created_at).toLocaleDateString(),
         content: post.content,
@@ -88,7 +88,7 @@ export default function SocialFeed() {
         status: post.status,
         location: post.location,
         groupId: post.group_id,
-        isOwnPost: user?.id === post.author_id,
+        isOwnPost: user?.id === post.user_id,
       })) || [];
 
       setPosts(formatted);

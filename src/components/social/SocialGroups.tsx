@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { PlusCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { SocialGroup, SocialPost } from "./types";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
