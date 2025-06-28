@@ -13,7 +13,10 @@ class DatabaseService:
     
     def __init__(self):
         self.client: Optional[Client] = None
-        self._initialize_client()
+        try:
+            self._initialize_client()
+        except Exception as e:
+            logger.warning(f"Database initialization skipped: {e}")
     
     def _initialize_client(self):
         """Initialize Supabase client with error handling"""
@@ -50,9 +53,12 @@ class DatabaseService:
             self._initialize_client()
         return self.client
 
-# Global instance
-database_service = DatabaseService()
+# Global instance, initialized lazily
+database_service: Optional[DatabaseService] = None
 
 def get_database_service() -> DatabaseService:
-    """Get database service instance"""
+    """Get or create the global database service instance."""
+    global database_service
+    if not database_service:
+        database_service = DatabaseService()
     return database_service
