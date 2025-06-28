@@ -163,27 +163,6 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
                 className="h-[600px] w-full rounded-lg border shadow-sm"
               />
               
-              {/* Map Controls Overlay - Simplified */}
-              {mapLoaded && (
-                <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2">
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => integratedState.toggleFeature('social')}
-                    >
-                      <Users className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => integratedState.toggleFeature('budget')}
-                    >
-                      <DollarSign className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Waypoints List */}
