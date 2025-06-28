@@ -10,8 +10,8 @@ import structlog
 from structlog.typing import FilteringBoundLogger
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
-from sentry_sdk.integrations.sqlalchemy import SqlAlchemyIntegration
-from pydantic import BaseSettings
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+from pydantic_settings import BaseSettings
 
 # Context variable for request correlation
 request_id_var: ContextVar[Optional[str]] = ContextVar('request_id', default=None)
@@ -65,7 +65,7 @@ def setup_sentry() -> None:
         traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
         integrations=[
             sentry_logging,
-            SqlAlchemyIntegration(),
+            SqlalchemyIntegration(),
         ],
         attach_stacktrace=True,
         send_default_pii=False,

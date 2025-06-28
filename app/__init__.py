@@ -1,2 +1,7 @@
 
-# Empty file to make app a package
+"""Namespace package for shared application modules."""
+
+from pkgutil import extend_path
+
+__path__ = extend_path(__path__, __name__)
+
