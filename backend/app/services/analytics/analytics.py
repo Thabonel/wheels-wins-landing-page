@@ -5,8 +5,14 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 from dataclasses import dataclass, asdict
-from app.database.supabase_client import get_supabase_client
-from app.core.logging import setup_logging
+from app.core.database import get_supabase_client
+try:
+    from app.core.logging import setup_logging  # type: ignore
+except Exception:  # pragma: no cover - fallback without optional deps
+    import logging
+
+    def setup_logging(name: str = "analytics") -> logging.Logger:
+        return logging.getLogger(name)
 
 logger = setup_logging("analytics")
 
@@ -539,4 +545,6 @@ class PerformanceTracker:
         )
 
 # Global analytics instance
+# Provide a generic alias for compatibility with production imports
+Analytics = PamAnalytics
 analytics = PamAnalytics()
