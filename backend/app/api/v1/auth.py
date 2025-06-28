@@ -12,7 +12,7 @@ from app.core.auth import (
     verify_token,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
-from app.core.database import get_supabase_client
+from app.services.database import DatabaseService
 
 router = APIRouter()
 security = HTTPBearer()
@@ -39,7 +39,7 @@ class User(BaseModel):
 @router.post("/register", response_model=Token)
 async def register(user_data: UserRegister):
     """Register a new user"""
-    supabase = get_supabase_client()
+    supabase = DatabaseService().client
     
     # Check if user already exists
     existing_user = supabase.table('profiles').select('*').eq('email', user_data.email).execute()
@@ -84,7 +84,7 @@ async def register(user_data: UserRegister):
 @router.post("/login", response_model=Token)
 async def login(user_data: UserLogin):
     """Login user"""
-    supabase = get_supabase_client()
+    supabase = DatabaseService().client
     
     # Get user by email
     user_result = supabase.table('profiles').select('*').eq('email', user_data.email).execute()
@@ -119,7 +119,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     payload = verify_token(token)
     
     user_id = payload.get("sub")
-    supabase = get_supabase_client()
+    supabase = DatabaseService().client
     
     user_result = supabase.table('profiles').select('*').eq('user_id', user_id).execute()
     if not user_result.data:
