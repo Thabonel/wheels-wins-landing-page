@@ -1,4 +1,4 @@
-project_id = "kycoklimpzkyrecbjecn"
+project_id = "${SUPABASE_PROJECT_ID}"
 
 [api]
 enabled = true

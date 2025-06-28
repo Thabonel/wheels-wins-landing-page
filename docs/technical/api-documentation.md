@@ -37,7 +37,7 @@ Authenticate user and receive JWT token.
 **Response**:
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "<token>",
   "token_type": "bearer",
   "expires_in": 1800,
   "user": {
