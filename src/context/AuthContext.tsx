@@ -9,6 +9,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  session: { access_token: string } | null;
   loading: boolean;
   isAuthenticated: boolean;
   isDevMode: boolean;
@@ -25,6 +26,7 @@ const BACKEND_URL = 'https://pam-backend.onrender.com';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [session, setSession] = useState<{ access_token: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const isDevMode = false; // Remove dev mode dependency
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedToken = localStorage.getItem('auth_token');
     if (savedToken) {
       setToken(savedToken);
+      setSession({ access_token: savedToken });
       fetchCurrentUser(savedToken);
     } else {
       setLoading(false);
@@ -56,12 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Token invalid, clear it
         localStorage.removeItem('auth_token');
         setToken(null);
+        setSession(null);
         setUser(null);
       }
     } catch (error) {
       console.error('Error fetching user:', error);
       localStorage.removeItem('auth_token');
       setToken(null);
+      setSession(null);
       setUser(null);
     } finally {
       setLoading(false);
@@ -87,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authToken = data.access_token;
       
       setToken(authToken);
+      setSession({ access_token: authToken });
       localStorage.setItem('auth_token', authToken);
       
       await fetchCurrentUser(authToken);
@@ -119,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authToken = data.access_token;
       
       setToken(authToken);
+      setSession({ access_token: authToken });
       localStorage.setItem('auth_token', authToken);
       
       await fetchCurrentUser(authToken);
@@ -142,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       setToken(null);
+      setSession(null);
       setUser(null);
       localStorage.removeItem('auth_token');
     }
@@ -155,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{ 
       user, 
       token,
+      session,
       loading, 
       isAuthenticated, 
       isDevMode, 
