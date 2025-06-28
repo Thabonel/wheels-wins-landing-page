@@ -28,7 +28,16 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
 
   // Use integrated state management
   const integratedState = useIntegratedTripState(isOffline);
-  const handlers = useTripPlannerHandlers(directionsControl);
+  const handlers = useTripPlannerHandlers({
+    directionsControl,
+    originName: integratedState.route.originName,
+    destName: integratedState.route.destName,
+    waypoints: integratedState.route.waypoints,
+    setOriginName: integratedState.setOriginName,
+    setDestName: integratedState.setDestName,
+    setWaypoints: () => {},
+    adding: integratedState.adding
+  });
 
   // Initialize map
   useEffect(() => {
@@ -157,7 +166,25 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
               
               {/* Map Controls Overlay */}
               {mapLoaded && (
-                <MapControls map={map} />
+                <MapControls 
+                  map={map}
+                  region="Australia"
+                  waypoints={integratedState.route.waypoints}
+                  setWaypoints={() => {}}
+                  adding={integratedState.adding}
+                  setAdding={integratedState.setAdding}
+                  travelMode={integratedState.travelMode}
+                  setTravelMode={integratedState.setTravelMode}
+                  mode={integratedState.mode}
+                  setMode={integratedState.setMode}
+                  originName={integratedState.route.originName}
+                  destName={integratedState.route.destName}
+                  setOriginName={integratedState.setOriginName}
+                  setDestName={integratedState.setDestName}
+                  directionsControl={directionsControl}
+                  onSubmitTrip={handleSubmitTrip}
+                  isOffline={isOffline}
+                />
               )}
             </div>
 
