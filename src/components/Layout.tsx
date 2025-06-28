@@ -14,12 +14,18 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const { pathname } = useLocation();
   const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
+  const isHomePage = pathname === "/";
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <header className="relative z-50 bg-white shadow-sm border-b px-6 py-4">
+      {/* Conditional header styling - transparent on homepage, solid elsewhere */}
+      {isHomePage ? (
         <Header />
-      </header>
+      ) : (
+        <header className="relative z-50 bg-white shadow-sm border-b px-6 py-4">
+          <Header />
+        </header>
+      )}
 
       {pathname === "/" && <Hero />}
 
