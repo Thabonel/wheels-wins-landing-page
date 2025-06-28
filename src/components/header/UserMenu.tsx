@@ -1,67 +1,58 @@
+
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { User, Settings } from "lucide-react";
-import { Link } from "react-router-dom";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import LogoutButton from "./LogoutButton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase";
 
 const UserMenu = () => {
-  const { user, isAuthenticated, isDevMode } = useAuth();
-  const effectivelyAuthenticated = isAuthenticated || isDevMode;
-  
-  if (!effectivelyAuthenticated) {
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      if (!user || !isAuthenticated) return;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('profile_image_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data?.profile_image_url) {
+        setProfileImageUrl(data.profile_image_url);
+      }
+    };
+
+    fetchProfileImage();
+  }, [user, isAuthenticated]);
+
+  // Don't render if not authenticated
+  if (!isAuthenticated || !user) {
     return null;
   }
 
-  const displayName = user?.email || 'User';
-  const avatarUrl = null; // Backend doesn't provide avatar URLs yet
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={avatarUrl} alt={displayName} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {displayName.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{displayName}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user?.email || 'Guest User'}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/profile" className="flex items-center cursor-pointer">
-            <User className="mr-2 h-4 w-4" />
-            <span>Profile</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link to="/settings" className="flex items-center cursor-pointer">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <LogoutButton />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center space-x-4">
+      {/* Profile avatar */}
+      <button
+        onClick={() => navigate("/profile")}
+        className="hover:ring-2 ring-blue-500 transition rounded-full"
+        title="Your Profile"
+      >
+        <Avatar>
+          {profileImageUrl && <AvatarImage src={profileImageUrl} alt="Profile" />}
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            {user?.email?.[0]?.toUpperCase() || "U"}
+          </AvatarFallback>
+        </Avatar>
+      </button>
+      
+      {/* Log Out button */}
+      <LogoutButton />
+    </div>
   );
 };
 
