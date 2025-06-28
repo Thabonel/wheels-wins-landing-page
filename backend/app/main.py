@@ -25,7 +25,7 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 
 # Import API routers
-from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam
+from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth
 
 logger = setup_logging()
 
