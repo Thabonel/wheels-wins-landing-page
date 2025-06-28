@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { defaultCategories, categoryColors as defaultCategoryColors } from "@/components/wins/expenses/mockData";
 import { useOffline } from "@/context/OfflineContext";
@@ -85,13 +85,13 @@ export function useExpenseActions() {
     }
 
     try {
-      const { data, error } = await supabase.from("expenses").insert([
-        { 
-          ...expense, 
-          user_id: user.id,
-          amount: Number(expense.amount)
-        }
-      ]).select().single();
+      const { data, error } = await supabase.from("expenses").insert({
+        amount: Number(expense.amount),
+        category: expense.category,
+        date: expense.date,
+        description: expense.description,
+        user_id: user.id
+      }).select().single();
 
       if (error) {
         console.error('Error adding expense:', error);
@@ -130,7 +130,7 @@ export function useExpenseActions() {
       const { error } = await supabase
         .from("expenses")
         .delete()
-        .eq("id", id)
+        .eq("id", parseInt(id))
         .eq("user_id", user.id);
 
       if (error) {

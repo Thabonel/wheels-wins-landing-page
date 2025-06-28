@@ -12,7 +12,7 @@ import {
   Filter,
   Star
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface MarketplaceListing {

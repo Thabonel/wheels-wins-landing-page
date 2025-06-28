@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Save, RefreshCw, Settings as SettingsIcon, Shield, Mail, Users } from 'lucide-react';
 
@@ -59,13 +59,13 @@ const Settings = () => {
       data?.forEach(setting => {
         switch (setting.setting_key) {
           case 'site_maintenance':
-            setSiteMaintenance(setting.setting_value);
+            setSiteMaintenance(setting.setting_value as { enabled: boolean; message: string; });
             break;
           case 'email_notifications':
-            setEmailNotifications(setting.setting_value);
+            setEmailNotifications(setting.setting_value as { enabled: boolean; admin_email: string; });
             break;
           case 'user_registration':
-            setUserRegistration(setting.setting_value);
+            setUserRegistration(setting.setting_value as { enabled: boolean; require_approval: boolean; });
             break;
         }
       });

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Shield, Key, Mail } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TwoFactorAuth } from './TwoFactorAuth';
 import { LoginHistory } from './LoginHistory';

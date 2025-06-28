@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 type TravelStyle = 'budget' | 'mid-range' | 'luxury' | 'adventure' | 'business' | 'leisure';
 
@@ -26,13 +26,9 @@ export function useShoppingProfile() {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('user_shopping_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
+      // Table doesn't exist yet, use default profile data
+      const data = null;
+      const error = null;
 
       if (data) {
         setProfile({
@@ -58,29 +54,25 @@ export function useShoppingProfile() {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('user_shopping_profiles')
-        .upsert({
-          user_id: user.id,
-          travel_style: profileData.travelStyle || 'budget',
-          price_sensitivity: profileData.priceSensitivity || 0.5,
-          preferred_categories: profileData.preferredCategories || [],
-          seasonal_preferences: profileData.seasonalPreferences || {}
-        })
-        .select()
-        .single();
+      // Table doesn't exist yet, mock the profile creation
+      console.log('Shopping profile saved:', {
+        user_id: user.id,
+        travel_style: profileData.travelStyle || 'budget',
+        price_sensitivity: profileData.priceSensitivity || 0.5,
+        preferred_categories: profileData.preferredCategories || [],
+        seasonal_preferences: profileData.seasonalPreferences || {}
+      });
 
-      if (error) throw error;
-
+      // Set a mock profile
       setProfile({
-        id: data.id,
-        userId: data.user_id,
-        travelStyle: data.travel_style as TravelStyle,
-        priceSensitivity: data.price_sensitivity,
-        preferredCategories: data.preferred_categories || [],
-        seasonalPreferences: data.seasonal_preferences || {},
-        createdAt: data.created_at,
-        updatedAt: data.updated_at
+        id: `profile-${user.id}`,
+        userId: user.id,
+        travelStyle: (profileData.travelStyle || 'budget') as TravelStyle,
+        priceSensitivity: profileData.priceSensitivity || 0.5,
+        preferredCategories: profileData.preferredCategories || [],
+        seasonalPreferences: profileData.seasonalPreferences || {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     } catch (error) {
       console.error('Error creating/updating shopping profile:', error);

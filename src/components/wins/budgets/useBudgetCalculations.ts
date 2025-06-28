@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { BudgetCategory, BudgetSummary } from "./types";
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/context/OfflineContext';
 import { useCachedBudgetData } from '@/hooks/useCachedBudgetData';
 
@@ -48,7 +48,7 @@ export function useBudgetCalculations(startDate?: string, endDate?: string) {
           setCategories(cachedData.categories);
         } else {
           const formattedCategories: BudgetCategory[] = categoriesData.map(cat => ({
-            id: cat.id,
+            id: parseInt(cat.id) || 0,
             name: cat.name,
             budgeted: Number(cat.budgeted_amount),
             spent: Number(cat.spent_amount),

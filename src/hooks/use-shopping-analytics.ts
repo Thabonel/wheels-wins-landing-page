@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 interface InteractionData {
   productId: string;
