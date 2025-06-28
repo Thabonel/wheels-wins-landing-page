@@ -1,5 +1,5 @@
-// Mock Supabase client - all data flows through backend API
-const mockSupabaseClient = {
+// Mock Supabase client - redirect all data through backend API
+export const supabase = {
   auth: {
     getUser: () => Promise.resolve({ data: { user: null }, error: null }),
     getSession: () => Promise.resolve({ data: { session: null }, error: null }),
@@ -8,13 +8,20 @@ const mockSupabaseClient = {
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
   },
   from: () => ({
-    select: () => Promise.resolve({ data: [], error: null }),
+    select: () => ({
+      eq: () => ({
+        order: () => Promise.resolve({ data: [], error: null }),
+        maybeSingle: () => Promise.resolve({ data: null, error: null })
+      })
+    }),
     insert: () => Promise.resolve({ data: null, error: null }),
-    update: () => Promise.resolve({ data: null, error: null }),
-    delete: () => Promise.resolve({ data: null, error: null })
+    update: () => ({
+      eq: () => Promise.resolve({ data: null, error: null })
+    }),
+    delete: () => ({
+      eq: () => Promise.resolve({ data: null, error: null })
+    })
   })
 };
 
-export const supabase = mockSupabaseClient;
-export const createClient = () => mockSupabaseClient;
-export default mockSupabaseClient;
+export default supabase;
