@@ -113,10 +113,23 @@ export function useTipsData() {
     if (!user) return false;
 
     try {
-      const { error } = await supabase.rpc('increment_tip_votes', {
-        tip_id: tipId,
-        increment_by: increment ? 1 : -1
-      });
+      // Get current votes first, then update
+      const { data: currentTip, error: fetchError } = await supabase
+        .from('financial_tips')
+        .select('votes')
+        .eq('id', tipId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching tip votes:', fetchError);
+        return false;
+      }
+
+      const newVotes = Math.max(0, (currentTip.votes || 0) + (increment ? 1 : -1));
+      
+      const { error } = await supabase.from('financial_tips').update({
+        votes: newVotes
+      }).eq('id', tipId);
 
       if (error) {
         console.error('Error voting on tip:', error);

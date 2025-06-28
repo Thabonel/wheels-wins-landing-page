@@ -42,7 +42,10 @@ export const useActiveSessions = () => {
 
       if (error) throw error;
 
-      setActiveSessions(data || []);
+      setActiveSessions((data || []).map(session => ({
+        ...session,
+        ip_address: session.ip_address as string || 'Unknown'
+      })));
     } catch (error) {
       console.error('Error fetching active sessions:', error);
       toast.error('Failed to load active sessions');

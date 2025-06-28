@@ -42,7 +42,10 @@ export const useLoginHistory = () => {
 
       if (error) throw error;
 
-      setLoginHistory(data || []);
+      setLoginHistory((data || []).map(item => ({
+        ...item,
+        ip_address: item.ip_address as string || 'Unknown'
+      })));
     } catch (error) {
       console.error('Error fetching login history:', error);
       toast.error('Failed to load login history');

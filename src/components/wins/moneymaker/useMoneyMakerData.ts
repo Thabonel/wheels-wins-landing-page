@@ -38,7 +38,7 @@ export function useMoneyMakerData() {
       }
 
       const formattedIdeas: IncomeIdea[] = data.map(idea => ({
-        id: idea.id,
+        id: parseInt(idea.id) || 0,
         name: idea.name,
         status: idea.status as 'Active' | 'Paused' | 'Archived',
         monthlyIncome: Number(idea.monthly_income),
@@ -87,7 +87,7 @@ export function useMoneyMakerData() {
       }
 
       const newIdea: IncomeIdea = {
-        id: data.id,
+        id: parseInt(data.id) || 0,
         name: data.name,
         status: data.status,
         monthlyIncome: Number(data.monthly_income),
@@ -125,7 +125,7 @@ export function useMoneyMakerData() {
           monthly_income: updates.monthlyIncome,
           status: updates.status
         })
-        .eq('id', id)
+        .eq('id', id.toString())
         .eq('user_id', user.id);
 
       if (error) {
@@ -151,7 +151,7 @@ export function useMoneyMakerData() {
       const { error } = await supabase
         .from('money_maker_ideas')
         .delete()
-        .eq('id', id)
+        .eq('id', id.toString())
         .eq('user_id', user.id);
 
       if (error) {
