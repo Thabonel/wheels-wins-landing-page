@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { apiFetch } from "@/services/api";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -23,17 +23,19 @@ const PricingPlansUpdated = () => {
     setIsLoading(priceId);
     
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
+      const response = await apiFetch('/api/v1/subscription/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           priceId,
           successUrl: `${window.location.origin}/payment-success`,
           cancelUrl: `${window.location.origin}/payment-canceled`,
-        }
+        })
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Request failed');
 
-      // Redirect to Stripe Checkout
+      const data = await response.json();
       window.location.href = data.url;
     } catch (error) {
       console.error("Error creating checkout session:", error);

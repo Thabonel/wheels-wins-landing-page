@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiFetch } from '@/services/api';
 import { Friend } from '../trip-planner/hooks/useSocialTripState';
 import { Suggestion } from '../trip-planner/types';
 
@@ -126,8 +127,7 @@ export function PAMProvider({ children, initialTrip }: PAMProviderProps) {
     addMessage({ role: 'user', content });
 
     try {
-      // Call Supabase Edge Function for PAM response
-      const response = await fetch('/functions/v1/pam-trip-chat', {
+      const response = await apiFetch('/api/v1/pam/trip-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
