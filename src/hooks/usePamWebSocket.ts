@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
+import { getWebSocketUrl } from '@/services/api';
 
 interface WebSocketMessage {
   type: string;
@@ -11,8 +12,8 @@ export const usePamWebSocket = () => {
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // WebSocket endpoint for the PAM backend
-  const wsUrl = `ws://localhost:8000/api/v1/pam/ws`;
+  // WebSocket endpoint for the PAM backend using configured backend URL
+  const wsUrl = getWebSocketUrl('/api/v1/pam/ws');
 
   const sendMessage = (message: any) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

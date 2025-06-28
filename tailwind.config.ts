@@ -1,6 +1,8 @@
 
 import type { Config } from "tailwindcss";
 
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+
 export default {
 	darkMode: ["class"],
 	content: [
@@ -102,8 +104,8 @@ export default {
 				'pulse-slow': 'pulse-slow 3s ease-in-out infinite',
 			},
             backgroundImage: {
-                'hero-pattern': "url('https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//WheelsnadwinsHero.jpg')",
-                'logo': "url('https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets//wheels%20and%20wins%20Logo%20alpha.png')",
+                'hero-pattern': `url('${supabaseUrl}/storage/v1/object/public/public-assets//WheelsnadwinsHero.jpg')`,
+                'logo': `url('${supabaseUrl}/storage/v1/object/public/public-assets//wheels%20and%20wins%20Logo%20alpha.png')`,
             },
 		}
 	},
