@@ -1,53 +1,58 @@
-import { useAuth } from "@/context/AuthContext";
+
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useHeaderAppearance } from "@/hooks/useHeaderAppearance";
+import { useLocation } from "react-router-dom";
+import HeaderContainer from "./HeaderContainer";
+import NavigationLinks from "./NavigationLinks";
+import LoginButton from "./LoginButton";
 import UserMenu from "./UserMenu";
+import { Button } from "@/components/ui/button";
 
 const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
-  console.log("Header Auth State:", { isAuthenticated, isDevMode, effectivelyAuthenticated: isAuthenticated || isDevMode });
-  const effectivelyAuthenticated = isAuthenticated || isDevMode;
+  const { isHomePage, showNavigation, showUserMenu } = useHeaderAppearance();
+  const location = useLocation();
 
   return (
-    <header className="bg-background border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo/Brand */}
-          <div className="flex items-center">
-            <Link to="/" className="text-xl font-bold text-primary">
-              Wheels & Wins
+    <HeaderContainer isHomePage={isHomePage} isScrolled={false}>
+      {/* Logo */}
+      <Link to="/" className="flex-shrink-0">
+        <img
+          src="https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/wheels%20and%20wins%20Logo%20alpha.png"
+          alt="Wheels & Wins"
+          className="h-14 object-contain drop-shadow-md"
+        />
+      </Link>
+
+      {/* Navigation - Show when authenticated */}
+      <NavigationLinks isVisible={showNavigation} />
+
+      {/* Auth Buttons */}
+      <div className="flex items-center space-x-4">
+        {/* Show Shop and Login buttons on homepage when not authenticated */}
+        {isHomePage && !isAuthenticated && !isDevMode && (
+          <>
+            <Link to="/shop">
+              <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
+                Shop
+              </Button>
             </Link>
-          </div>
+            <LoginButton />
+          </>
+        )}
 
-          {/* Navigation */}
-          <nav className="flex items-center space-x-8">
-            {effectivelyAuthenticated && (
-              <>
-                <Link to="/wheels" className="text-foreground hover:text-primary transition-colors">
-                  Wheels
-                </Link>
-                <Link to="/wins" className="text-foreground hover:text-primary transition-colors">
-                  Wins
-                </Link>
-                <Link to="/social" className="text-foreground hover:text-primary transition-colors">
-                  Social
-                </Link>
-              </>
-            )}
-          </nav>
-
-          {/* User Menu */}
-          <div className="flex items-center">
-            {effectivelyAuthenticated ? (
-              <UserMenu />
-            ) : (
-              <Link to="/login" className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
-                Sign In
-              </Link>
-            )}
-          </div>
-        </div>
+        {/* Show user menu when authenticated */}
+        {showUserMenu && <UserMenu />}
+        
+        {/* Show auth link for non-homepage, non-authenticated users */}
+        {!isHomePage && !isAuthenticated && !isDevMode && (
+          <Link to="/login">
+            <Button variant="default">Sign In</Button>
+          </Link>
+        )}
       </div>
-    </header>
+    </HeaderContainer>
   );
 };
 
