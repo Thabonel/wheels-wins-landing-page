@@ -69,3 +69,6 @@ pillow==10.1.0
 # Utilities
 uuid==1.30
 click==8.1.7
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
