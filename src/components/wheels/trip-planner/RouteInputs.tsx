@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
+import { getMapboxToken } from "@/utils/mapboxToken";
 import { Lock } from "lucide-react";
 
 interface RouteInputsProps {
@@ -36,7 +37,7 @@ export default function RouteInputs({
 
     // Create origin geocoder only if not locked
     const originGeocoder = new MapboxGeocoder({
-      accessToken: mapboxgl.accessToken,
+      accessToken: getMapboxToken() || '',
       mapboxgl,
       placeholder: "Choose starting point",
       marker: false,
@@ -73,7 +74,7 @@ export default function RouteInputs({
 
     // Create destination geocoder only if not locked
     const destGeocoder = new MapboxGeocoder({
-      accessToken: mapboxgl.accessToken,
+      accessToken: getMapboxToken() || '',
       mapboxgl,
       placeholder: "Choose destination",
       marker: false,

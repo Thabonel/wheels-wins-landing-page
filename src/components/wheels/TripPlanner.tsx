@@ -4,6 +4,7 @@ import { useRegion } from "@/context/RegionContext";
 import { useOffline } from "@/context/OfflineContext";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
+import { getMapboxToken } from "@/utils/mapboxToken";
 import MapControls from "./trip-planner/MapControls";
 import GeocodeSearch from "./trip-planner/GeocodeSearch";
 import WaypointsList from "./trip-planner/WaypointsList";
@@ -21,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Cloud, DollarSign } from "lucide-react";
 
 // Initialize Mapbox token
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
+const mapboxToken = getMapboxToken();
+mapboxgl.accessToken = mapboxToken || '';
 
 export default function TripPlanner() {
   const { region } = useRegion();
@@ -84,7 +86,7 @@ export default function TripPlanner() {
     }
   };
 
-  if (!mapboxgl.accessToken) {
+  if (!mapboxToken) {
     return (
       <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
         <h3 className="font-semibold text-yellow-800">Mapbox Configuration Required</h3>
