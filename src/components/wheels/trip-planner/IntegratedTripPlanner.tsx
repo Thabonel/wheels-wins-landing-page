@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
-import { getMapboxToken } from "@/utils/mapboxToken";
 import TripPlannerControls from "./TripPlannerControls";
 import TripPlannerHeader from "./TripPlannerHeader";
 import OfflineTripBanner from "./OfflineTripBanner";
@@ -12,9 +11,6 @@ import { useIntegratedTripState } from "./hooks/useIntegratedTripState";
 import { useTripPlannerHandlers } from "./hooks/useTripPlannerHandlers";
 import { PAMProvider } from "./PAMContext";
 import { useToast } from "@/hooks/use-toast";
-
-// Import Mapbox CSS - This is now handled in index.css
-// import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface IntegratedTripPlannerProps {
   isOffline?: boolean;
@@ -76,16 +72,21 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
 
   const initializeOnlineMap = () => {
     try {
-      const mapboxToken = getMapboxToken();
-
+      // Set Mapbox access token from environment variable
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      
+      console.log('Mapbox token from env:', mapboxToken ? 'Found' : 'Not found');
+      
       if (!mapboxToken) {
-        console.error('Mapbox token missing or invalid');
+        console.error('Mapbox token not found in environment variables');
         setMapError('Mapbox token missing. Switching to offline mode...');
         setTimeout(() => initializeOfflineMap(), 1000);
         return;
       }
 
       mapboxgl.accessToken = mapboxToken;
+
+      console.log('Creating Mapbox map...');
 
       map.current = new mapboxgl.Map({
         container: mapContainer.current!,
@@ -115,9 +116,15 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
         }, 2000);
       });
 
+      // Style load event
+      map.current.on("styledata", () => {
+        console.log('Map style loaded');
+      });
+
     } catch (error) {
       console.error('Error creating online map:', error);
-      initializeOfflineMap();
+      setMapError('Failed to create map. Switching to offline mode...');
+      setTimeout(() => initializeOfflineMap(), 1000);
     }
   };
 
@@ -214,31 +221,27 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
 
   const initializeDirections = () => {
     try {
-      const mapboxToken = getMapboxToken();
-      if (!mapboxToken) {
-        console.error('Mapbox token missing. Directions disabled.');
-        return;
-      }
-
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      
       directionsControl.current = new MapboxDirections({
         accessToken: mapboxToken,
         unit: "imperial",
         profile: "mapbox/driving",
         interactive: true,
-        controls: {
-          instructions: false,
-          profileSwitcher: false
+        controls: { 
+          instructions: false, 
+          profileSwitcher: false 
         },
       });
 
-      if (map.current && directionsControl.current) {
+      if (map.current && directionsControl.current && typeof map.current.addControl === 'function') {
         map.current.addControl(directionsControl.current, "top-left");
         
         // Set up event listeners
         directionsControl.current.on("route", (e) => {
           console.log('Route changed:', e);
           if (handlers.handleRouteChange) {
-            handlers.handleRouteChange();
+            handlers.handleRouteChange(e);
           }
         });
         
@@ -321,7 +324,7 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
         )}
 
         {/* Map Container */}
-        <div className="relative trip-planner-map">
+        <div className="relative">
           <div
             ref={mapContainer}
             className="h-[50vh] sm:h-[60vh] lg:h-[70vh] min-h-[400px] w-full rounded-lg border shadow-sm bg-gray-100"
@@ -347,17 +350,32 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
               <div className="text-center p-4">
                 <p className="text-sm text-red-600 mb-2">{mapError}</p>
                 <button 
-                  onClick={() => window.location.reload()}
+                  onClick={() => {
+                    setMapError(null);
+                    setMapLoaded(false);
+                    if (map.current && typeof map.current.remove === 'function') {
+                      map.current.remove();
+                      map.current = undefined;
+                    }
+                    // Retry initialization
+                    setTimeout(() => {
+                      if (isOffline) {
+                        initializeOfflineMap();
+                      } else {
+                        initializeOnlineMap();
+                      }
+                    }, 500);
+                  }}
                   className="text-xs text-primary hover:underline"
                 >
-                  Refresh Page
+                  Retry
                 </button>
               </div>
             </div>
           )}
 
           {/* Map Status Indicator */}
-          {mapLoaded && (
+          {mapLoaded && !mapError && (
             <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm rounded px-2 py-1 text-xs">
               {isOffline ? (
                 <span className="text-orange-600">📍 Offline Mode</span>
