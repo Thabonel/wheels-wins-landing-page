@@ -7,13 +7,13 @@ interface WebSocketMessage {
   message: string;
 }
 
-export const usePamWebSocket = () => {
+export const usePamWebSocket = (userId: string, token: string) => {
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   // WebSocket endpoint for the PAM backend using configured backend URL
-  const wsUrl = getWebSocketUrl('/api/ws');
+  const wsUrl = `${getWebSocketUrl(`/ws/${userId}`)}?token=${token}`;
 
   const sendMessage = (message: any) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -60,7 +60,7 @@ export const usePamWebSocket = () => {
     return () => {
       wsRef.current?.close();
     };
-  }, []);
+  }, [wsUrl]);
 
   return {
     isConnected,
