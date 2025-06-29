@@ -58,15 +58,14 @@ export class TripService {
     mode: string,
     waypoints: Waypoint[]
   ): Promise<void> {
-    await supabase.from("trips").insert({
-      user_id: userId,
-      start_location: JSON.stringify({ name: originName, coords: origin }),
-      end_location: JSON.stringify({ name: destName, coords: dest }),
-      start_date: new Date(),
-      arrival_date: new Date(),
-      route: { origin, dest, routingProfile },
-      trip_pois: suggestions,
-      route_preferences: { mode, requiredWaypoints: waypoints.map(w => w.coords) },
+    await supabase.from("group_trips").insert({
+      created_by: userId,
+      trip_name: `${originName} to ${destName}`,
+      description: `Trip from ${originName} to ${destName}`,
+      start_date: new Date().toISOString(),
+      end_date: new Date().toISOString(),
+      route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints }),
+      status: 'active'
     });
   }
 }

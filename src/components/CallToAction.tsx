@@ -11,7 +11,7 @@ const CallToAction = () => {
         </h2>
         
         <p className="text-xl md:text-2xl mb-10 max-w-3xl mx-auto opacity-90">
-          Your travels just got easier — thanks to Pam.
+          Join Wheels and Wins today—enjoy stress-free planning and a supportive community.
         </p>
         
         <Link to="/signup">

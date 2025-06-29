@@ -20,8 +20,7 @@ const PamSpotlight = () => {
             </h2>
 
             <p className="text-xl mb-8 text-gray-700">
-              Planning where to stay? Tracking your budget? Finding the best stops?
-              Pam does it all — just chat and go. She keeps your life running smoothly so you can focus on the fun.
+              Let Pam handle the details—route planning, expense tracking, and traveler meetups—so you can focus on the journey.
             </p>
           </div>
         </div>
