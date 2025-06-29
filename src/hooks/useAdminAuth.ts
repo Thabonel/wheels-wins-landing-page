@@ -9,7 +9,10 @@ export function useAdminAuth() {
   const [error, setError] = useState<string | null>(null);
 
   const checkAdminStatus = async () => {
+    console.log('Checking admin status:', { isAuthenticated, user: user?.email, session: !!session });
+    
     if (!isAuthenticated || !user || !session) {
+      console.log('Not authenticated or missing user/session');
       setIsAdmin(false);
       setLoading(false);
       setError(null);
@@ -21,7 +24,9 @@ export function useAdminAuth() {
       // For now, we'll use a simple check
       // In production, this should check against a database or user roles
       const adminEmails = ['admin@wheelsandwins.com', 'thabonel0@gmail.com'];
-      setIsAdmin(adminEmails.includes(user.email || ''));
+      const isUserAdmin = adminEmails.includes(user.email || '');
+      console.log('Admin check result:', { userEmail: user.email, isUserAdmin });
+      setIsAdmin(isUserAdmin);
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
