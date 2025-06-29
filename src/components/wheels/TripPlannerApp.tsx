@@ -29,6 +29,7 @@ import IntegratedTripPlanner from './trip-planner/IntegratedTripPlanner';
 import BudgetSidebar from './trip-planner/BudgetSidebar';
 import SocialSidebar from './trip-planner/SocialSidebar';
 import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
+import NavigationExportHub from './trip-planner/NavigationExportHub';
 import { useIntegratedTripState } from './trip-planner/hooks/useIntegratedTripState';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -512,6 +513,13 @@ export default function TripPlannerApp() {
         <SocialTripCoordinator
           isOpen={integratedState.ui.showMeetupPlanner}
           onClose={() => integratedState.toggleFeature('meetup')}
+          currentRoute={integratedState.route}
+          currentBudget={integratedState.budget}
+        />
+
+        <NavigationExportHub
+          isOpen={integratedState.ui.showExportModal}
+          onClose={() => integratedState.toggleFeature('export')}
           currentRoute={integratedState.route}
           currentBudget={integratedState.budget}
         />
