@@ -203,8 +203,8 @@ export default function MapControls({
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
         {isOffline && (
-          <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-4 rounded-lg shadow-lg text-center">
+          <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center pointer-events-none">
+            <div className="bg-white p-4 rounded-lg shadow-lg text-center pointer-events-auto">
               <p className="text-gray-600">Map updates disabled in offline mode</p>
             </div>
           </div>
