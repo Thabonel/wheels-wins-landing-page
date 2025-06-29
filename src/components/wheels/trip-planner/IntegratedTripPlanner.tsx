@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
+import { getMapboxToken } from "@/utils/mapboxToken";
 import TripPlannerControls from "./TripPlannerControls";
 import TripPlannerHeader from "./TripPlannerHeader";
 import OfflineTripBanner from "./OfflineTripBanner";
@@ -75,11 +76,10 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
 
   const initializeOnlineMap = () => {
     try {
-      // Set Mapbox access token from environment variable
-      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
-      
+      const mapboxToken = getMapboxToken();
+
       if (!mapboxToken) {
-        console.error('Mapbox token not found in environment variables');
+        console.error('Mapbox token missing or invalid');
         setMapError('Mapbox token missing. Switching to offline mode...');
         setTimeout(() => initializeOfflineMap(), 1000);
         return;
@@ -214,16 +214,20 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
 
   const initializeDirections = () => {
     try {
-      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
-      
+      const mapboxToken = getMapboxToken();
+      if (!mapboxToken) {
+        console.error('Mapbox token missing. Directions disabled.');
+        return;
+      }
+
       directionsControl.current = new MapboxDirections({
         accessToken: mapboxToken,
         unit: "imperial",
         profile: "mapbox/driving",
         interactive: true,
-        controls: { 
-          instructions: false, 
-          profileSwitcher: false 
+        controls: {
+          instructions: false,
+          profileSwitcher: false
         },
       });
 
