@@ -494,10 +494,17 @@ export default function TripPlannerApp() {
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
-                    <SocialSidebar 
+                    <SocialSidebar
                       friends={integratedState.social.friends}
                       groupTrips={integratedState.social.groupTrips}
-                      onCreateGroupTrip={() => console.log('Create group trip')}
+                      onOpenMeetupPlanner={() => {
+                        if (integratedState.ui.showSocialSidebar) {
+                          integratedState.toggleFeature('social');
+                        }
+                        if (!integratedState.ui.showMeetupPlanner) {
+                          integratedState.toggleFeature('meetup');
+                        }
+                      }}
                       isOpen={true}
                       onClose={() => integratedState.toggleFeature('social')}
                       calendarEvents={[]}
