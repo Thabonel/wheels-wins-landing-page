@@ -213,3 +213,5 @@
   ring-color: #3b82f6 !important;
   border-color: transparent !important;
 }
+/* Mapbox GL CSS - Import at the end to avoid conflicts */
+@import 'mapbox-gl/dist/mapbox-gl.css';
