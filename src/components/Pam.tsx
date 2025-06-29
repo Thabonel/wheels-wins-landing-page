@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff, MapPin, Calendar, DollarSign } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
-import { getWebSocketUrl } from "@/services/api";
+import { getWebSocketUrl, apiFetch } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 interface PamMessage {
@@ -43,12 +43,20 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadUserContext = async () => {
     try {
-      const response = await fetch('/api/you/profile', {
-        headers: { 'Authorization': `Bearer ${sessionToken}` }
+      const response = await apiFetch('/api/chat/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({
+          message: 'load_user_context',
+          user_id: user?.id
+        })
       });
       if (response.ok) {
         const data = await response.json();
-        setUserContext(data.data);
+        setUserContext(data?.actions || data?.data || data);
       }
     } catch (error) {
       console.error('Failed to load user context:', error);
@@ -57,17 +65,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadConversationMemory = async () => {
     try {
-      const response = await fetch(`/api/pam/memory?user_id=${user?.id}&limit=10`, {
-        headers: { 'Authorization': `Bearer ${sessionToken}` }
+      const response = await apiFetch('/api/chat/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({
+          message: 'load_conversation_memory',
+          user_id: user?.id
+        })
       });
       if (response.ok) {
         const data = await response.json();
-        const memoryMessages = data.memories?.map((memory: any) => ({
-          id: memory.id,
-          content: memory.content,
-          sender: memory.topic === 'user_message' ? 'user' : 'pam',
-          timestamp: memory.created_at,
-          context: memory.context
+        const memoryMessages = data.memories?.map((m: any) => ({
+          id: m.id,
+          content: m.content,
+          sender: m.topic === 'user_message' ? 'user' : 'pam',
+          timestamp: m.created_at,
+          context: m.context
         })) || [];
         setMessages(memoryMessages);
       }
@@ -78,17 +94,20 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const saveToMemory = async (message: string, sender: 'user' | 'pam', context?: any) => {
     try {
-      await fetch('/api/pam/memory', {
+      await apiFetch('/api/actions/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
-          user_id: user?.id,
-          content: message,
-          topic: sender === 'user' ? 'user_message' : 'pam_response',
-          context: context
+          action: 'save_memory',
+          payload: {
+            user_id: user?.id,
+            content: message,
+            topic: sender === 'user' ? 'user_message' : 'pam_response',
+            context
+          }
         })
       });
     } catch (error) {
