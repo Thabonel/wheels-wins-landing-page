@@ -12,8 +12,8 @@ import { useTripPlannerHandlers } from "./hooks/useTripPlannerHandlers";
 import { PAMProvider } from "./PAMContext";
 import { useToast } from "@/hooks/use-toast";
 
-// Import Mapbox CSS - This is crucial for the map to display properly
-import 'mapbox-gl/dist/mapbox-gl.css';
+// Import Mapbox CSS - This is now handled in index.css
+// import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface IntegratedTripPlannerProps {
   isOffline?: boolean;
@@ -75,8 +75,17 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
 
   const initializeOnlineMap = () => {
     try {
-      // Set Mapbox access token
-      mapboxgl.accessToken = "pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbTRmb3M5NjMwYWVlMnFxdjJ4cWh6YjE5In0.c8pPQy_8HhKbO6_hJ2C9zw";
+      // Set Mapbox access token from environment variable
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      
+      if (!mapboxToken) {
+        console.error('Mapbox token not found in environment variables');
+        setMapError('Mapbox token missing. Switching to offline mode...');
+        setTimeout(() => initializeOfflineMap(), 1000);
+        return;
+      }
+
+      mapboxgl.accessToken = mapboxToken;
 
       map.current = new mapboxgl.Map({
         container: mapContainer.current!,
@@ -205,8 +214,10 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
 
   const initializeDirections = () => {
     try {
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      
       directionsControl.current = new MapboxDirections({
-        accessToken: mapboxgl.accessToken,
+        accessToken: mapboxToken,
         unit: "imperial",
         profile: "mapbox/driving",
         interactive: true,
@@ -306,7 +317,7 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
         )}
 
         {/* Map Container */}
-        <div className="relative">
+        <div className="relative trip-planner-map">
           <div
             ref={mapContainer}
             className="h-[50vh] sm:h-[60vh] lg:h-[70vh] min-h-[400px] w-full rounded-lg border shadow-sm bg-gray-100"
