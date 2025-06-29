@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import IntegratedTripPlanner from './trip-planner/IntegratedTripPlanner';
 import BudgetSidebar from './trip-planner/BudgetSidebar';
 import SocialSidebar from './trip-planner/SocialSidebar';
+import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
 import { useIntegratedTripState } from './trip-planner/hooks/useIntegratedTripState';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -283,9 +284,9 @@ export default function TripPlannerApp() {
               <Download className="w-4 h-4 mr-2" />
               Export Trip
             </Button>
-            <Button variant="outline" onClick={() => integratedState.toggleFeature('social')}>
+            <Button variant="outline" onClick={() => integratedState.toggleFeature('meetup')}>
               <Users className="w-4 h-4 mr-2" />
-              Share with Friends
+              Plan My Meetup
             </Button>
           </div>
         </CardContent>
@@ -506,6 +507,14 @@ export default function TripPlannerApp() {
             </div>
           </>
         )}
+
+        {/* Plan My Meetup Modal */}
+        <SocialTripCoordinator
+          isOpen={integratedState.ui.showMeetupPlanner}
+          onClose={() => integratedState.toggleFeature('meetup')}
+          currentRoute={integratedState.route}
+          currentBudget={integratedState.budget}
+        />
       </div>
     </div>
   );
