@@ -20,7 +20,7 @@ interface SocialSidebarProps {
   calendarEvents: CalendarEvent[];
   groupTrips: GroupTrip[];
   onMessageFriend?: (friend: Friend) => void;
-  onCreateGroupTrip?: () => void;
+  onOpenMeetupPlanner: () => void;
   onAddFriend?: () => void;
 }
 
@@ -31,7 +31,7 @@ export default function SocialSidebar({
   calendarEvents,
   groupTrips,
   onMessageFriend,
-  onCreateGroupTrip,
+  onOpenMeetupPlanner,
   onAddFriend
 }: SocialSidebarProps) {
   if (!isOpen) return null;
@@ -195,6 +195,19 @@ export default function SocialSidebar({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Actions */}
+      <div className="p-4 border-t">
+        <Button
+          className="w-full"
+          onClick={() => {
+            onClose();
+            onOpenMeetupPlanner();
+          }}
+        >
+          Create Trip
+        </Button>
       </div>
     </div>
   );
