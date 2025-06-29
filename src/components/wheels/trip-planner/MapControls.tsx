@@ -1,15 +1,9 @@
-
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
-import { getMapboxToken } from "@/utils/mapboxToken";
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus } from "lucide-react";
-import FriendsLayer from "./FriendsLayer";
 
 interface MapControlsProps {
   region: string;
@@ -55,7 +49,6 @@ export default function MapControls({
   lockDestination,
 }: MapControlsProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const [showFriendsLayer, setShowFriendsLayer] = useState(false);
 
   // Initialize map and directions
   useEffect(() => {
@@ -64,11 +57,8 @@ export default function MapControls({
     const center = regionCenters[region] || regionCenters.US;
 
     if (!map.current) {
-      const mapboxToken = getMapboxToken();
-      console.log('Initializing map with token:', mapboxToken ? 'Token present' : 'Token missing');
-
-      mapboxgl.accessToken = mapboxToken || '';
-
+      console.log('Initializing map with token:', import.meta.env.VITE_MAPBOX_TOKEN ? 'Token present' : 'Token missing');
+      
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/streets-v11",
@@ -84,9 +74,8 @@ export default function MapControls({
           console.log('Creating directions control after map load');
           
           // Create directions control
-          const token = getMapboxToken();
           const dir = new MapboxDirections({
-            accessToken: token || '',
+            accessToken: mapboxgl.accessToken,
             unit: "metric",
             profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
             interactive: !isOffline,
@@ -211,22 +200,6 @@ export default function MapControls({
     <div className="w-full h-[60vh] lg:h-[70vh] relative">
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
-        
-        {/* Social Controls */}
-        <div className="absolute top-4 left-4 z-10 flex gap-2">
-          <Button
-            variant={showFriendsLayer ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowFriendsLayer(!showFriendsLayer)}
-            className="bg-white/90 backdrop-blur-sm"
-            disabled={isOffline}
-          >
-            <Users className="w-4 h-4 mr-2" />
-            Friends
-            {showFriendsLayer && <Badge variant="secondary" className="ml-2">3</Badge>}
-          </Button>
-        </div>
-
         {isOffline && (
           <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center">
             <div className="bg-white p-4 rounded-lg shadow-lg text-center">
@@ -237,7 +210,7 @@ export default function MapControls({
         
         {/* Visual indicators for locked points */}
         {(originLocked || destinationLocked) && (
-          <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2">
+          <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2">
             <div className="flex gap-2 text-xs">
               {originLocked && (
                 <div className="flex items-center gap-1 text-blue-600">
@@ -255,9 +228,6 @@ export default function MapControls({
           </div>
         )}
       </div>
-
-      {/* Friends Layer */}
-      <FriendsLayer map={map} isVisible={showFriendsLayer} />
     </div>
   );
 }
