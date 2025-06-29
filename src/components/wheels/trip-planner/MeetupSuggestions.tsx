@@ -3,35 +3,44 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  MapPin, 
-  Calendar, 
-  Users, 
-  Route, 
+import {
+  MapPin,
+  Calendar,
+  Users,
+  Route,
   DollarSign,
   TrendingUp,
   Navigation,
   MessageSquare,
+  Loader2,
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MeetupSuggestion } from './hooks/useSocialTripState';
+import { toast } from '@/hooks/use-toast';
+import { RouteState } from './types';
 
 interface MeetupSuggestionsProps {
   suggestions: MeetupSuggestion[];
   isVisible: boolean;
   onAcceptMeetup: (suggestionId: string) => void;
   onDismissMeetup: (suggestionId: string) => void;
+  onAddWaypoint: (location: { lat: number; lng: number; name: string }) => Promise<void> | void;
+  currentRoute: RouteState;
   onMessageFriend?: (friendId: string) => void;
 }
 
-export default function MeetupSuggestions({ 
+export default function MeetupSuggestions({
   suggestions,
   isVisible,
   onAcceptMeetup,
   onDismissMeetup,
+  onAddWaypoint,
+  currentRoute,
   onMessageFriend
 }: MeetupSuggestionsProps) {
+  const [adjustingId, setAdjustingId] = React.useState<string | null>(null);
+
   if (!isVisible || suggestions.length === 0) return null;
 
   const getConfidenceColor = (confidence: 'high' | 'medium' | 'low') => {
@@ -58,6 +67,45 @@ export default function MeetupSuggestions({
       case 'camped': return '🏕️';
       case 'offline': return '⚫';
       default: return '📍';
+    }
+  };
+
+  const handleAdjustRoute = async (suggestion: MeetupSuggestion) => {
+    setAdjustingId(suggestion.id);
+    try {
+      const exists = currentRoute.waypoints.some(
+        (wp) =>
+          wp.name === suggestion.meetupLocation.placeName ||
+          (wp.coords[0] === suggestion.meetupLocation.coordinates[0] &&
+            wp.coords[1] === suggestion.meetupLocation.coordinates[1])
+      );
+
+      if (exists) {
+        toast({
+          title: 'Waypoint Exists',
+          description: `${suggestion.meetupLocation.placeName} is already on your route`,
+        });
+        return setAdjustingId(null);
+      }
+
+      await onAddWaypoint({
+        lat: suggestion.meetupLocation.coordinates[1],
+        lng: suggestion.meetupLocation.coordinates[0],
+        name: suggestion.meetupLocation.placeName,
+      });
+      toast({
+        title: 'Waypoint Added',
+        description: `${suggestion.meetupLocation.placeName} added to your route`,
+      });
+    } catch (error) {
+      console.error('Failed to adjust route:', error);
+      toast({
+        title: 'Route Adjustment Failed',
+        description: 'Could not update route. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAdjustingId(null);
     }
   };
 
@@ -171,13 +219,15 @@ export default function MeetupSuggestions({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        // Handle route adjustment - would integrate with trip planner
-                        console.log('Adjusting route for meetup:', suggestion.id);
-                      }}
+                      disabled={adjustingId === suggestion.id}
+                      onClick={() => handleAdjustRoute(suggestion)}
                     >
-                      <Navigation className="w-4 h-4 mr-2" />
-                      Adjust Route
+                      {adjustingId === suggestion.id ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Navigation className="w-4 h-4 mr-2" />
+                      )}
+                      {adjustingId === suggestion.id ? 'Adjusting...' : 'Adjust Route'}
                     </Button>
                   </div>
                 </div>
