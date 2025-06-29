@@ -17,6 +17,7 @@ import WeatherWidget from "./WeatherWidget";
 import { useTripPlannerState } from "./trip-planner/hooks/useTripPlannerState";
 import { useTripPlannerHandlers } from "./trip-planner/hooks/useTripPlannerHandlers";
 import { Button } from "@/components/ui/button";
+import PAMTripIntegration, { PAMTripUtils } from "./trip-planner/PAMTripIntegration";
 import { Cloud } from "lucide-react";
 
 // Initialize Mapbox token
@@ -84,6 +85,21 @@ export default function TripPlanner() {
 
   if (!mapboxgl.accessToken) {
     return (
+      {/* PAM Integration - Real-time trip assistance */}
+      <PAMTripIntegration
+        onRouteUpdate={(route) => {
+          console.log("PAM route update:", route);
+          // Handle route updates from PAM
+        }}
+        onBudgetUpdate={(budget) => {
+          console.log("PAM budget update:", budget);
+          // Handle budget updates from PAM
+        }}
+        onEmergency={(data) => {
+          console.log("PAM emergency:", data);
+          // Handle emergency situations
+        }}
+      />
       <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
         <h3 className="font-semibold text-yellow-800">Mapbox Configuration Required</h3>
         <p className="text-yellow-700 mt-2">
@@ -94,6 +110,21 @@ export default function TripPlanner() {
   }
 
   return (
+      {/* PAM Integration - Real-time trip assistance */}
+      <PAMTripIntegration
+        onRouteUpdate={(route) => {
+          console.log("PAM route update:", route);
+          // Handle route updates from PAM
+        }}
+        onBudgetUpdate={(budget) => {
+          console.log("PAM budget update:", budget);
+          // Handle budget updates from PAM
+        }}
+        onEmergency={(data) => {
+          console.log("PAM emergency:", data);
+          // Handle emergency situations
+        }}
+      />
     <TripPlannerLayout>
       <TripPlannerHeader isOffline={isOffline} />
       
