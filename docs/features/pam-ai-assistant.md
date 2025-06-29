@@ -93,6 +93,21 @@ The PAM backend is a FastAPI application deployed on Render.com that provides:
 - Supabase database integration for user data
 - Intent-based response routing
 
+### Token Verification
+The backend validates JWTs using its internal `SECRET_KEY` with the HS256 algorithm.
+Tokens issued by Supabase are **not** recognized automatically. Ensure the `sub`
+claim matches the `userId` used in the WebSocket path. If using Supabase Auth,
+either exchange the Supabase token for a PAM token or extend the backend to
+verify Supabase JWTs using the project's public JWKS:
+
+```python
+from app.core.auth import verify_supabase_token
+
+payload = verify_supabase_token(supabase_token, settings.SUPABASE_URL)
+```
+
+Refresh tokens when expired to maintain the connection.
+
 ### WebSocket Message Flow
 1. **Connection Establishment**
    - Frontend connects to `wss://pam-backend.onrender.com/ws/{userId}`
