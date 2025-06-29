@@ -12,6 +12,9 @@ import { useTripPlannerHandlers } from "./hooks/useTripPlannerHandlers";
 import { PAMProvider } from "./PAMContext";
 import { useToast } from "@/hooks/use-toast";
 
+// Import Mapbox CSS - This is crucial for the map to display properly
+import 'mapbox-gl/dist/mapbox-gl.css';
+
 interface IntegratedTripPlannerProps {
   isOffline?: boolean;
 }
@@ -22,6 +25,7 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
   const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   // Use integrated state management
   const integratedState = useIntegratedTripState(isOffline);
@@ -40,46 +44,201 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    mapboxgl.accessToken = "pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbTRmb3M5NjMwYWVlMnFxdjJ4cWh6YjE5In0.c8pPQy_8HhKbO6_hJ2C9zw";
+    try {
+      console.log(`Initializing map... ${isOffline ? 'OFFLINE MODE' : 'ONLINE MODE'}`);
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [-98.5795, 39.8283],
-      zoom: 4,
-      attributionControl: false,
-    });
+      if (isOffline) {
+        // Offline mode - create a simple canvas-based map
+        initializeOfflineMap();
+      } else {
+        // Online mode - use Mapbox
+        initializeOnlineMap();
+      }
+    } catch (error) {
+      console.error('Error creating map:', error);
+      setMapError('Failed to initialize map. Switching to offline mode...');
+      // Fallback to offline map
+      setTimeout(() => {
+        initializeOfflineMap();
+      }, 1000);
+    }
 
-    map.current.addControl(new mapboxgl.AttributionControl({ compact: true }));
+    // Cleanup function
+    return () => {
+      if (map.current && typeof map.current.remove === 'function') {
+        console.log('Cleaning up map...');
+        map.current.remove();
+        map.current = undefined;
+      }
+    };
+  }, [isOffline]);
 
-    map.current.on("load", () => {
-      setMapLoaded(true);
+  const initializeOnlineMap = () => {
+    try {
+      // Set Mapbox access token
+      mapboxgl.accessToken = "pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbTRmb3M5NjMwYWVlMnFxdjJ4cWh6YjE5In0.c8pPQy_8HhKbO6_hJ2C9zw";
+
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current!,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: [-98.5795, 39.8283], // Center of US
+        zoom: 4,
+        attributionControl: false,
+      });
+
+      // Add attribution control
+      map.current.addControl(new mapboxgl.AttributionControl({ compact: true }));
+
+      // Map load event
+      map.current.on("load", () => {
+        console.log('Online map loaded successfully');
+        setMapLoaded(true);
+        setMapError(null);
+        initializeDirections();
+      });
+
+      // Map error event - fallback to offline
+      map.current.on("error", (e) => {
+        console.error('Online map error:', e);
+        setMapError('Connection issue. Switching to offline mode...');
+        setTimeout(() => {
+          initializeOfflineMap();
+        }, 2000);
+      });
+
+    } catch (error) {
+      console.error('Error creating online map:', error);
+      initializeOfflineMap();
+    }
+  };
+
+  const initializeOfflineMap = () => {
+    try {
+      console.log('Initializing offline map...');
       
-      // Initialize directions
+      if (mapContainer.current) {
+        // Clear container
+        mapContainer.current.innerHTML = '';
+        
+        // Create offline map interface
+        const offlineMapDiv = document.createElement('div');
+        offlineMapDiv.className = 'offline-map';
+        offlineMapDiv.style.cssText = `
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          border-radius: 8px;
+          overflow: hidden;
+        `;
+
+        // Add offline map header
+        const header = document.createElement('div');
+        header.style.cssText = `
+          background: rgba(25, 118, 210, 0.1);
+          padding: 12px 16px;
+          border-bottom: 1px solid rgba(25, 118, 210, 0.2);
+          font-size: 14px;
+          font-weight: 500;
+          color: #1976d2;
+        `;
+        header.innerHTML = '📍 Offline Trip Planner';
+
+        // Add route planning area
+        const routeArea = document.createElement('div');
+        routeArea.style.cssText = `
+          flex: 1;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+        `;
+
+        routeArea.innerHTML = `
+          <div style="max-width: 400px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">🗺️</div>
+            <h3 style="margin: 0 0 12px 0; color: #1976d2; font-size: 18px;">Plan Your Route</h3>
+            <p style="margin: 0 0 20px 0; color: #666; font-size: 14px; line-height: 1.5;">
+              Use the route controls above to set your origin and destination. 
+              Your route will be calculated and displayed here when online.
+            </p>
+            <div style="background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <div style="font-size: 12px; color: #888; margin-bottom: 8px;">CURRENT ROUTE</div>
+              <div id="offline-route-display" style="font-size: 14px; color: #333;">
+                ${integratedState.route.originName && integratedState.route.destName 
+                  ? `${integratedState.route.originName} → ${integratedState.route.destName}`
+                  : 'No route set'}
+              </div>
+              ${integratedState.route.waypoints.length > 0 
+                ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${integratedState.route.waypoints.length} waypoints planned</div>`
+                : ''
+              }
+            </div>
+          </div>
+        `;
+
+        offlineMapDiv.appendChild(header);
+        offlineMapDiv.appendChild(routeArea);
+        mapContainer.current.appendChild(offlineMapDiv);
+
+        setMapLoaded(true);
+        setMapError(null);
+        
+        // Mock map object for offline mode
+        map.current = {
+          remove: () => {
+            if (mapContainer.current) {
+              mapContainer.current.innerHTML = '';
+            }
+          }
+        } as any;
+      }
+    } catch (error) {
+      console.error('Error creating offline map:', error);
+      setMapError('Failed to initialize offline map.');
+    }
+  };
+
+  const initializeDirections = () => {
+    try {
       directionsControl.current = new MapboxDirections({
         accessToken: mapboxgl.accessToken,
         unit: "imperial",
         profile: "mapbox/driving",
-        interactive: false,
-        controls: { instructions: false, profileSwitcher: false },
+        interactive: true,
+        controls: { 
+          instructions: false, 
+          profileSwitcher: false 
+        },
       });
 
       if (map.current && directionsControl.current) {
         map.current.addControl(directionsControl.current, "top-left");
         
         // Set up event listeners
-        directionsControl.current.on("route", handlers.handleRouteChange);
-        directionsControl.current.on("clear", () => console.log('Route cleared'));
-        map.current.on("click", (e) => console.log('Map clicked:', e.lngLat));
+        directionsControl.current.on("route", (e) => {
+          console.log('Route changed:', e);
+          if (handlers.handleRouteChange) {
+            handlers.handleRouteChange(e);
+          }
+        });
+        
+        directionsControl.current.on("clear", () => {
+          console.log('Route cleared');
+        });
+        
+        map.current.on("click", (e) => {
+          console.log('Map clicked:', e.lngLat);
+        });
       }
-    });
-
-    return () => {
-      if (map.current) {
-        map.current.remove();
-      }
-    };
-  }, [handlers.handleRouteChange]);
+    } catch (directionsError) {
+      console.error('Error initializing directions:', directionsError);
+    }
+  };
 
   // Enhanced submit handler with PAM integration
   const handleSubmitTrip = async () => {
@@ -146,12 +305,52 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
           />
         )}
 
-        {/* Map Container - Now takes full width */}
+        {/* Map Container */}
         <div className="relative">
           <div
             ref={mapContainer}
-            className="h-[50vh] sm:h-[60vh] lg:h-[70vh] min-h-[400px] w-full rounded-lg border shadow-sm"
+            className="h-[50vh] sm:h-[60vh] lg:h-[70vh] min-h-[400px] w-full rounded-lg border shadow-sm bg-gray-100"
+            style={{ 
+              position: 'relative',
+              overflow: 'hidden'
+            }}
           />
+          
+          {/* Map Loading State */}
+          {!mapLoaded && !mapError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <p className="text-sm text-muted-foreground">Loading map...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Map Error State */}
+          {mapError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+              <div className="text-center p-4">
+                <p className="text-sm text-red-600 mb-2">{mapError}</p>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Refresh Page
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Map Status Indicator */}
+          {mapLoaded && (
+            <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm rounded px-2 py-1 text-xs">
+              {isOffline ? (
+                <span className="text-orange-600">📍 Offline Mode</span>
+              ) : (
+                <span className="text-green-600">✓ Online Map</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Waypoints List */}
