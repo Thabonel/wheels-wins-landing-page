@@ -19,7 +19,8 @@ class PamUIController {
   private isConnected = false;
 
   constructor() {
-    // this.connectWebSocket(); // Temporarily disabled
+    // Example usage:
+    // this.connectWebSocket(userId, token);
   }
 
   /**
@@ -157,9 +158,9 @@ class PamUIController {
   /**
    * Connect to WebSocket for receiving UI commands from backend
    */
-  private connectWebSocket(): void {
+  private connectWebSocket(userId: string, token: string): void {
     try {
-      const wsUrl = getWebSocketUrl('/api/ws');
+      const wsUrl = `${getWebSocketUrl(`/ws/${userId}`)}?token=${token}`;
       
       this.websocket = new WebSocket(wsUrl);
 
@@ -184,7 +185,7 @@ class PamUIController {
         // Attempt to reconnect after 5 seconds
         setTimeout(() => {
           if (!this.isConnected) {
-            // this.connectWebSocket(); // Temporarily disabled
+            // this.connectWebSocket(userId, token);
           }
         }, 5000);
       };
