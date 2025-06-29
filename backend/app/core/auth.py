@@ -3,6 +3,8 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
+import requests
+from jose import jwk
 
 # Configuration
 SECRET_KEY = "your-secret-key-change-in-production"  # TODO: Move to environment
@@ -49,3 +51,23 @@ def verify_token(token: str):
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def verify_supabase_token(token: str, supabase_url: str):
+    """Verify a Supabase-issued JWT using the project's public JWKS."""
+    try:
+        jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/keys"
+        jwks_data = requests.get(jwks_url, timeout=5).json()
+        header = jwt.get_unverified_header(token)
+        key_data = next(
+            (k for k in jwks_data.get("keys", []) if k.get("kid") == header.get("kid")),
+            None,
+        )
+        if not key_data:
+            raise JWTError("Signing key not found")
+        return jwt.decode(token, key_data, algorithms=[header.get("alg")], options={"verify_aud": False})
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Supabase token",
+        ) from e
