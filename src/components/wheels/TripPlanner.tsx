@@ -98,17 +98,16 @@ export default function TripPlanner() {
   }
 
   return (
-    <TripPlannerLayout 
-      showSidebar={showBudget}
-      sidebar={
+    <TripPlannerLayout>
+      {showBudget && (
         <BudgetSidebar
           directionsControl={directionsControl}
           isVisible={showBudget}
           onClose={() => setShowBudget(false)}
           waypoints={waypoints}
         />
-      }
-    >
+      )}
+      
       <TripPlannerHeader isOffline={isOffline} />
       
       {/* Locked Points Controls */}

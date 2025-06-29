@@ -238,7 +238,7 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
         directionsControl.current.on("route", (e) => {
           console.log('Route changed:', e);
           if (handlers.handleRouteChange) {
-            handlers.handleRouteChange(e);
+            handlers.handleRouteChange();
           }
         });
         
