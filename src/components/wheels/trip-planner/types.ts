@@ -19,3 +19,12 @@ export interface Suggestion {
   type?: string;
   link?: string;
 }
+
+export interface RouteState {
+  originName: string;
+  destName: string;
+  waypoints: Waypoint[];
+  suggestions?: Suggestion[];
+  totalDistance?: number;
+  estimatedTime?: number;
+}
