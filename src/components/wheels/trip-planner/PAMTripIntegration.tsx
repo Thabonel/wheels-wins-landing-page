@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { usePamWebSocketConnection } from '@/hooks/pam/usePamWebSocketConnection';
+import { PAMWebSocketService } from "../../services/pamService";
 import { usePamMessageHandler } from '@/hooks/pam/usePamMessageHandler';
 import { usePAMContext } from './PAMContext';
 import { useAuth } from '@/context/AuthContext';
@@ -87,7 +87,27 @@ export default function PAMTripIntegration({
     }
   };
 
-  const { isConnected, sendMessage } = usePamWebSocketConnection({
+  // Use robust PAM service
+  const [isConnected, setIsConnected] = useState(false);
+  const [pamService] = useState(() => new PAMWebSocketService(
+    handlePAMMessage,
+    setIsConnected
+  ));
+  
+  const sendMessage = async (message: string) => {
+    return pamService.sendMessage(JSON.parse(message));
+  };
+  
+  // Connect when component mounts
+  useEffect(() => {
+    if (user?.id) {
+      pamService.connect(user.id);
+    }
+    return () => pamService.disconnect();
+  }, [user?.id]);
+  
+  // Original connection setup (commented out):
+  // const { isConnected, sendMessage } = usePamWebSocketConnection({
     userId: user?.id || 'anonymous',
     onMessage: handlePAMMessage,
     onStatusChange: handleConnectionStatus

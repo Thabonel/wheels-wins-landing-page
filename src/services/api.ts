@@ -6,5 +6,9 @@ export function apiFetch(path: string, options: RequestInit = {}) {
 }
 
 export function getWebSocketUrl(path: string) {
+  // Use dedicated PAM WebSocket if available
+  if (import.meta.env.VITE_PAM_WEBSOCKET_URL) {
+    return import.meta.env.VITE_PAM_WEBSOCKET_URL;
+  }
   return (API_BASE_URL || '').replace(/^http/, 'ws') + path;
 }

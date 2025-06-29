@@ -427,6 +427,7 @@ export default function TripPlannerApp() {
 
           <TabsContent value="plan-trip" className="mt-0">
             <TripPlanner />
+          <PAMTripIntegration />
           </TabsContent>
 
           <TabsContent value="trip-details" className="mt-0">
