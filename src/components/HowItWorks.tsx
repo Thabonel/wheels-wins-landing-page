@@ -6,17 +6,17 @@ const features = [
   {
     icon: <Calendar className="w-12 h-12 text-primary" />,
     title: "Plan Your Trip",
-    description: "Pam maps your route and finds top stops"
+    description: "Professional-grade route planning to avoid costly mistakes"
   },
   {
     icon: <DollarSign className="w-12 h-12 text-primary" />,
-    title: "Manage Your Money",
-    description: "Track fuel, spending, and stay on budget"
+    title: "Financial Security",
+    description: "Track every expense and maintain budget confidence"
   },
   {
     icon: <MessageSquare className="w-12 h-12 text-primary" />,
-    title: "Stay Connected",
-    description: "Chat with other travelers, join local groups"
+    title: "Work-Life Balance",
+    description: "Connect with reliable workspaces and supportive communities"
   },
 ];
 

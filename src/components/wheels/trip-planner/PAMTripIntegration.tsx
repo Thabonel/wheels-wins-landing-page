@@ -1,5 +1,4 @@
-import React, { useEffect } from 'react';
-import { PAMWebSocketService } from "../../services/pamService";
+import React, { useEffect, useState } from 'react';
 import { usePamMessageHandler } from '@/hooks/pam/usePamMessageHandler';
 import { usePAMContext } from './PAMContext';
 import { useAuth } from '@/context/AuthContext';
@@ -73,7 +72,7 @@ export default function PAMTripIntegration({
         addMessage({
           role: 'assistant',
           content: `🌟 I found a scenic route option: ${message.description}. It adds ${message.extra_time} minutes but includes ${message.highlights.join(', ')}. Would you like me to add it?`,
-          context: { suggestion: 'scenic_route', data: message }
+          context: { suggestion: 'scenic_route', action: 'scenic_route', tripData: message }
         });
         break;
     }
@@ -87,31 +86,30 @@ export default function PAMTripIntegration({
     }
   };
 
-  // Use robust PAM service
+  // Simplified connection state for now
   const [isConnected, setIsConnected] = useState(false);
-  const [pamService] = useState(() => new PAMWebSocketService(
-    handlePAMMessage,
-    setIsConnected
-  ));
   
   const sendMessage = async (message: string) => {
-    return pamService.sendMessage(JSON.parse(message));
+    console.log('Sending message to PAM:', message);
+    // TODO: Implement actual PAM service connection
+    return Promise.resolve();
   };
   
   // Connect when component mounts
   useEffect(() => {
     if (user?.id) {
-      pamService.connect(user.id);
+      setIsConnected(true);
+      console.log('PAM connection simulated for user:', user.id);
     }
-    return () => pamService.disconnect();
+    return () => setIsConnected(false);
   }, [user?.id]);
   
   // Original connection setup (commented out):
   // const { isConnected, sendMessage } = usePamWebSocketConnection({
-    userId: user?.id || 'anonymous',
-    onMessage: handlePAMMessage,
-    onStatusChange: handleConnectionStatus
-  });
+  //   userId: user?.id || 'anonymous',
+  //   onMessage: handlePAMMessage,
+  //   onStatusChange: handleConnectionStatus
+  // });
 
   // Send current trip context to PAM for optimization
   const sendTripContextToPAM = async () => {
