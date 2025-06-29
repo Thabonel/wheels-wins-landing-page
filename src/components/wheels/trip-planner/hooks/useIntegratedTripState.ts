@@ -42,7 +42,8 @@ export interface IntegratedTripState {
     showSocialSidebar: boolean;
     showPAMChat: boolean;
     showExportModal: boolean;
-    activeFeature: 'route' | 'budget' | 'social' | 'pam' | 'export' | null;
+    showMeetupPlanner: boolean;
+    activeFeature: 'route' | 'budget' | 'social' | 'pam' | 'export' | 'meetup' | null;
   };
   sync: boolean;
 }
@@ -76,11 +77,12 @@ export function useIntegratedTripState(isOffline: boolean) {
 
   // UI state
   const [uiState, setUIState] = useState({
-    showBudgetSidebar: true,
+    showBudgetSidebar: false,
     showSocialSidebar: false,
     showPAMChat: false,
     showExportModal: false,
-    activeFeature: null as 'route' | 'budget' | 'social' | 'pam' | 'export' | null,
+    showMeetupPlanner: false,
+    activeFeature: null as 'route' | 'budget' | 'social' | 'pam' | 'export' | 'meetup' | null,
   });
 
   // Sync state - indicates if all features are in sync
@@ -116,7 +118,7 @@ export function useIntegratedTripState(isOffline: boolean) {
   }, []);
 
   // Feature toggle functions
-  const toggleFeature = useCallback((feature: 'budget' | 'social' | 'pam' | 'export') => {
+  const toggleFeature = useCallback((feature: 'budget' | 'social' | 'pam' | 'export' | 'meetup') => {
     setUIState(prev => {
       const newState = { ...prev };
       
@@ -132,6 +134,9 @@ export function useIntegratedTripState(isOffline: boolean) {
           break;
         case 'export':
           newState.showExportModal = !prev.showExportModal;
+          break;
+        case 'meetup':
+          newState.showMeetupPlanner = !prev.showMeetupPlanner;
           break;
       }
       
