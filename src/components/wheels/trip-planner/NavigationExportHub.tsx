@@ -25,8 +25,8 @@ export interface BudgetData {
 export interface NavigationExportHubProps {
   isOpen: boolean;
   onClose: () => void;
-  currentRoute: RouteData;
-  currentBudget?: BudgetData;
+  currentRoute: RouteData | any; // Allow any for compatibility with existing hook data
+  currentBudget?: BudgetData | any; // Allow any for compatibility
 }
 
 function buildGoogleMapsLink(route: RouteData) {
@@ -91,15 +91,66 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 export default function NavigationExportHub({ isOpen, onClose, currentRoute, currentBudget }: NavigationExportHubProps) {
+  // Check if we have route data from hooks (different structure)
+  const hasOriginDest = currentRoute?.originName && currentRoute?.destName;
+  const hasRoutePoints = currentRoute?.origin?.name && currentRoute?.destination?.name;
+  
+  // Transform hook data to expected format if needed
+  const transformedRoute = hasOriginDest && !hasRoutePoints ? {
+    origin: { name: currentRoute.originName, lat: 0, lng: 0 },
+    destination: { name: currentRoute.destName, lat: 0, lng: 0 },
+    waypoints: currentRoute.waypoints?.map((wp: any) => ({ 
+      name: wp.name || 'Waypoint', 
+      lat: wp.lat || 0, 
+      lng: wp.lng || 0 
+    })) || []
+  } : currentRoute;
+
+  const transformedBudget = currentBudget?.totalBudget ? {
+    total: currentBudget.totalBudget,
+    remaining: currentBudget.totalBudget - currentBudget.currentSpent
+  } : currentBudget;
+
+  const hasValidRoute = hasRoutePoints || hasOriginDest;
+
   const handleGPXDownload = () => {
-    const gpx = buildGPX(currentRoute);
+    if (!hasValidRoute) return;
+    const gpx = buildGPX(transformedRoute);
     downloadBlob(new Blob([gpx], { type: 'application/gpx+xml' }), 'route.gpx');
   };
 
   const handlePDFDownload = async () => {
-    const pdf = await buildPDF(currentRoute, currentBudget);
+    if (!hasValidRoute) return;
+    const pdf = await buildPDF(transformedRoute, transformedBudget);
     downloadBlob(pdf, 'itinerary.pdf');
   };
+
+  if (!hasValidRoute) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Export Trip</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="p-4 text-sm text-muted-foreground">
+                <div>No route data available. Please plan a trip first.</div>
+              </CardContent>
+            </Card>
+          </div>
+          <DialogFooter className="pt-4">
+            <DialogClose asChild>
+              <Button variant="secondary" onClick={onClose}>Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const displayRoute = transformedRoute;
+  const displayBudget = transformedBudget;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -110,35 +161,44 @@ export default function NavigationExportHub({ isOpen, onClose, currentRoute, cur
         <div className="space-y-4">
           <Card>
             <CardContent className="p-4 text-sm">
-              <div>Origin: {currentRoute.origin.name}</div>
-              <div>Destination: {currentRoute.destination.name}</div>
-              {currentRoute.waypoints && currentRoute.waypoints.length > 0 && (
-                <div>Waypoints: {currentRoute.waypoints.map(w => w.name).join(', ')}</div>
+              <div>Origin: {displayRoute.origin?.name || currentRoute.originName}</div>
+              <div>Destination: {displayRoute.destination?.name || currentRoute.destName}</div>
+              {((displayRoute.waypoints && displayRoute.waypoints.length > 0) || 
+                (currentRoute.waypoints && currentRoute.waypoints.length > 0)) && (
+                <div>Waypoints: {
+                  (displayRoute.waypoints || currentRoute.waypoints)
+                    ?.map((w: any) => w.name || 'Waypoint')
+                    .join(', ')
+                }</div>
               )}
-              {currentBudget && (
-                <div>Budget remaining: ${currentBudget.remaining} / ${currentBudget.total}</div>
+              {displayBudget && (
+                <div>Budget remaining: ${displayBudget.remaining || 0} / ${displayBudget.total || 0}</div>
               )}
             </CardContent>
           </Card>
           <div className="grid grid-cols-1 gap-2">
-            <Button asChild variant="outline">
-              <a href={buildGoogleMapsLink(currentRoute)} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-4 h-4" /> Google Maps
-              </a>
-            </Button>
-            <Button asChild variant="outline">
-              <a href={buildAppleMapsLink(currentRoute)} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-4 h-4" /> Apple Maps
-              </a>
-            </Button>
-            <Button asChild variant="outline">
-              <a href={buildWazeLink(currentRoute)} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-4 h-4" /> Waze
-              </a>
-            </Button>
-            <Button onClick={handleGPXDownload} variant="outline">
-              <Download className="w-4 h-4" /> GPX File
-            </Button>
+            {hasRoutePoints && (
+              <>
+                <Button asChild variant="outline">
+                  <a href={buildGoogleMapsLink(displayRoute)} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4" /> Google Maps
+                  </a>
+                </Button>
+                <Button asChild variant="outline">
+                  <a href={buildAppleMapsLink(displayRoute)} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4" /> Apple Maps
+                  </a>
+                </Button>
+                <Button asChild variant="outline">
+                  <a href={buildWazeLink(displayRoute)} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4" /> Waze
+                  </a>
+                </Button>
+                <Button onClick={handleGPXDownload} variant="outline">
+                  <Download className="w-4 h-4" /> GPX File
+                </Button>
+              </>
+            )}
             <Button onClick={handlePDFDownload} variant="outline">
               <Download className="w-4 h-4" /> PDF Itinerary
             </Button>
