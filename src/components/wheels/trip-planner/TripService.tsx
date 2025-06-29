@@ -1,13 +1,13 @@
 
+import { supabase } from "@/integrations/supabase";
 import { TripPayload, Waypoint, Suggestion } from "./types";
-import { apiFetch } from "@/services/api";
 
 export class TripService {
-  private static TRIP_API_URL = "/api/trips";
+  private static TRIP_WEBHOOK_URL = import.meta.env.VITE_N8N_TRIP_WEBHOOK;
 
   static async submitTripPlan(payload: TripPayload): Promise<void> {
     try {
-      await apiFetch(TripService.TRIP_API_URL, {
+      await fetch(this.TRIP_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -33,7 +33,7 @@ export class TripService {
         mode,
       };
       
-      const res = await apiFetch(TripService.TRIP_API_URL, {
+      const res = await fetch(this.TRIP_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -58,11 +58,10 @@ export class TripService {
     mode: string,
     waypoints: Waypoint[]
   ): Promise<void> {
-    // Mock trip saving - no trips table exists yet
-    console.log("Trip saved:", {
+    await supabase.from("trips").insert({
       user_id: userId,
-      start_location: { name: originName, coords: origin },
-      end_location: { name: destName, coords: dest },
+      start_location: JSON.stringify({ name: originName, coords: origin }),
+      end_location: JSON.stringify({ name: destName, coords: dest }),
       start_date: new Date(),
       arrival_date: new Date(),
       route: { origin, dest, routingProfile },

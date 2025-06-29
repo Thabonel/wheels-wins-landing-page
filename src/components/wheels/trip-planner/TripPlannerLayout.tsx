@@ -1,17 +1,14 @@
-import React from 'react';
+
+import { ReactNode } from "react";
 
 interface TripPlannerLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export default function TripPlannerLayout({ children }: TripPlannerLayoutProps) {
   return (
-    <div className="min-h-screen bg-background">
-      <main className="p-3 sm:p-4 md:p-6">
-        <div className="max-w-none xl:max-w-7xl mx-auto">
-          {children}
-        </div>
-      </main>
+    <div className="space-y-6">
+      {children}
     </div>
   );
 }
