@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
+import { getMapboxToken } from "@/utils/mapboxToken";
 
 interface GeocodeSearchProps {
   directionsControl: React.MutableRefObject<MapboxDirections | undefined>;
@@ -16,7 +17,7 @@ export default function GeocodeSearch({ directionsControl, disabled = false }: G
     if (!geocoderContainer.current || !directionsControl.current || disabled) return;
 
     const geocoder = new MapboxGeocoder({
-      accessToken: mapboxgl.accessToken,
+      accessToken: getMapboxToken() || '',
       mapboxgl,
       placeholder: disabled ? "Search disabled in offline mode" : "Search for places to add to your route",
       marker: false,

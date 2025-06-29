@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
+import { getMapboxToken } from "@/utils/mapboxToken";
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
@@ -63,8 +64,11 @@ export default function MapControls({
     const center = regionCenters[region] || regionCenters.US;
 
     if (!map.current) {
-      console.log('Initializing map with token:', import.meta.env.VITE_MAPBOX_TOKEN ? 'Token present' : 'Token missing');
-      
+      const mapboxToken = getMapboxToken();
+      console.log('Initializing map with token:', mapboxToken ? 'Token present' : 'Token missing');
+
+      mapboxgl.accessToken = mapboxToken || '';
+
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/streets-v11",
@@ -80,8 +84,9 @@ export default function MapControls({
           console.log('Creating directions control after map load');
           
           // Create directions control
+          const token = getMapboxToken();
           const dir = new MapboxDirections({
-            accessToken: mapboxgl.accessToken,
+            accessToken: token || '',
             unit: "metric",
             profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
             interactive: !isOffline,
