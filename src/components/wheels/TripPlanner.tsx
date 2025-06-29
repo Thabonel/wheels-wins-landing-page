@@ -4,7 +4,6 @@ import { useRegion } from "@/context/RegionContext";
 import { useOffline } from "@/context/OfflineContext";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
-import { getMapboxToken } from "@/utils/mapboxToken";
 import MapControls from "./trip-planner/MapControls";
 import GeocodeSearch from "./trip-planner/GeocodeSearch";
 import WaypointsList from "./trip-planner/WaypointsList";
@@ -15,22 +14,19 @@ import TripPlannerTip from "./trip-planner/TripPlannerTip";
 import TripPlannerLayout from "./trip-planner/TripPlannerLayout";
 import LockedPointControls from "./trip-planner/LockedPointControls";
 import WeatherWidget from "./WeatherWidget";
-import BudgetSidebar from "./trip-planner/BudgetSidebar";
 import { useTripPlannerState } from "./trip-planner/hooks/useTripPlannerState";
 import { useTripPlannerHandlers } from "./trip-planner/hooks/useTripPlannerHandlers";
 import { Button } from "@/components/ui/button";
-import { Cloud, DollarSign } from "lucide-react";
+import { Cloud } from "lucide-react";
 
 // Initialize Mapbox token
-const mapboxToken = getMapboxToken();
-mapboxgl.accessToken = mapboxToken || '';
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
 export default function TripPlanner() {
   const { region } = useRegion();
   const { isOffline } = useOffline();
   const [showWeather, setShowWeather] = useState(false);
   const [weatherLocation, setWeatherLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [showBudget, setShowBudget] = useState(false);
   
   // Map and directions refs
   const map = useRef<mapboxgl.Map>();
@@ -86,7 +82,7 @@ export default function TripPlanner() {
     }
   };
 
-  if (!mapboxToken) {
+  if (!mapboxgl.accessToken) {
     return (
       <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
         <h3 className="font-semibold text-yellow-800">Mapbox Configuration Required</h3>
@@ -99,15 +95,6 @@ export default function TripPlanner() {
 
   return (
     <TripPlannerLayout>
-      {showBudget && (
-        <BudgetSidebar
-          directionsControl={directionsControl}
-          isVisible={showBudget}
-          onClose={() => setShowBudget(false)}
-          waypoints={waypoints}
-        />
-      )}
-      
       <TripPlannerHeader isOffline={isOffline} />
       
       {/* Locked Points Controls */}
@@ -145,9 +132,9 @@ export default function TripPlanner() {
           lockDestination={lockDestination}
         />
         
-        {/* Widget Toggles */}
+        {/* Weather Widget Toggle */}
         {destName && !isOffline && (
-          <div className="absolute top-4 right-4 z-10 flex gap-2">
+          <div className="absolute top-4 right-4 z-10">
             <Button
               variant="outline"
               size="sm"
@@ -156,15 +143,6 @@ export default function TripPlanner() {
             >
               <Cloud className="w-4 h-4 mr-2" />
               Weather
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowBudget(!showBudget)}
-              className="bg-white/90 backdrop-blur-sm"
-            >
-              <DollarSign className="w-4 h-4 mr-2" />
-              Budget
             </Button>
           </div>
         )}
