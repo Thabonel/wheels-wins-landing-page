@@ -1,6 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.core.websocket_manager import manager
-from app.core.security import verify_token
+from app.core.security import verify_token_raw
 from app.core.logging import setup_logging
 from app.core.orchestrator import orchestrator
 import uuid
@@ -9,23 +9,21 @@ import json
 router = APIRouter()
 logger = setup_logging()
 
-@router.websocket("/ws/{user_id}")
+@router.websocket("/{user_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
     user_id: str,
     token: str = Query(...)
 ):
     """WebSocket endpoint for real-time communication with PAM"""
-    # Accept the WebSocket connection
-    await websocket.accept()
-
-    # Verify JWT token for this user
-    if not token or not verify_token(token, user_id):
+    # Verify JWT token for this user before accepting the connection
+    payload = verify_token_raw(token)
+    if not payload or str(payload.get("sub") or payload.get("user_id")) != user_id:
         await websocket.close(code=1008, reason="Unauthorized")
         return
 
-    # Register connection (only websocket and user_id)
-    await manager.connect(websocket, user_id)
+    connection_id = str(uuid.uuid4())
+    await manager.connect(websocket, user_id, connection_id=connection_id)
 
     # Send initial welcome payload
     await websocket.send_json({
@@ -110,12 +108,11 @@ async def websocket_endpoint(
                 })
 
     except WebSocketDisconnect:
-        # Disconnect is synchronous
-        manager.disconnect(websocket)
+        await manager.disconnect(user_id, connection_id)
         logger.info(f"WebSocket disconnected: {user_id}")
 
     except Exception as e:
-        manager.disconnect(websocket)
+        await manager.disconnect(user_id, connection_id)
         logger.error(f"WebSocket error for {user_id}: {e}")
         try:
             await websocket.close(code=1011, reason="Internal error")
