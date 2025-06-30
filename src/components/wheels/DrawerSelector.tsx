@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, AlertCircle, Plus } from "lucide-react";
+import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { presetDrawers } from './drawer-selector/constants';
 import { useDrawerOperations } from './drawer-selector/useDrawerOperations';
 import NewDrawerModal from './drawer-selector/NewDrawerModal';
@@ -17,7 +17,7 @@ const DrawerSelector: React.FC<DrawerSelectorProps> = ({ onDrawerCreated }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
 
-  const { existingDrawers, isCreating, authState, createDrawer } = useDrawerOperations(onDrawerCreated);
+  const { existingDrawers, isCreating, isDeleting, authState, createDrawer, deleteDrawer } = useDrawerOperations(onDrawerCreated);
 
   const handlePresetSelect = async (name: string) => {
     setIsDropdownOpen(false);
@@ -62,6 +62,21 @@ const DrawerSelector: React.FC<DrawerSelectorProps> = ({ onDrawerCreated }) => {
     await createDrawer(name);
   };
 
+  const handleDeleteDrawer = async (name: string) => {
+    setIsDropdownOpen(false);
+    
+    if (authState !== 'authenticated') {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to delete drawers.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    await deleteDrawer(name);
+  };
+
   // Simplified button state management
   const getButtonProps = () => {
     if (authState === 'checking') {
@@ -80,17 +95,17 @@ const DrawerSelector: React.FC<DrawerSelectorProps> = ({ onDrawerCreated }) => {
       };
     }
     
-    if (isCreating) {
+    if (isCreating || isDeleting) {
       return { 
         disabled: true, 
-        text: "Creating...", 
+        text: isCreating ? "Creating..." : "Deleting...", 
         icon: <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
       };
     }
     
     return { 
       disabled: false, 
-      text: "Add Drawer", 
+      text: "Edit Drawer", 
       icon: <Plus className="mr-2 h-4 w-4" /> 
     };
   };
@@ -108,6 +123,7 @@ const DrawerSelector: React.FC<DrawerSelectorProps> = ({ onDrawerCreated }) => {
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem onClick={handleNewDrawerClick}>
+            <Plus className="mr-2 h-4 w-4" />
             New Drawer
           </DropdownMenuItem>
           {presetDrawers.map((drawerName) => {
@@ -119,10 +135,26 @@ const DrawerSelector: React.FC<DrawerSelectorProps> = ({ onDrawerCreated }) => {
                 disabled={isDisabled}
                 className={isDisabled ? "opacity-50 cursor-not-allowed" : ""}
               >
+                <Plus className="mr-2 h-4 w-4" />
                 {drawerName} {isDisabled && "(Already exists)"}
               </DropdownMenuItem>
             );
           })}
+          {existingDrawers.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              {existingDrawers.map((drawerName) => (
+                <DropdownMenuItem 
+                  key={`delete-${drawerName}`} 
+                  onClick={() => handleDeleteDrawer(drawerName)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete {drawerName}
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

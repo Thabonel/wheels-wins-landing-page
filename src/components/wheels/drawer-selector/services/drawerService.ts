@@ -73,3 +73,55 @@ export const createDrawerWithItems = async (name: string) => {
     hasPresetItems: !!itemsToAdd
   };
 };
+
+export const deleteDrawerWithItems = async (name: string) => {
+  console.log('🗑️ Starting drawer deletion for:', name);
+  
+  // Get current user
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !userData?.user) {
+    console.error('❌ Authentication failed:', userError);
+    throw new Error("Authentication failed");
+  }
+
+  const userId = userData.user.id;
+  
+  // Find the drawer to delete
+  const { data: drawer, error: findError } = await supabase
+    .from('drawers')
+    .select('id')
+    .eq('name', name.trim())
+    .eq('user_id', userId)
+    .single();
+
+  if (findError) {
+    console.error('❌ Error finding drawer:', findError);
+    throw new Error("Drawer not found");
+  }
+
+  // Delete associated items first
+  const { error: itemsError } = await supabase
+    .from('items')
+    .delete()
+    .eq('drawer_id', drawer.id);
+
+  if (itemsError) {
+    console.error('❌ Error deleting items:', itemsError);
+    throw itemsError;
+  }
+
+  // Delete the drawer
+  const { error: drawerError } = await supabase
+    .from('drawers')
+    .delete()
+    .eq('id', drawer.id)
+    .eq('user_id', userId);
+
+  if (drawerError) {
+    console.error('❌ Error deleting drawer:', drawerError);
+    throw drawerError;
+  }
+
+  console.log('✅ Drawer and items deleted successfully');
+};

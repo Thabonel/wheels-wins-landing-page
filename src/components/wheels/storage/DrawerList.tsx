@@ -29,7 +29,7 @@ const DrawerList: React.FC<DrawerListProps> = ({ drawers, onToggleDrawer, onTogg
       <Card>
         <CardContent className="p-8 text-center">
           <p className="text-gray-500 mb-4">No drawers created yet</p>
-          <p className="text-sm text-gray-400">Use the "Add Drawer" button above to get started</p>
+          <p className="text-sm text-gray-400">Use the "Edit Drawer" button above to get started</p>
         </CardContent>
       </Card>
     );

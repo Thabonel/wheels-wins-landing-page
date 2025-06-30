@@ -2,6 +2,7 @@
 import { useAuthState } from './hooks/useAuthState';
 import { useDrawerFetch } from './hooks/useDrawerFetch';
 import { useDrawerCreation } from './hooks/useDrawerCreation';
+import { useDrawerDeletion } from './hooks/useDrawerDeletion';
 
 export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => {
   const authState = useAuthState();
@@ -12,13 +13,20 @@ export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => 
     setExistingDrawers,
     onDrawerCreated
   );
+  const { isDeleting, deleteDrawer } = useDrawerDeletion(
+    authState,
+    setExistingDrawers,
+    onDrawerCreated
+  );
 
   return {
     existingDrawers,
     isCreating,
+    isDeleting,
     authState,
     retryCount: 0, // Simplified - no retry logic
     createDrawer,
+    deleteDrawer,
     fetchExistingDrawers
   };
 };
