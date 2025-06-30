@@ -32,7 +32,21 @@ const LoginForm = ({ loading, setLoading, error, setError, onSuccess }: LoginFor
       await signIn(email, password);
       onSuccess();
     } catch (err: any) {
-      setError(err.message);
+      console.error('Login error:', err);
+      
+      // Provide user-friendly error messages
+      let errorMessage = "Failed to login";
+      if (err.message?.includes("Invalid login credentials")) {
+        errorMessage = "Invalid email or password. Please check your credentials and try again.";
+      } else if (err.message?.includes("permission denied")) {
+        errorMessage = "There was an authentication issue. Please try again or contact support.";
+      } else if (err.message?.includes("Email not confirmed")) {
+        errorMessage = "Please check your email and click the confirmation link before logging in.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -4208,6 +4208,10 @@ export type Database = {
           | { user_id: string; window_start: string; limit_count: number }
         Returns: Json
       }
+      check_user_admin_status: {
+        Args: { check_user_id: string }
+        Returns: boolean
+      }
       cleanup_expired_audio_cache: {
         Args: Record<PropertyKey, never>
         Returns: undefined
