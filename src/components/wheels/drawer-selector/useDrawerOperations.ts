@@ -4,7 +4,10 @@ import { useDrawerFetch } from './hooks/useDrawerFetch';
 import { useDrawerCreation } from './hooks/useDrawerCreation';
 import { useDrawerDeletion } from './hooks/useDrawerDeletion';
 
-export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => {
+export const useDrawerOperations = (
+  onDrawerCreated?: (drawer: any) => void,
+  onDrawerDeleted?: (drawer: any) => void
+) => {
   const authState = useAuthState();
   const { existingDrawers, setExistingDrawers, fetchExistingDrawers } = useDrawerFetch(authState);
   const { isCreating, createDrawer } = useDrawerCreation(
@@ -16,7 +19,7 @@ export const useDrawerOperations = (onDrawerCreated?: (drawer: any) => void) => 
   const { isDeleting, deleteDrawer } = useDrawerDeletion(
     authState,
     setExistingDrawers,
-    onDrawerCreated
+    onDrawerDeleted
   );
 
   return {

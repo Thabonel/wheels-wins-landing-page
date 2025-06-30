@@ -10,14 +10,22 @@ import NewDrawerModal from './drawer-selector/NewDrawerModal';
 
 interface DrawerSelectorProps {
   onDrawerCreated: (drawer: any) => void;
+  onDrawerDeleted?: (drawer: any) => void;
 }
 
-const DrawerSelector: React.FC<DrawerSelectorProps> = ({ onDrawerCreated }) => {
+const DrawerSelector: React.FC<DrawerSelectorProps> = ({ onDrawerCreated, onDrawerDeleted }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
 
-  const { existingDrawers, isCreating, isDeleting, authState, createDrawer, deleteDrawer } = useDrawerOperations(onDrawerCreated);
+  const {
+    existingDrawers,
+    isCreating,
+    isDeleting,
+    authState,
+    createDrawer,
+    deleteDrawer,
+  } = useDrawerOperations(onDrawerCreated, onDrawerDeleted);
 
   const handlePresetSelect = async (name: string) => {
     setIsDropdownOpen(false);
