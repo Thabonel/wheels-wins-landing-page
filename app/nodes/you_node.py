@@ -455,9 +455,27 @@ class YouNode:
     # Helper methods
     async def _check_calendar_conflicts(self, user_id: str, start_time: datetime, end_time: datetime) -> List[Dict]:
         """Check for calendar conflicts"""
-        # TODO: Query actual calendar events
-        # For now, return empty list (no conflicts)
-        return []
+        try:
+            result = self.supabase.table("calendar_events")\
+                .select("id,title,start_time,end_time")\
+                .eq("user_id", user_id)\
+                .lte("start_time", end_time.isoformat())\
+                .gte("end_time", start_time.isoformat())\
+                .execute()
+
+            conflicts = [
+                {
+                    "id": r["id"],
+                    "title": r.get("title"),
+                    "start_time": r.get("start_time"),
+                    "end_time": r.get("end_time"),
+                }
+                for r in result.data or []
+            ]
+            return conflicts
+        except Exception as e:
+            self.logger.error(f"Error checking calendar conflicts: {e}")
+            return []
     
     async def _generate_event_suggestions(self, title: str, event_type: str, location: str) -> Dict[str, Any]:
         """Generate suggestions for calendar events"""
@@ -479,8 +497,27 @@ class YouNode:
     
     async def _learn_user_preferences(self, user_id: str, updates: Dict[str, Any]) -> None:
         """Learn from user profile updates"""
-        # TODO: Implement machine learning for preference detection
-        pass
+        try:
+            result = self.supabase.table("pam_user_context")\
+                .select("learned_preferences")\
+                .eq("user_id", user_id)\
+                .single()\
+                .execute()
+
+            learned = result.data.get("learned_preferences") if result.data else {}
+            if not isinstance(learned, dict):
+                learned = {}
+            learned.update(updates)
+
+            self.supabase.table("pam_user_context")\
+                .upsert({
+                    "user_id": user_id,
+                    "learned_preferences": learned,
+                    "updated_at": datetime.utcnow().isoformat(),
+                })\
+                .execute()
+        except Exception as e:
+            self.logger.error(f"Error learning user preferences: {e}")
     
     async def _generate_profile_recommendations(self, user_id: str, profile_updates: Dict[str, Any]) -> List[str]:
         """Generate recommendations based on profile updates"""
@@ -770,15 +807,29 @@ class YouNode:
     
     async def _get_travel_events(self, user_id: str, timeframe: str) -> List[Dict]:
         """Get travel-related calendar events"""
-        # TODO: Query actual travel events
-        return [
-            {
-                "date": datetime.now() + timedelta(days=10),
-                "title": "Trip to Gold Coast",
-                "type": "travel",
-                "duration_days": 5
-            }
-        ]
+        try:
+            query = (
+                self.supabase.table("calendar_events")
+                .select("id,title,start_time,end_time")
+                .eq("user_id", user_id)
+                .eq("type", "travel")
+            )
+
+            result = query.execute()
+            events = [
+                {
+                    "id": r["id"],
+                    "title": r.get("title"),
+                    "start_time": r.get("start_time"),
+                    "end_time": r.get("end_time"),
+                    "type": "travel",
+                }
+                for r in result.data or []
+            ]
+            return events
+        except Exception as e:
+            self.logger.error(f"Error fetching travel events: {e}")
+            return []
     
     async def _get_planned_trips(self, user_id: str) -> List[Dict]:
         """Get user's planned trips"""

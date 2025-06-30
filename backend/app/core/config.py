@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     SUPABASE_URL: str
     SUPABASE_KEY: str
+    SITE_URL: str = "http://localhost:3000"
     
     # CORS
     CORS_ORIGINS: List[str] = [
