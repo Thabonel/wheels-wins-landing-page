@@ -770,9 +770,44 @@ class WheelsNode:
         return fuel_cost + toll_cost
     
     async def _calculate_fuel_efficiency(self, user_id: str, amount_litres: float, odometer: int) -> Optional[float]:
-        """Calculate fuel efficiency from recent fills"""
-        # TODO: Get previous fuel entries and calculate efficiency
-        return 8.2  # Simulated efficiency
+        """Calculate fuel efficiency from the user's previous fuel log."""
+        try:
+            response = (
+                self.supabase
+                .table("fuel_log")
+                .select("odometer, volume, region")
+                .eq("user_id", user_id)
+                .order("date", desc=True)
+                .limit(1)
+                .execute()
+            )
+
+            last_entry = response.data[0] if response.data else None
+            if not last_entry or not last_entry.get("odometer"):
+                return None
+
+            prev_odometer = float(last_entry["odometer"])
+            if odometer <= prev_odometer:
+                return None
+
+            distance = odometer - prev_odometer
+            region = (last_entry.get("region") or "AU").upper()
+
+            if region == "US":
+                miles = distance * 0.621371
+                if amount_litres <= 0 or miles <= 0:
+                    return None
+                mpg = miles / amount_litres
+                efficiency = 235.215 / mpg
+            else:
+                if amount_litres <= 0 or distance <= 0:
+                    return None
+                efficiency = (amount_litres / distance) * 100
+
+            return round(efficiency, 2)
+        except Exception as e:
+            self.logger.error(f"Error calculating fuel efficiency: {e}")
+            return None
     
     async def _find_nearby_mechanics(self, user_id: str) -> List[Dict]:
         """Find mechanics near user's current location"""
