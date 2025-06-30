@@ -118,7 +118,7 @@ export default function Shop() {
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Wheels & Wins Shop</h1>
             <p className="text-gray-600">
-              Curated products and resources for mature travelers in {region}
+              Curated products and resources for travelers in {region}
             </p>
           </div>
           
