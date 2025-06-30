@@ -19,6 +19,8 @@ from app.services.pam.nodes.wins_node import wins_node
 from app.services.pam.nodes.wheels_node import wheels_node
 from app.services.pam.nodes.social_node import social_node
 from app.services.pam.nodes.you_node import you_node
+from app.services.pam.nodes.shop_node import shop_node
+from app.services.pam.nodes.admin_node import admin_node
 from app.services.pam.nodes.memory_node import MemoryNode
 from app.services.pam.intelligent_conversation import IntelligentConversationService
 from app.services.analytics.analytics import Analytics
@@ -41,6 +43,8 @@ class PamOrchestrator:
             'wheels': wheels_node,
             'social': social_node,
             'you': you_node,
+            'shop': shop_node,
+            'admin': admin_node,
             'memory': self.memory_node
         }
         self.database_service = None

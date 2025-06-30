@@ -35,12 +35,15 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
+        if isinstance(message, (dict, list)):
+            await websocket.send_json(message)
+        else:
+            await websocket.send_text(str(message))
 
     async def send_message_to_user(self, message: str, user_id: str):
         if user_id in self.user_connections:
             websocket = self.user_connections[user_id]
-            await websocket.send_text(message)
+            await self.send_personal_message(message, websocket)
 
     async def broadcast(self, message: str):
         for connection in self.active_connections:
