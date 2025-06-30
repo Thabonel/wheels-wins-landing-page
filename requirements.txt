@@ -13,6 +13,7 @@ python-jose[cryptography]==3.3.0
 openai==1.35.3
 
 supabase==2.5.0
+stripe==9.8.0
 
 # Background tasks and caching
 redis==5.0.7
@@ -38,3 +39,4 @@ beautifulsoup4==4.12.3
 
 # Task scheduling
 apscheduler==3.10.4
+
