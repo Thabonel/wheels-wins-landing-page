@@ -91,22 +91,18 @@ export default function MapControls({
 
           // Set up event listeners for origin/destination changes
           dir.on("origin", (e) => {
-            if (isOffline) return;
+            if (isOffline || originLocked) return;
             if (e.feature && e.feature.place_name) {
               setOriginName(e.feature.place_name);
-              if (!originLocked) {
-                lockOrigin();
-              }
+              lockOrigin();
             }
           });
 
           dir.on("destination", (e) => {
-            if (isOffline) return;
+            if (isOffline || destinationLocked) return;
             if (e.feature && e.feature.place_name) {
               setDestName(e.feature.place_name);
-              if (!destinationLocked) {
-                lockDestination();
-              }
+              lockDestination();
             }
           });
 
@@ -178,7 +174,7 @@ export default function MapControls({
         try {
           // Always insert before the last waypoint (destination)
           const currentWaypoints = directionsControl.current.getWaypoints();
-          const insertIndex = Math.max(0, currentWaypoints.length - 1);
+          const insertIndex = currentWaypoints.length;
           directionsControl.current.addWaypoint(insertIndex, coords);
         } catch (error) {
           console.warn('Error adding waypoint:', error);
