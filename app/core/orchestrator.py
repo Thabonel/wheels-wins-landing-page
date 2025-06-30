@@ -10,6 +10,8 @@ from app.nodes.wins_node import wins_node
 from app.nodes.wheels_node import wheels_node
 from app.nodes.social_node import social_node
 from app.nodes.you_node import you_node
+from app.nodes.shop_node import shop_node
+from app.nodes.admin_node import admin_node
 from app.nodes.memory_node import MemoryNode
 from app.core.intelligent_conversation import IntelligentConversationHandler
 
@@ -251,6 +253,8 @@ class ActionPlanner:
             'wins': 0.0,
             'social': 0.0,
             'you': 0.0,
+            'shop': 0.0,
+            'admin': 0.0,
             'general': 0.1  # Base score for general
         }
         
@@ -304,6 +308,8 @@ class ActionPlanner:
             'profile', 'setting', 'preference', 'calendar', 'schedule',
             'reminder', 'personal', 'dashboard'
         ]
+        shop_keywords = ['buy', 'shop', 'product', 'purchase', 'cart']
+        admin_keywords = ['admin', 'dashboard', 'manage users', 'system status']
         
         # Score based on keyword matches
         for keyword in wheels_keywords:
@@ -321,6 +327,14 @@ class ActionPlanner:
         for keyword in you_keywords:
             if keyword in message_lower:
                 intent_scores['you'] += 0.2
+
+        for keyword in shop_keywords:
+            if keyword in message_lower:
+                intent_scores['shop'] = intent_scores.get('shop', 0) + 0.2
+
+        for keyword in admin_keywords:
+            if keyword in message_lower:
+                intent_scores['admin'] = intent_scores.get('admin', 0) + 0.2
         
         # Determine primary intent
         primary_intent = max(intent_scores.items(), key=lambda x: x[1])
@@ -413,6 +427,10 @@ class ActionPlanner:
                     node_instance = social_node
                 elif target_node == 'you':
                     node_instance = you_node
+                elif target_node == 'shop':
+                    node_instance = shop_node
+                elif target_node == 'admin':
+                    node_instance = admin_node
                 else:
                     # Fallback to intelligent handler
                     analysis = await self.intelligent_handler.analyze_conversation(
