@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { recordLogin, endSession } from '@/lib/authLogging';
 
 interface User {
   id: string;
@@ -34,22 +35,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setToken(session?.access_token ?? null);
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            full_name: session.user.user_metadata?.full_name
-          });
-        } else {
-          setUser(null);
-        }
-        setLoading(false);
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await recordLogin(session.user.id, session);
       }
-    );
+      if (event === 'SIGNED_OUT' && session) {
+        await endSession(session.access_token);
+      }
+
+      setSession(session);
+      setToken(session?.access_token ?? null);
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          full_name: session.user.user_metadata?.full_name
+        });
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -99,7 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    const currentToken = session?.access_token;
     const { error } = await supabase.auth.signOut();
+    if (currentToken) {
+      await endSession(currentToken);
+    }
     if (error) {
       console.error('Logout error:', error);
     }
