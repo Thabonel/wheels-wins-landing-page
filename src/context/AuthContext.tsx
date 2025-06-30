@@ -34,33 +34,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!user && !!session;
 
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await recordLogin(session.user.id, session);
-      }
-      if (event === 'SIGNED_OUT' && session) {
-        await endSession(session.access_token);
-      }
+      if (!mounted) return;
 
-      setSession(session);
-      setToken(session?.access_token ?? null);
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          full_name: session.user.user_metadata?.full_name
-        });
-      } else {
-        setUser(null);
+      console.log('Auth state change:', event, session?.user?.email);
+
+      try {
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Use setTimeout to defer Supabase calls and prevent deadlocks
+          setTimeout(async () => {
+            try {
+              await recordLogin(session.user.id, session);
+            } catch (error) {
+              console.error('Error recording login:', error);
+            }
+          }, 0);
+        }
+        
+        if (event === 'SIGNED_OUT' && session) {
+          setTimeout(async () => {
+            try {
+              await endSession(session.access_token);
+            } catch (error) {
+              console.error('Error ending session:', error);
+            }
+          }, 0);
+        }
+
+        // Only synchronous state updates here
+        setSession(session);
+        setToken(session?.access_token ?? null);
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email!,
+            full_name: session.user.user_metadata?.full_name
+          });
+        } else {
+          setUser(null);
+        }
+        
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Auth state change error:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     });
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mounted) return;
+
+      if (error) {
+        console.error('Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+
+      console.log('Initial session check:', session?.user?.email);
+      
       setSession(session);
       setToken(session?.access_token ?? null);
       if (session?.user) {
@@ -73,7 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
