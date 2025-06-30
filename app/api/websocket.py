@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.core.websocket_manager import manager
 from app.core.security import verify_token
 from app.core.logging import setup_logging
@@ -16,32 +16,30 @@ async def websocket_endpoint(
     token: str = Query(...)
 ):
     """WebSocket endpoint for real-time communication with PAM"""
-    connection_id = str(uuid.uuid4())
-
-    # Accept the connection
+    # Accept the WebSocket connection
     await websocket.accept()
 
+    # Verify JWT token for this user
+    if not token or not verify_token(token, user_id):
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
+
+    # Register connection (only websocket and user_id)
+    await manager.connect(websocket, user_id)
+
+    # Send initial welcome payload
+    await websocket.send_json({
+        "type": "connection",
+        "status": "connected",
+        "message": "🤖 PAM is ready to assist you! Try saying: 'I spent $25 on fuel' or 'Show my budget'"
+    })
+
     try:
-        # Verify token (you can hook in your verify_token logic here)
-        if not token or not verify_token(token, user_id):
-            await websocket.close(code=1008, reason="Unauthorized")
-            return
-
-        # Register connection
-        await manager.connect(websocket, user_id, connection_id)
-
-        # Send welcome message
-        await websocket.send_json({
-            "type": "connection",
-            "status": "connected",
-            "message": "🤖 PAM is ready to assist you! Try saying: 'I spent $25 on fuel' or 'Show my budget'"
-        })
-
         while True:
             data = await websocket.receive_json()
             logger.info(f"Received WebSocket message from {user_id}: {data}")
-
             msg_type = data.get("type")
+
             if msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
 
@@ -55,9 +53,8 @@ async def websocket_endpoint(
 
                 try:
                     actions = await orchestrator.plan(message, context)
-                    # pick first message or error
                     response_message = next(
-                        (a["content"] for a in actions if a.get("type") == "message"), 
+                        (a["content"] for a in actions if a.get("type") == "message"),
                         "I'm processing your request..."
                     )
                 except Exception as e:
@@ -113,11 +110,13 @@ async def websocket_endpoint(
                 })
 
     except WebSocketDisconnect:
-        await manager.disconnect(user_id, connection_id)
+        # Disconnect is synchronous
+        manager.disconnect(websocket)
         logger.info(f"WebSocket disconnected: {user_id}")
+
     except Exception as e:
+        manager.disconnect(websocket)
         logger.error(f"WebSocket error for {user_id}: {e}")
-        await manager.disconnect(user_id, connection_id)
         try:
             await websocket.close(code=1011, reason="Internal error")
         except:
