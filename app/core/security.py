@@ -35,3 +35,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def verify_token_raw(token: str):
+    """Validate a JWT token string and return its payload or None."""
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except jwt.PyJWTError:
+        return None
