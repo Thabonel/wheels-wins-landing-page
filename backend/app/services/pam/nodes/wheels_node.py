@@ -771,8 +771,27 @@ class WheelsNode:
     
     async def _calculate_fuel_efficiency(self, user_id: str, amount_litres: float, odometer: int) -> Optional[float]:
         """Calculate fuel efficiency from recent fills"""
-        # TODO: Get previous fuel entries and calculate efficiency
-        return 8.2  # Simulated efficiency
+        try:
+            response = self.supabase.table("fuel_log").select("odometer, consumption").eq("user_id", user_id).order("date", desc=True).limit(1).execute()
+
+            if not response.data:
+                return None
+
+            last_entry = response.data[0]
+            last_odometer = last_entry.get("odometer")
+
+            if not last_odometer or odometer <= last_odometer:
+                return last_entry.get("consumption")
+
+            distance = odometer - last_odometer
+            if distance <= 0:
+                return last_entry.get("consumption")
+
+            efficiency = (amount_litres / distance) * 100
+            return efficiency
+        except Exception as e:
+            self.logger.error(f"Error calculating fuel efficiency: {e}")
+            return None
     
     async def _find_nearby_mechanics(self, user_id: str) -> List[Dict]:
         """Find mechanics near user's current location"""
