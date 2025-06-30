@@ -108,23 +108,8 @@ async def get_user_profile(
 ):
     """Get user profile information"""
     try:
-        # TODO: Implement actual profile retrieval
-        return {
-            "success": True,
-            "data": {
-                "user_id": user_id,
-                "travel_style": "budget",
-                "current_location": "Brisbane, QLD",
-                "vehicle_info": {
-                    "type": "motorhome",
-                    "make": "Ford",
-                    "model": "Transit"
-                },
-                "interests": ["photography", "hiking", "local_food"],
-                "profile_completeness": 0.75
-            },
-            "message": "User profile retrieved"
-        }
+        result = await you_node.get_user_profile(user_id)
+        return result
         
     except Exception as e:
         logger.error(f"Error getting profile: {str(e)}")
@@ -294,13 +279,12 @@ async def mark_notification_read(
 ):
     """Mark a notification as read"""
     try:
-        # TODO: Implement actual notification marking
+        result = await you_node.supabase.table("user_notifications").update({"read": True}).eq("id", notification_id).eq("user_id", user_id).execute()
+        if result.error:
+            raise Exception(result.error.message)
         return {
             "success": True,
-            "data": {
-                "notification_id": notification_id,
-                "marked_read": True
-            },
+            "data": {"notification_id": notification_id, "marked_read": True},
             "message": "Notification marked as read"
         }
         
