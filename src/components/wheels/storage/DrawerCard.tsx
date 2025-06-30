@@ -1,6 +1,17 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 
 interface DrawerItem {
   id: string;
@@ -19,12 +30,15 @@ interface DrawerCardProps {
   };
   onToggleDrawer: (id: string) => void;
   onToggleItem: (drawerId: string, itemId: string) => void;
+  onDeleteDrawer?: (name: string) => void;
 }
 
-const DrawerCard: React.FC<DrawerCardProps> = ({ drawer, onToggleDrawer, onToggleItem }) => {
+const DrawerCard: React.FC<DrawerCardProps> = ({ drawer, onToggleDrawer, onToggleItem, onDeleteDrawer }) => {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const isDrawerComplete = drawer.items.length > 0 && drawer.items.every((i) => i.packed);
 
   return (
+    <>
     <Card className={`${isDrawerComplete ? "border-green-200" : "border-amber-200"}`}>
       <CardContent className="p-0">
         <div className={`p-4 flex justify-between items-center ${isDrawerComplete ? "bg-green-50" : "bg-amber-50"}`}>
@@ -39,9 +53,21 @@ const DrawerCard: React.FC<DrawerCardProps> = ({ drawer, onToggleDrawer, onToggl
               </p>
             </div>
           </div>
-          <Button onClick={() => onToggleDrawer(drawer.id)} variant="outline" size="sm">
-            {drawer.isOpen ? "Close" : "Open"}
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button onClick={() => onToggleDrawer(drawer.id)} variant="outline" size="sm">
+              {drawer.isOpen ? "Close" : "Open"}
+            </Button>
+            {onDeleteDrawer && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="text-red-600"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
         {drawer.isOpen && (
           <div className="p-4 pt-2 border-t">
@@ -73,6 +99,23 @@ const DrawerCard: React.FC<DrawerCardProps> = ({ drawer, onToggleDrawer, onToggl
         )}
       </CardContent>
     </Card>
+    {onDeleteDrawer && (
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Drawer</AlertDialogTitle>
+          </AlertDialogHeader>
+          <p>Are you sure you want to delete the "{drawer.name}" drawer and all of its items?</p>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onDeleteDrawer(drawer.name)} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    )}
+    </>
   );
 };
 

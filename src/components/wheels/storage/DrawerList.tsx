@@ -21,9 +21,10 @@ interface DrawerListProps {
   drawers: Drawer[];
   onToggleDrawer: (id: string) => void;
   onToggleItem: (drawerId: string, itemId: string) => void;
+  onDeleteDrawer?: (name: string) => void;
 }
 
-const DrawerList: React.FC<DrawerListProps> = ({ drawers, onToggleDrawer, onToggleItem }) => {
+const DrawerList: React.FC<DrawerListProps> = ({ drawers, onToggleDrawer, onToggleItem, onDeleteDrawer }) => {
   if (drawers.length === 0) {
     return (
       <Card>
@@ -43,6 +44,7 @@ const DrawerList: React.FC<DrawerListProps> = ({ drawers, onToggleDrawer, onTogg
           drawer={drawer}
           onToggleDrawer={onToggleDrawer}
           onToggleItem={onToggleItem}
+          onDeleteDrawer={onDeleteDrawer}
         />
       ))}
     </div>

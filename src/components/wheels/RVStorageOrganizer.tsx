@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useStorageData } from './storage/useStorageData';
 import DrawerSelector from './DrawerSelector';
 import DrawerList from './storage/DrawerList';
+import { useDrawerOperations } from './drawer-selector/useDrawerOperations';
 
 interface DrawerItem {
   id: string;
@@ -28,6 +29,7 @@ interface Drawer {
 const RVStorageOrganizer = () => {
   const { isAuthenticated } = useAuth();
   const { storageData, loading, addItem, updateItem, deleteItem } = useStorageData();
+  const { deleteDrawer } = useDrawerOperations(undefined, handleDrawerDeleted);
   const [searchTerm, setSearchTerm] = useState('');
   const [drawers, setDrawers] = useState<Drawer[]>([]);
 
@@ -92,10 +94,19 @@ const RVStorageOrganizer = () => {
     );
   };
 
+  const handleDeleteDrawer = async (name: string) => {
+    await deleteDrawer(name);
+    window.location.reload();
+  };
+
   const handleDrawerCreated = (newDrawer: any) => {
     // Refresh data when a new drawer is created
     window.location.reload(); // Simple refresh for now
   };
+
+  function handleDrawerDeleted(deletedDrawer: any) {
+    window.location.reload();
+  }
 
   const filteredDrawers = drawers.filter(drawer => 
     drawer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,7 +147,10 @@ const RVStorageOrganizer = () => {
           <h1 className="text-3xl font-bold">RV Storage Organizer</h1>
           <p className="text-muted-foreground">Keep track of your belongings and storage locations</p>
         </div>
-        <DrawerSelector onDrawerCreated={handleDrawerCreated} />
+        <DrawerSelector
+          onDrawerCreated={handleDrawerCreated}
+          onDrawerDeleted={handleDrawerDeleted}
+        />
       </div>
 
       <div className="flex gap-4">
@@ -234,10 +248,11 @@ const RVStorageOrganizer = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <DrawerList 
+          <DrawerList
             drawers={filteredDrawers}
             onToggleDrawer={handleToggleDrawer}
             onToggleItem={handleToggleItem}
+            onDeleteDrawer={handleDeleteDrawer}
           />
         </CardContent>
       </Card>
