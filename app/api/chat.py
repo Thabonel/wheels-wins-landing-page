@@ -96,12 +96,36 @@ async def get_session(
     token_data: dict = Depends(verify_token)
 ):
     """Get chat session history"""
-    # TODO: Implement with Supabase storage
-    return {
-        "session_id": session_id,
-        "messages": [],
-        "created_at": datetime.utcnow()
-    }
+    try:
+        user_id = token_data.get("user_id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token"
+            )
+
+        history = await orchestrator.memory_node.get_conversation_history(
+            user_id=user_id,
+            session_id=session_id,
+            limit=50
+        )
+
+        created_at = history[0]["timestamp"] if history else None
+
+        return {
+            "session_id": session_id,
+            "messages": history,
+            "created_at": created_at
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Session history retrieval error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving session history"
+        )
 
 @router.post("/demo")
 async def demo_expense(
