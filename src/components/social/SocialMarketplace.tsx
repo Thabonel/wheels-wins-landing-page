@@ -1,20 +1,11 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  Search, 
-  Heart, 
-  MapPin, 
-  Clock, 
-  Filter,
-  Star
-} from "lucide-react";
+import { Search, Heart, MapPin, Clock, Filter, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
 interface MarketplaceListing {
   id: string;
   title: string;
@@ -29,7 +20,6 @@ interface MarketplaceListing {
   is_favorite?: boolean;
   status: string;
 }
-
 export default function SocialMarketplace() {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const [filteredListings, setFilteredListings] = useState<MarketplaceListing[]>([]);
@@ -37,31 +27,26 @@ export default function SocialMarketplace() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-
   const categories = ["all", "Electronics", "Furniture", "Parts", "Camping", "Tools", "Other"];
-
   useEffect(() => {
     fetchListings();
   }, []);
-
   useEffect(() => {
     filterListings();
   }, [listings, searchTerm, selectedCategory]);
-
   const fetchListings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('marketplace_listings')
-        .select('*')
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from('marketplace_listings').select('*').eq('status', 'approved').order('created_at', {
+        ascending: false
+      });
       if (error) {
         console.error('Error fetching marketplace listings:', error);
         toast.error('Failed to load marketplace listings');
         return;
       }
-
       setListings(data || []);
     } catch (err) {
       console.error('Error in fetchListings:', err);
@@ -70,24 +55,16 @@ export default function SocialMarketplace() {
       setIsLoading(false);
     }
   };
-
   const filterListings = () => {
     let filtered = listings;
-
     if (searchTerm) {
-      filtered = filtered.filter(listing =>
-        listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        listing.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(listing => listing.title.toLowerCase().includes(searchTerm.toLowerCase()) || listing.description?.toLowerCase().includes(searchTerm.toLowerCase()));
     }
-
     if (selectedCategory !== "all") {
       filtered = filtered.filter(listing => listing.category === selectedCategory);
     }
-
     setFilteredListings(filtered);
   };
-
   const toggleFavorite = (listingId: string) => {
     setFavorites(prev => {
       const newSet = new Set(prev);
@@ -101,30 +78,29 @@ export default function SocialMarketplace() {
       return newSet;
     });
   };
-
   const getConditionColor = (condition: string) => {
     switch (condition.toLowerCase()) {
-      case 'excellent': return 'bg-green-100 text-green-800';
-      case 'good': return 'bg-blue-100 text-blue-800';
-      case 'fair': return 'bg-yellow-100 text-yellow-800';
-      case 'poor': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'excellent':
+        return 'bg-green-100 text-green-800';
+      case 'good':
+        return 'bg-blue-100 text-blue-800';
+      case 'fair':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'poor':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
-
   if (isLoading) {
-    return (
-      <div className="text-center py-8">
+    return <div className="text-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
         <p className="mt-2 text-muted-foreground">Loading marketplace...</p>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold mb-2">Community Marketplace</h2>
+        
         <p className="text-muted-foreground">
           Buy and sell items with fellow travelers
         </p>
@@ -134,25 +110,14 @@ export default function SocialMarketplace() {
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3 top-3 text-muted-foreground" />
-          <Input
-            placeholder="Search marketplace..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+          <Input placeholder="Search marketplace..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
         </div>
         
         <div className="flex gap-2">
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-md text-sm bg-white"
-          >
-            {categories.map(category => (
-              <option key={category} value={category}>
+          <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-md text-sm bg-white">
+            {categories.map(category => <option key={category} value={category}>
                 {category === "all" ? "All Categories" : category}
-              </option>
-            ))}
+              </option>)}
           </select>
           
           <Button variant="outline" size="sm">
@@ -162,60 +127,32 @@ export default function SocialMarketplace() {
         </div>
       </div>
 
-      {filteredListings.length === 0 ? (
-        <Card className="text-center py-8">
+      {filteredListings.length === 0 ? <Card className="text-center py-8">
           <CardContent>
-            {searchTerm || selectedCategory !== "all" ? (
-              <>
+            {searchTerm || selectedCategory !== "all" ? <>
                 <p className="text-muted-foreground">No listings match your search criteria.</p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setSearchTerm("");
-                    setSelectedCategory("all");
-                  }}
-                  className="mt-2"
-                >
+                <Button variant="outline" onClick={() => {
+            setSearchTerm("");
+            setSelectedCategory("all");
+          }} className="mt-2">
                   Clear Filters
                 </Button>
-              </>
-            ) : (
-              <>
+              </> : <>
                 <p className="text-muted-foreground">No marketplace listings available yet.</p>
                 <p className="text-sm text-muted-foreground mt-2">
                   Be the first to list an item for sale!
                 </p>
-              </>
-            )}
+              </>}
           </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredListings.map((listing) => (
-            <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+        </Card> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredListings.map(listing => <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
               <div className="aspect-video bg-muted relative">
-                {listing.image ? (
-                  <img
-                    src={listing.image}
-                    alt={listing.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                {listing.image ? <img src={listing.image} alt={listing.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                     No Image
-                  </div>
-                )}
+                  </div>}
                 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute top-2 right-2 bg-white/80 hover:bg-white"
-                  onClick={() => toggleFavorite(listing.id)}
-                >
-                  <Heart
-                    size={16}
-                    className={favorites.has(listing.id) ? "fill-current text-red-500" : ""}
-                  />
+                <Button variant="ghost" size="sm" className="absolute top-2 right-2 bg-white/80 hover:bg-white" onClick={() => toggleFavorite(listing.id)}>
+                  <Heart size={16} className={favorites.has(listing.id) ? "fill-current text-red-500" : ""} />
                 </Button>
               </div>
 
@@ -266,10 +203,8 @@ export default function SocialMarketplace() {
                   </Button>
                 </div>
               </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+            </Card>)}
+        </div>}
 
       <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-dashed">
         <CardContent className="text-center py-8">
@@ -280,6 +215,5 @@ export default function SocialMarketplace() {
           <Button>Create Listing</Button>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 }
