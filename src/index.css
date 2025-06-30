@@ -1,5 +1,6 @@
 @import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 @import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
+@import "mapbox-gl/dist/mapbox-gl.css";
 
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
 
@@ -215,5 +216,3 @@
   ring-color: #3b82f6 !important;
   border-color: transparent !important;
 }
-/* Mapbox GL CSS - Import at the end to avoid conflicts */
-@import 'mapbox-gl/dist/mapbox-gl.css';
