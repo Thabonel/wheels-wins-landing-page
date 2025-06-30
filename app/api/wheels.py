@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any, List
+import httpx
 from app.core.security import verify_token
 from app.core.logging import setup_logging
 from app.nodes.wheels_node import wheels_node
@@ -118,15 +119,50 @@ async def get_nearby_attractions(
 ):
     """Get nearby attractions, camps, and services"""
     try:
-        # TODO: Implement nearby attractions
+        overpass_url = "https://overpass-api.de/api/interpreter"
+        radius_m = radius_km * 1000
+        query = f"""
+        [out:json];
+        (
+          node(around:{radius_m},{lat},{lon})[tourism~"attraction|museum|viewpoint"];
+          node(around:{radius_m},{lat},{lon})[tourism=camp_site];
+          node(around:{radius_m},{lat},{lon})[amenity=fuel];
+        );
+        out center 50;
+        """
+
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(overpass_url, data={"data": query})
+            resp.raise_for_status()
+            data = resp.json().get("elements", [])
+
+        attractions = []
+        camping_spots = []
+        fuel_stations = []
+        for el in data:
+            tags = el.get("tags", {})
+            item = {
+                "id": el.get("id"),
+                "name": tags.get("name"),
+                "lat": el.get("lat"),
+                "lon": el.get("lon"),
+                "type": tags.get("tourism") or tags.get("amenity"),
+            }
+            if tags.get("tourism") in ["attraction", "museum", "viewpoint"]:
+                attractions.append(item)
+            elif tags.get("tourism") == "camp_site":
+                camping_spots.append(item)
+            elif tags.get("amenity") == "fuel":
+                fuel_stations.append(item)
+
         return {
             "success": True,
             "data": {
-                "attractions": [],
-                "camping_spots": [],
-                "fuel_stations": []
+                "attractions": attractions,
+                "camping_spots": camping_spots,
+                "fuel_stations": fuel_stations,
             },
-            "message": f"Found attractions within {radius_km}km"
+            "message": f"Found attractions within {radius_km}km",
         }
         
     except Exception as e:
