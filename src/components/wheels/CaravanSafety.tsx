@@ -4,7 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, Shield, Wrench } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertTriangle, CheckCircle, Shield, Wrench, Plus, X, Edit } from "lucide-react";
 
 interface ChecklistItem {
   id: string;
@@ -53,6 +55,11 @@ const defaultChecklist: Omit<ChecklistItem, 'completed'>[] = [
 export default function CaravanSafety() {
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [showCompleted, setShowCompleted] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [newItemTask, setNewItemTask] = useState("");
+  const [newItemCategory, setNewItemCategory] = useState("Vehicle");
+  const [newItemCritical, setNewItemCritical] = useState(false);
+  const [newItemDescription, setNewItemDescription] = useState("");
 
   useEffect(() => {
     // Load saved checklist from localStorage or use default
@@ -85,6 +92,34 @@ export default function CaravanSafety() {
     localStorage.setItem('caravan-safety-checklist', JSON.stringify(updated));
   };
 
+  const addNewItem = () => {
+    if (!newItemTask.trim()) return;
+    
+    const newItem: ChecklistItem = {
+      id: Date.now().toString(),
+      category: newItemCategory,
+      task: newItemTask.trim(),
+      completed: false,
+      critical: newItemCritical,
+      description: newItemDescription.trim() || undefined
+    };
+    
+    const updated = [...checklist, newItem];
+    setChecklist(updated);
+    localStorage.setItem('caravan-safety-checklist', JSON.stringify(updated));
+    
+    // Reset form
+    setNewItemTask("");
+    setNewItemDescription("");
+    setNewItemCritical(false);
+  };
+
+  const deleteItem = (id: string) => {
+    const updated = checklist.filter(item => item.id !== id);
+    setChecklist(updated);
+    localStorage.setItem('caravan-safety-checklist', JSON.stringify(updated));
+  };
+
   const getStats = () => {
     const total = checklist.length;
     const completed = checklist.filter(item => item.completed).length;
@@ -106,8 +141,15 @@ export default function CaravanSafety() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Caravan Safety Checklist</h2>
+        <h2 className="text-2xl font-bold">Safety Checklist</h2>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setIsEditing(!isEditing)}
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            {isEditing ? 'Exit Edit' : 'Edit'}
+          </Button>
           <Button 
             variant="outline" 
             onClick={() => setShowCompleted(!showCompleted)}
@@ -119,6 +161,62 @@ export default function CaravanSafety() {
           </Button>
         </div>
       </div>
+
+      {/* Add New Item Form - only show when editing */}
+      {isEditing && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Add New Item
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Task</label>
+                <Input
+                  placeholder="Enter task description"
+                  value={newItemTask}
+                  onChange={(e) => setNewItemTask(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Category</label>
+                <Select value={newItemCategory} onValueChange={setNewItemCategory}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Description (Optional)</label>
+              <Input
+                placeholder="Additional details"
+                value={newItemDescription}
+                onChange={(e) => setNewItemDescription(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={newItemCritical}
+                onCheckedChange={(checked) => setNewItemCritical(checked === true)}
+              />
+              <label className="text-sm font-medium">Mark as Critical</label>
+            </div>
+            <Button onClick={addNewItem} disabled={!newItemTask.trim()}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Item
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Progress Overview */}
       <Card>
@@ -211,6 +309,16 @@ export default function CaravanSafety() {
                           <p className="text-sm text-gray-600 mt-1">{item.description}</p>
                         )}
                       </div>
+                      {isEditing && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteItem(item.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
