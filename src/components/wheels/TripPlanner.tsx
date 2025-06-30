@@ -1,4 +1,3 @@
-
 import { useRef, useState } from "react";
 import { useRegion } from "@/context/RegionContext";
 import { useOffline } from "@/context/OfflineContext";
@@ -21,17 +20,23 @@ import { Cloud } from "lucide-react";
 
 // Initialize Mapbox token
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
-
 export default function TripPlanner() {
-  const { region } = useRegion();
-  const { isOffline } = useOffline();
+  const {
+    region
+  } = useRegion();
+  const {
+    isOffline
+  } = useOffline();
   const [showWeather, setShowWeather] = useState(false);
-  const [weatherLocation, setWeatherLocation] = useState<{lat: number, lng: number} | null>(null);
-  
+  const [weatherLocation, setWeatherLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+
   // Map and directions refs
   const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
-  
+
   // State management with locked points
   const {
     originName,
@@ -55,11 +60,14 @@ export default function TripPlanner() {
     lockOrigin,
     lockDestination,
     unlockOrigin,
-    unlockDestination,
+    unlockDestination
   } = useTripPlannerState(isOffline);
 
   // Event handlers
-  const { handleRouteChange, handleSubmitTrip } = useTripPlannerHandlers({
+  const {
+    handleRouteChange,
+    handleSubmitTrip
+  } = useTripPlannerHandlers({
     directionsControl,
     originName,
     destName,
@@ -67,7 +75,7 @@ export default function TripPlanner() {
     setSuggestions,
     saveTripData,
     routeProfile,
-    mode,
+    mode
   });
 
   // Get weather for route destination
@@ -76,145 +84,67 @@ export default function TripPlanner() {
       const destination = directionsControl.current.getDestination();
       if (destination && destination.geometry) {
         const [lng, lat] = destination.geometry.coordinates;
-        setWeatherLocation({ lat, lng });
+        setWeatherLocation({
+          lat,
+          lng
+        });
         setShowWeather(true);
       }
     }
   };
-
   if (!mapboxgl.accessToken) {
-    return (
-      <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
+    return <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
         <h3 className="font-semibold text-yellow-800">Mapbox Configuration Required</h3>
         <p className="text-yellow-700 mt-2">
           Please add your Mapbox access token to enable the trip planner functionality.
         </p>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <TripPlannerLayout>
+  return <TripPlannerLayout>
       <TripPlannerHeader isOffline={isOffline} />
       
       {/* Locked Points Controls */}
-      <LockedPointControls
-        originLocked={originLocked}
-        destinationLocked={destinationLocked}
-        originName={originName}
-        destName={destName}
-        onUnlockOrigin={unlockOrigin}
-        onUnlockDestination={unlockDestination}
-        disabled={isOffline}
-      />
+      <LockedPointControls originLocked={originLocked} destinationLocked={destinationLocked} originName={originName} destName={destName} onUnlockOrigin={unlockOrigin} onUnlockDestination={unlockDestination} disabled={isOffline} />
       
       {/* Main Map Section */}
       <div className="relative">
-        <MapControls
-          region={region}
-          waypoints={waypoints}
-          setWaypoints={setWaypoints}
-          adding={adding}
-          setAdding={setAdding}
-          setOriginName={setOriginName}
-          setDestName={setDestName}
-          onRouteChange={handleRouteChange}
-          directionsControl={directionsControl}
-          originName={originName}
-          destName={destName}
-          travelMode={travelMode}
-          onTravelModeChange={setTravelMode}
-          map={map}
-          isOffline={isOffline}
-          originLocked={originLocked}
-          destinationLocked={destinationLocked}
-          lockOrigin={lockOrigin}
-          lockDestination={lockDestination}
-        />
+        <MapControls region={region} waypoints={waypoints} setWaypoints={setWaypoints} adding={adding} setAdding={setAdding} setOriginName={setOriginName} setDestName={setDestName} onRouteChange={handleRouteChange} directionsControl={directionsControl} originName={originName} destName={destName} travelMode={travelMode} onTravelModeChange={setTravelMode} map={map} isOffline={isOffline} originLocked={originLocked} destinationLocked={destinationLocked} lockOrigin={lockOrigin} lockDestination={lockDestination} />
         
         {/* Weather Widget Toggle */}
-        {destName && !isOffline && (
-          <div className="absolute top-4 right-4 z-10">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGetWeather}
-              className="bg-white/90 backdrop-blur-sm"
-            >
+        {destName && !isOffline && <div className="absolute top-4 right-4 z-10">
+            <Button variant="outline" size="sm" onClick={handleGetWeather} className="bg-white/90 backdrop-blur-sm">
               <Cloud className="w-4 h-4 mr-2" />
               Weather
             </Button>
-          </div>
-        )}
+          </div>}
       </div>
 
       {/* Search Section */}
-      <div className="bg-white rounded-lg border p-4">
-        <GeocodeSearch
-          directionsControl={directionsControl}
-          disabled={isOffline}
-        />
-      </div>
+      
 
       {/* Unified Controls Section */}
-      <TripPlannerControls
-        directionsControl={directionsControl}
-        originName={originName}
-        destName={destName}
-        setOriginName={setOriginName}
-        setDestName={setDestName}
-        travelMode={travelMode}
-        setTravelMode={setTravelMode}
-        mode={mode}
-        setMode={setMode}
-        adding={adding}
-        setAdding={setAdding}
-        onSubmitTrip={handleSubmitTrip}
-        map={map}
-        isOffline={isOffline}
-        originLocked={originLocked}
-        destinationLocked={destinationLocked}
-        lockOrigin={lockOrigin}
-        lockDestination={lockDestination}
-      />
+      <TripPlannerControls directionsControl={directionsControl} originName={originName} destName={destName} setOriginName={setOriginName} setDestName={setDestName} travelMode={travelMode} setTravelMode={setTravelMode} mode={mode} setMode={setMode} adding={adding} setAdding={setAdding} onSubmitTrip={handleSubmitTrip} map={map} isOffline={isOffline} originLocked={originLocked} destinationLocked={destinationLocked} lockOrigin={lockOrigin} lockDestination={lockDestination} />
 
       {/* Weather Widget Sidebar */}
-      {showWeather && weatherLocation && (
-        <div className="bg-white rounded-lg border p-4">
+      {showWeather && weatherLocation && <div className="bg-white rounded-lg border p-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Route Weather</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowWeather(false)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setShowWeather(false)}>
               Close
             </Button>
           </div>
-          <WeatherWidget
-            latitude={weatherLocation.lat}
-            longitude={weatherLocation.lng}
-          />
-        </div>
-      )}
+          <WeatherWidget latitude={weatherLocation.lat} longitude={weatherLocation.lng} />
+        </div>}
 
       {/* Waypoints Section */}
-      {waypoints.length > 0 && (
-        <div className="bg-white rounded-lg border p-4">
-          <WaypointsList
-            waypoints={waypoints}
-            setWaypoints={setWaypoints}
-            directionsControl={directionsControl}
-            disabled={isOffline}
-          />
-        </div>
-      )}
+      {waypoints.length > 0 && <div className="bg-white rounded-lg border p-4">
+          <WaypointsList waypoints={waypoints} setWaypoints={setWaypoints} directionsControl={directionsControl} disabled={isOffline} />
+        </div>}
 
       {/* Pam Tip */}
       <TripPlannerTip />
 
       {/* Suggestions */}
       <SuggestionsGrid suggestions={suggestions} />
-    </TripPlannerLayout>
-  );
+    </TripPlannerLayout>;
 }
