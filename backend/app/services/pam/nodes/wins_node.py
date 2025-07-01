@@ -213,7 +213,7 @@ class WinsNode:
             
             # Get income
             income_entries = await self.get_income_entries(user_id, {"start_date": start_date.isoformat()})
-            total_income = sum(float(income["amount"]) for income_entries in income_entries)
+            total_income = sum(float(entry["amount"]) for entry in income_entries)
             
             # Get budgets
             budgets = await self.get_budgets(user_id)
