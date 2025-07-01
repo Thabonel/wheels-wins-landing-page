@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
-from app.database.supabase_client import get_supabase
+from app.core.database import get_supabase
 
 class MemoryNode:
     """Manages conversation memory and context for PAM"""

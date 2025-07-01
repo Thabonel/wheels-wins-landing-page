@@ -3,7 +3,6 @@
 # These are optional packages that can enhance functionality
 
 # Enhanced database support
-postgresql-dev==0.1.0
 
 # Performance optimizations
 ujson==5.8.0

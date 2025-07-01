@@ -9,7 +9,7 @@ import pickle
 import asyncio
 from typing import Any, Optional, Union, Dict
 from datetime import datetime, timedelta
-import aioredis
+import redis.asyncio as aioredis
 from app.core.config import settings
 from app.core.logging import setup_logging
 
