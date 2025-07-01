@@ -37,7 +37,9 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
     setSuggestions: integratedState.setSuggestions,
     saveTripData: integratedState.saveTripData,
     routeProfile: integratedState.travelMode,
-    mode: integratedState.mode
+    mode: integratedState.mode,
+    tripId: null, // Add missing tripId property
+    setTripId: () => {} // Add missing setTripId property
   });
 
   // Enhanced submit handler with PAM integration
