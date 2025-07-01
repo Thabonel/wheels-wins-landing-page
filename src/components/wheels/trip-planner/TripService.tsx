@@ -57,15 +57,43 @@ export class TripService {
     suggestions: Suggestion[],
     mode: string,
     waypoints: Waypoint[]
+  ): Promise<string | null> {
+    const { data, error } = await supabase
+      .from("group_trips")
+      .insert({
+        created_by: userId,
+        trip_name: `${originName} to ${destName}`,
+        description: `Trip from ${originName} to ${destName}`,
+        start_date: new Date().toISOString(),
+        end_date: new Date().toISOString(),
+        route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints }),
+        status: 'active'
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error saving trip:', error);
+      return null;
+    }
+    return data?.id ?? null;
+  }
+
+  static async updateTripRoute(
+    tripId: string,
+    origin: [number, number],
+    dest: [number, number],
+    routingProfile: string,
+    suggestions: Suggestion[],
+    mode: string,
+    waypoints: Waypoint[]
   ): Promise<void> {
-    await supabase.from("group_trips").insert({
-      created_by: userId,
-      trip_name: `${originName} to ${destName}`,
-      description: `Trip from ${originName} to ${destName}`,
-      start_date: new Date().toISOString(),
-      end_date: new Date().toISOString(),
-      route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints }),
-      status: 'active'
-    });
+    await supabase
+      .from('group_trips')
+      .update({
+        route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints, mode }),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', tripId);
   }
 }

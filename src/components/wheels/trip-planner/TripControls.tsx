@@ -10,6 +10,7 @@ interface TripControlsProps {
   onSubmitTrip: () => void;
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
   isOffline?: boolean;
+  tripId?: string | null;
 }
 
 export default function TripControls({
@@ -20,6 +21,7 @@ export default function TripControls({
   onSubmitTrip,
   map,
   isOffline = false,
+  tripId,
 }: TripControlsProps) {
   return (
     <div className="space-y-3">
@@ -68,6 +70,18 @@ export default function TripControls({
         >
           {isOffline ? "Queue for Pam" : "Send to Pam"}
         </Button>
+        {tripId && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const url = `${window.location.origin}/share/trip/${tripId}`;
+              navigator.clipboard.writeText(url).catch(console.error);
+            }}
+          >
+            Share Trip
+          </Button>
+        )}
       </div>
     </div>
   );
