@@ -158,7 +158,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }:
             <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
               <Map className="w-4 h-4 text-green-600" />
             </div>
-            <span>Roadtrippers</span>
+            <span>Wheelers</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="outdoors" className="flex items-center gap-3 py-3">
             <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
