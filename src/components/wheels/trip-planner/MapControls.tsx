@@ -4,6 +4,7 @@ import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-direct
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
+import { useUserUnits } from "./hooks/useUserUnits";
 
 interface MapControlsProps {
   region: string;
@@ -49,10 +50,11 @@ export default function MapControls({
   lockDestination,
 }: MapControlsProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
+  const { units, loading: unitsLoading } = useUserUnits();
 
   // Initialize map and directions
   useEffect(() => {
-    if (!mapContainer.current) return;
+    if (!mapContainer.current || unitsLoading) return;
     
     const center = regionCenters[region] || regionCenters.US;
 
@@ -89,10 +91,10 @@ export default function MapControls({
       // Add fullscreen control
       map.current.addControl(new mapboxgl.FullscreenControl(), 'top-right');
       
-      // Add scale control
+      // Add scale control with dynamic units
       map.current.addControl(new mapboxgl.ScaleControl({
         maxWidth: 100,
-        unit: 'imperial'
+        unit: units
       }), 'bottom-left');
 
       // Add custom map style selector like Roadtrippers
@@ -153,15 +155,20 @@ export default function MapControls({
             const button = div.querySelector('#traffic-toggle') as HTMLButtonElement;
             
             if (trafficVisible) {
+              // Check if source already exists before adding
+              if (!map.getSource('mapbox-traffic')) {
+                map.addSource('mapbox-traffic', {
+                  type: 'vector',
+                  url: 'mapbox://mapbox.mapbox-traffic-v1'
+                });
+              }
+              
               // Add traffic layer
               if (!map.getLayer('traffic')) {
                 map.addLayer({
                   id: 'traffic',
                   type: 'line',
-                  source: {
-                    type: 'vector',
-                    url: 'mapbox://mapbox.mapbox-traffic-v1'
-                  },
+                  source: 'mapbox-traffic',
                   'source-layer': 'traffic',
                   paint: {
                     'line-width': 2,
@@ -182,6 +189,9 @@ export default function MapControls({
               if (map.getLayer('traffic')) {
                 map.removeLayer('traffic');
               }
+              if (map.getSource('mapbox-traffic')) {
+                map.removeSource('mapbox-traffic');
+              }
               button.style.backgroundColor = 'white';
             }
           });
@@ -198,10 +208,10 @@ export default function MapControls({
         if (!directionsControl.current && map.current) {
           console.log('Creating directions control after map load');
           
-          // Create directions control with enhanced Roadtrippers-style options
+          // Create directions control with dynamic units based on user's region
           const dir = new MapboxDirections({
             accessToken: mapboxgl.accessToken,
-            unit: "imperial", // Use imperial like Roadtrippers for US users
+            unit: units, // Dynamic units based on user's address/region
             profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
             interactive: !isOffline,
             controls: { 
@@ -268,7 +278,7 @@ export default function MapControls({
         }
       }
     };
-  }, [region, isOffline]);
+  }, [region, isOffline, units, unitsLoading]); // Add units and loading dependencies
 
   // Handle travel mode changes
   useEffect(() => {
