@@ -1,4 +1,3 @@
-
 """
 API Dependencies - Common dependencies for FastAPI endpoints
 """
@@ -11,6 +10,7 @@ from functools import wraps
 from fastapi import Depends, HTTPException, status, Header, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
+from jwt import PyJWTError  # Import PyJWTError directly
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
@@ -92,7 +92,7 @@ def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(securit
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.JWTError as e:
+    except PyJWTError as e:  # Fixed: Use PyJWTError instead of jwt.JWTError
         logger.error(f"JWT verification error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
