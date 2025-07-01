@@ -87,16 +87,7 @@ app = FastAPI(
     redoc_url="/api/redoc" if settings.ENVIRONMENT != "production" else None
 )
 
-# Setup monitoring middleware (first for comprehensive tracking)
-app.add_middleware(MonitoringMiddleware)
-
-# Setup security middleware
-setup_security_middleware(app)
-
-# Setup performance middleware
-setup_middleware(app)
-
-# CORS configuration - hardcoded to fix immediate issue
+# CORS MUST BE FIRST - before any other middleware that might cause errors
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://wheelsandwins.com", "https://www.wheelsandwins.com"],
@@ -105,6 +96,15 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Process-Time", "X-Request-ID", "X-Cache", "X-Rate-Limit-Remaining"]
 )
+
+# Setup monitoring middleware (after CORS)
+app.add_middleware(MonitoringMiddleware)
+
+# Setup security middleware
+setup_security_middleware(app)
+
+# Setup performance middleware
+setup_middleware(app)
 
 # Include API routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
