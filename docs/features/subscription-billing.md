@@ -7,10 +7,9 @@ The PAM subscription system provides flexible billing options with free trials, 
 ## Features
 
 ### Subscription Plans
-- **Free Trial**: 14-day trial with full feature access
-- **Basic Plan**: Essential features for personal use
-- **Premium Plan**: Advanced features and enhanced AI capabilities
-- **Enterprise Plan**: Full feature access with priority support
+- **First Month Free**: 30-day trial with community access
+- **Monthly Membership**: $18/month standard plan
+- **Annual Membership**: $216/year with bonus course
 - **Custom Plans**: Tailored solutions for specific needs
 
 ### Billing Features
@@ -41,37 +40,29 @@ The PAM subscription system provides flexible billing options with free trials, 
 
 ## Subscription Tiers
 
-### Free Trial (14 Days)
-- **Duration**: 14 days full access
-- **Features**: All premium features available
-- **Limitations**: Time-limited access
-- **AI Usage**: Full PAM assistant capabilities
-- **Support**: Community support
-- **Storage**: Basic storage limits
 
-### Basic Plan ($9.99/month)
-- **PAM Assistant**: Essential AI conversations
-- **Financial Tools**: Basic budgeting and expense tracking
-- **Trip Planning**: Standard trip planning features
-- **Calendar**: Personal calendar management
-- **Social Features**: Basic community access
-- **Support**: Email support
+### First Month Free
+Try before you commit
 
-### Premium Plan ($19.99/month)
-- **Enhanced PAM**: Advanced AI capabilities with memory
-- **Advanced Analytics**: Detailed insights and reports
-- **Unlimited Storage**: No storage restrictions
-- **Priority Support**: Faster response times
-- **Advanced Features**: All premium functionality
-- **API Access**: Integration capabilities
+**$0 for 30 days**
+Full access to our platform and community
+* Video Course not included
+Get Started
 
-### Enterprise Plan ($49.99/month)
-- **Full Feature Access**: All system capabilities
-- **Priority Processing**: Faster AI responses
-- **Advanced Analytics**: Comprehensive reporting
-- **Dedicated Support**: Personal account management
-- **Custom Integrations**: Tailored API access
-- **White-label Options**: Branding customization
+### Monthly Membership
+Full access to our platform and community
+
+**$18/month**
+Full access to our platform and community
+Select Plan
+
+### Best Value - Annual Membership
+Save 33% plus get the $97 Video Course FREE
+
+**$216/year**
+Full access to our platform and community
+Includes Video Course ($97 value)
+Select Plan
 
 ## Payment Processing
 
