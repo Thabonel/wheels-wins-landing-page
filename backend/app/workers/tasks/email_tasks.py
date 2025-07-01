@@ -2,7 +2,7 @@
 from celery import current_app
 from app.workers.celery import celery_app
 from app.core.logging import get_logger
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
 import httpx
 import os
 

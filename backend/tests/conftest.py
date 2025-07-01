@@ -1,5 +1,6 @@
 
 import pytest
+import pytest_asyncio
 import asyncio
 from typing import AsyncGenerator, Generator
 from httpx import AsyncClient
@@ -7,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 from supabase import create_client, Client
 
 from app.core.config import settings
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
 from app.services.database import DatabaseService
 from app.services.cache import CacheService
 
@@ -23,7 +24,7 @@ def event_loop():
     yield loop
     loop.close()
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_db() -> AsyncGenerator[Client, None]:
     """Create a test database client."""
     client = create_client(TEST_SUPABASE_URL, TEST_SUPABASE_KEY)
@@ -58,7 +59,7 @@ def mock_supabase_client():
     
     return mock_client
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_client() -> AsyncGenerator[AsyncClient, None]:
     """Create test HTTP client."""
     from app.main import app

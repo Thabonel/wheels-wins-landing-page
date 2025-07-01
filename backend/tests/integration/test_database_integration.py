@@ -1,7 +1,11 @@
 
+import os
 import pytest
 from app.services.database import DatabaseService
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
+
+if os.getenv("RUN_INTEGRATION_TESTS") != "1":
+    pytest.skip("Skipping integration tests", allow_module_level=True)
 
 
 class TestDatabaseIntegration:
