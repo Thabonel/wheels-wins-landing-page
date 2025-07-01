@@ -79,6 +79,7 @@ src/components/wheels/trip-planner/
 - **Cost Estimation**: Fuel and travel expense calculations
 - **Offline Support**: Cached trip data and basic offline functionality
 - **PAM Integration**: AI-powered trip suggestions and optimization
+- **Real-time Sync**: Share and edit trip plans across devices
 
 ### Vehicle Maintenance
 - **Service Tracking**: Complete maintenance history logging
