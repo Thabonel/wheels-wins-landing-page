@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
 from app.core.logging import setup_logging
 
 logger = setup_logging("shop_node")

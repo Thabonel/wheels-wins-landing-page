@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from app.core.logging import setup_logging
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
 from app.core.route_intelligence import route_intelligence
 
 logger = setup_logging("wheels_node")

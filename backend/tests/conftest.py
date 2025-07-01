@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 from supabase import create_client, Client
 
 from app.core.config import settings
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
 from app.services.database import DatabaseService
 from app.services.cache import CacheService
 

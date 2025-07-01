@@ -35,7 +35,7 @@ beautifulsoup4==4.12.3
 apscheduler==3.10.4
 
 # System monitoring
-psutil==6.0.0
+psutil==6.1.0
 
 # Error tracking and monitoring
 sentry-sdk[fastapi]==2.7.1

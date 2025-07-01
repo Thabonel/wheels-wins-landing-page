@@ -12,7 +12,7 @@ from uuid import UUID
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
