@@ -66,22 +66,156 @@ export default function MapControls({
         style: "mapbox://styles/mapbox/streets-v11",
         center,
         zoom: 3.5,
+        hash: true, // Enable URL hash for sharing map state
+        projection: 'mercator'
       });
       
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      // Add navigation controls with compass and zoom
+      map.current.addControl(new mapboxgl.NavigationControl({
+        showCompass: true,
+        showZoom: true,
+        visualizePitch: true
+      }), 'top-right');
+      
+      // Add geolocate control (like Roadtrippers has)
+      map.current.addControl(new mapboxgl.GeolocateControl({
+        positionOptions: {
+          enableHighAccuracy: true
+        },
+        trackUserLocation: true,
+        showUserHeading: true
+      }), 'top-right');
+      
+      // Add fullscreen control
+      map.current.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+      
+      // Add scale control
+      map.current.addControl(new mapboxgl.ScaleControl({
+        maxWidth: 100,
+        unit: 'imperial'
+      }), 'bottom-left');
+
+      // Add custom map style selector like Roadtrippers
+      const styleControl = {
+        onAdd: function(map: mapboxgl.Map) {
+          const div = document.createElement('div');
+          div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+          div.innerHTML = `
+            <button type="button" id="satellite" title="Satellite" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🛰️</button>
+            <button type="button" id="terrain" title="Terrain" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🏔️</button>
+            <button type="button" id="streets" title="Streets" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🗺️</button>
+            <button type="button" id="3d" title="3D Terrain" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🌄</button>
+          `;
+          
+          div.addEventListener('click', (e) => {
+            const target = e.target as HTMLButtonElement;
+            if (target.id === 'satellite') {
+              map.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
+            } else if (target.id === 'terrain') {
+              map.setStyle('mapbox://styles/mapbox/outdoors-v12');
+            } else if (target.id === 'streets') {
+              map.setStyle('mapbox://styles/mapbox/streets-v12');
+            } else if (target.id === '3d') {
+              // Enable 3D terrain
+              map.on('style.load', () => {
+                if (!map.getSource('mapbox-dem')) {
+                  map.addSource('mapbox-dem', {
+                    type: 'raster-dem',
+                    url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                    tileSize: 512,
+                    maxzoom: 14
+                  });
+                }
+                map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
+              });
+            }
+          });
+          
+          return div;
+        },
+        onRemove: function() {}
+      };
+      
+      map.current.addControl(styleControl as any, 'top-left');
+
+      // Add traffic toggle control like Roadtrippers
+      const trafficControl = {
+        onAdd: function(map: mapboxgl.Map) {
+          const div = document.createElement('div');
+          div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+          div.innerHTML = `
+            <button type="button" id="traffic-toggle" title="Toggle Traffic" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🚦</button>
+          `;
+          
+          let trafficVisible = false;
+          div.addEventListener('click', () => {
+            trafficVisible = !trafficVisible;
+            const button = div.querySelector('#traffic-toggle') as HTMLButtonElement;
+            
+            if (trafficVisible) {
+              // Add traffic layer
+              if (!map.getLayer('traffic')) {
+                map.addLayer({
+                  id: 'traffic',
+                  type: 'line',
+                  source: {
+                    type: 'vector',
+                    url: 'mapbox://mapbox.mapbox-traffic-v1'
+                  },
+                  'source-layer': 'traffic',
+                  paint: {
+                    'line-width': 2,
+                    'line-color': [
+                      'case',
+                      ['==', ['get', 'congestion'], 'low'], '#00ff00',
+                      ['==', ['get', 'congestion'], 'moderate'], '#ffff00',
+                      ['==', ['get', 'congestion'], 'heavy'], '#ff6600',
+                      ['==', ['get', 'congestion'], 'severe'], '#ff0000',
+                      '#000000'
+                    ]
+                  }
+                });
+              }
+              button.style.backgroundColor = '#4CAF50';
+            } else {
+              // Remove traffic layer
+              if (map.getLayer('traffic')) {
+                map.removeLayer('traffic');
+              }
+              button.style.backgroundColor = 'white';
+            }
+          });
+          
+          return div;
+        },
+        onRemove: function() {}
+      };
+      
+      map.current.addControl(trafficControl as any, 'top-right');
 
       // Wait for map to load before creating directions control
       map.current.on('load', () => {
         if (!directionsControl.current && map.current) {
           console.log('Creating directions control after map load');
           
-          // Create directions control
+          // Create directions control with enhanced Roadtrippers-style options
           const dir = new MapboxDirections({
             accessToken: mapboxgl.accessToken,
-            unit: "metric",
+            unit: "imperial", // Use imperial like Roadtrippers for US users
             profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
             interactive: !isOffline,
-            controls: { instructions: false },
+            controls: { 
+              instructions: true, // Enable turn-by-turn instructions like Roadtrippers
+              inputs: true,
+              profileSwitcher: true // Allow switching between driving/walking/cycling
+            },
+            alternatives: true, // Show alternative routes like Roadtrippers
+            congestion: true, // Show traffic congestion
+            excludeTypes: [], // Allow all route types
+            flyTo: true, // Smooth camera transitions
+            placeholderOrigin: 'Choose starting point',
+            placeholderDestination: 'Choose destination',
+            zoom: 15 // Higher zoom for detailed route viewing
           });
           
           directionsControl.current = dir;
