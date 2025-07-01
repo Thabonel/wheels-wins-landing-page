@@ -217,7 +217,8 @@ async def get_conversation_history(
     conversation_id: Optional[str] = None,
     pagination: PaginationParams = Depends(get_pagination_params),
     current_user = Depends(get_current_user),
-    db = Depends(get_database)
+    db = Depends(get_database),
+    orchestrator = Depends(get_pam_orchestrator)
 ):
     """Get conversation history for the user"""
     try:
