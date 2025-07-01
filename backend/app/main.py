@@ -1,10 +1,10 @@
-
 """
 PAM Backend Main Application
 High-performance FastAPI application with comprehensive monitoring and security.
 """
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,6 +28,11 @@ from app.services.sentry_service import sentry_service
 from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription
 
 logger = setup_logging()
+
+# Debug CORS configuration
+logger.info(f"CORS_ORIGINS from settings: {settings.CORS_ORIGINS}")
+logger.info(f"ALLOWED_ORIGINS env var: {os.getenv('ALLOWED_ORIGINS')}")
+logger.info(f"CORS_ORIGINS env var: {os.getenv('CORS_ORIGINS')}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
