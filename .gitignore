@@ -46,3 +46,9 @@ node_modules/
 .env*
 !.env.example
 
+
+# Environment files
+.env
+.env.development
+.env.example
+.env.production
