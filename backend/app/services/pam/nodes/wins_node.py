@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta, date
-from app.database.supabase_client import get_supabase_client
+from app.core.database import get_supabase_client
 from app.core.logging import setup_logging
 
 logger = setup_logging("wins_node")

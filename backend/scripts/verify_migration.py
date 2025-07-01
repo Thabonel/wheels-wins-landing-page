@@ -165,7 +165,7 @@ class MigrationVerifier:
         
         try:
             # Import Supabase client
-            from app.database.supabase_client import get_supabase_client
+            from app.core.database import get_supabase_client
             
             start_time = time.time()
             supabase = get_supabase_client()
