@@ -97,14 +97,21 @@ app.add_middleware(
     expose_headers=["X-Process-Time", "X-Request-ID", "X-Cache", "X-Rate-Limit-Remaining"]
 )
 
-# Setup monitoring middleware (after CORS)
+# Setup other middleware first (these will execute after CORS)
 app.add_middleware(MonitoringMiddleware)
-
-# Setup security middleware
 setup_security_middleware(app)
-
-# Setup performance middleware
 setup_middleware(app)
+
+# CORS middleware MUST be added LAST so it executes FIRST
+# In Starlette, last middleware added = first to execute
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://wheelsandwins.com", "https://www.wheelsandwins.com"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["X-Process-Time", "X-Request-ID", "X-Cache", "X-Rate-Limit-Remaining"]
+)
 
 # Include API routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
