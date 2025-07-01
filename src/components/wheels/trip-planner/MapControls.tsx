@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
 import { useUserUnits } from "./hooks/useUserUnits";
+import MapOptionsDropdown from "./MapOptionsDropdown";
 
 interface MapControlsProps {
   region: string;
@@ -51,6 +52,7 @@ export default function MapControls({
 }: MapControlsProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const { units, loading: unitsLoading } = useUserUnits();
+  const [currentStyle, setCurrentStyle] = useState("mapbox://styles/mapbox/streets-v11");
 
   // Initialize map and directions
   useEffect(() => {
@@ -97,111 +99,8 @@ export default function MapControls({
         unit: units
       }), 'bottom-left');
 
-      // Add custom map style selector like Roadtrippers
-      const styleControl = {
-        onAdd: function(map: mapboxgl.Map) {
-          const div = document.createElement('div');
-          div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
-          div.innerHTML = `
-            <button type="button" id="satellite" title="Satellite" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🛰️</button>
-            <button type="button" id="terrain" title="Terrain" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🏔️</button>
-            <button type="button" id="streets" title="Streets" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🗺️</button>
-            <button type="button" id="3d" title="3D Terrain" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🌄</button>
-          `;
-          
-          div.addEventListener('click', (e) => {
-            const target = e.target as HTMLButtonElement;
-            if (target.id === 'satellite') {
-              map.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
-            } else if (target.id === 'terrain') {
-              map.setStyle('mapbox://styles/mapbox/outdoors-v12');
-            } else if (target.id === 'streets') {
-              map.setStyle('mapbox://styles/mapbox/streets-v12');
-            } else if (target.id === '3d') {
-              // Enable 3D terrain
-              map.on('style.load', () => {
-                if (!map.getSource('mapbox-dem')) {
-                  map.addSource('mapbox-dem', {
-                    type: 'raster-dem',
-                    url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-                    tileSize: 512,
-                    maxzoom: 14
-                  });
-                }
-                map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
-              });
-            }
-          });
-          
-          return div;
-        },
-        onRemove: function() {}
-      };
-      
-      map.current.addControl(styleControl as any, 'top-left');
-
-      // Add traffic toggle control like Roadtrippers
-      const trafficControl = {
-        onAdd: function(map: mapboxgl.Map) {
-          const div = document.createElement('div');
-          div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
-          div.innerHTML = `
-            <button type="button" id="traffic-toggle" title="Toggle Traffic" style="background: white; border: none; padding: 8px; cursor: pointer; font-size: 16px;">🚦</button>
-          `;
-          
-          let trafficVisible = false;
-          div.addEventListener('click', () => {
-            trafficVisible = !trafficVisible;
-            const button = div.querySelector('#traffic-toggle') as HTMLButtonElement;
-            
-            if (trafficVisible) {
-              // Check if source already exists before adding
-              if (!map.getSource('mapbox-traffic')) {
-                map.addSource('mapbox-traffic', {
-                  type: 'vector',
-                  url: 'mapbox://mapbox.mapbox-traffic-v1'
-                });
-              }
-              
-              // Add traffic layer
-              if (!map.getLayer('traffic')) {
-                map.addLayer({
-                  id: 'traffic',
-                  type: 'line',
-                  source: 'mapbox-traffic',
-                  'source-layer': 'traffic',
-                  paint: {
-                    'line-width': 2,
-                    'line-color': [
-                      'case',
-                      ['==', ['get', 'congestion'], 'low'], '#00ff00',
-                      ['==', ['get', 'congestion'], 'moderate'], '#ffff00',
-                      ['==', ['get', 'congestion'], 'heavy'], '#ff6600',
-                      ['==', ['get', 'congestion'], 'severe'], '#ff0000',
-                      '#000000'
-                    ]
-                  }
-                });
-              }
-              button.style.backgroundColor = '#4CAF50';
-            } else {
-              // Remove traffic layer
-              if (map.getLayer('traffic')) {
-                map.removeLayer('traffic');
-              }
-              if (map.getSource('mapbox-traffic')) {
-                map.removeSource('mapbox-traffic');
-              }
-              button.style.backgroundColor = 'white';
-            }
-          });
-          
-          return div;
-        },
-        onRemove: function() {}
-      };
-      
-      map.current.addControl(trafficControl as any, 'top-right');
+      // Add Map Options Dropdown (replaces old style controls)
+      // Note: The dropdown will be rendered as an overlay in the return JSX
 
       // Wait for map to load before creating directions control
       map.current.on('load', () => {
@@ -342,6 +241,18 @@ export default function MapControls({
     <div className="w-full h-[60vh] lg:h-[70vh] relative">
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
+        
+        {/* Map Options Dropdown - positioned as overlay */}
+        {!isOffline && (
+          <div className="absolute top-4 left-4 z-[1000]">
+            <MapOptionsDropdown 
+              map={map}
+              onStyleChange={setCurrentStyle}
+              currentStyle={currentStyle}
+            />
+          </div>
+        )}
+        
         {isOffline && (
           <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center pointer-events-none">
             <div className="bg-white p-4 rounded-lg shadow-lg text-center pointer-events-auto">
@@ -352,7 +263,7 @@ export default function MapControls({
         
         {/* Visual indicators for locked points */}
         {(originLocked || destinationLocked) && (
-          <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2">
+          <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2">
             <div className="flex gap-2 text-xs">
               {originLocked && (
                 <div className="flex items-center gap-1 text-blue-600">
