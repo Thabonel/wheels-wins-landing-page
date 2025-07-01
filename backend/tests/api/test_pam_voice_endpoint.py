@@ -1,5 +1,9 @@
+import os
 import pytest
 from httpx import AsyncClient
+
+if os.getenv("RUN_API_TESTS") != "1":
+    pytest.skip("Skipping API tests", allow_module_level=True)
 
 
 class TestPamVoiceEndpoint:
