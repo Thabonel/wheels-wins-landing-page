@@ -1,5 +1,6 @@
 
 import pytest
+import pytest_asyncio
 import asyncio
 from typing import AsyncGenerator, Generator
 from httpx import AsyncClient
@@ -23,7 +24,7 @@ def event_loop():
     yield loop
     loop.close()
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_db() -> AsyncGenerator[Client, None]:
     """Create a test database client."""
     client = create_client(TEST_SUPABASE_URL, TEST_SUPABASE_KEY)
@@ -58,7 +59,7 @@ def mock_supabase_client():
     
     return mock_client
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_client() -> AsyncGenerator[AsyncClient, None]:
     """Create test HTTP client."""
     from app.main import app
