@@ -75,6 +75,8 @@ This guide helps diagnose and resolve API-related errors in the PAM system.
 **Solutions**:
 - Add frontend URL to `ALLOWED_ORIGINS`
 - Check CORS middleware configuration
+- 400 Bad Request on an `OPTIONS` request usually means the origin isn't allowed.
+  Ensure your domain is listed in `ALLOWED_ORIGINS` or use `[*]` during testing.
 - Verify preflight request handling
 - Test with different browsers
 
