@@ -843,7 +843,7 @@ class WheelsNode:
                         destination = parts[1].strip()
                         return {
                             "type": "message",
-                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get("user_profile", {}).get("vehicle_info", {}).get("type", "vehicle")} and prefer {context.get("user_profile", {}).get("travel_preferences", {}).get("style", "travel")} style. Let me create a personalized route with camping options and fuel stops along the way!"
+                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get('user_profile', {}).get('vehicle_info', {}).get('type', 'vehicle')} and prefer {context.get('user_profile', {}).get('travel_preferences', {}).get('style', 'travel')} style. Let me create a personalized route with camping options and fuel stops along the way!"
                         }
                 elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
                     return {
@@ -892,7 +892,7 @@ class WheelsNode:
                         destination = parts[1].strip()
                         return {
                             "type": "message",
-                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get("user_profile", {}).get("vehicle_info", {}).get("type", "vehicle")} and prefer {context.get("user_profile", {}).get("travel_preferences", {}).get("style", "travel")} style. Let me create a personalized route with camping options and fuel stops along the way!"
+                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get('user_profile', {}).get('vehicle_info', {}).get('type', 'vehicle')} and prefer {context.get('user_profile', {}).get('travel_preferences', {}).get('style', 'travel')} style. Let me create a personalized route with camping options and fuel stops along the way!"
                         }
                 elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
                     return {
