@@ -46,6 +46,7 @@ export interface IntegratedTripState {
     activeFeature: 'route' | 'budget' | 'social' | 'pam' | 'export' | 'meetup' | null;
   };
   sync: boolean;
+  tripId: string | null;
 }
 
 export function useIntegratedTripState(isOffline: boolean) {
@@ -87,6 +88,7 @@ export function useIntegratedTripState(isOffline: boolean) {
 
   // Sync state - indicates if all features are in sync
   const [isInSync, setIsInSync] = useState(true);
+  const [tripId, setTripId] = useState<string | null>(null);
 
   // Cross-feature intelligence functions
   const updateBudgetFromRoute = useCallback((distance: number, days: number) => {
@@ -180,6 +182,7 @@ export function useIntegratedTripState(isOffline: boolean) {
     export: exportData,
     ui: uiState,
     sync: isInSync,
+    tripId,
   };
 
   return {
@@ -194,5 +197,7 @@ export function useIntegratedTripState(isOffline: boolean) {
     setUIState,
     // Original trip state actions
     ...tripState,
+    tripId,
+    setTripId,
   };
 }

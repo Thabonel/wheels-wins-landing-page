@@ -15,6 +15,7 @@ import LockedPointControls from "./trip-planner/LockedPointControls";
 import WeatherWidget from "./WeatherWidget";
 import { useTripPlannerState } from "./trip-planner/hooks/useTripPlannerState";
 import { useTripPlannerHandlers } from "./trip-planner/hooks/useTripPlannerHandlers";
+import useTripSync from "./trip-planner/hooks/useTripSync";
 import { Button } from "@/components/ui/button";
 import { Cloud } from "lucide-react";
 
@@ -55,6 +56,8 @@ export default function TripPlanner() {
     mode,
     setMode,
     saveTripData,
+    tripId,
+    setTripId,
     originLocked,
     destinationLocked,
     lockOrigin,
@@ -62,6 +65,15 @@ export default function TripPlanner() {
     unlockOrigin,
     unlockDestination
   } = useTripPlannerState(isOffline);
+
+  useTripSync({
+    tripId,
+    map,
+    directionsControl,
+    setOriginName,
+    setDestName,
+    setWaypoints
+  });
 
   // Event handlers
   const {
@@ -75,7 +87,9 @@ export default function TripPlanner() {
     setSuggestions,
     saveTripData,
     routeProfile,
-    mode
+    mode,
+    tripId,
+    setTripId
   });
 
   // Get weather for route destination
@@ -123,7 +137,27 @@ export default function TripPlanner() {
       
 
       {/* Unified Controls Section */}
-      <TripPlannerControls directionsControl={directionsControl} originName={originName} destName={destName} setOriginName={setOriginName} setDestName={setDestName} travelMode={travelMode} setTravelMode={setTravelMode} mode={mode} setMode={setMode} adding={adding} setAdding={setAdding} onSubmitTrip={handleSubmitTrip} map={map} isOffline={isOffline} originLocked={originLocked} destinationLocked={destinationLocked} lockOrigin={lockOrigin} lockDestination={lockDestination} />
+      <TripPlannerControls
+        directionsControl={directionsControl}
+        originName={originName}
+        destName={destName}
+        setOriginName={setOriginName}
+        setDestName={setDestName}
+        travelMode={travelMode}
+        setTravelMode={setTravelMode}
+        mode={mode}
+        setMode={setMode}
+        adding={adding}
+        setAdding={setAdding}
+        onSubmitTrip={handleSubmitTrip}
+        map={map}
+        isOffline={isOffline}
+        originLocked={originLocked}
+        destinationLocked={destinationLocked}
+        lockOrigin={lockOrigin}
+        lockDestination={lockDestination}
+        tripId={tripId}
+      />
 
       {/* Weather Widget Sidebar */}
       {showWeather && weatherLocation && <div className="bg-white rounded-lg border p-4">

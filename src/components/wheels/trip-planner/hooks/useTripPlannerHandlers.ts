@@ -24,6 +24,8 @@ interface UseTripPlannerHandlersProps {
   ) => void;
   routeProfile: string;
   mode: string;
+  tripId: string | null;
+  setTripId: (id: string) => void;
 }
 
 export function useTripPlannerHandlers({
@@ -35,6 +37,8 @@ export function useTripPlannerHandlers({
   saveTripData,
   routeProfile,
   mode,
+  tripId,
+  setTripId,
 }: UseTripPlannerHandlersProps) {
   const { user } = useAuth();
   const { isOffline } = useOffline();
@@ -59,7 +63,7 @@ export function useTripPlannerHandlers({
         );
         
         setSuggestions(fetchedSuggestions);
-        
+
         // Cache the trip data
         saveTripData(
           originName,
@@ -71,6 +75,18 @@ export function useTripPlannerHandlers({
           routeProfile,
           mode
         );
+
+        if (tripId) {
+          await TripService.updateTripRoute(
+            tripId,
+            originCoords,
+            destCoords,
+            routeProfile,
+            fetchedSuggestions,
+            mode,
+            waypoints
+          );
+        }
       }
     } catch (error) {
       console.error("Error handling route change:", error);
@@ -129,6 +145,20 @@ export function useTripPlannerHandlers({
         });
       } else {
         await TripService.submitTripPlan(payload);
+        if (!tripId) {
+          const newId = await TripService.saveTrip(
+            user.id,
+            originName,
+            destName,
+            origin.geometry.coordinates as [number, number],
+            destination.geometry.coordinates as [number, number],
+            routeProfile,
+            [],
+            mode,
+            waypoints
+          );
+          if (newId) setTripId(newId);
+        }
         toast({
           title: "Trip Sent to Pam",
           description: "Pam will analyze your route and provide personalized recommendations",
