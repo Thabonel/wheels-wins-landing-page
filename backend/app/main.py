@@ -25,7 +25,7 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 
 # Import API routers
-from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription
+from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, voice
 
 logger = setup_logging()
 
@@ -109,6 +109,7 @@ app.include_router(wins.router, prefix="/api", tags=["Wins"])
 app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api", tags=["PAM"])
+app.include_router(voice.router, prefix="/api", tags=["Voice"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 
