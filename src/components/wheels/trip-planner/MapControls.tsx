@@ -242,9 +242,9 @@ export default function MapControls({
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
         
-        {/* Map Options Dropdown - positioned next to zoom controls */}
+        {/* Map Options Dropdown - positioned next to zoom controls, stays visible in fullscreen */}
         {!isOffline && (
-          <div className="absolute top-4 right-20 z-[1000]">
+          <div className="absolute top-4 right-[70px] z-[9999] pointer-events-auto">
             <MapOptionsDropdown 
               map={map}
               onStyleChange={setCurrentStyle}

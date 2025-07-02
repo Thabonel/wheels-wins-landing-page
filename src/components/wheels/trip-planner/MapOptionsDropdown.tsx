@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { ChevronDown, Map, Satellite, Mountain, MapPin, Zap, Signal, TreePine, Shield, Cloud } from 'lucide-react';
+import { ChevronDown, Settings, Satellite, Mountain, MapPin, Zap, Phone, TreePine, Shield, Cloud, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -22,24 +22,37 @@ interface MapOptionsDropdownProps {
 export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }: MapOptionsDropdownProps) {
   const [baseMapStyle, setBaseMapStyle] = useState('satellite');
   const [baseMapTheme, setBaseMapTheme] = useState('scenic');
+  const [userCountry, setUserCountry] = useState('AU'); // Default to Australia based on route
   const [overlays, setOverlays] = useState({
     traffic: false,
-    places: false,
-    att: false,
-    tmobile: false,
-    verizon: false,
-    blm: false,
-    nationalForests: false,
+    phoneCoverage: false,
     nationalParks: false,
+    stateForests: false,
     smoke: false,
+    fires: false,
   });
+
+  // Detect user's country based on map center
+  useEffect(() => {
+    if (map.current) {
+      const center = map.current.getCenter();
+      // Simple country detection based on coordinates
+      if (center.lng >= 113 && center.lng <= 154 && center.lat >= -44 && center.lat <= -10) {
+        setUserCountry('AU'); // Australia
+      } else if (center.lng >= -125 && center.lng <= -66 && center.lat >= 20 && center.lat <= 49) {
+        setUserCountry('US'); // United States
+      } else if (center.lng >= -10 && center.lng <= 32 && center.lat >= 35 && center.lat <= 71) {
+        setUserCountry('EU'); // Europe
+      }
+    }
+  }, [map]);
 
   const handleBaseMapChange = (value: string) => {
     setBaseMapStyle(value);
     let styleUrl = '';
     
     switch (value) {
-      case 'roadtrippers':
+      case 'wheelers':
         styleUrl = 'mapbox://styles/mapbox/streets-v12';
         break;
       case 'outdoors':
@@ -132,49 +145,76 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }:
     // Add logic for other overlays here as needed
   };
 
+  const getPublicLandsForCountry = () => {
+    switch (userCountry) {
+      case 'AU':
+        return [
+          { key: 'nationalParks', label: 'National Parks', icon: Shield, color: 'emerald' },
+          { key: 'stateForests', label: 'State Forests', icon: TreePine, color: 'green' },
+        ];
+      case 'US':
+        return [
+          { key: 'nationalParks', label: 'National Parks', icon: Shield, color: 'emerald' },
+          { key: 'nationalForests', label: 'National Forests', icon: TreePine, color: 'green' },
+          { key: 'blm', label: 'BLM Land', icon: Shield, color: 'yellow' },
+        ];
+      case 'EU':
+        return [
+          { key: 'nationalParks', label: 'National Parks', icon: Shield, color: 'emerald' },
+          { key: 'protectedAreas', label: 'Protected Areas', icon: TreePine, color: 'green' },
+        ];
+      default:
+        return [
+          { key: 'nationalParks', label: 'National Parks', icon: Shield, color: 'emerald' },
+          { key: 'stateForests', label: 'State Forests', icon: TreePine, color: 'green' },
+        ];
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button 
           variant="outline" 
-          className="bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-50"
+          className="bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2"
         >
-          <Map className="w-4 h-4 mr-2" />
-          Map Options
-          <ChevronDown className="w-4 h-4 ml-2" />
+          <Settings className="w-4 h-4 mr-1" />
+          Options
+          <ChevronDown className="w-3 h-3 ml-1" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        className="w-80 bg-white/95 backdrop-blur-sm border shadow-xl z-[9999]" 
+        className="w-64 max-h-[70vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[9999]" 
         align="start"
         side="bottom"
+        sideOffset={8}
       >
         {/* Base Map Section */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
           Base Map
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={baseMapStyle} onValueChange={handleBaseMapChange}>
-          <DropdownMenuRadioItem value="roadtrippers" className="flex items-center gap-3 py-3">
-            <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
-              <Map className="w-4 h-4 text-green-600" />
+          <DropdownMenuRadioItem value="wheelers" className="flex items-center gap-3 py-2">
+            <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
+              <Settings className="w-3 h-3 text-green-600" />
             </div>
             <span>Wheelers</span>
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="outdoors" className="flex items-center gap-3 py-3">
-            <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
-              <Mountain className="w-4 h-4 text-green-600" />
+          <DropdownMenuRadioItem value="outdoors" className="flex items-center gap-3 py-2">
+            <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
+              <Mountain className="w-3 h-3 text-green-600" />
             </div>
             <span>Outdoors</span>
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="satellite" className="flex items-center gap-3 py-3">
-            <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-              <Satellite className="w-4 h-4 text-blue-600" />
+          <DropdownMenuRadioItem value="satellite" className="flex items-center gap-3 py-2">
+            <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+              <Satellite className="w-3 h-3 text-blue-600" />
             </div>
             <span>Satellite</span>
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="places" className="flex items-center gap-3 py-3">
-            <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center">
-              <MapPin className="w-4 h-4 text-purple-600" />
+          <DropdownMenuRadioItem value="places" className="flex items-center gap-3 py-2">
+            <div className="w-6 h-6 bg-purple-100 rounded flex items-center justify-center">
+              <MapPin className="w-3 h-3 text-purple-600" />
             </div>
             <span>Places</span>
           </DropdownMenuRadioItem>
@@ -185,16 +225,16 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }:
         {/* Base Map Theme */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700 flex items-center gap-2">
           Base Map Theme
-          <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">BASIC</span>
+          <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">BASIC</span>
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={baseMapTheme} onValueChange={handleThemeChange}>
-          <DropdownMenuRadioItem value="scenic">
+          <DropdownMenuRadioItem value="scenic" className="py-1">
             <span>Scenic</span>
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="light">
+          <DropdownMenuRadioItem value="light" className="py-1">
             <span>Light</span>
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">
+          <DropdownMenuRadioItem value="dark" className="py-1">
             <span>Dark</span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
@@ -204,54 +244,31 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }:
         {/* Map Overlays */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700 flex items-center gap-2">
           Map Overlays
-          <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">PREMIUM</span>
+          <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded">PREMIUM</span>
         </DropdownMenuLabel>
         <DropdownMenuCheckboxItem
           checked={overlays.traffic}
           onCheckedChange={(checked) => handleOverlayToggle('traffic', checked)}
-          className="flex items-center gap-3 py-3"
+          className="flex items-center gap-3 py-2"
         >
-          <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center">
-            <Zap className="w-4 h-4 text-red-600" />
+          <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
+            <Zap className="w-3 h-3 text-red-600" />
           </div>
           <span>Traffic</span>
         </DropdownMenuCheckboxItem>
 
         <DropdownMenuSeparator />
 
-        {/* Cell Coverage */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
-          Cell Coverage
-        </DropdownMenuLabel>
+        {/* Phone Coverage */}
         <DropdownMenuCheckboxItem
-          checked={overlays.att}
-          onCheckedChange={(checked) => handleOverlayToggle('att', checked)}
+          checked={overlays.phoneCoverage}
+          onCheckedChange={(checked) => handleOverlayToggle('phoneCoverage', checked)}
           className="flex items-center gap-3 py-2"
         >
-          <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-            <Signal className="w-4 h-4 text-blue-600" />
+          <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+            <Phone className="w-3 h-3 text-blue-600" />
           </div>
-          <span>AT&T</span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={overlays.tmobile}
-          onCheckedChange={(checked) => handleOverlayToggle('tmobile', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-8 h-8 bg-pink-100 rounded flex items-center justify-center">
-            <Signal className="w-4 h-4 text-pink-600" />
-          </div>
-          <span>T-Mobile</span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={overlays.verizon}
-          onCheckedChange={(checked) => handleOverlayToggle('verizon', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center">
-            <Signal className="w-4 h-4 text-red-600" />
-          </div>
-          <span>Verizon</span>
+          <span>Phone Coverage</span>
         </DropdownMenuCheckboxItem>
 
         <DropdownMenuSeparator />
@@ -260,36 +277,19 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }:
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
           Public Lands
         </DropdownMenuLabel>
-        <DropdownMenuCheckboxItem
-          checked={overlays.blm}
-          onCheckedChange={(checked) => handleOverlayToggle('blm', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-8 h-8 bg-yellow-100 rounded flex items-center justify-center">
-            <Shield className="w-4 h-4 text-yellow-600" />
-          </div>
-          <span>BLM</span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={overlays.nationalForests}
-          onCheckedChange={(checked) => handleOverlayToggle('nationalForests', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
-            <TreePine className="w-4 h-4 text-green-600" />
-          </div>
-          <span>National Forests</span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={overlays.nationalParks}
-          onCheckedChange={(checked) => handleOverlayToggle('nationalParks', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-8 h-8 bg-emerald-100 rounded flex items-center justify-center">
-            <Shield className="w-4 h-4 text-emerald-600" />
-          </div>
-          <span>National Parks</span>
-        </DropdownMenuCheckboxItem>
+        {getPublicLandsForCountry().map(({ key, label, icon: Icon, color }) => (
+          <DropdownMenuCheckboxItem
+            key={key}
+            checked={overlays[key as keyof typeof overlays] || false}
+            onCheckedChange={(checked) => handleOverlayToggle(key, checked)}
+            className="flex items-center gap-3 py-2"
+          >
+            <div className={`w-6 h-6 bg-${color}-100 rounded flex items-center justify-center`}>
+              <Icon className={`w-3 h-3 text-${color}-600`} />
+            </div>
+            <span>{label}</span>
+          </DropdownMenuCheckboxItem>
+        ))}
 
         <DropdownMenuSeparator />
 
@@ -302,10 +302,20 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }:
           onCheckedChange={(checked) => handleOverlayToggle('smoke', checked)}
           className="flex items-center gap-3 py-2"
         >
-          <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-            <Cloud className="w-4 h-4 text-gray-600" />
+          <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center">
+            <Cloud className="w-3 h-3 text-gray-600" />
           </div>
           <span>Smoke</span>
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={overlays.fires}
+          onCheckedChange={(checked) => handleOverlayToggle('fires', checked)}
+          className="flex items-center gap-3 py-2"
+        >
+          <div className="w-6 h-6 bg-orange-100 rounded flex items-center justify-center">
+            <Flame className="w-3 h-3 text-orange-600" />
+          </div>
+          <span>Fires</span>
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
     </DropdownMenu>
