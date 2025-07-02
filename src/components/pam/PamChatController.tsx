@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useOffline } from "@/context/OfflineContext";
 import { useRegion } from "@/context/RegionContext";
 import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
+import { pamApiService } from "@/services/pamApiService";
 import { IntentClassifier } from "@/utils/intentClassifier";
 import { usePamSession } from "@/hooks/usePamSession";
 import { ChatMessage } from "./types";
@@ -36,23 +37,36 @@ const PamChatController = () => {
   const isExcluded = EXCLUDED_ROUTES.includes(pathname);
   const isMobile = window.innerWidth < 768;
 
-  // Use WebSocket connection to our new PAM backend
-  // Use real WebSocket connection to our PAM backend
+  // Use real WebSocket connection to PAM backend
   const { token } = useAuth();
   const { isConnected, sendMessage: sendWebSocketMessage } = usePamWebSocketConnection({
     userId: user?.id || 'anonymous',
     token,
     onMessage: (message) => {
+      console.log('📨 Received PAM message:', message);
       // Handle incoming WebSocket messages
+      let content = "Processing...";
+      
+      if (typeof message === 'string') {
+        content = message;
+      } else if (message.message) {
+        content = message.message;
+      } else if (message.content) {
+        content = message.content;
+      } else if (message.response) {
+        content = message.response;
+      }
+      
       const pamMessage: ChatMessage = {
         sender: "pam",
-        content: message.message || message.content || "Processing...",
+        content,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, pamMessage]);
+      setIsProcessing(false);
     },
     onStatusChange: (connected) => {
-      console.log('PAM WebSocket connection status:', connected);
+      console.log('🔗 PAM WebSocket connection status:', connected ? 'Connected' : 'Disconnected');
     }
   });
 
@@ -112,7 +126,7 @@ const PamChatController = () => {
     const intentResult = IntentClassifier.classifyIntent(cleanMessage);
     updateSession(intentResult.type);
 
-    // Try WebSocket first, fallback to demo mode
+    // Try WebSocket first, then HTTP API, finally demo mode
     if (isConnected) {
       console.log('📤 Sending message via PAM WebSocket backend');
       const messageSent = sendWebSocketMessage({
@@ -127,31 +141,52 @@ const PamChatController = () => {
       });
 
       if (!messageSent) {
-        console.warn('WebSocket message failed, using demo mode...');
-        // Fallback to demo response
-        setTimeout(() => {
-          const demoResponse: ChatMessage = {
-            sender: "pam",
-            content: generateDemoResponse(cleanMessage),
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, demoResponse]);
-          setIsProcessing(false);
-        }, 500);
+        console.warn('WebSocket message failed, trying HTTP fallback...');
+        await tryHttpFallback(cleanMessage, user.id);
       }
     } else {
-      console.log('🔄 WebSocket not connected, using demo mode');
-      // Provide immediate demo response
-      setTimeout(() => {
-        const demoResponse: ChatMessage = {
+      console.log('🔄 WebSocket not connected, trying HTTP API...');
+      await tryHttpFallback(cleanMessage, user.id);
+    }
+  };
+
+  const tryHttpFallback = async (message: string, userId: string) => {
+    try {
+      const response = await pamApiService.sendMessage({
+        message,
+        user_id: userId,
+        context: {
+          region,
+          current_page: pathname,
+          session_data: sessionData
+        }
+      }, token);
+
+      const content = response.response || response.message || response.content;
+      if (content) {
+        const apiResponse: ChatMessage = {
           sender: "pam",
-          content: generateDemoResponse(cleanMessage),
+          content,
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, demoResponse]);
+        setMessages(prev => [...prev, apiResponse]);
         setIsProcessing(false);
-      }, 500);
+        return;
+      }
+    } catch (error) {
+      console.warn('❌ PAM HTTP API failed, using demo mode:', error);
     }
+
+    // Final fallback to demo mode
+    setTimeout(() => {
+      const demoResponse: ChatMessage = {
+        sender: "pam",
+        content: generateDemoResponse(message),
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, demoResponse]);
+      setIsProcessing(false);
+    }, 500);
   };
 
   const handleQuickAction = (action: string) => {
@@ -167,15 +202,18 @@ const PamChatController = () => {
     }
   };
 
-  // Add initial welcome message
+  // Add initial welcome message and run health check
   useEffect(() => {
     if (user?.id && messages.length === 0) {
       const welcomeMessage: ChatMessage = {
         sender: "pam",
-        content: `🤖 Hi! I'm PAM, your AI assistant. I'm ${isConnected ? 'fully connected' : 'running in demo mode'}. I can help you manage expenses, plan trips, and more. Try saying: "I spent $25 on fuel" or "Show my budget"`,
+        content: `🤖 Hi! I'm PAM, your AI assistant. I'm ${isConnected ? 'fully connected' : 'connecting to backend'}. I can help you manage expenses, plan trips, and more. Try saying: "I spent $25 on fuel" or "Show my budget"`,
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);
+      
+      // Run initial health check
+      console.log('🏥 Running PAM health check...');
     }
   }, [user?.id, messages.length, isConnected]);
 
