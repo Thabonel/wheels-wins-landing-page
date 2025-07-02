@@ -17,11 +17,13 @@ interface MapOptionsDropdownProps {
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
   onStyleChange: (style: string) => void;
   currentStyle: string;
+  isMapControl?: boolean; // New prop to indicate if this is a native map control
 }
 
-export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }: MapOptionsDropdownProps) {
+export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, isMapControl = false }: MapOptionsDropdownProps) {
   const [baseMapStyle, setBaseMapStyle] = useState('satellite');
-  const [baseMapTheme, setBaseMapTheme] = useState('scenic');
+  // Fixed to scenic theme as requested
+  const baseMapTheme = 'scenic';
   const [userCountry, setUserCountry] = useState('AU'); // Default to Australia based on route
   const [overlays, setOverlays] = useState({
     traffic: false,
@@ -74,29 +76,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }:
     }
   };
 
-  const handleThemeChange = (value: string) => {
-    setBaseMapTheme(value);
-    let styleUrl = '';
-    
-    switch (value) {
-      case 'scenic':
-        styleUrl = 'mapbox://styles/mapbox/outdoors-v12';
-        break;
-      case 'light':
-        styleUrl = 'mapbox://styles/mapbox/light-v11';
-        break;
-      case 'dark':
-        styleUrl = 'mapbox://styles/mapbox/dark-v11';
-        break;
-      default:
-        styleUrl = 'mapbox://styles/mapbox/outdoors-v12';
-    }
-    
-    onStyleChange(styleUrl);
-    if (map.current) {
-      map.current.setStyle(styleUrl);
-    }
-  };
+  // Theme is now fixed to scenic - removed theme change handler
 
   const handleOverlayToggle = (overlay: string, checked: boolean) => {
     setOverlays(prev => ({ ...prev, [overlay]: checked }));
@@ -176,7 +156,10 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }:
       <DropdownMenuTrigger asChild>
         <Button 
           variant="outline" 
-          className="bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2"
+          className={isMapControl 
+            ? "bg-white border shadow hover:bg-gray-50 text-sm px-2 py-1 h-7 rounded-sm" 
+            : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2"
+          }
         >
           <Settings className="w-4 h-4 mr-1" />
           Options
@@ -220,24 +203,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle }:
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
 
-        <DropdownMenuSeparator />
-
-        {/* Base Map Theme */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          Base Map Theme
-          <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">BASIC</span>
-        </DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={baseMapTheme} onValueChange={handleThemeChange}>
-          <DropdownMenuRadioItem value="scenic" className="py-1">
-            <span>Scenic</span>
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="light" className="py-1">
-            <span>Light</span>
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark" className="py-1">
-            <span>Dark</span>
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+        {/* Base Map Theme section removed - fixed to Scenic theme */}
 
         <DropdownMenuSeparator />
 
