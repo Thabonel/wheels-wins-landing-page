@@ -41,8 +41,15 @@ async def websocket_endpoint(
             await websocket.close(code=1008, reason="Unauthorized")
             return
         
-        # Extract user_id from token (you may want to implement proper JWT validation)
-        user_id = token  # Simplified - implement proper JWT decoding
+        # Extract user_id from token - support both Supabase JWT and simple user_id tokens
+        try:
+            # Try to decode as JWT first (for Supabase tokens)
+            import jwt
+            decoded = jwt.decode(token, options={"verify_signature": False})
+            user_id = decoded.get('sub', token)  # 'sub' is the user ID in Supabase JWT
+        except:
+            # Fall back to treating token as plain user_id
+            user_id = token
         
         await manager.connect(websocket, user_id, connection_id)
         
