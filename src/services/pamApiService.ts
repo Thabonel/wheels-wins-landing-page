@@ -29,8 +29,7 @@ export class PamApiService {
 
   async sendMessage(message: PamApiMessage, token?: string): Promise<PamApiResponse> {
     const endpoints = [
-      `${API_BASE_URL}/api/chat/message`,
-      `${API_BASE_URL}/chat`,
+      `${API_BASE_URL}/api/chat`,
       'https://treflip2025.app.n8n.cloud/webhook/4cd18979-6ee8-451e-b4e6-095c3d7ca31a'
     ];
 

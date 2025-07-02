@@ -87,26 +87,24 @@ app = FastAPI(
     redoc_url="/api/redoc" if settings.ENVIRONMENT != "production" else None
 )
 
-# CORS MUST BE FIRST - before any other middleware that might cause errors
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://wheelsandwins.com", "https://www.wheelsandwins.com"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["X-Process-Time", "X-Request-ID", "X-Cache", "X-Rate-Limit-Remaining"]
-)
-
-# Setup other middleware first (these will execute after CORS)
+# Setup middleware
 app.add_middleware(MonitoringMiddleware)
 setup_security_middleware(app)
 setup_middleware(app)
 
 # CORS middleware MUST be added LAST so it executes FIRST
-# In Starlette, last middleware added = first to execute
+# Include development and production domains
+allowed_origins = [
+    "https://wheelsandwins.com", 
+    "https://www.wheelsandwins.com",
+    "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",  # Lovable preview
+    "http://localhost:3000",  # Local development
+    "http://localhost:5173",  # Vite dev server
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://wheelsandwins.com", "https://www.wheelsandwins.com"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
