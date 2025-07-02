@@ -46,19 +46,37 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
     }
 
     try {
-      const wsUrl = `${getWebSocketUrl(`/ws/${userId}`)}?token=${token || 'demo-token'}`;
+      const wsUrl = `${getWebSocketUrl(`/${userId}`)}?token=${encodeURIComponent(token || 'demo-token')}`;
       console.log('🔌 Attempting PAM WebSocket connection:', wsUrl);
       
       ws.current = new WebSocket(wsUrl);
 
+      // Set connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (ws.current?.readyState !== WebSocket.OPEN) {
+          console.warn('⏰ PAM WebSocket connection timeout');
+          ws.current?.close();
+          updateConnectionStatus(false);
+          scheduleReconnect();
+        }
+      }, 10000); // 10 second timeout
+
       ws.current.onopen = () => {
+        clearTimeout(connectionTimeout);
         console.log('✅ PAM WebSocket connected successfully');
         updateConnectionStatus(true);
         reconnectAttempts.current = 0;
         
+        // Send initial connection message
+        ws.current?.send(JSON.stringify({
+          type: 'connection',
+          userId,
+          timestamp: Date.now()
+        }));
+        
         onMessage({
           type: 'connection',
-          message: '🤖 PAM is ready! I can help with expenses, travel planning, and more.'
+          message: '🤖 PAM is now online! I can help with expenses, travel planning, and more.'
         });
       };
 
@@ -69,19 +87,32 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
           onMessage(message);
         } catch (error) {
           console.error('❌ Error parsing PAM WebSocket message:', error);
+          // Still notify with raw message if JSON parse fails
+          onMessage({
+            type: 'message',
+            message: event.data
+          });
         }
       };
 
       ws.current.onclose = (event) => {
+        clearTimeout(connectionTimeout);
         console.log('🔌 PAM WebSocket disconnected:', event.code, event.reason);
         updateConnectionStatus(false);
         
+        // Only reconnect if it wasn't a normal closure and we haven't exceeded attempts
         if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
           scheduleReconnect();
+        } else if (reconnectAttempts.current >= maxReconnectAttempts) {
+          onMessage({
+            type: 'error',
+            message: '❌ PAM backend is currently unavailable. Running in demo mode.'
+          });
         }
       };
 
       ws.current.onerror = (error) => {
+        clearTimeout(connectionTimeout);
         console.error('❌ PAM WebSocket error:', error);
         updateConnectionStatus(false);
         
@@ -95,6 +126,11 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
       
       if (reconnectAttempts.current < maxReconnectAttempts) {
         scheduleReconnect();
+      } else {
+        onMessage({
+          type: 'error',
+          message: '❌ Unable to connect to PAM backend. Using demo mode.'
+        });
       }
     }
   }, [userId, token, onMessage, updateConnectionStatus, scheduleReconnect]);

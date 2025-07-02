@@ -1,7 +1,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
-import PamConnectionStatus from "./PamConnectionStatus";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 interface PamFloatingButtonProps {
@@ -23,7 +22,7 @@ const PamFloatingButton = ({ onClick, isConnected }: PamFloatingButtonProps) => 
       
       {/* Connection Status Indicator */}
       <div className="absolute -top-1 -right-1">
-        <PamConnectionStatus isConnected={isConnected} variant="indicator" />
+        <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} border-2 border-white`} />
       </div>
     </div>
   );
