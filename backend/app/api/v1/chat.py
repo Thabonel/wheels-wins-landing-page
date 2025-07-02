@@ -21,15 +21,17 @@ async def chat_with_pam(
     request: ChatRequest,
     background_tasks: BackgroundTasks
 ):
-    """Main chat endpoint for PAM conversations"""
+    """Main chat endpoint for PAM conversations - supports both authenticated and public access"""
     try:
         logger.info(f"Received chat request: {request}")
         
+        # Use user_id from request if provided, otherwise generate a session ID
+        user_id = request.user_id or "anonymous_user"
         # Special handling for context loading requests
         if request.message in ['load_user_context', 'load_conversation_memory']:
             return ChatResponse(
                 content=f"Context data for {request.message}",
-                actions=[{"type": "context", "data": {"user_id": request.user_id}}],
+                actions=[{"type": "context", "data": {"user_id": user_id}}],
                 session_id=request.session_id or str(uuid.uuid4()),
                 timestamp=datetime.utcnow()
             )
@@ -39,9 +41,9 @@ async def chat_with_pam(
         
         # Process the message
         response = await orchestrator.process_message(
-            user_id=request.user_id,
+            user_id=user_id,
             message=request.message,
-            session_id=request.session_id,
+            session_id=request.session_id or request.conversation_id,
             context=request.context
         )
         

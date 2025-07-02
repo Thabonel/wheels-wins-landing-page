@@ -9,19 +9,33 @@ from ..domain.pam import (
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
+    user_id: Optional[str] = None  # For backwards compatibility
+    session_id: Optional[str] = None  # Alternative to conversation_id
     conversation_id: Optional[str] = None
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
     voice_input: bool = False
     attachments: List[str] = Field(default_factory=list)
 
 class ChatResponse(BaseModel):
-    response: str
+    response: str  # Primary response field
+    intent: Optional[str] = None
+    confidence: Optional[float] = None
+    suggestions: Optional[List[str]] = None
     actions: Optional[List[Dict[str, Any]]] = None
-    conversation_id: str
-    message_id: str
-    processing_time_ms: int
+    requires_followup: Optional[bool] = None
+    context_updates: Optional[Dict[str, Any]] = None
+    voice_enabled: Optional[bool] = None
+    conversation_id: Optional[str] = None
+    session_id: str
+    message_id: Optional[str] = None
+    processing_time_ms: Optional[int] = None
     timestamp: datetime
     tokens_used: Optional[int] = None
+    
+    # Support for content field (backwards compatibility)
+    @property
+    def content(self) -> str:
+        return self.response
 
 class ConversationCreateRequest(BaseModel):
     title: Optional[str] = Field(None, max_length=100)
