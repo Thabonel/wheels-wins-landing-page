@@ -5,7 +5,7 @@ import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
 import { useUserUnits } from "./hooks/useUserUnits";
-import MapOptionsDropdown from "./MapOptionsDropdown";
+import { MapOptionsControl } from "./MapOptionsControl";
 
 interface MapControlsProps {
   region: string;
@@ -99,8 +99,12 @@ export default function MapControls({
         unit: units
       }), 'bottom-left');
 
-      // Add Map Options Dropdown (replaces old style controls)
-      // Note: The dropdown will be rendered as an overlay in the return JSX
+      // Add native Map Options Control
+      const optionsControl = new MapOptionsControl({
+        onStyleChange: setCurrentStyle,
+        currentStyle
+      });
+      map.current.addControl(optionsControl, 'top-right');
 
       // Wait for map to load before creating directions control
       map.current.on('load', () => {
@@ -241,17 +245,7 @@ export default function MapControls({
     <div className="w-full h-[60vh] lg:h-[70vh] relative">
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
-        
-        {/* Map Options Dropdown - positioned next to zoom controls, stays visible in fullscreen */}
-        {!isOffline && (
-          <div className="absolute top-4 right-[70px] z-[9999] pointer-events-auto">
-            <MapOptionsDropdown 
-              map={map}
-              onStyleChange={setCurrentStyle}
-              currentStyle={currentStyle}
-            />
-          </div>
-        )}
+        {/* Map Options Control is now a native map control added in useEffect */}
         
         {isOffline && (
           <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center pointer-events-none">
