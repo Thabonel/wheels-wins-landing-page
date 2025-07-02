@@ -23,6 +23,17 @@ async def chat_with_pam(
 ):
     """Main chat endpoint for PAM conversations"""
     try:
+        logger.info(f"Received chat request: {request}")
+        
+        # Special handling for context loading requests
+        if request.message in ['load_user_context', 'load_conversation_memory']:
+            return ChatResponse(
+                content=f"Context data for {request.message}",
+                actions=[{"type": "context", "data": {"user_id": request.user_id}}],
+                session_id=request.session_id or str(uuid.uuid4()),
+                timestamp=datetime.utcnow()
+            )
+        
         # Get orchestrator instance
         orchestrator = await get_orchestrator()
         

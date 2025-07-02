@@ -12,7 +12,7 @@ export default function TestOrchestrator() {
   const runTest = async () => {
     setLog([]);
     const token = localStorage.getItem("supabase.auth.token") || "";
-    const res = await fetch("/api/chat/message", {
+    const res = await fetch("/api/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
