@@ -157,13 +157,17 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         <Button 
           variant="outline" 
           className={isMapControl 
-            ? "bg-white border shadow hover:bg-gray-50 text-sm px-2 py-1 h-7 rounded-sm" 
+            ? "bg-white border shadow hover:bg-gray-50 p-2 w-8 h-8 rounded-sm flex items-center justify-center" 
             : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2"
           }
         >
-          <Settings className="w-4 h-4 mr-1" />
-          Options
-          <ChevronDown className="w-3 h-3 ml-1" />
+          <Settings className="w-4 h-4" />
+          {!isMapControl && (
+            <>
+              <span className="ml-1">Options</span>
+              <ChevronDown className="w-3 h-3 ml-1" />
+            </>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
