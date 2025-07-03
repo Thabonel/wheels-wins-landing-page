@@ -157,7 +157,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         <Button 
           variant="outline" 
           className={isMapControl 
-            ? "bg-white border border-gray-200 shadow hover:bg-gray-50 w-[30px] h-[30px] rounded-[2px] flex items-center justify-center p-0 box-border" 
+            ? "mapboxgl-ctrl-icon w-[30px] h-[30px] bg-white border-none shadow-none rounded-[2px] flex items-center justify-center p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
             : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2"
           }
         >
@@ -212,9 +212,8 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         <DropdownMenuSeparator />
 
         {/* Map Overlays */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
           Map Overlays
-          <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded">PREMIUM</span>
         </DropdownMenuLabel>
         <DropdownMenuCheckboxItem
           checked={overlays.traffic}
