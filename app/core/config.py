@@ -23,11 +23,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # CORS
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "https://wheelsandwins.com",
-        "https://www.wheelsandwins.com"
-    ]
+    # Allow all origins by default to prevent CORS preflight errors.
+    # Override in production by setting the ALLOWED_ORIGINS environment variable
+    # with a comma separated list or JSON array of allowed domains.
+    ALLOWED_ORIGINS: List[str] = ["*"]
     
     # Redis (for future use)
     REDIS_URL: str = "redis://localhost:6379"
