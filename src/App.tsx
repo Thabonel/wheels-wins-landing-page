@@ -22,6 +22,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCanceled from "@/pages/PaymentCanceled";
+import CancelTrial from "@/pages/CancelTrial";
 import ProtectedRoute from './components/ProtectedRoute';
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ function App() {
                         <Route path="/onboarding" element={<Onboarding />} />
                         <Route path="/payment-success" element={<PaymentSuccess />} />
                         <Route path="/payment-canceled" element={<PaymentCanceled />} />
+                        <Route path="/cancel-trial" element={<CancelTrial />} />
                       </Routes>
                     </Layout>
                   </WheelsProvider>
