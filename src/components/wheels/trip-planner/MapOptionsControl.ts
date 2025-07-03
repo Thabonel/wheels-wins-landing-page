@@ -24,6 +24,8 @@ export class MapOptionsControl implements mapboxgl.IControl {
     this.container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
     this.container.style.margin = '0';
     this.container.style.display = 'block';
+    this.container.style.width = '30px';
+    this.container.style.height = '30px';
 
     // Create React root and render the dropdown
     this.root = createRoot(this.container);
