@@ -8,17 +8,18 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { TrialConfirmationDialog } from "@/components/TrialConfirmationDialog";
+import { useSubscriptionFlow } from "@/hooks/useSubscriptionFlow";
 
 const PricingPlans = () => {
   const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState<string | null>(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<{ priceId: string; planName: string } | null>(null);
+  const { showConfirmation, setShowConfirmation, selectedPlan, setSelectedPlan } = useSubscriptionFlow();
   const navigate = useNavigate();
 
   const handlePlanClick = (priceId: string, planName: string) => {
     if (!isAuthenticated) {
-      toast.error("Please sign in to subscribe");
+      // Store the selected plan in sessionStorage to continue after signup
+      sessionStorage.setItem('selectedPlan', JSON.stringify({ priceId, planName }));
       navigate("/auth");
       return;
     }
