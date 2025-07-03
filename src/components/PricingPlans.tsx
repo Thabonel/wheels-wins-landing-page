@@ -5,44 +5,62 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { apiFetch } from "@/services/api";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { TrialConfirmationDialog } from "@/components/TrialConfirmationDialog";
 
 const PricingPlans = () => {
   const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<{ priceId: string; planName: string } | null>(null);
   const navigate = useNavigate();
 
-  const handleSubscription = async (priceId: string, planName: string) => {
+  const handlePlanClick = (priceId: string, planName: string) => {
     if (!isAuthenticated) {
       toast.error("Please sign in to subscribe");
       navigate("/auth");
       return;
     }
 
-    setIsLoading(priceId);
+    setSelectedPlan({ priceId, planName });
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmSubscription = async () => {
+    if (!selectedPlan) return;
+
+    setShowConfirmation(false);
+    setIsLoading(selectedPlan.priceId);
     
     try {
-      const response = await apiFetch('/api/v1/subscription/create-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceId,
-          successUrl: `${window.location.origin}/payment-success`,
-          cancelUrl: `${window.location.origin}/payment-canceled`,
-        })
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          priceId: selectedPlan.priceId,
+          successUrl: `${window.location.origin}/onboarding`,
+          cancelUrl: `${window.location.origin}/`,
+        }
       });
 
-      if (!response.ok) throw new Error('Request failed');
+      if (error) throw error;
 
-      const data = await response.json();
-      window.location.href = data.url;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
     } catch (error) {
       console.error("Error creating checkout session:", error);
       toast.error("Failed to start checkout process. Please try again later.");
     } finally {
       setIsLoading(null);
+      setSelectedPlan(null);
     }
+  };
+
+  const handleCancelConfirmation = () => {
+    setShowConfirmation(false);
+    setSelectedPlan(null);
   };
 
   return (
@@ -81,10 +99,10 @@ const PricingPlans = () => {
             <CardFooter>
               <Button 
                 className="w-full bg-primary hover:bg-primary/90"
-                onClick={() => handleSubscription("price_1RJDRSDXysaVZSVhqChkrYBw", "Monthly Plan")}
-                disabled={isLoading === "price_1RJDRSDXysaVZSVhqChkrYBw"}
+                onClick={() => handlePlanClick("price_free_trial", "Free Trial")}
+                disabled={isLoading === "price_free_trial"}
               >
-                {isLoading === "price_1RJDRSDXysaVZSVhqChkrYBw" ? (
+                {isLoading === "price_free_trial" ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
@@ -115,10 +133,10 @@ const PricingPlans = () => {
             <CardFooter>
               <Button 
                 className="w-full bg-primary hover:bg-primary/90"
-                onClick={() => handleSubscription("price_1RJDRSDXysaVZSVhqChkrYBw", "Monthly Plan")}
-                disabled={isLoading === "price_1RJDRSDXysaVZSVhqChkrYBw"}
+                onClick={() => handlePlanClick("price_monthly_18", "Monthly Plan")}
+                disabled={isLoading === "price_monthly_18"}
               >
-                {isLoading === "price_1RJDRSDXysaVZSVhqChkrYBw" ? (
+                {isLoading === "price_monthly_18" ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
@@ -156,10 +174,10 @@ const PricingPlans = () => {
             <CardFooter>
               <Button 
                 className="w-full bg-accent hover:bg-accent/90"
-                onClick={() => handleSubscription("price_1RJDV7DXysaVZSVhFRfsFqzv", "Annual Plan")}
-                disabled={isLoading === "price_1RJDV7DXysaVZSVhFRfsFqzv"}
+                onClick={() => handlePlanClick("price_annual_216", "Annual Plan")}
+                disabled={isLoading === "price_annual_216"}
               >
-                {isLoading === "price_1RJDV7DXysaVZSVhFRfsFqzv" ? (
+                {isLoading === "price_annual_216" ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
@@ -170,6 +188,13 @@ const PricingPlans = () => {
           </Card>
         </div>
       </div>
+
+      <TrialConfirmationDialog
+        isOpen={showConfirmation}
+        onConfirm={handleConfirmSubscription}
+        onCancel={handleCancelConfirmation}
+        planName={selectedPlan?.planName || ""}
+      />
     </section>
   );
 };
