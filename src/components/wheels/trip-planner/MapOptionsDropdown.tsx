@@ -157,7 +157,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         <Button 
           variant="outline" 
           className={isMapControl 
-            ? "bg-white border border-gray-200 shadow hover:bg-gray-50 w-[29px] h-[29px] rounded-sm flex items-center justify-center p-0" 
+            ? "bg-white border border-gray-200 shadow hover:bg-gray-50 w-[30px] h-[30px] rounded-[2px] flex items-center justify-center p-0 box-border" 
             : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2"
           }
         >
