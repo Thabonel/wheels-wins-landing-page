@@ -63,7 +63,6 @@ export default function MapControls({
     if (!map.current) {
       console.log('Initializing map with token:', import.meta.env.VITE_MAPBOX_TOKEN ? 'Token present' : 'Token missing');
       mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
-      mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
       
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
