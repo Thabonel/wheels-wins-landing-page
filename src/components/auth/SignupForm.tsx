@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import PasswordInput from "./PasswordInput";
+import { Loader2 } from "lucide-react";
 
 interface SignupFormProps {
   loading: boolean;
@@ -22,82 +21,106 @@ const SignupForm = ({ loading, setLoading, error, setError }: SignupFormProps) =
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    
+    if (password !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
     setLoading(true);
+    setError(null);
 
     try {
-      if (!email || !password) throw new Error("Please enter both email and password");
+      // Set redirect URL to handle the plan selection flow
+      const redirectUrl = `${window.location.origin}/you`;
 
-      if (password.trim() !== confirmPassword.trim()) {
-        throw new Error("Passwords do not match");
-      }
-
-      // Use production domain for email redirect
-      const redirectUrl = window.location.hostname === 'localhost' 
-        ? `${window.location.origin}/onboarding`
-        : `https://wheelsandwins.com/onboarding`;
-
-      const { error } = await supabase.auth.signUp({ 
-        email, 
+      const { error } = await supabase.auth.signUp({
+        email,
         password,
         options: {
           emailRedirectTo: redirectUrl
         }
       });
+
       if (error) throw error;
 
-      setError("Signup successful! Please check your email for verification, then you'll be redirected to complete your profile.");
+      // Note: The useSubscriptionFlow hook will handle showing the confirmation dialog
+      // after the user is authenticated
     } catch (err: any) {
-      setError(err.message);
+      if (err.message.includes("User already registered")) {
+        setError("An account with this email already exists. Please log in instead.");
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSignup}>
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input 
-            id="email" 
-            type="email" 
-            placeholder="email@example.com" 
-            value={email} 
-            onChange={(e) => setEmail(e.target.value)} 
-            required 
-          />
-        </div>
-
-        <PasswordInput
-          id="password"
-          label="Password"
-          placeholder="Create a secure password"
-          value={password}
-          onChange={setPassword}
+    <form onSubmit={handleSignup} className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email"
           required
+          disabled={loading}
         />
-
-        <PasswordInput
-          id="confirm-password"
-          label="Confirm Password"
-          placeholder="Re-enter your password"
-          value={confirmPassword}
-          onChange={setConfirmPassword}
-          required
-        />
-
-        {error && (
-          <Alert className={error.includes("successful") ? "bg-green-50 border-green-200" : "variant-destructive"}>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Processing..." : "Create Account"}
-        </Button>
       </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Create a password"
+          required
+          disabled={loading}
+          minLength={6}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirm Password</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Confirm your password"
+          required
+          disabled={loading}
+          minLength={6}
+        />
+      </div>
+
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Creating Account...
+          </>
+        ) : (
+          "Create Account"
+        )}
+      </Button>
     </form>
   );
 };

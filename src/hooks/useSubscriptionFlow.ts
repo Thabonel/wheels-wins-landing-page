@@ -1,10 +1,9 @@
+
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 export const useSubscriptionFlow = () => {
   const { isAuthenticated, loading } = useAuth();
-  const navigate = useNavigate();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<{ priceId: string; planName: string } | null>(null);
 
