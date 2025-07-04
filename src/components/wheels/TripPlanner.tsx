@@ -10,6 +10,7 @@ import SuggestionsGrid from "./trip-planner/SuggestionsGrid";
 import TripPlannerHeader from "./trip-planner/TripPlannerHeader";
 import TripPlannerControls from "./trip-planner/TripPlannerControls";
 import TripPlannerTip from "./trip-planner/TripPlannerTip";
+import TripStats from "./trip-planner/TripStats";
 import TripPlannerLayout from "./trip-planner/TripPlannerLayout";
 import LockedPointControls from "./trip-planner/LockedPointControls";
 import WeatherWidget from "./WeatherWidget";
@@ -132,6 +133,8 @@ export default function TripPlanner() {
             </Button>
           </div>}
       </div>
+
+      <TripStats directionsControl={directionsControl} />
 
       {/* Search Section */}
       
