@@ -6,6 +6,8 @@ import MapOptionsDropdown from './MapOptionsDropdown';
 interface MapOptionsControlOptions {
   onStyleChange: (style: string) => void;
   currentStyle: string;
+  poiFilters: Record<string, boolean>;
+  onPOIFilterChange: (filters: Record<string, boolean>) => void;
 }
 
 export class MapOptionsControl implements mapboxgl.IControl {
@@ -50,7 +52,9 @@ export class MapOptionsControl implements mapboxgl.IControl {
         map: mapRef,
         onStyleChange: this.options.onStyleChange,
         currentStyle: this.options.currentStyle,
-        isMapControl: true // Add this prop to style it differently as a map control
+        isMapControl: true, // Add this prop to style it differently as a map control
+        poiFilters: this.options.poiFilters,
+        onPOIFilterChange: this.options.onPOIFilterChange
       })
     );
   }
