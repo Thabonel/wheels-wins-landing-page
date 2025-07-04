@@ -12,6 +12,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
+import { fetchPhoneCoverage } from './utils';
 
 interface MapOptionsDropdownProps {
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
@@ -118,6 +119,41 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         }
         if (map.current.getSource('mapbox-traffic')) {
           map.current.removeSource('mapbox-traffic');
+        }
+      }
+    }
+
+    if (overlay === 'phoneCoverage') {
+      if (checked) {
+        const center = map.current.getCenter();
+        fetchPhoneCoverage(center.lng, center.lat).then(data => {
+          if (!map.current) return;
+          if (map.current.getSource('phone-coverage')) {
+            if (map.current.getLayer('phone-coverage-layer')) {
+              map.current.removeLayer('phone-coverage-layer');
+            }
+            map.current.removeSource('phone-coverage');
+          }
+          map.current.addSource('phone-coverage', {
+            type: 'geojson',
+            data
+          });
+          map.current.addLayer({
+            id: 'phone-coverage-layer',
+            type: 'fill',
+            source: 'phone-coverage',
+            paint: {
+              'fill-color': '#60a5fa',
+              'fill-opacity': 0.25
+            }
+          });
+        });
+      } else {
+        if (map.current.getLayer('phone-coverage-layer')) {
+          map.current.removeLayer('phone-coverage-layer');
+        }
+        if (map.current.getSource('phone-coverage')) {
+          map.current.removeSource('phone-coverage');
         }
       }
     }
