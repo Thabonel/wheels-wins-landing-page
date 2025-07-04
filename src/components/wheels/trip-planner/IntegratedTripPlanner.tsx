@@ -8,6 +8,7 @@ import WaypointsList from "./WaypointsList";
 import SuggestionsGrid from "./SuggestionsGrid";
 import LockedPointControls from "./LockedPointControls";
 import MapControls from "./MapControls";
+import TripStats from "./TripStats";
 import { useIntegratedTripState } from "./hooks/useIntegratedTripState";
 import { useTripPlannerHandlers } from "./hooks/useTripPlannerHandlers";
 import { PAMProvider } from "./PAMContext";
@@ -127,9 +128,9 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
             isOffline={isOffline}
             originLocked={integratedState.originLocked}
             destinationLocked={integratedState.destinationLocked}
-            lockOrigin={integratedState.lockOrigin}
-            lockDestination={integratedState.lockDestination}
-          />
+          lockOrigin={integratedState.lockOrigin}
+          lockDestination={integratedState.lockDestination}
+        />
         ) : (
           <div className="h-[60vh] lg:h-[70vh] relative">
             <div className="overflow-hidden rounded-lg border h-full bg-gradient-to-br from-blue-50 to-blue-100">
@@ -175,6 +176,8 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
             </div>
           </div>
         )}
+
+        <TripStats directionsControl={directionsControl} />
 
         {/* Waypoints List */}
         {integratedState.route.waypoints.length > 0 && (
