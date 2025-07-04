@@ -6,6 +6,7 @@ import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
 import { useUserUnits } from "./hooks/useUserUnits";
 import { MapOptionsControl } from "./MapOptionsControl";
+import POILayer from "./POILayer";
 
 interface MapControlsProps {
   region: string;
@@ -59,6 +60,13 @@ export default function MapControls({
   const mapContainer = useRef<HTMLDivElement>(null);
   const { units, loading: unitsLoading } = useUserUnits();
   const [currentStyle, setCurrentStyle] = useState("mapbox://styles/mapbox/streets-v11");
+  const [poiFilters, setPOIFilters] = useState<Record<string, boolean>>({
+    pet_stop: true,
+    wide_parking: true,
+    medical: true,
+    farmers_market: true
+  });
+  const optionsControlRef = useRef<MapOptionsControl>();
 
   // Initialize map and directions
   useEffect(() => {
@@ -107,8 +115,11 @@ export default function MapControls({
       // Add native Map Options Control
       const optionsControl = new MapOptionsControl({
         onStyleChange: setCurrentStyle,
-        currentStyle
+        currentStyle,
+        poiFilters,
+        onPOIFilterChange: setPOIFilters
       });
+      optionsControlRef.current = optionsControl;
       map.current.addControl(optionsControl, 'top-right');
 
       // Wait for map to load before creating directions control
@@ -204,6 +215,12 @@ export default function MapControls({
     }
   }, [travelMode, isOffline]);
 
+  // Update map options control when POI filters change
+  useEffect(() => {
+    if (optionsControlRef.current) {
+      optionsControlRef.current.updateOptions({ poiFilters });
+    }
+  }, [poiFilters]);
   // Update routing options when exclude, annotations or vehicle change
   useEffect(() => {
     if (directionsControl.current && !isOffline) {
@@ -267,6 +284,7 @@ export default function MapControls({
     <div className="w-full h-[60vh] lg:h-[70vh] relative">
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
+        <POILayer map={map} filters={poiFilters} />
         {/* Map Options Control is now a native map control added in useEffect */}
         
         {isOffline && (
