@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { ChevronDown, Settings, Satellite, Mountain, MapPin, Zap, Phone, TreePine, Shield, Cloud, Flame } from 'lucide-react';
+import {
+  ChevronDown,
+  Settings,
+  Satellite,
+  Mountain,
+  MapPin,
+  Zap,
+  Phone,
+  TreePine,
+  Shield,
+  Cloud,
+  Flame,
+  Bone,
+  CircleParking,
+  Ambulance,
+  Carrot
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,9 +35,11 @@ interface MapOptionsDropdownProps {
   onStyleChange: (style: string) => void;
   currentStyle: string;
   isMapControl?: boolean; // New prop to indicate if this is a native map control
+  poiFilters?: Record<string, boolean>;
+  onPOIFilterChange?: (filters: Record<string, boolean>) => void;
 }
 
-export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, isMapControl = false }: MapOptionsDropdownProps) {
+export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, isMapControl = false, poiFilters, onPOIFilterChange }: MapOptionsDropdownProps) {
   const [baseMapStyle, setBaseMapStyle] = useState('satellite');
   // Fixed to scenic theme as requested
   const baseMapTheme = 'scenic';
@@ -34,6 +52,20 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     smoke: false,
     fires: false,
   });
+  const [poiState, setPoiState] = useState<Record<string, boolean>>(
+    poiFilters || {
+      pet_stop: true,
+      wide_parking: true,
+      medical: true,
+      farmers_market: true
+    }
+  );
+
+  useEffect(() => {
+    if (poiFilters) {
+      setPoiState(poiFilters);
+    }
+  }, [poiFilters]);
 
   // Detect user's country based on map center
   useEffect(() => {
@@ -159,6 +191,12 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     }
 
     // Add logic for other overlays here as needed
+  };
+
+  const handlePOIToggle = (key: string, checked: boolean) => {
+    const updated = { ...poiState, [key]: checked };
+    setPoiState(updated);
+    if (onPOIFilterChange) onPOIFilterChange(updated);
   };
 
   const getPublicLandsForCountry = () => {
@@ -321,6 +359,53 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             <Flame className="w-3 h-3 text-orange-600" />
           </div>
           <span>Fires</span>
+        </DropdownMenuCheckboxItem>
+
+        <DropdownMenuSeparator />
+
+        {/* Points of Interest */}
+        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
+          Points of Interest
+        </DropdownMenuLabel>
+        <DropdownMenuCheckboxItem
+          checked={poiState.pet_stop}
+          onCheckedChange={(checked) => handlePOIToggle('pet_stop', checked)}
+          className="flex items-center gap-3 py-2"
+        >
+          <div className="w-6 h-6 bg-yellow-100 rounded flex items-center justify-center">
+            <Bone className="w-3 h-3 text-yellow-600" />
+          </div>
+          <span>Pet Stops</span>
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={poiState.wide_parking}
+          onCheckedChange={(checked) => handlePOIToggle('wide_parking', checked)}
+          className="flex items-center gap-3 py-2"
+        >
+          <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+            <CircleParking className="w-3 h-3 text-blue-600" />
+          </div>
+          <span>Wide Parking</span>
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={poiState.medical}
+          onCheckedChange={(checked) => handlePOIToggle('medical', checked)}
+          className="flex items-center gap-3 py-2"
+        >
+          <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
+            <Ambulance className="w-3 h-3 text-red-600" />
+          </div>
+          <span>Medical</span>
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={poiState.farmers_market}
+          onCheckedChange={(checked) => handlePOIToggle('farmers_market', checked)}
+          className="flex items-center gap-3 py-2"
+        >
+          <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
+            <Carrot className="w-3 h-3 text-green-600" />
+          </div>
+          <span>Farmers Markets</span>
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
     </DropdownMenu>

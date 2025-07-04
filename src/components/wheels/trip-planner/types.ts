@@ -28,3 +28,12 @@ export interface RouteState {
   totalDistance?: number;
   estimatedTime?: number;
 }
+
+export interface POI {
+  id: number;
+  name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  description: string;
+}
