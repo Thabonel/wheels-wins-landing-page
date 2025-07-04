@@ -120,3 +120,30 @@ class VehicleStatusResponse(BaseModel):
     maintenance_due: List[MaintenanceItem]
     fuel_range_miles: Optional[float] = None
     next_service_location: Optional[Location] = None
+
+
+class ItineraryRequest(BaseModel):
+    """Parameters for generating a daily itinerary"""
+    start: str
+    end: str
+    duration_days: int = Field(..., ge=1)
+    interests: List[str] = Field(default_factory=list)
+
+
+class ItineraryStop(BaseModel):
+    name: str
+    latitude: float
+    longitude: float
+    address: Optional[str] = None
+    interest: Optional[str] = None
+
+
+class ItineraryDay(BaseModel):
+    day: int
+    stops: List[ItineraryStop]
+
+
+class ItineraryResponse(BaseModel):
+    start: str
+    end: str
+    days: List[ItineraryDay]
