@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { useRegion } from "@/context/RegionContext";
 import { useAuth } from "@/context/AuthContext";
