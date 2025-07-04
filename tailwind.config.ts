@@ -1,5 +1,6 @@
 
 import type { Config } from "tailwindcss";
+import animatePlugin from "tailwindcss-animate";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
 
@@ -109,5 +110,5 @@ export default {
             },
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+        plugins: [animatePlugin],
 } satisfies Config;
