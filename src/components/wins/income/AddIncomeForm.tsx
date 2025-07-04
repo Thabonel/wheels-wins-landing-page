@@ -17,6 +17,11 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface AddIncomeFormProps {
   onAddIncome: (income: { amount: number; source: string; type: string; date: string; description?: string }) => Promise<boolean>;
@@ -27,7 +32,7 @@ export default function AddIncomeForm({ onAddIncome, onClose }: AddIncomeFormPro
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState("");
   const [type, setType] = useState("regular");
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<Date>(new Date());
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -42,7 +47,7 @@ export default function AddIncomeForm({ onAddIncome, onClose }: AddIncomeFormPro
       amount: parseFloat(amount),
       source,
       type,
-      date,
+      date: format(date, 'yyyy-MM-dd'),
       description: description || undefined
     });
 
@@ -51,7 +56,7 @@ export default function AddIncomeForm({ onAddIncome, onClose }: AddIncomeFormPro
       setAmount("");
       setSource("");
       setType("regular");
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(new Date());
       setDescription("");
       onClose();
     }
@@ -60,14 +65,14 @@ export default function AddIncomeForm({ onAddIncome, onClose }: AddIncomeFormPro
   };
   
   return (
-    <DrawerContent>
-      <DrawerHeader>
+    <DrawerContent className="max-h-[90vh]">
+      <DrawerHeader className="px-4 pt-4 pb-2">
         <DrawerTitle>Add New Income</DrawerTitle>
         <DrawerDescription>
           Record money you've earned while traveling
         </DrawerDescription>
       </DrawerHeader>
-      <div className="px-4 py-2">
+      <div className="px-4 py-2 overflow-y-auto flex-1">
         <form className="grid gap-4 py-4">
           <div className="grid gap-2">
             <label htmlFor="amount">Amount ($)</label>
@@ -115,16 +120,33 @@ export default function AddIncomeForm({ onAddIncome, onClose }: AddIncomeFormPro
           </div>
           <div className="grid gap-2">
             <label htmlFor="date">Date</label>
-            <Input 
-              id="date" 
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)} 
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(selectedDate) => selectedDate && setDate(selectedDate)}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </form>
       </div>
-      <DrawerFooter>
+      <DrawerFooter className="px-4 pt-2 pb-4">
         <Button onClick={handleSubmit} disabled={isSubmitting}>
           {isSubmitting ? "Saving..." : "Save Income"}
         </Button>
