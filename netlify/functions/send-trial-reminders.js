@@ -39,7 +39,7 @@ exports.handler = async (event, context) => {
     for (const user of users) {
       // Generate cancellation token
       const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-      
+
       // Update user with token
       await supabase
         .from('profiles')
@@ -57,7 +57,7 @@ exports.handler = async (event, context) => {
           <p>If you're enjoying our service, you don't need to do anything - your subscription will automatically continue and you'll be charged for your first month.</p>
           <p>If you'd like to cancel before being charged, simply click the button below:</p>
           <p style="margin: 30px 0;">
-            <a href="https://wheelsandwins.com/cancel-trial?token=${token}" 
+            <a href="https://wheelsandwins.com/cancel-trial?token=${token}"
                style="background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
               Cancel My Subscription
             </a>
@@ -77,7 +77,7 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: \`Sent \${users.length} reminder emails\` })
+      body: JSON.stringify({ message: `Sent ${users.length} reminder emails` })
     };
 
   } catch (error) {

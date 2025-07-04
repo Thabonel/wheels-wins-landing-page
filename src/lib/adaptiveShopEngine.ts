@@ -103,7 +103,7 @@ export class AdaptiveShopEngine {
       getAffiliateProducts()
     ]);
 
-    let allProducts = [...digitalProducts, ...affiliateProducts];
+    const allProducts = [...digitalProducts, ...affiliateProducts];
 
     // Apply personalization
     let personalizedProducts = this.personalizationEngine.personalizeProducts(
