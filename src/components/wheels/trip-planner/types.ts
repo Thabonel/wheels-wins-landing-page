@@ -36,4 +36,20 @@ export interface POI {
   latitude: number;
   longitude: number;
   description: string;
+export interface ItineraryStop {
+  name: string;
+  coordinates: [number, number];
+  address?: string;
+  interest?: string;
+}
+
+export interface ItineraryDay {
+  day: number;
+  stops: ItineraryStop[];
+}
+
+export interface Itinerary {
+  start: string;
+  end: string;
+  days: ItineraryDay[];
 }

@@ -11,6 +11,12 @@ interface TripPlannerControlsProps {
   setDestName: (name: string) => void;
   travelMode: string;
   setTravelMode: (mode: string) => void;
+  exclude: string[];
+  setExclude: (values: string[]) => void;
+  annotations: string[];
+  setAnnotations: (values: string[]) => void;
+  vehicle: string;
+  setVehicle: (val: string) => void;
   mode: string;
   setMode: (mode: string) => void;
   adding: boolean;
@@ -32,6 +38,12 @@ export default function TripPlannerControls({
   setDestName,
   travelMode,
   setTravelMode,
+  exclude,
+  setExclude,
+  annotations,
+  setAnnotations,
+  vehicle,
+  setVehicle,
   mode,
   setMode,
   adding,
@@ -48,10 +60,31 @@ export default function TripPlannerControls({
   return <div className="bg-white rounded-lg border p-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Route Inputs */}
-        
+        <div className="lg:col-span-2 space-y-6">
+          <RouteInputs
+            directionsControl={directionsControl}
+            originName={originName}
+            destName={destName}
+            setOriginName={setOriginName}
+            setDestName={setDestName}
+            originLocked={originLocked}
+            destinationLocked={destinationLocked}
+            lockOrigin={lockOrigin}
+            lockDestination={lockDestination}
+          />
 
-        {/* Travel Mode Selection */}
-        
+          {/* Travel Mode Selection */}
+          <TravelModeButtons
+            activeMode={travelMode}
+            onModeChange={setTravelMode}
+            exclude={exclude}
+            onExcludeChange={setExclude}
+            annotations={annotations}
+            onAnnotationsChange={setAnnotations}
+            vehicle={vehicle}
+            onVehicleChange={setVehicle}
+          />
+        </div>
 
         {/* Trip Controls */}
         <div className="lg:col-span-1">

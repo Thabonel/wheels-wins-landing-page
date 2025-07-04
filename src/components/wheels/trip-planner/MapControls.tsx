@@ -24,6 +24,9 @@ interface MapControlsProps {
   onTravelModeChange: (mode: string) => void;
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
   isOffline?: boolean;
+  exclude: string[];
+  annotations: string[];
+  vehicle: string;
   originLocked: boolean;
   destinationLocked: boolean;
   lockOrigin: () => void;
@@ -46,6 +49,9 @@ export default function MapControls({
   onTravelModeChange,
   map,
   isOffline = false,
+  exclude,
+  annotations,
+  vehicle,
   originLocked,
   destinationLocked,
   lockOrigin,
@@ -127,14 +133,16 @@ export default function MapControls({
             unit: units, // Dynamic units based on user's address/region
             profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
             interactive: !isOffline,
-            controls: { 
+            controls: {
               instructions: true, // Enable turn-by-turn instructions like Roadtrippers
               inputs: true,
               profileSwitcher: true // Allow switching between driving/walking/cycling
             },
             alternatives: true, // Show alternative routes like Roadtrippers
-            congestion: true, // Show traffic congestion
-            excludeTypes: [], // Allow all route types
+            congestion: annotations.includes('congestion'), // Show traffic congestion if selected
+            exclude: exclude.length ? exclude.join(',') : undefined,
+            annotations: annotations.length ? annotations.join(',') : undefined,
+            vehicle: vehicle,
             flyTo: true, // Smooth camera transitions
             placeholderOrigin: 'Choose starting point',
             placeholderDestination: 'Choose destination',
@@ -213,6 +221,20 @@ export default function MapControls({
       optionsControlRef.current.updateOptions({ poiFilters });
     }
   }, [poiFilters]);
+  // Update routing options when exclude, annotations or vehicle change
+  useEffect(() => {
+    if (directionsControl.current && !isOffline) {
+      try {
+        directionsControl.current.actions.setOptions({
+          exclude: exclude.length ? exclude.join(',') : undefined,
+          annotations: annotations.length ? annotations.join(',') : undefined,
+          vehicle
+        });
+      } catch (error) {
+        console.warn('Error updating directions options:', error);
+      }
+    }
+  }, [exclude, annotations, vehicle, isOffline]);
 
   // Pin-drop mode for waypoints only (never replace origin/destination)
   useEffect(() => {
