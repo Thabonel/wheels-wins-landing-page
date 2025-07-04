@@ -9,9 +9,19 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 
 from app.models.schemas.wheels import (
-    TripPlanRequest, RouteRequest, LocationSearchRequest,
-    TripResponse, RouteResponse, MaintenanceScheduleResponse
+    TripPlanRequest,
+    RouteRequest,
+    LocationSearchRequest,
+    TripResponse,
+    RouteResponse,
+    MaintenanceScheduleResponse,
+    ItineraryRequest,
+    ItineraryResponse,
+    ItineraryDay,
+    ItineraryStop,
 )
+import os
+import httpx
 from app.services.database import get_database_service
 from app.services.pam.route_intelligence import route_intelligence
 from app.core.logging import setup_logging
@@ -313,3 +323,78 @@ async def create_trip_plan(request: TripPlanRequest):
     except Exception as e:
         logger.error(f"Trip creation error: {e}")
         raise HTTPException(status_code=500, detail="Could not create trip plan")
+
+
+@router.post("/itinerary", response_model=ItineraryResponse)
+async def generate_itinerary(request: ItineraryRequest):
+    """Generate a simple daily itinerary using Mapbox services"""
+    try:
+        token = os.getenv("MAPBOX_API_KEY") or os.getenv("MAPBOX_TOKEN")
+        if not token:
+            raise HTTPException(status_code=500, detail="Mapbox token not configured")
+
+        async with httpx.AsyncClient(timeout=15) as client:
+            async def geocode(place: str) -> tuple[float, float]:
+                url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{place}.json"
+                resp = await client.get(url, params={"access_token": token, "limit": 1})
+                resp.raise_for_status()
+                feature = resp.json()["features"][0]
+                lon, lat = feature["center"]
+                return lat, lon
+
+            start_lat, start_lon = await geocode(request.start)
+            end_lat, end_lon = await geocode(request.end)
+
+            days: list[ItineraryDay] = []
+            current_lat, current_lon = start_lat, start_lon
+
+            for i in range(request.duration_days):
+                iso_url = (
+                    f"https://api.mapbox.com/isochrone/v1/mapbox/driving/{current_lon},{current_lat}"
+                )
+                iso_params = {
+                    "contours_minutes": 60,
+                    "polygons": "true",
+                    "access_token": token,
+                }
+                try:
+                    iso_resp = await client.get(iso_url, params=iso_params)
+                    iso_resp.raise_for_status()
+                except Exception as e:
+                    logger.warning(f"Isochrone request failed: {e}")
+                    iso_resp = None
+
+                stops: list[ItineraryStop] = []
+                for interest in request.interests:
+                    geo_url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{interest}.json"
+                    geo_params = {
+                        "access_token": token,
+                        "proximity": f"{current_lon},{current_lat}",
+                        "limit": 3,
+                    }
+                    try:
+                        geo_resp = await client.get(geo_url, params=geo_params)
+                        geo_resp.raise_for_status()
+                        for feat in geo_resp.json().get("features", []):
+                            lon, lat = feat["center"]
+                            stops.append(
+                                ItineraryStop(
+                                    name=feat.get("text", "Unknown"),
+                                    latitude=lat,
+                                    longitude=lon,
+                                    address=feat.get("place_name"),
+                                    interest=interest,
+                                )
+                            )
+                    except Exception as e:
+                        logger.warning(f"Geocoding failed for {interest}: {e}")
+
+                days.append(ItineraryDay(day=i + 1, stops=stops))
+
+            return ItineraryResponse(start=request.start, end=request.end, days=days)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Itinerary generation error: {e}")
+        raise HTTPException(status_code=500, detail="Could not generate itinerary")
