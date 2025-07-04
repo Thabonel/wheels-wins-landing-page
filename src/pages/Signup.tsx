@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,11 @@ const Signup = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
-  if (isAuthenticated) navigate("/you");
+  // If already authenticated, redirect to the main page
+  if (isAuthenticated) {
+    navigate("/you");
+    return null;
+  }
 
   const handleOAuthSignup = async (provider: 'google' | 'facebook') => {
     try {

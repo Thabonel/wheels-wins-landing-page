@@ -2508,6 +2508,7 @@ export type Database = {
           accessibility_needs: string[] | null
           budget_range: string | null
           camp_types: string | null
+          cancellation_token: string | null
           created_at: string | null
           current_latitude: number | null
           current_longitude: number | null
@@ -2532,9 +2533,12 @@ export type Database = {
           role: string | null
           second_vehicle: string | null
           status: string | null
+          subscription_cancelled: boolean | null
           towing: string | null
           travel_radius_miles: number | null
           travel_style: string | null
+          trial_end_date: string | null
+          trial_notification_sent: boolean | null
           user_id: string
           vehicle_make_model: string | null
           vehicle_type: string | null
@@ -2544,6 +2548,7 @@ export type Database = {
           accessibility_needs?: string[] | null
           budget_range?: string | null
           camp_types?: string | null
+          cancellation_token?: string | null
           created_at?: string | null
           current_latitude?: number | null
           current_longitude?: number | null
@@ -2568,9 +2573,12 @@ export type Database = {
           role?: string | null
           second_vehicle?: string | null
           status?: string | null
+          subscription_cancelled?: boolean | null
           towing?: string | null
           travel_radius_miles?: number | null
           travel_style?: string | null
+          trial_end_date?: string | null
+          trial_notification_sent?: boolean | null
           user_id: string
           vehicle_make_model?: string | null
           vehicle_type?: string | null
@@ -2580,6 +2588,7 @@ export type Database = {
           accessibility_needs?: string[] | null
           budget_range?: string | null
           camp_types?: string | null
+          cancellation_token?: string | null
           created_at?: string | null
           current_latitude?: number | null
           current_longitude?: number | null
@@ -2604,9 +2613,12 @@ export type Database = {
           role?: string | null
           second_vehicle?: string | null
           status?: string | null
+          subscription_cancelled?: boolean | null
           towing?: string | null
           travel_radius_miles?: number | null
           travel_style?: string | null
+          trial_end_date?: string | null
+          trial_notification_sent?: boolean | null
           user_id?: string
           vehicle_make_model?: string | null
           vehicle_type?: string | null
@@ -3226,27 +3238,33 @@ export type Database = {
       }
       trial_notifications: {
         Row: {
-          email_sent: boolean | null
+          cancellation_token: string | null
+          created_at: string | null
           id: number
-          in_app_shown: boolean | null
-          notification_type: string
-          sent_at: string | null
+          notification_sent: boolean | null
+          subscription_cancelled: boolean | null
+          trial_end_date: string
+          updated_at: string | null
           user_id: number
         }
         Insert: {
-          email_sent?: boolean | null
+          cancellation_token?: string | null
+          created_at?: string | null
           id?: number
-          in_app_shown?: boolean | null
-          notification_type: string
-          sent_at?: string | null
+          notification_sent?: boolean | null
+          subscription_cancelled?: boolean | null
+          trial_end_date: string
+          updated_at?: string | null
           user_id: number
         }
         Update: {
-          email_sent?: boolean | null
+          cancellation_token?: string | null
+          created_at?: string | null
           id?: number
-          in_app_shown?: boolean | null
-          notification_type?: string
-          sent_at?: string | null
+          notification_sent?: boolean | null
+          subscription_cancelled?: boolean | null
+          trial_end_date?: string
+          updated_at?: string | null
           user_id?: number
         }
         Relationships: [
