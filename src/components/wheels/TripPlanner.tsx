@@ -59,6 +59,12 @@ export default function TripPlanner() {
     saveTripData,
     tripId,
     setTripId,
+    exclude,
+    setExclude,
+    annotations,
+    setAnnotations,
+    vehicle,
+    setVehicle,
     originLocked,
     destinationLocked,
     lockOrigin,
@@ -123,7 +129,7 @@ export default function TripPlanner() {
       
       {/* Main Map Section */}
       <div className="relative">
-        <MapControls region={region} waypoints={waypoints} setWaypoints={setWaypoints} adding={adding} setAdding={setAdding} setOriginName={setOriginName} setDestName={setDestName} onRouteChange={handleRouteChange} directionsControl={directionsControl} originName={originName} destName={destName} travelMode={travelMode} onTravelModeChange={setTravelMode} map={map} isOffline={isOffline} originLocked={originLocked} destinationLocked={destinationLocked} lockOrigin={lockOrigin} lockDestination={lockDestination} />
+        <MapControls region={region} waypoints={waypoints} setWaypoints={setWaypoints} adding={adding} setAdding={setAdding} setOriginName={setOriginName} setDestName={setDestName} onRouteChange={handleRouteChange} directionsControl={directionsControl} originName={originName} destName={destName} travelMode={travelMode} onTravelModeChange={setTravelMode} exclude={exclude} annotations={annotations} vehicle={vehicle} map={map} isOffline={isOffline} originLocked={originLocked} destinationLocked={destinationLocked} lockOrigin={lockOrigin} lockDestination={lockDestination} />
         
         {/* Weather Widget Toggle */}
         {destName && !isOffline && <div className="absolute top-4 right-4 z-10">
@@ -148,6 +154,12 @@ export default function TripPlanner() {
         setDestName={setDestName}
         travelMode={travelMode}
         setTravelMode={setTravelMode}
+        exclude={exclude}
+        setExclude={setExclude}
+        annotations={annotations}
+        setAnnotations={setAnnotations}
+        vehicle={vehicle}
+        setVehicle={setVehicle}
         mode={mode}
         setMode={setMode}
         adding={adding}

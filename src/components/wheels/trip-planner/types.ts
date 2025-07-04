@@ -28,3 +28,28 @@ export interface RouteState {
   totalDistance?: number;
   estimatedTime?: number;
 }
+
+export interface POI {
+  id: number;
+  name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  description: string;
+export interface ItineraryStop {
+  name: string;
+  coordinates: [number, number];
+  address?: string;
+  interest?: string;
+}
+
+export interface ItineraryDay {
+  day: number;
+  stops: ItineraryStop[];
+}
+
+export interface Itinerary {
+  start: string;
+  end: string;
+  days: ItineraryDay[];
+}
