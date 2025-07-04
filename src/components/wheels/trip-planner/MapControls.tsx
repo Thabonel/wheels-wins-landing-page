@@ -6,6 +6,7 @@ import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
 import { useUserUnits } from "./hooks/useUserUnits";
 import { MapOptionsControl } from "./MapOptionsControl";
+import POILayer from "./POILayer";
 
 interface MapControlsProps {
   region: string;
@@ -23,6 +24,9 @@ interface MapControlsProps {
   onTravelModeChange: (mode: string) => void;
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
   isOffline?: boolean;
+  exclude: string[];
+  annotations: string[];
+  vehicle: string;
   originLocked: boolean;
   destinationLocked: boolean;
   lockOrigin: () => void;
@@ -45,6 +49,9 @@ export default function MapControls({
   onTravelModeChange,
   map,
   isOffline = false,
+  exclude,
+  annotations,
+  vehicle,
   originLocked,
   destinationLocked,
   lockOrigin,
@@ -53,6 +60,13 @@ export default function MapControls({
   const mapContainer = useRef<HTMLDivElement>(null);
   const { units, loading: unitsLoading } = useUserUnits();
   const [currentStyle, setCurrentStyle] = useState("mapbox://styles/mapbox/streets-v11");
+  const [poiFilters, setPOIFilters] = useState<Record<string, boolean>>({
+    pet_stop: true,
+    wide_parking: true,
+    medical: true,
+    farmers_market: true
+  });
+  const optionsControlRef = useRef<MapOptionsControl>();
 
   // Initialize map and directions
   useEffect(() => {
@@ -101,8 +115,11 @@ export default function MapControls({
       // Add native Map Options Control
       const optionsControl = new MapOptionsControl({
         onStyleChange: setCurrentStyle,
-        currentStyle
+        currentStyle,
+        poiFilters,
+        onPOIFilterChange: setPOIFilters
       });
+      optionsControlRef.current = optionsControl;
       map.current.addControl(optionsControl, 'top-right');
 
       // Wait for map to load before creating directions control
@@ -116,14 +133,16 @@ export default function MapControls({
             unit: units, // Dynamic units based on user's address/region
             profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
             interactive: !isOffline,
-            controls: { 
+            controls: {
               instructions: true, // Enable turn-by-turn instructions like Roadtrippers
               inputs: true,
               profileSwitcher: true // Allow switching between driving/walking/cycling
             },
             alternatives: true, // Show alternative routes like Roadtrippers
-            congestion: true, // Show traffic congestion
-            excludeTypes: [], // Allow all route types
+            congestion: annotations.includes('congestion'), // Show traffic congestion if selected
+            exclude: exclude.length ? exclude.join(',') : undefined,
+            annotations: annotations.length ? annotations.join(',') : undefined,
+            vehicle: vehicle,
             flyTo: true, // Smooth camera transitions
             placeholderOrigin: 'Choose starting point',
             placeholderDestination: 'Choose destination',
@@ -196,6 +215,27 @@ export default function MapControls({
     }
   }, [travelMode, isOffline]);
 
+  // Update map options control when POI filters change
+  useEffect(() => {
+    if (optionsControlRef.current) {
+      optionsControlRef.current.updateOptions({ poiFilters });
+    }
+  }, [poiFilters]);
+  // Update routing options when exclude, annotations or vehicle change
+  useEffect(() => {
+    if (directionsControl.current && !isOffline) {
+      try {
+        directionsControl.current.actions.setOptions({
+          exclude: exclude.length ? exclude.join(',') : undefined,
+          annotations: annotations.length ? annotations.join(',') : undefined,
+          vehicle
+        });
+      } catch (error) {
+        console.warn('Error updating directions options:', error);
+      }
+    }
+  }, [exclude, annotations, vehicle, isOffline]);
+
   // Pin-drop mode for waypoints only (never replace origin/destination)
   useEffect(() => {
     if (!map.current || isOffline) return;
@@ -244,6 +284,7 @@ export default function MapControls({
     <div className="w-full h-[60vh] lg:h-[70vh] relative">
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
+        <POILayer map={map} filters={poiFilters} />
         {/* Map Options Control is now a native map control added in useEffect */}
         
         {isOffline && (

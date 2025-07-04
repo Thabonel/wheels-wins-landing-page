@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import TripPlannerControls from "./TripPlannerControls";
@@ -9,6 +9,8 @@ import SuggestionsGrid from "./SuggestionsGrid";
 import LockedPointControls from "./LockedPointControls";
 import MapControls from "./MapControls";
 import TripStats from "./TripStats";
+import { Itinerary } from "./types";
+import { ItineraryService } from "./services/ItineraryService";
 import { useIntegratedTripState } from "./hooks/useIntegratedTripState";
 import { useTripPlannerHandlers } from "./hooks/useTripPlannerHandlers";
 import { PAMProvider } from "./PAMContext";
@@ -22,6 +24,7 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
   const { toast } = useToast();
   const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
+  const [itinerary, setItinerary] = useState<Itinerary | null>(null);
 
   // Set Mapbox access token
   if (!isOffline && import.meta.env.VITE_MAPBOX_TOKEN) {
@@ -43,6 +46,22 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
     setTripId: () => {} // Add missing setTripId property
   });
 
+  const generateItinerary = async () => {
+    if (!integratedState.route.originName || !integratedState.route.destName) return;
+    try {
+      const itin = await ItineraryService.generate(
+        integratedState.route.originName,
+        integratedState.route.destName,
+        Math.max(1, integratedState.route.waypoints.length + 1),
+        ['sightseeing']
+      );
+      setItinerary(itin);
+    } catch (err) {
+      console.error('Itinerary generation failed', err);
+      toast({ title: 'Itinerary Error', description: 'Could not generate itinerary', variant: 'destructive' });
+    }
+  };
+
   // Enhanced submit handler with PAM integration
   const handleSubmitTrip = async () => {
     try {
@@ -50,7 +69,8 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
         const budget = integratedState.budget?.totalBudget || 0;
         const message = `Optimize my trip from ${integratedState.route.originName} to ${integratedState.route.destName}. Budget: ${budget}. Consider social meetups and scenic routes.`;
         await integratedState.sendPAMRequest(message);
-        
+        await generateItinerary();
+
         toast({
           title: "Trip Optimization Started",
           description: "PAM is analyzing your route for the best recommendations.",
@@ -83,6 +103,12 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
           setDestName={integratedState.setDestName}
           travelMode={integratedState.travelMode}
           setTravelMode={integratedState.setTravelMode}
+          exclude={integratedState.exclude}
+          setExclude={integratedState.setExclude}
+          annotations={integratedState.annotations}
+          setAnnotations={integratedState.setAnnotations}
+          vehicle={integratedState.vehicle}
+          setVehicle={integratedState.setVehicle}
           mode={integratedState.mode}
           setMode={integratedState.setMode}
           adding={integratedState.adding}
@@ -124,6 +150,9 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
             destName={integratedState.route.destName}
             travelMode={integratedState.travelMode}
             onTravelModeChange={integratedState.setTravelMode}
+            exclude={integratedState.exclude}
+            annotations={integratedState.annotations}
+            vehicle={integratedState.vehicle}
             map={map}
             isOffline={isOffline}
             originLocked={integratedState.originLocked}
@@ -193,6 +222,21 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
           <SuggestionsGrid
             suggestions={integratedState.route.suggestions}
           />
+        )}
+
+        {itinerary && (
+          <div className="space-y-4">
+            {itinerary.days.map(day => (
+              <div key={day.day} className="border p-2 rounded-md">
+                <h4 className="font-semibold">Day {day.day}</h4>
+                <ul className="list-disc pl-5 text-sm">
+                  {day.stops.map((stop, idx) => (
+                    <li key={idx}>{stop.name}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </PAMProvider>

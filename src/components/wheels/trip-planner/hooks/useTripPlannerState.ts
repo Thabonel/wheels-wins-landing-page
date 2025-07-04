@@ -18,6 +18,9 @@ export function useTripPlannerState(isOffline: boolean) {
   const [routeProfile, setRouteProfile] = useState("driving");
   const [mode, setMode] = useState("driving");
   const [tripId, setTripId] = useState<string | null>(null);
+  const [exclude, setExclude] = useState<string[]>([]);
+  const [annotations, setAnnotations] = useState<string[]>([]);
+  const [vehicle, setVehicle] = useState("car");
 
   // Load cached data on mount
   useEffect(() => {
@@ -48,6 +51,12 @@ export function useTripPlannerState(isOffline: boolean) {
     setRouteProfile,
     mode,
     setMode,
+    exclude,
+    setExclude,
+    annotations,
+    setAnnotations,
+    vehicle,
+    setVehicle,
     saveTripData,
     tripId,
     setTripId,
