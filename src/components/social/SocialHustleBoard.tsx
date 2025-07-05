@@ -6,6 +6,7 @@ import { Star, TrendingUp, Heart, ExternalLink, PlusCircle } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import SubmitIdeaForm from "./hustle-board/SubmitIdeaForm";
 interface HustleIdea {
   id: string;
   title: string;
@@ -26,6 +27,7 @@ export default function SocialHustleBoard() {
   const [hustleIdeas, setHustleIdeas] = useState<HustleIdea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [likedIdeas, setLikedIdeas] = useState<Set<string>>(new Set());
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
   useEffect(() => {
     fetchHustleIdeas();
   }, []);
@@ -87,6 +89,14 @@ export default function SocialHustleBoard() {
       toast.error('Something went wrong');
     }
   };
+  const handleLearnMore = (idea: HustleIdea) => {
+    // For now, show more details in a toast. In the future, this could open a detailed view or external link
+    toast.info(`${idea.title}: ${idea.description}`, {
+      duration: 5000,
+      description: `Average earnings: $${idea.avg_earnings}/month • Rating: ${idea.rating}/5`
+    });
+  };
+
   const handleAddToIncome = async (idea: HustleIdea) => {
     if (!user) {
       toast.error("You must be logged in to add ideas to your income tracker");
@@ -184,7 +194,7 @@ export default function SocialHustleBoard() {
                       <span className="ml-1">{idea.likes}</span>
                     </Button>
                     
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={() => handleLearnMore(idea)}>
                       <ExternalLink size={14} className="mr-1" />
                       Learn More
                     </Button>
@@ -205,8 +215,15 @@ export default function SocialHustleBoard() {
           <p className="text-muted-foreground mb-4">
             Share your money-making strategies with fellow travelers
           </p>
-          <Button>Submit Your Idea</Button>
+          <Button onClick={() => setShowSubmitForm(true)}>Submit Your Idea</Button>
         </CardContent>
       </Card>
+
+      {/* Submit Idea Form */}
+      <SubmitIdeaForm
+        isOpen={showSubmitForm}
+        onClose={() => setShowSubmitForm(false)}
+        onIdeaSubmitted={fetchHustleIdeas}
+      />
     </div>;
 }
