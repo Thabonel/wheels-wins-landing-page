@@ -25,13 +25,7 @@ export default function SocialGroups() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { user } = useAuth();
-  const { createPost } = useSocialPosts();
-  
-  const moderatePost = async (postId: string, approve: boolean) => {
-    console.log("Moderating post:", postId, approve);
-    return true;
-  };
-  const isSubmitting = false;
+  const { createPost, moderatePost } = useSocialPosts();
   
   useEffect(() => {
     if (user) {
@@ -244,7 +238,7 @@ export default function SocialGroups() {
           onJoinGroup={handleJoinGroup}
           onPostSubmit={handlePostSubmit}
           onModeratePost={handleModeratePost}
-          isSubmitting={isSubmitting}
+          isSubmitting={false}
         />
       ) : (
         <>
