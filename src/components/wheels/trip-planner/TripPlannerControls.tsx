@@ -61,44 +61,16 @@ export default function TripPlannerControls({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Route Inputs */}
         <div className="lg:col-span-2 space-y-6">
-          <RouteInputs
-            directionsControl={directionsControl}
-            originName={originName}
-            destName={destName}
-            setOriginName={setOriginName}
-            setDestName={setDestName}
-            originLocked={originLocked}
-            destinationLocked={destinationLocked}
-            lockOrigin={lockOrigin}
-            lockDestination={lockDestination}
-          />
+          <RouteInputs directionsControl={directionsControl} originName={originName} destName={destName} setOriginName={setOriginName} setDestName={setDestName} originLocked={originLocked} destinationLocked={destinationLocked} lockOrigin={lockOrigin} lockDestination={lockDestination} />
 
           {/* Travel Mode Selection */}
-          <TravelModeButtons
-            activeMode={travelMode}
-            onModeChange={setTravelMode}
-            exclude={exclude}
-            onExcludeChange={setExclude}
-            annotations={annotations}
-            onAnnotationsChange={setAnnotations}
-            vehicle={vehicle}
-            onVehicleChange={setVehicle}
-          />
+          <TravelModeButtons activeMode={travelMode} onModeChange={setTravelMode} exclude={exclude} onExcludeChange={setExclude} annotations={annotations} onAnnotationsChange={setAnnotations} vehicle={vehicle} onVehicleChange={setVehicle} />
         </div>
 
         {/* Trip Controls */}
         <div className="lg:col-span-1">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Actions</h3>
-          <TripControls
-            mode={mode}
-            setMode={setMode}
-            adding={adding}
-            setAdding={setAdding}
-            onSubmitTrip={onSubmitTrip}
-            map={map}
-            isOffline={isOffline}
-            tripId={tripId}
-          />
+          
+          <TripControls mode={mode} setMode={setMode} adding={adding} setAdding={setAdding} onSubmitTrip={onSubmitTrip} map={map} isOffline={isOffline} tripId={tripId} />
         </div>
       </div>
     </div>;
