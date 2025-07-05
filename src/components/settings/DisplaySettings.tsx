@@ -1,15 +1,115 @@
 
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Monitor } from 'lucide-react';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const DisplaySettings = () => {
+  const { settings, updateSettings, updating } = useUserSettings();
+
+  if (!settings) return null;
+
+  const handleToggle = (key: keyof typeof settings.display_preferences) => {
+    updateSettings({
+      display_preferences: {
+        ...settings.display_preferences,
+        [key]: !settings.display_preferences[key],
+      },
+    });
+  };
+
+  const handleSelect = (key: keyof typeof settings.display_preferences, value: string) => {
+    updateSettings({
+      display_preferences: {
+        ...settings.display_preferences,
+        [key]: value,
+      },
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Display Settings</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Monitor className="h-5 w-5" />
+          Display
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-gray-600">Display settings coming soon...</p>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label>Theme</Label>
+          <Select
+            value={settings.display_preferences.theme}
+            onValueChange={(val) => handleSelect('theme', val)}
+            disabled={updating}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="dark">Dark</SelectItem>
+              <SelectItem value="system">System</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Font Size</Label>
+          <Select
+            value={settings.display_preferences.font_size}
+            onValueChange={(val) => handleSelect('font_size', val)}
+            disabled={updating}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="small">Small</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="large">Large</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {(
+          [
+            ['high_contrast', 'High Contrast'],
+            ['reduced_motion', 'Reduced Motion'],
+          ] as [keyof typeof settings.display_preferences, string][]
+        ).map(([key, label]) => (
+          <div key={key} className="flex items-center justify-between">
+            <Label htmlFor={key} className="text-sm font-medium">
+              {label}
+            </Label>
+            <Switch
+              id={key}
+              checked={settings.display_preferences[key] as boolean}
+              onCheckedChange={() => handleToggle(key)}
+              disabled={updating}
+            />
+          </div>
+        ))}
+
+        <div className="space-y-2">
+          <Label>Language</Label>
+          <Select
+            value={settings.display_preferences.language}
+            onValueChange={(val) => handleSelect('language', val)}
+            disabled={updating}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="es">Spanish</SelectItem>
+              <SelectItem value="fr">French</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </CardContent>
     </Card>
   );
