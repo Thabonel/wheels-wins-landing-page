@@ -1,7 +1,14 @@
 
-import React, { createContext, useContext, useReducer, ReactNode } from "react";
+import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
 import { ExpenseItem } from "@/components/wins/expenses/ExpenseTable";
-import { expensesData as initialExpenses } from "@/components/wins/expenses/mockData";
+import { useAuth } from "@/context/AuthContext";
+import {
+  fetchExpenses,
+  createExpense,
+  updateExpense as updateExpenseApi,
+  deleteExpense as deleteExpenseApi,
+  ExpenseInput
+} from "@/services/expensesService";
 
 // Define the state type
 interface ExpensesState {
@@ -11,17 +18,18 @@ interface ExpensesState {
 }
 
 // Define the action types
-type ExpensesAction = 
+type ExpensesAction =
   | { type: "ADD_EXPENSE"; payload: ExpenseItem }
   | { type: "DELETE_EXPENSE"; payload: number }
   | { type: "UPDATE_EXPENSE"; payload: ExpenseItem }
+  | { type: "SET_EXPENSES"; payload: ExpenseItem[] }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null };
 
 // Initial state
 const initialState: ExpensesState = {
-  expenses: initialExpenses,
-  isLoading: false,
+  expenses: [],
+  isLoading: true,
   error: null,
 };
 
@@ -29,6 +37,10 @@ const initialState: ExpensesState = {
 const ExpensesContext = createContext<{
   state: ExpensesState;
   dispatch: React.Dispatch<ExpensesAction>;
+  addExpense: (expense: ExpenseInput) => Promise<void>;
+  updateExpense: (id: number, updates: Partial<ExpenseInput>) => Promise<void>;
+  deleteExpense: (id: number) => Promise<void>;
+  refreshExpenses: () => Promise<void>;
 } | undefined>(undefined);
 
 // Reducer function
@@ -51,6 +63,11 @@ function expensesReducer(state: ExpensesState, action: ExpensesAction): Expenses
           expense.id === action.payload.id ? action.payload : expense
         ),
       };
+    case "SET_EXPENSES":
+      return {
+        ...state,
+        expenses: action.payload,
+      };
     case "SET_LOADING":
       return {
         ...state,
@@ -68,10 +85,62 @@ function expensesReducer(state: ExpensesState, action: ExpensesAction): Expenses
 
 // Provider component
 export function ExpensesProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [state, dispatch] = useReducer(expensesReducer, initialState);
 
+  const loadExpenses = async () => {
+    if (!user) return;
+    dispatch({ type: "SET_LOADING", payload: true });
+    try {
+      const expenses = await fetchExpenses(user.id);
+      dispatch({ type: "SET_EXPENSES", payload: expenses });
+      dispatch({ type: "SET_ERROR", payload: null });
+    } catch (err: any) {
+      console.error("Failed to load expenses", err);
+      dispatch({ type: "SET_ERROR", payload: "Failed to load expenses" });
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  };
+
+  useEffect(() => {
+    loadExpenses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const addExpense = async (expense: ExpenseInput) => {
+    if (!user) return;
+    try {
+      const newExpense = await createExpense(user.id, expense);
+      dispatch({ type: "ADD_EXPENSE", payload: newExpense });
+    } catch (err) {
+      console.error("Failed to add expense", err);
+    }
+  };
+
+  const updateExpense = async (id: number, updates: Partial<ExpenseInput>) => {
+    if (!user) return;
+    try {
+      await updateExpenseApi(user.id, id, updates);
+      dispatch({ type: "SET_LOADING", payload: true });
+      await loadExpenses();
+    } catch (err) {
+      console.error("Failed to update expense", err);
+    }
+  };
+
+  const deleteExpense = async (id: number) => {
+    if (!user) return;
+    try {
+      await deleteExpenseApi(user.id, id);
+      dispatch({ type: "DELETE_EXPENSE", payload: id });
+    } catch (err) {
+      console.error("Failed to delete expense", err);
+    }
+  };
+
   return (
-    <ExpensesContext.Provider value={{ state, dispatch }}>
+    <ExpensesContext.Provider value={{ state, dispatch, addExpense, updateExpense, deleteExpense, refreshExpenses: loadExpenses }}>
       {children}
     </ExpensesContext.Provider>
   );
