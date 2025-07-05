@@ -39,11 +39,9 @@ export default function UserManagement() {
     console.log("Fetching admin users");
     setLoading(true);
     try {
-      // Direct query - will need proper RLS policy or service role access
+      // Use admin function with service role access
       const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .rpc('admin_get_users');
 
       if (error) {
         console.error("Error fetching users:", error);
