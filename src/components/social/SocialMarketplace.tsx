@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import CreateListingForm from "./marketplace/CreateListingForm";
+import FilterModal, { FilterOptions } from "./marketplace/FilterModal";
 interface MarketplaceListing {
   id: string;
   title: string;
@@ -30,14 +31,40 @@ export default function SocialMarketplace() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<FilterOptions>({});
   const { user } = useAuth();
   const categories = ["all", "Electronics", "Furniture", "Parts", "Camping", "Tools", "Other"];
   useEffect(() => {
     fetchListings();
-  }, []);
+    if (user) {
+      fetchFavorites();
+    }
+  }, [user]);
+
   useEffect(() => {
     filterListings();
-  }, [listings, searchTerm, selectedCategory]);
+  }, [listings, searchTerm, selectedCategory, activeFilters]);
+  const fetchFavorites = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('marketplace_favorites')
+        .select('listing_id')
+        .eq('user_id', user.id);
+      
+      if (error) {
+        console.error('Error fetching favorites:', error);
+        return;
+      }
+      
+      setFavorites(new Set(data?.map(f => f.listing_id) || []));
+    } catch (err) {
+      console.error('Error in fetchFavorites:', err);
+    }
+  };
+
   const fetchListings = async () => {
     try {
       const {
@@ -61,26 +88,100 @@ export default function SocialMarketplace() {
   };
   const filterListings = () => {
     let filtered = listings;
+
+    // Text search
     if (searchTerm) {
-      filtered = filtered.filter(listing => listing.title.toLowerCase().includes(searchTerm.toLowerCase()) || listing.description?.toLowerCase().includes(searchTerm.toLowerCase()));
+      filtered = filtered.filter(listing => 
+        listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        listing.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
+
+    // Category filter
     if (selectedCategory !== "all") {
       filtered = filtered.filter(listing => listing.category === selectedCategory);
     }
+
+    // Advanced filters
+    if (activeFilters.minPrice !== undefined) {
+      filtered = filtered.filter(listing => listing.price >= activeFilters.minPrice!);
+    }
+    
+    if (activeFilters.maxPrice !== undefined) {
+      filtered = filtered.filter(listing => listing.price <= activeFilters.maxPrice!);
+    }
+    
+    if (activeFilters.condition) {
+      filtered = filtered.filter(listing => listing.condition === activeFilters.condition);
+    }
+    
+    if (activeFilters.category) {
+      filtered = filtered.filter(listing => listing.category === activeFilters.category);
+    }
+    
+    if (activeFilters.location) {
+      filtered = filtered.filter(listing => 
+        listing.location.toLowerCase().includes(activeFilters.location!.toLowerCase())
+      );
+    }
+
     setFilteredListings(filtered);
   };
-  const toggleFavorite = (listingId: string) => {
-    setFavorites(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(listingId)) {
-        newSet.delete(listingId);
+  const toggleFavorite = async (listingId: string) => {
+    if (!user) {
+      toast.error('Please login to save favorites');
+      return;
+    }
+
+    try {
+      const isFavorited = favorites.has(listingId);
+      
+      if (isFavorited) {
+        // Remove from favorites
+        const { error } = await supabase
+          .from('marketplace_favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('listing_id', listingId);
+        
+        if (error) {
+          console.error('Error removing favorite:', error);
+          toast.error('Failed to remove from favorites');
+          return;
+        }
+        
+        setFavorites(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(listingId);
+          return newSet;
+        });
         toast.success('Removed from favorites');
       } else {
-        newSet.add(listingId);
+        // Add to favorites
+        const { error } = await supabase
+          .from('marketplace_favorites')
+          .insert({
+            user_id: user.id,
+            listing_id: listingId
+          });
+        
+        if (error) {
+          console.error('Error adding favorite:', error);
+          toast.error('Failed to add to favorites');
+          return;
+        }
+        
+        setFavorites(prev => {
+          const newSet = new Set(prev);
+          newSet.add(listingId);
+          return newSet;
+        });
         toast.success('Added to favorites');
       }
-      return newSet;
-    });
+    } catch (err) {
+      console.error('Error in toggleFavorite:', err);
+      toast.error('Something went wrong');
+    }
   };
 
   const handleContactSeller = (listing: MarketplaceListing) => {
@@ -92,10 +193,12 @@ export default function SocialMarketplace() {
     toast.success('Opening email client...');
   };
 
-  const handleAdvancedFilter = async () => {
-    // For now, this is a placeholder - could be expanded with a modal
-    toast.info('Advanced filtering coming soon!');
-    // In the future, this could open a modal with price range, condition filters, etc.
+  const handleAdvancedFilter = () => {
+    setShowFilterModal(true);
+  };
+
+  const handleApplyFilters = (filters: FilterOptions) => {
+    setActiveFilters(filters);
   };
   const getConditionColor = (condition: string) => {
     switch (condition.toLowerCase()) {
@@ -240,6 +343,14 @@ export default function SocialMarketplace() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onListingCreated={fetchListings}
+      />
+
+      {/* Filter Modal */}
+      <FilterModal
+        isOpen={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApplyFilters={handleApplyFilters}
+        currentFilters={activeFilters}
       />
     </div>;
 }

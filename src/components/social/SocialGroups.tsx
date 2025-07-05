@@ -25,7 +25,7 @@ export default function SocialGroups() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { user } = useAuth();
-  const { createPost, moderatePost, votePost } = useSocialPosts();
+  const { createPost, votePost, moderatePost, isSubmitting } = useSocialPosts();
   
   useEffect(() => {
     if (user) {
@@ -246,7 +246,7 @@ export default function SocialGroups() {
           onPostSubmit={handlePostSubmit}
           onModeratePost={handleModeratePost}
           onVote={handleVote}
-          isSubmitting={false}
+          isSubmitting={isSubmitting}
         />
       ) : (
         <>
