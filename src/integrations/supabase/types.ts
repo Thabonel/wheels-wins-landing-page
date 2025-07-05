@@ -4370,6 +4370,94 @@ export type Database = {
         }
         Relationships: []
       }
+
+      storage_categories: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      },
+      storage_locations: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      },
+      storage_items: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          category_id: string | null
+          location_id: string | null
+          quantity: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          category_id?: string | null
+          location_id?: string | null
+          quantity?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          category_id?: string | null
+          location_id?: string | null
+          quantity?: number | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "storage_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "storage_items_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "storage_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      },
     }
     Functions: {
       bootstrap_admin_user: {
