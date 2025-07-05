@@ -49,7 +49,7 @@ function App() {
                         <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                         <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
                         <Route path="/shop" element={<Shop />} />
-                        <Route path="/admin" element={<AdminDashboard />} />
+                        <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/signup" element={<Signup />} />
