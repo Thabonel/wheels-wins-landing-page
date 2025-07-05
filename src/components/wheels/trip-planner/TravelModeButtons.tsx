@@ -1,8 +1,10 @@
+
 import { Car, Bike, Users } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+
 interface TravelModeButtonsProps {
   activeMode: string;
   onModeChange: (mode: string) => void;
@@ -13,6 +15,7 @@ interface TravelModeButtonsProps {
   vehicle: string;
   onVehicleChange: (vehicle: string) => void;
 }
+
 export default function TravelModeButtons({
   activeMode,
   onModeChange,
@@ -40,20 +43,26 @@ export default function TravelModeButtons({
     label: "Cycling",
     icon: Bike
   }];
+
   const toggleExclude = (type: string, checked: boolean) => {
     const list = checked ? [...exclude, type] : exclude.filter(t => t !== type);
     onExcludeChange(list);
   };
+
   const toggleAnnotation = (value: string, checked: boolean) => {
     const list = checked ? [...annotations, value] : annotations.filter(a => a !== value);
     onAnnotationsChange(list);
   };
-  return <div className="space-y-3">
+
+  return (
+    <div className="space-y-3">
       <ToggleGroup type="single" value={activeMode} onValueChange={v => v && onModeChange(v)}>
-        {modes.map(({
-        id,
-        icon: Icon
-      }) => {})}
+        {modes.map(({ id, label, icon: Icon }) => (
+          <ToggleGroupItem key={id} value={id} className="flex items-center gap-2">
+            <Icon className="w-4 h-4" />
+            {label}
+          </ToggleGroupItem>
+        ))}
       </ToggleGroup>
 
       <div className="flex items-center gap-4">
@@ -96,5 +105,6 @@ export default function TravelModeButtons({
           Congestion
         </label>
       </div>
-    </div>;
+    </div>
+  );
 }
