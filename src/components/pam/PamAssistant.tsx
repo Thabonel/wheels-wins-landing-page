@@ -94,54 +94,67 @@ export const PamAssistant: React.FC<PamAssistantProps> = ({ onAlertAction }) => 
 
       const data = await response.json();
 
-      // Mock alerts for demonstration since the function returns processing stats
-      const mockAlerts: Alert[] = [
-        {
-          id: '1',
-          type: 'attraction',
-          title: 'Nearby Event',
-          message: 'Local music festival happening 15 miles away this weekend',
-          urgency: 'medium',
-          actionable: true,
-          data: { distance: 15, eventName: 'Music Festival', date: '2024-01-20' },
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: '2',
-          type: 'weather',
-          title: 'Weather Alert',
-          message: 'Rain expected on your planned route tomorrow',
-          urgency: 'medium',
-          actionable: true,
-          data: { location: 'Planned Route', date: '2024-01-19' },
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: '3',
-          type: 'maintenance',
-          title: 'Maintenance Due',
-          message: 'Oil change due in 3 days',
-          urgency: 'high',
-          actionable: true,
-          data: { task: 'Oil change', daysLeft: 3 },
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: '4',
-          type: 'fuel',
-          title: 'Fuel Deal',
-          message: 'Great fuel price $1.45/L at Shell station 2 miles away',
-          urgency: 'low',
-          actionable: true,
-          data: { price: 1.45, station: 'Shell', distance: 2 },
-          timestamp: new Date().toISOString()
-        }
-      ];
+      let parsedAlerts: Alert[] = [];
 
-      setAlerts(mockAlerts);
-      
+      if (Array.isArray(data)) {
+        parsedAlerts = data as Alert[];
+      } else if (Array.isArray(data?.alerts)) {
+        parsedAlerts = data.alerts as Alert[];
+      } else if (Array.isArray(data?.data?.alerts)) {
+        parsedAlerts = data.data.alerts as Alert[];
+      }
+
+      // TODO: remove this fallback once the endpoint provides usable alerts
+      if (parsedAlerts.length === 0) {
+        const mockAlerts: Alert[] = [
+          {
+            id: '1',
+            type: 'attraction',
+            title: 'Nearby Event',
+            message: 'Local music festival happening 15 miles away this weekend',
+            urgency: 'medium',
+            actionable: true,
+            data: { distance: 15, eventName: 'Music Festival', date: '2024-01-20' },
+            timestamp: new Date().toISOString()
+          },
+          {
+            id: '2',
+            type: 'weather',
+            title: 'Weather Alert',
+            message: 'Rain expected on your planned route tomorrow',
+            urgency: 'medium',
+            actionable: true,
+            data: { location: 'Planned Route', date: '2024-01-19' },
+            timestamp: new Date().toISOString()
+          },
+          {
+            id: '3',
+            type: 'maintenance',
+            title: 'Maintenance Due',
+            message: 'Oil change due in 3 days',
+            urgency: 'high',
+            actionable: true,
+            data: { task: 'Oil change', daysLeft: 3 },
+            timestamp: new Date().toISOString()
+          },
+          {
+            id: '4',
+            type: 'fuel',
+            title: 'Fuel Deal',
+            message: 'Great fuel price $1.45/L at Shell station 2 miles away',
+            urgency: 'low',
+            actionable: true,
+            data: { price: 1.45, station: 'Shell', distance: 2 },
+            timestamp: new Date().toISOString()
+          }
+        ];
+        parsedAlerts = mockAlerts;
+      }
+
+      setAlerts(parsedAlerts);
+
       // Show browser notifications for new high urgency alerts
-      mockAlerts.forEach(alert => {
+      parsedAlerts.forEach(alert => {
         if (alert.urgency === 'high') {
           showBrowserNotification(alert);
         }
