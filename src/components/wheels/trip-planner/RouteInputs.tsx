@@ -108,9 +108,7 @@ export default function RouteInputs({
 
       {/* Destination Input */}
       <div className="flex items-center gap-3">
-        <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
-          B
-        </div>
+        
         <div className="flex-1">
           {destinationLocked && destName ? <div className="flex items-center gap-2 p-2 bg-purple-50 border border-purple-200 rounded-lg">
               <Lock className="w-4 h-4 text-purple-600" />
