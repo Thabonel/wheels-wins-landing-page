@@ -39,50 +39,59 @@ export function usePersonalizedRecommendations() {
 
     setIsLoading(true);
     try {
-      // Table doesn't exist yet, use fallback static data
-      const dbRecommendations = null;
-      const error = null;
+      // Attempt to fetch recommendations from Supabase
+      const { data: dbRecommendations, error } = await supabase.rpc(
+        'get_personalized_recommendations',
+        { p_user_id: user.id, p_limit: 9 }
+      );
 
       if (error) {
-        console.warn('Database recommendations not available, using fallback:', error);
+        throw error;
       }
 
-      // Generate fallback recommendations
+      if (dbRecommendations && dbRecommendations.length > 0) {
+        const [digitalProducts, affiliateProducts] = await Promise.all([
+          getDigitalProducts('United States'),
+          getAffiliateProducts()
+        ]);
+        const productMap = new Map(
+          [...digitalProducts, ...affiliateProducts].map(p => [p.id, p])
+        );
+        const matchedProducts = dbRecommendations
+          .map(rec => productMap.get(rec.product_id))
+          .filter(Boolean) as ShopProduct[];
+
+        setPersonalizedProducts(matchedProducts);
+        setRecommendations(
+          dbRecommendations.map(rec => ({
+            id: rec.id,
+            productId: rec.product_id,
+            recommendationType: rec.recommendation_type as any,
+            confidenceScore: rec.confidence_score,
+            context: (rec.context as any) || {}
+          }))
+        );
+        return;
+      }
+
+      // If no recommendations were returned, fall back to static products
       const [digitalProducts, affiliateProducts] = await Promise.all([
         getDigitalProducts('United States'),
         getAffiliateProducts()
       ]);
       const allProducts = [...digitalProducts, ...affiliateProducts];
-      const selectedProducts = allProducts.slice(0, 9);
-      
-      const fallbackRecommendations: PersonalizedRecommendation[] = selectedProducts.map((product, index) => ({
-        id: `fallback-${product.id}`,
-        productId: product.id,
-        recommendationType: index < 3 ? 'pam_pick' : index < 6 ? 'trending' : 'general',
-        confidenceScore: 0.8 - (index * 0.05),
-        context: { fallback: true }
-      }));
-
-      setPersonalizedProducts(selectedProducts);
-      setRecommendations(dbRecommendations?.length ? 
-        dbRecommendations.map(rec => ({
-          id: rec.id,
-          productId: rec.product_id,
-          recommendationType: rec.recommendation_type as any,
-          confidenceScore: rec.confidence_score,
-          context: rec.context || {}
-        })) : fallbackRecommendations
-      );
+      setPersonalizedProducts(allProducts.slice(0, 9));
+      setRecommendations([]);
     } catch (error) {
-      console.error('Error generating recommendations:', error);
-      // Final fallback
+      console.error('Error fetching personalized recommendations:', error);
       try {
         const [digitalProducts, affiliateProducts] = await Promise.all([
           getDigitalProducts('United States'),
           getAffiliateProducts()
         ]);
         const allProducts = [...digitalProducts, ...affiliateProducts];
-        setPersonalizedProducts(allProducts.slice(0, 6));
+        setPersonalizedProducts(allProducts.slice(0, 9));
+        setRecommendations([]);
       } catch (fallbackError) {
         console.error('Error loading fallback products:', fallbackError);
         setPersonalizedProducts([]);
