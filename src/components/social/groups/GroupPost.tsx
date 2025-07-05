@@ -3,17 +3,27 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
-import { ThumbsUp, MessageSquare } from "lucide-react";
+import { ThumbsUp, MessageSquare, Share } from "lucide-react";
 import { SocialPost } from "../types";
+import { useSocialPosts } from "@/hooks/useSocialPosts";
+import CommentSection from "../CommentSection";
+import { useState } from "react";
 
 interface GroupPostProps {
   post: SocialPost;
   isPending?: boolean;
   onModerate?: (postId: string, approve: boolean) => void;
   showModerationButtons?: boolean;
+  onVote?: (postId: string, isUp: boolean) => void;
 }
 
-export default function GroupPost({ post, isPending = false, onModerate, showModerationButtons = false }: GroupPostProps) {
+export default function GroupPost({ post, isPending = false, onModerate, showModerationButtons = false, onVote }: GroupPostProps) {
+  const { sharePost } = useSocialPosts();
+  const [showComments, setShowComments] = useState(false);
+
+  const handleShare = async () => {
+    await sharePost(post.id, post.content);
+  };
   return (
     <Card className={isPending ? "border-2 border-amber-200" : ""}>
       <CardHeader className="flex flex-row items-center gap-4 pb-2">
@@ -60,14 +70,42 @@ export default function GroupPost({ post, isPending = false, onModerate, showMod
             </Button>
           </div>
         ) : (
-          <div className="flex gap-6 w-full">
-            <Button variant="ghost" size="sm" className="flex items-center gap-1">
-              <ThumbsUp size={18} /> {post.likes}
-            </Button>
-            <Button variant="ghost" size="sm" className="flex items-center gap-1">
-              <MessageSquare size={18} /> {post.comments}
-            </Button>
+          <div className="flex justify-between w-full">
+            <div className="flex gap-4">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={() => onVote?.(post.id, true)}
+              >
+                <ThumbsUp size={18} /> {post.likes}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={() => setShowComments(!showComments)}
+              >
+                <MessageSquare size={18} /> {post.comments}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={handleShare}
+              >
+                <Share size={18} /> Share
+              </Button>
+            </div>
           </div>
+        )}
+        
+        {showComments && !showModerationButtons && (
+          <CommentSection 
+            postId={post.id} 
+            isOpen={showComments} 
+            onClose={() => setShowComments(false)} 
+          />
         )}
       </CardFooter>
     </Card>

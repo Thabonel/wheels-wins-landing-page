@@ -82,6 +82,21 @@ export default function SocialMarketplace() {
       return newSet;
     });
   };
+
+  const handleContactSeller = (listing: MarketplaceListing) => {
+    const subject = encodeURIComponent(`Interested in: ${listing.title}`);
+    const body = encodeURIComponent(`Hi ${listing.seller},\n\nI'm interested in your listing "${listing.title}" for $${listing.price}.\n\nPlease let me know if it's still available.\n\nThanks!`);
+    
+    // Try to open default email client
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    toast.success('Opening email client...');
+  };
+
+  const handleAdvancedFilter = async () => {
+    // For now, this is a placeholder - could be expanded with a modal
+    toast.info('Advanced filtering coming soon!');
+    // In the future, this could open a modal with price range, condition filters, etc.
+  };
   const getConditionColor = (condition: string) => {
     switch (condition.toLowerCase()) {
       case 'excellent':
@@ -124,7 +139,7 @@ export default function SocialMarketplace() {
               </option>)}
           </select>
           
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleAdvancedFilter}>
             <Filter size={16} className="mr-1" />
             Filter
           </Button>
@@ -199,7 +214,7 @@ export default function SocialMarketplace() {
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                  <Button className="flex-1" size="sm">
+                  <Button className="flex-1" size="sm" onClick={() => handleContactSeller(listing)}>
                     Contact Seller
                   </Button>
                   <Button variant="outline" size="sm">

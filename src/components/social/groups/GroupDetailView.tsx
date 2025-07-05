@@ -19,6 +19,7 @@ interface GroupDetailViewProps {
   onJoinGroup: (groupId: string) => void;
   onPostSubmit: () => void;
   onModeratePost: (postId: string, approve: boolean) => void;
+  onVote: (postId: string, isUp: boolean) => void;
   isSubmitting: boolean;
 }
 
@@ -33,6 +34,7 @@ export default function GroupDetailView({
   onJoinGroup,
   onPostSubmit,
   onModeratePost,
+  onVote,
   isSubmitting
 }: GroupDetailViewProps) {
   const getActivityBadge = (activityLevel: string) => {
@@ -122,6 +124,7 @@ export default function GroupDetailView({
                   isPending={true}
                   onModerate={onModeratePost}
                   showModerationButtons={true}
+                  onVote={onVote}
                 />
               ))}
             </div>
@@ -144,7 +147,11 @@ export default function GroupDetailView({
           ) : (
             <div className="space-y-4">
               {groupPosts.map((post) => (
-                <GroupPost key={post.id} post={post} />
+                <GroupPost 
+                  key={post.id} 
+                  post={post} 
+                  onVote={onVote}
+                />
               ))}
             </div>
           )}

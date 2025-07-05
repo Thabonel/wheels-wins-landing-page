@@ -25,7 +25,7 @@ export default function SocialGroups() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { user } = useAuth();
-  const { createPost, moderatePost } = useSocialPosts();
+  const { createPost, moderatePost, votePost } = useSocialPosts();
   
   useEffect(() => {
     if (user) {
@@ -224,6 +224,13 @@ export default function SocialGroups() {
     }
   };
 
+  const handleVote = async (postId: string, isUp: boolean) => {
+    const success = await votePost(postId, isUp);
+    if (success && selectedGroup) {
+      fetchGroupPosts(selectedGroup.id.toString());
+    }
+  };
+
   return (
     <div className="space-y-8">
       {selectedGroup ? (
@@ -238,6 +245,7 @@ export default function SocialGroups() {
           onJoinGroup={handleJoinGroup}
           onPostSubmit={handlePostSubmit}
           onModeratePost={handleModeratePost}
+          onVote={handleVote}
           isSubmitting={false}
         />
       ) : (
