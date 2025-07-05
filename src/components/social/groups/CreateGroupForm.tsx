@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CreateGroupFormProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface CreateGroupFormProps {
 export default function CreateGroupForm({ isOpen, onClose, onGroupCreated }: CreateGroupFormProps) {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDescription, setNewGroupDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
   const handleCreateGroup = async () => {
@@ -29,8 +31,41 @@ export default function CreateGroupForm({ isOpen, onClose, onGroupCreated }: Cre
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
-      console.log("Attempting to create group:", { name: newGroupName, description: newGroupDescription, owner_id: user.id });
+      const { data, error } = await supabase
+        .from('social_groups')
+        .insert({
+          name: newGroupName.trim(),
+          description: newGroupDescription.trim() || null,
+          owner_id: user.id,
+          admin_id: user.id,
+          member_count: 1
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating group:", error);
+        toast.error("Failed to create group");
+        return;
+      }
+
+      // Add creator as first member
+      const { error: memberError } = await supabase
+        .from('social_group_members')
+        .insert({
+          group_id: data.id,
+          user_id: user.id,
+          role: 'admin'
+        });
+
+      if (memberError) {
+        console.error("Error adding creator as member:", memberError);
+        // Group was created but failed to add member - still show success
+      }
+
       toast.success(`Group "${newGroupName}" created successfully!`);
 
       setNewGroupName("");
@@ -39,7 +74,9 @@ export default function CreateGroupForm({ isOpen, onClose, onGroupCreated }: Cre
       onGroupCreated();
     } catch (err) {
       console.error("Error creating group:", err);
-      toast.error(`Failed to create group: ${err.message}`);
+      toast.error("Failed to create group");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -71,8 +108,8 @@ export default function CreateGroupForm({ isOpen, onClose, onGroupCreated }: Cre
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleCreateGroup}>
-            Create Group
+          <Button onClick={handleCreateGroup} disabled={isSubmitting}>
+            {isSubmitting ? "Creating..." : "Create Group"}
           </Button>
         </DialogFooter>
       </DialogContent>

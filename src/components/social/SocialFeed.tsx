@@ -9,6 +9,7 @@ import { MessageSquare, ThumbsUp, ThumbsDown, Share2, AlertCircle } from "lucide
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
+import CommentSection from "./CommentSection";
 
 interface SocialPost {
   id: string;
@@ -33,9 +34,10 @@ export default function SocialFeed() {
   const [userVotes, setUserVotes] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [openComments, setOpenComments] = useState<string | null>(null);
 
   const { user } = useAuth();
-  const { createPost, votePost } = useSocialPosts();
+  const { createPost, votePost, sharePost } = useSocialPosts();
 
   useEffect(() => {
     fetchPosts();
@@ -159,6 +161,14 @@ export default function SocialFeed() {
     fetchPosts(); // Refetch to get accurate counts from backend
   };
 
+  const handleShare = async (postId: string, content: string) => {
+    await sharePost(postId, content);
+  };
+
+  const handleComment = (postId: string) => {
+    setOpenComments(postId);
+  };
+
   const getStatusBadge = (p: SocialPost) => {
     if (p.status === "pending") return <Badge className="bg-amber-500">Pending</Badge>;
     if (p.status === "hidden") return <Badge className="bg-red-500">Hidden</Badge>;
@@ -264,11 +274,16 @@ export default function SocialFeed() {
                   >
                     <ThumbsDown size={18} />
                   </Button>
-                  <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="flex items-center gap-1"
+                    onClick={() => handleComment(post.id)}
+                    disabled={!user}
+                  >
                     <MessageSquare size={18} /> {post.comments}
                   </Button>
                   <div className="ml-auto">
-                    <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="flex items-center gap-1"
+                      onClick={() => handleShare(post.id, post.content)}
+                    >
                       <Share2 size={18} /> Share
                     </Button>
                   </div>
@@ -290,6 +305,15 @@ export default function SocialFeed() {
           ))}
         </ul>
       </div>
+
+      {/* Comment Section Modal */}
+      {openComments && (
+        <CommentSection
+          postId={openComments}
+          isOpen={true}
+          onClose={() => setOpenComments(null)}
+        />
+      )}
     </div>
   );
 }

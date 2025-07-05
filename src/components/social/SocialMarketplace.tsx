@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Heart, MapPin, Clock, Filter, Star } from "lucide-react";
+import { Search, Heart, MapPin, Clock, Filter, Star, PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import CreateListingForm from "./marketplace/CreateListingForm";
 interface MarketplaceListing {
   id: string;
   title: string;
@@ -27,6 +29,8 @@ export default function SocialMarketplace() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const { user } = useAuth();
   const categories = ["all", "Electronics", "Furniture", "Parts", "Camping", "Tools", "Other"];
   useEffect(() => {
     fetchListings();
@@ -212,8 +216,15 @@ export default function SocialMarketplace() {
           <p className="text-muted-foreground mb-4">
             List your items and connect with fellow travelers
           </p>
-          <Button>Create Listing</Button>
+          <Button onClick={() => setShowCreateModal(true)}>Create Listing</Button>
         </CardContent>
       </Card>
+
+      {/* Create Listing Modal */}
+      <CreateListingForm
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onListingCreated={fetchListings}
+      />
     </div>;
 }

@@ -36,6 +36,8 @@ export interface POI {
   latitude: number;
   longitude: number;
   description: string;
+}
+
 export interface ItineraryStop {
   name: string;
   coordinates: [number, number];
