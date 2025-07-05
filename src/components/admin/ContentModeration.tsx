@@ -3,11 +3,9 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";   
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { RefreshCw, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 
 interface FlaggedContent {
@@ -24,60 +22,91 @@ interface FlaggedContent {
 }
 
 const ContentModeration = () => {
-  const [flaggedContent, setFlaggedContent] = useState<FlaggedContent[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Mock flagged content data
+  const mockFlaggedContent: FlaggedContent[] = [
+    {
+      id: '1',
+      content_type: 'post',
+      content_id: 'post123',
+      content_text: 'This is some inappropriate content that was flagged by users for being offensive.',
+      author_email: 'user1@example.com',
+      flagged_reason: 'inappropriate',
+      status: 'pending',
+      created_at: '2024-07-04T10:30:00Z',
+      updated_at: '2024-07-04T10:30:00Z'
+    },
+    {
+      id: '2', 
+      content_type: 'comment',
+      content_id: 'comment456',
+      content_text: 'Spam comment with links to suspicious websites.',
+      author_email: 'spammer@example.com',
+      flagged_reason: 'spam',
+      status: 'pending',
+      created_at: '2024-07-04T09:15:00Z',
+      updated_at: '2024-07-04T09:15:00Z'
+    },
+    {
+      id: '3',
+      content_type: 'profile',
+      content_id: 'profile789',
+      content_text: 'Profile description with hate speech content.',
+      author_email: 'problem@example.com',
+      flagged_reason: 'hate_speech',
+      status: 'approved',
+      moderator_notes: 'Reviewed - content is within guidelines',
+      created_at: '2024-07-03T14:20:00Z',
+      updated_at: '2024-07-03T15:30:00Z'
+    },
+    {
+      id: '4',
+      content_type: 'post',
+      content_id: 'post321',
+      content_text: 'Another post with questionable content that needs review.',
+      author_email: 'user2@example.com',
+      flagged_reason: 'misinformation',
+      status: 'rejected',
+      moderator_notes: 'Content removed for spreading false information',
+      created_at: '2024-07-02T11:45:00Z',
+      updated_at: '2024-07-02T16:20:00Z'
+    }
+  ];
+
+  const [flaggedContent, setFlaggedContent] = useState<FlaggedContent[]>(mockFlaggedContent);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedNotes, setSelectedNotes] = useState<{[key: string]: string}>({});
   
-  const { isAdmin, loading: adminLoading, user } = useAdminAuth();
   const fetchFlaggedContent = async () => {
-    if (!isAdmin || adminLoading) return;
-    
+    // Mock refresh - simulate loading
     setLoading(true);
-    try {
-      // Use admin function with service role access
-      const { data, error } = await supabase
-        .rpc('admin_get_flagged_content');
-
-      if (error) {
-        setError(`Failed to fetch flagged content: ${error.message}`);
-        toast.error("Failed to fetch flagged content");
-      } else {
-        setFlaggedContent((data as FlaggedContent[]) || []);
-        setError("");
-      }
-    } catch (err) {
-      setError("Network error while fetching flagged content");
-      toast.error("Network error");
-    } finally {
+    setTimeout(() => {
+      setFlaggedContent(mockFlaggedContent);
       setLoading(false);
-    }
+      setError("");
+      toast.success("Flagged content refreshed");
+    }, 1000);
   };
 
   const handleModerationAction = async (id: string, action: "approved" | "rejected" | "removed") => {
     const notes = selectedNotes[id] || '';
     
-    try {
-      const { error } = await supabase
-        .from('content_moderation')
-        .update({
-          status: action,
-          moderator_id: user?.id,
-          moderator_notes: notes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
-
-      if (error) {
-        toast.error(`Failed to ${action} content: ${error.message}`);
-      } else {
-        toast.success(`Content ${action} successfully`);
-        fetchFlaggedContent();
-        setSelectedNotes(prev => ({ ...prev, [id]: '' }));
-      }
-    } catch (err) {
-      toast.error(`Failed to ${action} content`);
-    }
+    // Mock moderation action - update local state
+    setFlaggedContent(prevContent => 
+      prevContent.map(content => 
+        content.id === id 
+          ? { 
+              ...content, 
+              status: action, 
+              moderator_notes: notes,
+              updated_at: new Date().toISOString()
+            }
+          : content
+      )
+    );
+    
+    toast.success(`Content ${action} successfully`);
+    setSelectedNotes(prev => ({ ...prev, [id]: '' }));
   };
 
   const getStatusBadge = (status: string) => {
@@ -109,10 +138,9 @@ const ContentModeration = () => {
   };
 
   useEffect(() => {
-    if (isAdmin && !adminLoading) {
-      fetchFlaggedContent();
-    }
-  }, [isAdmin, adminLoading]);
+    // Initialize with mock data
+    setFlaggedContent(mockFlaggedContent);
+  }, []);
 
   return (
     <div className="p-6 space-y-6">

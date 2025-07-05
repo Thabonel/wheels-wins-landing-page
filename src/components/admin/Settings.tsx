@@ -8,8 +8,6 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
 import { Save, RefreshCw, Settings as SettingsIcon, Shield, Mail, Users } from 'lucide-react';
 
 interface SystemSetting {
@@ -21,19 +19,43 @@ interface SystemSetting {
 }
 
 const Settings = () => {
-  const [settings, setSettings] = useState<SystemSetting[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const { user } = useAuth();
+  // Mock system settings data
+  const mockSettings: SystemSetting[] = [
+    {
+      id: '1',
+      setting_key: 'site_maintenance',
+      setting_value: { enabled: false, message: 'Site is under maintenance. Please check back later.' },
+      description: 'Enable site maintenance mode',
+      updated_at: '2024-07-04T15:30:00Z'
+    },
+    {
+      id: '2', 
+      setting_key: 'email_notifications',
+      setting_value: { enabled: true, admin_email: 'admin@wheelsandwins.com' },
+      description: 'Email notification settings',
+      updated_at: '2024-07-03T10:20:00Z'
+    },
+    {
+      id: '3',
+      setting_key: 'user_registration',
+      setting_value: { enabled: true, require_approval: false },
+      description: 'User registration settings',
+      updated_at: '2024-07-02T14:45:00Z'
+    }
+  ];
 
-  // Setting states
+  const [settings, setSettings] = useState<SystemSetting[]>(mockSettings);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Setting states - initialized with mock data
   const [siteMaintenance, setSiteMaintenance] = useState({
     enabled: false,
-    message: ''
+    message: 'Site is under maintenance. Please check back later.'
   });
   const [emailNotifications, setEmailNotifications] = useState({
     enabled: true,
-    admin_email: ''
+    admin_email: 'admin@wheelsandwins.com'
   });
   const [userRegistration, setUserRegistration] = useState({
     enabled: true,
@@ -41,84 +63,43 @@ const Settings = () => {
   });
 
   const fetchSettings = async () => {
+    // Mock refresh - simulate loading
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('*')
-        .order('setting_key');
-
-      if (error) {
-        toast.error(`Failed to fetch settings: ${error.message}`);
-        return;
-      }
-
-      setSettings(data || []);
-      
-      // Parse and set individual settings
-      data?.forEach(setting => {
-        switch (setting.setting_key) {
-          case 'site_maintenance':
-            setSiteMaintenance(setting.setting_value as { enabled: boolean; message: string; });
-            break;
-          case 'email_notifications':
-            setEmailNotifications(setting.setting_value as { enabled: boolean; admin_email: string; });
-            break;
-          case 'user_registration':
-            setUserRegistration(setting.setting_value as { enabled: boolean; require_approval: boolean; });
-            break;
-        }
-      });
-    } catch (err) {
-      toast.error("Network error while fetching settings");
-    } finally {
+    setTimeout(() => {
+      setSettings(mockSettings);
+      // Reset to mock values
+      setSiteMaintenance({ enabled: false, message: 'Site is under maintenance. Please check back later.' });
+      setEmailNotifications({ enabled: true, admin_email: 'admin@wheelsandwins.com' });
+      setUserRegistration({ enabled: true, require_approval: false });
       setLoading(false);
-    }
+      toast.success("Settings refreshed");
+    }, 1000);
   };
 
   const updateSetting = async (settingKey: string, settingValue: any) => {
-    try {
-      const { error } = await supabase
-        .from('system_settings')
-        .update({
-          setting_value: settingValue,
-          updated_by: user?.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('setting_key', settingKey);
-
-      if (error) {
-        throw error;
-      }
-
-      return true;
-    } catch (err: any) {
-      console.error(`Failed to update ${settingKey}:`, err);
-      return false;
-    }
+    // Mock update - update local state
+    setSettings(prev => 
+      prev.map(setting => 
+        setting.setting_key === settingKey 
+          ? { ...setting, setting_value: settingValue, updated_at: new Date().toISOString() }
+          : setting
+      )
+    );
+    return true;
   };
 
   const handleSaveSettings = async () => {
     setSaving(true);
-    let success = true;
 
     try {
-      // Update all settings
-      const updates = [
+      // Mock save - update all settings
+      await Promise.all([
         updateSetting('site_maintenance', siteMaintenance),
         updateSetting('email_notifications', emailNotifications),
         updateSetting('user_registration', userRegistration)
-      ];
+      ]);
 
-      const results = await Promise.all(updates);
-      success = results.every(result => result);
-
-      if (success) {
-        toast.success("Settings saved successfully");
-        fetchSettings(); // Refresh to get updated timestamps
-      } else {
-        toast.error("Some settings failed to save");
-      }
+      toast.success("Settings saved successfully");
     } catch (err) {
       toast.error("Failed to save settings");
     } finally {
@@ -127,7 +108,7 @@ const Settings = () => {
   };
 
   useEffect(() => {
-    fetchSettings();
+    // Initialize with mock data - already set in state
   }, []);
 
   if (loading) {
@@ -291,7 +272,7 @@ const Settings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
               <p className="font-medium">Current User:</p>
-              <p className="text-gray-600">{user?.email}</p>
+              <p className="text-gray-600">admin@wheelsandwins.com</p>
             </div>
             <div>
               <p className="font-medium">Last Settings Update:</p>
