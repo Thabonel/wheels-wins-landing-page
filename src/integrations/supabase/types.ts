@@ -4360,6 +4360,39 @@ export type Database = {
       }
     }
     Functions: {
+      admin_get_flagged_content: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          content_type: string
+          content_id: string
+          content_text: string
+          author_email: string
+          flagged_reason: string
+          status: string
+          moderator_notes: string
+          created_at: string
+          updated_at: string
+          author_id: string
+          flagged_by: string
+          moderator_id: string
+        }[]
+      }
+      admin_get_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          user_id: string
+          email: string
+          role: string
+          status: string
+          created_at: string
+          updated_at: string
+          region: string
+          last_login: string
+          permissions: Json
+        }[]
+      }
       bootstrap_admin_user: {
         Args: { user_email: string; user_uuid?: string }
         Returns: boolean

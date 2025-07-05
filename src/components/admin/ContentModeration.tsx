@@ -37,16 +37,15 @@ const ContentModeration = () => {
     
     setLoading(true);
     try {
+      // Use admin function with service role access
       const { data, error } = await supabase
-        .from('content_moderation')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .rpc('admin_get_flagged_content');
 
       if (error) {
         setError(`Failed to fetch flagged content: ${error.message}`);
         toast.error("Failed to fetch flagged content");
       } else {
-        setFlaggedContent(data || []);
+        setFlaggedContent((data as FlaggedContent[]) || []);
         setError("");
       }
     } catch (err) {
@@ -112,8 +111,10 @@ const ContentModeration = () => {
   };
 
   useEffect(() => {
-    fetchFlaggedContent();
-  }, []);
+    if (isSignedIn && isAdmin) {
+      fetchFlaggedContent();
+    }
+  }, [isSignedIn, isAdmin]);
 
   return (
     <div className="p-6 space-y-6">

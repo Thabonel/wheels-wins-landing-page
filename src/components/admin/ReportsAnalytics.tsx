@@ -201,8 +201,10 @@ const ReportsAnalytics = () => {
   };
 
   useEffect(() => {
-    fetchAnalyticsData();
-  }, []);
+    if (isSignedIn && isAdmin) {
+      fetchAnalyticsData();
+    }
+  }, [isSignedIn, isAdmin]);
 
   if (loading) {
     return (
