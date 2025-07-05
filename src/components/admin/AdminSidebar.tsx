@@ -88,11 +88,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
   }
 
   return (
-    <div className={`
-      fixed left-0 top-14 z-30 h-[calc(100vh-3.5rem)] w-64 transform border-r bg-background transition-transform duration-300 ease-in-out
-      ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      lg:relative lg:top-0 lg:h-screen lg:translate-x-0
-    `}>
+    <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:border-r lg:bg-background lg:pt-16">
       <SidebarContent />
     </div>
   );
