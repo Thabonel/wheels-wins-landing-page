@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { usePamMessageHandler } from '@/hooks/pam/usePamMessageHandler';
 import { usePAMContext } from './PAMContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { usePamWebSocketConnection } from '@/hooks/pam/usePamWebSocketConnection';
 
 interface PAMTripIntegrationProps {
   onRouteUpdate?: (route: any) => void;
@@ -15,7 +16,7 @@ export default function PAMTripIntegration({
   onBudgetUpdate,
   onEmergency
 }: PAMTripIntegrationProps) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { toast } = useToast();
   const { context, updateContext, addMessage } = usePAMContext();
   const { handleMessage } = usePamMessageHandler();
@@ -86,30 +87,13 @@ export default function PAMTripIntegration({
     }
   };
 
-  // Simplified connection state for now
-  const [isConnected, setIsConnected] = useState(false);
-  
-  const sendMessage = async (message: string) => {
-    console.log('Sending message to PAM:', message);
-    // TODO: Implement actual PAM service connection
-    return Promise.resolve();
-  };
-  
-  // Connect when component mounts
-  useEffect(() => {
-    if (user?.id) {
-      setIsConnected(true);
-      console.log('PAM connection simulated for user:', user.id);
-    }
-    return () => setIsConnected(false);
-  }, [user?.id]);
-  
-  // Original connection setup (commented out):
-  // const { isConnected, sendMessage } = usePamWebSocketConnection({
-  //   userId: user?.id || 'anonymous',
-  //   onMessage: handlePAMMessage,
-  //   onStatusChange: handleConnectionStatus
-  // });
+  // WebSocket connection to PAM backend
+  const { isConnected, sendMessage } = usePamWebSocketConnection({
+    userId: user?.id || 'anonymous',
+    token,
+    onMessage: handlePAMMessage,
+    onStatusChange: handleConnectionStatus
+  });
 
   // Send current trip context to PAM for optimization
   const sendTripContextToPAM = async () => {
