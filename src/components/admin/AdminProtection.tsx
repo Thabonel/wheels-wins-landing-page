@@ -10,6 +10,14 @@ interface AdminProtectionProps {
 const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
   const { user, isLoaded } = useUser();
 
+  // Debug logging - REMOVE THIS AFTER TESTING
+  console.log('Clerk Debug:', {
+    isLoaded,
+    user,
+    publicMetadata: user?.publicMetadata,
+    role: user?.publicMetadata?.role
+  });
+
   // Show loading state while user data is being fetched
   if (!isLoaded) {
     return (
