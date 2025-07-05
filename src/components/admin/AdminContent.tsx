@@ -7,6 +7,7 @@ import ContentModeration from './ContentModeration';
 import ReportsAnalytics from './ReportsAnalytics';
 import PAMAnalyticsDashboard from './PAMAnalyticsDashboard';
 import ShopManagement from './ShopManagement';
+import SupportTickets from './SupportTickets';
 import Settings from './Settings';
 
 interface AdminContentProps {
@@ -31,12 +32,7 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
       case 'Shop Management':
         return <ShopManagement />;
       case 'Support Tickets':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Support Tickets</h2>
-            <p className="text-gray-600">Support ticket features coming soon...</p>
-          </div>
-        );
+        return <SupportTickets />;
       case 'Settings':
         return <Settings />;
       default:
