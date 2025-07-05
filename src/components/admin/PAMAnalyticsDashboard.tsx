@@ -13,6 +13,19 @@ import { RefreshCw, Calendar, Download } from 'lucide-react';
 import { useAnalyticsData } from './pam-analytics/hooks/useAnalyticsData';
 import { useRealTimeAlerts } from './pam-analytics/hooks/useRealTimeAlerts';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { toast } from 'sonner';
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 const PAMAnalyticsDashboard: React.FC = () => {
   const [dateRange, setDateRange] = useState('24h');
@@ -26,9 +39,61 @@ const PAMAnalyticsDashboard: React.FC = () => {
     refetch();
   };
 
-  const handleExport = (format: 'csv' | 'pdf') => {
-    // TODO: Implement export functionality
-    console.log(`Exporting data as ${format}`);
+  const handleExport = async (format: 'csv' | 'pdf') => {
+    if (!analyticsData) {
+      toast.error('No analytics data available for export');
+      return;
+    }
+
+    try {
+      const date = new Date().toISOString().split('T')[0];
+
+      if (format === 'csv') {
+        const rows = [
+          'Metric,Value',
+          `Total Requests 24h,${analyticsData.overview.total_requests_24h}`,
+          `Error Rate 24h,${analyticsData.overview.error_rate_24h}`,
+          `Unique Users 24h,${analyticsData.overview.unique_users_24h}`,
+          `Avg Response Time,${analyticsData.overview.avg_response_time}`,
+          `Voice Usage Rate,${analyticsData.overview.voice_usage_rate}`,
+          `System Status,${analyticsData.overview.system_status}`
+        ];
+
+        const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+        downloadBlob(blob, `pam-analytics-${date}.csv`);
+      } else {
+        const doc = await PDFDocument.create();
+        const page = doc.addPage([612, 792]);
+        const font = await doc.embedFont(StandardFonts.Helvetica);
+
+        let y = 760;
+        page.drawText('PAM Analytics Summary', { x: 50, y, size: 16, font });
+        y -= 30;
+
+        const lines = [
+          `Total Requests (24h): ${analyticsData.overview.total_requests_24h}`,
+          `Error Rate (24h): ${analyticsData.overview.error_rate_24h}%`,
+          `Unique Users (24h): ${analyticsData.overview.unique_users_24h}`,
+          `Avg Response Time: ${analyticsData.overview.avg_response_time} ms`,
+          `Voice Usage Rate: ${analyticsData.overview.voice_usage_rate}%`,
+          `System Status: ${analyticsData.overview.system_status}`
+        ];
+
+        lines.forEach(line => {
+          page.drawText(line, { x: 50, y, size: 12, font });
+          y -= 15;
+        });
+
+        const pdfBytes = await doc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        downloadBlob(blob, `pam-analytics-${date}.pdf`);
+      }
+
+      toast.success(`Analytics exported as ${format.toUpperCase()}`);
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Failed to export analytics');
+    }
   };
 
   if (error) {
