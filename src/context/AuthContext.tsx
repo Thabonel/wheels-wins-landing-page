@@ -1,5 +1,7 @@
-import { createContext, useContext, ReactNode } from 'react';
-import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { recordLogin, endSession } from '@/lib/authLogging';
 
 interface User {
   id: string;
@@ -10,7 +12,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  session: any | null;
+  session: Session | null;
   loading: boolean;
   isAuthenticated: boolean;
   isDevMode: boolean;
@@ -23,78 +25,46 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user: clerkUser, isLoaded } = useUser();
-  const { getToken, signOut: clerkSignOut } = useClerkAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const isDevMode = false;
-  const loading = !isLoaded;
-  const isAuthenticated = isLoaded && !!clerkUser;
+  const isAuthenticated = !!user && !!session;
 
-  // Convert Clerk user to our User format
-  const user: User | null = clerkUser ? {
-    id: clerkUser.id,
-    email: clerkUser.primaryEmailAddress?.emailAddress || '',
-    full_name: clerkUser.fullName || undefined
-  } : null;
+  useEffect(() => {
+    let mounted = true;
 
-  // For compatibility, we'll create a mock session object
-  const session = clerkUser ? { 
-    user: clerkUser,
-    access_token: null // We'll get this when needed
-  } : null;
+    // Set up auth state listener
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
 
-  const signIn = async (email: string, password: string) => {
-    // Clerk handles sign-in through their components/modals
-    // This is kept for compatibility but won't be used
-    throw new Error('Use Clerk SignIn component for authentication');
-  };
+      console.log('Auth state change:', event, session?.user?.email);
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
-    // Clerk handles sign-up through their components/modals
-    // This is kept for compatibility but won't be used
-    throw new Error('Use Clerk SignUp component for authentication');
-  };
+      try {
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Use setTimeout to defer Supabase calls and prevent deadlocks
+          setTimeout(async () => {
+            try {
+              await recordLogin(session.user.id, session);
+            } catch (error) {
+              console.error('Error recording login:', error);
+            }
+          }, 0);
+        }
+        
+        if (event === 'SIGNED_OUT' && session) {
+          setTimeout(async () => {
+            try {
+              await endSession(session.access_token);
+            } catch (error) {
+              console.error('Error ending session:', error);
+            }
+          }, 0);
+        }
 
-  const signOut = async () => {
-    await clerkSignOut();
-  };
-
-  const logout = signOut; // Alias
-
-  // Get token when needed (async function for compatibility)
-  const getAuthToken = async (): Promise<string | null> => {
-    try {
-      return await getToken();
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-      return null;
-    }
-  };
-
-  console.log("Auth Debug - user:", user, "isAuthenticated:", isAuthenticated, "isDevMode:", isDevMode, "loading:", loading);
-
-  return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token: null, // Token is fetched when needed via getToken()
-      session,
-      loading, 
-      isAuthenticated, 
-      isDevMode, 
-      signIn, 
-      signUp, 
-      signOut, 
-      logout 
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+        // Only synchronous state updates here
+        setSessi
