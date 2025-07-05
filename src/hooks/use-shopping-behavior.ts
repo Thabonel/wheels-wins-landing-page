@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProductView {
   product_id: string;
@@ -30,8 +31,14 @@ export function useShoppingBehavior() {
     if (!user) return;
 
     try {
-      console.log('Tracking product view:', { productId, category, price, region });
-      // TODO: Implement actual tracking when database is ready
+      await supabase.from('product_views').insert({
+        user_id: user.id,
+        product_id: productId,
+        category,
+        price,
+        region,
+        duration_seconds: 0
+      });
     } catch (error) {
       console.error('Error tracking product view:', error);
     }
@@ -46,8 +53,13 @@ export function useShoppingBehavior() {
     if (!user) return;
 
     try {
-      console.log('Tracking category view:', { category, productType, price, region });
-      // TODO: Implement actual tracking when database is ready
+      await supabase.from('product_interactions').insert({
+        user_id: user.id,
+        product_id: category,
+        interaction_type: 'view',
+        duration_seconds: 0,
+        context_data: { productType, price, region }
+      });
     } catch (error) {
       console.error('Error tracking category view:', error);
     }
@@ -62,8 +74,13 @@ export function useShoppingBehavior() {
     if (!user) return;
 
     try {
-      console.log('Tracking add to cart:', { productId, category, price, region });
-      // TODO: Implement actual tracking when database is ready
+      await supabase.from('product_interactions').insert({
+        user_id: user.id,
+        product_id: productId,
+        interaction_type: 'add_to_cart',
+        duration_seconds: 0,
+        context_data: { category, price, region }
+      });
     } catch (error) {
       console.error('Error tracking add to cart:', error);
     }
@@ -78,8 +95,13 @@ export function useShoppingBehavior() {
     if (!user) return;
 
     try {
-      console.log('Tracking purchase:', { productId, category, price, region });
-      // TODO: Implement actual tracking when database is ready
+      await supabase.from('product_interactions').insert({
+        user_id: user.id,
+        product_id: productId,
+        interaction_type: 'purchase',
+        duration_seconds: 0,
+        context_data: { category, price, region }
+      });
     } catch (error) {
       console.error('Error tracking purchase:', error);
     }
@@ -87,10 +109,23 @@ export function useShoppingBehavior() {
 
   const fetchUserShoppingBehavior = useCallback(async (userId: string): Promise<ShoppingBehaviorData | null> => {
     try {
-      console.log('Fetching shopping behavior for user:', userId);
-      // TODO: Implement actual data fetching when database is ready
+      const { data: views, error: viewError } = await supabase
+        .from('product_views')
+        .select('*')
+        .eq('user_id', userId);
+
+      const { data: interactions, error: intError } = await supabase
+        .from('product_interactions')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (viewError || intError) {
+        console.error('Error fetching shopping behavior:', viewError || intError);
+        return null;
+      }
+
       return {
-        productViews: [],
+        productViews: views || [],
         categoryBrowsing: {},
         searchQueries: [],
         timeSpentPerCategory: {}
