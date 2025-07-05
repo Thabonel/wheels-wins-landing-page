@@ -7,7 +7,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
+import { useUser } from '@clerk/clerk-react';
 import { RefreshCw, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 
 interface FlaggedContent {
@@ -28,9 +28,13 @@ const ContentModeration = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedNotes, setSelectedNotes] = useState<{[key: string]: string}>({});
-  const { user } = useAuth();
+  
+  const { user: clerkUser, isSignedIn } = useUser();
+  const isAdmin = clerkUser?.primaryEmailAddress?.emailAddress === 'thabonel0@gmail.com';
 
   const fetchFlaggedContent = async () => {
+    if (!isSignedIn || !isAdmin) return;
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -61,7 +65,7 @@ const ContentModeration = () => {
         .from('content_moderation')
         .update({
           status: action,
-          moderator_id: user?.id,
+          moderator_id: clerkUser?.id,
           moderator_notes: notes,
           updated_at: new Date().toISOString()
         })

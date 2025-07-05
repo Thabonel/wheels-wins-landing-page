@@ -7,9 +7,8 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { useAuth } from '@/context/AuthContext';
+import { useUser } from '@clerk/clerk-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { RefreshCw, Search, UserPlus } from 'lucide-react';
 
 interface AdminUser {
@@ -29,15 +28,18 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const { user } = useAuth();
-  const { isAdmin } = useAdminAuth();
+  const { user: clerkUser, isSignedIn } = useUser();
+  
+  // Check if user is admin (you can customize this logic)
+  const isAdmin = clerkUser?.primaryEmailAddress?.emailAddress === 'thabonel0@gmail.com';
 
   const fetchUsers = async () => {
-    if (!user || !isAdmin) return;
+    if (!isSignedIn || !isAdmin) return;
     
     console.log("Fetching admin users");
     setLoading(true);
     try {
+      // Direct query - will need proper RLS policy or service role access
       const { data, error } = await supabase
         .from('admin_users')
         .select('*')
@@ -50,7 +52,7 @@ export default function UserManagement() {
       }
 
       console.log("Fetched user data:", data);
-      setUsers(data || []);
+      setUsers((data as AdminUser[]) || []);
     } catch (error) {
       console.error("Network error:", error);
       toast.error("Network error while fetching users");
@@ -125,10 +127,10 @@ export default function UserManagement() {
   });
 
   useEffect(() => {
-    if (user && isAdmin) {
+    if (isSignedIn && isAdmin) {
       fetchUsers();
     }
-  }, [user, isAdmin]);
+  }, [isSignedIn, isAdmin]);
 
   return (
     <div className="p-6 space-y-6">

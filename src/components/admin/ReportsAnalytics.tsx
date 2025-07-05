@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useUser } from '@clerk/clerk-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { RefreshCw, Download, TrendingUp, Users, ShoppingCart, DollarSign } from "lucide-react";
@@ -38,8 +39,13 @@ const ReportsAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedMetric, setSelectedMetric] = useState('users');
+  
+  const { user: clerkUser, isSignedIn } = useUser();
+  const isAdmin = clerkUser?.primaryEmailAddress?.emailAddress === 'thabonel0@gmail.com';
 
   const fetchAnalyticsData = async () => {
+    if (!isSignedIn || !isAdmin) return;
+    
     setLoading(true);
     try {
       // Fetch user growth data
