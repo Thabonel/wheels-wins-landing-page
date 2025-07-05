@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import SubmitIdeaForm from "./hustle-board/SubmitIdeaForm";
+import LearnMoreModal from "./hustle-board/LearnMoreModal";
 interface HustleIdea {
   id: string;
   title: string;
@@ -28,6 +29,8 @@ export default function SocialHustleBoard() {
   const [isLoading, setIsLoading] = useState(true);
   const [likedIdeas, setLikedIdeas] = useState<Set<string>>(new Set());
   const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [showLearnMore, setShowLearnMore] = useState(false);
+  const [selectedIdea, setSelectedIdea] = useState<HustleIdea | null>(null);
   useEffect(() => {
     fetchHustleIdeas();
   }, []);
@@ -90,11 +93,8 @@ export default function SocialHustleBoard() {
     }
   };
   const handleLearnMore = (idea: HustleIdea) => {
-    // For now, show more details in a toast. In the future, this could open a detailed view or external link
-    toast.info(`${idea.title}: ${idea.description}`, {
-      duration: 5000,
-      description: `Average earnings: $${idea.avg_earnings}/month • Rating: ${idea.rating}/5`
-    });
+    setSelectedIdea(idea);
+    setShowLearnMore(true);
   };
 
   const handleAddToIncome = async (idea: HustleIdea) => {
@@ -224,6 +224,13 @@ export default function SocialHustleBoard() {
         isOpen={showSubmitForm}
         onClose={() => setShowSubmitForm(false)}
         onIdeaSubmitted={fetchHustleIdeas}
+      />
+
+      {/* Learn More Modal */}
+      <LearnMoreModal
+        isOpen={showLearnMore}
+        onClose={() => setShowLearnMore(false)}
+        idea={selectedIdea}
       />
     </div>;
 }
