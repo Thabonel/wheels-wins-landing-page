@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,10 +71,12 @@ const LoginForm = ({ loading, setLoading, error, setError, onSuccess }: LoginFor
         <div className="space-y-2">
           <div className="flex justify-between">
             <Label htmlFor="password">Password</Label>
-            <a href="#" className="text-sm text-blue-600 hover:text-blue-800" onClick={(e) => {
-              e.preventDefault();
-              alert("Password reset functionality coming soon!");
-            }}>Forgot password?</a>
+            <Link
+              to="/reset-password"
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Forgot password?
+            </Link>
           </div>
           <PasswordInput
             id="password"
