@@ -15,6 +15,7 @@ export const useRealTimeAlerts = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const { toast } = useToast();
 
+  // TODO: Remove this fallback once the backend returns real alerts
   const mockAlerts: Alert[] = [
     {
       id: '1',
@@ -36,15 +37,30 @@ export const useRealTimeAlerts = () => {
 
   const fetchAlerts = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/webhook/analytics/alerts');
-      // if (!response.ok) throw new Error('Failed to fetch alerts');
-      // const result = await response.json();
-      
-      // Simulate API call
-      setAlerts(mockAlerts);
-    } catch (error) {
+      const response = await fetch('/webhook/analytics/alerts');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch alerts: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      // The API should eventually return an array of alerts. Until then we
+      // fall back to mock data if result is empty.
+      if (Array.isArray(result) && result.length > 0) {
+        setAlerts(result);
+      } else if (Array.isArray(result?.alerts) && result.alerts.length > 0) {
+        setAlerts(result.alerts);
+      } else {
+        // TODO: remove mockAlerts once the endpoint provides real data
+        setAlerts(mockAlerts);
+      }
+    } catch (error: any) {
       console.error('Failed to fetch alerts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch alerts',
+        variant: 'destructive'
+      });
     }
   };
 
