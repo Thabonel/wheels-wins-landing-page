@@ -31,7 +31,8 @@ export function useShoppingBehavior() {
     if (!user) return;
 
     try {
-      await supabase.from('product_views').insert({
+      // Mock implementation - tables don't exist yet
+      console.log('Product view tracked (mock):', {
         user_id: user.id,
         product_id: productId,
         category,
@@ -53,7 +54,8 @@ export function useShoppingBehavior() {
     if (!user) return;
 
     try {
-      await supabase.from('product_interactions').insert({
+      // Mock implementation - tables don't exist yet
+      console.log('Category view tracked (mock):', {
         user_id: user.id,
         product_id: category,
         interaction_type: 'view',
@@ -74,7 +76,8 @@ export function useShoppingBehavior() {
     if (!user) return;
 
     try {
-      await supabase.from('product_interactions').insert({
+      // Mock implementation - tables don't exist yet
+      console.log('Add to cart tracked (mock):', {
         user_id: user.id,
         product_id: productId,
         interaction_type: 'add_to_cart',
@@ -95,7 +98,8 @@ export function useShoppingBehavior() {
     if (!user) return;
 
     try {
-      await supabase.from('product_interactions').insert({
+      // Mock implementation - tables don't exist yet
+      console.log('Purchase tracked (mock):', {
         user_id: user.id,
         product_id: productId,
         interaction_type: 'purchase',
@@ -109,23 +113,11 @@ export function useShoppingBehavior() {
 
   const fetchUserShoppingBehavior = useCallback(async (userId: string): Promise<ShoppingBehaviorData | null> => {
     try {
-      const { data: views, error: viewError } = await supabase
-        .from('product_views')
-        .select('*')
-        .eq('user_id', userId);
-
-      const { data: interactions, error: intError } = await supabase
-        .from('product_interactions')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (viewError || intError) {
-        console.error('Error fetching shopping behavior:', viewError || intError);
-        return null;
-      }
-
+      // Mock implementation - tables don't exist yet
+      console.log('Fetching shopping behavior (mock) - returning empty data');
+      
       return {
-        productViews: views || [],
+        productViews: [],
         categoryBrowsing: {},
         searchQueries: [],
         timeSpentPerCategory: {}

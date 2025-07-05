@@ -39,15 +39,10 @@ export function usePersonalizedRecommendations() {
 
     setIsLoading(true);
     try {
-      // Attempt to fetch recommendations from Supabase
-      const { data: dbRecommendations, error } = await supabase.rpc(
-        'get_personalized_recommendations',
-        { p_user_id: user.id, p_limit: 9 }
-      );
-
-      if (error) {
-        throw error;
-      }
+      // Mock implementation - function doesn't exist yet  
+      console.log('Getting personalized recommendations (mock) - returning empty array');
+      
+      const dbRecommendations = [];
 
       if (dbRecommendations && dbRecommendations.length > 0) {
         const [digitalProducts, affiliateProducts] = await Promise.all([

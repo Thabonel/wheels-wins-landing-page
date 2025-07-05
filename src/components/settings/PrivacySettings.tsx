@@ -69,7 +69,7 @@ export const PrivacySettings = () => {
             </Label>
             <Switch
               id={key}
-              checked={settings.privacy_preferences[key]}
+              checked={Boolean(settings.privacy_preferences[key])}
               onCheckedChange={() => handleToggle(key)}
               disabled={updating}
             />
