@@ -94,27 +94,5 @@ export default function RouteInputs({
       }
     };
   }, [directionsControl, setDestName, destinationLocked, lockDestination]);
-  return <div className="space-y-3">
-      {/* Origin Input */}
-      <div className="flex items-center gap-3">
-        
-        <div className="flex-1">
-          {originLocked && originName ? <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-              <Lock className="w-4 h-4 text-blue-600" />
-              <span className="text-sm text-blue-800">{originName}</span>
-            </div> : <div ref={originGeocoderContainer} className="w-full [&_.mapboxgl-ctrl-geocoder]:w-full [&_.mapboxgl-ctrl-geocoder]:max-w-none [&_.mapboxgl-ctrl-geocoder]:rounded-lg [&_.mapboxgl-ctrl-geocoder]:border [&_.mapboxgl-ctrl-geocoder]:shadow-sm [&_.mapboxgl-ctrl-geocoder]:border-gray-300 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-2 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-blue-500 [&_.mapboxgl-ctrl-geocoder]:focus-within:border-transparent" />}
-        </div>
-      </div>
-
-      {/* Destination Input */}
-      <div className="flex items-center gap-3">
-        
-        <div className="flex-1">
-          {destinationLocked && destName ? <div className="flex items-center gap-2 p-2 bg-purple-50 border border-purple-200 rounded-lg">
-              <Lock className="w-4 h-4 text-purple-600" />
-              <span className="text-sm text-purple-800">{destName}</span>
-            </div> : <div ref={destGeocoderContainer} className="w-full [&_.mapboxgl-ctrl-geocoder]:w-full [&_.mapboxgl-ctrl-geocoder]:max-w-none [&_.mapboxgl-ctrl-geocoder]:rounded-lg [&_.mapboxgl-ctrl-geocoder]:border [&_.mapboxgl-ctrl-geocoder]:shadow-sm [&_.mapboxgl-ctrl-geocoder]:border-gray-300 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-2 [&_.mapboxgl-ctrl-geocoder]:focus-within:ring-purple-500 [&_.mapboxgl-ctrl-geocoder]:focus-within:border-transparent" />}
-        </div>
-      </div>
-    </div>;
+  return;
 }
