@@ -21,7 +21,8 @@ const DashboardOverview = () => {
   const [loading, setLoading] = useState(true);
   
   const { user: clerkUser, isSignedIn } = useUser();
-  const isAdmin = clerkUser?.primaryEmailAddress?.emailAddress === 'thabonel0@gmail.com';
+  // Check for admin role in Clerk metadata
+  const isAdmin = clerkUser?.publicMetadata?.role === 'admin';
 
   const fetchDashboardStats = async () => {
     if (!isSignedIn || !isAdmin) return;
@@ -129,6 +130,31 @@ const DashboardOverview = () => {
       fetchDashboardStats();
     }
   }, [isSignedIn, isAdmin]);
+
+  // Debug logging
+  console.log('DashboardOverview Debug:', {
+    isSignedIn,
+    isAdmin,
+    userRole: clerkUser?.publicMetadata?.role,
+    userEmail: clerkUser?.primaryEmailAddress?.emailAddress
+  });
+
+  if (!isSignedIn) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Please sign in to view the dashboard</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Admin access required to view this dashboard</p>
+        <p className="text-sm text-gray-400 mt-2">Current role: {clerkUser?.publicMetadata?.role || 'none'}</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
