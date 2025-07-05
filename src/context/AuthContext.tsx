@@ -1,7 +1,5 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
-import { recordLogin, endSession } from '@/lib/authLogging';
+import { createContext, useContext, ReactNode } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 
 interface User {
   id: string;
@@ -12,7 +10,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  session: Session | null;
+  session: any | null;
   loading: boolean;
   isAuthenticated: boolean;
   isDevMode: boolean;
@@ -25,150 +23,60 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: clerkUser, isLoaded } = useUser();
+  const { getToken, signOut: clerkSignOut } = useClerkAuth();
 
   const isDevMode = false;
-  const isAuthenticated = !!user && !!session;
+  const loading = !isLoaded;
+  const isAuthenticated = isLoaded && !!clerkUser;
 
-  useEffect(() => {
-    let mounted = true;
+  // Convert Clerk user to our User format
+  const user: User | null = clerkUser ? {
+    id: clerkUser.id,
+    email: clerkUser.primaryEmailAddress?.emailAddress || '',
+    full_name: clerkUser.fullName || undefined
+  } : null;
 
-    // Set up auth state listener
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      console.log('Auth state change:', event, session?.user?.email);
-
-      try {
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Use setTimeout to defer Supabase calls and prevent deadlocks
-          setTimeout(async () => {
-            try {
-              await recordLogin(session.user.id, session);
-            } catch (error) {
-              console.error('Error recording login:', error);
-            }
-          }, 0);
-        }
-        
-        if (event === 'SIGNED_OUT' && session) {
-          setTimeout(async () => {
-            try {
-              await endSession(session.access_token);
-            } catch (error) {
-              console.error('Error ending session:', error);
-            }
-          }, 0);
-        }
-
-        // Only synchronous state updates here
-        setSession(session);
-        setToken(session?.access_token ?? null);
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            full_name: session.user.user_metadata?.full_name
-          });
-        } else {
-          setUser(null);
-        }
-        
-        if (mounted) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Auth state change error:', error);
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    });
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (!mounted) return;
-
-      if (error) {
-        console.error('Error getting session:', error);
-        setLoading(false);
-        return;
-      }
-
-      console.log('Initial session check:', session?.user?.email);
-      
-      setSession(session);
-      setToken(session?.access_token ?? null);
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          full_name: session.user.user_metadata?.full_name
-        });
-      }
-      setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  // For compatibility, we'll create a mock session object
+  const session = clerkUser ? { 
+    user: clerkUser,
+    access_token: null // We'll get this when needed
+  } : null;
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      throw error;
-    }
+    // Clerk handles sign-in through their components/modals
+    // This is kept for compatibility but won't be used
+    throw new Error('Use Clerk SignIn component for authentication');
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName
-        }
-      }
-    });
-
-    if (error) {
-      throw error;
-    }
+    // Clerk handles sign-up through their components/modals
+    // This is kept for compatibility but won't be used
+    throw new Error('Use Clerk SignUp component for authentication');
   };
 
   const signOut = async () => {
-    const currentToken = session?.access_token;
-    const { error } = await supabase.auth.signOut();
-    if (currentToken) {
-      await endSession(currentToken);
-    }
-    if (error) {
-      console.error('Logout error:', error);
-    }
+    await clerkSignOut();
   };
 
   const logout = signOut; // Alias
+
+  // Get token when needed (async function for compatibility)
+  const getAuthToken = async (): Promise<string | null> => {
+    try {
+      return await getToken();
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+      return null;
+    }
+  };
 
   console.log("Auth Debug - user:", user, "isAuthenticated:", isAuthenticated, "isDevMode:", isDevMode, "loading:", loading);
 
   return (
     <AuthContext.Provider value={{ 
       user, 
-      token,
+      token: null, // Token is fetched when needed via getToken()
       session,
       loading, 
       isAuthenticated, 
