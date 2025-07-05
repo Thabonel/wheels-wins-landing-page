@@ -164,16 +164,33 @@ export const useAnalyticsData = (dateRange: string) => {
   const fetchData = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/webhook/analytics/dashboard?range=${dateRange}`);
-      // if (!response.ok) throw new Error('Failed to fetch analytics data');
-      // const result = await response.json();
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setData(mockData);
+      const response = await fetch(
+        `/webhook/analytics/dashboard?range=${encodeURIComponent(dateRange)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch analytics data: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      let parsed: AnalyticsDashboard | null = null;
+
+      if (result && result.overview) {
+        parsed = result as AnalyticsDashboard;
+      } else if (result?.data?.overview) {
+        parsed = result.data as AnalyticsDashboard;
+      } else if (result?.dashboard?.overview) {
+        parsed = result.dashboard as AnalyticsDashboard;
+      }
+
+      if (!parsed) {
+        throw new Error('Invalid analytics data format');
+      }
+
+      setData(parsed);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
