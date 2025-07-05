@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
 import { RefreshCw, Plus, Package, ShoppingCart, DollarSign, TrendingUp } from "lucide-react";
 
 interface Product {
@@ -35,9 +33,74 @@ interface Order {
 }
 
 const ShopManagement = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Mock products data
+  const mockProducts: Product[] = [
+    {
+      id: '1',
+      name: 'Travel Backpack Pro',
+      description: 'Professional travel backpack with multiple compartments',
+      price: 89.99,
+      category: 'Travel Gear',
+      status: 'active',
+      inventory_count: 25,
+      created_at: '2024-06-15T10:30:00Z'
+    },
+    {
+      id: '2', 
+      name: 'Camping Tent Deluxe',
+      description: 'Waterproof 4-person camping tent',
+      price: 159.99,
+      category: 'Camping',
+      status: 'active',
+      inventory_count: 12,
+      created_at: '2024-06-20T14:15:00Z'
+    },
+    {
+      id: '3',
+      name: 'Hiking Boots Elite',
+      description: 'Durable hiking boots for all terrains',
+      price: 129.99,
+      category: 'Footwear', 
+      status: 'draft',
+      inventory_count: 18,
+      created_at: '2024-07-01T09:45:00Z'
+    }
+  ];
+
+  // Mock orders data
+  const mockOrders: Order[] = [
+    {
+      id: '1',
+      user_email: 'customer1@example.com',
+      total_amount: 89.99,
+      status: 'pending',
+      payment_status: 'completed',
+      tracking_number: 'TN123456789',
+      created_at: '2024-07-04T11:30:00Z'
+    },
+    {
+      id: '2',
+      user_email: 'customer2@example.com',
+      total_amount: 289.98,
+      status: 'shipped',
+      payment_status: 'completed', 
+      tracking_number: 'TN987654321',
+      created_at: '2024-07-03T16:20:00Z'
+    },
+    {
+      id: '3',
+      user_email: 'customer3@example.com',
+      total_amount: 159.99,
+      status: 'delivered',
+      payment_status: 'completed',
+      tracking_number: 'TN555666777',
+      created_at: '2024-07-01T08:15:00Z'
+    }
+  ];
+
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products');
   const [newProduct, setNewProduct] = useState({
     name: '',
@@ -46,40 +109,25 @@ const ShopManagement = () => {
     category: '',
     inventory_count: ''
   });
-  const { user } = useAuth();
 
   const fetchProducts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('shop_products')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        toast.error(`Failed to fetch products: ${error.message}`);
-      } else {
-        setProducts(data || []);
-      }
-    } catch (err) {
-      toast.error("Network error while fetching products");
-    }
+    // Mock refresh - simulate loading
+    setLoading(true);
+    setTimeout(() => {
+      setProducts(mockProducts);
+      setLoading(false);
+      toast.success("Products refreshed");
+    }, 1000);
   };
 
   const fetchOrders = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('shop_orders')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        toast.error(`Failed to fetch orders: ${error.message}`);
-      } else {
-        setOrders(data || []);
-      }
-    } catch (err) {
-      toast.error("Network error while fetching orders");
-    }
+    // Mock refresh - simulate loading  
+    setLoading(true);
+    setTimeout(() => {
+      setOrders(mockOrders);
+      setLoading(false);
+      toast.success("Orders refreshed");
+    }, 1000);
   };
 
   const handleCreateProduct = async () => {
@@ -88,65 +136,45 @@ const ShopManagement = () => {
       return;
     }
 
-    try {
-      const { error } = await supabase
-        .from('shop_products')
-        .insert({
-          name: newProduct.name,
-          description: newProduct.description,
-          price: parseFloat(newProduct.price),
-          category: newProduct.category || 'General',
-          inventory_count: parseInt(newProduct.inventory_count) || 0,
-          created_by: user?.id,
-          status: 'draft'
-        });
+    // Mock create product - add to local state
+    const newProductObj: Product = {
+      id: Date.now().toString(),
+      name: newProduct.name,
+      description: newProduct.description,
+      price: parseFloat(newProduct.price),
+      category: newProduct.category || 'General',
+      inventory_count: parseInt(newProduct.inventory_count) || 0,
+      status: 'draft',
+      created_at: new Date().toISOString()
+    };
 
-      if (error) {
-        toast.error(`Failed to create product: ${error.message}`);
-      } else {
-        toast.success("Product created successfully");
-        setNewProduct({ name: '', description: '', price: '', category: '', inventory_count: '' });
-        fetchProducts();
-      }
-    } catch (err) {
-      toast.error("Failed to create product");
-    }
+    setProducts(prev => [newProductObj, ...prev]);
+    toast.success("Product created successfully");
+    setNewProduct({ name: '', description: '', price: '', category: '', inventory_count: '' });
   };
 
   const handleUpdateProductStatus = async (productId: string, status: string) => {
-    try {
-      const { error } = await supabase
-        .from('shop_products')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', productId);
-
-      if (error) {
-        toast.error(`Failed to update product: ${error.message}`);
-      } else {
-        toast.success("Product updated successfully");
-        fetchProducts();
-      }
-    } catch (err) {
-      toast.error("Failed to update product");
-    }
+    // Mock update - update local state
+    setProducts(prev => 
+      prev.map(product => 
+        product.id === productId 
+          ? { ...product, status }
+          : product
+      )
+    );
+    toast.success("Product updated successfully");
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    try {
-      const { error } = await supabase
-        .from('shop_orders')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', orderId);
-
-      if (error) {
-        toast.error(`Failed to update order: ${error.message}`);
-      } else {
-        toast.success("Order updated successfully");
-        fetchOrders();
-      }
-    } catch (err) {
-      toast.error("Failed to update order");
-    }
+    // Mock update - update local state
+    setOrders(prev => 
+      prev.map(order => 
+        order.id === orderId 
+          ? { ...order, status }
+          : order
+      )
+    );
+    toast.success("Order updated successfully");
   };
 
   const getStatusBadge = (status: string, type: 'product' | 'order' = 'product') => {
@@ -180,12 +208,9 @@ const ShopManagement = () => {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      await Promise.all([fetchProducts(), fetchOrders()]);
-      setLoading(false);
-    };
-    fetchData();
+    // Initialize with mock data
+    setProducts(mockProducts);
+    setOrders(mockOrders);
   }, []);
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total_amount, 0);

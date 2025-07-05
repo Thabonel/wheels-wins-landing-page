@@ -18,8 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { RefreshCw, Download, TrendingUp, Users, ShoppingCart, DollarSign } from "lucide-react";
 import { DateRange } from "react-day-picker";
@@ -35,127 +33,59 @@ interface AnalyticsData {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const ReportsAnalytics = () => {
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Mock analytics data - no authentication required
+  const mockAnalyticsData: AnalyticsData = {
+    userGrowth: [
+      { month: 'Jan 2024', users: 120, newUsers: 45 },
+      { month: 'Feb 2024', users: 180, newUsers: 60 },
+      { month: 'Mar 2024', users: 250, newUsers: 70 },
+      { month: 'Apr 2024', users: 320, newUsers: 70 },
+      { month: 'May 2024', users: 410, newUsers: 90 },
+      { month: 'Jun 2024', users: 520, newUsers: 110 }
+    ],
+    revenue: [
+      { month: 'Jan 2024', revenue: 4500, orders: 45 },
+      { month: 'Feb 2024', revenue: 6200, orders: 58 },
+      { month: 'Mar 2024', revenue: 7800, orders: 72 },
+      { month: 'Apr 2024', revenue: 9100, orders: 89 },
+      { month: 'May 2024', revenue: 11400, orders: 102 },
+      { month: 'Jun 2024', revenue: 13800, orders: 125 }
+    ],
+    usersByRegion: [
+      { region: 'North America', count: 250, percentage: 48 },
+      { region: 'Europe', count: 130, percentage: 25 },
+      { region: 'Asia Pacific', count: 90, percentage: 17 },
+      { region: 'South America', count: 35, percentage: 7 },
+      { region: 'Africa', count: 15, percentage: 3 }
+    ],
+    topProducts: [
+      { name: 'Travel Backpack Pro', sales: 85, revenue: 4250 },
+      { name: 'Camping Tent Deluxe', sales: 62, revenue: 3720 },
+      { name: 'Hiking Boots Elite', sales: 74, revenue: 5180 },
+      { name: 'Portable Charger Max', sales: 91, revenue: 2730 },
+      { name: 'Weather Jacket Plus', sales: 53, revenue: 3180 }
+    ],
+    orderStatus: [
+      { status: 'completed', count: 380, percentage: 65 },
+      { status: 'pending', count: 120, percentage: 21 },
+      { status: 'shipped', count: 65, percentage: 11 },
+      { status: 'cancelled', count: 18, percentage: 3 }
+    ]
+  };
+
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(mockAnalyticsData);
+  const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedMetric, setSelectedMetric] = useState('users');
   
-  const { isAdmin, loading: adminLoading, user } = useAdminAuth();
   const fetchAnalyticsData = async () => {
-    if (!isAdmin || adminLoading) return;
-    
+    // Mock refresh - simulate loading
     setLoading(true);
-    try {
-      // Fetch user growth data
-      const { data: users, error: usersError } = await supabase
-        .from('admin_users')
-        .select('created_at, region')
-        .order('created_at');
-
-      if (usersError) throw usersError;
-
-      // Fetch orders data
-      const { data: orders, error: ordersError } = await supabase
-        .from('shop_orders')
-        .select('created_at, total_amount, status')
-        .order('created_at');
-
-      if (ordersError) throw ordersError;
-
-      // Fetch products data
-      const { data: products, error: productsError } = await supabase
-        .from('shop_products')
-        .select('name, price, status')
-        .eq('status', 'active');
-
-      if (productsError) throw productsError;
-
-      // Process user growth data
-      const userGrowthMap = new Map<string, { users: number, newUsers: number }>();
-      users?.forEach(user => {
-        const month = new Date(user.created_at).toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'short' 
-        });
-        const current = userGrowthMap.get(month) || { users: 0, newUsers: 0 };
-        userGrowthMap.set(month, { 
-          users: current.users + 1, 
-          newUsers: current.newUsers + 1 
-        });
-      });
-
-      const userGrowth = Array.from(userGrowthMap.entries()).map(([month, data]) => ({
-        month,
-        ...data
-      }));
-
-      // Process revenue data
-      const revenueMap = new Map<string, { revenue: number, orders: number }>();
-      orders?.forEach(order => {
-        const month = new Date(order.created_at).toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'short' 
-        });
-        const current = revenueMap.get(month) || { revenue: 0, orders: 0 };
-        revenueMap.set(month, { 
-          revenue: current.revenue + order.total_amount, 
-          orders: current.orders + 1 
-        });
-      });
-
-      const revenue = Array.from(revenueMap.entries()).map(([month, data]) => ({
-        month,
-        ...data
-      }));
-
-      // Process users by region
-      const regionMap = new Map<string, number>();
-      users?.forEach(user => {
-        const region = user.region || 'Unknown';
-        regionMap.set(region, (regionMap.get(region) || 0) + 1);
-      });
-
-      const totalUsers = users?.length || 0;
-      const usersByRegion = Array.from(regionMap.entries()).map(([region, count]) => ({
-        region,
-        count,
-        percentage: Math.round((count / totalUsers) * 100)
-      }));
-
-      // Process order status
-      const statusMap = new Map<string, number>();
-      orders?.forEach(order => {
-        statusMap.set(order.status, (statusMap.get(order.status) || 0) + 1);
-      });
-
-      const totalOrders = orders?.length || 0;
-      const orderStatus = Array.from(statusMap.entries()).map(([status, count]) => ({
-        status,
-        count,
-        percentage: Math.round((count / totalOrders) * 100)
-      }));
-
-      // Mock top products (since we don't have sales data yet)
-      const topProducts = products?.slice(0, 5).map((product, index) => ({
-        name: product.name,
-        sales: Math.floor(Math.random() * 100) + 10,
-        revenue: Math.floor(Math.random() * 1000) + 100
-      })) || [];
-
-      setAnalyticsData({
-        userGrowth,
-        revenue,
-        usersByRegion,
-        topProducts,
-        orderStatus
-      });
-
-    } catch (err: any) {
-      console.error("Error fetching analytics:", err);
-      toast.error(`Failed to fetch analytics: ${err.message}`);
-    } finally {
+    setTimeout(() => {
+      setAnalyticsData(mockAnalyticsData);
       setLoading(false);
-    }
+      toast.success("Analytics data refreshed");
+    }, 1000);
   };
 
   const exportData = (format: 'csv' | 'json') => {
@@ -199,10 +129,9 @@ const ReportsAnalytics = () => {
   };
 
   useEffect(() => {
-    if (isAdmin && !adminLoading) {
-      fetchAnalyticsData();
-    }
-  }, [isAdmin, adminLoading]);
+    // Initialize with mock data
+    setAnalyticsData(mockAnalyticsData);
+  }, []);
 
   if (loading) {
     return (

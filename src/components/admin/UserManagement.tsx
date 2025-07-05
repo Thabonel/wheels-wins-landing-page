@@ -7,8 +7,6 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { RefreshCw, Search, UserPlus } from 'lucide-react';
 
 interface AdminUser {
@@ -23,73 +21,86 @@ interface AdminUser {
 }
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Mock data - no authentication required
+  const mockUsers: AdminUser[] = [
+    {
+      id: '1',
+      user_id: 'user1',
+      email: 'john.doe@example.com',
+      role: 'admin', 
+      status: 'active',
+      created_at: '2024-01-15T10:30:00Z',
+      region: 'North America',
+      last_login: '2024-07-05T14:22:00Z'
+    },
+    {
+      id: '2',
+      user_id: 'user2',
+      email: 'jane.smith@example.com',
+      role: 'moderator',
+      status: 'active', 
+      created_at: '2024-02-20T09:15:00Z',
+      region: 'Europe',
+      last_login: '2024-07-04T16:45:00Z'
+    },
+    {
+      id: '3',
+      user_id: 'user3',
+      email: 'mike.johnson@example.com',
+      role: 'user',
+      status: 'suspended',
+      created_at: '2024-03-10T11:20:00Z',
+      region: 'Asia Pacific'
+    },
+    {
+      id: '4',
+      user_id: 'user4',
+      email: 'sarah.wilson@example.com',
+      role: 'user',
+      status: 'pending',
+      created_at: '2024-07-01T08:30:00Z',
+      region: 'North America'
+    }
+  ];
+
+  const [users, setUsers] = useState<AdminUser[]>(mockUsers);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const { isAdmin, loading: adminLoading, user } = useAdminAuth();
   
   const fetchUsers = async () => {
-    if (!isAdmin || adminLoading) return;
-    
-    console.log("Fetching admin users");
+    // Mock refresh - just simulate loading
     setLoading(true);
-    try {
-      // Use admin function with service role access
-      const { data, error } = await supabase
-        .rpc('admin_get_users');
-
-      if (error) {
-        console.error("Error fetching users:", error);
-        toast.error(`Failed to fetch users: ${error.message}`);
-        return;
-      }
-
-      console.log("Fetched user data:", data);
-      setUsers((data as AdminUser[]) || []);
-    } catch (error) {
-      console.error("Network error:", error);
-      toast.error("Network error while fetching users");
-    } finally {
+    setTimeout(() => {
+      setUsers(mockUsers);
       setLoading(false);
-    }
+      toast.success("User data refreshed");
+    }, 1000);
   };
 
   const handleUpdateUserRole = async (userId: string, newRole: string) => {
-    try {
-      const { error } = await supabase
-        .from("admin_users")
-        .update({ role: newRole, updated_at: new Date().toISOString() })
-        .eq("user_id", userId);
-
-      if (error) {
-        toast.error(`Failed to update user role: ${error.message}`);
-      } else {
-        toast.success(`User role updated to ${newRole}`);
-        fetchUsers();
-      }
-    } catch (error) {
-      toast.error("Failed to update user role");
-    }
+    // Mock update - update local state
+    setUsers(prevUsers => 
+      prevUsers.map(user => 
+        user.user_id === userId 
+          ? { ...user, role: newRole }
+          : user
+      )
+    );
+    toast.success(`User role updated to ${newRole}`);
   };
 
   const handleUpdateUserStatus = async (userId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from("admin_users")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("user_id", userId);
-
-      if (error) {
-        toast.error(`Failed to update user status: ${error.message}`);
-      } else {
-        toast.success(`User status updated to ${newStatus}`);
-        fetchUsers();
-      }
-    } catch (error) {
-      toast.error("Failed to update user status");
-    }
+    // Mock update - update local state  
+    setUsers(prevUsers => 
+      prevUsers.map(user => 
+        user.user_id === userId 
+          ? { ...user, status: newStatus }
+          : user
+      )
+    );
+    toast.success(`User status updated to ${newStatus}`);
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -97,21 +108,9 @@ export default function UserManagement() {
       return;
     }
 
-    try {
-      const { error } = await supabase
-        .from("admin_users")
-        .delete()
-        .eq("user_id", userId);
-
-      if (error) {
-        toast.error(`Failed to delete user: ${error.message}`);
-      } else {
-        toast.success("User deleted successfully");
-        fetchUsers();
-      }
-    } catch (error) {
-      toast.error("Failed to delete user");
-    }
+    // Mock delete - remove from local state
+    setUsers(prevUsers => prevUsers.filter(user => user.user_id !== userId));
+    toast.success("User deleted successfully");
   };
 
   const filteredUsers = users.filter(user => {
@@ -122,10 +121,9 @@ export default function UserManagement() {
   });
 
   useEffect(() => {
-    if (isAdmin && !adminLoading) {
-      fetchUsers();
-    }
-  }, [isAdmin, adminLoading]);
+    // Initialize with mock data
+    setUsers(mockUsers);
+  }, []);
 
   return (
     <div className="p-6 space-y-6">

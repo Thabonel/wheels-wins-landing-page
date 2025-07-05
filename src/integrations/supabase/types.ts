@@ -4404,7 +4404,7 @@ export type Database = {
         Returns: Json
       }
       check_user_admin_status: {
-        Args: { check_user_id: string }
+        Args: Record<PropertyKey, never> | { check_user_id: string }
         Returns: boolean
       }
       cleanup_expired_audio_cache: {
