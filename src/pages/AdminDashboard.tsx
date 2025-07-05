@@ -36,7 +36,7 @@ const AdminDashboard: React.FC = () => {
           <main
             className={`
               flex-1 flex flex-col h-screen overflow-hidden
-              ${isMobile ? 'pt-14' : 'md:ml-0'}
+              ${isMobile ? 'pt-14' : 'lg:ml-64 pt-16'}
             `}
           >
             <div className="flex-1 p-6 overflow-y-auto">
