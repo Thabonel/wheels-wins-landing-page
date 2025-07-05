@@ -3870,6 +3870,114 @@ export type Database = {
         }
         Relationships: []
       }
+      product_views: {
+        Row: {
+          id: string
+          user_id: string
+          product_id: string
+          view_start: string | null
+          view_end: string | null
+          duration_seconds: number | null
+          category: string | null
+          price: number | null
+          region: string | null
+          context_data: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          product_id: string
+          view_start?: string | null
+          view_end?: string | null
+          duration_seconds?: number | null
+          category?: string | null
+          price?: number | null
+          region?: string | null
+          context_data?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          product_id?: string
+          view_start?: string | null
+          view_end?: string | null
+          duration_seconds?: number | null
+          category?: string | null
+          price?: number | null
+          region?: string | null
+          context_data?: Json | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      product_interactions: {
+        Row: {
+          id: string
+          user_id: string
+          product_id: string
+          interaction_type: string
+          duration_seconds: number | null
+          context_data: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          product_id: string
+          interaction_type: string
+          duration_seconds?: number | null
+          context_data?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          product_id?: string
+          interaction_type?: string
+          duration_seconds?: number | null
+          context_data?: Json | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      shopping_sessions: {
+        Row: {
+          id: string
+          user_id: string | null
+          session_start: string | null
+          session_end: string | null
+          total_views: number | null
+          total_interactions: number | null
+          items_purchased: number | null
+          total_spent: number | null
+          context_data: Json | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          session_start?: string | null
+          session_end?: string | null
+          total_views?: number | null
+          total_interactions?: number | null
+          items_purchased?: number | null
+          total_spent?: number | null
+          context_data?: Json | null
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          session_start?: string | null
+          session_end?: string | null
+          total_views?: number | null
+          total_interactions?: number | null
+          items_purchased?: number | null
+          total_spent?: number | null
+          context_data?: Json | null
+        }
+        Relationships: []
+      }
       user_social_profiles: {
         Row: {
           avatar_url: string | null
