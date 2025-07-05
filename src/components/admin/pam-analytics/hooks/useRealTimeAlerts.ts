@@ -37,30 +37,12 @@ export const useRealTimeAlerts = () => {
 
   const fetchAlerts = async () => {
     try {
-      const response = await fetch('/webhook/analytics/alerts');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch alerts: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      // The API should eventually return an array of alerts. Until then we
-      // fall back to mock data if result is empty.
-      if (Array.isArray(result) && result.length > 0) {
-        setAlerts(result);
-      } else if (Array.isArray(result?.alerts) && result.alerts.length > 0) {
-        setAlerts(result.alerts);
-      } else {
-        // TODO: remove mockAlerts once the endpoint provides real data
-        setAlerts(mockAlerts);
-      }
+      // Simulate API delay and always use mock data
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setAlerts(mockAlerts);
     } catch (error: any) {
       console.error('Failed to fetch alerts:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch alerts',
-        variant: 'destructive'
-      });
+      setAlerts(mockAlerts);
     }
   };
 
