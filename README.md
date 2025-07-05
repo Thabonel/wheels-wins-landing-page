@@ -70,3 +70,26 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 ## Environment Variables
 
 The trip planner uses several external APIs. To enable phone coverage overlays, set `OPEN_CELL_ID_API_KEY` in your `.env` file.
+
+## Running Tests
+
+Before committing changes, run the project's test suites.
+
+### Frontend
+
+Install Node dependencies and execute the Vitest suite:
+
+```bash
+npm install
+npm test
+```
+
+### Backend
+
+Install Python dev requirements and run the backend tests:
+
+```bash
+pip install -r backend/requirements-dev.txt
+pytest
+```
+
