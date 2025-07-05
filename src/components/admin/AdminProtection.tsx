@@ -1,5 +1,5 @@
 import React from 'react';
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield } from 'lucide-react';
 
