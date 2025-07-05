@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useUser } from '@clerk/clerk-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { RefreshCw, Download, TrendingUp, Users, ShoppingCart, DollarSign } from "lucide-react";
@@ -40,11 +40,9 @@ const ReportsAnalytics = () => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedMetric, setSelectedMetric] = useState('users');
   
-  const { user: clerkUser, isSignedIn } = useUser();
-  const isAdmin = clerkUser?.primaryEmailAddress?.emailAddress === 'thabonel0@gmail.com';
-
+  const { isAdmin, loading: adminLoading, user } = useAdminAuth();
   const fetchAnalyticsData = async () => {
-    if (!isSignedIn || !isAdmin) return;
+    if (!isAdmin || adminLoading) return;
     
     setLoading(true);
     try {
@@ -201,10 +199,10 @@ const ReportsAnalytics = () => {
   };
 
   useEffect(() => {
-    if (isSignedIn && isAdmin) {
+    if (isAdmin && !adminLoading) {
       fetchAnalyticsData();
     }
-  }, [isSignedIn, isAdmin]);
+  }, [isAdmin, adminLoading]);
 
   if (loading) {
     return (

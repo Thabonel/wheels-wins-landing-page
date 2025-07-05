@@ -67,4 +67,105 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Only synchronous state updates here
-        setSessi
+        setSession(session);
+        setToken(session?.access_token || null);
+        
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.user_metadata?.full_name
+          });
+        } else {
+          setUser(null);
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Auth state change error:', error);
+        setLoading(false);
+      }
+    });
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
+      setSession(session);
+      setToken(session?.access_token || null);
+      
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name
+        });
+      }
+      
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) throw error;
+  };
+
+  const signUp = async (email: string, password: string, fullName?: string) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: fullName ? { full_name: fullName } : {}
+      }
+    });
+    
+    if (error) throw error;
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
+  const logout = signOut;
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        session,
+        loading,
+        isAuthenticated,
+        isDevMode,
+        signIn,
+        signUp,
+        signOut,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}

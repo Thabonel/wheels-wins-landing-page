@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
-import { useUser } from '@clerk/clerk-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -20,12 +20,10 @@ const DashboardOverview = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   
-  const { user: clerkUser, isSignedIn } = useUser();
-  // Check for admin role in Clerk metadata
-  const isAdmin = clerkUser?.publicMetadata?.role === 'admin';
+  const { isAdmin, loading: adminLoading, user } = useAdminAuth();
 
   const fetchDashboardStats = async () => {
-    if (!isSignedIn || !isAdmin) return;
+    if (!isAdmin || adminLoading) return;
     
     setLoading(true);
     try {
@@ -126,23 +124,22 @@ const DashboardOverview = () => {
   };
 
   useEffect(() => {
-    if (isSignedIn && isAdmin) {
+    if (isAdmin && !adminLoading) {
       fetchDashboardStats();
     }
-  }, [isSignedIn, isAdmin]);
+  }, [isAdmin, adminLoading]);
 
   // Debug logging
   console.log('DashboardOverview Debug:', {
-    isSignedIn,
     isAdmin,
-    userRole: clerkUser?.publicMetadata?.role,
-    userEmail: clerkUser?.primaryEmailAddress?.emailAddress
+    adminLoading,
+    userEmail: user?.email
   });
 
-  if (!isSignedIn) {
+  if (loading || adminLoading) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">Please sign in to view the dashboard</p>
+      <div className="flex justify-center items-center h-64">
+        <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
       </div>
     );
   }
@@ -151,7 +148,7 @@ const DashboardOverview = () => {
     return (
       <div className="text-center py-8">
         <p className="text-gray-500">Admin access required to view this dashboard</p>
-        <p className="text-sm text-gray-400 mt-2">Current role: {clerkUser?.publicMetadata?.role || 'none'}</p>
+        <p className="text-sm text-gray-400 mt-2">Current user: {user?.email || 'none'}</p>
       </div>
     );
   }
