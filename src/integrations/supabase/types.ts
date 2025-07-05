@@ -3279,7 +3279,6 @@ export type Database = {
           message: string
           status: string | null
           subject: string
-          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -3288,7 +3287,6 @@ export type Database = {
           message: string
           status?: string | null
           subject: string
-          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -3297,7 +3295,6 @@ export type Database = {
           message?: string
           status?: string | null
           subject?: string
-          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

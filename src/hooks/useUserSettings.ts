@@ -69,12 +69,12 @@ export const useUserSettings = () => {
             .select()
             .single();
           if (insertError) throw insertError;
-          setSettings(created as UserSettings);
+          setSettings(created as unknown as UserSettings);
         } else {
           throw error;
         }
       } else {
-        setSettings(data as UserSettings);
+        setSettings(data as unknown as UserSettings);
       }
     } catch (err) {
       console.error('Error loading settings:', err);
@@ -96,7 +96,7 @@ export const useUserSettings = () => {
         .single();
 
       if (error) throw error;
-      if (data) setSettings(data as UserSettings);
+      if (data) setSettings(data as unknown as UserSettings);
       toast.success('Settings updated');
     } catch (err) {
       console.error('Error updating settings:', err);
