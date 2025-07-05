@@ -166,40 +166,12 @@ export const useAnalyticsData = (dateRange: string) => {
     setError(null);
 
     try {
-      const response = await fetch(
-        `/webhook/analytics/dashboard?range=${encodeURIComponent(dateRange)}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch analytics data: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      let parsed: AnalyticsDashboard | null = null;
-
-      if (result && result.overview) {
-        parsed = result as AnalyticsDashboard;
-      } else if (result?.data?.overview) {
-        parsed = result.data as AnalyticsDashboard;
-      } else if (result?.dashboard?.overview) {
-        parsed = result.dashboard as AnalyticsDashboard;
-      }
-
-      if (!parsed) {
-        throw new Error('Invalid analytics data format');
-      }
-
-      setData(parsed);
+      // Simulate API delay and always use mock data
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setData(mockData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      toast({
-        title: "Error",
-        description: "Failed to load analytics data. Using cached data.",
-        variant: "destructive",
-      });
-      // Fall back to mock data
       setData(mockData);
     } finally {
       setIsLoading(false);
