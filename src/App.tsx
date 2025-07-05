@@ -23,6 +23,8 @@ import { Toaster } from 'sonner';
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCanceled from "@/pages/PaymentCanceled";
 import CancelTrial from "@/pages/CancelTrial";
+import PasswordResetRequest from "@/pages/PasswordResetRequest";
+import UpdatePassword from "@/pages/UpdatePassword";
 import ProtectedRoute from './components/ProtectedRoute';
 
 const queryClient = new QueryClient();
@@ -54,6 +56,8 @@ function App() {
                         <Route path="/payment-success" element={<PaymentSuccess />} />
                         <Route path="/payment-canceled" element={<PaymentCanceled />} />
                         <Route path="/cancel-trial" element={<CancelTrial />} />
+                        <Route path="/reset-password" element={<PasswordResetRequest />} />
+                        <Route path="/update-password" element={<UpdatePassword />} />
                       </Routes>
                     </Layout>
                   </WheelsProvider>
