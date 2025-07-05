@@ -7,7 +7,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { useUser } from '@clerk/clerk-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { RefreshCw, Search, UserPlus } from 'lucide-react';
 
@@ -28,13 +28,10 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const { user: clerkUser, isSignedIn } = useUser();
+  const { isAdmin, loading: adminLoading, user } = useAdminAuth();
   
-  // Check if user is admin (you can customize this logic)
-  const isAdmin = clerkUser?.primaryEmailAddress?.emailAddress === 'thabonel0@gmail.com';
-
   const fetchUsers = async () => {
-    if (!isSignedIn || !isAdmin) return;
+    if (!isAdmin || adminLoading) return;
     
     console.log("Fetching admin users");
     setLoading(true);
@@ -125,10 +122,10 @@ export default function UserManagement() {
   });
 
   useEffect(() => {
-    if (isSignedIn && isAdmin) {
+    if (isAdmin && !adminLoading) {
       fetchUsers();
     }
-  }, [isSignedIn, isAdmin]);
+  }, [isAdmin, adminLoading]);
 
   return (
     <div className="p-6 space-y-6">

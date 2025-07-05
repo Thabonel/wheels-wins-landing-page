@@ -1,74 +1,64 @@
 import React from 'react';
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
-import { Card, CardContent } from '@/components/ui/card';
-import { Shield, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 interface AdminProtectionProps {
   children: React.ReactNode;
 }
 
 const AdminProtection: React.FC<AdminProtectionProps> = ({ children }) => {
-  const { user, isLoaded } = useUser();
+  const { user, isAuthenticated, loading } = useAuth();
 
-  // Show loading state while user data is being fetched
-  if (!isLoaded) {
+  // Simple admin check - in production, this should be more secure
+  const adminEmails = ['admin@wheelsandwins.com', 'thabonel0@gmail.com'];
+  const isAdmin = user?.email && adminEmails.includes(user.email);
+
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
       </div>
     );
   }
 
-  return (
-    <>
-      <SignedOut>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Card className="w-full max-w-md">
-            <CardContent className="p-6 text-center">
-              <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Admin Access Required</h2>
-              <p className="text-gray-600 mb-4">Please sign in to access the admin dashboard.</p>
-              <SignInButton mode="modal">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded">
-                  Sign In
-                </button>
-              </SignInButton>
-            </CardContent>
-          </Card>
-        </div>
-      </SignedOut>
-      
-      <SignedIn>
-        {/* Check if user has admin role */}
-        {user?.publicMetadata?.role === 'admin' ? (
-          <>
-            <div className="absolute top-4 right-4 z-50">
-              <UserButton afterSignOutUrl="/" />
-            </div>
-            {children}
-          </>
-        ) : (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Card className="w-full max-w-md">
-              <CardContent className="p-6 text-center">
-                <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-                <p className="text-gray-600 mb-4">
-                  You are signed in but do not have admin privileges. Please contact an administrator.
-                </p>
-                <p className="text-sm text-gray-500 mb-4">
-                  Current role: {user?.publicMetadata?.role || 'none'}
-                </p>
-                <div className="mt-4">
-                  <UserButton afterSignOutUrl="/" />
-                </div>
-              </CardContent>
-            </Card>
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+          <h1 className="text-2xl font-bold text-center mb-6">Admin Access Required</h1>
+          <p className="text-gray-600 text-center mb-6">
+            Please sign in to access the admin dashboard.
+          </p>
+          <div className="space-y-4">
+            <Link to="/auth">
+              <Button className="w-full">Sign In</Button>
+            </Link>
           </div>
-        )}
-      </SignedIn>
-    </>
-  );
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <p className="text-gray-600 mb-6">
+            You don't have permission to access this admin area.
+          </p>
+          <div className="flex items-center justify-center space-x-4">
+            <span className="text-sm text-gray-500">
+              Signed in as: {user.email}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 };
 
 export default AdminProtection;

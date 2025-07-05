@@ -7,7 +7,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useUser } from '@clerk/clerk-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { RefreshCw, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 
 interface FlaggedContent {
@@ -29,11 +29,9 @@ const ContentModeration = () => {
   const [error, setError] = useState("");
   const [selectedNotes, setSelectedNotes] = useState<{[key: string]: string}>({});
   
-  const { user: clerkUser, isSignedIn } = useUser();
-  const isAdmin = clerkUser?.primaryEmailAddress?.emailAddress === 'thabonel0@gmail.com';
-
+  const { isAdmin, loading: adminLoading, user } = useAdminAuth();
   const fetchFlaggedContent = async () => {
-    if (!isSignedIn || !isAdmin) return;
+    if (!isAdmin || adminLoading) return;
     
     setLoading(true);
     try {
@@ -64,7 +62,7 @@ const ContentModeration = () => {
         .from('content_moderation')
         .update({
           status: action,
-          moderator_id: clerkUser?.id,
+          moderator_id: user?.id,
           moderator_notes: notes,
           updated_at: new Date().toISOString()
         })
@@ -111,10 +109,10 @@ const ContentModeration = () => {
   };
 
   useEffect(() => {
-    if (isSignedIn && isAdmin) {
+    if (isAdmin && !adminLoading) {
       fetchFlaggedContent();
     }
-  }, [isSignedIn, isAdmin]);
+  }, [isAdmin, adminLoading]);
 
   return (
     <div className="p-6 space-y-6">

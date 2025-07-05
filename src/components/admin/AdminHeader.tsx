@@ -2,7 +2,7 @@ import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Menu } from 'lucide-react';
-import { useUser, useClerk } from "@clerk/clerk-react";
+import { useAuth } from '@/context/AuthContext';
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AdminHeaderProps {
@@ -12,16 +12,15 @@ interface AdminHeaderProps {
 
 const AdminHeader: React.FC<AdminHeaderProps> = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const isMobile = useIsMobile();
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { user, signOut } = useAuth();
 
   const handleLogout = () => {
     signOut();
   };
 
-  const userInitials = user?.firstName && user?.lastName 
-    ? `${user.firstName[0]}${user.lastName[0]}` 
-    : user?.emailAddresses[0]?.emailAddress?.slice(0, 2).toUpperCase() || 'AD';
+  const userInitials = user?.full_name 
+    ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase()
+    : user?.email?.slice(0, 2).toUpperCase() || 'AD';
 
   return (
     <>
@@ -36,12 +35,11 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ isSidebarOpen, setIsSidebarOp
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger>
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user?.imageUrl} alt={user?.firstName || "Admin"} />
               <AvatarFallback>{userInitials}</AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{user?.emailAddresses[0]?.emailAddress}</DropdownMenuLabel>
+            <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuItem>Support</DropdownMenuItem>
@@ -59,12 +57,11 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ isSidebarOpen, setIsSidebarOp
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger>
             <Avatar>
-              <AvatarImage src={user?.imageUrl} alt={user?.firstName || "Admin"} />
               <AvatarFallback>{userInitials}</AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{user?.emailAddresses[0]?.emailAddress}</DropdownMenuLabel>
+            <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuItem>Support</DropdownMenuItem>
