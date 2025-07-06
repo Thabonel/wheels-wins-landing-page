@@ -144,11 +144,12 @@ export const handleEventSubmit = async (
       title: newEvent.title,
       description: "",
       date: newEvent.date.toISOString().split("T")[0],
-      start_time: new Date(`${newEvent.date.toISOString().split("T")[0]}T${newEvent.startTime}:00`).toISOString(),
-      end_time: new Date(`${newEvent.date.toISOString().split("T")[0]}T${newEvent.endTime}:00`).toISOString(),
+      time: `${newEvent.startTime}:00`, // time without time zone format
+      start_time: `${newEvent.startTime}:00`, // time without time zone format
+      end_time: `${newEvent.endTime}:00`, // time without time zone format
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       type: newEvent.type,
-      user_id: user.id,
+      user_id: user.id, // user_id is text type, so UUID will be auto-converted
       location: "",
     };
 
