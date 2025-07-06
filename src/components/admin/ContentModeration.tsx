@@ -7,6 +7,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { RefreshCw, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FlaggedContent {
   id: string;
@@ -22,91 +23,67 @@ interface FlaggedContent {
 }
 
 const ContentModeration = () => {
-  // Mock flagged content data
-  const mockFlaggedContent: FlaggedContent[] = [
-    {
-      id: '1',
-      content_type: 'post',
-      content_id: 'post123',
-      content_text: 'This is some inappropriate content that was flagged by users for being offensive.',
-      author_email: 'user1@example.com',
-      flagged_reason: 'inappropriate',
-      status: 'pending',
-      created_at: '2024-07-04T10:30:00Z',
-      updated_at: '2024-07-04T10:30:00Z'
-    },
-    {
-      id: '2', 
-      content_type: 'comment',
-      content_id: 'comment456',
-      content_text: 'Spam comment with links to suspicious websites.',
-      author_email: 'spammer@example.com',
-      flagged_reason: 'spam',
-      status: 'pending',
-      created_at: '2024-07-04T09:15:00Z',
-      updated_at: '2024-07-04T09:15:00Z'
-    },
-    {
-      id: '3',
-      content_type: 'profile',
-      content_id: 'profile789',
-      content_text: 'Profile description with hate speech content.',
-      author_email: 'problem@example.com',
-      flagged_reason: 'hate_speech',
-      status: 'approved',
-      moderator_notes: 'Reviewed - content is within guidelines',
-      created_at: '2024-07-03T14:20:00Z',
-      updated_at: '2024-07-03T15:30:00Z'
-    },
-    {
-      id: '4',
-      content_type: 'post',
-      content_id: 'post321',
-      content_text: 'Another post with questionable content that needs review.',
-      author_email: 'user2@example.com',
-      flagged_reason: 'misinformation',
-      status: 'rejected',
-      moderator_notes: 'Content removed for spreading false information',
-      created_at: '2024-07-02T11:45:00Z',
-      updated_at: '2024-07-02T16:20:00Z'
-    }
-  ];
-
-  const [flaggedContent, setFlaggedContent] = useState<FlaggedContent[]>(mockFlaggedContent);
-  const [loading, setLoading] = useState(false);
+  const [flaggedContent, setFlaggedContent] = useState<FlaggedContent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedNotes, setSelectedNotes] = useState<{[key: string]: string}>({});
   
   const fetchFlaggedContent = async () => {
-    // Mock refresh - simulate loading
     setLoading(true);
-    setTimeout(() => {
-      setFlaggedContent(mockFlaggedContent);
-      setLoading(false);
-      setError("");
+    setError("");
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('content_moderation')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      setFlaggedContent(data || []);
       toast.success("Flagged content refreshed");
-    }, 1000);
+    } catch (err) {
+      console.error('Error fetching flagged content:', err);
+      setError("Failed to fetch flagged content");
+      toast.error("Failed to fetch flagged content");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleModerationAction = async (id: string, action: "approved" | "rejected" | "removed") => {
     const notes = selectedNotes[id] || '';
     
-    // Mock moderation action - update local state
-    setFlaggedContent(prevContent => 
-      prevContent.map(content => 
-        content.id === id 
-          ? { 
-              ...content, 
-              status: action, 
-              moderator_notes: notes,
-              updated_at: new Date().toISOString()
-            }
-          : content
-      )
-    );
-    
-    toast.success(`Content ${action} successfully`);
-    setSelectedNotes(prev => ({ ...prev, [id]: '' }));
+    try {
+      const { error } = await supabase
+        .from('content_moderation')
+        .update({ 
+          status: action, 
+          moderator_notes: notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setFlaggedContent(prevContent => 
+        prevContent.map(content => 
+          content.id === id 
+            ? { 
+                ...content, 
+                status: action, 
+                moderator_notes: notes,
+                updated_at: new Date().toISOString()
+              }
+            : content
+        )
+      );
+      
+      toast.success(`Content ${action} successfully`);
+      setSelectedNotes(prev => ({ ...prev, [id]: '' }));
+    } catch (error) {
+      console.error('Error updating content moderation:', error);
+      toast.error("Failed to update content status");
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -138,8 +115,7 @@ const ContentModeration = () => {
   };
 
   useEffect(() => {
-    // Initialize with mock data
-    setFlaggedContent(mockFlaggedContent);
+    fetchFlaggedContent();
   }, []);
 
   return (
