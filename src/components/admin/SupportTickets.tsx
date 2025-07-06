@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from "@/integrations/supabase/client";
 
 interface Ticket {
   id: string;
@@ -16,63 +17,55 @@ interface Ticket {
   created_at: string;
 }
 
-// Mock data for demonstration
-const mockTickets: Ticket[] = [
-  {
-    id: '1',
-    user_id: 'user_12345678',
-    subject: 'Login Issues',
-    message: 'I cannot log into my account. Getting authentication error.',
-    status: 'open',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: '2',
-    user_id: 'user_87654321',
-    subject: 'Payment Problem',
-    message: 'My payment was declined but I was charged. Please help resolve this.',
-    status: 'in_progress',
-    created_at: new Date(Date.now() - 86400000).toISOString()
-  },
-  {
-    id: '3',
-    user_id: 'user_11223344',
-    subject: 'Feature Request',
-    message: 'Would love to see dark mode added to the app.',
-    status: 'open',
-    created_at: new Date(Date.now() - 172800000).toISOString()
-  }
-];
-
 const SupportTickets = () => {
-  const [tickets, setTickets] = useState<Ticket[]>(mockTickets);
-  const [loading, setLoading] = useState(false);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchTickets = async () => {
     setLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      setTickets(mockTickets);
-      setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setTickets(data || []);
       toast.success('Tickets refreshed');
-    }, 1000);
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+      toast.error('Failed to fetch tickets');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateStatus = async (ticketId: string, status: string) => {
-    setTickets(prev => 
-      prev.map(ticket => 
-        ticket.id === ticketId 
-          ? { ...ticket, status }
-          : ticket
-      )
-    );
-    toast.success('Ticket status updated');
+    try {
+      const { error } = await supabase
+        .from('support_tickets')
+        .update({ status })
+        .eq('id', ticketId);
+
+      if (error) throw error;
+
+      setTickets(prev => 
+        prev.map(ticket => 
+          ticket.id === ticketId 
+            ? { ...ticket, status }
+            : ticket
+        )
+      );
+      toast.success('Ticket status updated');
+    } catch (error) {
+      console.error('Error updating ticket status:', error);
+      toast.error('Failed to update ticket status');
+    }
   };
 
   useEffect(() => {
-    // Initial load with mock data
-    setTickets(mockTickets);
-    setLoading(false);
+    fetchTickets();
   }, []);
 
   return (

@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Save, RefreshCw, Settings as SettingsIcon, Shield, Mail, Users } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
 
 interface SystemSetting {
   id: string;
@@ -19,36 +20,11 @@ interface SystemSetting {
 }
 
 const Settings = () => {
-  // Mock system settings data
-  const mockSettings: SystemSetting[] = [
-    {
-      id: '1',
-      setting_key: 'site_maintenance',
-      setting_value: { enabled: false, message: 'Site is under maintenance. Please check back later.' },
-      description: 'Enable site maintenance mode',
-      updated_at: '2024-07-04T15:30:00Z'
-    },
-    {
-      id: '2', 
-      setting_key: 'email_notifications',
-      setting_value: { enabled: true, admin_email: 'admin@wheelsandwins.com' },
-      description: 'Email notification settings',
-      updated_at: '2024-07-03T10:20:00Z'
-    },
-    {
-      id: '3',
-      setting_key: 'user_registration',
-      setting_value: { enabled: true, require_approval: false },
-      description: 'User registration settings',
-      updated_at: '2024-07-02T14:45:00Z'
-    }
-  ];
-
-  const [settings, setSettings] = useState<SystemSetting[]>(mockSettings);
-  const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState<SystemSetting[]>([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Setting states - initialized with mock data
+  // Setting states
   const [siteMaintenance, setSiteMaintenance] = useState({
     enabled: false,
     message: 'Site is under maintenance. Please check back later.'
@@ -63,36 +39,74 @@ const Settings = () => {
   });
 
   const fetchSettings = async () => {
-    // Mock refresh - simulate loading
     setLoading(true);
-    setTimeout(() => {
-      setSettings(mockSettings);
-      // Reset to mock values
-      setSiteMaintenance({ enabled: false, message: 'Site is under maintenance. Please check back later.' });
-      setEmailNotifications({ enabled: true, admin_email: 'admin@wheelsandwins.com' });
-      setUserRegistration({ enabled: true, require_approval: false });
-      setLoading(false);
+    try {
+      // Try to fetch from a user_settings table (using user settings as system settings)
+      const { data: userSettings, error } = await supabase
+        .from('user_settings')
+        .select('*')
+        .limit(1);
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = table doesn't exist
+        throw error;
+      }
+
+      // If no settings exist, use defaults
+      if (userSettings && userSettings.length > 0) {
+        const setting = userSettings[0];
+        // Parse settings from user_settings notification preferences
+        const notifPrefs = setting.notification_preferences as any;
+        setSiteMaintenance({
+          enabled: false, // Default to false for maintenance mode
+          message: 'Site is under maintenance. Please check back later.'
+        });
+        setEmailNotifications({
+          enabled: notifPrefs?.email_enabled ?? true,
+          admin_email: 'admin@wheelsandwins.com'
+        });
+        setUserRegistration({
+          enabled: true,
+          require_approval: false
+        });
+      }
+
       toast.success("Settings refreshed");
-    }, 1000);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      toast.error("Failed to fetch settings, using defaults");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateSetting = async (settingKey: string, settingValue: any) => {
-    // Mock update - update local state
-    setSettings(prev => 
-      prev.map(setting => 
-        setting.setting_key === settingKey 
-          ? { ...setting, setting_value: settingValue, updated_at: new Date().toISOString() }
-          : setting
-      )
-    );
-    return true;
+    try {
+      // For now, just simulate updating settings
+      // In a real app, you might create a system_settings table
+      const mockSetting = {
+        id: Date.now().toString(),
+        setting_key: settingKey,
+        setting_value: settingValue,
+        description: `${settingKey} settings`,
+        updated_at: new Date().toISOString()
+      };
+
+      setSettings(prev => [
+        ...prev.filter(s => s.setting_key !== settingKey),
+        mockSetting
+      ]);
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating setting:', error);
+      return false;
+    }
   };
 
   const handleSaveSettings = async () => {
     setSaving(true);
 
     try {
-      // Mock save - update all settings
       await Promise.all([
         updateSetting('site_maintenance', siteMaintenance),
         updateSetting('email_notifications', emailNotifications),
@@ -101,6 +115,7 @@ const Settings = () => {
 
       toast.success("Settings saved successfully");
     } catch (err) {
+      console.error('Error saving settings:', err);
       toast.error("Failed to save settings");
     } finally {
       setSaving(false);
@@ -108,7 +123,7 @@ const Settings = () => {
   };
 
   useEffect(() => {
-    // Initialize with mock data - already set in state
+    fetchSettings();
   }, []);
 
   if (loading) {

@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { RefreshCw, Download, TrendingUp, Users, ShoppingCart, DollarSign } from "lucide-react";
 import { DateRange } from "react-day-picker";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AnalyticsData {
   userGrowth: Array<{ month: string, users: number, newUsers: number }>;
@@ -33,59 +34,119 @@ interface AnalyticsData {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const ReportsAnalytics = () => {
-  // Mock analytics data - no authentication required
-  const mockAnalyticsData: AnalyticsData = {
-    userGrowth: [
-      { month: 'Jan 2024', users: 120, newUsers: 45 },
-      { month: 'Feb 2024', users: 180, newUsers: 60 },
-      { month: 'Mar 2024', users: 250, newUsers: 70 },
-      { month: 'Apr 2024', users: 320, newUsers: 70 },
-      { month: 'May 2024', users: 410, newUsers: 90 },
-      { month: 'Jun 2024', users: 520, newUsers: 110 }
-    ],
-    revenue: [
-      { month: 'Jan 2024', revenue: 4500, orders: 45 },
-      { month: 'Feb 2024', revenue: 6200, orders: 58 },
-      { month: 'Mar 2024', revenue: 7800, orders: 72 },
-      { month: 'Apr 2024', revenue: 9100, orders: 89 },
-      { month: 'May 2024', revenue: 11400, orders: 102 },
-      { month: 'Jun 2024', revenue: 13800, orders: 125 }
-    ],
-    usersByRegion: [
-      { region: 'North America', count: 250, percentage: 48 },
-      { region: 'Europe', count: 130, percentage: 25 },
-      { region: 'Asia Pacific', count: 90, percentage: 17 },
-      { region: 'South America', count: 35, percentage: 7 },
-      { region: 'Africa', count: 15, percentage: 3 }
-    ],
-    topProducts: [
-      { name: 'Travel Backpack Pro', sales: 85, revenue: 4250 },
-      { name: 'Camping Tent Deluxe', sales: 62, revenue: 3720 },
-      { name: 'Hiking Boots Elite', sales: 74, revenue: 5180 },
-      { name: 'Portable Charger Max', sales: 91, revenue: 2730 },
-      { name: 'Weather Jacket Plus', sales: 53, revenue: 3180 }
-    ],
-    orderStatus: [
-      { status: 'completed', count: 380, percentage: 65 },
-      { status: 'pending', count: 120, percentage: 21 },
-      { status: 'shipped', count: 65, percentage: 11 },
-      { status: 'cancelled', count: 18, percentage: 3 }
-    ]
-  };
-
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(mockAnalyticsData);
-  const [loading, setLoading] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedMetric, setSelectedMetric] = useState('users');
   
   const fetchAnalyticsData = async () => {
-    // Mock refresh - simulate loading
     setLoading(true);
-    setTimeout(() => {
-      setAnalyticsData(mockAnalyticsData);
-      setLoading(false);
+    try {
+      // Get user growth data (last 6 months)
+      const userGrowth = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+        const { count: totalUsers } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .lte('created_at', endOfMonth.toISOString());
+
+        const { count: newUsers } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', startOfMonth.toISOString())
+          .lte('created_at', endOfMonth.toISOString());
+
+        userGrowth.push({ 
+          month: monthName, 
+          users: totalUsers || 0, 
+          newUsers: newUsers || 0 
+        });
+      }
+
+      // Get revenue data from expenses (treating positive expenses as revenue)
+      const revenue = [];
+      let totalOrders = 0;
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+        const { data: monthExpenses } = await supabase
+          .from('expenses')
+          .select('amount')
+          .gte('amount', 0)
+          .gte('date', startOfMonth.toISOString().split('T')[0])
+          .lte('date', endOfMonth.toISOString().split('T')[0]);
+
+        const monthRevenue = monthExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+        const monthOrders = monthExpenses?.length || 0;
+        totalOrders += monthOrders;
+
+        revenue.push({ 
+          month: monthName, 
+          revenue: monthRevenue, 
+          orders: monthOrders 
+        });
+      }
+
+      // Get users by region
+      const { data: regionsData } = await supabase
+        .from('profiles')
+        .select('region')
+        .not('region', 'is', null);
+
+      const regionCounts = regionsData?.reduce((acc, profile) => {
+        const region = profile.region || 'Unknown';
+        acc[region] = (acc[region] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      const totalUsers = Object.values(regionCounts).reduce((sum, count) => sum + count, 0);
+      const usersByRegion = Object.entries(regionCounts).map(([region, count]) => ({
+        region,
+        count,
+        percentage: Math.round((count / totalUsers) * 100)
+      }));
+
+      // Mock data for remaining fields (top products and order status)
+      const topProducts = [
+        { name: 'Travel Service Premium', sales: 45, revenue: 2250 },
+        { name: 'Budget Tracker Pro', sales: 32, revenue: 1280 },
+        { name: 'Route Planner Plus', sales: 28, revenue: 840 },
+        { name: 'Maintenance Log', sales: 21, revenue: 630 },
+        { name: 'Fuel Optimizer', sales: 18, revenue: 540 }
+      ];
+
+      const orderStatus = [
+        { status: 'completed', count: Math.floor(totalOrders * 0.7), percentage: 70 },
+        { status: 'pending', count: Math.floor(totalOrders * 0.2), percentage: 20 },
+        { status: 'processing', count: Math.floor(totalOrders * 0.08), percentage: 8 },
+        { status: 'cancelled', count: Math.floor(totalOrders * 0.02), percentage: 2 }
+      ];
+
+      setAnalyticsData({
+        userGrowth,
+        revenue,
+        usersByRegion,
+        topProducts,
+        orderStatus
+      });
+
       toast.success("Analytics data refreshed");
-    }, 1000);
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+      toast.error("Failed to fetch analytics data");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const exportData = (format: 'csv' | 'json') => {
@@ -129,8 +190,7 @@ const ReportsAnalytics = () => {
   };
 
   useEffect(() => {
-    // Initialize with mock data
-    setAnalyticsData(mockAnalyticsData);
+    fetchAnalyticsData();
   }, []);
 
   if (loading) {

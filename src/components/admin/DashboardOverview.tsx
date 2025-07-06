@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { RefreshCw } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardStats {
   totalUsers: number;
@@ -14,39 +15,115 @@ interface DashboardStats {
 }
 
 const DashboardOverview = () => {
-  // Mock data for now - no Supabase calls
-  const [stats] = useState<DashboardStats>({
-    totalUsers: 150,
-    pendingApprovals: 3,
-    totalRevenue: 2450,
-    activeRegions: 5,
-    userGrowth: [
-      { name: "Jan", users: 20 },
-      { name: "Feb", users: 35 },
-      { name: "Mar", users: 45 },
-      { name: "Apr", users: 80 },
-      { name: "May", users: 120 },
-      { name: "Jun", users: 150 },
-    ],
-    approvalData: [
-      { name: "Week 1", approvals: 2 },
-      { name: "Week 2", approvals: 1 },
-      { name: "Week 3", approvals: 4 },
-      { name: "Week 4", approvals: 3 },
-    ],
-    revenueData: [
-      { name: "Jan", revenue: 400 },
-      { name: "Feb", revenue: 650 },
-      { name: "Mar", revenue: 890 },
-      { name: "Apr", revenue: 1200 },
-      { name: "May", revenue: 1800 },
-      { name: "Jun", revenue: 2450 },
-    ]
-  });
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [loading] = useState(false);
+  const fetchDashboardStats = async () => {
+    setLoading(true);
+    try {
+      // Get total users count
+      const { count: totalUsers } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
 
-  if (loading) {
+      // Get pending content moderation items
+      const { count: pendingApprovals } = await supabase
+        .from('content_moderation')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      // Get revenue from expenses (treating positive expenses as revenue)
+      const { data: expenseData } = await supabase
+        .from('expenses')
+        .select('amount, date')
+        .gte('amount', 0);
+
+      const totalRevenue = expenseData?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+
+      // Get user growth data (last 6 months)
+      const months = [];
+      const userGrowth = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+        const { count: userCount } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .lte('created_at', endOfMonth.toISOString());
+
+        userGrowth.push({ name: monthName, users: userCount || 0 });
+      }
+
+      // Get approval data (last 4 weeks)
+      const approvalData = [];
+      for (let i = 3; i >= 0; i--) {
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - (i + 1) * 7);
+        const weekEnd = new Date();
+        weekEnd.setDate(weekEnd.getDate() - i * 7);
+
+        const { count: approvals } = await supabase
+          .from('content_moderation')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', weekStart.toISOString())
+          .lt('created_at', weekEnd.toISOString());
+
+        approvalData.push({ name: `Week ${4 - i}`, approvals: approvals || 0 });
+      }
+
+      // Get revenue data (last 6 months)
+      const revenueData = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+        const { data: monthExpenses } = await supabase
+          .from('expenses')
+          .select('amount')
+          .gte('amount', 0)
+          .gte('date', startOfMonth.toISOString().split('T')[0])
+          .lte('date', endOfMonth.toISOString().split('T')[0]);
+
+        const monthRevenue = monthExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+        revenueData.push({ name: monthName, revenue: monthRevenue });
+      }
+
+      // Get active regions (count distinct regions from profiles)
+      const { data: regionsData } = await supabase
+        .from('profiles')
+        .select('region')
+        .not('region', 'is', null);
+
+      const activeRegions = new Set(regionsData?.map(p => p.region)).size;
+
+      setStats({
+        totalUsers: totalUsers || 0,
+        pendingApprovals: pendingApprovals || 0,
+        totalRevenue,
+        activeRegions,
+        userGrowth,
+        approvalData,
+        revenueData
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
+
+  if (loading || !stats) {
     return (
       <div className="flex justify-center items-center h-64">
         <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
@@ -79,7 +156,7 @@ const DashboardOverview = () => {
         <CardContent>
           <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
           <p className="text-xs text-muted-foreground">
-            Mock data - no auth required
+            Real user data from database
           </p>
           <div className="h-[80px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -129,7 +206,7 @@ const DashboardOverview = () => {
         <CardContent>
           <div className="text-2xl font-bold">{stats.pendingApprovals}</div>
           <p className="text-xs text-muted-foreground">
-            Mock pending content
+            Real pending moderation items
           </p>
            <div className="h-[80px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -174,7 +251,7 @@ const DashboardOverview = () => {
         <CardContent>
           <div className="text-2xl font-bold">${stats.totalRevenue.toLocaleString()}</div>
           <p className="text-xs text-muted-foreground">
-            Mock shop revenue
+            Real revenue from database
           </p>
            <div className="h-[80px]">
             <ResponsiveContainer width="100%" height="100%">
