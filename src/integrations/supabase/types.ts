@@ -4743,6 +4743,10 @@ export type Database = {
         Args: { user_email: string; user_uuid?: string }
         Returns: boolean
       }
+      check_failed_login_attempts: {
+        Args: { p_email: string; p_ip_address: unknown }
+        Returns: number
+      }
       check_rate_limit: {
         Args:
           | Record<PropertyKey, never>
@@ -4793,6 +4797,15 @@ export type Database = {
       is_admin_user: {
         Args: { user_id: string }
         Returns: boolean
+      }
+      log_security_event: {
+        Args: {
+          p_user_id: string
+          p_event_type: string
+          p_severity: string
+          p_metadata?: Json
+        }
+        Returns: string
       }
       search_knowledge_chunks: {
         Args: {

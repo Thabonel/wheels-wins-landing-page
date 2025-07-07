@@ -230,16 +230,16 @@ export class EnhancedSecurity {
         });
 
       // Check if account should be locked
-      const attempts = await supabase.rpc('check_failed_login_attempts', {
+      const { data: attempts } = await supabase.rpc('check_failed_login_attempts', {
         p_email: email,
         p_ip_address: await this.getClientIP()
       });
 
-      if (attempts.data && attempts.data > 5) {
+      if (attempts && typeof attempts === 'number' && attempts > 5) {
         await this.logSecurityEvent(null, {
           type: 'suspicious_activity',
           severity: 'critical',
-          metadata: { reason: 'Multiple failed login attempts', email, attempts: attempts.data }
+          metadata: { reason: 'Multiple failed login attempts', email, attempts }
         });
       }
     } catch (error) {
@@ -250,21 +250,21 @@ export class EnhancedSecurity {
   // Rate Limiting
   async checkRateLimit(userId: string, endpoint: string, maxRequests: number = 100): Promise<boolean> {
     try {
-      const result = await supabase.rpc('check_rate_limit', {
+      const { data: result } = await supabase.rpc('check_rate_limit', {
         user_id: userId,
         window_start: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
         limit_count: maxRequests
       });
 
-      if (result.data && !result.data.allow) {
+      if (result && typeof result === 'object' && 'allow' in result && !result.allow) {
         await this.logSecurityEvent(userId, {
           type: 'suspicious_activity',
           severity: 'medium',
-          metadata: { reason: 'Rate limit exceeded', endpoint, count: result.data.count }
+          metadata: { reason: 'Rate limit exceeded', endpoint, count: (result as any).count }
         });
       }
 
-      return result.data?.allow || false;
+      return result && typeof result === 'object' && 'allow' in result ? (result as any).allow : false;
     } catch (error) {
       console.error('Rate limit check failed:', error);
       return true; // Allow on error
