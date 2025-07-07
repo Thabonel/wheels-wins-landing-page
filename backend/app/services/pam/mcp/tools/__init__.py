@@ -9,6 +9,7 @@ from .moneymaker import (
     estimate_monthly_income,
 )
 from .shop import suggest_affiliate_product
+from .feedback import record_user_feedback
 
 __all__ = [
     "plan_trip",
@@ -23,4 +24,5 @@ __all__ = [
     "list_active_ideas",
     "estimate_monthly_income",
     "suggest_affiliate_product",
+    "record_user_feedback",
 ]
