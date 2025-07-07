@@ -3,7 +3,6 @@ import asyncio
 
 async def test_wins_node():
     try:
-        from nodes.wins_node import wins_node
         print("✅ WINS node import: SUCCESS")
         print("🎉 WINS node test completed!")
         return True

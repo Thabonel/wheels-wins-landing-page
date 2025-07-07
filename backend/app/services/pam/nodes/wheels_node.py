@@ -1,6 +1,4 @@
 from typing import Dict, List, Optional, Any
-import asyncio
-import json
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from app.core.logging import setup_logging
@@ -848,7 +846,7 @@ class WheelsNode:
                 elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
                     return {
                         "type": "message",
-                        "content": f"Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
+                        "content": "Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
                     }
                 else:
                     return {
@@ -897,7 +895,7 @@ class WheelsNode:
                 elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
                     return {
                         "type": "message",
-                        "content": f"Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
+                        "content": "Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
                     }
                 else:
                     return {
