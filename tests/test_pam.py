@@ -44,3 +44,26 @@ async def test_pam_route_wins(test_client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert data["target_node"] == "wins"
+
+
+@pytest.mark.asyncio
+async def test_pam_income_idea(test_client: AsyncClient):
+    response = await test_client.post(
+        "/api/v1/pam/chat",
+        json={"message": "Suggest income idea selling photos"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["target_node"] == "wins"
+    assert "idea" in data["answer_display"].lower()
+
+
+@pytest.mark.asyncio
+async def test_pam_tyre_repair_shop(test_client: AsyncClient):
+    response = await test_client.post(
+        "/api/v1/pam/chat",
+        json={"message": "Show me something for tyre repair"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["target_node"] == "shop"
