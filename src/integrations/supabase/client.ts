@@ -1,15 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Supabase credentials are provided via environment variables.
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY> as string;
+// Use direct URLs instead of environment variables for Lovable
+const SUPABASE_URL = "https://kycoklimpzkyrecbjecn.supabase.co";
+const SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY>
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('Missing Supabase environment variables');
-}
+// URLs are directly configured for Lovable deployment
 
-// Create the supabase client
+// Create the supabase client with mobile optimizations
 export const supabase = createClient<Database>(
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
@@ -17,6 +15,17 @@ export const supabase = createClient<Database>(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
+      storageKey: 'pam-auth-token',
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10, // Reduce for mobile
+      },
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'pam-mobile',
+      },
     },
   }
 );
