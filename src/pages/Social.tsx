@@ -9,6 +9,9 @@ import SocialFeed from "@/components/social/SocialFeed";
 import SocialGroups from "@/components/social/SocialGroups";
 import SocialMarketplace from "@/components/social/SocialMarketplace";
 import SocialHustleBoard from "@/components/social/SocialHustleBoard";
+import SocialNetworking from "@/components/community/SocialNetworking";
+import GroupPlanning from "@/components/community/GroupPlanning";
+import ContentModeration from "@/components/community/ContentModeration";
 
 export default function Social() {
   const [activeTab, setActiveTab] = useState("feed");
@@ -19,8 +22,11 @@ export default function Social() {
   const tabs = [
     { id: "feed", label: "Feed", icon: "MessageSquare" },
     { id: "groups", label: "Groups", icon: "Users" },
+    { id: "networking", label: "Network", icon: "Users" },
+    { id: "planning", label: "Planning", icon: "Calendar" },
     { id: "marketplace", label: "Marketplace", icon: "ShoppingCart" },
     { id: "hustle-board", label: "Hustle Board", icon: "TrendingUp" },
+    { id: "moderation", label: "Moderation", icon: "Shield" },
   ];
   
   return (
@@ -53,11 +59,20 @@ export default function Social() {
               <TabsContent value="groups">
                 <SocialGroups />
               </TabsContent>
+              <TabsContent value="networking">
+                <SocialNetworking />
+              </TabsContent>
+              <TabsContent value="planning">
+                <GroupPlanning />
+              </TabsContent>
               <TabsContent value="marketplace">
                 <SocialMarketplace />
               </TabsContent>
               <TabsContent value="hustle-board">
                 <SocialHustleBoard />
+              </TabsContent>
+              <TabsContent value="moderation">
+                <ContentModeration />
               </TabsContent>
             </div>
           </Tabs>

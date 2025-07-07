@@ -319,6 +319,45 @@ export type Database = {
         }
         Relationships: []
       }
+      auto_moderation_rules: {
+        Row: {
+          actions: Json
+          conditions: Json
+          content_types: string[]
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          rule_name: string
+          severity_level: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          actions: Json
+          conditions: Json
+          content_types: string[]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          rule_name: string
+          severity_level?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          actions?: Json
+          conditions?: Json
+          content_types?: string[]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          rule_name?: string
+          severity_level?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       budget_categories: {
         Row: {
           budgeted_amount: number
@@ -689,6 +728,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      event_attendees: {
+        Row: {
+          event_id: string | null
+          id: string
+          notes: string | null
+          rsvp_date: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          event_id?: string | null
+          id?: string
+          notes?: string | null
+          rsvp_date?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          event_id?: string | null
+          id?: string
+          notes?: string | null
+          rsvp_date?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_attendees_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "group_events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
@@ -1068,6 +1142,84 @@ export type Database = {
         }
         Relationships: []
       }
+      group_events: {
+        Row: {
+          cost_per_person: number | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          event_type: string | null
+          group_id: string | null
+          id: string
+          location: Json | null
+          max_attendees: number | null
+          metadata: Json | null
+          organizer_id: string | null
+          requirements: string[] | null
+          start_date: string
+          status: string | null
+          title: string
+          trip_id: string | null
+          updated_at: string | null
+          visibility: string | null
+        }
+        Insert: {
+          cost_per_person?: number | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: string | null
+          group_id?: string | null
+          id?: string
+          location?: Json | null
+          max_attendees?: number | null
+          metadata?: Json | null
+          organizer_id?: string | null
+          requirements?: string[] | null
+          start_date: string
+          status?: string | null
+          title: string
+          trip_id?: string | null
+          updated_at?: string | null
+          visibility?: string | null
+        }
+        Update: {
+          cost_per_person?: number | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: string | null
+          group_id?: string | null
+          id?: string
+          location?: Json | null
+          max_attendees?: number | null
+          metadata?: Json | null
+          organizer_id?: string | null
+          requirements?: string[] | null
+          start_date?: string
+          status?: string | null
+          title?: string
+          trip_id?: string | null
+          updated_at?: string | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_events_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "social_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_events_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "group_trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_memberships: {
         Row: {
           group_id: string | null
@@ -1096,6 +1248,109 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "group_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "social_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_polls: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          ends_at: string | null
+          group_id: string | null
+          id: string
+          is_anonymous: boolean | null
+          options: Json
+          poll_type: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          group_id?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          options: Json
+          poll_type?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          group_id?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          options?: Json
+          poll_type?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_polls_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "social_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_resources: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          file_path: string | null
+          group_id: string | null
+          id: string
+          is_pinned: boolean | null
+          resource_type: string
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_path?: string | null
+          group_id?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          resource_type: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_path?: string | null
+          group_id?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          resource_type?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_resources_group_id_fkey"
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "social_groups"
@@ -1794,6 +2049,108 @@ export type Database = {
           id?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      moderation_actions: {
+        Row: {
+          action_type: string
+          appeal_status: string | null
+          content_id: string | null
+          content_type: string | null
+          created_at: string | null
+          duration_hours: number | null
+          expires_at: string | null
+          id: string
+          is_automated: boolean | null
+          moderator_id: string | null
+          reason: string
+          target_user_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          action_type: string
+          appeal_status?: string | null
+          content_id?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          duration_hours?: number | null
+          expires_at?: string | null
+          id?: string
+          is_automated?: boolean | null
+          moderator_id?: string | null
+          reason: string
+          target_user_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          action_type?: string
+          appeal_status?: string | null
+          content_id?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          duration_hours?: number | null
+          expires_at?: string | null
+          id?: string
+          is_automated?: boolean | null
+          moderator_id?: string | null
+          reason?: string
+          target_user_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      moderation_queue: {
+        Row: {
+          assigned_moderator: string | null
+          category: string
+          content_id: string
+          content_type: string
+          created_at: string | null
+          description: string | null
+          evidence_urls: string[] | null
+          id: string
+          priority_level: string | null
+          reason: string
+          reported_by: string | null
+          resolution: string | null
+          resolved_at: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_moderator?: string | null
+          category: string
+          content_id: string
+          content_type: string
+          created_at?: string | null
+          description?: string | null
+          evidence_urls?: string[] | null
+          id?: string
+          priority_level?: string | null
+          reason: string
+          reported_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_moderator?: string | null
+          category?: string
+          content_id?: string
+          content_type?: string
+          created_at?: string | null
+          description?: string | null
+          evidence_urls?: string[] | null
+          id?: string
+          priority_level?: string | null
+          reason?: string
+          reported_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -2653,6 +3010,38 @@ export type Database = {
           },
         ]
       }
+      poll_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          poll_id: string | null
+          selected_options: Json
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          poll_id?: string | null
+          selected_options: Json
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          poll_id?: string | null
+          selected_options?: Json
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "group_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       popular_routes: {
         Row: {
           best_travel_months: Json | null
@@ -3375,6 +3764,39 @@ export type Database = {
         }
         Relationships: []
       }
+      social_interactions: {
+        Row: {
+          content_id: string | null
+          content_type: string | null
+          created_at: string | null
+          id: string
+          interaction_type: string | null
+          metadata: Json | null
+          target_user_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content_id?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          id?: string
+          interaction_type?: string | null
+          metadata?: Json | null
+          target_user_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content_id?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          id?: string
+          interaction_type?: string | null
+          metadata?: Json | null
+          target_user_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       social_posts: {
         Row: {
           comment_count: number | null
@@ -3728,6 +4150,30 @@ export type Database = {
           },
         ]
       }
+      trust_scores: {
+        Row: {
+          factors: Json | null
+          last_calculated: string | null
+          score: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          factors?: Json | null
+          last_calculated?: string | null
+          score?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          factors?: Json | null
+          last_calculated?: string | null
+          score?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_achievements: {
         Row: {
           action_description: string | null
@@ -3818,6 +4264,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_follows: {
+        Row: {
+          created_at: string | null
+          follower_id: string | null
+          following_id: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          follower_id?: string | null
+          following_id?: string | null
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          follower_id?: string | null
+          following_id?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       user_friends: {
         Row: {
           accepted_at: string | null
@@ -3842,6 +4309,33 @@ export type Database = {
           id?: string
           status?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_friendships: {
+        Row: {
+          addressee_id: string | null
+          created_at: string | null
+          id: string
+          requester_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          addressee_id?: string | null
+          created_at?: string | null
+          id?: string
+          requester_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          addressee_id?: string | null
+          created_at?: string | null
+          id?: string
+          requester_id?: string | null
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -4176,6 +4670,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_profiles_extended: {
+        Row: {
+          bio: string | null
+          created_at: string | null
+          experience_level: string | null
+          interests: string[] | null
+          privacy_settings: Json | null
+          rig_type: string | null
+          social_preferences: Json | null
+          travel_style: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string | null
+          experience_level?: string | null
+          interests?: string[] | null
+          privacy_settings?: Json | null
+          rig_type?: string | null
+          social_preferences?: Json | null
+          travel_style?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string | null
+          experience_level?: string | null
+          interests?: string[] | null
+          privacy_settings?: Json | null
+          rig_type?: string | null
+          social_preferences?: Json | null
+          travel_style?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_savings_tracking: {
         Row: {
@@ -4739,9 +5272,17 @@ export type Database = {
           permissions: Json
         }[]
       }
+      auto_moderate_content: {
+        Args: { content_type: string; content_id: string; content_text: string }
+        Returns: boolean
+      }
       bootstrap_admin_user: {
         Args: { user_email: string; user_uuid?: string }
         Returns: boolean
+      }
+      calculate_trust_score: {
+        Args: { user_id: string }
+        Returns: number
       }
       check_failed_login_attempts: {
         Args: { p_email: string; p_ip_address: unknown }
