@@ -1,0 +1,19 @@
+profanity:
+  blocked:
+    - damn
+    - hell
+    - shit
+pii:
+  detect:
+    - email
+    - phone
+tool_scoping:
+  allowed_tools:
+    - wheels
+    - wins
+    - social
+    - memory
+rate_limit:
+  user_qps:
+    limit: 3
+    window_sec: 1
