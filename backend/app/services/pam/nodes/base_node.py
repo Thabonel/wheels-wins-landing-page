@@ -3,8 +3,8 @@ Base Node - Common functionality for all PAM nodes
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any
-from app.models.domain.pam import PamResponse, PamContext, PamMemory
+from typing import Dict, Any
+from app.models.domain.pam import PamResponse
 
 logger = logging.getLogger(__name__)
 

@@ -4,14 +4,13 @@ PAM Memory Service - Conversation history and context management
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any
 from datetime import datetime, timedelta
-import json
 
 from app.services.database import DatabaseService
 from app.services.cache import CacheService
-from app.models.domain.pam import PamMemory, PamContext, MemoryType
-from app.core.exceptions import PAMError, DatabaseError
+from app.models.domain.pam import PamContext
+from app.core.exceptions import PAMError
 
 logger = logging.getLogger("pam.memory")
 
