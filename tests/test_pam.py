@@ -28,3 +28,19 @@ async def test_pam_chat_hello(test_client: AsyncClient):
     for field in ["answer_display", "answer_speech", "answer_ssml", "target_node"]:
         assert field in data
     assert len(data["answer_speech"].split()) <= 70
+
+
+@pytest.mark.asyncio
+async def test_pam_route_wheels(test_client: AsyncClient):
+    response = await test_client.post("/api/v1/pam/chat", json={"message": "Log $10 fuel"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["target_node"] == "wheels"
+
+
+@pytest.mark.asyncio
+async def test_pam_route_wins(test_client: AsyncClient):
+    response = await test_client.post("/api/v1/pam/chat", json={"message": "Add coffee expense $5"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["target_node"] == "wins"
