@@ -6,9 +6,9 @@ High-performance FastAPI application with comprehensive monitoring and security.
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 # Import optimization and security components
 from app.core.database_pool import db_pool
@@ -18,6 +18,10 @@ from app.core.middleware import setup_middleware
 from app.core.security_middleware import setup_security_middleware
 from app.core.monitoring_middleware import MonitoringMiddleware
 from app.guardrails.guardrails_middleware import GuardrailsMiddleware
+from langserve import add_routes
+from app.services.pam.mcp.controllers.pauter_router import PauterRouter
+from app.voice.stt_whisper import whisper_stt
+from app.voice.tts_coqui import coqui_tts
 from app.core.config import settings
 from app.core.logging import setup_logging
 
@@ -124,6 +128,21 @@ app.include_router(pam.router, prefix="/api", tags=["PAM"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(support.router, prefix="/api", tags=["Support"])
+
+# LangServe router for PauterRouter
+pauter_router = PauterRouter()
+add_routes(app, pauter_router, path="/api/v1/pam/chat")
+
+
+@app.post("/api/v1/pam/voice")
+async def pam_voice(audio: UploadFile = File(...)):
+    """Speech interface using Whisper STT, PauterRouter, and Coqui TTS."""
+    data = await audio.read()
+    text = await whisper_stt.transcribe(data)
+    route = await pauter_router.ainvoke(text)
+    speech_text = f"Routed to {route.get('target_node')}"
+    wav = await coqui_tts.synthesize(speech_text)
+    return Response(content=wav, media_type="audio/wav")
 
 # Global exception handler with monitoring
 @app.exception_handler(Exception)
