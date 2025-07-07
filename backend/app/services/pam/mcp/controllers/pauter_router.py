@@ -9,19 +9,23 @@ __all__ = ["PauterRouter", "pauter_router"]
 
 
 class PauterRouter(Runnable[str, Dict[str, Any]]):
-    """Simple heuristic router for PAM nodes."""
+    """Simple heuristic router for PAM nodes with confidence scores."""
 
     VALID_NODES = {"wheels", "wins", "social", "memory"}
+    _PATTERNS = {
+        "wheels": re.compile(r"\b(trip|vehicle|route|camp|travel)\b"),
+        "wins": re.compile(r"\b(expense|budget|finance|savings|win)\b"),
+        "social": re.compile(r"\b(friend|community|social|group)\b"),
+    }
 
     def _route(self, text: str) -> Dict[str, Any]:
         text = text.lower()
-        if re.search(r"\b(trip|vehicle|route|camp|travel)\b", text):
-            return {"target_node": "wheels", "confidence": 0.8}
-        if re.search(r"\b(expense|budget|finance|savings|win)\b", text):
-            return {"target_node": "wins", "confidence": 0.8}
-        if re.search(r"\b(friend|community|social|group)\b", text):
-            return {"target_node": "social", "confidence": 0.8}
-        return {"target_node": "memory", "confidence": 0.5}
+        for node, pattern in self._PATTERNS.items():
+            matches = pattern.findall(text)
+            if matches:
+                confidence = min(1.0, 0.6 + 0.1 * len(matches))
+                return {"target_node": node, "confidence": confidence}
+        return {"target_node": "memory", "confidence": 0.4}
 
     def invoke(self, input: str, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
         return self._route(input)
