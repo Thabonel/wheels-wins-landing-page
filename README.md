@@ -71,6 +71,15 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 
 The trip planner uses several external APIs. To enable phone coverage overlays, set `OPEN_CELL_ID_API_KEY` in your `.env` file.
 
+For Supabase connectivity you must also provide:
+
+```bash
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+```
+
+These values are read in `src/integrations/supabase/client.ts` when initializing the Supabase client.
+
 ## Running Tests
 
 Before committing changes, run the project's test suites.
