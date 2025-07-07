@@ -14,7 +14,7 @@ from app.api.deps import (
 from app.models.schemas.pam import (
     ChatRequest, ChatResponse, ConversationCreateRequest,
     ConversationListResponse, MessageHistoryResponse,
-    ContextUpdateRequest, PamFeedbackRequest
+    ContextUpdateRequest, PamFeedbackRequest, PamThumbFeedbackRequest
 )
 from app.models.schemas.common import SuccessResponse, PaginationParams
 from app.services.websocket_manager import manager
@@ -376,6 +376,34 @@ async def submit_pam_feedback(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to submit feedback"
+        )
+
+# Record simple thumbs feedback
+@router.post("/v1/pam/feedback", response_model=SuccessResponse)
+async def record_thumb_feedback(
+    request: PamThumbFeedbackRequest,
+    current_user = Depends(get_current_user),
+    orchestrator = Depends(get_pam_orchestrator),
+):
+    """Record thumbs-up or thumbs-down for a PAM message."""
+    try:
+        data = {
+            "id": str(uuid.uuid4()),
+            "user_id": str(current_user.id),
+            "message_id": request.message_id,
+            "thumbs_up": request.thumbs_up,
+            "created_at": datetime.utcnow(),
+        }
+        client = orchestrator.database_service.get_client()
+        client.table("pam_feedback").insert(data).execute()
+
+        return SuccessResponse(success=True, message="Feedback recorded")
+
+    except Exception as e:
+        logger.error(f"Feedback submission error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to submit feedback",
         )
 
 # Health check for PAM services
