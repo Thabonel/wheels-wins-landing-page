@@ -40,3 +40,7 @@ beautifulsoup4==4.12.3
 # Task scheduling
 apscheduler==3.10.4
 
+
+langchain==0.2.*
+langserve==0.0.*
+tenacity>=8.2
