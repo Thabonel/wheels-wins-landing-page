@@ -5,6 +5,8 @@ from typing import Any, Dict, Optional
 
 from langchain_core.runnables import Runnable, RunnableConfig
 
+__all__ = ["PauterRouter", "pauter_router"]
+
 
 class PauterRouter(Runnable[str, Dict[str, Any]]):
     """Simple heuristic router for PAM nodes."""
