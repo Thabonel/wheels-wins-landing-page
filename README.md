@@ -106,3 +106,25 @@ pytest
 
 If you run into errors or need help debugging, see the [Common Issues guide](docs/guides/troubleshooting/common-issues.md).
 
+
+## Phase 2 Complete
+
+### New Agents
+- `WinsNode` – financial management
+- `WheelsNode` – travel and vehicle planning
+- `SocialNode` – community features
+- `YouNode` – personal dashboard tasks
+- `ShopNode` – e-commerce operations
+- `AdminNode` – management utilities
+- `MemoryNode` – conversation memory
+
+### New Endpoints
+- **Authentication**: `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
+- **Health Checks**: `GET /health`, `GET /health/detailed`
+- **WebSocket**: `wss://pam-backend.onrender.com/ws/{user_id}`
+- **Chat History**: `GET /chat/sessions/{session_id}`
+- **User Profile**: `GET /users/profile`, `PUT /users/profile`, `POST /users/upload-avatar`
+- **Budgets**: `GET/POST/PUT/DELETE /budgets{/{id}}`
+- **Expenses**: `GET/POST/PUT/DELETE /expenses{/{id}}`
+- **Trips**: `GET /trips`, `POST /trips`
+- **Vehicles**: `GET/POST/PUT/DELETE /vehicles{/{id}}`
