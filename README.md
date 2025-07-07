@@ -137,3 +137,11 @@ If you run into errors or need help debugging, see the [Common Issues guide](doc
 - **Income Analytics**: visualize earning trends
 - **Money Maker Ideas**: organize new revenue opportunities
 - **PAM Income Advice**: AI suggestions to boost income
+
+## Intelligence & Proactivity
+
+- Deep emotional intelligence with relationship-aware responses
+- Background analysis of user data to anticipate needs
+- Proactive alerts for weather, budget, and maintenance events
+- Smart suggestions to plan routes, fuel stops, and attractions
+- Timely notifications keep users prepared for upcoming tasks
