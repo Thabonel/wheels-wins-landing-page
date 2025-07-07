@@ -59,14 +59,14 @@ class MigrationVerifier:
         
         # Import paths to verify
         self.import_paths = [
-            'backend.app.main',
-            'backend.app.core.config',
-            'backend.app.core.logging',
-            'backend.app.services.database',
-            'backend.app.services.cache',
-            'backend.app.api.v1.chat',
-            'backend.app.api.v1.wheels',
-            'backend.app.api.v1.wins'
+            'app.main',
+            'app.core.config',
+            'app.core.logging',
+            'app.services.database',
+            'app.services.cache',
+            'app.api.v1.chat',
+            'app.api.v1.wheels',
+            'app.api.v1.wins'
         ]
 
     def print_header(self, title: str):
