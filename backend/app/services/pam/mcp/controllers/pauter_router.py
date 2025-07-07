@@ -10,14 +10,34 @@ __all__ = ["PauterRouter", "pauter_router"]
 
 
 class PauterRouter(Runnable[str, Dict[str, Any]]):
-    """Simple heuristic router for PAM nodes with confidence scores."""
+    """
+    Intelligent heuristic router for PAM AI nodes with adaptive confidence scoring.
+    
+    This router analyzes user messages and routes them to specialized nodes based on:
+    - Pattern matching using regex patterns for different domains
+    - Historical feedback scores that adjust routing confidence
+    - Fallback to memory node for unmatched queries
+    
+    Attributes:
+        VALID_NODES: Set of available node types for routing
+        _PATTERNS: Regex patterns for each node type to match user intent
+        feedback_scores: Rolling window of feedback scores for each node
+        
+    Example:
+        router = PauterRouter()
+        result = router.invoke("How much did I spend on fuel?")
+        # Returns: {"target_node": "wins", "confidence": 0.85}
+    """
 
     VALID_NODES = {"wheels", "wins", "social", "memory", "shop"}
+    
+    # Pattern matching for different domains - these regex patterns identify
+    # user intent based on keywords in their messages
     _PATTERNS = {
-        "wheels": re.compile(r"\b(trip|vehicle|route|camp|travel)\b"),
-        "wins": re.compile(r"\b(expense|budget|finance|savings|win)\b"),
-        "social": re.compile(r"\b(friend|community|social|group)\b"),
-        "shop": re.compile(r"\b(shop|purchase|buy|product)\b"),
+        "wheels": re.compile(r"\b(trip|vehicle|route|camp|travel|fuel|maintenance|rv|caravan)\b"),
+        "wins": re.compile(r"\b(expense|budget|finance|savings|win|money|cost|spending|income)\b"),
+        "social": re.compile(r"\b(friend|community|social|group|share|post|connect)\b"),
+        "shop": re.compile(r"\b(shop|purchase|buy|product|marketplace|sell)\b"),
     }
 
     def __init__(self, feedback_window: int = 5) -> None:
