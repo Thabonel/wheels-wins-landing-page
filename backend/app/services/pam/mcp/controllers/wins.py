@@ -8,6 +8,8 @@ from app.services.pam.mcp.tools import (
     suggest_budget_adjustment,
     fetch_summary,
     get_user_context,
+    add_idea,
+    estimate_monthly_income,
 )
 
 __all__ = ["wins_chain"]
@@ -16,15 +18,27 @@ async def _call_wins_tools(input_text: str, user_ctx: Dict[str, Any]) -> Dict[st
     """Invoke wins micro-agent finance tools."""
     context = await get_user_context(user_ctx)
     user_id = user_ctx.get("user_id", "anon")
+
+    results: Dict[str, Any] = {"context": context}
+    lower_text = input_text.lower()
+
+    if "idea" in lower_text:
+        results["idea"] = add_idea(user_id, input_text)
+
+    if "income source" in lower_text:
+        results["income_estimate"] = estimate_monthly_income(user_id)
+
     expense = await log_expense(user_id, "misc", 10.0, input_text)
     suggestion = await suggest_budget_adjustment(user_id, "misc")
     summary = await fetch_summary(user_id)
-    return {
-        "context": context,
+
+    results.update({
         "expense": expense,
         "suggestion": suggestion,
         "summary": summary,
-    }
+    })
+
+    return results
 
 async def wins_chain(input_text: str, user_ctx: Dict[str, Any]) -> StructuredResponse:
     """Micro-agent chain for the wins node."""
