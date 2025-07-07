@@ -102,3 +102,7 @@ pip install -r backend/requirements-dev.txt
 pytest
 ```
 
+## Troubleshooting
+
+If you run into errors or need help debugging, see the [Common Issues guide](docs/guides/troubleshooting/common-issues.md).
+
