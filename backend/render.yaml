@@ -24,6 +24,8 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
+      - key: LANGCHAIN_TRACING_V2
+        value: disabled
       - key: REDIS_URL
         fromService:
           type: redis
@@ -59,6 +61,8 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
+      - key: LANGCHAIN_TRACING_V2
+        value: disabled
       - key: REDIS_URL
         fromService:
           type: redis
@@ -89,6 +93,8 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
+      - key: LANGCHAIN_TRACING_V2
+        value: disabled
       - key: REDIS_URL
         fromService:
           type: redis

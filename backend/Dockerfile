@@ -12,6 +12,8 @@ ENV PYTHONUNBUFFERED=1 \
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    ffmpeg \
+    libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -42,6 +44,8 @@ FROM python:3.11-slim as production
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y \
     curl \
+    ffmpeg \
+    libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
