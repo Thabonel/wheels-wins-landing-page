@@ -8,6 +8,7 @@ from .moneymaker import (
     list_active_ideas,
     estimate_monthly_income,
 )
+from .shop import suggest_affiliate_product
 
 __all__ = [
     "plan_trip",
@@ -21,4 +22,5 @@ __all__ = [
     "add_idea",
     "list_active_ideas",
     "estimate_monthly_income",
+    "suggest_affiliate_product",
 ]
