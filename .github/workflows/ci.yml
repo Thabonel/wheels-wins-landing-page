@@ -25,3 +25,9 @@ jobs:
         SUPABASE_URL: https://fake.supabase.co
         SUPABASE_ANON_KEY: fake-key
       run: pytest
+
+    - name: Run Celery unit tests
+      env:
+        SUPABASE_URL: https://fake.supabase.co
+        SUPABASE_ANON_KEY: fake-key
+      run: pytest --broker=memory://
