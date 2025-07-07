@@ -17,3 +17,7 @@ rate_limit:
   user_qps:
     limit: 3
     window_sec: 1
+route_changes:
+  daily_limit: 3
+spending:
+  alerts: true
