@@ -5,7 +5,7 @@ Deep emotional intelligence, proactive assistance, and relationship building
 
 import logging
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 import openai
 import os
 import json

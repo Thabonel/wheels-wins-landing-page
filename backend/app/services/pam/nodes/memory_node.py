@@ -4,11 +4,10 @@ PAM Memory Node - Conversation Memory and Context Management
 Integrates with existing pam_memory table to provide context retention
 """
 
-import json
 import uuid
 import re
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from datetime import datetime
+from typing import Dict, List, Any
 
 from app.core.database import get_supabase
 
