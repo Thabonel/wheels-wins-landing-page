@@ -72,6 +72,10 @@ class PamFeedbackRequest(BaseModel):
     feedback_text: Optional[str] = Field(None, max_length=1000)
     feedback_type: str = Field(..., regex="^(helpful|unhelpful|incorrect|inappropriate)$")
 
+class PamThumbFeedbackRequest(BaseModel):
+    message_id: str = Field(..., min_length=1)
+    thumbs_up: bool
+
 class MemoryCreateRequest(BaseModel):
     memory_type: MemoryType
     content: str = Field(..., min_length=1, max_length=1000)
