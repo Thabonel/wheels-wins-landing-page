@@ -199,6 +199,289 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_feedback_events: {
+        Row: {
+          conversation_id: string | null
+          correction_text: string | null
+          created_at: string | null
+          feedback_category: string | null
+          feedback_text: string | null
+          feedback_type: string
+          id: string
+          metadata: Json | null
+          rating: number | null
+          suggestion_text: string | null
+          user_id: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          correction_text?: string | null
+          created_at?: string | null
+          feedback_category?: string | null
+          feedback_text?: string | null
+          feedback_type: string
+          id?: string
+          metadata?: Json | null
+          rating?: number | null
+          suggestion_text?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          correction_text?: string | null
+          created_at?: string | null
+          feedback_category?: string | null
+          feedback_text?: string | null
+          feedback_type?: string
+          id?: string
+          metadata?: Json | null
+          rating?: number | null
+          suggestion_text?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_feedback_events_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_training_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_finetuning_jobs: {
+        Row: {
+          actual_completion: string | null
+          actual_cost: number | null
+          base_model: string
+          cost_estimate: number | null
+          created_at: string | null
+          created_by: string | null
+          dataset_id: string | null
+          error_message: string | null
+          estimated_completion: string | null
+          id: string
+          job_config: Json
+          job_name: string
+          job_status: string | null
+          logs: string | null
+          performance_improvement: Json | null
+          progress_percentage: number | null
+          resulting_model_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_completion?: string | null
+          actual_cost?: number | null
+          base_model: string
+          cost_estimate?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          dataset_id?: string | null
+          error_message?: string | null
+          estimated_completion?: string | null
+          id?: string
+          job_config: Json
+          job_name: string
+          job_status?: string | null
+          logs?: string | null
+          performance_improvement?: Json | null
+          progress_percentage?: number | null
+          resulting_model_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_completion?: string | null
+          actual_cost?: number | null
+          base_model?: string
+          cost_estimate?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          dataset_id?: string | null
+          error_message?: string | null
+          estimated_completion?: string | null
+          id?: string
+          job_config?: Json
+          job_name?: string
+          job_status?: string | null
+          logs?: string | null
+          performance_improvement?: Json | null
+          progress_percentage?: number | null
+          resulting_model_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_finetuning_jobs_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "ai_training_datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_model_performance: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          domain_expertise_score: number | null
+          evaluation_date: string | null
+          general_performance_score: number | null
+          id: string
+          improvement_areas: string[] | null
+          knowledge_accuracy_score: number | null
+          model_version: string
+          notes: string | null
+          performance_metrics: Json
+          response_relevance_score: number | null
+          test_dataset_id: string | null
+          user_satisfaction_score: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          domain_expertise_score?: number | null
+          evaluation_date?: string | null
+          general_performance_score?: number | null
+          id?: string
+          improvement_areas?: string[] | null
+          knowledge_accuracy_score?: number | null
+          model_version: string
+          notes?: string | null
+          performance_metrics: Json
+          response_relevance_score?: number | null
+          test_dataset_id?: string | null
+          user_satisfaction_score?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          domain_expertise_score?: number | null
+          evaluation_date?: string | null
+          general_performance_score?: number | null
+          id?: string
+          improvement_areas?: string[] | null
+          knowledge_accuracy_score?: number | null
+          model_version?: string
+          notes?: string | null
+          performance_metrics?: Json
+          response_relevance_score?: number | null
+          test_dataset_id?: string | null
+          user_satisfaction_score?: number | null
+        }
+        Relationships: []
+      }
+      ai_training_conversations: {
+        Row: {
+          ai_response: string
+          context_data: Json | null
+          conversation_type: string
+          created_at: string | null
+          entities_extracted: Json | null
+          feedback_type: string | null
+          id: string
+          intent_classification: string | null
+          is_training_approved: boolean | null
+          model_version: string | null
+          quality_score: number | null
+          response_time_ms: number | null
+          session_id: string
+          updated_at: string | null
+          user_correction: string | null
+          user_id: string | null
+          user_message: string
+        }
+        Insert: {
+          ai_response: string
+          context_data?: Json | null
+          conversation_type: string
+          created_at?: string | null
+          entities_extracted?: Json | null
+          feedback_type?: string | null
+          id?: string
+          intent_classification?: string | null
+          is_training_approved?: boolean | null
+          model_version?: string | null
+          quality_score?: number | null
+          response_time_ms?: number | null
+          session_id: string
+          updated_at?: string | null
+          user_correction?: string | null
+          user_id?: string | null
+          user_message: string
+        }
+        Update: {
+          ai_response?: string
+          context_data?: Json | null
+          conversation_type?: string
+          created_at?: string | null
+          entities_extracted?: Json | null
+          feedback_type?: string | null
+          id?: string
+          intent_classification?: string | null
+          is_training_approved?: boolean | null
+          model_version?: string | null
+          quality_score?: number | null
+          response_time_ms?: number | null
+          session_id?: string
+          updated_at?: string | null
+          user_correction?: string | null
+          user_id?: string | null
+          user_message?: string
+        }
+        Relationships: []
+      }
+      ai_training_datasets: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_source: Json
+          dataset_type: string
+          description: string | null
+          domain_focus: string | null
+          id: string
+          is_active: boolean | null
+          last_used_for_training: string | null
+          name: string
+          preprocessing_applied: string[] | null
+          quality_threshold: number | null
+          size_metrics: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_source: Json
+          dataset_type: string
+          description?: string | null
+          domain_focus?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_for_training?: string | null
+          name: string
+          preprocessing_applied?: string[] | null
+          quality_threshold?: number | null
+          size_metrics?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_source?: Json
+          dataset_type?: string
+          description?: string | null
+          domain_focus?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_for_training?: string | null
+          name?: string
+          preprocessing_applied?: string[] | null
+          quality_threshold?: number | null
+          size_metrics?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       analytics_sessions: {
         Row: {
           bounce_rate: number | null
@@ -3390,6 +3673,59 @@ export type Database = {
           },
         ]
       }
+      rl_learning_events: {
+        Row: {
+          action_taken: string | null
+          context_state: Json | null
+          conversation_id: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          is_processed: boolean | null
+          learning_weight: number | null
+          processed_at: string | null
+          reward_reason: string | null
+          reward_score: number | null
+          user_response: string | null
+        }
+        Insert: {
+          action_taken?: string | null
+          context_state?: Json | null
+          conversation_id?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          is_processed?: boolean | null
+          learning_weight?: number | null
+          processed_at?: string | null
+          reward_reason?: string | null
+          reward_score?: number | null
+          user_response?: string | null
+        }
+        Update: {
+          action_taken?: string | null
+          context_state?: Json | null
+          conversation_id?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          is_processed?: boolean | null
+          learning_weight?: number | null
+          processed_at?: string | null
+          reward_reason?: string | null
+          reward_score?: number | null
+          user_response?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rl_learning_events_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_training_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       route_data: {
         Row: {
           country: string | null
@@ -3444,6 +3780,66 @@ export type Database = {
           query_text?: string
           timestamp?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      rv_knowledge_base: {
+        Row: {
+          category: string
+          confidence_score: number | null
+          content: string
+          created_at: string | null
+          created_by: string | null
+          difficulty_level: string | null
+          effectiveness_score: number | null
+          id: string
+          source_type: string | null
+          subcategory: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          usage_count: number | null
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          category: string
+          confidence_score?: number | null
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          difficulty_level?: string | null
+          effectiveness_score?: number | null
+          id?: string
+          source_type?: string | null
+          subcategory?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          usage_count?: number | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          category?: string
+          confidence_score?: number | null
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          difficulty_level?: string | null
+          effectiveness_score?: number | null
+          id?: string
+          source_type?: string | null
+          subcategory?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          usage_count?: number | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: []
       }
@@ -5280,6 +5676,10 @@ export type Database = {
         Args: { user_email: string; user_uuid?: string }
         Returns: boolean
       }
+      calculate_model_performance_score: {
+        Args: { model_version_param: string }
+        Returns: number
+      }
       calculate_trust_score: {
         Args: { user_id: string }
         Returns: number
@@ -5314,6 +5714,14 @@ export type Database = {
           user_role: string
         }[]
       }
+      generate_training_dataset: {
+        Args: {
+          dataset_name_param: string
+          domain_focus_param?: string
+          quality_threshold_param?: number
+        }
+        Returns: string
+      }
       get_nearby_recommendations: {
         Args: {
           user_lat: number
@@ -5347,6 +5755,10 @@ export type Database = {
           p_metadata?: Json
         }
         Returns: string
+      }
+      process_rl_events: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       search_knowledge_chunks: {
         Args: {
