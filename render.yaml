@@ -18,6 +18,8 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+      - key: LANGCHAIN_TRACING_V2
+        value: disabled
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: SECRET_KEY
