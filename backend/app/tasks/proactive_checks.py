@@ -8,8 +8,11 @@ from app.core.logging import get_logger
 from app.core.database import get_supabase_client
 from app.core.websocket_manager import manager
 from app.workers.tasks.notification_tasks import _get_weather_alert
+from app.services.pam.route_intelligence import route_intelligence
+from app.services.pam.route_scraper import RouteIntelligentScraper
 
 logger = get_logger(__name__)
+scraper = RouteIntelligentScraper()
 
 
 async def _get_active_users() -> List[Dict[str, Any]]:
@@ -56,6 +59,19 @@ def _budget_warning(budgets: List[Dict[str, Any]]) -> bool:
     return False
 
 
+async def _prefetch_tomorrow_camps(user_id: str) -> List[Dict[str, Any]]:
+    """Fetch camping options along the user's route for tomorrow."""
+    try:
+        zones = await route_intelligence.calculate_search_zones(user_id)
+        tomorrow_zones = [z for z in zones if getattr(z, "zone_type", "") == "overnight" or getattr(z, "priority", 0) == 2]
+        if not tomorrow_zones:
+            return []
+        return await scraper.scrape_zones(tomorrow_zones)
+    except Exception as exc:  # pragma: no cover - best effort
+        logger.error(f"Failed to prefetch camps for {user_id}: {exc}")
+        return []
+
+
 async def run_proactive_checks() -> None:
     """Check active users and notify them of important actions."""
     users = await _get_active_users()
@@ -65,12 +81,14 @@ async def run_proactive_checks() -> None:
 
         weather = _get_weather_alert(region)
         budgets = await _get_budget_info(uid)
+        camps = await _prefetch_tomorrow_camps(uid)
 
-        if weather or _budget_warning(budgets):
+        if weather or _budget_warning(budgets) or camps:
             message = {
                 "type": "proactive_alert",
                 "weather": weather,
                 "budgets": budgets,
+                "camps_tomorrow": camps,
             }
             try:
                 await manager.send_message_to_user(json.dumps(message), uid)
