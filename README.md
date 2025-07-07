@@ -80,6 +80,8 @@ VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 
 These values are read in `src/integrations/supabase/client.ts` when initializing the Supabase client.
 
+The trip planner requires a Mapbox token for map display. A default token is provided in `src/.env`, and the Vite configuration now loads this file automatically. If you need to use your own Mapbox account, set `VITE_MAPBOX_TOKEN` in a `.env` file at the project root or replace the token in `src/.env`.
+
 ## Running Tests
 
 Before committing changes, run the project's test suites.
