@@ -280,6 +280,45 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          id: string
+          ip_address: unknown | null
+          new_values: Json | null
+          old_values: Json | null
+          resource_id: string | null
+          resource_type: string | null
+          timestamp: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          id?: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          resource_id?: string | null
+          resource_type?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          id?: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          resource_id?: string | null
+          resource_type?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       budget_categories: {
         Row: {
           budgeted_amount: number
@@ -732,6 +771,33 @@ export type Database = {
           member_count?: number | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      failed_login_attempts: {
+        Row: {
+          attempt_time: string | null
+          email: string
+          id: string
+          ip_address: unknown
+          reason: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          attempt_time?: string | null
+          email: string
+          id?: string
+          ip_address: unknown
+          reason?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          attempt_time?: string | null
+          email?: string
+          id?: string
+          ip_address?: unknown
+          reason?: string | null
+          user_agent?: string | null
         }
         Relationships: []
       }
@@ -1700,6 +1766,33 @@ export type Database = {
           suggested_date?: string | null
           suggested_location?: Json
           trip_day?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mfa_settings: {
+        Row: {
+          backup_codes: string[] | null
+          created_at: string | null
+          enabled: boolean | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          backup_codes?: string[] | null
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          backup_codes?: string[] | null
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -3028,6 +3121,45 @@ export type Database = {
           updated_at?: string | null
           user_ratings?: number | null
           website?: string | null
+        }
+        Relationships: []
+      }
+      security_events: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          ip_address: unknown | null
+          location: Json | null
+          metadata: Json | null
+          resolved: boolean | null
+          severity: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          ip_address?: unknown | null
+          location?: Json | null
+          metadata?: Json | null
+          resolved?: boolean | null
+          severity?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown | null
+          location?: Json | null
+          metadata?: Json | null
+          resolved?: boolean | null
+          severity?: string | null
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
