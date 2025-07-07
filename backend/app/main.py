@@ -17,6 +17,7 @@ from app.services.websocket_manager import websocket_manager
 from app.core.middleware import setup_middleware
 from app.core.security_middleware import setup_security_middleware
 from app.core.monitoring_middleware import MonitoringMiddleware
+from app.guardrails.guardrails_middleware import GuardrailsMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
 
@@ -91,6 +92,7 @@ app = FastAPI(
 app.add_middleware(MonitoringMiddleware)
 setup_security_middleware(app)
 setup_middleware(app)
+app.add_middleware(GuardrailsMiddleware)
 
 # CORS middleware MUST be added LAST so it executes FIRST
 # Include development and production domains
