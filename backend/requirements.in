@@ -65,3 +65,7 @@ slowapi>=0.1.9,<1.0.0
 # Security scanning
 bandit>=1.7.5,<2.0.0
 
+# LangChain ecosystem
+langchain>=0.2,<0.3
+langserve>=0.0,<0.1
+
