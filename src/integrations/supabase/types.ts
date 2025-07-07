@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      ab_test_assignments: {
+        Row: {
+          assigned_at: string | null
+          conversion_value: number | null
+          converted: boolean | null
+          experiment_id: string | null
+          id: string
+          metadata: Json | null
+          user_id: string
+          variant_name: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          conversion_value?: number | null
+          converted?: boolean | null
+          experiment_id?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id: string
+          variant_name: string
+        }
+        Update: {
+          assigned_at?: string | null
+          conversion_value?: number | null
+          converted?: boolean | null
+          experiment_id?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+          variant_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_test_assignments_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "ab_test_experiments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ab_test_experiments: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          start_date: string | null
+          status: string | null
+          success_metrics: Json | null
+          traffic_allocation: number | null
+          updated_at: string | null
+          variants: Json
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          start_date?: string | null
+          status?: string | null
+          success_metrics?: Json | null
+          traffic_allocation?: number | null
+          updated_at?: string | null
+          variants: Json
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          start_date?: string | null
+          status?: string | null
+          success_metrics?: Json | null
+          traffic_allocation?: number | null
+          updated_at?: string | null
+          variants?: Json
+        }
+        Relationships: []
+      }
       account_deletion_requests: {
         Row: {
           created_at: string | null
@@ -109,6 +195,51 @@ export type Database = {
           memory_used?: boolean | null
           response?: string | null
           source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      analytics_sessions: {
+        Row: {
+          bounce_rate: number | null
+          created_at: string | null
+          device_type: string | null
+          duration_seconds: number | null
+          id: string
+          interactions_count: number | null
+          ip_address: unknown | null
+          page_views: number | null
+          session_end: string | null
+          session_start: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          bounce_rate?: number | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_seconds?: number | null
+          id?: string
+          interactions_count?: number | null
+          ip_address?: unknown | null
+          page_views?: number | null
+          session_end?: string | null
+          session_start?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          bounce_rate?: number | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_seconds?: number | null
+          id?: string
+          interactions_count?: number | null
+          ip_address?: unknown | null
+          page_views?: number | null
+          session_end?: string | null
+          session_start?: string | null
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
@@ -2555,6 +2686,45 @@ export type Database = {
         }
         Relationships: []
       }
+      predictive_models: {
+        Row: {
+          accuracy_score: number | null
+          created_at: string | null
+          id: string
+          last_trained: string | null
+          model_name: string
+          model_parameters: Json | null
+          model_type: string
+          prediction_targets: Json | null
+          status: string | null
+          training_data_period: unknown | null
+        }
+        Insert: {
+          accuracy_score?: number | null
+          created_at?: string | null
+          id?: string
+          last_trained?: string | null
+          model_name: string
+          model_parameters?: Json | null
+          model_type: string
+          prediction_targets?: Json | null
+          status?: string | null
+          training_data_period?: unknown | null
+        }
+        Update: {
+          accuracy_score?: number | null
+          created_at?: string | null
+          id?: string
+          last_trained?: string | null
+          model_name?: string
+          model_parameters?: Json | null
+          model_type?: string
+          prediction_targets?: Json | null
+          status?: string | null
+          training_data_period?: unknown | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           accessibility: string | null
@@ -3589,6 +3759,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_interactions: {
+        Row: {
+          created_at: string | null
+          device_info: Json | null
+          element_clicked: string | null
+          id: string
+          interaction_type: string
+          metadata: Json | null
+          page_path: string | null
+          session_id: string | null
+          timestamp: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_info?: Json | null
+          element_clicked?: string | null
+          id?: string
+          interaction_type: string
+          metadata?: Json | null
+          page_path?: string | null
+          session_id?: string | null
+          timestamp?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_info?: Json | null
+          element_clicked?: string | null
+          id?: string
+          interaction_type?: string
+          metadata?: Json | null
+          page_path?: string | null
+          session_id?: string | null
+          timestamp?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_knowledge_buckets: {
         Row: {
