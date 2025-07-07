@@ -78,7 +78,7 @@ export const handleEventSelect = (
 
 export const handleEventCreate = (
   start: Date,
-  _end: Date,
+  end: Date,
   setEventStartTime: React.Dispatch<React.SetStateAction<Date>>,
   setEventEndTime: React.Dispatch<React.SetStateAction<Date>>,
   setNewEventDate: React.Dispatch<React.SetStateAction<Date>>,
@@ -86,9 +86,10 @@ export const handleEventCreate = (
   setEditingEventId: React.Dispatch<React.SetStateAction<string | null>>,
   setIsEventModalOpen: React.Dispatch<React.SetStateAction<boolean>>
 ) => {
-  const defaultEnd = new Date(start.getTime() + 15 * 60 * 1000);
+  // Use the actual end time from calendar selection, fall back to 15min if no duration
+  const actualEnd = end.getTime() > start.getTime() ? end : new Date(start.getTime() + 15 * 60 * 1000);
   setEventStartTime(start);
-  setEventEndTime(defaultEnd);
+  setEventEndTime(actualEnd);
   setNewEventDate(start);
   setNewEventHour(start.getHours());
   setEditingEventId(null);
@@ -119,6 +120,41 @@ export const handleEventSubmit = async (
       updatedEvents[eventIndex] = updatedEvent;
       setEvents(updatedEvents);
       toast(`Event updated: ${data.title} has been updated.`);
+
+      // Save update to database
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error("Not signed in – cannot save event.");
+        setIsEventModalOpen(false);
+        return;
+      }
+
+      const payload = {
+        title: updatedEvent.title,
+        description: "",
+        date: updatedEvent.date.toISOString().split("T")[0],
+        time: `${updatedEvent.startTime}:00`,
+        start_time: `${updatedEvent.startTime}:00`,
+        end_time: `${updatedEvent.endTime}:00`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        type: updatedEvent.type,
+        user_id: user.id,
+        location: "",
+      };
+
+      const { error } = await supabase
+        .from("calendar_events")
+        .update(payload)
+        .eq("user_id", user.id)
+        .eq("title", updatedEvent.title)
+        .eq("date", payload.date);
+
+      if (error) {
+        console.error("Database update error:", error);
+        toast.error("Failed to save event changes.");
+      } else {
+        toast.success("Event changes saved to database.");
+      }
     }
   } else {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
