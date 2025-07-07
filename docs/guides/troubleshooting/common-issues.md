@@ -51,6 +51,25 @@ This document covers the most frequently encountered issues and their solutions.
 3. Verify policy conditions match user context
 4. Test queries in Supabase SQL editor
 
+### Issue: "permission denied for table calendar_events"
+**Symptoms**: Inserting or saving calendar events fails
+**Solutions**:
+1. Confirm the `calendar_events` table exists
+2. Verify a Row Level Security policy allows authenticated users to `INSERT` rows where `user_id` matches their own
+3. Example SQL to create/verify the policy:
+
+```sql
+-- Check existing calendar_events policies
+SELECT policyname, command
+FROM pg_policies
+WHERE tablename = 'calendar_events';
+
+-- Create policy if missing
+CREATE POLICY "Allow users to insert their own events" ON public.calendar_events
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+```
+
 ## API Integration Issues
 
 ### Issue: OpenAI API rate limits
