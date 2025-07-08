@@ -30,7 +30,11 @@ class DatabasePool:
                 "DATABASE_URL",
                 "postgresql://postgres:postgres@localhost:5432/postgres",
             )
-            self.pool = await asyncpg.create_pool(dsn=database_url)
+            # Create pool without trying to set admin role
+            self.pool = await asyncpg.create_pool(
+                dsn=database_url,
+                server_settings={}  # Prevent role switching
+            )
             logger.info("Database pool initialized")
 
     @asynccontextmanager

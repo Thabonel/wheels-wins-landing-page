@@ -3460,6 +3460,7 @@ export type Database = {
           model_name: string
           model_parameters: Json | null
           model_type: string
+          owner_id: string | null
           prediction_targets: Json | null
           status: string | null
           training_data_period: unknown | null
@@ -3472,6 +3473,7 @@ export type Database = {
           model_name: string
           model_parameters?: Json | null
           model_type: string
+          owner_id?: string | null
           prediction_targets?: Json | null
           status?: string | null
           training_data_period?: unknown | null
@@ -3484,6 +3486,7 @@ export type Database = {
           model_name?: string
           model_parameters?: Json | null
           model_type?: string
+          owner_id?: string | null
           prediction_targets?: Json | null
           status?: string | null
           training_data_period?: unknown | null
@@ -5706,6 +5709,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      create_audit_log: {
+        Args: {
+          p_user_id: string
+          p_action: string
+          p_resource_type: string
+          p_resource_id: string
+          p_old_values?: Json
+          p_new_values?: Json
+        }
+        Returns: string
+      }
       debug_auth_state: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -5738,6 +5752,10 @@ export type Database = {
           distance_miles: number
           priority_level: string
         }[]
+      }
+      get_user_id_from_auth: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       get_user_role: {
         Args: Record<PropertyKey, never> | { check_user_id: string }

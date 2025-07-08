@@ -94,5 +94,20 @@ export default function RouteInputs({
       }
     };
   }, [directionsControl, setDestName, destinationLocked, lockDestination]);
-  return;
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Origin
+        </label>
+        <div ref={originGeocoderContainer} className="geocoder-container" />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Destination
+        </label>
+        <div ref={destGeocoderContainer} className="geocoder-container" />
+      </div>
+    </div>
+  );
 }
