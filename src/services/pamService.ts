@@ -2,8 +2,8 @@
 export const PAM_CONFIG = {
   // Primary PAM WebSocket endpoints (production ready)
   WEBSOCKET_ENDPOINTS: [
-    'wss://api.wheelsandwins.com/pam/ws',  // Primary production endpoint
-    'wss://pam-backend.onrender.com/ws',   // Backup Render service
+    import.meta.env.VITE_PAM_WEBSOCKET_URL || 'wss://pam-backend.onrender.com/ws',
+    'wss://api.wheelsandwins.com/pam/ws',  // Alternate production endpoint
     'wss://treflip2025.app.n8n.cloud/ws/pam' // N8N WebSocket proxy
   ],
   
