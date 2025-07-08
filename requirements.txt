@@ -15,6 +15,10 @@ openai==1.35.3
 supabase==2.5.0
 stripe==9.8.0
 
+# Database
+sqlalchemy[asyncio]==2.0.23
+asyncpg==0.30.0
+
 # Background tasks and caching
 redis==5.0.7
 celery==5.4.0
