@@ -1,11 +1,9 @@
-
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import { getMapboxToken } from "@/utils/mapboxToken";
 import { Lock } from "lucide-react";
-
 interface RouteInputsProps {
   directionsControl: React.MutableRefObject<MapboxDirections | undefined>;
   originName: string;
@@ -17,7 +15,6 @@ interface RouteInputsProps {
   lockOrigin?: () => void;
   lockDestination?: () => void;
 }
-
 export default function RouteInputs({
   directionsControl,
   originName,
@@ -31,7 +28,6 @@ export default function RouteInputs({
 }: RouteInputsProps) {
   const originGeocoderContainer = useRef<HTMLDivElement>(null);
   const destGeocoderContainer = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (!originGeocoderContainer.current || !directionsControl.current || originLocked) return;
 
@@ -57,17 +53,14 @@ export default function RouteInputs({
         lockOrigin();
       }
     });
-
     const originElement = originGeocoder.onAdd();
     originGeocoderContainer.current.appendChild(originElement);
-
     return () => {
       if (originGeocoderContainer.current && originElement) {
         originGeocoderContainer.current.removeChild(originElement);
       }
     };
   }, [directionsControl, setOriginName, originLocked, lockOrigin]);
-
   useEffect(() => {
     if (!destGeocoderContainer.current || !directionsControl.current || destinationLocked) return;
 
@@ -93,46 +86,13 @@ export default function RouteInputs({
         lockDestination();
       }
     });
-
     const destElement = destGeocoder.onAdd();
     destGeocoderContainer.current.appendChild(destElement);
-
     return () => {
       if (destGeocoderContainer.current && destElement) {
         destGeocoderContainer.current.removeChild(destElement);
       }
     };
   }, [directionsControl, setDestName, destinationLocked, lockDestination]);
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">From:</span>
-          {originLocked && <Lock className="w-4 h-4 text-blue-600" />}
-        </div>
-        {originLocked ? (
-          <div className="p-2 bg-blue-50 border border-blue-200 rounded text-sm">
-            {originName || "Origin set"}
-          </div>
-        ) : (
-          <div ref={originGeocoderContainer} className="w-full" />
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">To:</span>
-          {destinationLocked && <Lock className="w-4 h-4 text-purple-600" />}
-        </div>
-        {destinationLocked ? (
-          <div className="p-2 bg-purple-50 border border-purple-200 rounded text-sm">
-            {destName || "Destination set"}
-          </div>
-        ) : (
-          <div ref={destGeocoderContainer} className="w-full" />
-        )}
-      </div>
-    </div>
-  );
+  return;
 }
