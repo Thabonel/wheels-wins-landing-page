@@ -9,7 +9,7 @@ export interface SubscriptionData {
   trial_ends_at: string | null;
   subscription_status: 'trial' | 'active' | 'expired' | 'cancelled';
   plan_type: 'free_trial' | 'monthly' | 'annual';
-  video_course_access: boolean;
+  video_course_access?: boolean;
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
   subscription_ends_at?: string;
@@ -95,7 +95,12 @@ export function useSubscription() {
 
       if (error) throw error;
       
-      setSubscription(data);
+      setSubscription({
+        ...data,
+        video_course_access: false,
+        subscription_status: data.subscription_status as 'trial' | 'active' | 'expired' | 'cancelled',
+        plan_type: data.plan_type as 'free_trial' | 'monthly' | 'annual'
+      });
       setDaysRemaining(30);
       return data;
     } catch (error) {
