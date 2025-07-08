@@ -19,7 +19,7 @@ stripe==9.8.0
 
 # Database and caching
 redis==5.0.7
-sqlalchemy[asyncio]==2.0.23
+sqlalchemy[asyncio]==2.0.41
 asyncpg==0.30.0
 
 # Background tasks
@@ -39,7 +39,7 @@ apscheduler==3.10.4
 psutil==6.1.0
 
 # Error tracking and monitoring
-sentry-sdk[fastapi]==1.45.1
+sentry-sdk[fastapi]==2.32.0
 
 # Logging
 structlog==23.2.0
