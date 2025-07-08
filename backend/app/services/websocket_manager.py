@@ -1,33 +1,35 @@
 from typing import List, Dict
-import asyncio
-import json
 from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
         self.user_connections: Dict[str, WebSocket] = {}
-        self.connection_mapping: Dict[str, WebSocket] = {}  # connection_id -> websocket
+        # Map user_id -> {connection_id -> websocket}
+        self.connection_map: Dict[str, Dict[str, WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, user_id: str = None, connection_id: str = None):
+        """Register a new WebSocket connection."""
         await websocket.accept()
         self.active_connections.append(websocket)
         if user_id:
             self.user_connections[user_id] = websocket
-        if connection_id:
-            self.connection_mapping[connection_id] = websocket
+            if connection_id:
+                if user_id not in self.connection_map:
+                    self.connection_map[user_id] = {}
+                self.connection_map[user_id][connection_id] = websocket
 
-    async def disconnect(self, user_id: str = None, connection_id: str = None):
+    async def disconnect(self, user_id: str, connection_id: str = None):
+        """Remove a WebSocket connection."""
         websocket = None
-        
-        # Find websocket by connection_id or user_id
-        if connection_id and connection_id in self.connection_mapping:
-            websocket = self.connection_mapping[connection_id]
-            del self.connection_mapping[connection_id]
-        elif user_id and user_id in self.user_connections:
-            websocket = self.user_connections[user_id]
-            del self.user_connections[user_id]
-        
+
+        if connection_id and user_id in self.connection_map:
+            websocket = self.connection_map[user_id].pop(connection_id, None)
+            if not self.connection_map[user_id]:
+                del self.connection_map[user_id]
+        if not websocket and user_id in self.user_connections:
+            websocket = self.user_connections.pop(user_id)
+
         # Remove from active connections
         if websocket and websocket in self.active_connections:
             self.active_connections.remove(websocket)

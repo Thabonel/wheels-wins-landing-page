@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 import json
 import uuid
 import logging
+import asyncio
 from datetime import datetime
 
 from app.api.deps import (
@@ -23,6 +24,41 @@ from app.core.exceptions import PAMError
 
 router = APIRouter()
 logger = setup_logging()
+
+
+async def _safe_connect(websocket: WebSocket, user_id: str, connection_id: str):
+    """Call ConnectionManager.connect with backward compatibility."""
+    try:
+        await _safe_connect(websocket, user_id, connection_id)
+    except TypeError:
+        await manager.connect(websocket, user_id)
+
+
+async def _safe_disconnect(websocket: WebSocket, user_id: str, connection_id: str):
+    """Call ConnectionManager.disconnect handling sync/async variants."""
+    disconnect = getattr(manager, "disconnect", None)
+    if not disconnect:
+        return
+
+    try:
+        if asyncio.iscoroutinefunction(disconnect):
+            try:
+                await disconnect(user_id, connection_id)
+            except TypeError:
+                try:
+                    await disconnect(websocket, user_id)
+                except TypeError:
+                    await disconnect(user_id)
+        else:
+            try:
+                disconnect(user_id, connection_id)
+            except TypeError:
+                try:
+                    disconnect(websocket, user_id)
+                except TypeError:
+                    disconnect(user_id)
+    except Exception as err:
+        logger.error(f"Disconnect error: {err}")
 
 # WebSocket endpoint for real-time chat
 @router.websocket("/ws")
@@ -51,7 +87,7 @@ async def websocket_endpoint(
             # Fall back to treating token as plain user_id
             user_id = token
         
-        await manager.connect(websocket, user_id, connection_id)
+        await _safe_connect(websocket, user_id, connection_id)
         
         # Send welcome message
         await websocket.send_json({
@@ -83,11 +119,11 @@ async def websocket_endpoint(
                 })
                 
     except WebSocketDisconnect:
-        await manager.disconnect(user_id, connection_id)
+        await _safe_disconnect(websocket, user_id, connection_id)
         logger.info(f"WebSocket client {user_id} disconnected")
     except Exception as e:
         logger.error(f"WebSocket error: {str(e)}")
-        await manager.disconnect(user_id, connection_id)
+        await _safe_disconnect(websocket, user_id, connection_id)
         try:
             await websocket.close(code=1011, reason="Internal server error")
         except:
