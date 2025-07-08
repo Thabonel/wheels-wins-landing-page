@@ -152,12 +152,8 @@ export default function TripPlanner() {
         destName={destName}
         setOriginName={setOriginName}
         setDestName={setDestName}
-        travelMode={travelMode}
-        setTravelMode={setTravelMode}
         exclude={exclude}
         setExclude={setExclude}
-        annotations={annotations}
-        setAnnotations={setAnnotations}
         vehicle={vehicle}
         setVehicle={setVehicle}
         mode={mode}
