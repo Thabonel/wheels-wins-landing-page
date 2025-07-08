@@ -6,6 +6,8 @@ from app.core.database import get_supabase_client
 from datetime import datetime, timedelta
 from typing import List, Dict
 
+import httpx
+
 logger = get_logger(__name__)
 
 @celery_app.task(bind=True)
@@ -274,14 +276,50 @@ def _send_trip_reminder_notification(trip: Dict):
     except Exception as e:
         logger.error(f"Failed to send trip reminder: {e}")
 
-def _get_weather_alert(location: str) -> Dict:
-    """Get weather alert for location (placeholder)"""
-    # This would integrate with a weather API
-    return {
-        "location": location,
-        "alert_type": "severe_weather",
-        "description": "Severe weather warning in your area"
-    }
+async def _get_weather_alert(location: str) -> Dict:
+    """Fetch a basic weather alert for the given location."""
+    try:
+        lat = lon = None
+        if "," in location:
+            parts = location.split(",", 1)
+            lat = float(parts[0].strip())
+            lon = float(parts[1].strip())
+        if lat is None or lon is None:
+            async with httpx.AsyncClient() as client:
+                geo = await client.get(
+                    "https://geocoding-api.open-meteo.com/v1/search",
+                    params={"name": location, "count": 1},
+                )
+                geo.raise_for_status()
+                results = geo.json().get("results")
+                if not results:
+                    return {}
+                lat = results[0]["latitude"]
+                lon = results[0]["longitude"]
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.open-meteo.com/v1/forecast",
+                params={
+                    "latitude": lat,
+                    "longitude": lon,
+                    "current": "weather_code",
+                    "timezone": "UTC",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            code = data.get("current", {}).get("weather_code")
+            if code and code >= 80:
+                return {
+                    "location": location,
+                    "alert_type": "weather",
+                    "description": "Severe weather expected",
+                }
+        return {}
+    except Exception as exc:
+        logger.error(f"Failed to fetch weather alert: {exc}")
+        return {}
 
 def _send_weather_notification(email: str, name: str, alert: Dict):
     """Send weather notification"""
