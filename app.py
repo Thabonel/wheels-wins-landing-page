@@ -39,9 +39,9 @@ def _load_backend_app() -> FastAPI:
         sys.path.insert(0, str(backend_path))
         logger.info("Added %s to PYTHONPATH", backend_path)
 
-    # Remove this module from ``sys.modules`` to prevent clashes with the
-    # ``app`` package inside ``backend``.
-    sys.modules.pop("app", None)
+    # Ensure this module stays registered so Uvicorn reload works correctly
+    # even after inserting the backend path. Removing it can cause ``app``
+    # to resolve to the backend package instead of this file on reload.
 
     main_file = backend_path / "app" / "main.py"
     spec = importlib.util.spec_from_file_location("backend_main", main_file)
