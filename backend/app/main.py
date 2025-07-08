@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse, Response
 # Import optimization and security components
 from app.core.database_pool import db_pool
 from app.services.cache_service import cache_service
-from app.services.websocket_manager import websocket_manager
+from app.core.websocket_manager import manager as websocket_manager
 from app.core.middleware import setup_middleware
 from app.core.security_middleware import setup_security_middleware
 from app.core.monitoring_middleware import MonitoringMiddleware

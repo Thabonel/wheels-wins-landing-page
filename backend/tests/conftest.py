@@ -89,7 +89,7 @@ def mock_cache_service():
 @pytest.fixture
 def mock_websocket_manager():
     """Mock WebSocket manager."""
-    from app.services.websocket_manager import WebSocketManager
+    from app.core.websocket_manager import ConnectionManager as WebSocketManager
     
     manager = MagicMock(spec=WebSocketManager)
     manager.connect = AsyncMock()
