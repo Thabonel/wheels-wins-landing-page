@@ -38,7 +38,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from('user_subscriptions')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', parseInt(user!.id))
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -47,7 +47,12 @@ export function useSubscription() {
       }
 
       if (data) {
-        setSubscription(data);
+        setSubscription({
+          ...data,
+          video_course_access: false,
+          subscription_status: data.subscription_status as 'trial' | 'active' | 'expired' | 'cancelled',
+          plan_type: data.plan_type as 'free_trial' | 'monthly' | 'annual'
+        });
         
         // Calculate days remaining for trial users
         if (data.plan_type === 'free_trial' && data.trial_ends_at) {
@@ -78,7 +83,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from('user_subscriptions')
         .insert({
-          user_id: user.id,
+          user_id: parseInt(user.id),
           trial_ends_at: trialEndDate.toISOString(),
           subscription_status: 'trial',
           plan_type: 'free_trial',
