@@ -8,7 +8,7 @@ class ConnectionManager:
         # Map user_id -> {connection_id -> websocket}
         self.connection_map: Dict[str, Dict[str, WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, user_id: str = None, connection_id: str = None):
+    async def connect(self, websocket: WebSocket, user_id: str, connection_id: str) -> None:
         """Register a new WebSocket connection."""
         await websocket.accept()
         self.active_connections.append(websocket)
@@ -19,7 +19,7 @@ class ConnectionManager:
                     self.connection_map[user_id] = {}
                 self.connection_map[user_id][connection_id] = websocket
 
-    async def disconnect(self, user_id: str, connection_id: str = None):
+    async def disconnect(self, user_id: str, connection_id: str) -> None:
         """Remove a WebSocket connection."""
         websocket = None
 
