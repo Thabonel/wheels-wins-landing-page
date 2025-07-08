@@ -1,5 +1,9 @@
+const BASE_URL =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BACKEND_URL) ||
+  'https://pam-backend.onrender.com';
+
 export async function sendToPamChat(message: string): Promise<any> {
-  const response = await fetch('/api/v1/pam/chat', {
+  const response = await fetch(`${BASE_URL}/api/v1/pam/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message })
@@ -11,7 +15,7 @@ export async function sendToPamChat(message: string): Promise<any> {
 }
 
 export async function sendToPamVoice(audio: Blob): Promise<string | null> {
-  const response = await fetch('/api/v1/pam/voice', {
+  const response = await fetch(`${BASE_URL}/api/v1/pam/voice`, {
     method: 'POST',
     headers: {
       'Content-Type': audio.type || 'application/octet-stream'
