@@ -10,7 +10,6 @@ import ExpenseTable from "./expenses/ExpenseTable";
 import ExpenseChart from "./expenses/ExpenseChart";
 import AddExpenseForm from "./expenses/AddExpenseForm";
 import PamInsightCard from "./expenses/PamInsightCard";
-import { chartData } from "./expenses/mockData";
 import { useExpenseActions } from "@/hooks/useExpenseActions";
 import ExpenseInput from "./expenses/ExpenseInput";
 

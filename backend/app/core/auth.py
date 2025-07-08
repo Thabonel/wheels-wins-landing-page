@@ -3,11 +3,12 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
+import os
 import requests
 from jose import jwk
 
 # Configuration
-SECRET_KEY = "your-secret-key-change-in-production"  # TODO: Move to environment
+SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

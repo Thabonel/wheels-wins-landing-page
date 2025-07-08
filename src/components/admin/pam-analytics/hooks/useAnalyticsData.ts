@@ -63,101 +63,50 @@ export const useAnalyticsData = (dateRange: string) => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Mock data for development - replace with actual API calls
-  const mockData: AnalyticsDashboard = {
+  const emptyData: AnalyticsDashboard = {
     overview: {
-      total_requests_24h: 15420,
-      error_rate_24h: 2.3,
-      unique_users_24h: 3250,
-      avg_response_time: 850,
-      voice_usage_rate: 23.5,
+      total_requests_24h: 0,
+      error_rate_24h: 0,
+      unique_users_24h: 0,
+      avg_response_time: 0,
+      voice_usage_rate: 0,
       system_status: 'healthy',
       trends: {
-        requests_trend: 12.5,
-        users_trend: 8.3,
-        response_time_trend: -5.2
+        requests_trend: 0,
+        users_trend: 0,
+        response_time_trend: 0
       }
     },
     intent_analysis: {
-      top_intents: [
-        { intent: 'travel_advice', count: 4520, percentage: '29.3%' },
-        { intent: 'budget_help', count: 3890, percentage: '25.2%' },
-        { intent: 'local_recommendations', count: 2750, percentage: '17.8%' },
-        { intent: 'safety_tips', count: 2140, percentage: '13.9%' },
-        { intent: 'transport_info', count: 1320, percentage: '8.6%' },
-        { intent: 'other', count: 800, percentage: '5.2%' }
-      ],
-      distribution: [
-        { name: 'Travel Advice', value: 29.3, color: '#3b82f6' },
-        { name: 'Budget Help', value: 25.2, color: '#10b981' },
-        { name: 'Recommendations', value: 17.8, color: '#f59e0b' },
-        { name: 'Safety', value: 13.9, color: '#ef4444' },
-        { name: 'Transport', value: 8.6, color: '#8b5cf6' },
-        { name: 'Other', value: 5.2, color: '#6b7280' }
-      ],
+      top_intents: [],
+      distribution: [],
       confidence_levels: {
-        high: 78.2,
-        medium: 18.5,
-        low: 3.3
+        high: 0,
+        medium: 0,
+        low: 0
       }
     },
     performance_metrics: {
-      response_times: Array.from({ length: 24 }, (_, i) => ({
-        timestamp: `${i}:00`,
-        value: Math.floor(Math.random() * 500) + 600
-      })),
-      hourly_usage: Array.from({ length: 24 }, (_, i) => ({
-        hour: `${i}:00`,
-        requests: Math.floor(Math.random() * 800) + 200
-      })),
-      p95_response_time: 1250
+      response_times: [],
+      hourly_usage: [],
+      p95_response_time: 0
     },
     error_analysis: {
-      recent_errors: [
-        {
-          timestamp: new Date().toISOString(),
-          error_type: 'API_TIMEOUT',
-          error_message: 'Request timeout after 30 seconds',
-          intent: 'travel_advice',
-          user_id: 'user_123'
-        },
-        {
-          timestamp: new Date(Date.now() - 300000).toISOString(),
-          error_type: 'INTENT_NOT_RECOGNIZED',
-          error_message: 'Unable to classify user intent',
-          user_id: 'user_456'
-        }
-      ],
-      error_types: [
-        { name: 'API_TIMEOUT', count: 45, percentage: 38.5 },
-        { name: 'INTENT_NOT_RECOGNIZED', count: 32, percentage: 27.4 },
-        { name: 'RATE_LIMIT_EXCEEDED', count: 25, percentage: 21.4 },
-        { name: 'INTERNAL_ERROR', count: 15, percentage: 12.8 }
-      ],
-      error_by_intent: [
-        { intent: 'travel_advice', error_count: 12, total_count: 4520 },
-        { intent: 'budget_help', error_count: 8, total_count: 3890 },
-        { intent: 'local_recommendations', error_count: 6, total_count: 2750 }
-      ]
+      recent_errors: [],
+      error_types: [],
+      error_by_intent: []
     },
     user_engagement: {
       session_lengths: {
-        short: 45.2,
-        medium: 35.8,
-        long: 19.0
+        short: 0,
+        medium: 0,
+        long: 0
       },
-      daily_active_users: Array.from({ length: 7 }, (_, i) => ({
-        date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
-        users: Math.floor(Math.random() * 1000) + 2000
-      })),
-      activity_heatmap: Array.from({ length: 168 }, (_, i) => ({
-        day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][Math.floor(i / 24)],
-        hour: i % 24,
-        activity: Math.floor(Math.random() * 100)
-      })),
+      daily_active_users: [],
+      activity_heatmap: [],
       voice_vs_text: {
-        voice: 23.5,
-        text: 76.5
+        voice: 0,
+        text: 0
       }
     }
   };
@@ -219,18 +168,18 @@ export const useAnalyticsData = (dateRange: string) => {
           }
         },
         intent_analysis: {
-          top_intents: topIntents.length > 0 ? topIntents : mockData.intent_analysis.top_intents,
-          distribution: topIntents.length > 0 ? topIntents.map((item, i) => ({
+          top_intents: topIntents,
+          distribution: topIntents.map((item, i) => ({
             name: item.intent,
             value: (item.count / totalRequests) * 100,
             color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6b7280'][i] || '#6b7280'
-          })) : mockData.intent_analysis.distribution,
-          confidence_levels: mockData.intent_analysis.confidence_levels // Use mock for now
+          })),
+          confidence_levels: emptyData.intent_analysis.confidence_levels
         },
-        performance_metrics: mockData.performance_metrics, // Use mock for now
-        error_analysis: mockData.error_analysis, // Use mock for now
+        performance_metrics: emptyData.performance_metrics,
+        error_analysis: emptyData.error_analysis,
         user_engagement: {
-          ...mockData.user_engagement,
+          ...emptyData.user_engagement,
           daily_active_users: Array.from({ length: 7 }, (_, i) => {
             const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
             const dayLogs = agentLogs?.filter(log => {
@@ -250,8 +199,8 @@ export const useAnalyticsData = (dateRange: string) => {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       console.error('Error fetching analytics data:', err);
-      // Fallback to mock data on error
-      setData(mockData);
+      // Fallback to an empty data structure on error
+      setData(emptyData);
     } finally {
       setIsLoading(false);
     }
