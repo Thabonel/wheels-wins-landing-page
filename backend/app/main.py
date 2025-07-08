@@ -100,22 +100,17 @@ setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
 # CORS middleware MUST be added LAST so it executes FIRST
-# Include development and production domains
-allowed_origins = [
-    "https://wheelsandwins.com", 
-    "https://www.wheelsandwins.com",
-    "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",  # Lovable preview
-    "http://localhost:3000",  # Local development
-    "http://localhost:5173",  # Vite dev server
+origins = [
+    "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+    "https://www.wheelsandwins.com"
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Process-Time", "X-Request-ID", "X-Cache", "X-Rate-Limit-Remaining"]
 )
 
 # Include API routers
