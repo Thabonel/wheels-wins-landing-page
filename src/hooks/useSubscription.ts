@@ -35,23 +35,11 @@ export function useSubscription() {
 
   const fetchSubscription = async () => {
     try {
-      // Mock subscription data since user_subscriptions table doesn't exist
-      const mockData = {
-        id: 1,
-        user_id: 1,
-        trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        subscription_status: 'trial' as const,
-        plan_type: 'free_trial' as const,
-        video_course_access: false,
-        stripe_customer_id: null,
-        stripe_subscription_id: null,
-        subscription_ends_at: null,
-        subscription_started_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      const data = mockData;
-      const error = null;
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user!.id)
+        .single();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching subscription:', error);
@@ -87,23 +75,18 @@ export function useSubscription() {
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 30);
 
-      // Mock creating trial subscription since table doesn't exist
-      const mockData = {
-        id: 1,
-        user_id: 1,
-        trial_ends_at: trialEndDate.toISOString(),
-        subscription_status: 'trial' as const,
-        plan_type: 'free_trial' as const,
-        video_course_access: false,
-        stripe_customer_id: null,
-        stripe_subscription_id: null,
-        subscription_ends_at: null,
-        subscription_started_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      const data = mockData;
-      const error = null;
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .insert({
+          user_id: user.id,
+          trial_ends_at: trialEndDate.toISOString(),
+          subscription_status: 'trial',
+          plan_type: 'free_trial',
+          video_course_access: false,
+          subscription_started_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
       if (error) throw error;
       

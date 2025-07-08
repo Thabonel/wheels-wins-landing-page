@@ -1,62 +1,69 @@
-"""
-Database Connection Pool Manager
-Provides a lightweight async stub for tests.
-"""
+"""Async PostgreSQL connection pooling via ``asyncpg``."""
 
+import os
 import asyncio
 from contextlib import asynccontextmanager
 from typing import Optional, Any
+
+import asyncpg
 
 from app.core.logging import setup_logging
 
 logger = setup_logging()
 
+
 class DatabasePool:
-    """Simple async pool stub used during tests."""
+    """Asynchronous connection pool backed by ``asyncpg``."""
 
     def __init__(self) -> None:
-        self.pool: Optional[object] = None
+        self.pool: Optional[asyncpg.Pool] = None
         self._pool_lock = asyncio.Lock()
 
     async def initialize(self) -> None:
-        """Initialize the pool if not already initialized."""
+        """Create the connection pool if it doesn't exist."""
         if self.pool:
             return
         async with self._pool_lock:
             if self.pool:
                 return
-            # In CI we don't connect to a real database.
-            self.pool = object()
-            logger.info("Database pool initialized (stub)")
+            database_url = os.getenv(
+                "DATABASE_URL",
+                "postgresql://postgres:postgres@localhost:5432/postgres",
+            )
+            self.pool = await asyncpg.create_pool(dsn=database_url)
+            logger.info("Database pool initialized")
 
     @asynccontextmanager
     async def acquire(self) -> Any:
-        """Yield a connection from the pool."""
+        """Yield a pooled connection."""
         if not self.pool:
             await self.initialize()
+        assert self.pool is not None
+        conn = await self.pool.acquire()
         try:
-            yield self.pool
+            yield conn
         finally:
-            pass
+            await self.pool.release(conn)
 
-    async def execute(self, query: str, *args: Any) -> None:
-        """Execute a query placeholder."""
-        async with self.acquire():
-            return None
+    async def execute(self, query: str, *args: Any) -> str:
+        """Execute a query and return status."""
+        async with self.acquire() as conn:
+            return await conn.execute(query, *args)
 
     async def fetch(self, query: str, *args: Any) -> list[Any]:
-        """Fetch multiple rows placeholder."""
-        async with self.acquire():
-            return []
+        """Fetch multiple rows."""
+        async with self.acquire() as conn:
+            return await conn.fetch(query, *args)
 
     async def fetchrow(self, query: str, *args: Any) -> Any:
-        """Fetch single row placeholder."""
-        async with self.acquire():
-            return None
+        """Fetch a single row."""
+        async with self.acquire() as conn:
+            return await conn.fetchrow(query, *args)
 
     async def close(self) -> None:
         """Close the pool."""
         if self.pool:
+            await self.pool.close()
             self.pool = None
             logger.info("Database pool closed")
 
