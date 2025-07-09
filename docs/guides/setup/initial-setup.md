@@ -36,7 +36,7 @@ This guide walks you through setting up the PAM system from scratch.
 
 1. **Navigate to Backend Directory**
    ```bash
-   cd pam-backend
+   cd backend
    ```
 
 2. **Install Python Dependencies**
