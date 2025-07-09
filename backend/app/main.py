@@ -101,6 +101,7 @@ app.add_middleware(GuardrailsMiddleware)
 
 # CORS middleware MUST be added LAST so it executes FIRST
 origins = [
+    "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     "https://www.wheelsandwins.com",
     "http://localhost:5173",
