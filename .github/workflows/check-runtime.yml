@@ -1,0 +1,24 @@
+name: Check for runtime.txt regression
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-no-runtime-txt:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Ensure no runtime.txt exists
+        run: |
+          if [ -f "runtime.txt" ]; then
+            echo "❌ ERROR: runtime.txt found! This conflicts with Docker builds on Render."
+            echo "Remove runtime.txt and use the Dockerfile for Python version control."
+            exit 1
+          else
+            echo "✅ No runtime.txt found - Docker builds will work correctly"
+          fi

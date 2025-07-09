@@ -3,7 +3,7 @@ services:
     name: pam-web
     env: docker
     plan: standard
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: .
     autoDeploy: true
     envVars:
@@ -29,7 +29,7 @@ services:
   - type: worker
     name: pam-celery
     env: docker
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: .
     command: >
       celery -A app.workers.celery worker

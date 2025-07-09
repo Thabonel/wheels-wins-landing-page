@@ -147,3 +147,22 @@ If you run into errors or need help debugging, see the [Common Issues guide](doc
 - Proactive alerts for weather, budget, and maintenance events
 - Smart suggestions to plan routes, fuel stops, and attractions
 - Timely notifications keep users prepared for upcoming tasks
+
+## Render (Docker) Deployment
+
+This repo deploys via the root-level Dockerfile with Python 3.11.9 for reliable TTS package installation.
+
+**Setup Steps:**
+1. In Render dashboard → Web Service → Settings, set **Runtime → Docker**
+2. Health check path: `/health` (auto-detected)
+3. Port 10000 is exposed automatically
+
+**Background Worker:**
+- Duplicate the web service in Render
+- Point to same repo and Dockerfile
+- Set Start Command: `celery -A app.workers.celery worker --loglevel=info --concurrency=2`
+- Use same environment variables (DATABASE_URL, REDIS_URL, etc.)
+
+**CI Protection:**
+- GitHub Action prevents `runtime.txt` regression that would break Docker builds
+- All dependencies are pinned in `requirements.txt` for reproducible builds
