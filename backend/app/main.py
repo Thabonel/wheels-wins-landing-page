@@ -22,7 +22,7 @@ from app.guardrails.guardrails_middleware import GuardrailsMiddleware
 from langserve import add_routes
 from app.services.pam.mcp.controllers.pauter_router import PauterRouter
 from app.voice.stt_whisper import whisper_stt
-from app.voice.tts_coqui import coqui_tts
+# from app.voice.tts_coqui import coqui_tts  # Temporarily disabled due to TTS dependency issues
 from app.core.config import settings
 from app.core.logging import setup_logging
 
@@ -152,13 +152,14 @@ add_routes(app, pauter_router, path="/api/v1/pam/chat")
 
 @app.post("/api/v1/pam/voice")
 async def pam_voice(audio: UploadFile = File(...)):
-    """Speech interface using Whisper STT, PauterRouter, and Coqui TTS."""
+    """Speech interface using Whisper STT, PauterRouter. TTS temporarily disabled."""
     data = await audio.read()
     text = await whisper_stt.transcribe(data)
     route = await pauter_router.ainvoke(text)
     speech_text = f"Routed to {route.get('target_node')}"
-    wav = await coqui_tts.synthesize(speech_text)
-    return Response(content=wav, media_type="audio/wav")
+    # wav = await coqui_tts.synthesize(speech_text)  # Temporarily disabled
+    # return Response(content=wav, media_type="audio/wav")
+    return {"text": text, "route": route, "response": speech_text, "note": "TTS temporarily disabled"}
 
 # Global exception handler with monitoring
 @app.exception_handler(Exception)
