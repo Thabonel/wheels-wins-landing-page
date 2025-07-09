@@ -1,50 +1,19 @@
 services:
-  - type: web
-    name: pam-web
+  - name: web
+    type: web
     env: docker
-    plan: standard
     dockerfilePath: ./Dockerfile
-    dockerContext: .
+    plan: free
     autoDeploy: true
-    envVars:
-      - key: PORT
-        value: "10000"
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: SENTRY_DSN
-        sync: false
     healthCheckPath: /health
-    disk:
-      name: cache
-      mountPath: /cache
-      sizeGB: 1
-  - type: worker
-    name: pam-celery
+    envVars:
+      - fromGroup: wheels-env
+  - name: worker
+    type: worker
     env: docker
     dockerfilePath: ./Dockerfile
-    dockerContext: .
-    command: >
-      celery -A app.workers.celery worker
-      --loglevel=info
-      --concurrency=2
+    plan: free
+    autoDeploy: true
+    startCommand: celery -A app.celery_app worker --loglevel=info
     envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: SENTRY_DSN
-        sync: false
+      - fromGroup: wheels-env
