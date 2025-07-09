@@ -152,6 +152,8 @@ If you run into errors or need help debugging, see the [Common Issues guide](doc
 
 This repo deploys via the root-level Dockerfile with Python 3.11.9 for reliable TTS package installation.
 
+**Important:** Render must use the Docker workflow defined in `render.yaml` at the repo root. This guarantees Python **3.11** is used. Deploying with Python 3.13 will break the `TTS` dependency because Coqui-TTS does not yet ship wheels for that version.
+
 **Setup Steps:**
 1. In Render dashboard → Web Service → Settings, set **Runtime → Docker**
 2. Health check path: `/health` (auto-detected)
