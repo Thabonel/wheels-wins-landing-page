@@ -35,41 +35,25 @@ RUN python -m pip install --upgrade pip \
  && python -m pip install --prefix=/install -r backend/requirements.txt \
                  -r backend/requirements-optional.txt
 
-############# development image (optional) #############
-FROM base AS development
-COPY requirements-dev.txt .
-RUN python -m pip install --upgrade pip && pip install -r requirements-dev.txt
-COPY . .
-USER pamuser
-EXPOSE 10000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000", "--reload"]
-
 ############# production (runtime) #############
-FROM python:3.11.9-slim AS production
+FROM base AS production
 
-# Minimal runtime OS deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl \
-        ffmpeg \
-        libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY backend/ .
-
-# Copy site-packages from builder
+# Copy installed packages from builder
 COPY --from=builder /install /usr/local
 
-# Switch to non-root
-RUN groupadd -r pamuser && useradd -r -g pamuser pamuser \
- && chown -R pamuser:pamuser /app
+# Copy application code  
+COPY backend/ ./backend/
+WORKDIR /app/backend
+
+# Switch to non-root for security
 USER pamuser
 
-# Render uses port 10000
+# Expose port
 EXPOSE 10000
 
-# Health-check Render can query
+# Health check endpoint
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:10000/health || exit 1
 
+# Start command
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"]
