@@ -76,5 +76,5 @@ python-multipart==0.0.20
 langchain==0.2.17
 langserve==0.0.51
 
-
-TTS==0.23.1     # Coqui TTS library used by app.voice.tts_coqui
+# Note: TTS==0.23.1 temporarily removed due to Python 3.13 compatibility issues
+# Will be re-added when a compatible version is available
