@@ -326,3 +326,7 @@ def get_exception_status_code(exception: Exception) -> int:
         if isinstance(exception, exc_type):
             return status_code
     return 500  # Default to internal server error
+
+
+# Alias for backward compatibility
+PAMError = PamException
