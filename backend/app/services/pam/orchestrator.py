@@ -22,7 +22,7 @@ from app.services.pam.nodes.admin_node import admin_node
 from app.services.pam.nodes.memory_node import MemoryNode
 from app.services.pam.intelligent_conversation import IntelligentConversationService
 from app.services.analytics.analytics import Analytics
-from app.services.pam.route_intelligence import RouteIntelligence
+from app.core.route_intelligence import RouteIntelligence
 from app.services.pam.context_manager import ContextManager
 
 logger = logging.getLogger(__name__)

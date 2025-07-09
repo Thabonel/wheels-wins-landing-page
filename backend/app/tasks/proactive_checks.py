@@ -8,7 +8,7 @@ from app.core.logging import get_logger
 from app.core.database import get_supabase_client
 from app.core.websocket_manager import manager
 from app.workers.tasks.notification_tasks import _get_weather_alert
-from app.services.pam.route_intelligence import route_intelligence
+from app.core.route_intelligence import route_intelligence
 from app.services.pam.route_scraper import RouteIntelligentScraper
 
 logger = get_logger(__name__)

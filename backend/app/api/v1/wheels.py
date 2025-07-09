@@ -23,7 +23,7 @@ from app.models.schemas.wheels import (
 import os
 import httpx
 from app.services.database import get_database_service
-from app.services.pam.route_intelligence import route_intelligence
+from app.core.route_intelligence import route_intelligence
 from app.core.logging import setup_logging, get_logger
 
 router = APIRouter()
