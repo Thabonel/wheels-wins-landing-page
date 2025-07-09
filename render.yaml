@@ -16,6 +16,6 @@ services:
     dockerContext: .
     plan: free
     autoDeploy: true
-    startCommand: celery -A backend.worker worker --loglevel=INFO
+    startCommand: celery -A app.workers.celery worker --loglevel=INFO
     envVars:
       - fromGroup: wheels-env
