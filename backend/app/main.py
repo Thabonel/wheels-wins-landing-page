@@ -116,7 +116,7 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(health.router, prefix="/api", tags=["Health"])
+app.include_router(health.router, prefix="", tags=["Health"])  # No prefix for /health endpoint
 app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(wins.router, prefix="/api", tags=["Wins"])
