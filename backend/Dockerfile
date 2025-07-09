@@ -1,80 +1,75 @@
+# syntax=docker/dockerfile:1
+#################################################
+#  Multi-stage Docker build for PAM Backend     #
+#################################################
 
-# Multi-stage Docker build for PAM Backend
-FROM python:3.11-slim as base
+############# base – common bits #############
+FROM python:3.11-slim AS base
 
-# Set environment variables
+# Environment
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    ffmpeg \
-    libsndfile1 \
+# OS packages needed by TTS / ffmpeg, etc.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        ffmpeg \
+        libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
+# Non-root user
 RUN groupadd -r pamuser && useradd -r -g pamuser pamuser
-
-# Set work directory
 WORKDIR /app
 
-# Copy requirements first for better caching
+############# builder – install prod deps #############
+FROM base AS builder
+
+# Copy requirements first for layer-cache efficiency
 COPY requirements.txt requirements-dev.txt ./
 
-# Development stage
-FROM base as development
-RUN pip install -r requirements-dev.txt
+# Install only production deps into /install
+RUN python -m pip install --upgrade pip \
+ && python -m pip install --prefix=/install -r requirements.txt
+
+############# development image (optional) #############
+FROM base AS development
+COPY requirements-dev.txt .
+RUN python -m pip install --upgrade pip && pip install -r requirements-dev.txt
 COPY . .
-RUN chown -R pamuser:pamuser /app
 USER pamuser
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+EXPOSE 10000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000", "--reload"]
 
-# Production build stage
-FROM base as builder
-RUN pip install --user -r requirements.txt
+############# production (runtime) #############
+FROM python:3.11-slim AS production
 
-# Production stage
-FROM python:3.11-slim as production
-
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y \
-    curl \
-    ffmpeg \
-    libsndfile1 \
+# Minimal runtime OS deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        ffmpeg \
+        libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd -r pamuser && useradd -r -g pamuser pamuser
-
-# Set work directory
 WORKDIR /app
-
-# Copy Python packages from builder
-COPY --from=builder /root/.local /home/pamuser/.local
-
-# Copy application code
 COPY . .
 
-# Set ownership and permissions
-RUN chown -R pamuser:pamuser /app
+# Copy site-packages from builder
+COPY --from=builder /install /usr/local
 
-# Switch to non-root user
+# Switch to non-root
+RUN groupadd -r pamuser && useradd -r -g pamuser pamuser \
+ && chown -R pamuser:pamuser /app
 USER pamuser
 
-# Add local packages to PATH
-ENV PATH=/home/pamuser/.local/bin:$PATH
+# Render uses $PORT (default 10000)
+ENV PORT=10000
+EXPOSE $PORT
 
-# Health check
+# Health-check Render can query
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+  CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Expose port
-EXPOSE 8000
-
-# Run application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"]
