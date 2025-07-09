@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Import optimization and security components
 from app.core.database_pool import db_pool
@@ -31,6 +32,7 @@ from app.services.sentry_service import sentry_service
 
 # Import API routers
 from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin
+from app.api import websocket
 from app.webhooks import stripe_webhooks
 
 logger = setup_logging()
@@ -116,6 +118,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add OPTIONS handler for CORS preflight
+@app.options("/api/{path:path}")
+async def preflight_handler(request: Request, path: str):
+    """Handle CORS preflight OPTIONS requests"""
+    return Response(
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
 # Include API routers
 app.include_router(health.router, prefix="", tags=["Health"])  # No prefix for /health endpoint
 app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
@@ -124,6 +138,7 @@ app.include_router(wins.router, prefix="/api", tags=["Wins"])
 app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api", tags=["PAM"])
+app.include_router(websocket.router, prefix="/api/ws", tags=["WebSocket"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(support.router, prefix="/api", tags=["Support"])

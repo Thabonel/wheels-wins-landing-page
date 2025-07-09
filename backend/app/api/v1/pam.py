@@ -86,11 +86,11 @@ async def websocket_endpoint(
                 })
                 
     except WebSocketDisconnect:
-        await manager.disconnect(user_id, connection_id)
+        manager.disconnect(user_id, connection_id)
         logger.info(f"WebSocket client {user_id} disconnected")
     except Exception as e:
         logger.error(f"WebSocket error: {str(e)}")
-        await manager.disconnect(user_id, connection_id)
+        manager.disconnect(user_id, connection_id)
         try:
             await websocket.close(code=1011, reason="Internal server error")
         except:
