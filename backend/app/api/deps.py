@@ -248,6 +248,22 @@ async def check_rate_limit(
         return True
 
 
+async def apply_rate_limit(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: DatabaseService = Depends(get_database),
+) -> CurrentUser:
+    """Apply rate limiting and return current user if allowed"""
+    await check_rate_limit(current_user, db)
+    return current_user
+
+
+def validate_user_context(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    """Validate user context and return current user"""
+    return current_user
+
+
 # Health Check Dependencies
 async def get_health_status() -> Dict[str, Any]:
     """Get system health status"""
