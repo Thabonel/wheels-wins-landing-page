@@ -32,8 +32,8 @@ class PostSearchRequest(BaseModel):
     location_radius_km: Optional[int] = Field(None, ge=1, le=500)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
-    sort_by: str = Field("created_at", regex="^(created_at|reactions|comments|views)$")
-    sort_order: str = Field("desc", regex="^(asc|desc)$")
+    sort_by: str = Field("created_at", pattern="^(created_at|reactions|comments|views)$")
+    sort_order: str = Field("desc", pattern="^(asc|desc)$")
 
 class CommentCreateRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=1000)
@@ -86,7 +86,7 @@ class ListingCreateRequest(BaseModel):
     location: Optional[str] = Field(None, max_length=100)
     images: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
-    contact_method: str = Field("message", regex="^(message|phone|email)$")
+    contact_method: str = Field("message", pattern="^(message|phone|email)$")
     contact_info: Optional[str] = Field(None, max_length=100)
     is_negotiable: bool = True
     shipping_available: bool = False
@@ -98,7 +98,7 @@ class ListingUpdateRequest(BaseModel):
     price: Optional[float] = Field(None, gt=0)
     condition: Optional[ListingCondition] = None
     status: Optional[ListingStatus] = None
-    contact_method: Optional[str] = Field(None, regex="^(message|phone|email)$")
+    contact_method: Optional[str] = Field(None, pattern="^(message|phone|email)$")
     contact_info: Optional[str] = Field(None, max_length=100)
     is_negotiable: Optional[bool] = None
     shipping_available: Optional[bool] = None
@@ -115,12 +115,12 @@ class ListingSearchRequest(BaseModel):
     radius_km: int = Field(50, ge=1, le=500)
     tags: Optional[List[str]] = None
     shipping_available: Optional[bool] = None
-    sort_by: str = Field("created_at", regex="^(created_at|price|title|views)$")
-    sort_order: str = Field("desc", regex="^(asc|desc)$")
+    sort_by: str = Field("created_at", pattern="^(created_at|price|title|views)$")
+    sort_order: str = Field("desc", pattern="^(asc|desc)$")
 
 class MessageCreateRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=2000)
-    message_type: str = Field("text", regex="^(text|image|location)$")
+    message_type: str = Field("text", pattern="^(text|image|location)$")
     attachments: List[str] = Field(default_factory=list)
 
 class MessageThreadCreateRequest(BaseModel):
@@ -131,7 +131,7 @@ class MessageThreadCreateRequest(BaseModel):
 
 class ModerationReportRequest(BaseModel):
     content_id: str
-    content_type: str = Field(..., regex="^(post|comment|listing|message)$")
+    content_type: str = Field(..., pattern="^(post|comment|listing|message)$")
     reason: str = Field(..., min_length=1, max_length=200)
 
 class PostResponse(BaseModel):
