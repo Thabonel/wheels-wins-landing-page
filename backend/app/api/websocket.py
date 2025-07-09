@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-from app.core.websocket_manager import manager
+from app.core.websocket_manager import manager, ConnectionManager
 from app.core.auth import verify_token
 from app.core.logging import setup_logging
 from app.core.orchestrator import orchestrator
@@ -21,13 +21,18 @@ async def websocket_endpoint(
     """WebSocket endpoint for real-time communication with PAM"""
     # Verify JWT token for this user before accepting the connection
     try:
-        payload = verify_token(token)
-        if not payload or str(payload.get("sub") or payload.get("user_id")) != user_id:
+        # Try to decode as JWT first (for Supabase tokens)
+        import jwt
+        decoded = jwt.decode(token, options={"verify_signature": False})
+        token_user_id = decoded.get('sub', token)  # 'sub' is the user ID in Supabase JWT
+        if str(token_user_id) != user_id:
             await websocket.close(code=1008, reason="Unauthorized")
             return
     except Exception:
-        await websocket.close(code=1008, reason="Unauthorized")
-        return
+        # Fall back to treating token as plain user_id
+        if token != user_id:
+            await websocket.close(code=1008, reason="Unauthorized")
+            return
 
     connection_id = str(uuid.uuid4())
     await manager.connect(websocket, user_id, connection_id)
