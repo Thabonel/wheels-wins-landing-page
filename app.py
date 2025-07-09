@@ -98,5 +98,7 @@ if __name__ == "__main__":  # pragma: no cover - manual launch
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     logger.info("Starting Uvicorn on %s:%s", host, port)
-    uvicorn.run("app:app", host=host, port=port, log_level="info")
+    
+    # Pass the app instance directly instead of module string
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
