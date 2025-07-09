@@ -1,7 +1,71 @@
+# Git and editor files
 .git
+.gitignore
+*.swp
+*.swo
+*~
+
+# Python cache and compiled files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
 .DS_Store
-.venv/
-node_modules/
+Thumbs.db
+
+# Test and documentation
+tests/
+docs/
+*.md
+coverage.xml
+.coverage
+.pytest_cache/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Development files
+requirements-dev.txt
+requirements-dev.in
+constraints.txt
+.env.example
+.env.docker
+
+# Logs
 *.log
+logs/
+celerybeat-schedule
+node_modules/

@@ -32,11 +32,19 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
     command: >
-      celery -A app.tasks.celery_worker worker
+      celery -A app.workers.celery worker
       --loglevel=info
-      --logfile=/var/log/celery/worker.log
+      --concurrency=2
     envVars:
-      - fromService:
-          type: web
-          name: pam-web
-          envVarKey: REDIS_URL
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
