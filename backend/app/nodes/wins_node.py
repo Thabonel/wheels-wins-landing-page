@@ -1,9 +1,10 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta, date
 from app.database.supabase_client import get_supabase_client
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging("wins_node")
+setup_logging()
+logger = get_logger("wins_node")
 
 class WinsNode:
     def __init__(self):

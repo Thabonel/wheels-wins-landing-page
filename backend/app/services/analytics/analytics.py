@@ -7,14 +7,18 @@ from enum import Enum
 from dataclasses import dataclass, asdict
 from app.core.database import get_supabase_client
 try:
-    from app.core.logging import setup_logging  # type: ignore
+    from app.core.logging import setup_logging, get_logger  # type: ignore
 except Exception:  # pragma: no cover - fallback without optional deps
     import logging
 
-    def setup_logging(name: str = "analytics") -> logging.Logger:
+    def setup_logging() -> None:
+        pass
+    
+    def get_logger(name: str = "analytics") -> logging.Logger:
         return logging.getLogger(name)
 
-logger = setup_logging("analytics")
+setup_logging()
+logger = get_logger("analytics")
 
 class EventType(Enum):
     """Analytics event types"""

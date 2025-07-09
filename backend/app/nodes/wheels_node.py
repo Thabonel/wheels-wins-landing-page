@@ -3,11 +3,12 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 from dataclasses import dataclass
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 from app.database.supabase_client import get_supabase_client
 from app.core.route_intelligence import route_intelligence
 
-logger = setup_logging("wheels_node")
+setup_logging()
+logger = get_logger("wheels_node")
 
 @dataclass
 class TravelPlan:
@@ -38,7 +39,7 @@ class WheelsNode:
     """Handles all travel and vehicle-related functionality"""
     
     def __init__(self):
-        self.logger = setup_logging("wheels_node")
+        self.logger = get_logger("wheels_node")
         self.supabase = get_supabase_client()
         
     async def plan_trip(self, user_id: str, trip_data: Dict[str, Any]) -> Dict[str, Any]:

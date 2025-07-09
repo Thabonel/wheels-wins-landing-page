@@ -2,9 +2,10 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 from app.database.supabase_client import get_supabase_client
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging(__name__)
+setup_logging()
+logger = get_logger(__name__)
 
 async def fetch_dashboard_stats() -> Dict[str, Any]:
     """Return basic analytics for the admin dashboard."""

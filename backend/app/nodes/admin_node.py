@@ -1,8 +1,9 @@
 from typing import Dict, Any
 from app.database.supabase_client import get_supabase_client
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging("admin_node")
+setup_logging()
+logger = get_logger("admin_node")
 
 class AdminNode:
     """Administrative utilities and dashboard data access."""
