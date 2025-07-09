@@ -50,7 +50,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"]
 # 1. Check build logs in Render dashboard
 # 2. Verify environment variables are set
 # 3. Test locally first:
-cd pam-backend
+cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 
