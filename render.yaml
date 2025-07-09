@@ -1,75 +1,42 @@
-
-# Root render.yaml - points to backend structure
 services:
   - type: web
-    name: pam-backend
-    env: python
-    plan: free
-    runtime: python-3.11
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    name: pam-web
+    env: docker
+    plan: standard
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    autoDeploy: true
     envVars:
-      - key: ENVIRONMENT
-        value: production
-      - key: OPENAI_API_KEY
+      - key: PORT
+        value: "10000"
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
         sync: false
       - key: SUPABASE_URL
         sync: false
-      - key: SUPABASE_KEY
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: LANGCHAIN_TRACING_V2
-        value: disabled
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SECRET_KEY
-        generateValue: true
-      - key: CORS_ORIGINS
+      - key: OPENAI_API_KEY
         sync: false
       - key: SENTRY_DSN
         sync: false
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: pam-redis
-          property: connectionString
-    autoDeploy: true
-    healthCheckPath: /api/health
-
-  - type: redis
-    name: pam-redis
-    plan: free
-    ipAllowList: []
+    healthCheckPath: /health
+    disk:
+      name: cache
+      mountPath: /cache
+      sizeGB: 1
   - type: worker
-    name: pam-celery-worker
-    env: python
-    runtime: python-3.11
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A app.workers.celery worker --loglevel=info
+    name: pam-celery
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    command: >
+      celery -A app.tasks.celery_worker worker
+      --loglevel=info
+      --logfile=/var/log/celery/worker.log
     envVars:
-      - key: ENVIRONMENT
-        value: production
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_KEY
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SECRET_KEY
-        generateValue: true
-      - key: CORS_ORIGINS
-        sync: false
-      - key: SENTRY_DSN
-        sync: false
-      - key: LANGCHAIN_TRACING_V2
-        value: disabled
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: pam-redis
-          property: connectionString
-    autoDeploy: true
-
+      - fromService:
+          type: web
+          name: pam-web
+          envVarKey: REDIS_URL

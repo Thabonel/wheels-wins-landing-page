@@ -64,12 +64,11 @@ RUN groupadd -r pamuser && useradd -r -g pamuser pamuser \
  && chown -R pamuser:pamuser /app
 USER pamuser
 
-# Render uses $PORT (default 10000)
-ENV PORT=10000
-EXPOSE $PORT
+# Render uses port 10000
+EXPOSE 10000
 
 # Health-check Render can query
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:$PORT/health || exit 1
+  CMD curl -f http://localhost:10000/health || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"]
