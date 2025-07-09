@@ -248,13 +248,35 @@ async def check_rate_limit(
         return True
 
 
-async def apply_rate_limit(
-    current_user: CurrentUser = Depends(get_current_user),
-    db: DatabaseService = Depends(get_database),
-) -> CurrentUser:
-    """Apply rate limiting and return current user if allowed"""
-    await check_rate_limit(current_user, db)
-    return current_user
+def apply_rate_limit(endpoint: str, limit: int, window_minutes: int = 1):
+    """Rate limiting factory that returns a dependency function"""
+    async def rate_limit_dependency(
+        current_user: CurrentUser = Depends(get_current_user),
+        db: DatabaseService = Depends(get_database),
+    ) -> CurrentUser:
+        """Apply rate limiting and return current user if allowed"""
+        try:
+            # Check rate limit with custom parameters
+            window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+            result = await db.check_rate_limit(
+                current_user.user_id, window_start, limit
+            )
+
+            if not result.get("allow", False):
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS, 
+                    detail=f"Rate limit exceeded for {endpoint}. Try again later."
+                )
+
+            return current_user
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Rate limit check error for {endpoint}: {str(e)}")
+            # Allow request if rate limiting fails
+            return current_user
+    
+    return rate_limit_dependency
 
 
 def validate_user_context(
