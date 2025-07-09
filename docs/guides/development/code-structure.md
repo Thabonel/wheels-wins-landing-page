@@ -116,7 +116,7 @@ type UserAction = 'create' | 'update' | 'delete';
 
 ### Directory Organization
 ```
-pam-backend/
+backend/
 ├── app/
 │   ├── api/                # API route handlers
 │   │   ├── __init__.py
