@@ -328,5 +328,6 @@ def get_exception_status_code(exception: Exception) -> int:
     return 500  # Default to internal server error
 
 
-# Alias for backward compatibility
+# Aliases for backward compatibility
 PAMError = PamException
+PermissionError = AuthorizationError
