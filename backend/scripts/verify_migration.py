@@ -368,7 +368,7 @@ class MigrationVerifier:
             "backend/app/database/__init__.py",
             "backend/requirements.txt",
             "backend/requirements-dev.txt",
-            "backend/render.yaml"
+            "render.yaml"
         ]
         
         for file_path in expected_structure:
