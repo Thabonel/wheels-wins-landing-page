@@ -51,7 +51,15 @@ def _load_backend_app() -> FastAPI:
         assert spec.loader is not None
         spec.loader.exec_module(module)
         logger.info("Successfully imported backend app from %s", main_file)
-        return getattr(module, "app")
+        
+        # Check if app attribute exists and log its type
+        if hasattr(module, "app"):
+            app_instance = getattr(module, "app")
+            logger.info("Found app attribute of type: %s", type(app_instance))
+            return app_instance
+        else:
+            logger.error("Module does not have 'app' attribute. Available attributes: %s", dir(module))
+            raise AttributeError("Backend module does not export 'app'")
     except Exception as exc:  # pragma: no cover - import failure path
         logger.exception("Failed to load backend FastAPI app: %s", exc)
         raise
@@ -59,6 +67,7 @@ def _load_backend_app() -> FastAPI:
 
 try:
     app = _load_backend_app()
+    logger.info("Successfully assigned app variable of type: %s", type(app))
 except Exception as import_error:
     # Fallback application shown when the backend fails to import
     app = FastAPI(title="Wheels & Wins Backend - Error")
