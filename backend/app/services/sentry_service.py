@@ -10,9 +10,10 @@ from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
 from typing import Dict, Any, Optional
 from app.core.config import settings
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 
 class SentryService:

@@ -2,10 +2,11 @@ from fastapi import APIRouter, Header, HTTPException
 
 from app.analytics.dashboard import fetch_dashboard_stats
 from app.core.config import get_settings
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 @router.get("/admin/metrics")
 async def get_admin_metrics(x_admin_token: str | None = Header(None)):

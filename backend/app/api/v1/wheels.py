@@ -24,10 +24,11 @@ import os
 import httpx
 from app.services.database import get_database_service
 from app.services.pam.route_intelligence import route_intelligence
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 @router.post("/routes/search")
 async def search_routes(request: RouteRequest, user_id: Optional[str] = None):

@@ -313,8 +313,9 @@ class MigrationVerifier:
         
         # Test 2: Logger initialization
         try:
-            from app.core.logging import setup_logging
-            logger = setup_logging()
+            from app.core.logging import setup_logging, get_logger
+            setup_logging()
+            logger = get_logger(__name__)
             logger.info("Test log message")
             check_result["test_results"]["logging_setup"] = {"status": "PASS"}
             check_result["tests_passed"] += 1

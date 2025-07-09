@@ -1,13 +1,14 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.core.auth import verify_token
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 from app.core.orchestrator import orchestrator
 from app.core.websocket_manager import manager
 import uuid
 import json
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 
 

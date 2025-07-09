@@ -11,10 +11,11 @@ from datetime import datetime
 
 from app.models.schemas.pam import ChatRequest, ChatResponse
 from app.services.pam.orchestrator import get_orchestrator
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_pam(

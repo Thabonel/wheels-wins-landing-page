@@ -13,10 +13,11 @@ from app.models.schemas.social import (
     PostResponse, GroupResponse, SocialFeedResponse
 )
 from app.services.database import get_database_service
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 @router.get("/groups")
 async def search_groups(

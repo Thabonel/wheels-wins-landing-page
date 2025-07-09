@@ -18,11 +18,12 @@ from app.models.schemas.pam import (
 )
 from app.models.schemas.common import SuccessResponse, PaginationParams
 from app.core.websocket_manager import manager
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 from app.core.exceptions import PAMError
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 
 
