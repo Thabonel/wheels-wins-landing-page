@@ -6,7 +6,10 @@ on:
     branches: [ main ]
     paths:
       - 'backend/**'
+      - 'Dockerfile'
       - '.github/workflows/docker-build.yml'
+  pull_request:
+    branches: [ main ]
   release:
     types: [published]
 
@@ -47,10 +50,17 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           type=sha
     
+    - name: Test Docker build (PR only)
+      if: github.event_name == 'pull_request'
+      run: |
+        docker build -t pam-ci .
+        echo "Docker build successful for PR"
+    
     - name: Build and push Docker image
+      if: github.event_name != 'pull_request'
       uses: docker/build-push-action@v5
       with:
-        context: ./backend
+        context: .
         platforms: linux/amd64,linux/arm64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
