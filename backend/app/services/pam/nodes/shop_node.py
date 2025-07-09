@@ -1,8 +1,9 @@
 from typing import Dict, Any
 from app.core.database import get_supabase_client
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging("shop_node")
+setup_logging()
+logger = get_logger("shop_node")
 
 class ShopNode:
     """Handles product browsing and shopping actions."""

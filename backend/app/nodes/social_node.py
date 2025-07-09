@@ -3,9 +3,10 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 from dataclasses import dataclass
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging("social_node")
+setup_logging()
+logger = get_logger("social_node")
 
 @dataclass
 class HustleOpportunity:
@@ -33,7 +34,7 @@ class SocialNode:
     """Handles all community, social, and hustle-related functionality"""
     
     def __init__(self):
-        self.logger = setup_logging("social_node")
+        self.logger = get_logger("social_node")
         
     async def get_hustle_recommendations(self, user_id: str, user_profile: Dict[str, Any]) -> Dict[str, Any]:
         """Get personalized hustle recommendations based on user profile"""
