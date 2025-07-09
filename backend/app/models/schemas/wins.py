@@ -28,7 +28,7 @@ class BudgetUpdateRequest(BaseModel):
 class ExpenseCategoryRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     budgeted_amount: Decimal = Field(..., gt=0)
-    color: str = Field("#8B5CF6", regex="^#[0-9A-Fa-f]{6}$")
+    color: str = Field("#8B5CF6", pattern="^#[0-9A-Fa-f]{6}$")
 
 class ExpenseCreateRequest(BaseModel):
     amount: Decimal = Field(..., gt=0)

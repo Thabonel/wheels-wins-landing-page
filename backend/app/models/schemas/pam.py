@@ -70,7 +70,7 @@ class PamFeedbackRequest(BaseModel):
     message_id: str = Field(..., min_length=1)
     rating: int = Field(..., ge=1, le=5)
     feedback_text: Optional[str] = Field(None, max_length=1000)
-    feedback_type: str = Field(..., regex="^(helpful|unhelpful|incorrect|inappropriate)$")
+    feedback_type: str = Field(..., pattern="^(helpful|unhelpful|incorrect|inappropriate)$")
 
 class PamThumbFeedbackRequest(BaseModel):
     message_id: str = Field(..., min_length=1)

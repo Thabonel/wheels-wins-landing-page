@@ -9,7 +9,7 @@ class PaginationParams(BaseModel):
     page: int = Field(1, ge=1, description="Page number starting from 1")
     limit: int = Field(20, ge=1, le=100, description="Number of items per page")
     sort_by: Optional[str] = Field(None, description="Field to sort by")
-    sort_order: Optional[str] = Field("asc", regex="^(asc|desc)$", description="Sort order")
+    sort_order: Optional[str] = Field("asc", pattern="^(asc|desc)$", description="Sort order")
 
 class PaginationMeta(BaseModel):
     page: int
