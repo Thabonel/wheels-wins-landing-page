@@ -14,10 +14,11 @@ from app.models.schemas.wins import (
 )
 from app.services.database import get_database_service
 from app.services.analytics.analytics import analytics, FeatureUsageEvent
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 @router.post("/budgets", response_model=BudgetResponse)
 async def create_budget(request: BudgetCreateRequest):

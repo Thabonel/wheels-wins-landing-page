@@ -11,9 +11,10 @@ from typing import Any, Optional, Union, Dict
 from datetime import datetime, timedelta
 import redis.asyncio as aioredis
 from app.core.config import settings
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 class CacheService:
     """High-performance caching service with Redis backend"""

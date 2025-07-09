@@ -9,9 +9,10 @@ import psutil
 from typing import Dict, Any, Optional
 from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, generate_latest
 from app.core.config import settings
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 class MonitoringService:
     """Comprehensive monitoring service with Prometheus metrics"""

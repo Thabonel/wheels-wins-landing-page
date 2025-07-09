@@ -4,11 +4,12 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 import httpx
 from app.core.security import verify_token
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 from app.nodes.wheels_node import wheels_node
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 class TripPlanRequest(BaseModel):
     origin: str

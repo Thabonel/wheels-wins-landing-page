@@ -3,11 +3,12 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from app.core.security import verify_token
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 from app.core.orchestrator import orchestrator
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 class DemoRequest(BaseModel):
     scenario: str

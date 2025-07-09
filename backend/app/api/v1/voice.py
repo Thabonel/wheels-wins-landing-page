@@ -3,10 +3,11 @@ from pydantic import BaseModel
 import httpx
 
 from app.core.config import get_settings
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
 router = APIRouter()
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 class VoiceRequest(BaseModel):
     text: str

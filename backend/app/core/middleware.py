@@ -11,10 +11,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.middleware.gzip import GZipMiddleware
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 from app.services.cache_service import get_cache
 
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 class PerformanceMiddleware(BaseHTTPMiddleware):
     """Custom performance monitoring and optimization middleware"""

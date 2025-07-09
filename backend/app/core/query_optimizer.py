@@ -8,9 +8,10 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from app.core.database_pool import get_db_pool
 from app.services.cache_service import get_cache
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 class QueryOptimizer:
     """Database query optimization utilities"""

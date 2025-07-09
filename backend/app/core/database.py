@@ -11,14 +11,18 @@ except Exception:  # pragma: no cover - fallback when supabase isn't installed
         return Client()
 from app.core.config import settings
 try:
-    from app.core.logging import setup_logging  # type: ignore
+    from app.core.logging import setup_logging, get_logger  # type: ignore
 except Exception:  # pragma: no cover - fallback without optional deps
     import logging
 
-    def setup_logging(name: str = "database") -> logging.Logger:
+    def setup_logging():
+        pass
+    
+    def get_logger(name: str = "database") -> logging.Logger:
         return logging.getLogger(name)
 
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 supabase_client: Optional[Client] = None
 
 

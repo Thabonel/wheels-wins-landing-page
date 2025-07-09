@@ -24,7 +24,7 @@ from app.services.pam.mcp.controllers.pauter_router import PauterRouter
 from app.voice.stt_whisper import whisper_stt
 # from app.voice.tts_coqui import coqui_tts  # Temporarily disabled due to TTS dependency issues
 from app.core.config import settings
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
 # Import monitoring services
 from app.services.monitoring_service import monitoring_service
@@ -35,7 +35,8 @@ from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth
 from app.api import websocket
 from app.webhooks import stripe_webhooks
 
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 
 # Debug CORS configuration
 logger.info(f"CORS_ORIGINS from settings: {settings.CORS_ORIGINS}")

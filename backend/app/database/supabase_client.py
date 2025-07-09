@@ -3,9 +3,10 @@
 from typing import Optional
 from supabase import create_client, Client
 from app.core.config import settings
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 
-logger = setup_logging()
+setup_logging()
+logger = get_logger(__name__)
 supabase_client: Optional[Client] = None
 
 def init_supabase() -> Client:
