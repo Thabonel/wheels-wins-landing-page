@@ -191,6 +191,9 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # ... keep existing code (security and performance status endpoints)
 
+# Explicitly export the app for module access
+__all__ = ["app"]
+
 if __name__ == "__main__":
     import uvicorn
     
