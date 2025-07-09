@@ -1,8 +1,8 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-from app.core.websocket_manager import manager, ConnectionManager
 from app.core.auth import verify_token
 from app.core.logging import setup_logging
 from app.core.orchestrator import orchestrator
+from app.core.websocket_manager import manager
 import uuid
 import json
 

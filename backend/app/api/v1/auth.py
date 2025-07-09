@@ -12,7 +12,7 @@ from app.core.auth import (
     verify_token,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
-from app.services.database_service import DatabaseService
+from app.services.database import DatabaseService
 
 router = APIRouter()
 security = HTTPBearer()
