@@ -27,12 +27,13 @@ WORKDIR /app
 ############# builder – install prod deps #############
 FROM base AS builder
 
-# Copy requirements first for layer-cache efficiency
-COPY requirements.txt requirements-dev.txt ./
+# Copy *only* the backend requirement files; gives Docker-layer cache hits
+COPY backend/requirements.txt backend/requirements-*.txt ./backend/
 
 # Install only production deps into /install
 RUN python -m pip install --upgrade pip \
- && python -m pip install --prefix=/install -r requirements.txt
+ && python -m pip install --prefix=/install -r backend/requirements.txt \
+                 -r backend/requirements-optional.txt
 
 ############# development image (optional) #############
 FROM base AS development

@@ -74,9 +74,9 @@ python-jose[cryptography]==3.4.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.20
 
-# LangChain ecosystem
-langchain==0.2.*
-langserve==0.0.*
+# LangChain ecosystem (pinned for stability)
+langchain==0.2.17
+langserve==0.0.51
 
 
 TTS==0.22.0     # Coqui TTS library used by app.voice.tts_coqui
