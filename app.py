@@ -68,8 +68,13 @@ def _load_backend_app() -> FastAPI:
 try:
     app = _load_backend_app()
     logger.info("Successfully assigned app variable of type: %s", type(app))
+    
+    # Ensure the app is available at module level
+    globals()['app'] = app
+    
 except Exception as import_error:
     # Fallback application shown when the backend fails to import
+    logger.error("Backend import failed: %s", import_error)
     app = FastAPI(title="Wheels & Wins Backend - Error")
 
     @app.get("/")
@@ -78,7 +83,14 @@ except Exception as import_error:
             "error": "Backend application failed to load",
             "details": str(import_error),
         }
+    
+    # Ensure fallback app is available at module level
+    globals()['app'] = app
 
+
+# Final verification that app is accessible
+logger.info("Final check - app variable accessible: %s", 'app' in globals())
+logger.info("Final check - app type: %s", type(globals().get('app', 'Not found')))
 
 if __name__ == "__main__":  # pragma: no cover - manual launch
     import uvicorn
