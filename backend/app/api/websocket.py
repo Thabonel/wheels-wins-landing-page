@@ -1,6 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.core.websocket_manager import manager
-from app.core.security import verify_token_raw
+from app.core.auth import verify_token
 from app.core.logging import setup_logging
 from app.core.orchestrator import orchestrator
 import uuid
@@ -20,8 +20,12 @@ async def websocket_endpoint(
 ):
     """WebSocket endpoint for real-time communication with PAM"""
     # Verify JWT token for this user before accepting the connection
-    payload = verify_token_raw(token)
-    if not payload or str(payload.get("sub") or payload.get("user_id")) != user_id:
+    try:
+        payload = verify_token(token)
+        if not payload or str(payload.get("sub") or payload.get("user_id")) != user_id:
+            await websocket.close(code=1008, reason="Unauthorized")
+            return
+    except Exception:
         await websocket.close(code=1008, reason="Unauthorized")
         return
 
@@ -111,11 +115,11 @@ async def websocket_endpoint(
                 })
 
     except WebSocketDisconnect:
-        await manager.disconnect(user_id, connection_id)
+        manager.disconnect(user_id, connection_id)
         logger.info(f"WebSocket disconnected: {user_id}")
 
     except Exception as e:
-        await manager.disconnect(user_id, connection_id)
+        manager.disconnect(user_id, connection_id)
         logger.error(f"WebSocket error for {user_id}: {e}")
         try:
             await websocket.close(code=1011, reason="Internal error")

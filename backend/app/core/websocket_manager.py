@@ -17,7 +17,7 @@ class ConnectionManager:
             self.user_connections[user_id] = {}
         self.user_connections[user_id][connection_id] = websocket
     
-    async def disconnect(self, user_id: str, connection_id: str) -> None:
+    def disconnect(self, user_id: str, connection_id: str) -> None:
         """Remove a WebSocket connection."""
         websocket = self.user_connections.get(user_id, {}).pop(connection_id, None)
         
