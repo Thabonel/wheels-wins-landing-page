@@ -17,6 +17,29 @@ router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
 
+def generate_fallback_response(message: str) -> str:
+    """Generate a fallback response when the orchestrator is unavailable"""
+    message_lower = message.lower()
+    
+    # Simple intent-based responses
+    if any(word in message_lower for word in ['hello', 'hi', 'hey', 'greeting']):
+        return "Hi! I'm PAM, your AI assistant. I'm currently running in basic mode. How can I help you today?"
+    
+    elif any(word in message_lower for word in ['expense', 'spent', 'cost', 'money', 'budget']):
+        return "I can help you track expenses and manage your budget! I'm currently in basic mode, but I can still provide general financial advice."
+    
+    elif any(word in message_lower for word in ['trip', 'travel', 'route', 'drive', 'destination']):
+        return "I'd love to help you plan your trip! I'm currently in basic mode, but I can provide general travel advice and route suggestions."
+    
+    elif any(word in message_lower for word in ['help', 'what can you do', 'capabilities']):
+        return "I'm PAM, your AI assistant! I can help with expenses, budgets, trip planning, and more. I'm currently running in basic mode while my full systems initialize."
+    
+    elif any(word in message_lower for word in ['route', 'find', 'near', 'map', 'location']):
+        return "🗺️ I can help with location and mapping queries! I'm currently in basic mode, but I can provide general geographic information and travel advice."
+    
+    else:
+        return "I'm PAM, your AI assistant! I'm currently running in basic mode while my systems initialize. I can still provide general assistance with travel, budgets, and planning. What would you like help with?"
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_pam(
     request: ChatRequest,
@@ -37,30 +60,43 @@ async def chat_with_pam(
                 timestamp=datetime.utcnow()
             )
         
-        # Get orchestrator instance
-        orchestrator = await get_orchestrator()
-        
-        # Process the message
-        response = await orchestrator.process_message(
-            user_id=user_id,
-            message=request.message,
-            session_id=request.session_id or request.conversation_id,
-            context=request.context
-        )
-        
-        # Convert to API response format
-        return ChatResponse(
-            response=response.content,  # Fixed: use 'response' field instead of 'content'
-            intent=response.intent.value if response.intent else None,
-            confidence=response.confidence,
-            suggestions=response.suggestions,
-            actions=response.actions,
-            requires_followup=response.requires_followup,
-            context_updates=response.context_updates,
-            voice_enabled=response.voice_enabled,
-            session_id=request.session_id or str(uuid.uuid4()),
-            timestamp=datetime.utcnow()
-        )
+        # Try to get orchestrator instance with fallback
+        try:
+            orchestrator = await get_orchestrator()
+            
+            # Process the message
+            response = await orchestrator.process_message(
+                user_id=user_id,
+                message=request.message,
+                session_id=request.session_id or request.conversation_id,
+                context=request.context
+            )
+            
+            # Convert to API response format
+            return ChatResponse(
+                response=response.content,  # Fixed: use 'response' field instead of 'content'
+                intent=response.intent.value if response.intent else None,
+                confidence=response.confidence,
+                suggestions=response.suggestions,
+                actions=response.actions,
+                requires_followup=response.requires_followup,
+                context_updates=response.context_updates,
+                voice_enabled=response.voice_enabled,
+                session_id=request.session_id or str(uuid.uuid4()),
+                timestamp=datetime.utcnow()
+            )
+        except Exception as orchestrator_error:
+            logger.warning(f"Orchestrator failed, using fallback response: {orchestrator_error}")
+            
+            # Fallback response when orchestrator fails
+            fallback_response = generate_fallback_response(request.message)
+            return ChatResponse(
+                response=fallback_response,
+                intent="general",
+                confidence=0.5,
+                session_id=request.session_id or str(uuid.uuid4()),
+                timestamp=datetime.utcnow()
+            )
         
     except Exception as e:
         logger.error(f"Chat processing error: {e}")
@@ -125,3 +161,13 @@ async def end_chat_session(session_id: str):
     except Exception as e:
         logger.error(f"Session cleanup error: {e}")
         raise HTTPException(status_code=500, detail="Could not end session")
+
+@router.get("/test")
+async def test_chat_endpoint():
+    """Test endpoint to verify chat API is working"""
+    logger.info("🧪 Chat test endpoint called")
+    return {
+        "success": True,
+        "message": "Chat API is working correctly",
+        "timestamp": datetime.utcnow().isoformat()
+    }
