@@ -221,13 +221,17 @@ export const MundiLayer: React.FC<MundiLayerProps> = ({ map, isVisible }) => {
           hasPoints = true;
         } else if (feature.geometry.type === 'LineString') {
           feature.geometry.coordinates.forEach((coord: number[]) => {
-            bounds.extend(coord);
-            hasPoints = true;
+            if (coord.length >= 2) {
+              bounds.extend([coord[0], coord[1]]);
+              hasPoints = true;
+            }
           });
         } else if (feature.geometry.type === 'Polygon') {
           feature.geometry.coordinates[0].forEach((coord: number[]) => {
-            bounds.extend(coord);
-            hasPoints = true;
+            if (coord.length >= 2) {
+              bounds.extend([coord[0], coord[1]]);
+              hasPoints = true;
+            }
           });
         }
       }
