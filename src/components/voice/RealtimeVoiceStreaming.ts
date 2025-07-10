@@ -148,8 +148,7 @@ export class RealtimeVoiceStreaming {
         channelCount: this.config.channels,
         echoCancellation: true,
         noiseSuppression: false, // We'll handle this ourselves
-        autoGainControl: true,
-        latency: 0.01 // 10ms target latency
+        autoGainControl: true
       }
     };
     
