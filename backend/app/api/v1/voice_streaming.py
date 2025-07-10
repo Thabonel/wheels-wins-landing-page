@@ -18,7 +18,7 @@ from app.core.logging import setup_logging, get_logger
 from app.core.auth import verify_token_websocket
 from app.voice.stt_whisper import whisper_stt
 from app.services.pam.orchestrator import get_orchestrator
-from app.api.v1.voice import voice_router
+from app.api.v1.voice import router as voice_router
 
 router = APIRouter()
 setup_logging()
