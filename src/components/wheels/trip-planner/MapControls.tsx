@@ -7,6 +7,7 @@ import { Waypoint } from "./types";
 import { useUserUnits } from "./hooks/useUserUnits";
 import { MapOptionsControl } from "./MapOptionsControl";
 import POILayer from "./POILayer";
+import MundiLayer from "./MundiLayer";
 
 interface MapControlsProps {
   region: string;
@@ -66,6 +67,7 @@ export default function MapControls({
     medical: true,
     farmers_market: true
   });
+  const [mundiLayerVisible, setMundiLayerVisible] = useState(true);
   const optionsControlRef = useRef<MapOptionsControl>();
 
   // Initialize map and directions
@@ -117,7 +119,9 @@ export default function MapControls({
         onStyleChange: setCurrentStyle,
         currentStyle,
         poiFilters,
-        onPOIFilterChange: setPOIFilters
+        onPOIFilterChange: setPOIFilters,
+        mundiLayerVisible,
+        onMundiLayerToggle: setMundiLayerVisible
       });
       optionsControlRef.current = optionsControl;
       map.current.addControl(optionsControl, 'top-right');
@@ -221,6 +225,13 @@ export default function MapControls({
       optionsControlRef.current.updateOptions({ poiFilters });
     }
   }, [poiFilters]);
+
+  // Update map options control when Mundi layer visibility changes
+  useEffect(() => {
+    if (optionsControlRef.current) {
+      optionsControlRef.current.updateOptions({ mundiLayerVisible });
+    }
+  }, [mundiLayerVisible]);
   // Update routing options when exclude, annotations or vehicle change
   useEffect(() => {
     if (directionsControl.current && !isOffline) {
@@ -285,6 +296,7 @@ export default function MapControls({
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
         <POILayer map={map} filters={poiFilters} />
+        <MundiLayer map={map.current} isVisible={mundiLayerVisible} />
         {/* Map Options Control is now a native map control added in useEffect */}
         
         {isOffline && (

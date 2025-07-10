@@ -8,6 +8,7 @@ import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection
 import { pamApiService } from "@/services/pamApiService";
 import { IntentClassifier } from "@/utils/intentClassifier";
 import { usePamSession } from "@/hooks/usePamSession";
+import { mundiService } from "@/services/mundiService";
 import { ChatMessage } from "./types";
 import PamMobileChat from "./PamMobileChat";
 import PamFloatingButton from "./PamFloatingButton";
@@ -126,6 +127,17 @@ const PamChatController = () => {
     const intentResult = IntentClassifier.classifyIntent(cleanMessage);
     updateSession(intentResult.type);
 
+    // Check if this is a Mundi geospatial query
+    const lowerMessage = cleanMessage.toLowerCase();
+    if (lowerMessage.includes("route") || lowerMessage.includes("find") || lowerMessage.includes("near") || 
+        lowerMessage.includes("map") || lowerMessage.includes("location") || lowerMessage.includes("camping") ||
+        lowerMessage.includes("rv park") || lowerMessage.includes("directions") || lowerMessage.includes("navigate")) {
+      
+      console.log('🗺️ Detected geospatial query, routing to Mundi AI...');
+      await handleMundiQuery(cleanMessage, user.id);
+      return;
+    }
+
     // Try WebSocket first, then HTTP API, finally demo mode
     if (isConnected) {
       console.log('📤 Sending message via PAM WebSocket backend');
@@ -187,6 +199,95 @@ const PamChatController = () => {
       setMessages(prev => [...prev, demoResponse]);
       setIsProcessing(false);
     }, 500);
+  };
+
+  const handleMundiQuery = async (message: string, userId: string) => {
+    try {
+      console.log('🗺️ Querying Mundi AI for geospatial insights...');
+      
+      // Query Mundi AI with user context
+      const response = await mundiService.queryMundi({
+        prompt: message,
+        context: {
+          user_id: userId,
+          region,
+          current_page: pathname,
+          session_data: sessionData
+        }
+      });
+
+      if (response.success && response.data) {
+        // Display Mundi response to user
+        const mundiMessage: ChatMessage = {
+          sender: "pam",
+          content: `🗺️ Here's what I found: ${response.data.response || 'Processing your geospatial query...'}`,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, mundiMessage]);
+
+        // Show results on map if we have geospatial data
+        if (response.data.features || response.data.geometry || response.data.locations) {
+          showOnMap(response.data);
+          
+          // Add map notification message
+          const mapMessage: ChatMessage = {
+            sender: "pam",
+            content: "📍 I've highlighted the results on the map! Navigate to the Wheels section to see the interactive map with your requested locations.",
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, mapMessage]);
+        }
+      } else {
+        // Fallback if Mundi query fails
+        const errorMessage: ChatMessage = {
+          sender: "pam",
+          content: `🗺️ I couldn't connect to the geospatial service right now, but I can still help with general travel advice! ${response.error ? `Error: ${response.error}` : ''}`,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('❌ Mundi query failed:', error);
+      const errorMessage: ChatMessage = {
+        sender: "pam",
+        content: "🗺️ I'm having trouble accessing geospatial data right now, but I can still help with general travel planning advice!",
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const showOnMap = (data: any) => {
+    console.log('🗺️ Displaying Mundi results on map:', data);
+    
+    // Store Mundi data in session storage for map components to access
+    const mundiData = {
+      timestamp: Date.now(),
+      query_id: `mundi_${Date.now()}`,
+      features: data.features || [],
+      geometry: data.geometry,
+      locations: data.locations || [],
+      routes: data.routes || [],
+      pois: data.pois || [],
+      metadata: {
+        source: 'mundi_ai',
+        user_id: user?.id,
+        query: data.original_query || 'geospatial_query'
+      }
+    };
+    
+    // Store in session storage for map components to access
+    sessionStorage.setItem('mundi_map_data', JSON.stringify(mundiData));
+    
+    // Dispatch custom event to notify map components
+    const event = new CustomEvent('mundi-data-available', {
+      detail: mundiData
+    });
+    window.dispatchEvent(event);
+    
+    console.log('📍 Mundi data stored and event dispatched for map visualization');
   };
 
   const handleQuickAction = (action: string) => {
