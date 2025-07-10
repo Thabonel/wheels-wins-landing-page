@@ -143,7 +143,7 @@ const PamChatController = () => {
       console.log('📤 Sending message via PAM WebSocket backend');
       const messageSent = sendWebSocketMessage({
         type: 'chat',
-        message: cleanMessage,
+        content: cleanMessage,  // Fixed: backend expects 'content' not 'message'
         user_id: user.id,
         context: {
           region,
