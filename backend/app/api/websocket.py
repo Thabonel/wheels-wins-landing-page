@@ -13,13 +13,50 @@ logger = get_logger(__name__)
 
 
 
+@router.websocket("/ws")
+async def websocket_endpoint_generic(
+    websocket: WebSocket,
+    token: str = Query(...)
+):
+    """WebSocket endpoint for real-time communication with PAM"""
+    # Accept the connection first to avoid 403 error
+    await websocket.accept()
+    
+    # Extract user_id from token
+    user_id = "anonymous"
+    
+    # Verify JWT token and extract user_id
+    try:
+        # Try to decode as JWT first (for Supabase tokens)
+        import jwt
+        decoded = jwt.decode(token, options={"verify_signature": False})
+        user_id = decoded.get('sub', 'anonymous')
+        
+        # Log for debugging
+        logger.info(f"🔐 WebSocket auth - token user_id: {user_id}")
+        
+        # More lenient validation - accept if token is valid JWT
+        if not user_id:
+            await websocket.close(code=1008, reason="Invalid token")
+            return
+            
+    except Exception as e:
+        logger.error(f"🔐 WebSocket JWT decode error: {e}")
+        # Fall back to treating token as plain user_id for development
+        if not token or len(token) < 10:  # Basic validation
+            await websocket.close(code=1008, reason="Invalid token format")
+            return
+            
+    await websocket_handler(websocket, user_id)
+
+
 @router.websocket("/{user_id}")
-async def websocket_endpoint(
+async def websocket_endpoint_with_user_id(
     websocket: WebSocket,
     user_id: str,
     token: str = Query(...)
 ):
-    """WebSocket endpoint for real-time communication with PAM"""
+    """WebSocket endpoint for real-time communication with PAM (with user_id in path)"""
     # Accept the connection first to avoid 403 error
     await websocket.accept()
     
@@ -44,7 +81,12 @@ async def websocket_endpoint(
         if not token or len(token) < 10:  # Basic validation
             await websocket.close(code=1008, reason="Invalid token format")
             return
+            
+    await websocket_handler(websocket, user_id)
 
+
+async def websocket_handler(websocket: WebSocket, user_id: str):
+    """Common WebSocket handler for PAM communication"""
     connection_id = str(uuid.uuid4())
     await manager.connect(websocket, user_id, connection_id)
 

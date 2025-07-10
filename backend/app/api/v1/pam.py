@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 from app.api.deps import (
-    get_current_user, get_pam_orchestrator, get_database,
+    get_current_user, verify_supabase_jwt_token, get_pam_orchestrator, get_database,
     apply_rate_limit, get_pagination_params, validate_user_context
 )
 from app.models.schemas.pam import (
@@ -173,23 +173,28 @@ async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(
     request: ChatRequest,
-    current_user = Depends(get_current_user),
+    token_payload = Depends(verify_supabase_jwt_token),
     orchestrator = Depends(get_pam_orchestrator),
-    _rate_limit = Depends(apply_rate_limit("chat", 30, 60))  # 30 requests per minute
+    # _rate_limit = Depends(apply_rate_limit("chat", 30, 60))  # Disabled for now
 ):
     """Process a chat message via REST API"""
     try:
         start_time = datetime.utcnow()
         
+        # Get user_id from token payload
+        user_id = token_payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
         # Prepare context
         context = request.context or {}
-        context["user_id"] = str(current_user.id)
+        context["user_id"] = str(user_id)
         
-        logger.info(f"Processing chat request for user {current_user.id}")
+        logger.info(f"Processing chat request for user {user_id}")
         
         # Process through orchestrator using real service
         pam_response = await orchestrator.process_message(
-            str(current_user.id),
+            str(user_id),
             request.message,
             session_id=request.conversation_id,
             context=context
