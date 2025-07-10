@@ -55,8 +55,9 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Sentry error tracking initialized")
         
         # Initialize performance components
-        await db_pool.initialize()
-        logger.info("✅ Database connection pool initialized")
+        # Note: Database pool disabled - using Supabase REST API instead
+        # await db_pool.initialize()
+        logger.info("✅ Database access via Supabase REST API")
         
         await cache_service.initialize()
         logger.info("✅ Redis cache service initialized")
@@ -79,7 +80,7 @@ async def lifespan(app: FastAPI):
     logger.info("🔄 Shutting down PAM Backend...")
     
     try:
-        await db_pool.close()
+        # await db_pool.close()  # Database pool disabled
         await cache_service.close()
         logger.info("✅ Cleanup completed")
     except Exception as e:
