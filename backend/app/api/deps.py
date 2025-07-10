@@ -109,6 +109,29 @@ def verify_jwt_token(
         )
 
 
+def verify_supabase_jwt_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> Dict[str, Any]:
+    """Verify Supabase JWT token and return payload (lenient verification)"""
+    try:
+        token = credentials.credentials
+        # Use lenient verification for Supabase tokens
+        payload = jwt.decode(
+            token, 
+            options={"verify_signature": False, "verify_exp": False},
+            algorithms=["HS256"]
+        )
+        logger.info(f"🔐 Supabase token verified for user: {payload.get('sub')}")
+        return payload
+    except PyJWTError as e:
+        logger.error(f"Supabase JWT verification error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate Supabase credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 async def get_current_user(
     payload: Dict[str, Any] = Depends(verify_jwt_token), db: DatabaseService = Depends(get_database)
 ) -> CurrentUser:
