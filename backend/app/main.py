@@ -6,6 +6,7 @@ High-performance FastAPI application with comprehensive monitoring and security.
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime
 from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -156,14 +157,60 @@ add_routes(app, pauter_router, path="/api/v1/pam/chat")
 
 @app.post("/api/v1/pam/voice")
 async def pam_voice(audio: UploadFile = File(...)):
-    """Speech interface using Whisper STT, PauterRouter. TTS temporarily disabled."""
-    data = await audio.read()
-    text = await whisper_stt.transcribe(data)
-    route = await pauter_router.ainvoke(text)
-    speech_text = f"Routed to {route.get('target_node')}"
-    # wav = await coqui_tts.synthesize(speech_text)  # Temporarily disabled
-    # return Response(content=wav, media_type="audio/wav")
-    return {"text": text, "route": route, "response": speech_text, "note": "TTS temporarily disabled"}
+    """Complete STT→LLM→TTS pipeline for voice conversations"""
+    try:
+        # Step 1: Speech-to-Text (STT)
+        logger.info("🎤 Processing voice input...")
+        audio_data = await audio.read()
+        text = await whisper_stt.transcribe(audio_data)
+        logger.info(f"📝 Transcribed: {text}")
+        
+        if not text or text.strip() == "":
+            return {"error": "No speech detected", "text": "", "response": ""}
+        
+        # Step 2: LLM Processing through PAM Orchestrator
+        logger.info("🧠 Processing through PAM...")
+        from app.services.pam.orchestrator import get_orchestrator
+        orchestrator = await get_orchestrator()
+        
+        # Create a simple context for voice input
+        voice_context = {
+            "input_type": "voice",
+            "user_id": "voice-user",  # In production, extract from auth
+            "session_id": "voice-session",
+            "timestamp": str(datetime.utcnow())
+        }
+        
+        # Process message through PAM
+        pam_response = await orchestrator.process_message(
+            user_id="voice-user",
+            message=text,
+            session_id="voice-session", 
+            context=voice_context
+        )
+        
+        response_text = pam_response.content or "I processed your message."
+        logger.info(f"🤖 PAM Response: {response_text}")
+        
+        # Step 3: Text-to-Speech (TTS) - Return both text and TTS instruction
+        # For now, return JSON response since frontend handles TTS via Nari Labs
+        return {
+            "text": text,
+            "response": response_text,
+            "actions": pam_response.actions,
+            "confidence": pam_response.confidence,
+            "voice_ready": True,
+            "pipeline": "STT→LLM→TTS"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Voice pipeline error: {e}")
+        return {
+            "error": str(e),
+            "text": "",
+            "response": "Sorry, I had trouble processing your voice message.",
+            "pipeline": "STT→LLM→TTS"
+        }
 
 # Global exception handler with monitoring
 @app.exception_handler(Exception)

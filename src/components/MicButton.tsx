@@ -29,12 +29,37 @@ export default function MicButton({ inline = false, disabled = false }: MicButto
       recorder.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         try {
-          await apiFetch('/api/v1/pam/voice', {
+          console.log('🎤 Sending voice recording to STT→LLM→TTS pipeline...');
+          
+          const formData = new FormData();
+          formData.append('audio', blob, 'recording.webm');
+          
+          const response = await fetch('/api/v1/pam/voice', {
             method: 'POST',
-            body: blob,
+            body: formData,
           });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('🎙️ Voice pipeline result:', result);
+            
+            // Dispatch custom event with voice response for PAM to handle
+            const event = new CustomEvent('pam-voice-response', {
+              detail: {
+                transcription: result.text,
+                response: result.response,
+                actions: result.actions,
+                confidence: result.confidence,
+                voiceReady: result.voice_ready
+              }
+            });
+            window.dispatchEvent(event);
+            
+          } else {
+            console.error('❌ Voice pipeline failed:', response.statusText);
+          }
         } catch (err) {
-          console.error('Failed to send audio blob', err);
+          console.error('❌ Failed to process voice input:', err);
         }
       };
 
