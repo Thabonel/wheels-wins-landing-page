@@ -31,7 +31,7 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 
 # Import API routers
-from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin
+from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin, mundi
 from app.api import websocket
 from app.webhooks import stripe_webhooks
 
@@ -146,6 +146,7 @@ app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(support.router, prefix="/api", tags=["Support"])
 app.include_router(stripe_webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
+app.include_router(mundi.router, prefix="/api/v1", tags=["Mundi Integration"])
 
 # LangServe router for PauterRouter
 pauter_router = PauterRouter()

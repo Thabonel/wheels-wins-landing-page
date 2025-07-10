@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SITE_URL: str = "http://localhost:3000"
+    MUNDI_URL: Optional[str] = None
 
     # CORS
     CORS_ORIGINS: List[str] = [
