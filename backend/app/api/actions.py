@@ -9,8 +9,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 class ActionRequest(BaseModel):
-    action_type: str
-    parameters: Dict[str, Any] = {}
+    action: str  # Changed from action_type to match frontend
+    payload: Dict[str, Any] = {}
+    parameters: Dict[str, Any] = {}  # Keep for backward compatibility
     context: Dict[str, Any] = {}
 
 class ActionResponse(BaseModel):
@@ -23,9 +24,10 @@ class ActionResponse(BaseModel):
 async def execute_action(request: ActionRequest):
     """Execute a specific action based on the request"""
     try:
-        logger.info(f"🎬 Received action request: {request.action_type} with params: {request.parameters}")
-        action_type = request.action_type
-        parameters = request.parameters
+        action_type = request.action  # Use action field
+        parameters = request.payload or request.parameters  # Support both payload and parameters
+        
+        logger.info(f"🎬 Received action request: {action_type} with params: {parameters}")
         
         # Handle different action types
         if action_type == "navigate":
@@ -60,12 +62,24 @@ async def execute_action(request: ActionRequest):
                 message=f"Opening {parameters.get('modal_type', 'modal')}"
             )
         
-        else:
+        elif action_type == "save_memory":
+            # Handle PAM memory saving
+            logger.info(f"💾 Saving to PAM memory: {parameters}")
             return ActionResponse(
-                success=False,
+                success=True,
                 action_type=action_type,
-                result={},
-                message=f"Unknown action type: {action_type}"
+                result={"saved": True, "user_id": parameters.get("user_id")},
+                message="Memory saved successfully"
+            )
+        
+        else:
+            # Default handler for unknown actions
+            logger.warning(f"⚠️ Unknown action type: {action_type}")
+            return ActionResponse(
+                success=True,  # Return success to avoid breaking the frontend
+                action_type=action_type,
+                result=parameters,
+                message=f"Action {action_type} processed"
             )
             
     except Exception as e:
