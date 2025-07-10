@@ -2,6 +2,7 @@
 import { useRef, useEffect } from "react";
 import { ChatMessage } from "./types";
 import { PamKnowledgeIndicator } from "@/components/knowledge/PamKnowledgeIndicator";
+import PamVoice from "@/components/voice/PamVoice";
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
@@ -33,6 +34,18 @@ const ChatMessages = ({ messages }: ChatMessagesProps) => {
             }`}
           >
             <p className="leading-relaxed">{msg.content}</p>
+            
+            {/* Voice playback for PAM messages */}
+            {msg.sender === "pam" && (
+              <div className="mt-2">
+                <PamVoice 
+                  text={msg.content}
+                  emotion="helpful"
+                  context="general"
+                  className="text-xs"
+                />
+              </div>
+            )}
             
             {/* Show knowledge indicator for assistant messages with knowledge */}
             {msg.sender === "pam" && (msg as any).knowledgeUsed && (msg as any).knowledgeUsed.length > 0 && (

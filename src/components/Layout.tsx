@@ -1,5 +1,5 @@
 import React from "react";
-import Pam from "@/components/Pam";
+import PamChatController from "@/components/pam/PamChatController";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Header from "@/components/header/Header";
@@ -36,8 +36,8 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </main>
       
-      {/* New Pam Component - handles its own button and modal */}
-      {!hidePam && <Pam />}
+      {/* PAM Chat Controller - handles its own button and modal */}
+      {!hidePam && <PamChatController />}
       
       <footer className="bg-white text-gray-600 py-4 border-t">
         <Footer />
