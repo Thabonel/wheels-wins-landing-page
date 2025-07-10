@@ -211,20 +211,32 @@ async def chat_endpoint(
                 response_text = f"❌ {action.get('content', response_text)}"
                 break
         
+        session_id = request.conversation_id or request.session_id or str(uuid.uuid4())
+        
         return ChatResponse(
             response=response_text,
             actions=actions,
-            conversation_id=request.conversation_id or str(uuid.uuid4()),
+            conversation_id=session_id,
+            session_id=session_id,  # Required field
             message_id=str(uuid.uuid4()),
             processing_time_ms=processing_time,
             timestamp=datetime.utcnow()
         )
         
     except Exception as e:
-        logger.error(f"Chat endpoint error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process chat message"
+        logger.error(f"Chat endpoint error: {str(e)}", exc_info=True)
+        
+        # Return a proper error response instead of crashing
+        session_id = request.conversation_id or request.session_id or str(uuid.uuid4())
+        
+        return ChatResponse(
+            response=f"I'm having trouble processing your request right now. Error: {str(e)}",
+            actions=[{"type": "error", "content": str(e)}],
+            conversation_id=session_id,
+            session_id=session_id,
+            message_id=str(uuid.uuid4()),
+            processing_time_ms=0,
+            timestamp=datetime.utcnow()
         )
 
 # Get conversation history
