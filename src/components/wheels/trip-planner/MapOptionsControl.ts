@@ -8,6 +8,8 @@ interface MapOptionsControlOptions {
   currentStyle: string;
   poiFilters: Record<string, boolean>;
   onPOIFilterChange: (filters: Record<string, boolean>) => void;
+  mundiLayerVisible: boolean;
+  onMundiLayerToggle: (visible: boolean) => void;
 }
 
 export class MapOptionsControl implements mapboxgl.IControl {
@@ -54,7 +56,9 @@ export class MapOptionsControl implements mapboxgl.IControl {
         currentStyle: this.options.currentStyle,
         isMapControl: true, // Add this prop to style it differently as a map control
         poiFilters: this.options.poiFilters,
-        onPOIFilterChange: this.options.onPOIFilterChange
+        onPOIFilterChange: this.options.onPOIFilterChange,
+        mundiLayerVisible: this.options.mundiLayerVisible,
+        onMundiLayerToggle: this.options.onMundiLayerToggle
       })
     );
   }
