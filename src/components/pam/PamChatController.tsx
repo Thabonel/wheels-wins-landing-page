@@ -15,7 +15,7 @@ import PamFloatingButton from "./PamFloatingButton";
 import SimpleVoiceButton from "@/components/voice/SimpleVoiceButton";
 
 // Define excluded routes where Pam chat should not be shown (unless mobile)
-const EXCLUDED_ROUTES = ["/", "/profile"];
+const EXCLUDED_ROUTES = ["/", "/auth", "/onboarding"];
 
 // Fallback responses for when WebSocket is not connected
 const DEMO_RESPONSES = [
