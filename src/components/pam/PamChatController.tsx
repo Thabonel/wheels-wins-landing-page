@@ -318,6 +318,41 @@ const PamChatController = () => {
     }
   }, [user?.id, messages.length, isConnected]);
 
+  // Listen for voice responses from MicButton
+  useEffect(() => {
+    const handleVoiceResponse = (event: CustomEvent) => {
+      console.log('🎙️ Received voice response:', event.detail);
+      const { transcription, response, voiceReady } = event.detail;
+      
+      // Add user transcription to chat
+      if (transcription) {
+        const userMessage: ChatMessage = {
+          sender: "user",
+          content: `🎤 ${transcription}`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, userMessage]);
+      }
+      
+      // Add PAM response to chat
+      if (response) {
+        const pamMessage: ChatMessage = {
+          sender: "pam", 
+          content: response,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, pamMessage]);
+        setIsProcessing(false);
+      }
+    };
+
+    window.addEventListener('pam-voice-response', handleVoiceResponse as EventListener);
+    
+    return () => {
+      window.removeEventListener('pam-voice-response', handleVoiceResponse as EventListener);
+    };
+  }, []);
+
   return (
     <>
       {/* Mobile floating button */}
