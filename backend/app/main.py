@@ -155,10 +155,11 @@ async def root():
     """Root endpoint - PAM Backend status"""
     return {
         "message": "🤖 PAM Backend API",
-        "version": "2.0.0",
-        "status": "operational",
+        "version": "2.0.1",
+        "status": "operational", 
         "docs": "/api/docs",
-        "health": "/health"
+        "health": "/health",
+        "updated": "2025-07-10T06:45:00Z"
     }
 
 # Include API routers
