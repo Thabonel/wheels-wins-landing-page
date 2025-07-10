@@ -19,11 +19,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # Database
-    DATABASE_URL: str
+    # Database (PostgreSQL - optional since using Supabase)
+    DATABASE_URL: Optional[str] = None
     POSTGRES_DB: str = "pam_backend"
     POSTGRES_USER: str = "pam_user"
-    POSTGRES_PASSWORD: str
+    POSTGRES_PASSWORD: Optional[str] = None
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
 
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: Optional[str] = None
 
     # External APIs
-    OPENAI_API_KEY: str
+    OPENAI_API_KEY: Optional[str] = None
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SITE_URL: str = "http://localhost:3000"
