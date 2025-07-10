@@ -12,7 +12,7 @@ import { mundiService } from "@/services/mundiService";
 import { ChatMessage } from "./types";
 import PamMobileChat from "./PamMobileChat";
 import PamFloatingButton from "./PamFloatingButton";
-import UnifiedVoiceSystem from "@/components/voice/UnifiedVoiceSystem";
+// import UnifiedVoiceSystem from "@/components/voice/UnifiedVoiceSystem";
 
 // Define excluded routes where Pam chat should not be shown (unless mobile)
 const EXCLUDED_ROUTES = ["/", "/profile"];
@@ -400,8 +400,8 @@ const PamChatController = () => {
               onQuickAction={handleQuickAction}
             />
             
-            {/* Voice System for Mobile */}
-            <div className="bg-white rounded-lg shadow-lg border p-3">
+            {/* Voice System for Mobile - Temporarily disabled */}
+            {/* <div className="bg-white rounded-lg shadow-lg border p-3">
               <UnifiedVoiceSystem
                 onTranscription={handleVoiceTranscription}
                 onResponse={handleVoiceResponse}
@@ -409,7 +409,7 @@ const PamChatController = () => {
                 mode="button"
                 className="w-full"
               />
-            </div>
+            </div> */}
           </div>
         ) : (
           <div className="flex flex-col space-y-2">
@@ -418,8 +418,8 @@ const PamChatController = () => {
               isConnected={isConnected}
             />
             
-            {/* Voice System Button for Mobile */}
-            <div className="bg-white rounded-full shadow-lg border p-2">
+            {/* Voice System Button for Mobile - Temporarily disabled */}
+            {/* <div className="bg-white rounded-full shadow-lg border p-2">
               <UnifiedVoiceSystem
                 onTranscription={handleVoiceTranscription}
                 onResponse={handleVoiceResponse}
@@ -427,7 +427,43 @@ const PamChatController = () => {
                 mode="button"
                 className="scale-75"
               />
-            </div>
+            </div> */}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop floating button - RESTORED */}
+      <div className="hidden md:block fixed bottom-6 right-4 z-40">
+        <div className="flex flex-col space-y-3">
+          <PamFloatingButton
+            onClick={() => setIsMobileOpen(true)}
+            isConnected={isConnected}
+          />
+          
+          {/* Voice System for Desktop - Temporarily disabled */}
+          {/* <div className="bg-white rounded-full shadow-lg border p-2">
+            <UnifiedVoiceSystem
+              onTranscription={handleVoiceTranscription}
+              onResponse={handleVoiceResponse}
+              onTurnDetected={handleVoiceTurnDetected}
+              mode="button"
+              className="scale-75"
+            />
+          </div> */}
+        </div>
+        
+        {/* Desktop Chat Modal */}
+        {isMobileOpen && (
+          <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-lg shadow-xl border z-50 flex flex-col">
+            <PamMobileChat
+              isOpen={isMobileOpen}
+              onClose={() => setIsMobileOpen(false)}
+              messages={messages}
+              isProcessing={isProcessing}
+              isConnected={isConnected}
+              onSendMessage={sendMessage}
+              onQuickAction={handleQuickAction}
+            />
           </div>
         )}
       </div>
