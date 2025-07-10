@@ -107,9 +107,14 @@ app.add_middleware(GuardrailsMiddleware)
 
 # CORS middleware MUST be added LAST so it executes FIRST
 origins = [
+    # Lovable AI domains
     "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+    # Netlify domains
+    "https://wheelsandwins.com",
     "https://www.wheelsandwins.com",
+    "https://*.netlify.app",
+    # Local development
     "http://localhost:5173",
     "http://localhost:3000"
 ]
@@ -122,17 +127,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add OPTIONS handler for CORS preflight
-@app.options("/api/{path:path}")
+# Add OPTIONS handler for CORS preflight - handle all paths
+@app.options("/{path:path}")
 async def preflight_handler(request: Request, path: str):
-    """Handle CORS preflight OPTIONS requests"""
+    """Handle CORS preflight OPTIONS requests for all routes"""
+    origin = request.headers.get("origin")
+    
+    # Allow all configured origins
+    allowed_origin = "*"
+    if origin in origins:
+        allowed_origin = origin
+    
     return Response(
+        status_code=200,
         headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Origin": allowed_origin,
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, Origin, User-Agent, Cache-Control, Keep-Alive",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "86400",
         }
     )
+
+# Add root route handler
+@app.get("/")
+async def root():
+    """Root endpoint - PAM Backend status"""
+    return {
+        "message": "🤖 PAM Backend API",
+        "version": "2.0.0",
+        "status": "operational",
+        "docs": "/api/docs",
+        "health": "/health"
+    }
 
 # Include API routers
 app.include_router(health.router, prefix="", tags=["Health"])  # No prefix for /health endpoint
