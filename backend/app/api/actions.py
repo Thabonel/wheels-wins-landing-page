@@ -2,6 +2,9 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any, List
 from pydantic import BaseModel
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -20,6 +23,7 @@ class ActionResponse(BaseModel):
 async def execute_action(request: ActionRequest):
     """Execute a specific action based on the request"""
     try:
+        logger.info(f"🎬 Received action request: {request.action_type} with params: {request.parameters}")
         action_type = request.action_type
         parameters = request.parameters
         
@@ -102,4 +106,14 @@ async def get_action_status():
         "status": "operational",
         "message": "Actions service is ready to execute UI commands",
         "supported_actions": 4
+    }
+
+@router.post("/test")
+async def test_actions():
+    """Test endpoint to verify actions API is working"""
+    logger.info("🧪 Actions test endpoint called")
+    return {
+        "success": True,
+        "message": "Actions API is working correctly",
+        "timestamp": "2025-01-10T00:00:00Z"
     }
