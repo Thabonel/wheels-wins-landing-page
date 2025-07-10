@@ -76,12 +76,15 @@ except Exception as import_error:
     # Fallback application shown when the backend fails to import
     logger.error("Backend import failed: %s", import_error)
     app = FastAPI(title="Wheels & Wins Backend - Error")
+    
+    # Store error details for the fallback handler
+    error_details = str(import_error)
 
     @app.get("/")
     async def import_failure_root() -> dict[str, str]:
         return {
             "error": "Backend application failed to load",
-            "details": str(import_error),
+            "details": error_details,
         }
     
     # Ensure fallback app is available at module level
