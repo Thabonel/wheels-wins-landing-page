@@ -43,7 +43,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadUserContext = async () => {
     try {
-      const response = await apiFetch('/api/chat', {
+      const response = await apiFetch('/api/v1/pam/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadConversationMemory = async () => {
     try {
-      const response = await apiFetch('/api/chat', {
+      const response = await apiFetch('/api/v1/pam/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,7 +119,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (!user?.id) return;
 
     try {
-      const wsUrl = `${getWebSocketUrl(`/ws/${user?.id}`)}?token=${sessionToken || 'demo-token'}`;
+      const wsUrl = `${getWebSocketUrl(`/api/v1/pam/ws`)}?token=${sessionToken || 'demo-token'}`;
       
       setConnectionStatus("Connecting");
       wsRef.current = new WebSocket(wsUrl);
