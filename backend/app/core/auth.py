@@ -7,6 +7,19 @@ import os
 import requests
 from jose import jwk
 
+# Add WebSocket auth verification
+async def verify_token_websocket(token: str) -> str:
+    """Verify JWT token for WebSocket connections and return user_id"""
+    try:
+        # Try to decode as JWT first (for Supabase tokens)
+        import jwt as pyjwt
+        decoded = pyjwt.decode(token, options={"verify_signature": False})
+        user_id = decoded.get('sub', token)  # 'sub' is the user ID in Supabase JWT
+        return str(user_id)
+    except Exception:
+        # Fall back to treating token as plain user_id
+        return token
+
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
 ALGORITHM = "HS256"

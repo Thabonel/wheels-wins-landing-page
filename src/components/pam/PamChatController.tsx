@@ -12,6 +12,7 @@ import { mundiService } from "@/services/mundiService";
 import { ChatMessage } from "./types";
 import PamMobileChat from "./PamMobileChat";
 import PamFloatingButton from "./PamFloatingButton";
+import UnifiedVoiceSystem from "@/components/voice/UnifiedVoiceSystem";
 
 // Define excluded routes where Pam chat should not be shown (unless mobile)
 const EXCLUDED_ROUTES = ["/", "/profile"];
@@ -34,6 +35,7 @@ const PamChatController = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
 
   const isExcluded = EXCLUDED_ROUTES.includes(pathname);
   const isMobile = window.innerWidth < 768;
@@ -353,25 +355,80 @@ const PamChatController = () => {
     };
   }, []);
 
+  // Voice system handlers
+  const handleVoiceTranscription = (text: string, isFinal: boolean) => {
+    if (isFinal) {
+      const userMessage: ChatMessage = {
+        sender: "user",
+        content: `🎙️ ${text}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
+      setIsProcessing(true);
+    }
+  };
+
+  const handleVoiceResponse = (response: string) => {
+    const pamMessage: ChatMessage = {
+      sender: "pam",
+      content: response,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, pamMessage]);
+    setIsProcessing(false);
+  };
+
+  const handleVoiceTurnDetected = (userTurnEnded: boolean) => {
+    if (userTurnEnded) {
+      console.log('🔄 User finished speaking - PAM can respond');
+    }
+  };
+
   return (
     <>
       {/* Mobile floating button */}
       <div className="md:hidden fixed bottom-6 right-4 z-40">
         {isMobileOpen ? (
-          <PamMobileChat
-            isOpen={isMobileOpen}
-            onClose={() => setIsMobileOpen(false)}
-            messages={messages}
-            isProcessing={isProcessing}
-            isConnected={isConnected}
-            onSendMessage={sendMessage}
-            onQuickAction={handleQuickAction}
-          />
+          <div className="flex flex-col space-y-2">
+            <PamMobileChat
+              isOpen={isMobileOpen}
+              onClose={() => setIsMobileOpen(false)}
+              messages={messages}
+              isProcessing={isProcessing}
+              isConnected={isConnected}
+              onSendMessage={sendMessage}
+              onQuickAction={handleQuickAction}
+            />
+            
+            {/* Voice System for Mobile */}
+            <div className="bg-white rounded-lg shadow-lg border p-3">
+              <UnifiedVoiceSystem
+                onTranscription={handleVoiceTranscription}
+                onResponse={handleVoiceResponse}
+                onTurnDetected={handleVoiceTurnDetected}
+                mode="button"
+                className="w-full"
+              />
+            </div>
+          </div>
         ) : (
-          <PamFloatingButton
-            onClick={() => setIsMobileOpen(true)}
-            isConnected={isConnected}
-          />
+          <div className="flex flex-col space-y-2">
+            <PamFloatingButton
+              onClick={() => setIsMobileOpen(true)}
+              isConnected={isConnected}
+            />
+            
+            {/* Voice System Button for Mobile */}
+            <div className="bg-white rounded-full shadow-lg border p-2">
+              <UnifiedVoiceSystem
+                onTranscription={handleVoiceTranscription}
+                onResponse={handleVoiceResponse}
+                onTurnDetected={handleVoiceTurnDetected}
+                mode="button"
+                className="scale-75"
+              />
+            </div>
+          </div>
         )}
       </div>
     </>
