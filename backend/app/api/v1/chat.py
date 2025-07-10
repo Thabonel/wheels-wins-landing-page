@@ -31,7 +31,7 @@ async def chat_with_pam(
         # Special handling for context loading requests
         if request.message in ['load_user_context', 'load_conversation_memory']:
             return ChatResponse(
-                content=f"Context data for {request.message}",
+                response=f"Context data for {request.message}",  # Fixed: use 'response' field
                 actions=[{"type": "context", "data": {"user_id": user_id}}],
                 session_id=request.session_id or str(uuid.uuid4()),
                 timestamp=datetime.utcnow()
@@ -50,7 +50,7 @@ async def chat_with_pam(
         
         # Convert to API response format
         return ChatResponse(
-            content=response.content,
+            response=response.content,  # Fixed: use 'response' field instead of 'content'
             intent=response.intent.value if response.intent else None,
             confidence=response.confidence,
             suggestions=response.suggestions,
