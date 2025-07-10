@@ -46,7 +46,7 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
     }
 
     try {
-      const wsUrl = `${getWebSocketUrl('/api/ws')}?token=${encodeURIComponent(token || userId || 'demo-token')}`;
+      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}?token=${encodeURIComponent(token || userId || 'demo-token')}`;
       console.log('🔌 Attempting PAM WebSocket connection:', wsUrl);
       
       ws.current = new WebSocket(wsUrl);
