@@ -37,9 +37,14 @@ class YouNode:
         self.logger = get_logger("you_node")
         self.supabase = get_supabase_client()
     
-    async def process(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+    async def process(self, node_input: Dict[str, Any]) -> Dict[str, Any]:
         """Process You Node requests for personal dashboard, calendar, and profile management"""
         try:
+            # Extract parameters from node_input
+            message = node_input.get('message', '')
+            context = node_input.get('context', {})
+            user_id = node_input.get('user_id', '')
+            
             message_lower = message.lower()
             
             # Calendar-related requests

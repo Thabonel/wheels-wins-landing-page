@@ -514,18 +514,19 @@ class PamAnalytics:
         else:
             return "medium"
     
-    async def update_metric(self, metric_name: str, value: Union[int, float], user_id: str, 
-                           context: Dict[str, Any] = None) -> None:
+    async def update_metric(self, metric_name: str, value: Union[int, float], user_id: str = None,
+                           context: Dict[str, Any] = None, aggregation: str = None) -> None:
         """Update a specific metric value"""
         try:
             # Create a custom analytics event for metric updates
             event = AnalyticsEvent(
                 event_type=EventType.FEATURE_USAGE,
-                user_id=user_id,
+                user_id=user_id or "system",
                 timestamp=datetime.now(),
                 event_data={
                     "metric_name": metric_name,
                     "metric_value": value,
+                    "aggregation": aggregation,
                     "context": context or {},
                     "action": "metric_update"
                 }
