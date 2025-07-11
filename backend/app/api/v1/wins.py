@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 async def create_budget(request: BudgetCreateRequest):
     """Create a new budget"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         # Create budget
         query = """
@@ -69,7 +69,7 @@ async def create_budget(request: BudgetCreateRequest):
 async def get_user_budgets(user_id: str):
     """Get all budgets for a user"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         query = """
             SELECT name, total_budget, total_spent, total_remaining
@@ -94,7 +94,7 @@ async def get_user_budgets(user_id: str):
 async def create_expense(request: ExpenseCreateRequest):
     """Log a new expense"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         query = """
             INSERT INTO expenses (user_id, amount, category, description, date)
@@ -151,7 +151,7 @@ async def get_user_expenses(
 ):
     """Get expenses for a user with optional filters"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         where_conditions = ["user_id = $1"]
         params = [user_id]
@@ -205,7 +205,7 @@ async def get_user_expenses(
 async def create_income_entry(request: IncomeSourceCreateRequest):
     """Log income entry"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         query = """
             INSERT INTO income_entries (user_id, amount, source, description, date, type)
@@ -245,7 +245,7 @@ async def create_income_entry(request: IncomeSourceCreateRequest):
 async def get_financial_summary(user_id: str, days: int = 30):
     """Get financial summary for user"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         # Get expenses summary
         expense_query = """

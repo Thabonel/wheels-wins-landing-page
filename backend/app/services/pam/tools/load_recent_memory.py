@@ -17,7 +17,7 @@ class LoadRecentMemoryTool(BaseTool):
     async def initialize(self):
         """Initialize with database service"""
         if not self.database_service:
-            self.database_service = await get_database_service()
+            self.database_service = get_database_service()
         await super().initialize()
     
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
