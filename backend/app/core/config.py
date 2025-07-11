@@ -42,8 +42,11 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:8080",
+        "http://localhost:5173",
         "https://wheelsandwins.com",
         "https://www.wheelsandwins.com",
+        "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+        "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     ]
 
     # Monitoring
