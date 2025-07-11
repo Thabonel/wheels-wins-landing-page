@@ -25,18 +25,24 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [messages, setMessages] = useState<PamMessage[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
   const [userContext, setUserContext] = useState<any>(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const sessionToken = session?.access_token;
 
   // Load user context and memory when component mounts
   useEffect(() => {
+    console.log('🚀 PAM useEffect triggered with user:', { userId: user?.id, hasUser: !!user, hasSession: !!session });
     if (user?.id) {
+      console.log('📋 PAM: Loading user context and connecting...');
       loadUserContext();
       loadConversationMemory();
       connectToBackend();
+    } else {
+      console.log('❌ PAM: No user ID, skipping connection');
     }
     // eslint-disable-next-line
   }, [user?.id]);
@@ -50,13 +56,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
-          message: 'load_user_context',
-          user_id: user?.id
+          message: 'What is my current context and preferences?',
+          context: {
+            user_id: user?.id,
+            request_type: 'load_user_context'
+          }
         })
       });
       if (response.ok) {
         const data = await response.json();
-        setUserContext(data?.actions || data?.data || data);
+        console.log('📋 Loaded user context:', data);
+        setUserContext(data?.context_updates || data?.actions || data);
       }
     } catch (error) {
       console.error('Failed to load user context:', error);
@@ -72,8 +82,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           'Authorization': `Bearer ${sessionToken}`
         },
         body: JSON.stringify({
-          message: 'load_conversation_memory',
-          user_id: user?.id
+          message: 'What is my conversation history?',
+          context: {
+            user_id: user?.id,
+            request_type: 'load_conversation_memory'
+          }
         })
       });
       if (response.ok) {
@@ -116,16 +129,31 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const connectToBackend = useCallback(() => {
-    if (!user?.id) return;
+    console.log('🔌 PAM connectToBackend called with:', { userId: user?.id, hasToken: !!sessionToken });
+    if (!user?.id) {
+      console.log('❌ PAM: No user ID, cannot connect');
+      return;
+    }
 
     try {
       const wsUrl = `${getWebSocketUrl(`/api/ws`)}?token=${sessionToken || 'demo-token'}`;
+      console.log('🌐 PAM WebSocket URL:', wsUrl);
       
       setConnectionStatus("Connecting");
+      console.log('🔄 PAM: Creating WebSocket connection...');
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
+        console.log('✅ PAM WebSocket connected successfully');
         setConnectionStatus("Connected");
+        setReconnectAttempts(0); // Reset reconnect attempts on successful connection
+        
+        // Clear any pending reconnection timeout
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = null;
+        }
+        
         addMessage("🤖 Hi! I'm PAM, your intelligent travel companion. I remember our conversations and know your preferences. How can I help you today?", "pam");
       };
 
@@ -138,6 +166,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             const content = message.message || message.content;
             addMessage(content, "pam");
             await saveToMemory(content, "pam", message.actions);
+            
+            // Handle Mundi geospatial data if present
+            if (message.mundi_data) {
+              console.log('🗺️ Received Mundi data:', message.mundi_data);
+              // Dispatch event for MundiLayer to display results
+              window.dispatchEvent(new CustomEvent('mundi-data-available', {
+                detail: message.mundi_data
+              }));
+            }
           }
           
           // Handle UI action commands
@@ -149,14 +186,28 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       };
 
-      wsRef.current.onclose = () => {
+      wsRef.current.onclose = (event) => {
+        console.log('🔌 PAM WebSocket closed:', event.code, event.reason);
         setConnectionStatus("Disconnected");
+        
+        // Attempt to reconnect if not manually closed
+        if (event.code !== 1000 && reconnectAttempts < 5) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // Exponential backoff
+          console.log(`🔄 PAM reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1}/5)`);
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            setReconnectAttempts(prev => prev + 1);
+            connectToBackend();
+          }, delay);
+        }
       };
 
-      wsRef.current.onerror = () => {
+      wsRef.current.onerror = (error) => {
+        console.error('❌ PAM WebSocket error:', error);
         setConnectionStatus("Disconnected");
       };
     } catch (error) {
+      console.error('❌ PAM WebSocket creation error:', error);
       setConnectionStatus("Disconnected");
     }
   }, [user?.id, sessionToken]);
@@ -233,13 +284,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       const messageData = {
         type: "chat",
         content: message,
-        userId: user?.id,
-        timestamp: new Date().toISOString(),
         context: {
+          user_id: user?.id,  // Move userId into context as expected by backend
           userLocation: userContext?.current_location,
           vehicleInfo: userContext?.vehicle_info,
           travelStyle: userContext?.travel_style,
-          conversationHistory: messages.slice(-5)
+          conversationHistory: messages.slice(-5),
+          timestamp: new Date().toISOString(),
+          session_id: `session_${user?.id}_${Date.now()}`
         }
       };
       wsRef.current.send(JSON.stringify(messageData));
@@ -270,6 +322,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Component unmounting');
+      }
+    };
+  }, []);
 
   // --- UI ---
   if (mode === "sidebar") {
