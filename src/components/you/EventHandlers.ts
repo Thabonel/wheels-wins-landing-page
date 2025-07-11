@@ -4,6 +4,25 @@ import { formatEventTime } from "./EventFormatter";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
+// Helper function to convert database event to local CalendarEvent format
+const convertDbEventToLocal = (dbEvent: any): CalendarEvent => {
+  const eventDate = new Date(dbEvent.date);
+  const startTime = dbEvent.start_time?.substring(0, 5) || "09:00";
+  const endTime = dbEvent.end_time?.substring(0, 5) || "10:00";
+  
+  return {
+    id: dbEvent.id,
+    title: dbEvent.title,
+    description: dbEvent.description || undefined,
+    date: eventDate,
+    time: startTime,
+    startTime: startTime,
+    endTime: endTime,
+    type: (dbEvent.type as "reminder" | "trip" | "booking" | "maintenance" | "inspection") || "reminder",
+    location: dbEvent.location || undefined,
+  };
+};
+
 export const handleEventMove = async (
   eventId: string,
   newStart: Date,
@@ -250,6 +269,7 @@ export const handleEventSubmit = async (
       }
     }
   } else {
+    // Creating a new event
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       toast.error("Not signed in – cannot save event.");
@@ -257,29 +277,35 @@ export const handleEventSubmit = async (
       return;
     }
 
-    const localEvent: CalendarEvent = {
+    // Create a temporary ID for optimistic updates
+    const tempId = `temp-${Date.now()}`;
+    const tempEvent: CalendarEvent = {
+      id: tempId,
       date: data.date,
       title: data.title,
       type: data.type,
       time: formatEventTime(data.startTime, data.endTime),
       startTime: data.startTime,
       endTime: data.endTime,
+      description: data.description,
+      location: data.location,
     };
 
-    setEvents((prev) => [...prev, localEvent]);
-    toast(`Event created: ${data.title} has been added to your calendar.`);
+    // Add to local state immediately for better UX
+    setEvents((prev) => [...prev, tempEvent]);
 
+    // Prepare payload for database
     const payload = {
-      title: localEvent.title,
-      description: "",
-      date: localEvent.date.toISOString().split("T")[0],
-      time: `${localEvent.startTime}:00`, // time without time zone format
-      start_time: `${localEvent.startTime}:00`, // time without time zone format
-      end_time: `${localEvent.endTime}:00`, // time without time zone format
+      title: data.title,
+      description: data.description || "",
+      date: data.date.toISOString().split("T")[0],
+      time: `${data.startTime}:00`,
+      start_time: `${data.startTime}:00`,
+      end_time: `${data.endTime}:00`,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      type: localEvent.type,
-      user_id: user.id, // user_id is text type, so UUID will be auto-converted
-      location: "",
+      type: data.type,
+      user_id: user.id,
+      location: data.location || "",
     };
 
     const { data: insertedEvent, error } = await supabase
@@ -290,10 +316,17 @@ export const handleEventSubmit = async (
 
     if (error) {
       console.error("Database insert error:", error);
-      toast.error("Failed to save event.");
+      toast.error(`Failed to save event: ${error.message}`);
+      // Remove the temporary event on failure
+      setEvents((prev) => prev.filter(e => e.id !== tempId));
     } else {
-      toast.success("Event saved.");
-      // Reload events from database to get the new event with its ID
+      toast.success("Event saved successfully!");
+      // Replace temporary event with the saved one from database
+      const savedEvent = convertDbEventToLocal(insertedEvent);
+      setEvents((prev) => {
+        const filteredEvents = prev.filter(e => e.id !== tempId);
+        return [...filteredEvents, savedEvent];
+      });
       if (reloadEvents) await reloadEvents();
     }
   }
