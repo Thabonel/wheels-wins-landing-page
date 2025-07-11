@@ -16,10 +16,10 @@ DROP POLICY IF EXISTS "calendar_events_update_policy" ON public.calendar_events;
 DROP POLICY IF EXISTS "calendar_events_delete_policy" ON public.calendar_events;
 
 -- Create simple, working RLS policies
-CREATE POLICY "calendar_select" ON public.calendar_events FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "calendar_insert" ON public.calendar_events FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "calendar_update" ON public.calendar_events FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "calendar_delete" ON public.calendar_events FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "calendar_select" ON public.calendar_events FOR SELECT USING (auth.uid()::uuid = user_id);
+CREATE POLICY "calendar_insert" ON public.calendar_events FOR INSERT WITH CHECK (auth.uid()::uuid = user_id);
+CREATE POLICY "calendar_update" ON public.calendar_events FOR UPDATE USING (auth.uid()::uuid = user_id) WITH CHECK (auth.uid()::uuid = user_id);
+CREATE POLICY "calendar_delete" ON public.calendar_events FOR DELETE USING (auth.uid()::uuid = user_id);
 
 -- Ensure proper permissions
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.calendar_events TO authenticated;
