@@ -1,6 +1,6 @@
 import httpx
 import logging
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from .route_intelligence import SearchZone
 
@@ -13,7 +13,7 @@ class RouteIntelligentScraper:
     def __init__(self, base_url: str = "https://overpass-api.de/api/interpreter"):
         self.base_url = base_url
 
-    async def _query_zone(self, lat: float, lng: float, radius_km: float) -> List[Dict[str, any]]:
+    async def _query_zone(self, lat: float, lng: float, radius_km: float) -> List[Dict[str, Any]]:
         """Fetch camp sites within radius from Overpass."""
         query = (
             "[out:json];"
@@ -35,9 +35,9 @@ class RouteIntelligentScraper:
             })
         return camps
 
-    async def scrape_zones(self, zones: List[SearchZone]) -> List[Dict[str, any]]:
+    async def scrape_zones(self, zones: List[SearchZone]) -> List[Dict[str, Any]]:
         """Scrape all provided zones for campgrounds."""
-        all_camps: List[Dict[str, any]] = []
+        all_camps: List[Dict[str, Any]] = []
         for zone in zones:
             radius_km = zone.radius_miles * 1.60934
             try:
