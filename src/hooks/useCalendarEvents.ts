@@ -38,7 +38,7 @@ export const useCalendarEvents = () => {
       time: startTime,
       startTime: startTime,
       endTime: endTime,
-      type: dbEvent.type || "reminder",
+      type: (dbEvent.type as "reminder" | "trip" | "booking" | "maintenance" | "inspection") || "reminder",
       location: dbEvent.location || undefined,
     };
   };

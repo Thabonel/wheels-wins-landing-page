@@ -5892,12 +5892,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      get_user_preferences: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       get_user_role: {
         Args: Record<PropertyKey, never> | { check_user_id: string }
         Returns: string
       }
       is_admin_user: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      is_current_user_admin: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       log_security_event: {
@@ -5945,15 +5953,17 @@ export type Database = {
         Returns: string
       }
       store_user_context: {
-        Args: {
-          p_user_id: string
-          p_context_type: string
-          p_key: string
-          p_value: Json
-          p_confidence?: number
-          p_source?: string
-        }
-        Returns: string
+        Args:
+          | Record<PropertyKey, never>
+          | {
+              p_user_id: string
+              p_context_type: string
+              p_key: string
+              p_value: Json
+              p_confidence?: number
+              p_source?: string
+            }
+        Returns: undefined
       }
     }
     Enums: {

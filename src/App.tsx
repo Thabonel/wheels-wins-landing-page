@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/clerk-react";
 import { AuthProvider } from './context/AuthContext';
 import { RegionProvider } from './context/RegionContext';
 import { OfflineProvider } from './context/OfflineContext';
