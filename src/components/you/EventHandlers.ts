@@ -235,7 +235,7 @@ export const handleEventSubmit = async (
       }
     } else {
       // This is a local-only event, create it in the database
-      const { data: newEvent, error } = await supabase
+      const { data: dbNewEvent, error } = await supabase
         .from("calendar_events")
         .insert([{ ...payload, user_id: user.id }])
         .select()
@@ -257,7 +257,7 @@ export const handleEventSubmit = async (
       return;
     }
 
-    const newEvent: CalendarEvent = {
+    const localEvent: CalendarEvent = {
       date: data.date,
       title: data.title,
       type: data.type,
@@ -266,18 +266,18 @@ export const handleEventSubmit = async (
       endTime: data.endTime,
     };
 
-    setEvents((prev) => [...prev, newEvent]);
+    setEvents((prev) => [...prev, localEvent]);
     toast(`Event created: ${data.title} has been added to your calendar.`);
 
     const payload = {
-      title: newEvent.title,
+      title: localEvent.title,
       description: "",
-      date: newEvent.date.toISOString().split("T")[0],
-      time: `${newEvent.startTime}:00`, // time without time zone format
-      start_time: `${newEvent.startTime}:00`, // time without time zone format
-      end_time: `${newEvent.endTime}:00`, // time without time zone format
+      date: localEvent.date.toISOString().split("T")[0],
+      time: `${localEvent.startTime}:00`, // time without time zone format
+      start_time: `${localEvent.startTime}:00`, // time without time zone format
+      end_time: `${localEvent.endTime}:00`, // time without time zone format
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      type: newEvent.type,
+      type: localEvent.type,
       user_id: user.id, // user_id is text type, so UUID will be auto-converted
       location: "",
     };
