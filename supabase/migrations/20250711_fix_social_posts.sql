@@ -1,3 +1,10 @@
+-- Ensure social_groups table exists first (minimal structure if needed)
+CREATE TABLE IF NOT EXISTS public.social_groups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Ensure social_posts table exists with correct structure
 CREATE TABLE IF NOT EXISTS public.social_posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -36,21 +43,21 @@ CREATE POLICY "Anyone can view approved posts" ON public.social_posts
     FOR SELECT
     USING (
         status = 'approved' 
-        OR (status = 'pending' AND auth.uid() = user_id)
-        OR (status = 'hidden' AND auth.uid() = user_id)
+        OR (status = 'pending' AND auth.uid()::uuid = user_id)
+        OR (status = 'hidden' AND auth.uid()::uuid = user_id)
     );
 
 CREATE POLICY "Users can create posts" ON public.social_posts
     FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Users can update their own posts" ON public.social_posts
     FOR UPDATE
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Users can delete their own posts" ON public.social_posts
     FOR DELETE
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::uuid = user_id);
 
 -- Create post_votes table if it doesn't exist
 CREATE TABLE IF NOT EXISTS public.post_votes (
@@ -82,15 +89,15 @@ CREATE POLICY "Users can view all votes" ON public.post_votes
 
 CREATE POLICY "Users can create their own votes" ON public.post_votes
     FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Users can update their own votes" ON public.post_votes
     FOR UPDATE
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::uuid = user_id);
 
 CREATE POLICY "Users can delete their own votes" ON public.post_votes
     FOR DELETE
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::uuid = user_id);
 
 -- Create function to update vote counts
 CREATE OR REPLACE FUNCTION public.update_post_vote_counts()
@@ -134,7 +141,7 @@ EXECUTE FUNCTION public.update_post_vote_counts();
 -- Add some sample data for testing (only if table is empty)
 INSERT INTO public.social_posts (user_id, content, status, location)
 SELECT 
-    auth.uid(), 
+    auth.uid()::uuid, 
     'Welcome to Wheels and Wins! This is the first post on our social platform. Share your travel experiences, tips, and connect with fellow travelers!',
     'approved',
     'feed'
