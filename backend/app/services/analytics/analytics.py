@@ -109,7 +109,8 @@ class PamAnalytics:
             }
         )
         
-        await self.track_event(event)
+        # Temporarily disabled database writes
+        logger.info(f"Analytics event tracked: {event.event_type.value} for user {user_id}")
         return tracking_id
     
     async def track_pam_response(self, user_id: str, response: str, tracking_id: str, 
@@ -137,7 +138,8 @@ class PamAnalytics:
                 }
             )
             
-            await self.track_event(event)
+            # Temporarily disabled database writes
+            logger.info(f"Analytics event tracked: {event.event_type.value} for user {event.user_id}")
             
         except Exception as e:
             logger.error(f"Error tracking PAM response: {str(e)}")
@@ -163,7 +165,8 @@ class PamAnalytics:
                 error_message=task_event.error_details
             )
             
-            await self.track_event(event)
+            # Temporarily disabled database writes
+            logger.info(f"Analytics event tracked: {event.event_type.value} for user {event.user_id}")
             
         except Exception as e:
             logger.error(f"Error tracking task completion: {str(e)}")
@@ -184,7 +187,8 @@ class PamAnalytics:
                 }
             )
             
-            await self.track_event(event)
+            # Temporarily disabled database writes
+            logger.info(f"Analytics event tracked: {event.event_type.value} for user {event.user_id}")
             
         except Exception as e:
             logger.error(f"Error tracking feature usage: {str(e)}")
@@ -208,7 +212,8 @@ class PamAnalytics:
                 }
             )
             
-            await self.track_event(event)
+            # Temporarily disabled database writes
+            logger.info(f"Analytics event tracked: {event.event_type.value} for user {event.user_id}")
             
         except Exception as e:
             logger.error(f"Error tracking intent detection: {str(e)}")
@@ -234,7 +239,8 @@ class PamAnalytics:
                 }
             )
             
-            await self.track_event(event)
+            # Temporarily disabled database writes
+            logger.info(f"Analytics event tracked: {event.event_type.value} for user {event.user_id}")
             
         except Exception as e:
             logger.error(f"Error tracking node execution: {str(e)}")
@@ -259,7 +265,8 @@ class PamAnalytics:
                 }
             )
             
-            await self.track_event(event)
+            # Temporarily disabled database writes
+            logger.info(f"Analytics event tracked: {event.event_type.value} for user {event.user_id}")
             
         except Exception as e:
             logger.error(f"Error tracking API call: {str(e)}")
@@ -282,7 +289,8 @@ class PamAnalytics:
                 }
             )
             
-            await self.track_event(event)
+            # Temporarily disabled database writes
+            logger.info(f"Analytics event tracked: {event.event_type.value} for user {event.user_id}")
             
         except Exception as e:
             logger.error(f"Error tracking error event: {str(e)}")
