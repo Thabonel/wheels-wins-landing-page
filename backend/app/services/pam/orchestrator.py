@@ -93,15 +93,17 @@ class PamOrchestrator:
             intent_analysis = await self._analyze_intent(message, conversation_context)
             
             # Track intent detection
-            await self.analytics.track_event(
-                event_type="intent_detected",
+            intent_event = AnalyticsEvent(
+                event_type=EventType.INTENT_DETECTED,
                 user_id=user_id,
+                timestamp=datetime.now(),
                 session_id=session_id,
-                metadata={
+                event_data={
                     "intent": intent_analysis.intent_type.value,
                     "confidence": intent_analysis.confidence
                 }
             )
+            await self.analytics.track_event(intent_event)
             
             # Check if route planning is needed and use route intelligence
             if intent_analysis.intent_type in [IntentType.ROUTE_PLANNING, IntentType.CAMPGROUND_SEARCH]:
@@ -122,16 +124,18 @@ class PamOrchestrator:
             response_time = int((datetime.now() - start_time).total_seconds() * 1000)
             
             # Track PAM response
-            await self.analytics.track_event(
-                event_type="pam_response",
+            response_event = AnalyticsEvent(
+                event_type=EventType.PAM_RESPONSE,
                 user_id=user_id,
+                timestamp=datetime.now(),
                 session_id=session_id,
-                metadata={
-                    "response_time_ms": response_time,
+                response_time_ms=response_time,
+                event_data={
                     "confidence": node_response.confidence,
                     "node_used": self._get_node_from_intent(intent_analysis.intent_type)
                 }
             )
+            await self.analytics.track_event(response_event)
             
             # Store conversation memory
             await self._store_conversation_memory(
@@ -401,11 +405,13 @@ class PamOrchestrator:
         target_node = node_mapping.get(intent, 'you')
         
         # Track node execution
-        await self.analytics.track_event(
-            event_type="node_execution",
+        execution_event = AnalyticsEvent(
+            event_type=EventType.NODE_EXECUTION,
             user_id=user_id,
-            metadata={"node": target_node, "intent": intent.value}
+            timestamp=datetime.now(),
+            event_data={"node": target_node, "intent": intent.value}
         )
+        await self.analytics.track_event(execution_event)
         
         # Prepare node input with full context
         node_input = {
@@ -444,11 +450,15 @@ class PamOrchestrator:
             logger.error(f"Node processing error for {target_node}: {e}")
             
             # Track node error
-            await self.analytics.track_event(
-                event_type="error_occurred",
+            node_error_event = AnalyticsEvent(
+                event_type=EventType.ERROR_OCCURRED,
                 user_id=user_id,
-                metadata={"error": str(e), "node": target_node, "context": "node_execution"}
+                timestamp=datetime.now(),
+                success=False,
+                error_message=str(e),
+                event_data={"node": target_node, "context": "node_execution"}
             )
+            await self.analytics.track_event(node_error_event)
             
             return await self._default_response(message, context)
     
