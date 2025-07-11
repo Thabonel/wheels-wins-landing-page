@@ -25,9 +25,9 @@ DROP POLICY IF EXISTS "Users can insert their own calendar events" ON public.cal
 DROP POLICY IF EXISTS "Users can update their own calendar events" ON public.calendar_events;
 DROP POLICY IF EXISTS "Users can delete their own calendar events" ON public.calendar_events;
 
-CREATE POLICY "events_select" ON public.calendar_events FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "events_insert" ON public.calendar_events FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "events_update" ON public.calendar_events FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "events_delete" ON public.calendar_events FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "events_select" ON public.calendar_events FOR SELECT USING (auth.uid()::uuid = user_id);
+CREATE POLICY "events_insert" ON public.calendar_events FOR INSERT WITH CHECK (auth.uid()::uuid = user_id);
+CREATE POLICY "events_update" ON public.calendar_events FOR UPDATE USING (auth.uid()::uuid = user_id) WITH CHECK (auth.uid()::uuid = user_id);
+CREATE POLICY "events_delete" ON public.calendar_events FOR DELETE USING (auth.uid()::uuid = user_id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.calendar_events TO authenticated;
