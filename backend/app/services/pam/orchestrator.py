@@ -21,7 +21,7 @@ from app.services.pam.nodes.shop_node import shop_node
 from app.services.pam.nodes.admin_node import admin_node
 from app.services.pam.nodes.memory_node import MemoryNode
 from app.services.pam.intelligent_conversation import IntelligentConversationService
-from app.services.analytics.analytics import Analytics
+from app.services.analytics.analytics import PamAnalytics, AnalyticsEvent, EventType
 from app.core.route_intelligence import RouteIntelligence
 from app.services.pam.context_manager import ContextManager
 
@@ -34,7 +34,7 @@ class PamOrchestrator:
         self.conversation_service = IntelligentConversationService()
         self.route_intelligence = RouteIntelligence()
         self.context_manager = ContextManager()
-        self.analytics = Analytics()
+        self.analytics = PamAnalytics()
         self.memory_node = MemoryNode()
         self.nodes = {
             'wins': wins_node,
@@ -80,11 +80,10 @@ class PamOrchestrator:
                 session_id = str(uuid.uuid4())
             
             # Track user message event
-            await self.analytics.track_event(
-                event_type="user_message",
+            tracking_id = await self.analytics.track_user_message(
                 user_id=user_id,
-                session_id=session_id,
-                metadata={"message_length": len(message)}
+                message=message,
+                session_id=session_id
             )
             
             # Get or create conversation context using context manager
@@ -156,12 +155,16 @@ class PamOrchestrator:
             logger.error(f"Error processing message: {e}")
             
             # Track error
-            await self.analytics.track_event(
-                event_type="error_occurred",
+            error_event = AnalyticsEvent(
+                event_type=EventType.ERROR_OCCURRED,
                 user_id=user_id,
+                timestamp=datetime.now(),
                 session_id=session_id,
-                metadata={"error": str(e), "context": "message_processing"}
+                success=False,
+                error_message=str(e),
+                event_data={"context": "message_processing"}
             )
+            await self.analytics.track_event(error_event)
             
             return PamResponse(
                 content="I'm having trouble processing your request right now. Please try again.",
