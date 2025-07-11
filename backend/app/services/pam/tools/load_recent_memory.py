@@ -14,17 +14,17 @@ class LoadRecentMemoryTool(BaseTool):
         super().__init__("load_recent_memory")
         self.database_service = None
     
-    async def initialize(self):
+    def initialize_sync(self):
         """Initialize with database service"""
         if not self.database_service:
             self.database_service = get_database_service()
-        await super().initialize()
+        self.logger.info(f"{self.tool_name} tool initialized")
     
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
         """Load recent conversation memory"""
         try:
             if not self.database_service:
-                self.database_service = get_database_service()
+                self.initialize_sync()
             
             # Default parameters
             limit = parameters.get("limit", 10) if parameters else 10
