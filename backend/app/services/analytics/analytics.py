@@ -513,6 +513,30 @@ class PamAnalytics:
             return "high"
         else:
             return "medium"
+    
+    async def update_metric(self, metric_name: str, value: Union[int, float], user_id: str, 
+                           context: Dict[str, Any] = None) -> None:
+        """Update a specific metric value"""
+        try:
+            # Create a custom analytics event for metric updates
+            event = AnalyticsEvent(
+                event_type=EventType.FEATURE_USAGE,
+                user_id=user_id,
+                timestamp=datetime.now(),
+                event_data={
+                    "metric_name": metric_name,
+                    "metric_value": value,
+                    "context": context or {},
+                    "action": "metric_update"
+                }
+            )
+            
+            # Store the metric update
+            await self.track_event(event)
+            logger.info(f"Metric updated: {metric_name}={value} for user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"Error updating metric {metric_name}: {str(e)}")
 
 # Context managers for automatic tracking
 class PerformanceTracker:

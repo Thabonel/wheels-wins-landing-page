@@ -36,6 +36,99 @@ class YouNode:
     def __init__(self):
         self.logger = get_logger("you_node")
         self.supabase = get_supabase_client()
+    
+    async def process(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Process You Node requests for personal dashboard, calendar, and profile management"""
+        try:
+            message_lower = message.lower()
+            
+            # Calendar-related requests
+            if any(keyword in message_lower for keyword in ['calendar', 'event', 'schedule', 'appointment', 'meeting']):
+                if any(keyword in message_lower for keyword in ['create', 'add', 'schedule', 'book']):
+                    return await self._handle_create_event(message, context, user_id)
+                elif any(keyword in message_lower for keyword in ['show', 'list', 'view', 'upcoming']):
+                    return await self._handle_view_calendar(message, context, user_id)
+                else:
+                    return await self._handle_calendar_general(message, context, user_id)
+            
+            # Profile-related requests
+            elif any(keyword in message_lower for keyword in ['profile', 'settings', 'preferences', 'account']):
+                return await self._handle_profile_requests(message, context, user_id)
+            
+            # Goal tracking
+            elif any(keyword in message_lower for keyword in ['goal', 'target', 'objective', 'plan']):
+                return await self._handle_goal_tracking(message, context, user_id)
+            
+            # Default response for You node
+            else:
+                return {
+                    'success': True,
+                    'message': "I can help you manage your calendar, profile, goals, and personal settings. What would you like to do?",
+                    'suggestions': [
+                        'View my calendar',
+                        'Create a new event',
+                        'Update my profile',
+                        'Set a new goal'
+                    ]
+                }
+                
+        except Exception as e:
+            self.logger.error(f"Error processing You node request: {e}")
+            return {
+                'success': False,
+                'error': f"You node processing error: {str(e)}",
+                'message': "I encountered an error while processing your request. Please try again."
+            }
+    
+    async def _handle_create_event(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Handle calendar event creation"""
+        try:
+            # This would parse the message to extract event details
+            # For now, return a helpful response
+            return {
+                'success': True,
+                'message': "I'd be happy to help you create a calendar event. Please provide the event title, date, and time.",
+                'action': 'calendar_create_form'
+            }
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+    
+    async def _handle_view_calendar(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Handle calendar viewing requests"""
+        try:
+            events = await self.get_upcoming_events(user_id, limit=5)
+            return {
+                'success': True,
+                'message': f"Here are your upcoming events:",
+                'events': events,
+                'action': 'show_calendar'
+            }
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+    
+    async def _handle_calendar_general(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Handle general calendar requests"""
+        return {
+            'success': True,
+            'message': "I can help you with your calendar. You can ask me to create events, view your schedule, or manage appointments.",
+            'suggestions': ['Create an event', 'Show my calendar', 'Upcoming events']
+        }
+    
+    async def _handle_profile_requests(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Handle profile and settings requests"""
+        return {
+            'success': True,
+            'message': "I can help you manage your profile and preferences. What would you like to update?",
+            'suggestions': ['Update profile info', 'Change preferences', 'View account settings']
+        }
+    
+    async def _handle_goal_tracking(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Handle goal setting and tracking"""
+        return {
+            'success': True,
+            'message': "I can help you set and track your goals. What kind of goal would you like to work on?",
+            'suggestions': ['Financial goal', 'Travel goal', 'Health goal', 'Learning goal']
+        }
 
     async def create_calendar_event(
         self, user_id: str, event_data: Dict[str, Any]
