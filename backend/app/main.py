@@ -32,7 +32,7 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 
 # Import API routers
-from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin
+from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin, observability
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
 from app.webhooks import stripe_webhooks
@@ -147,6 +147,7 @@ app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(support.router, prefix="/api", tags=["Support"])
 app.include_router(stripe_webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
+app.include_router(observability.router, prefix="/api/v1", tags=["Admin Observability"])
 # Mundi integration removed
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
 app.include_router(voice_streaming.router, prefix="/api/v1/voice", tags=["Voice Streaming"])

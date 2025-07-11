@@ -1,6 +1,7 @@
 """
 PAM Orchestrator - Main coordination service
 Manages conversation flow, node routing, and memory integration.
+Enhanced with AI agent observability.
 """
 import uuid
 from typing import Dict, List, Any, Optional
@@ -24,6 +25,8 @@ from app.services.pam.intelligent_conversation import IntelligentConversationSer
 from app.services.analytics.analytics import PamAnalytics, AnalyticsEvent, EventType
 from app.core.route_intelligence import RouteIntelligence
 from app.services.pam.context_manager import ContextManager
+from app.observability import observe_agent, observe_llm_call
+from app.observability.monitor import global_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +66,7 @@ class PamOrchestrator:
         
         logger.info("PAM Orchestrator initialized")
     
+    @observe_agent(name="pam_process_message", metadata={"agent_type": "pam_orchestrator"})
     async def process_message(
         self, 
         user_id: str, 

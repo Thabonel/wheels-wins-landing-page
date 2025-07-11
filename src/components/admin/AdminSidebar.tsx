@@ -13,7 +13,8 @@ import {
   Shield,
   FileText,
   ShoppingCart,
-  Brain
+  Brain,
+  Activity
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -39,6 +40,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { name: 'Analytics', icon: BarChart3 },
     { name: 'Chat Logs', icon: MessageSquare },
     { name: 'Learning Dashboard', icon: Brain },
+    { name: 'AI Observability', icon: Activity },
     { name: 'Shop Management', icon: ShoppingCart },
     { name: 'Support Tickets', icon: FileText },
     { name: 'Settings', icon: Settings },
