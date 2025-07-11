@@ -2623,6 +2623,44 @@ export type Database = {
         }
         Relationships: []
       }
+      pam_analytics: {
+        Row: {
+          conversation_id: string | null
+          created_at: string | null
+          event_data: Json | null
+          event_type: string
+          id: string
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string | null
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string | null
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pam_analytics_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "pam_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pam_analytics_logs: {
         Row: {
           api_calls_count: number | null
@@ -2894,6 +2932,45 @@ export type Database = {
           },
         ]
       }
+      pam_conversations: {
+        Row: {
+          context: Json | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_activity: string | null
+          message_count: number | null
+          session_id: string
+          title: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          message_count?: number | null
+          session_id: string
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          message_count?: number | null
+          session_id?: string
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       pam_feedback: {
         Row: {
           chat_input: string | null
@@ -3141,6 +3218,50 @@ export type Database = {
           voice_enabled?: boolean | null
         }
         Relationships: []
+      }
+      pam_messages: {
+        Row: {
+          confidence: number | null
+          content: string
+          conversation_id: string | null
+          created_at: string | null
+          entities: Json | null
+          id: string
+          intent: string | null
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          confidence?: number | null
+          content: string
+          conversation_id?: string | null
+          created_at?: string | null
+          entities?: Json | null
+          id?: string
+          intent?: string | null
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          confidence?: number | null
+          content?: string
+          conversation_id?: string | null
+          created_at?: string | null
+          entities?: Json | null
+          id?: string
+          intent?: string | null
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pam_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "pam_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pam_metrics: {
         Row: {
@@ -5736,6 +5857,16 @@ export type Database = {
         }
         Returns: string
       }
+      get_conversation_history: {
+        Args: { p_user_id: string; p_limit?: number }
+        Returns: {
+          conversation_id: string
+          role: string
+          content: string
+          intent: string
+          created_at: string
+        }[]
+      }
       get_nearby_recommendations: {
         Args: {
           user_lat: number
@@ -5752,6 +5883,10 @@ export type Database = {
           distance_miles: number
           priority_level: string
         }[]
+      }
+      get_or_create_pam_conversation: {
+        Args: { p_user_id: string; p_session_id: string; p_context?: Json }
+        Returns: string
       }
       get_user_id_from_auth: {
         Args: Record<PropertyKey, never>
@@ -5796,6 +5931,29 @@ export type Database = {
       seed_default_drawers: {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: undefined
+      }
+      store_pam_message: {
+        Args: {
+          p_conversation_id: string
+          p_role: string
+          p_content: string
+          p_intent?: string
+          p_confidence?: number
+          p_entities?: Json
+          p_metadata?: Json
+        }
+        Returns: string
+      }
+      store_user_context: {
+        Args: {
+          p_user_id: string
+          p_context_type: string
+          p_key: string
+          p_value: Json
+          p_confidence?: number
+          p_source?: string
+        }
+        Returns: string
       }
     }
     Enums: {
