@@ -49,7 +49,7 @@ class PamOrchestrator:
     
     async def initialize(self):
         """Initialize orchestrator and dependencies"""
-        self.database_service = await get_database_service()
+        self.database_service = get_database_service()
         await self.conversation_service.initialize()
         
         # Initialize analytics service
