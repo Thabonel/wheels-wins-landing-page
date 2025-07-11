@@ -109,8 +109,9 @@ class PamOrchestrator:
                 route_context = await self._enhance_with_route_intelligence(user_id, conversation_context)
                 conversation_context.preferences.update(route_context)
             
-            # Route to appropriate node
-            node_response = await self._route_to_node(
+            # Use AI-first approach: Let intelligent conversation service handle the response
+            # with optional node assistance for data retrieval
+            node_response = await self._ai_first_response(
                 intent_analysis.intent_type,
                 user_id,
                 message,
@@ -277,7 +278,99 @@ class PamOrchestrator:
                 context_triggers={}
             )
     
-    async def _route_to_node(
+    async def _ai_first_response(
+        self, 
+        intent: IntentType, 
+        user_id: str, 
+        message: str,
+        context: PamContext,
+        intent_analysis: PamIntent
+    ) -> PamResponse:
+        """AI-first response generation with optional node data assistance"""
+        
+        try:
+            # Gather relevant data from nodes if needed for this intent
+            node_data = await self._gather_node_data(intent, user_id, message, context, intent_analysis)
+            
+            # Add node data to context for the AI conversation service
+            enhanced_context = context.dict()
+            if node_data:
+                enhanced_context['node_assistance'] = node_data
+                enhanced_context['available_data'] = {
+                    'routes': node_data.get('routes', []),
+                    'camping_spots': node_data.get('camping_spots', []),
+                    'fuel_stops': node_data.get('fuel_stops', []),
+                    'weather': node_data.get('weather', {}),
+                    'user_data': node_data.get('user_data', {})
+                }
+            
+            # Let the intelligent conversation service generate the response
+            ai_response = await self.conversation_service.generate_response(
+                message, 
+                enhanced_context
+            )
+            
+            # Convert AI response to PamResponse format
+            return PamResponse(
+                content=ai_response.get('content', message),
+                confidence=0.9,  # High confidence for AI responses
+                requires_followup=True,
+                suggestions=ai_response.get('suggestions', []),
+                actions=ai_response.get('actions', []),
+                emotional_insight=ai_response.get('emotional_insight'),
+                proactive_items=ai_response.get('proactive_items', [])
+            )
+            
+        except Exception as e:
+            logger.error(f"AI-first response generation failed: {e}")
+            # Fallback to basic node routing if AI fails
+            return await self._route_to_node_backup(intent, user_id, message, context, intent_analysis)
+
+    async def _gather_node_data(
+        self, 
+        intent: IntentType, 
+        user_id: str, 
+        message: str,
+        context: PamContext,
+        intent_analysis: PamIntent
+    ) -> Optional[Dict[str, Any]]:
+        """Gather data from relevant nodes to assist AI conversation"""
+        
+        # Only gather data for intents that benefit from node assistance
+        if intent not in [IntentType.ROUTE_PLANNING, IntentType.CAMPGROUND_SEARCH, 
+                         IntentType.FUEL_PRICES, IntentType.BUDGET_QUERY, IntentType.EXPENSE_LOG]:
+            return None
+            
+        try:
+            node_data = {}
+            
+            # For route planning intents, gather route and location data
+            if intent in [IntentType.ROUTE_PLANNING, IntentType.CAMPGROUND_SEARCH]:
+                if 'wheels' in self.nodes:
+                    try:
+                        wheels_data = await self.nodes['wheels'].get_trip_data(user_id, message, context.dict())
+                        if wheels_data:
+                            node_data.update(wheels_data)
+                    except Exception as e:
+                        logger.warning(f"Failed to get wheels data: {e}")
+            
+            # For budget/expense intents, gather financial data
+            if intent in [IntentType.BUDGET_QUERY, IntentType.EXPENSE_LOG]:
+                if 'wins' in self.nodes:
+                    try:
+                        wins_data = await self.nodes['wins'].get_financial_data(user_id, context.dict())
+                        if wins_data:
+                            node_data.update(wins_data)
+                    except Exception as e:
+                        logger.warning(f"Failed to get wins data: {e}")
+            
+            return node_data if node_data else None
+            
+        except Exception as e:
+            logger.error(f"Error gathering node data: {e}")
+            return None
+
+    async def _route_to_node_backup(
         self, 
         intent: IntentType, 
         user_id: str, 
