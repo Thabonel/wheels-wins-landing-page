@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from app.services.database import DatabaseService
 from app.services.cache import CacheService
 from app.models.domain.pam import PamContext
-from app.core.exceptions import PAMError
+from app.core.exceptions import PAMError, ErrorCode
 
 logger = logging.getLogger("pam.memory")
 
@@ -61,7 +61,7 @@ class MemoryService:
             
         except Exception as e:
             logger.error(f"Failed to store conversation turn: {str(e)}")
-            raise PAMError(f"Memory storage failed: {str(e)}")
+            raise PAMError(f"Memory storage failed: {str(e)}", ErrorCode.MEMORY_STORAGE_ERROR)
     
     async def get_conversation_history(self, user_id: str, session_id: str = None,
                                      limit: int = 20) -> List[Dict[str, Any]]:
@@ -203,7 +203,7 @@ class MemoryService:
             
         except Exception as e:
             logger.error(f"Failed to update user preferences: {str(e)}")
-            raise PAMError(f"Preference update failed: {str(e)}")
+            raise PAMError(f"Preference update failed: {str(e)}", ErrorCode.MEMORY_STORAGE_ERROR)
     
     async def summarize_long_conversation(self, user_id: str, 
                                         session_id: str) -> str:

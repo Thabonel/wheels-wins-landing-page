@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.services.database import DatabaseService
 from app.services.cache import CacheService
 from app.services.pam.orchestrator import orchestrator
-from app.core.exceptions import PAMError, AuthenticationError, PermissionError
+from app.core.exceptions import PAMError, AuthenticationError, PermissionError, ErrorCode
 
 logger = logging.getLogger("api.deps")
 
@@ -54,7 +54,7 @@ async def get_database() -> Generator[DatabaseService, None, None]:
         yield db_service
     except Exception as e:
         logger.error(f"Database dependency error: {str(e)}")
-        raise PAMError(f"Database service error: {str(e)}")
+        raise PAMError(f"Database service error: {str(e)}", ErrorCode.DATABASE_CONNECTION_ERROR)
     finally:
         # Cleanup if needed
         pass
@@ -67,7 +67,7 @@ async def get_cache() -> Generator[CacheService, None, None]:
         yield cache_service
     except Exception as e:
         logger.error(f"Cache dependency error: {str(e)}")
-        raise PAMError(f"Cache service error: {str(e)}")
+        raise PAMError(f"Cache service error: {str(e)}", ErrorCode.CACHE_CONNECTION_ERROR)
     finally:
         # Cleanup if needed
         pass
@@ -80,7 +80,7 @@ async def get_pam_orchestrator():
         return orchestrator
     except Exception as e:
         logger.error(f"PAM orchestrator dependency error: {str(e)}")
-        raise PAMError(f"PAM service error: {str(e)}")
+        raise PAMError(f"PAM service error: {str(e)}", ErrorCode.NODE_INITIALIZATION_ERROR)
 
 
 # Authentication Dependencies
