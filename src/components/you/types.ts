@@ -2,6 +2,7 @@
 import { ReactNode } from "react";
 
 export interface CalendarEvent {
+  id?: string;
   date: Date;
   title: string;
   type: "trip" | "booking" | "reminder" | "maintenance" | "inspection";

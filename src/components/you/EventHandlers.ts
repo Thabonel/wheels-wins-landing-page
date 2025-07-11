@@ -4,46 +4,117 @@ import { formatEventTime } from "./EventFormatter";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
-export const handleEventMove = (
+export const handleEventMove = async (
   eventId: string,
   newStart: Date,
   newEnd: Date,
   events: CalendarEvent[],
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>
 ) => {
-  const idParts = eventId.split("-");
-  const eventIndex = parseInt(idParts[idParts.length - 1], 10);
-  if (!isNaN(eventIndex) && events[eventIndex]) {
-    const updatedEvents = [...events];
-    const event = { ...updatedEvents[eventIndex] };
-    event.date = new Date(newStart);
-    event.startTime = format(newStart, "HH:mm");
-    event.endTime = format(newEnd, "HH:mm");
-    event.time = formatEventTime(event.startTime, event.endTime);
-    updatedEvents[eventIndex] = event;
-    setEvents(updatedEvents);
-    toast(`Event moved: ${event.title} has been moved to ${format(event.date, "MMMM d")} at ${event.time}.`);
+  // Find event by ID first, then fall back to index
+  let event = events.find(e => e.id === eventId);
+  let eventIndex = -1;
+  
+  if (!event) {
+    const idParts = eventId.split("-");
+    eventIndex = parseInt(idParts[idParts.length - 1], 10);
+    if (!isNaN(eventIndex) && events[eventIndex]) {
+      event = events[eventIndex];
+    }
+  } else {
+    eventIndex = events.findIndex(e => e.id === eventId);
+  }
+  
+  if (!event) return;
+  
+  // Update local state immediately for responsiveness
+  const updatedEvents = [...events];
+  const updatedEvent = { ...event };
+  updatedEvent.date = new Date(newStart);
+  updatedEvent.startTime = format(newStart, "HH:mm");
+  updatedEvent.endTime = format(newEnd, "HH:mm");
+  updatedEvent.time = formatEventTime(updatedEvent.startTime, updatedEvent.endTime);
+  updatedEvents[eventIndex] = updatedEvent;
+  setEvents(updatedEvents);
+  
+  toast(`Event moved: ${updatedEvent.title} has been moved to ${format(updatedEvent.date, "MMMM d")} at ${updatedEvent.time}.`);
+  
+  // Save to database if event has an ID
+  if (event.id) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const { error } = await supabase
+      .from("calendar_events")
+      .update({
+        date: updatedEvent.date.toISOString().split("T")[0],
+        start_time: `${updatedEvent.startTime}:00`,
+        end_time: `${updatedEvent.endTime}:00`,
+        time: `${updatedEvent.startTime}:00`
+      })
+      .eq("id", event.id)
+      .eq("user_id", user.id);
+      
+    if (error) {
+      console.error("Failed to update event in database:", error);
+      toast.error("Failed to save changes to database.");
+    }
   }
 };
 
-export const handleEventResize = (
+export const handleEventResize = async (
   eventId: string,
   newStart: Date,
   newEnd: Date,
   events: CalendarEvent[],
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>
 ) => {
-  const idParts = eventId.split("-");
-  const eventIndex = parseInt(idParts[idParts.length - 1], 10);
-  if (!isNaN(eventIndex) && events[eventIndex]) {
-    const updatedEvents = [...events];
-    const event = { ...updatedEvents[eventIndex] };
-    event.startTime = format(newStart, "HH:mm");
-    event.endTime = format(newEnd, "HH:mm");
-    event.time = formatEventTime(event.startTime, event.endTime);
-    updatedEvents[eventIndex] = event;
-    setEvents(updatedEvents);
-    toast(`Event resized: ${event.title} duration updated to ${event.time}.`);
+  // Find event by ID first, then fall back to index
+  let event = events.find(e => e.id === eventId);
+  let eventIndex = -1;
+  
+  if (!event) {
+    const idParts = eventId.split("-");
+    eventIndex = parseInt(idParts[idParts.length - 1], 10);
+    if (!isNaN(eventIndex) && events[eventIndex]) {
+      event = events[eventIndex];
+    }
+  } else {
+    eventIndex = events.findIndex(e => e.id === eventId);
+  }
+  
+  if (!event) return;
+  
+  // Update local state immediately for responsiveness
+  const updatedEvents = [...events];
+  const updatedEvent = { ...event };
+  updatedEvent.startTime = format(newStart, "HH:mm");
+  updatedEvent.endTime = format(newEnd, "HH:mm");
+  updatedEvent.time = formatEventTime(updatedEvent.startTime, updatedEvent.endTime);
+  updatedEvents[eventIndex] = updatedEvent;
+  setEvents(updatedEvents);
+  
+  toast(`Event resized: ${updatedEvent.title} duration updated to ${updatedEvent.time}.`);
+  
+  // Save to database if event has an ID
+  if (event.id) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const { error } = await supabase
+      .from("calendar_events")
+      .update({
+        start_time: `${updatedEvent.startTime}:00`,
+        end_time: `${updatedEvent.endTime}:00`,
+        time: `${updatedEvent.startTime}:00`
+      })
+      .eq("id", event.id)
+      .eq("user_id", user.id);
+      
+    if (error) {
+      console.error("Failed to update event in database:", error);
+      toast.error("Failed to save changes to database.");
+    }
   }
 };
 
@@ -101,59 +172,81 @@ export const handleEventSubmit = async (
   editingEventId: string | null,
   events: CalendarEvent[],
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>,
-  setIsEventModalOpen: React.Dispatch<React.SetStateAction<boolean>>
+  setIsEventModalOpen: React.Dispatch<React.SetStateAction<boolean>>,
+  reloadEvents?: () => Promise<void>
 ): Promise<void> => {
   if (editingEventId) {
-    const idParts = editingEventId.split("-");
-    const eventIndex = parseInt(idParts[idParts.length - 1], 10);
-    if (!isNaN(eventIndex) && events[eventIndex]) {
-      const updatedEvents = [...events];
-      const updatedEvent: CalendarEvent = {
-        ...updatedEvents[eventIndex],
-        title: data.title,
-        type: data.type,
-        date: data.date,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        time: formatEventTime(data.startTime, data.endTime),
-      };
-      updatedEvents[eventIndex] = updatedEvent;
-      setEvents(updatedEvents);
-      toast(`Event updated: ${data.title} has been updated.`);
-
-      // Save update to database
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        toast.error("Not signed in – cannot save event.");
-        setIsEventModalOpen(false);
-        return;
+    // Find the event being edited
+    let eventToUpdate = events.find(e => e.id === editingEventId);
+    let eventIndex = -1;
+    
+    if (!eventToUpdate) {
+      // Fall back to index-based ID for backwards compatibility
+      const idParts = editingEventId.split("-");
+      eventIndex = parseInt(idParts[idParts.length - 1], 10);
+      if (!isNaN(eventIndex) && events[eventIndex]) {
+        eventToUpdate = events[eventIndex];
       }
+    } else {
+      eventIndex = events.findIndex(e => e.id === editingEventId);
+    }
+    
+    if (!eventToUpdate) {
+      toast.error("Event not found.");
+      setIsEventModalOpen(false);
+      return;
+    }
 
-      const payload = {
-        title: updatedEvent.title,
-        description: "",
-        date: updatedEvent.date.toISOString().split("T")[0],
-        time: `${updatedEvent.startTime}:00`,
-        start_time: `${updatedEvent.startTime}:00`,
-        end_time: `${updatedEvent.endTime}:00`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        type: updatedEvent.type,
-        user_id: user.id,
-        location: "",
-      };
+    // Save update to database
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      toast.error("Not signed in – cannot save event.");
+      setIsEventModalOpen(false);
+      return;
+    }
 
+    const payload = {
+      title: data.title,
+      description: data.description || "",
+      date: data.date.toISOString().split("T")[0],
+      time: `${data.startTime}:00`,
+      start_time: `${data.startTime}:00`,
+      end_time: `${data.endTime}:00`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      type: data.type,
+      location: data.location || "",
+    };
+
+    if (eventToUpdate.id) {
+      // Update existing database record
       const { error } = await supabase
         .from("calendar_events")
         .update(payload)
-        .eq("user_id", user.id)
-        .eq("title", updatedEvent.title)
-        .eq("date", payload.date);
+        .eq("id", eventToUpdate.id)
+        .eq("user_id", user.id);
 
       if (error) {
         console.error("Database update error:", error);
         toast.error("Failed to save event changes.");
       } else {
-        toast.success("Event changes saved to database.");
+        toast.success("Event changes saved.");
+        // Reload events from database to ensure consistency
+        if (reloadEvents) await reloadEvents();
+      }
+    } else {
+      // This is a local-only event, create it in the database
+      const { data: newEvent, error } = await supabase
+        .from("calendar_events")
+        .insert([{ ...payload, user_id: user.id }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Database insert error:", error);
+        toast.error("Failed to save event.");
+      } else {
+        toast.success("Event saved.");
+        if (reloadEvents) await reloadEvents();
       }
     }
   } else {
@@ -189,15 +282,19 @@ export const handleEventSubmit = async (
       location: "",
     };
 
-    const { error } = await supabase
+    const { data: newEvent, error } = await supabase
       .from("calendar_events")
-      .insert([payload]);
+      .insert([payload])
+      .select()
+      .single();
 
     if (error) {
       console.error("Database insert error:", error);
       toast.error("Failed to save event.");
     } else {
-      toast.success("Event saved to database.");
+      toast.success("Event saved.");
+      // Reload events from database to get the new event with its ID
+      if (reloadEvents) await reloadEvents();
     }
   }
 

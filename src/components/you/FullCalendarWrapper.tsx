@@ -80,7 +80,7 @@ const FullCalendarWrapper: React.FC<FullCalendarWrapperProps> = ({
       }
 
       return {
-        id: `${event.title}-${idx}`,
+        id: event.id || `${event.title}-${idx}`,
         title: event.title,
         start,
         end,
