@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str
     SITE_URL: str = "http://localhost:3000"
     MUNDI_URL: Optional[str] = None
+    
+    # AI Agent Observability
+    LANGFUSE_SECRET_KEY: Optional[str] = None
+    LANGFUSE_PUBLIC_KEY: Optional[str] = None
+    LANGFUSE_HOST: str = "https://cloud.langfuse.com"
+    AGENTOPS_API_KEY: Optional[str] = None
+    OBSERVABILITY_ENABLED: bool = True
 
     # CORS
     CORS_ORIGINS: List[str] = [

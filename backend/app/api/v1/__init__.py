@@ -1,5 +1,5 @@
-from . import auth, chat, health, monitoring, pam, social, wheels, wins, subscription, voice, admin
+from . import auth, chat, health, monitoring, pam, social, wheels, wins, subscription, voice, admin, observability
 
 __all__ = [
-    'auth', 'chat', 'health', 'monitoring', 'pam', 'social', 'wheels', 'wins', 'subscription', 'voice', 'admin'
+    'auth', 'chat', 'health', 'monitoring', 'pam', 'social', 'wheels', 'wins', 'subscription', 'voice', 'admin', 'observability'
 ]
