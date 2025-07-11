@@ -841,32 +841,42 @@ class WheelsNode:
                         origin = parts[0].strip()
                         destination = parts[1].strip()
                         return {
-                            "type": "message",
-                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get('user_profile', {}).get('vehicle_info', {}).get('type', 'vehicle')} and prefer {context.get('user_profile', {}).get('travel_preferences', {}).get('style', 'travel')} style. Let me create a personalized route with camping options and fuel stops along the way!"
+                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get('user_profile', {}).get('vehicle_info', {}).get('type', 'vehicle')} and prefer {context.get('user_profile', {}).get('travel_preferences', {}).get('style', 'travel')} style. Let me create a personalized route with camping options and fuel stops along the way!",
+                            "confidence": 0.9,
+                            "requires_followup": True,
+                            "suggestions": ["Tell me your travel dates", "Any specific stops you want to make?", "What's your budget for this trip?"]
                         }
                 elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
                     return {
-                        "type": "message",
-                        "content": "Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
+                        "content": "Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: 'from Brisbane to Sydney'.",
+                        "confidence": 0.8,
+                        "requires_followup": True,
+                        "suggestions": ["from Sydney to Melbourne", "from Brisbane to Cairns", "from Perth to Adelaide"]
                     }
                 else:
                     return {
-                        "type": "message",
-                        "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?"
+                        "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?",
+                        "confidence": 0.8,
+                        "requires_followup": True,
+                        "suggestions": ["Plan a trip from [city] to [city]", "Find camping spots near [location]", "Get fuel prices along my route"]
                     }
             
             # Default travel response
             else:
                 return {
-                    "type": "message",
-                    "content": "I can help you with trip planning, route optimization, fuel tracking, and vehicle maintenance. What would you like assistance with?"
+                    "content": "I can help you with trip planning, route optimization, fuel tracking, and vehicle maintenance. What would you like assistance with?",
+                    "confidence": 0.7,
+                    "requires_followup": True,
+                    "suggestions": ["Plan a trip", "Check fuel prices", "Find camping spots", "Vehicle maintenance tips"]
                 }
                 
         except Exception as e:
             logger.error(f"Error in wheels_node.process: {e}")
             return {
-                "type": "error",
-                "content": "Sorry, I had trouble processing your travel request. Please try again."
+                "content": "Sorry, I had trouble processing your travel request. Please try again.",
+                "confidence": 0.3,
+                "requires_followup": True,
+                "suggestions": ["Try asking about trip planning", "Ask about fuel prices", "Ask about camping spots"]
             }
 
 
@@ -890,32 +900,42 @@ class WheelsNode:
                         origin = parts[0].strip()
                         destination = parts[1].strip()
                         return {
-                            "type": "message",
-                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get('user_profile', {}).get('vehicle_info', {}).get('type', 'vehicle')} and prefer {context.get('user_profile', {}).get('travel_preferences', {}).get('style', 'travel')} style. Let me create a personalized route with camping options and fuel stops along the way!"
+                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get('user_profile', {}).get('vehicle_info', {}).get('type', 'vehicle')} and prefer {context.get('user_profile', {}).get('travel_preferences', {}).get('style', 'travel')} style. Let me create a personalized route with camping options and fuel stops along the way!",
+                            "confidence": 0.9,
+                            "requires_followup": True,
+                            "suggestions": ["Tell me your travel dates", "Any specific stops you want to make?", "What's your budget for this trip?"]
                         }
                 elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
                     return {
-                        "type": "message",
-                        "content": "Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
+                        "content": "Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: 'from Brisbane to Sydney'.",
+                        "confidence": 0.8,
+                        "requires_followup": True,
+                        "suggestions": ["from Sydney to Melbourne", "from Brisbane to Cairns", "from Perth to Adelaide"]
                     }
                 else:
                     return {
-                        "type": "message",
-                        "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?"
+                        "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?",
+                        "confidence": 0.8,
+                        "requires_followup": True,
+                        "suggestions": ["Plan a trip from [city] to [city]", "Find camping spots near [location]", "Get fuel prices along my route"]
                     }
             
             # Default travel response
             else:
                 return {
-                    "type": "message",
-                    "content": "I can help you with trip planning, route optimization, fuel tracking, and vehicle maintenance. What would you like assistance with?"
+                    "content": "I can help you with trip planning, route optimization, fuel tracking, and vehicle maintenance. What would you like assistance with?",
+                    "confidence": 0.7,
+                    "requires_followup": True,
+                    "suggestions": ["Plan a trip", "Check fuel prices", "Find camping spots", "Vehicle maintenance tips"]
                 }
                 
         except Exception as e:
             logger.error(f"Error in wheels_node.process: {e}")
             return {
-                "type": "error",
-                "content": "Sorry, I had trouble processing your travel request. Please try again."
+                "content": "Sorry, I had trouble processing your travel request. Please try again.",
+                "confidence": 0.3,
+                "requires_followup": True,
+                "suggestions": ["Try asking about trip planning", "Ask about fuel prices", "Ask about camping spots"]
             }
 # Create global instance
 wheels_node = WheelsNode()
