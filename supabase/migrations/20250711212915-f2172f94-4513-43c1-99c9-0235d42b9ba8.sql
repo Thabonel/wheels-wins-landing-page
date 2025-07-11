@@ -9,19 +9,19 @@ DROP POLICY IF EXISTS "Allow user to insert own events" ON public.calendar_event
 CREATE POLICY "Users can view their own calendar events" 
 ON public.calendar_events 
 FOR SELECT 
-USING (auth.uid()::text = user_id);
+USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can insert their own calendar events" 
 ON public.calendar_events 
 FOR INSERT 
-WITH CHECK (auth.uid()::text = user_id);
+WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can update their own calendar events" 
 ON public.calendar_events 
 FOR UPDATE 
-USING (auth.uid()::text = user_id);
+USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete their own calendar events" 
 ON public.calendar_events 
 FOR DELETE 
-USING (auth.uid()::text = user_id);
+USING (auth.uid() = user_id);
