@@ -150,8 +150,7 @@ class PamOrchestrator:
             await self.analytics.update_metric(
                 metric_name="average_response_time",
                 value=response_time,
-                user_id=user_id,
-                aggregation="average"
+                user_id=user_id
             )
             
             return node_response

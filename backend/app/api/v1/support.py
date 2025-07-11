@@ -17,7 +17,7 @@ class TicketStatusUpdate(BaseModel):
 @router.post("/support/tickets")
 async def create_ticket(ticket: TicketCreate):
     """Create a new support ticket"""
-    db_service = await get_database_service()
+    db_service = get_database_service()
     supabase = db_service.get_client()
 
     try:
@@ -38,7 +38,7 @@ async def create_ticket(ticket: TicketCreate):
 @router.get("/support/tickets")
 async def list_tickets(status: str = "open"):
     """List tickets filtered by status"""
-    db_service = await get_database_service()
+    db_service = get_database_service()
     supabase = db_service.get_client()
 
     try:
@@ -53,7 +53,7 @@ async def list_tickets(status: str = "open"):
 @router.put("/support/tickets/{ticket_id}")
 async def update_ticket_status(ticket_id: str, update: TicketStatusUpdate):
     """Update ticket status"""
-    db_service = await get_database_service()
+    db_service = get_database_service()
     supabase = db_service.get_client()
 
     try:

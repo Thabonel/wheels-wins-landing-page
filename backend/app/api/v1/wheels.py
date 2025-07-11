@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 async def search_routes(request: RouteRequest, user_id: Optional[str] = None):
     """Search for routes and directions"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         # Search for relevant routes
         query = """
@@ -81,7 +81,7 @@ async def search_routes(request: RouteRequest, user_id: Optional[str] = None):
 async def search_locations(request: LocationSearchRequest, user_id: Optional[str] = None):
     """Search for camping locations and POIs"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         # Search camping locations
         query = """
@@ -139,7 +139,7 @@ async def get_fuel_stations(
 ):
     """Get fuel stations with current prices"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         where_conditions = []
         params = []
@@ -207,7 +207,7 @@ async def log_maintenance(
 ):
     """Log maintenance activity"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         query = """
             INSERT INTO maintenance_records 
@@ -238,7 +238,7 @@ async def log_maintenance(
 async def get_maintenance_schedule(user_id: str):
     """Get maintenance schedule and history"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         query = """
             SELECT task, date, mileage, next_due_date, next_due_mileage, 

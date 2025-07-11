@@ -27,7 +27,7 @@ async def search_groups(
 ):
     """Search for RV groups and communities"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         where_conditions = []
         params = []
@@ -92,7 +92,7 @@ async def search_events(
 ):
     """Search for local RV events and meetups"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         where_conditions = ["start_date >= CURRENT_DATE"]
         params = []
@@ -164,7 +164,7 @@ async def browse_marketplace(
 ):
     """Browse marketplace listings"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         where_conditions = ["status = 'approved'"]
         params = []
@@ -235,7 +235,7 @@ async def browse_marketplace(
 async def create_listing(request: ListingCreateRequest):
     """Create a new marketplace listing"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         query = """
             INSERT INTO marketplace_listings 
@@ -287,7 +287,7 @@ async def get_social_feed(user_id: str, limit: int = 50):
 async def join_group(group_id: str, user_id: str):
     """Join an RV group"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         # Check if already a member
         check_query = """
@@ -329,7 +329,7 @@ async def join_group(group_id: str, user_id: str):
 async def get_user_groups(user_id: str):
     """Get user's group memberships"""
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         
         query = """
             SELECT fg.group_name, fg.location, fg.member_count, fg.group_type,

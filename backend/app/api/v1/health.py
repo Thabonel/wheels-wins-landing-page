@@ -39,7 +39,7 @@ async def detailed_health_check():
     
     # Check database connectivity
     try:
-        db_service = await get_database_service()
+        db_service = get_database_service()
         await db_service.execute_query("SELECT 1")
         health_status["services"]["database"] = {
             "status": "healthy",
@@ -73,7 +73,7 @@ async def readiness_check():
     """Kubernetes readiness probe"""
     try:
         # Check critical services
-        db_service = await get_database_service()
+        db_service = get_database_service()
         await db_service.execute_query("SELECT 1")
         await cache_service.get("readiness_check")
         

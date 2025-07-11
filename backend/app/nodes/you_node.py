@@ -39,6 +39,79 @@ class YouNode:
         self.logger = get_logger("you_node")
         self.supabase = get_supabase_client()
 
+    async def process(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Main entry point for processing You node requests"""
+        try:
+            user_id = context.get("user_id")
+            if not user_id:
+                return {
+                    "type": "error",
+                    "content": "User authentication required for personal features"
+                }
+
+            message_lower = message.lower()
+            
+            # Route to appropriate method based on message content
+            if any(keyword in message_lower for keyword in ["profile", "update profile", "my profile"]):
+                if "update" in message_lower:
+                    # Extract profile data from context if available
+                    profile_data = context.get("profile_data", {})
+                    return await self.update_user_profile(user_id, profile_data)
+                else:
+                    return await self.get_user_profile(user_id)
+            
+            elif any(keyword in message_lower for keyword in ["dashboard", "overview", "summary"]):
+                return await self.get_personalized_dashboard(user_id)
+            
+            elif any(keyword in message_lower for keyword in ["calendar", "event", "schedule"]):
+                if any(keyword in message_lower for keyword in ["create", "add", "new"]):
+                    # Extract event data from context if available
+                    event_data = context.get("event_data", {})
+                    if event_data:
+                        return await self.create_calendar_event(user_id, event_data)
+                    else:
+                        return {
+                            "type": "message",
+                            "content": "I can help you create calendar events. What would you like to schedule?",
+                            "suggested_actions": ["create_event"]
+                        }
+                else:
+                    return await self.get_travel_timeline(user_id)
+            
+            elif any(keyword in message_lower for keyword in ["maintenance", "service", "reminder"]):
+                maintenance_data = context.get("maintenance_data", {})
+                if maintenance_data:
+                    return await self.schedule_maintenance_reminder(user_id, maintenance_data)
+                else:
+                    return {
+                        "type": "message",
+                        "content": "I can help you set up maintenance reminders for your vehicle or equipment. What needs servicing?",
+                        "suggested_actions": ["schedule_maintenance"]
+                    }
+            
+            elif any(keyword in message_lower for keyword in ["preferences", "settings"]):
+                preferences = context.get("preferences", {})
+                if preferences:
+                    return await self.set_user_preferences(user_id, preferences)
+                else:
+                    return {
+                        "type": "message",
+                        "content": "I can help you manage your preferences and settings. What would you like to update?",
+                        "suggested_actions": ["update_preferences"]
+                    }
+            
+            else:
+                # Default to dashboard for general You queries
+                return await self.get_personalized_dashboard(user_id)
+                
+        except Exception as e:
+            self.logger.error(f"Error processing You node request: {e}")
+            return {
+                "type": "error",
+                "content": "I encountered an issue while processing your request. Please try again.",
+                "error": str(e)
+            }
+
     async def create_calendar_event(
         self, user_id: str, event_data: Dict[str, Any]
     ) -> Dict[str, Any]:
