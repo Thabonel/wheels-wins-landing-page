@@ -106,18 +106,8 @@ setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
 # CORS middleware MUST be added LAST so it executes FIRST
-origins = [
-    # Lovable AI domains
-    "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-    "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-    # Netlify domains
-    "https://wheelsandwins.com",
-    "https://www.wheelsandwins.com",
-    "https://*.netlify.app",
-    # Local development
-    "http://localhost:5173",
-    "http://localhost:3000"
-]
+# Use CORS origins from settings instead of hardcoded list
+origins = settings.CORS_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
