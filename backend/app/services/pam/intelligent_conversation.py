@@ -88,10 +88,8 @@ Never be robotic or purely functional. Always respond as if you're a caring frie
                 self.client = openai.AsyncOpenAI(api_key=openai_key)
                 logger.info("Advanced PAM personality engine initialized")
                 
-                # Initialize tools
-                await self.load_user_profile_tool.initialize()
-                await self.load_recent_memory_tool.initialize()
-                await self.think_tool.initialize()
+                # Tools initialization (tools initialize themselves when needed)
+                logger.info("PAM tools ready for use")
                 
                 # Start background personality analysis
                 asyncio.create_task(self._background_relationship_analyzer())

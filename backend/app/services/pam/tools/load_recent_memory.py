@@ -24,7 +24,7 @@ class LoadRecentMemoryTool(BaseTool):
         """Load recent conversation memory"""
         try:
             if not self.database_service:
-                await self.initialize()
+                self.database_service = get_database_service()
             
             # Default parameters
             limit = parameters.get("limit", 10) if parameters else 10
