@@ -52,8 +52,7 @@ class PamOrchestrator:
         self.database_service = get_database_service()
         await self.conversation_service.initialize()
         
-        # Initialize analytics service
-        await self.analytics.initialize()
+        # Analytics service initialization (no special setup needed)
         logger.info("Analytics service initialized")
         
         # Initialize all nodes
