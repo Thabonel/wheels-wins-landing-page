@@ -4,6 +4,8 @@ import type { EventFormData } from "@/components/you/types";
 import React, { useState } from "react";
 import "@/components/you/calendar-styles.css";
 import { useToast } from "@/hooks/use-toast";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { Card, CardContent } from "@/components/ui/card";
 import CalendarContainer from "@/components/you/CalendarContainer";
 import EventModal from "@/components/you/EventModal";
 import { getFormattedTime } from "@/components/you/EventFormatter";
@@ -17,7 +19,7 @@ import {
 const UserCalendar = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
-  const [events, setEvents] = useState<CalendarEvent[]>([/* initial events */]);
+  const { events, setEvents, loading, reloadEvents } = useCalendarEvents();
 
   const { toast } = useToast();
   
@@ -34,7 +36,15 @@ const UserCalendar = () => {
   const [eventEndTime, setEventEndTime] = useState<Date>(new Date());
 
   const handleEventSelect = (eventId: string) => {
-    const ev = events.find((e, idx) => `${e.title}-${idx}` === eventId);
+    // Try to find by ID first, then fall back to index-based ID
+    let ev = events.find(e => e.id === eventId);
+    if (!ev) {
+      const idParts = eventId.split("-");
+      const eventIndex = parseInt(idParts[idParts.length - 1], 10);
+      if (!isNaN(eventIndex) && events[eventIndex]) {
+        ev = events[eventIndex];
+      }
+    }
     if (!ev) return;
 
     // Copy the date so we don't mutate state
@@ -56,6 +66,16 @@ const UserCalendar = () => {
     setNewEventHour(baseDate.getHours());
     setIsEventModalOpen(true);
   };
+
+  if (loading) {
+    return (
+      <Card className="mb-6">
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-muted-foreground">Loading calendar events...</div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <>
@@ -120,7 +140,8 @@ const UserCalendar = () => {
             editingEventId,
             events,
             setEvents,
-            setIsEventModalOpen
+            setIsEventModalOpen,
+            reloadEvents
           );
         }}
         onCancel={() => setIsEventModalOpen(false)}

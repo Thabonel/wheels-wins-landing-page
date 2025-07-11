@@ -76,7 +76,22 @@ export default function SocialFeed() {
         .eq("location", "feed")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching posts:", error);
+        // Only show error toast for actual errors, not empty data
+        if (error.code === 'PGRST116') {
+          // Table not found error
+          toast.error("Social posts feature is not set up yet");
+        } else if (error.code === '42501') {
+          // Permission denied error
+          toast.error("You don't have permission to view posts");
+        } else {
+          // Other errors
+          toast.error("Unable to load posts. Please try again later.");
+        }
+        setPosts([]);
+        return;
+      }
 
       const formatted = data?.map((post) => ({
         id: post.id.toString(), // Ensure ID is string
@@ -95,8 +110,9 @@ export default function SocialFeed() {
 
       setPosts(formatted);
     } catch (err) {
-      console.error("Error fetching posts:", err);
-      toast.error("Failed to load posts");
+      console.error("Unexpected error fetching posts:", err);
+      toast.error("An unexpected error occurred. Please refresh the page.");
+      setPosts([]);
     } finally {
       setIsLoading(false);
     }
@@ -110,7 +126,13 @@ export default function SocialFeed() {
         .select("post_id, vote_type")
         .eq("user_id", user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching votes:", error);
+        // Don't show error toast for votes - it's not critical
+        // Just set empty votes
+        setUserVotes({});
+        return;
+      }
 
       const votes: Record<string, boolean> = {};
       data?.forEach((v) => {
@@ -119,6 +141,7 @@ export default function SocialFeed() {
       setUserVotes(votes);
     } catch (err) {
       console.error("Error fetching votes:", err);
+      setUserVotes({});
     }
   };
 
