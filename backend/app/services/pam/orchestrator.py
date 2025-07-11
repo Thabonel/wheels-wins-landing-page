@@ -182,11 +182,11 @@ class PamOrchestrator:
         base_context = await self._get_conversation_context(user_id, session_id)
         
         # Enhance with context manager
-        enhanced_data = self.context_manager.enhance_context({
+        enhanced_data = self.context_manager.validate_and_enrich_context({
             "user_id": user_id,
             "session_id": session_id,
-            "base_context": base_context.dict(),
-            "additional_context": additional_context or {}
+            **base_context.dict(),
+            **(additional_context or {})
         })
         
         # Update context with enhanced data
