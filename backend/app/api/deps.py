@@ -77,6 +77,9 @@ async def get_cache() -> Generator[CacheService, None, None]:
 async def get_pam_orchestrator():
     """Get PAM orchestrator instance"""
     try:
+        # Initialize orchestrator if not already initialized
+        if not orchestrator.database_service:
+            await orchestrator.initialize()
         return orchestrator
     except Exception as e:
         logger.error(f"PAM orchestrator dependency error: {str(e)}")
