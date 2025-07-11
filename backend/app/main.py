@@ -117,27 +117,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add OPTIONS handler for CORS preflight - handle all paths
-@app.options("/{path:path}")
-async def preflight_handler(request: Request, path: str):
-    """Handle CORS preflight OPTIONS requests for all routes"""
-    origin = request.headers.get("origin")
-    
-    # Allow all configured origins
-    allowed_origin = "*"
-    if origin in origins:
-        allowed_origin = origin
-    
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": allowed_origin,
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, Origin, User-Agent, Cache-Control, Keep-Alive",
-            "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Max-Age": "86400",
-        }
-    )
+# CORS middleware handles OPTIONS requests automatically
+# No custom OPTIONS handler needed
 
 # Add root route handler
 @app.get("/")
