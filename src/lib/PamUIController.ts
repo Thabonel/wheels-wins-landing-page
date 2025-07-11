@@ -160,7 +160,7 @@ class PamUIController {
    */
   private connectWebSocket(userId: string, token: string): void {
     try {
-      const wsUrl = `${getWebSocketUrl(`/ws/${userId}`)}?token=${token}`;
+      const wsUrl = `${getWebSocketUrl(`/api/v1/pam/ws`)}?token=${encodeURIComponent(token)}`;
       
       this.websocket = new WebSocket(wsUrl);
 

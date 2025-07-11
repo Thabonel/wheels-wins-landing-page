@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Save, RefreshCw, Settings as SettingsIcon, Shield, Mail, Users } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
+import { PamConnectionDiagnostic } from "@/components/PamConnectionDiagnostic";
 
 interface SystemSetting {
   id: string;
@@ -307,6 +308,16 @@ const Settings = () => {
               <p className="text-gray-600">Production</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* PAM Connection Diagnostic */}
+      <Card>
+        <CardHeader>
+          <CardTitle>PAM Connection Diagnostic</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PamConnectionDiagnostic />
         </CardContent>
       </Card>
     </div>

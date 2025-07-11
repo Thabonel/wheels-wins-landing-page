@@ -128,18 +128,47 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const connectToBackend = useCallback(() => {
+  const connectToBackend = useCallback(async () => {
     console.log('🔌 PAM connectToBackend called with:', { userId: user?.id, hasToken: !!sessionToken });
     if (!user?.id) {
       console.log('❌ PAM: No user ID, cannot connect');
       return;
     }
 
+    // First check if backend is healthy
     try {
-      // IMPORTANT: Using correct PAM endpoint /api/v1/pam/ws (not /api/ws)
-      const wsUrl = `${getWebSocketUrl(`/api/v1/pam/ws`)}?token=${sessionToken || 'demo-token'}`;
-      console.log('🌐 PAM WebSocket URL (v1.2 - Fixed):', wsUrl);
-      console.log('✅ Endpoint verified: /api/v1/pam/ws');
+      const healthResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (!healthResponse.ok) {
+        console.warn('⚠️ PAM backend health check failed, using fallback mode');
+        setConnectionStatus("Disconnected");
+        addMessage("🤖 Hi! I'm PAM. The live backend is currently unavailable, but I can still help you using the REST API. How can I assist you today?", "pam");
+        return;
+      }
+    } catch (error) {
+      console.error('❌ PAM backend health check error:', error);
+      setConnectionStatus("Disconnected");
+      addMessage("🤖 Hi! I'm PAM. I'm having trouble connecting to the backend, but I can still help you using the REST API. How can I assist you today?", "pam");
+      return;
+    }
+
+    try {
+      // IMPORTANT: Using correct PAM endpoint /api/v1/pam/ws
+      // Fix: Ensure we're using the correct WebSocket URL format and getWebSocketUrl function
+      const baseWebSocketUrl = getWebSocketUrl('/api/v1/pam/ws');
+      const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(sessionToken || user?.id || 'demo-token')}`;
+      console.log('🔧 PAM Base WebSocket URL:', baseWebSocketUrl);
+      console.log('🌐 PAM Full WebSocket URL (v1.4 - Fixed):', wsUrl);
+      console.log('✅ Target endpoint: /api/v1/pam/ws');
+      
+      // Validate that we're actually hitting the right endpoint
+      if (!wsUrl.includes('/api/v1/pam/ws')) {
+        console.error('❌ WebSocket URL validation failed! Expected /api/v1/pam/ws but got:', wsUrl);
+        throw new Error('WebSocket endpoint validation failed');
+      }
       
       setConnectionStatus("Connecting");
       console.log('🔄 PAM: Creating WebSocket connection...');
@@ -279,25 +308,67 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const handleSendMessage = async () => {
-    if (inputMessage.trim() && connectionStatus === "Connected" && wsRef.current) {
-      const message = inputMessage.trim();
-      addMessage(message, "user");
-      await saveToMemory(message, "user");
-      const messageData = {
-        type: "chat",
-        content: message,
-        context: {
-          user_id: user?.id,  // Move userId into context as expected by backend
-          userLocation: userContext?.current_location,
-          vehicleInfo: userContext?.vehicle_info,
-          travelStyle: userContext?.travel_style,
-          conversationHistory: messages.slice(-5),
-          timestamp: new Date().toISOString(),
-          session_id: `session_${user?.id}_${Date.now()}`
+    if (!inputMessage.trim()) return;
+    
+    const message = inputMessage.trim();
+    addMessage(message, "user");
+    await saveToMemory(message, "user");
+    setInputMessage("");
+
+    const messageData = {
+      type: "chat",
+      content: message,
+      context: {
+        user_id: user?.id,  // Move userId into context as expected by backend
+        userLocation: userContext?.current_location,
+        vehicleInfo: userContext?.vehicle_info,
+        travelStyle: userContext?.travel_style,
+        conversationHistory: messages.slice(-5),
+        timestamp: new Date().toISOString(),
+        session_id: `session_${user?.id}_${Date.now()}`
+      }
+    };
+
+    // Try WebSocket first if connected
+    if (connectionStatus === "Connected" && wsRef.current?.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify(messageData));
+        return;
+      } catch (error) {
+        console.error('❌ Failed to send via WebSocket:', error);
+      }
+    }
+
+    // Fallback to REST API
+    try {
+      const response = await apiFetch('/api/v1/pam/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({
+          message: message,
+          context: messageData.context
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const pamResponse = data.response || data.message || "I'm sorry, I couldn't process that request.";
+        addMessage(pamResponse, "pam");
+        await saveToMemory(pamResponse, "pam", data.actions);
+        
+        // Handle any UI actions from the response
+        if (data.ui_action) {
+          handleUIAction(data.ui_action);
         }
-      };
-      wsRef.current.send(JSON.stringify(messageData));
-      setInputMessage("");
+      } else {
+        addMessage("I'm having trouble connecting to the server. Please try again later.", "pam");
+      }
+    } catch (error) {
+      console.error('❌ Failed to send message via REST API:', error);
+      addMessage("I'm experiencing connection issues. Please check your internet connection and try again.", "pam");
     }
   };
 
