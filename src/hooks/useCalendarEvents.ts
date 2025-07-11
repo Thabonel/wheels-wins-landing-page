@@ -47,11 +47,19 @@ export const useCalendarEvents = () => {
   const loadEvents = async () => {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.error("Not authenticated");
+      if (userError) {
+        console.error("Auth error:", userError);
         setLoading(false);
         return;
       }
+      
+      if (!user) {
+        console.log("User not authenticated");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Loading events for user:", user.id);
 
       const { data, error } = await supabase
         .from("calendar_events")
@@ -62,16 +70,22 @@ export const useCalendarEvents = () => {
       if (error) {
         console.error("Error loading calendar events:", error);
         toast({
-          title: "Error",
-          description: "Failed to load calendar events",
+          title: "Error Loading Events",
+          description: `Failed to load calendar events: ${error.message}`,
           variant: "destructive",
         });
-      } else if (data) {
-        const calendarEvents = data.map(convertToCalendarEvent);
+      } else {
+        console.log("Loaded events from database:", data?.length || 0);
+        const calendarEvents = data ? data.map(convertToCalendarEvent) : [];
         setEvents(calendarEvents);
       }
     } catch (error) {
       console.error("Unexpected error loading events:", error);
+      toast({
+        title: "Unexpected Error",
+        description: "An unexpected error occurred while loading events",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
