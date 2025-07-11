@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Pie, PieChart } from "recharts";
@@ -8,10 +8,14 @@ import { DollarSign, TrendingUp, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
+import { useExpenses } from "@/context/ExpensesContext";
+import { useIncomeData } from "@/components/wins/income/useIncomeData";
 
 export default function WinsOverview() {
   const { user, token } = useAuth();
   const { summary } = useFinancialSummary();
+  const { state: expensesState } = useExpenses();
+  const { incomeData, chartData: incomeChartData } = useIncomeData();
   const [pamInsights, setPamInsights] = useState<string[]>([]);
 
   const { isConnected, sendMessage } = usePamWebSocketConnection({
@@ -36,22 +40,58 @@ export default function WinsOverview() {
     }
   }, [user, isConnected]);
 
-  // Sample data for charts - in a real app this would come from API/database
-  const monthlyData = [
-    { name: 'Jan', income: 1200, expenses: 900 },
-    { name: 'Feb', income: 1400, expenses: 1000 },
-    { name: 'Mar', income: 1300, expenses: 1100 },
-    { name: 'Apr', income: 1500, expenses: 950 },
-    { name: 'May', income: 1700, expenses: 1250 },
-  ];
+  // Generate monthly data from real income and expense data
+  const monthlyData = React.useMemo(() => {
+    const months = new Map<string, { income: number; expenses: number }>();
+    
+    // Process income data
+    incomeChartData.forEach(item => {
+      if (!months.has(item.name)) {
+        months.set(item.name, { income: 0, expenses: 0 });
+      }
+      months.get(item.name)!.income = item.income;
+    });
+    
+    // Process expense data by month
+    expensesState.expenses.forEach(expense => {
+      const month = new Date(expense.date).toLocaleDateString('en-US', { month: 'short' });
+      if (!months.has(month)) {
+        months.set(month, { income: 0, expenses: 0 });
+      }
+      months.get(month)!.expenses += expense.amount;
+    });
+    
+    return Array.from(months.entries()).map(([name, data]) => ({
+      name,
+      income: data.income,
+      expenses: data.expenses
+    }));
+  }, [incomeChartData, expensesState.expenses]);
   
-  const categoryData = [
-    { name: 'Fuel', value: 350, fill: '#8B5CF6' },
-    { name: 'Food', value: 450, fill: '#0EA5E9' },
-    { name: 'Camp', value: 300, fill: '#10B981' },
-    { name: 'Fun', value: 150, fill: '#F59E0B' },
-    { name: 'Other', value: 100, fill: '#6B7280' },
-  ];
+  // Generate category data from real expense data or financial summary
+  const categoryData = React.useMemo(() => {
+    const colors = ['#8B5CF6', '#0EA5E9', '#10B981', '#F59E0B', '#6B7280', '#EF4444', '#F97316', '#84CC16'];
+    
+    if (summary?.expense_categories && summary.expense_categories.length > 0) {
+      return summary.expense_categories.map((cat, index) => ({
+        name: cat.category,
+        value: cat.amount,
+        fill: colors[index % colors.length]
+      }));
+    }
+    
+    // Fallback: calculate from expenses data
+    const categoryTotals = expensesState.expenses.reduce((acc, expense) => {
+      acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return Object.entries(categoryTotals).map(([name, value], index) => ({
+      name,
+      value,
+      fill: colors[index % colors.length]
+    }));
+  }, [summary?.expense_categories, expensesState.expenses]);
   
   const summaryStats = summary
     ? [
@@ -76,22 +116,22 @@ export default function WinsOverview() {
       ]
     : [
         {
-          title: "Remaining This Month",
-          value: "$1,245",
-          description: "Budget until June 4",
-          icon: <Calendar className="h-5 w-5 text-blue-500" />
-        },
-        {
-          title: "Average Daily Spend",
-          value: "$68",
-          description: "Last 30 days",
+          title: "Total Expenses",
+          value: `$${expensesState.expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}`,
+          description: "All time",
           icon: <DollarSign className="h-5 w-5 text-purple-500" />
         },
         {
-          title: "Total Earned",
-          value: "$7,350",
-          description: "Year to date",
+          title: "Total Income",
+          value: `$${incomeData.reduce((sum, inc) => sum + inc.amount, 0).toFixed(2)}`,
+          description: "All time",
           icon: <TrendingUp className="h-5 w-5 text-green-500" />
+        },
+        {
+          title: "Net Balance",
+          value: `$${(incomeData.reduce((sum, inc) => sum + inc.amount, 0) - expensesState.expenses.reduce((sum, exp) => sum + exp.amount, 0)).toFixed(2)}`,
+          description: "All time",
+          icon: <Calendar className="h-5 w-5 text-blue-500" />
         }
       ];
   
