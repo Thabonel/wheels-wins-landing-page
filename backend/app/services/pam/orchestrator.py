@@ -3,7 +3,7 @@ PAM Orchestrator - Main coordination service
 Manages conversation flow, node routing, and memory integration.
 """
 import uuid
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 import logging
 
