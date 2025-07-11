@@ -10,7 +10,7 @@ class ConnectionManager:
     
     async def connect(self, websocket: WebSocket, user_id: str, connection_id: str) -> None:
         """Register a new WebSocket connection."""
-        await websocket.accept()
+        # WebSocket should already be accepted by the endpoint
         self.active_connections[connection_id] = websocket
         
         if user_id not in self.user_connections:
