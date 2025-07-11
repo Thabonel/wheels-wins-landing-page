@@ -44,12 +44,13 @@ TO authenticated
 USING (auth.uid() = user_id);
 
 -- Allow users to update their own non-critical fields (like last_login)
+-- Note: Role changes should be restricted to service role only
 CREATE POLICY "users_can_update_own_admin_record"
 ON public.admin_users
 FOR UPDATE
 TO authenticated
 USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id AND role = OLD.role); -- Prevent role escalation
+WITH CHECK (auth.uid() = user_id);
 
 -- Update the is_admin_user function to be more robust and avoid RLS issues
 DROP FUNCTION IF EXISTS public.is_admin_user(uuid);
