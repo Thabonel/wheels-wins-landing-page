@@ -434,6 +434,21 @@ async def pam_health_check(
 ):
     """Check PAM service health"""
     try:
+        # Check if orchestrator and database service are available
+        if not orchestrator:
+            return {
+                "status": "unhealthy",
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": "PAM orchestrator not available"
+            }
+        
+        if not orchestrator.database_service:
+            return {
+                "status": "unhealthy", 
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": "Database service not initialized"
+            }
+        
         db_status = await orchestrator.database_service.health_check()
         return {
             "status": "healthy" if db_status.get("status") == "healthy" else "degraded",
