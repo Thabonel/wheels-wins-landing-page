@@ -282,7 +282,7 @@ export const handleEventSubmit = async (
       location: "",
     };
 
-    const { data: newEvent, error } = await supabase
+    const { data: insertedEvent, error } = await supabase
       .from("calendar_events")
       .insert([payload])
       .select()
