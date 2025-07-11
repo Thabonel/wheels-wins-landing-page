@@ -136,7 +136,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
 
     try {
-      const wsUrl = `${getWebSocketUrl(`/api/ws`)}?token=${sessionToken || 'demo-token'}`;
+      const wsUrl = `${getWebSocketUrl(`/api/v1/pam/ws`)}?token=${sessionToken || 'demo-token'}`;
       console.log('🌐 PAM WebSocket URL:', wsUrl);
       
       setConnectionStatus("Connecting");
