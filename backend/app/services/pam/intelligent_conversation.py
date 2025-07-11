@@ -16,6 +16,7 @@ import asyncio
 from app.models.domain.pam import PamResponse, PamContext, PamMemory
 from app.core.exceptions import PAMError
 from app.core.config import settings
+from app.services.pam.tools import LoadUserProfileTool, LoadRecentMemoryTool, ThinkTool
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,11 @@ class AdvancedIntelligentConversation:
         self.relationship_memories = {}  # Deep relationship context
         self.proactive_suggestions = {}  # Background suggestion engine
         
+        # Initialize tools
+        self.load_user_profile_tool = LoadUserProfileTool()
+        self.load_recent_memory_tool = LoadRecentMemoryTool()
+        self.think_tool = ThinkTool()
+        
         # Import enhanced prompts
         try:
             from app.services.pam.prompts.enhanced_pam_prompt import ENHANCED_PAM_SYSTEM_PROMPT
@@ -81,6 +87,11 @@ Never be robotic or purely functional. Always respond as if you're a caring frie
             if openai_key:
                 self.client = openai.AsyncOpenAI(api_key=openai_key)
                 logger.info("Advanced PAM personality engine initialized")
+                
+                # Initialize tools
+                await self.load_user_profile_tool.initialize()
+                await self.load_recent_memory_tool.initialize()
+                await self.think_tool.initialize()
                 
                 # Start background personality analysis
                 asyncio.create_task(self._background_relationship_analyzer())
@@ -157,31 +168,58 @@ Return ONLY a JSON object with:
             return self._fallback_intent_analysis(message)
 
     async def generate_response(self, message: str, context: Dict[str, Any], user_data: Optional[Dict] = None) -> Dict[str, Any]:
-        """Generate emotionally intelligent, relationship-aware response"""
+        """Generate emotionally intelligent, relationship-aware response with tool integration"""
         if not self.client:
             raise PAMError("AI client not initialized")
             
         try:
             user_id = context.get('user_id')
             
+            # Step 1: Load User Profile (always do this first)
+            user_profile_result = await self.load_user_profile_tool.execute(user_id)
+            user_profile = user_profile_result.get('data', {}) if user_profile_result.get('success') else {}
+            
+            # Step 2: Load Recent Memory 
+            memory_result = await self.load_recent_memory_tool.execute(user_id)
+            recent_memory = memory_result.get('data', {}) if memory_result.get('success') else {}
+            
+            # Step 3: Determine if we need to Think about complex problems
+            needs_thinking = await self._analyze_complexity(message, user_profile, recent_memory)
+            thinking_result = None
+            if needs_thinking:
+                thinking_result = await self.think_tool.execute(user_id, {
+                    "problem_type": needs_thinking["type"],
+                    "user_request": message,
+                    "context": {
+                        "user_profile": user_profile,
+                        "recent_memory": recent_memory,
+                        "origin": needs_thinking.get("origin"),
+                        "destination": needs_thinking.get("destination")
+                    }
+                })
+            
+            # Step 4: Handle subflow_response if present
+            subflow_data = context.get('subflow_response') or context.get('node_assistance')
+            
             # Analyze user's emotional state and relationship context
             emotional_context = await self._analyze_emotional_context(message, context, user_id)
             
-            # Get or build user's personality profile
-            user_personality = await self._get_user_personality_profile(user_id)
+            # Get or build user's personality profile (enhanced with loaded data)
+            user_personality = await self._get_user_personality_profile(user_id, user_profile)
             
             # Determine PAM's optimal personality for this interaction
             pam_personality = await self._determine_pam_personality(emotional_context, user_personality)
             
-            # Build rich, relationship-aware context
-            relationship_context = await self._build_relationship_context(user_id, context, user_data)
+            # Build rich, relationship-aware context (enhanced with tools data)
+            relationship_context = await self._build_relationship_context(user_id, context, user_data, user_profile, recent_memory)
             
             # Check for proactive opportunities
             proactive_items = await self._check_proactive_opportunities(user_id, message, relationship_context)
             
             # Generate personalized system prompt
             personalized_prompt = await self._build_personalized_system_prompt(
-                pam_personality, user_personality, relationship_context, emotional_context
+                pam_personality, user_personality, relationship_context, emotional_context, 
+                user_profile, recent_memory, thinking_result, subflow_data
             )
             
             conversation_prompt = f"""Current message: "{message}"
@@ -192,16 +230,25 @@ Return ONLY a JSON object with:
 
 {proactive_items['prompt_addition'] if proactive_items else ''}
 
+{self._format_thinking_context(thinking_result) if thinking_result else ''}
+
+{self._format_subflow_context(subflow_data) if subflow_data else ''}
+
 Respond as PAM with the full depth of your relationship and emotional awareness. Reference relevant memories, show genuine care, and be the trusted AI companion this person knows you to be.
 
-Remember to:
+IMPORTANT INSTRUCTIONS:
+- You have access to their complete profile and recent conversations - use this knowledge naturally
+- If you used the Think tool, integrate those insights seamlessly into your response
+- If subflow_response data is present, transform it into warm, conversational advice rather than raw data
 - Use their name naturally in conversation when appropriate
 - Reference shared memories and past conversations
 - Show genuine excitement about their adventures and wins
 - Provide comfort and support during challenges
 - Be proactive about potential issues or opportunities
 - Include appropriate emojis and personality
-- Ask follow-up questions that show you care about them as a person"""
+- Ask follow-up questions that show you care about them as a person
+
+For complex trip planning (like Sydney to Hobart), immediately recognize ferry requirements and provide comprehensive guidance."""
 
             response = await self.client.chat.completions.create(
                 model="gpt-4o",  # Use the best model for emotional intelligence
@@ -370,8 +417,112 @@ Return JSON:
             logger.error(f"Proactive analysis failed: {e}")
             return None
 
-    async def _build_relationship_context(self, user_id: str, context: Dict[str, Any], user_data: Optional[Dict] = None) -> str:
-        """Build rich relationship context for AI"""
+    async def _analyze_complexity(self, message: str, user_profile: Dict, recent_memory: Dict) -> Optional[Dict[str, Any]]:
+        """Analyze if message requires complex thinking"""
+        message_lower = message.lower()
+        
+        # Check for trip planning complexity
+        if any(keyword in message_lower for keyword in ['trip', 'travel', 'plan', 'route']):
+            # Check for complex routes requiring ferries, multiple modes
+            if ('sydney' in message_lower and 'hobart' in message_lower) or \
+               ('melbourne' in message_lower and 'tasmania' in message_lower) or \
+               ('ferry' in message_lower):
+                return {
+                    "type": "complex_logistics",
+                    "origin": self._extract_origin(message),
+                    "destination": self._extract_destination(message)
+                }
+            elif any(location in message_lower for location in ['sydney', 'melbourne', 'brisbane', 'perth']):
+                return {
+                    "type": "trip_planning",
+                    "origin": self._extract_origin(message),
+                    "destination": self._extract_destination(message)
+                }
+        
+        # Check for budget planning complexity
+        if any(keyword in message_lower for keyword in ['budget', 'plan', 'save', 'expense']) and \
+           len(message.split()) > 10:  # Complex budget questions
+            return {"type": "budget_planning"}
+        
+        # Check for decision-making scenarios
+        if any(keyword in message_lower for keyword in ['should i', 'what do you think', 'help me decide']):
+            return {"type": "decision_making"}
+        
+        return None
+    
+    def _extract_origin(self, message: str) -> str:
+        """Extract origin from message"""
+        message_lower = message.lower()
+        cities = ['sydney', 'melbourne', 'brisbane', 'perth', 'adelaide', 'hobart', 'darwin', 'canberra']
+        
+        # Look for "from X" patterns
+        words = message_lower.split()
+        for i, word in enumerate(words):
+            if word == 'from' and i + 1 < len(words):
+                next_word = words[i + 1]
+                if any(city in next_word for city in cities):
+                    return next_word.title()
+        
+        # Look for cities mentioned first
+        for city in cities:
+            if city in message_lower:
+                return city.title()
+        
+        return ""
+    
+    def _extract_destination(self, message: str) -> str:
+        """Extract destination from message"""
+        message_lower = message.lower()
+        cities = ['sydney', 'melbourne', 'brisbane', 'perth', 'adelaide', 'hobart', 'darwin', 'canberra']
+        
+        # Look for "to X" patterns
+        words = message_lower.split()
+        for i, word in enumerate(words):
+            if word == 'to' and i + 1 < len(words):
+                next_word = words[i + 1]
+                if any(city in next_word for city in cities):
+                    return next_word.title()
+        
+        # Look for second city mentioned
+        found_cities = []
+        for city in cities:
+            if city in message_lower:
+                found_cities.append(city.title())
+        
+        if len(found_cities) >= 2:
+            return found_cities[1]
+        elif len(found_cities) == 1:
+            return found_cities[0]
+        
+        return ""
+    
+    def _format_thinking_context(self, thinking_result: Dict) -> str:
+        """Format thinking result for AI context"""
+        if not thinking_result or not thinking_result.get('success'):
+            return ""
+        
+        data = thinking_result.get('data', {})
+        return f"""\n## THINKING ANALYSIS COMPLETED:
+Problem type: {data.get('problem_type', 'Unknown')}
+Key considerations: {', '.join(data.get('considerations', []))}
+Recommendations: {', '.join(data.get('recommendations', []))}
+Next steps: {', '.join(data.get('next_steps', []))}
+
+Use this analysis to provide comprehensive, well-thought-out advice."""
+    
+    def _format_subflow_context(self, subflow_data: Dict) -> str:
+        """Format subflow response data for AI context"""
+        if not subflow_data:
+            return ""
+        
+        return f"""\n## SPECIALIZED MODULE DATA AVAILABLE:
+{json.dumps(subflow_data, indent=2, default=str)}
+
+IMPORTANT: Transform this technical data into warm, conversational advice. Don't output raw data - instead use it to provide specific, helpful recommendations."""
+    
+    async def _build_relationship_context(self, user_id: str, context: Dict[str, Any], user_data: Optional[Dict] = None, 
+                                        user_profile: Optional[Dict] = None, recent_memory: Optional[Dict] = None) -> str:
+        """Build rich relationship context for AI with enhanced tool data"""
         try:
             # Get relationship memories and important details
             relationship_data = await self._get_relationship_memories(user_id)
@@ -427,14 +578,47 @@ Return JSON:
             if user_data:
                 context_parts.append(f"Current context: {user_data}")
             
+            # Add enhanced tool data
+            if user_profile and user_profile.get('profile_exists'):
+                context_parts.append("\n## COMPLETE USER PROFILE LOADED:")
+                personal = user_profile.get('personal_details', {})
+                if personal.get('full_name'):
+                    context_parts.append(f"Name: {personal['full_name']}")
+                if personal.get('nickname'):
+                    context_parts.append(f"Preferred name: {personal['nickname']}")
+                
+                travel_prefs = user_profile.get('travel_preferences', {})
+                if travel_prefs:
+                    context_parts.append(f"Travel style: {travel_prefs.get('style', 'Unknown')}")
+                    context_parts.append(f"Daily drive limit: {travel_prefs.get('drive_limit_per_day', 'Unknown')}")
+                
+                vehicle = user_profile.get('vehicle_info', {})
+                if vehicle:
+                    context_parts.append(f"Vehicle: {vehicle.get('type', 'Unknown')} ({vehicle.get('fuel_type', 'Unknown')} fuel)")
+                
+                budget = user_profile.get('budget_preferences', {})
+                if budget:
+                    context_parts.append(f"Daily budget: ${budget.get('daily_budget', 'Unknown')}")
+            
+            if recent_memory and recent_memory.get('conversations'):
+                context_parts.append("\n## RECENT CONVERSATION MEMORY:")
+                context_parts.append(f"Conversations: {len(recent_memory['conversations'])} recent")
+                if recent_memory.get('topics_discussed'):
+                    context_parts.append(f"Recent topics: {', '.join(recent_memory['topics_discussed'][:5])}")
+                if recent_memory.get('relationship_context', {}).get('relationship_stage'):
+                    context_parts.append(f"Relationship stage: {recent_memory['relationship_context']['relationship_stage']}")
+            
             return "\n".join(context_parts)
             
         except Exception as e:
             logger.error(f"Failed to build relationship context: {e}")
             return "Getting to know this user - building our relationship together."
 
-    async def _build_personalized_system_prompt(self, pam_personality: PamPersonality, user_personality: Dict, relationship_context: str, emotional_context: Dict) -> str:
-        """Build a personalized system prompt for this specific interaction"""
+    async def _build_personalized_system_prompt(self, pam_personality: PamPersonality, user_personality: Dict, 
+                                              relationship_context: str, emotional_context: Dict,
+                                              user_profile: Optional[Dict] = None, recent_memory: Optional[Dict] = None,
+                                              thinking_result: Optional[Dict] = None, subflow_data: Optional[Dict] = None) -> str:
+        """Build a personalized system prompt for this specific interaction with tool integration"""
         
         # Adapt base prompt based on relationship stage and emotional context
         emotional_adaptation = ""
@@ -451,11 +635,22 @@ Return JSON:
         elif pam_personality.relationship_stage == RelationshipStage.CLOSE_FRIEND:
             relationship_adaptation = "You know this person well. Reference shared memories, inside jokes, and ongoing conversations naturally."
         
+        # Add tool integration context
+        tool_context = ""
+        if user_profile and user_profile.get('profile_exists'):
+            tool_context += "\n🔍 USER PROFILE LOADED: You have complete access to their vehicle info, travel preferences, budget, and personal details."
+        if recent_memory and recent_memory.get('conversations'):
+            tool_context += "\n💭 RECENT MEMORY LOADED: You remember your recent conversations and can reference them naturally."
+        if thinking_result and thinking_result.get('success'):
+            tool_context += "\n🧠 THINKING COMPLETED: You've analyzed their request deeply and have comprehensive insights to share."
+        if subflow_data:
+            tool_context += "\n📊 SPECIALIZED DATA AVAILABLE: Transform technical module data into warm, helpful advice."
+        
         return f"""{self.base_system_prompt}
 
 ## CURRENT INTERACTION CONTEXT:
 {emotional_adaptation}
-{relationship_adaptation}
+{relationship_adaptation}{tool_context}
 
 ## THEIR SPECIFIC DETAILS:
 {relationship_context}
@@ -466,7 +661,7 @@ Return JSON:
 - Empathy level: {pam_personality.empathy_level}/10
 - Enthusiasm level: {pam_personality.enthusiasm_level}/10
 
-Respond with this full context in mind, showing your genuine care and the depth of your relationship."""
+Respond with this full context in mind, showing your genuine care and the depth of your relationship. Use all available information to provide the most helpful, personalized response possible."""
 
     async def _generate_relationship_aware_suggestions(self, user_message: str, ai_response: str, context: Dict[str, Any], pam_personality: PamPersonality, proactive_items: Optional[Dict]) -> List[str]:
         """Generate suggestions that are aware of the relationship depth"""
@@ -531,21 +726,14 @@ Return ONLY a JSON array of strings: ["suggestion1", "suggestion2", "suggestion3
                 await asyncio.sleep(60)
 
     # Helper methods for personality, memory, and relationship management
-    async def _get_user_personality_profile(self, user_id: str) -> Dict[str, Any]:
-        """Get or build user's personality profile"""
+    async def _get_user_personality_profile(self, user_id: str, user_profile: Optional[Dict] = None) -> Dict[str, Any]:
+        """Get or build user's personality profile with enhanced data"""
         if user_id in self.user_personalities:
             return self.user_personalities[user_id]
         
-        # Build from conversation history and preferences
+        # Build from conversation history and preferences, enhanced with user profile data
         try:
-            # This would analyze past conversations to understand:
-            # - Communication style (formal, casual, emoji usage)
-            # - Interests and passions
-            # - Decision-making patterns
-            # - Emotional patterns
-            # - Relationship preferences
-            
-            # For now, return basic profile
+            # Start with basic profile
             profile = {
                 'communication_style': 'friendly',
                 'formality_level': 'casual',
@@ -553,6 +741,35 @@ Return ONLY a JSON array of strings: ["suggestion1", "suggestion2", "suggestion3
                 'topic_interests': ['travel', 'rv_life'],
                 'support_style': 'practical_and_emotional'
             }
+            
+            # Enhance with loaded user profile data
+            if user_profile and user_profile.get('profile_exists'):
+                personal = user_profile.get('personal_details', {})
+                comm_prefs = user_profile.get('communication_preferences', {})
+                travel_prefs = user_profile.get('travel_preferences', {})
+                
+                # Update communication style based on profile
+                if comm_prefs.get('preferred_greeting') == 'formal':
+                    profile['formality_level'] = 'formal'
+                elif comm_prefs.get('preferred_greeting') == 'casual':
+                    profile['formality_level'] = 'casual'
+                
+                if comm_prefs.get('detail_level') == 'brief':
+                    profile['communication_style'] = 'concise'
+                elif comm_prefs.get('detail_level') == 'comprehensive':
+                    profile['communication_style'] = 'detailed'
+                
+                # Update interests based on travel style
+                if travel_prefs.get('style') == 'budget':
+                    profile['topic_interests'].extend(['budget_travel', 'free_camping'])
+                elif travel_prefs.get('style') == 'luxury':
+                    profile['topic_interests'].extend(['premium_parks', 'comfort_travel'])
+                
+                # Update based on experience level
+                if personal.get('experience_level') == 'beginner':
+                    profile['support_style'] = 'educational_and_encouraging'
+                elif personal.get('experience_level') == 'expert':
+                    profile['support_style'] = 'collaborative_and_advanced'
             
             self.user_personalities[user_id] = profile
             return profile
