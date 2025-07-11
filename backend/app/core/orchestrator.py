@@ -243,6 +243,7 @@ class ActionPlanner:
         self.intelligent_handler = IntelligentConversationHandler()
         self.entity_extractor = EntityExtractor()
         
+        
     def classify_intent_with_entities(self, message: str, entities: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Enhanced intent classification using extracted entities"""
         message_lower = message.lower()
@@ -375,6 +376,8 @@ class ActionPlanner:
         
         # Default to classified domain
         return domain
+    
+    
 
     async def plan(self, message: str, context: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Enhanced conversation planning with entity extraction and intent classification"""
@@ -403,16 +406,17 @@ class ActionPlanner:
         intent_data = self.classify_intent_with_entities(message, entities, context)
         logger.info(f"🎯 Intent classification: {json.dumps(intent_data, indent=2)}")
         
+        
         # Route to appropriate node
         target_node = self.route_to_node(intent_data, message, context)
         logger.info(f"🚀 Routing to node: {target_node}")
         
-        # Add entities to context for node processing
+        # Add entities and Mundi result to context for node processing
         enhanced_context = {
             **context,
             'entities': entities,
             'intent_classification': intent_data,
-            'target_node': target_node
+            'target_node': target_node,
         }
         
         try:
@@ -500,12 +504,16 @@ class ActionPlanner:
             )
             
             ai_response = analysis.get("response", {})
+            
+            # Get response content
+            response_content = ai_response.get("content", "I'm here to help! How can I assist you today?")
+            
             result = {
                 "type": ai_response.get("type", "message"),
-                "content": ai_response.get("content", "I'm here to help! How can I assist you today?"),
+                "content": response_content,
                 "suggested_actions": ai_response.get("suggested_actions", []),
                 "entities": entities,  # Include entities in response
-                "intent_info": intent_data  # Include intent classification info
+                "intent_info": intent_data,  # Include intent classification info
             }
             
             # Store interaction in memory

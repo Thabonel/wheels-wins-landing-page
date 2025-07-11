@@ -109,28 +109,55 @@ async def websocket_handler(websocket: WebSocket, user_id: str):
             elif msg_type == "chat":
                 message = data.get("content", "")
                 context = data.get("context", {})
-                context["user_id"] = user_id
+                
+                # Ensure user_id is properly set in context
+                if not context.get("user_id"):
+                    context["user_id"] = user_id
+                
+                # Add session info for better tracking
+                context["websocket_user"] = user_id
+                context["connection_type"] = "websocket"
 
-                logger.info(f"📍 Context: {json.dumps(context)}")
-                logger.info(f"💬 Message: {message}")
+                logger.info(f"📍 Context: {json.dumps(context, indent=2)}")
+                logger.info(f"💬 Message: '{message}' from user: {user_id}")
 
                 try:
+                    logger.info(f"🧠 Calling orchestrator.plan for user {user_id}")
                     actions = await orchestrator.plan(message, context)
+                    
+                    # Extract response message
                     response_message = next(
                         (a["content"] for a in actions if a.get("type") == "message"),
                         "I'm processing your request..."
                     )
+                    
+                    logger.info(f"✅ Orchestrator returned {len(actions)} actions")
+                    logger.info(f"📤 Response: {response_message}")
+                    
                 except Exception as e:
-                    logger.error(f"Chat processing error: {e}")
-                    actions = []
-                    response_message = f"❌ Error: {e}"
+                    logger.error(f"❌ Chat processing error: {e}", exc_info=True)
+                    actions = [{"type": "error", "content": str(e)}]
+                    response_message = f"I encountered an error processing your request: {str(e)}"
 
-                await websocket.send_json({
+                # Extract Mundi data from actions if present
+                mundi_data = None
+                for action in actions:
+                    if action.get("type") == "message" and action.get("mundi_data"):
+                        mundi_data = action.get("mundi_data")
+                        break
+                
+                response_payload = {
                     "type": "chat_response",
                     "message": response_message,
                     "actions": actions,
                     "timestamp": str(uuid.uuid4())
-                })
+                }
+                
+                # Include Mundi data if available
+                if mundi_data:
+                    response_payload["mundi_data"] = mundi_data
+                
+                await websocket.send_json(response_payload)
 
                 ui_actions = [a for a in actions if a.get("type") in ["navigate", "fill_form", "click", "alert"]]
                 if ui_actions:
