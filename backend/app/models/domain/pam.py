@@ -13,6 +13,7 @@ class IntentType(str, Enum):
     WEATHER_CHECK = "weather_check"
     MAINTENANCE_REMINDER = "maintenance_reminder"
     INCOME_TRACKING = "income_tracking"
+    SOCIAL_INTERACTION = "social_interaction"
     GENERAL_CHAT = "general_chat"
     EMERGENCY_HELP = "emergency_help"
 

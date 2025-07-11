@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import asyncio
 
 from app.models.domain.pam import PamResponse, PamContext, PamMemory
-from app.core.exceptions import PAMError
+from app.core.exceptions import PAMError, ErrorCode
 from app.core.config import settings
 from app.services.pam.tools import LoadUserProfileTool, LoadRecentMemoryTool, ThinkTool
 
@@ -97,15 +97,15 @@ Never be robotic or purely functional. Always respond as if you're a caring frie
                 asyncio.create_task(self._background_relationship_analyzer())
             else:
                 logger.error("No OpenAI API key found - PAM will not function properly")
-                raise PAMError("OpenAI API key required for PAM to function")
+                raise PAMError("OpenAI API key required for PAM to function", ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE)
         except Exception as e:
             logger.error(f"Failed to initialize advanced PAM: {e}")
-            raise PAMError(f"Failed to initialize AI conversation: {e}")
+            raise PAMError(f"Failed to initialize AI conversation: {e}", ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE)
 
     async def analyze_intent(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Enhanced intent analysis with emotional awareness"""
         if not self.client:
-            raise PAMError("AI client not initialized")
+            raise PAMError("AI client not initialized", ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE)
             
         try:
             # Enhanced intent analysis that also considers emotional context
@@ -170,7 +170,7 @@ Return ONLY a JSON object with:
     async def generate_response(self, message: str, context: Dict[str, Any], user_data: Optional[Dict] = None) -> Dict[str, Any]:
         """Generate emotionally intelligent, relationship-aware response with tool integration"""
         if not self.client:
-            raise PAMError("AI client not initialized")
+            raise PAMError("AI client not initialized", ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE)
             
         try:
             user_id = context.get('user_id')
@@ -280,7 +280,7 @@ For complex trip planning (like Sydney to Hobart), immediately recognize ferry r
             
         except Exception as e:
             logger.error(f"Advanced AI response generation failed: {e}")
-            raise PAMError(f"Failed to generate AI response: {e}")
+            raise PAMError(f"Failed to generate AI response: {e}", ErrorCode.EXTERNAL_API_ERROR)
 
     async def _analyze_emotional_context(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Advanced emotional intelligence analysis"""
@@ -987,7 +987,7 @@ Return ONLY a JSON array of strings: ["suggestion1", "suggestion2", "suggestion3
             
         except Exception as e:
             logger.error(f"Advanced AI conversation handling failed: {str(e)}")
-            raise PAMError(f"Failed to handle conversation with AI: {str(e)}")
+            raise PAMError(f"Failed to handle conversation with AI: {str(e)}", ErrorCode.EXTERNAL_API_ERROR)
 
 # For backward compatibility - alias the enhanced class
 IntelligentConversation = AdvancedIntelligentConversation
