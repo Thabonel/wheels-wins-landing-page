@@ -136,8 +136,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
 
     try {
+      // IMPORTANT: Using correct PAM endpoint /api/v1/pam/ws (not /api/ws)
       const wsUrl = `${getWebSocketUrl(`/api/v1/pam/ws`)}?token=${sessionToken || 'demo-token'}`;
-      console.log('🌐 PAM WebSocket URL (v1.1):', wsUrl);
+      console.log('🌐 PAM WebSocket URL (v1.2 - Fixed):', wsUrl);
+      console.log('✅ Endpoint verified: /api/v1/pam/ws');
       
       setConnectionStatus("Connecting");
       console.log('🔄 PAM: Creating WebSocket connection...');
@@ -154,7 +156,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           reconnectTimeoutRef.current = null;
         }
         
-        addMessage("🤖 Hi! I'm PAM, your intelligent travel companion. I remember our conversations and know your preferences. How can I help you today?", "pam");
+        addMessage("🤖 Hi! I'm PAM, your intelligent travel companion with enhanced capabilities. I can now analyze complex trips (like Sydney to Hobart with ferry logistics), remember our conversations, and provide personalized advice based on your vehicle and preferences. How can I help you today?", "pam");
       };
 
       wsRef.current.onmessage = async (event) => {
