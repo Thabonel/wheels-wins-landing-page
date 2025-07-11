@@ -821,64 +821,6 @@ class WheelsNode:
         ]
 
 
-    async def process(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Process travel-related messages and route to appropriate methods"""
-        user_id = context.get('user_id')
-        message_lower = message.lower()
-        
-        try:
-            # Trip planning requests - including location-based planning
-            if (any(word in message_lower for word in ["plan", "trip", "travel", "route", "journey"]) or 
-                any(word in message_lower for word in ["from", "to"]) or 
-                context.get("last_intent") == "wheels"):
-                
-                # Check if this is a location-based trip planning message
-                locations = []
-                if "from" in message_lower and "to" in message_lower:
-                    # Extract origin and destination
-                    parts = message_lower.split("from")[-1].split("to")
-                    if len(parts) >= 2:
-                        origin = parts[0].strip()
-                        destination = parts[1].strip()
-                        return {
-                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get('user_profile', {}).get('vehicle_info', {}).get('type', 'vehicle')} and prefer {context.get('user_profile', {}).get('travel_preferences', {}).get('style', 'travel')} style. Let me create a personalized route with camping options and fuel stops along the way!",
-                            "confidence": 0.9,
-                            "requires_followup": True,
-                            "suggestions": ["Tell me your travel dates", "Any specific stops you want to make?", "What's your budget for this trip?"]
-                        }
-                elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
-                    return {
-                        "content": "Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: 'from Brisbane to Sydney'.",
-                        "confidence": 0.8,
-                        "requires_followup": True,
-                        "suggestions": ["from Sydney to Melbourne", "from Brisbane to Cairns", "from Perth to Adelaide"]
-                    }
-                else:
-                    return {
-                        "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?",
-                        "confidence": 0.8,
-                        "requires_followup": True,
-                        "suggestions": ["Plan a trip from [city] to [city]", "Find camping spots near [location]", "Get fuel prices along my route"]
-                    }
-            
-            # Default travel response
-            else:
-                return {
-                    "content": "I can help you with trip planning, route optimization, fuel tracking, and vehicle maintenance. What would you like assistance with?",
-                    "confidence": 0.7,
-                    "requires_followup": True,
-                    "suggestions": ["Plan a trip", "Check fuel prices", "Find camping spots", "Vehicle maintenance tips"]
-                }
-                
-        except Exception as e:
-            logger.error(f"Error in wheels_node.process: {e}")
-            return {
-                "content": "Sorry, I had trouble processing your travel request. Please try again.",
-                "confidence": 0.3,
-                "requires_followup": True,
-                "suggestions": ["Try asking about trip planning", "Ask about fuel prices", "Ask about camping spots"]
-            }
-
 
     async def process(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Process travel-related messages and route to appropriate methods"""
@@ -899,12 +841,70 @@ class WheelsNode:
                     if len(parts) >= 2:
                         origin = parts[0].strip()
                         destination = parts[1].strip()
-                        return {
-                            "content": f"Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get('user_profile', {}).get('vehicle_info', {}).get('type', 'vehicle')} and prefer {context.get('user_profile', {}).get('travel_preferences', {}).get('style', 'travel')} style. Let me create a personalized route with camping options and fuel stops along the way!",
-                            "confidence": 0.9,
-                            "requires_followup": True,
-                            "suggestions": ["Tell me your travel dates", "Any specific stops you want to make?", "What's your budget for this trip?"]
-                        }
+                        
+                        # Actually plan the trip using the comprehensive planning method
+                        try:
+                            trip_plan = await self.plan_complete_trip(
+                                user_id=user_id,
+                                origin=origin,
+                                destination=destination,
+                                constraints=context.get('travel_preferences', {})
+                            )
+                            
+                            if trip_plan and trip_plan.get('success'):
+                                plan_data = trip_plan.get('data', {})
+                                route_info = plan_data.get('routes', [{}])[0] if plan_data.get('routes') else {}
+                                
+                                # Format a comprehensive response with actual trip details
+                                response_content = f"🗺️ **Trip Plan: {origin.title()} to {destination.title()}**\n\n"
+                                
+                                if route_info:
+                                    response_content += f"📍 **Distance:** {route_info.get('distance_km', 'Unknown')} km\n"
+                                    response_content += f"⏱️ **Duration:** {route_info.get('duration_hours', 'Unknown')} hours\n"
+                                    response_content += f"💰 **Estimated Cost:** ${route_info.get('estimated_cost', 'Unknown')}\n\n"
+                                
+                                # Add camping spots if available
+                                camping_spots = plan_data.get('camping_spots', [])
+                                if camping_spots:
+                                    response_content += f"🏕️ **Camping Options:**\n"
+                                    for spot in camping_spots[:3]:  # Show first 3
+                                        response_content += f"• {spot.get('name', 'Unknown location')}\n"
+                                    response_content += "\n"
+                                
+                                # Add fuel stops if available  
+                                fuel_stops = plan_data.get('fuel_stops', [])
+                                if fuel_stops:
+                                    response_content += f"⛽ **Fuel Stops:**\n"
+                                    for stop in fuel_stops[:3]:  # Show first 3
+                                        response_content += f"• {stop.get('name', 'Unknown station')}\n"
+                                    response_content += "\n"
+                                
+                                response_content += "Let me know if you'd like me to adjust anything or provide more details!"
+                                
+                                return {
+                                    "content": response_content,
+                                    "confidence": 0.95,
+                                    "requires_followup": True,
+                                    "suggestions": ["Adjust travel dates", "Find different camping spots", "Show scenic route options", "Get weather forecast"],
+                                    "actions": [{"type": "show_map", "data": plan_data}]
+                                }
+                            else:
+                                # Fallback if trip planning fails
+                                return {
+                                    "content": f"I'm working on planning your trip from {origin.title()} to {destination.title()}. Let me gather route information and camping options for you. This might take a moment...",
+                                    "confidence": 0.8,
+                                    "requires_followup": True,
+                                    "suggestions": ["Tell me your travel dates", "Any specific stops you want to make?", "What's your budget for this trip?"]
+                                }
+                                
+                        except Exception as e:
+                            logger.error(f"Trip planning error: {e}")
+                            return {
+                                "content": f"I can help plan your trip from {origin.title()} to {destination.title()}! While I gather detailed route information, could you tell me your preferred travel dates and if you're looking for free camping options?",
+                                "confidence": 0.7,
+                                "requires_followup": True,
+                                "suggestions": ["Tell me your travel dates", "I want free camping", "Show me the fastest route"]
+                            }
                 elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
                     return {
                         "content": "Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: 'from Brisbane to Sydney'.",
