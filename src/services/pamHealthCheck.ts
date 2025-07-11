@@ -21,10 +21,9 @@ export class PamHealthCheckService {
     const startTime = Date.now();
     
     const endpoints = [
+      `${API_BASE_URL}/api/v1/pam/health`,
       `${API_BASE_URL}/health`,
-      `${API_BASE_URL}/`,
-      `${API_BASE_URL}/status`,
-      'https://treflip2025.app.n8n.cloud/webhook/health'
+      `${API_BASE_URL}/`
     ];
 
     for (const endpoint of endpoints) {
