@@ -66,6 +66,11 @@ sentry-sdk[fastapi]>=2.0.0
 psutil==5.9.8
 prometheus-client==0.19.0
 
+# OpenTelemetry for observability
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-instrumentation-fastapi>=0.41b0
+
 # Web search and HTML parsing
 beautifulsoup4==4.12.3
 # lxml==4.9.3  # Commented out due to Python 3.13 compatibility issues

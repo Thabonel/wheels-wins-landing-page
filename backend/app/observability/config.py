@@ -21,10 +21,20 @@ try:
 except ImportError:
     LANGFUSE_AVAILABLE = False
     Langfuse = None
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+# Optional OpenTelemetry imports - handle ImportError gracefully for deployment
+try:
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    OPENTELEMETRY_AVAILABLE = True
+except ImportError:
+    OPENTELEMETRY_AVAILABLE = False
+    trace = None
+    TracerProvider = None
+    BatchSpanProcessor = None
+    OTLPSpanExporter = None
 
 from app.core.config import get_settings
 
@@ -54,10 +64,12 @@ class ObservabilityConfig:
         try:
             self.openai_client = OpenAI(api_key=self.settings.OPENAI_API_KEY)
             
-            # Set up OpenTelemetry tracing
-            if not self.tracer:
+            # Set up OpenTelemetry tracing (only if available)
+            if OPENTELEMETRY_AVAILABLE and not self.tracer:
                 trace.set_tracer_provider(TracerProvider())
                 self.tracer = trace.get_tracer(__name__)
+            elif not OPENTELEMETRY_AVAILABLE:
+                logger.info("OpenTelemetry not available, skipping trace setup")
             
             logger.info("✅ OpenAI observability initialized")
             return self.openai_client
