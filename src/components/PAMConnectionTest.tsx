@@ -7,6 +7,7 @@ import { API_BASE_URL } from '@/services/api';
 import { pamHealthCheck } from '@/services/pamHealthCheck';
 import { PamApiService } from '@/services/pamApiService';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 export function PAMConnectionTest() {
@@ -102,19 +103,25 @@ export function PAMConnectionTest() {
 
   const testChat = async () => {
     try {
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        return { status: 'error', message: 'No authentication token available. Please log in.' };
+      }
+
       const pamService = PamApiService.getInstance();
       const result = await pamService.sendMessage({
         message: 'Hello PAM! This is a connection test.',
         user_id: user?.id || 'test-user'
-      });
+      }, session.access_token);
       
       if (result.response || result.message || result.content) {
         return { status: 'success', message: 'PAM chat is working!', response: result };
       } else {
         return { status: 'error', message: 'No response from PAM', result };
       }
-    } catch (error) {
-      return { status: 'error', message: 'Chat test failed', error };
+    } catch (error: any) {
+      return { status: 'error', message: `Chat test failed: ${error.message || 'Unknown error'}`, error };
     }
   };
 
@@ -233,6 +240,13 @@ export function PAMConnectionTest() {
               {results.chatTest.response && (
                 <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
                   Response: {JSON.stringify(results.chatTest.response, null, 2)}
+                </div>
+              )}
+              {results.chatTest.error && (
+                <div className="mt-1 p-2 bg-red-50 rounded text-xs text-red-600">
+                  Error details: {typeof results.chatTest.error === 'object' 
+                    ? JSON.stringify(results.chatTest.error, null, 2) 
+                    : results.chatTest.error}
                 </div>
               )}
             </div>
