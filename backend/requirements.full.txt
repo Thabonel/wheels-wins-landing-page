@@ -67,7 +67,8 @@ healthcheck==1.3.3
 
 # File handling
 python-magic==0.4.27
-pillow==11.0.0
+# Python 3.13 compatible version
+Pillow>=10.4.0
 
 # Utilities (deduplicated)
 uuid==1.30
