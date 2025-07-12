@@ -191,19 +191,101 @@ class VoiceStreamingManager:
     async def generate_tts_response(self, session_id: str, text: str):
         """Generate and send TTS audio response"""
         try:
-            # For now, send text response - implement actual TTS later
             logger.info(f"🔊 Generating TTS for session {session_id}: {text}")
             
-            # Placeholder: Send empty audio data
-            # In production, this would generate actual TTS audio
-            await self.send_message(session_id, {
-                'type': 'tts_ready',
-                'text': text,
-                'note': 'TTS audio would be sent as binary data'
-            })
+            session = self.active_sessions.get(session_id)
+            if not session:
+                return
+            
+            user_id = session['user_id']
+            
+            # Import TTS service
+            try:
+                from app.services.tts.streaming_tts import streaming_tts_service
+                
+                # Check if TTS service is available and initialized
+                if not streaming_tts_service.is_initialized:
+                    await self.send_message(session_id, {
+                        'type': 'tts_ready',
+                        'text': text,
+                        'note': 'TTS service not available, text-only response'
+                    })
+                    return
+                
+                # Get streaming TTS
+                audio_stream = await streaming_tts_service.synthesize_text(
+                    text=text,
+                    user_id=user_id,
+                    context="voice_conversation",
+                    stream=True,
+                    format="mp3"
+                )
+                
+                # Send TTS start message
+                await self.send_message(session_id, {
+                    'type': 'tts_start',
+                    'text': text,
+                    'format': 'mp3'
+                })
+                
+                # Collect all audio chunks first
+                audio_chunks = []
+                async for chunk in audio_stream:
+                    if chunk.data:
+                        audio_chunks.append(chunk.data)
+                    
+                    if chunk.is_final:
+                        # Handle errors in chunk metadata
+                        if chunk.metadata and 'error' in chunk.metadata:
+                            await self.send_message(session_id, {
+                                'type': 'tts_error',
+                                'error': chunk.metadata['error'],
+                                'text': text
+                            })
+                            return
+                        break
+                
+                # Combine all chunks into complete audio
+                if audio_chunks:
+                    complete_audio = b''.join(audio_chunks)
+                    
+                    # Use existing WebSocket streaming function
+                    from app.voice import stream_wav_over_websocket
+                    websocket = session['websocket']
+                    
+                    # Stream the complete WAV audio
+                    await stream_wav_over_websocket(websocket, complete_audio)
+                    
+                    # Send completion message
+                    await self.send_message(session_id, {
+                        'type': 'tts_complete',
+                        'audio_size_bytes': len(complete_audio),
+                        'text': text
+                    })
+                else:
+                    await self.send_message(session_id, {
+                        'type': 'tts_error',
+                        'error': 'No audio data generated',
+                        'text': text
+                    })
+                
+                logger.info(f"✅ TTS completed for session {session_id}: {len(audio_chunks)} chunks processed")
+                
+            except ImportError:
+                # Fallback if TTS service not available
+                await self.send_message(session_id, {
+                    'type': 'tts_ready',
+                    'text': text,
+                    'note': 'TTS service not available, text-only response'
+                })
             
         except Exception as e:
             logger.error(f"❌ TTS generation failed for session {session_id}: {e}")
+            await self.send_message(session_id, {
+                'type': 'tts_error',
+                'error': str(e),
+                'text': text
+            })
     
     async def send_message(self, session_id: str, message: Dict[str, Any]):
         """Send JSON message to session"""
