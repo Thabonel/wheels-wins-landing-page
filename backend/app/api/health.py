@@ -14,8 +14,17 @@ except ImportError:
 router = APIRouter()
 
 @router.get("/", status_code=status.HTTP_200_OK)
+async def root_health_check():
+    """Root health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "pam-backend"
+    }
+
+@router.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
-    """Basic health check endpoint"""
+    """Standard health check endpoint"""
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
