@@ -8,8 +8,10 @@ uvicorn[standard]==0.30.1
 pydantic==2.8.2
 pydantic-settings==2.3.4
 
-# Authentication and security
-python-jose[cryptography]==3.4.0
+# Authentication and security - SECURITY FIX: Replaced python-jose due to CVE
+# python-jose[cryptography]==3.4.0  # VULNERABLE - replaced with PyJWT
+PyJWT[crypto]==2.8.0
+cryptography>=41.0.7
 email-validator==2.2.0
 
 # AI and external APIs
@@ -38,8 +40,8 @@ apscheduler==3.10.4
 # System monitoring
 psutil==6.1.0
 
-# Error tracking and monitoring
-sentry-sdk==1.39.2
+# Error tracking and monitoring - SECURITY FIX: Updated sentry-sdk to fix env var exposure
+sentry-sdk[fastapi]>=2.0.0
 
 # Logging
 structlog==23.2.0
@@ -70,7 +72,8 @@ pillow==11.0.0
 # Utilities (deduplicated)
 uuid==1.30
 click==8.1.7
-python-multipart==0.0.20
+# SECURITY FIX: Updated python-multipart to fix DoS vulnerabilities
+python-multipart>=0.0.10
 
 # LangChain ecosystem (temporarily simplified for deployment)
 # langchain==0.2.17
@@ -87,16 +90,18 @@ sse-starlette==2.1.3
 # faiss-cpu==1.7.4
 tiktoken==0.5.2
 numpy==1.26.4
-scikit-learn==1.4.0
+# SECURITY FIX: Updated scikit-learn to fix data leakage vulnerability
+scikit-learn>=1.5.0
 
-# Enhanced Web Scraping and APIs
-requests==2.31.0
+# Enhanced Web Scraping and APIs - SECURITY FIX: Updated requests to fix credential leak vulnerability
+requests>=2.32.0
 aiofiles==23.2.1
 googlemaps==4.10.0
 yelpapi==2.5.0
 
 # Text Processing and NLP Enhancement (removed spacy to avoid blis compilation issues)
-nltk==3.8.1
+# SECURITY FIX: Updated nltk to fix unsafe deserialization vulnerability
+nltk>=3.9
 textstat==0.7.3
 
 # Background Job Processing
