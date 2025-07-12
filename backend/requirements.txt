@@ -54,6 +54,9 @@ edge-tts==6.1.9
 # Essential processing
 numpy==1.26.4
 
+# Monitoring and error tracking
+sentry-sdk[fastapi]==1.45.0
+
 # Web search and HTML parsing
 beautifulsoup4==4.12.3
 # lxml==4.9.3  # Commented out due to Python 3.13 compatibility issues
