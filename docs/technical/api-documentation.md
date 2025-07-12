@@ -5,7 +5,7 @@ Complete reference for the PAM Backend API endpoints, authentication, and integr
 
 ## Base Information
 
-**Base URL**: `https://pam-backend.render.com/api` (Production)  
+**Base URL**: `https://pam-backend.onrender.com/api` (Production)
 **Local Development**: `http://localhost:8000/api`  
 **API Version**: v1  
 **Content-Type**: `application/json`  
@@ -98,10 +98,10 @@ Comprehensive health check with system metrics.
 
 ## WebSocket Endpoints
 
-### WebSocket /ws/{user_id}
+### WebSocket `/api/v1/pam/ws`
 Real-time WebSocket connection for PAM AI assistant communication.
 
-**Connection URL**: `wss://pam-backend.onrender.com/ws/{user_id}?token={jwt_token}`
+**Connection URL**: `wss://pam-backend.onrender.com/api/v1/pam/ws?token={jwt_token}`
 
 **Authentication**: JWT token in URL parameter
 
@@ -654,7 +654,7 @@ class PAMClient {
 }
 
 // Usage
-const client = new PAMClient('https://pam-backend.render.com/api', 'your_jwt_token');
+const client = new PAMClient('https://pam-backend.onrender.com/api', 'your_jwt_token');
 const expenses = await client.get('/expenses');
 ```
 
@@ -679,7 +679,7 @@ class PAMClient:
         return response.json()
 
 # Usage
-client = PAMClient('https://pam-backend.render.com/api', 'your_jwt_token')
+client = PAMClient('https://pam-backend.onrender.com/api', 'your_jwt_token')
 expenses = client.get('/expenses')
 ```
 

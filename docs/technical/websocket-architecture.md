@@ -274,7 +274,7 @@ const connectionMetrics = {
 
 3. **Test WebSocket Endpoint**
    ```javascript
-   const testWs = new WebSocket('wss://pam-backend.onrender.com/ws/test-user?token=demo-token');
+   const testWs = new WebSocket('wss://pam-backend.onrender.com/api/v1/pam/ws?token=demo-token');
    testWs.onopen = () => console.log('Test connection successful');
    testWs.onerror = (error) => console.error('Test connection failed:', error);
    ```
