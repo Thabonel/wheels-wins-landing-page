@@ -65,6 +65,14 @@ async def lifespan(app: FastAPI):
         await cache_service.initialize()
         logger.info("✅ Redis cache service initialized")
         
+        # Initialize Knowledge Tool for PAM
+        try:
+            from app.core.orchestrator import orchestrator
+            await orchestrator.initialize_knowledge_tool()
+            logger.info("✅ PAM Knowledge Tool initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Knowledge Tool initialization failed: {e}")
+        
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
         
@@ -85,6 +93,15 @@ async def lifespan(app: FastAPI):
     try:
         # await db_pool.close()  # Database pool disabled
         await cache_service.close()
+        
+        # Shutdown Knowledge Tool
+        try:
+            from app.tools.knowledge_tool import knowledge_tool
+            await knowledge_tool.shutdown()
+            logger.info("✅ Knowledge Tool shutdown completed")
+        except Exception as e:
+            logger.warning(f"⚠️ Knowledge Tool shutdown warning: {e}")
+        
         logger.info("✅ Cleanup completed")
     except Exception as e:
         logger.error(f"❌ Error during cleanup: {e}")
