@@ -15,7 +15,7 @@ This guide walks you through setting up the PAM system from scratch.
 1. **Clone the Repository**
    ```bash
    git clone <repository-url>
-   cd pam-frontend
+   cd frontend
    ```
 
 2. **Install Dependencies**
