@@ -87,7 +87,7 @@ sse-starlette==2.1.3
 # faiss-cpu==1.7.4
 tiktoken==0.5.2
 numpy==1.26.4
-scikit-learn==1.4.0
+scikit-learn==1.5.0
 
 # Enhanced Web Scraping and APIs
 requests==2.31.0
