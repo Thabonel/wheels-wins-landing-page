@@ -24,25 +24,25 @@ grafana-api==1.0.3
 loguru==0.7.2
 colorlog==6.8.0
 
-# Enhanced HTTP handling
-aiohttp==3.9.2
+# Enhanced HTTP handling - SECURITY FIX: Updated aiohttp to fix DoS and XSS vulnerabilities
+aiohttp>=3.10.0
 websockets==12.0
 
 # Enhanced data processing (pandas downgraded for TTS compatibility)
 pandas==1.5.3
 numpy==1.26.2
 
-# Enhanced file handling
+# Enhanced file handling - SECURITY FIX: Updated pypdf2 to fix infinite loop vulnerability
 python-magic==0.4.27
-pypdf2==3.0.1
+PyPDF2>=3.1.0
 
 # Enhanced image processing
 pillow==11.0.0
 wand==0.6.13
 
-# Enhanced email support
+# Enhanced email support - SECURITY FIX: Updated jinja2 to fix sandbox breakout vulnerabilities
 aiosmtplib==3.0.1
-jinja2==3.1.3
+jinja2>=3.1.4
 
 # Enhanced caching
 python-memcached==1.62
