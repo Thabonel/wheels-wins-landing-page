@@ -4,8 +4,15 @@ Enhanced command recognition, intent extraction, and context understanding.
 """
 
 import re
-import spacy
 from typing import Dict, List, Optional, Tuple, Any
+
+# Optional spacy import for deployment compatibility
+try:
+    import spacy
+    SPACY_AVAILABLE = True
+except ImportError:
+    SPACY_AVAILABLE = False
+    spacy = None
 from dataclasses import dataclass
 from enum import Enum
 import asyncio

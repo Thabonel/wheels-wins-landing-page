@@ -10,9 +10,23 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 
-import chromadb
-from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+# Optional imports for deployment compatibility
+try:
+    import chromadb
+    from chromadb.config import Settings
+    CHROMADB_AVAILABLE = True
+except ImportError:
+    CHROMADB_AVAILABLE = False
+    chromadb = None
+    Settings = None
+
+try:
+    from sentence_transformers import SentenceTransformer
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
+    SentenceTransformer = None
+
 import numpy as np
 from pydantic import BaseModel
 
@@ -44,14 +58,44 @@ class VectorKnowledgeBase:
         self.persist_directory = Path(persist_directory)
         self.persist_directory.mkdir(parents=True, exist_ok=True)
         
+        # Check for required dependencies
+        if not CHROMADB_AVAILABLE:
+            logger.warning("⚠️ ChromaDB not available - vector knowledge base will use fallback mode")
+            self.client = None
+            self.encoder = None
+            self._fallback_mode = True
+            self.collections = {}
+            self._initialized = False
+            return
+        
+        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+            logger.warning("⚠️ Sentence Transformers not available - vector knowledge base will use fallback mode")
+            self.client = None
+            self.encoder = None
+            self._fallback_mode = True
+            self.collections = {}
+            self._initialized = False
+            return
+        
+        self._fallback_mode = False
+        
         # Initialize ChromaDB with persistence
-        self.client = chromadb.PersistentClient(
-            path=str(self.persist_directory),
-            settings=Settings(
-                allow_reset=True,
-                anonymized_telemetry=False
+        try:
+            self.client = chromadb.PersistentClient(
+                path=str(self.persist_directory),
+                settings=Settings(
+                    allow_reset=True,
+                    anonymized_telemetry=False
+                )
             )
-        )
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize ChromaDB: {e}")
+            self._fallback_mode = True
+            self.client = None
+            self.encoder = None
+            self.collections = {}
+            self._initialized = False
+            return
         
         # Initialize sentence transformer for embeddings
         try:
@@ -59,7 +103,12 @@ class VectorKnowledgeBase:
             logger.info("✅ Sentence transformer model loaded successfully")
         except Exception as e:
             logger.error(f"❌ Failed to load sentence transformer: {e}")
-            raise
+            self._fallback_mode = True
+            self.client = None
+            self.encoder = None
+            self.collections = {}
+            self._initialized = False
+            return
         
         # Define collections for different types of knowledge
         self.collections = {
@@ -75,6 +124,11 @@ class VectorKnowledgeBase:
     
     async def initialize_collections(self) -> bool:
         """Initialize all knowledge collections"""
+        if self._fallback_mode:
+            logger.info("📚 Knowledge base running in fallback mode - skipping vector collections")
+            self._initialized = True
+            return True
+            
         try:
             for collection_name in self.collections.keys():
                 try:
@@ -109,6 +163,10 @@ class VectorKnowledgeBase:
         documents: List[DocumentChunk]
     ) -> List[str]:
         """Add documents to specified collection"""
+        if self._fallback_mode:
+            logger.info(f"📚 Knowledge base in fallback mode - skipping document addition to {collection_name}")
+            return []
+            
         if not self._initialized:
             await self.initialize_collections()
         
@@ -164,6 +222,10 @@ class VectorKnowledgeBase:
         filter_metadata: Optional[Dict[str, Any]] = None
     ) -> List[SearchResult]:
         """Search for similar documents in the specified collection"""
+        if self._fallback_mode:
+            logger.info(f"📚 Knowledge base in fallback mode - returning empty search results for: {query}")
+            return []
+            
         if not self._initialized:
             await self.initialize_collections()
         
