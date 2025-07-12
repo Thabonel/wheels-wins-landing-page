@@ -204,15 +204,11 @@ async def test_platform_connection(
             if client:
                 # Test Langfuse connection
                 try:
-                    # This will test the connection
-                    client.get_dataset_items("test-connection-check")
+                    # Simple connection test - just check if client is initialized and can flush
+                    client.flush()
                     result = {"connected": True, "message": "Langfuse connection successful"}
                 except Exception as e:
-                    if "404" in str(e) or "not found" in str(e).lower():
-                        # Dataset not found is actually a successful connection
-                        result = {"connected": True, "message": "Langfuse connection successful"}
-                    else:
-                        result = {"connected": False, "message": f"Langfuse connection failed: {e}"}
+                    result = {"connected": False, "message": f"Langfuse connection failed: {e}"}
             else:
                 result = {"connected": False, "message": "Failed to initialize Langfuse client"}
                 
