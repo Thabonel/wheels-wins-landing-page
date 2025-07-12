@@ -85,7 +85,7 @@ python-multipart==0.0.18
 ### 1. **Deployment Success**
 - **Status**: PAM backend is successfully deployed and operational
 - **Service URL**: `https://pam-backend.onrender.com` ✅ ACCESSIBLE
-- **WebSocket Endpoint**: `wss://pam-backend.onrender.com/ws/{userId}` ✅ FUNCTIONAL
+- **WebSocket Endpoint**: `wss://pam-backend.onrender.com/api/v1/pam/ws` ✅ FUNCTIONAL
 - **Health Check**: `/api/health` endpoint responding correctly
 
 ### 2. **Active Features**

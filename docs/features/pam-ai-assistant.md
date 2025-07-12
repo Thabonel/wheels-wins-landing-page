@@ -15,7 +15,7 @@ PAM uses WebSocket connections for real-time bidirectional communication between
 4. Automatic reconnection with exponential backoff
 
 **Backend URL:** `https://pam-backend.onrender.com`  
-**WebSocket Endpoint:** `wss://pam-backend.onrender.com/ws/{userId}?token={jwt_token}`
+**WebSocket Endpoint:** `wss://pam-backend.onrender.com/api/v1/pam/ws?token={jwt_token}`
 
 ### Context Enrichment System
 PAM receives rich contextual information with each message:
@@ -110,7 +110,7 @@ Refresh tokens when expired to maintain the connection.
 
 ### WebSocket Message Flow
 1. **Connection Establishment**
-   - Frontend connects to `wss://pam-backend.onrender.com/ws/{userId}`
+   - Frontend connects to `wss://pam-backend.onrender.com/api/v1/pam/ws?token={jwt_token}`
    - JWT authentication in URL parameters
    - Automatic reconnection with exponential backoff (max 3 attempts)
 
