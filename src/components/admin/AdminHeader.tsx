@@ -4,6 +4,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Menu } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface AdminHeaderProps {
   isSidebarOpen: boolean;
@@ -13,9 +15,22 @@ interface AdminHeaderProps {
 const AdminHeader: React.FC<AdminHeaderProps> = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const isMobile = useIsMobile();
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     signOut();
+  };
+
+  const handleSettings = () => {
+    toast.info('Navigating to admin settings...');
+    // In a real app, this might open a settings modal or navigate to a settings page
+    // For now, we'll just show a message since the admin panel uses its own settings
+  };
+
+  const handleSupport = () => {
+    toast.info('Opening support center...');
+    // In a real app, this might open a support modal, redirect to help docs, or create a support ticket
+    window.open('mailto:support@wheelsandwins.com?subject=Admin Panel Support Request', '_blank');
   };
 
   const userInitials = user?.full_name 
@@ -41,8 +56,8 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ isSidebarOpen, setIsSidebarOp
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSettings}>Settings</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSupport}>Support</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
           </DropdownMenuContent>
@@ -63,8 +78,8 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ isSidebarOpen, setIsSidebarOp
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSettings}>Settings</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSupport}>Support</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
           </DropdownMenuContent>
