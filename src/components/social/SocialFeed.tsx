@@ -91,7 +91,7 @@ export default function SocialFeed() {
         } else if (error.code === '42501' || error.message?.includes('permission denied')) {
           // Permission denied error
           console.log("Permission denied - RLS policies are blocking access");
-          toast.error("Setting up social posts... Please refresh the page in a moment.");
+          toast.error("Permission issue detected. Running database migration should fix this.");
           // Don't return here, show empty state instead
           setPosts([]);
           setIsLoading(false);
