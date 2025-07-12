@@ -17,6 +17,8 @@ from app.models.domain.pam import PamResponse, PamContext, PamMemory
 from app.core.exceptions import PAMError, ErrorCode
 from app.core.config import settings
 from app.services.pam.tools import LoadUserProfileTool, LoadRecentMemoryTool, ThinkTool
+from app.observability import observe_llm_call, observe_agent
+from app.observability.monitor import global_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +102,7 @@ Never be robotic or purely functional. Always respond as if you're a caring frie
             logger.error(f"Failed to initialize advanced PAM: {e}")
             raise PAMError(f"Failed to initialize AI conversation: {e}", ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE)
 
+    @observe_llm_call(model="gpt-4o", provider="openai")
     async def analyze_intent(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Enhanced intent analysis with emotional awareness"""
         if not self.client:
@@ -165,6 +168,7 @@ Return ONLY a JSON object with:
             logger.error(f"AI intent analysis failed: {e}")
             return self._fallback_intent_analysis(message)
 
+    @observe_llm_call(model="gpt-4o", provider="openai")
     async def generate_response(self, message: str, context: Dict[str, Any], user_data: Optional[Dict] = None) -> Dict[str, Any]:
         """Generate emotionally intelligent, relationship-aware response with tool integration"""
         if not self.client:
@@ -280,6 +284,7 @@ For complex trip planning (like Sydney to Hobart), immediately recognize ferry r
             logger.error(f"Advanced AI response generation failed: {e}")
             raise PAMError(f"Failed to generate AI response: {e}", ErrorCode.EXTERNAL_API_ERROR)
 
+    @observe_llm_call(model="gpt-4o", provider="openai")
     async def _analyze_emotional_context(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Advanced emotional intelligence analysis"""
         if not self.client:
@@ -352,6 +357,7 @@ EMOTIONAL CONTEXT:
                 'response_style': 'friendly'
             }
 
+    @observe_llm_call(model="gpt-4o", provider="openai")
     async def _check_proactive_opportunities(self, user_id: str, message: str, relationship_context: str) -> Optional[Dict[str, Any]]:
         """Check for proactive assistance opportunities"""
         if not self.client:
@@ -661,6 +667,7 @@ IMPORTANT: Transform this technical data into warm, conversational advice. Don't
 
 Respond with this full context in mind, showing your genuine care and the depth of your relationship. Use all available information to provide the most helpful, personalized response possible."""
 
+    @observe_llm_call(model="gpt-4o-mini", provider="openai")
     async def _generate_relationship_aware_suggestions(self, user_message: str, ai_response: str, context: Dict[str, Any], pam_personality: PamPersonality, proactive_items: Optional[Dict]) -> List[str]:
         """Generate suggestions that are aware of the relationship depth"""
         if not self.client:
