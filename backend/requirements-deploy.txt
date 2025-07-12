@@ -1,4 +1,7 @@
-# Minimal PAM Backend Dependencies for Deployment
+# PAM Backend - Deployment-Optimized Dependencies for Python 3.13
+# This file contains only the essential dependencies needed for production deployment
+# Avoids packages with compilation issues on Python 3.13
+
 # Core FastAPI and ASGI server
 fastapi==0.111.0
 uvicorn[standard]==0.30.1
@@ -8,7 +11,6 @@ pydantic==2.8.2
 pydantic-settings==2.3.4
 
 # Authentication and security - SECURITY FIX: Replaced python-jose due to CVE
-# python-jose[cryptography]==3.4.0  # VULNERABLE - replaced with PyJWT
 PyJWT[crypto]==2.8.0
 cryptography>=41.0.7
 email-validator==2.2.0
@@ -68,16 +70,9 @@ prometheus-client==0.19.0
 
 # Web search and HTML parsing
 beautifulsoup4==4.12.3
-# lxml==4.9.3  # Commented out due to Python 3.13 compatibility issues
 
-# Additional search APIs (optional) 
-# googlemaps==4.10.0  # Temporarily commented - may have Python 3.13 issues
-
-# Additional dependencies that may be missing
-# DEPLOYMENT FIX: Updated tiktoken for Python 3.13 compatibility
-tiktoken>=0.8.0
-# openai-whisper==20231117  # Heavy dependency, may cause issues
-# transformers==4.36.0      # Heavy dependency, may cause issues
+# OpenAI tokenization - Use pre-built wheels only (no Rust compilation)
+# tiktoken>=0.8.0  # Temporarily disabled due to Python 3.13 compilation issues
 
 # Image processing for screenshot analysis - Python 3.13 compatible
 Pillow>=10.4.0

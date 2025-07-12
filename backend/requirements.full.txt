@@ -89,7 +89,8 @@ sse-starlette==2.1.3
 # chromadb==0.4.24
 # sentence-transformers==2.3.1
 # faiss-cpu==1.7.4
-tiktoken==0.5.2
+# DEPLOYMENT FIX: Updated tiktoken for Python 3.13 compatibility
+tiktoken>=0.8.0
 numpy==1.26.4
 # SECURITY FIX: Updated scikit-learn to fix data leakage vulnerability
 scikit-learn>=1.5.0
