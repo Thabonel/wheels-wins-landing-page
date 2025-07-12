@@ -1,8 +1,15 @@
 
 from fastapi import APIRouter, status
 from datetime import datetime
-import psutil
 import os
+
+# Optional psutil import for deployment compatibility
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    psutil = None
 
 router = APIRouter()
 
@@ -18,15 +25,25 @@ async def health_check():
 @router.get("/detailed", status_code=status.HTTP_200_OK)
 async def detailed_health_check():
     """Detailed health check with system metrics"""
+    
+    metrics = {
+        "python_version": os.sys.version,
+    }
+    
+    # Add system metrics if psutil is available
+    if PSUTIL_AVAILABLE:
+        metrics.update({
+            "cpu_percent": psutil.cpu_percent(interval=1),
+            "memory_percent": psutil.virtual_memory().percent,
+            "disk_usage": psutil.disk_usage('/').percent,
+        })
+    else:
+        metrics["note"] = "System metrics unavailable (psutil not installed)"
+    
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "pam-backend",
-        "metrics": {
-            "cpu_percent": psutil.cpu_percent(interval=1),
-            "memory_percent": psutil.virtual_memory().percent,
-            "disk_usage": psutil.disk_usage('/').percent,
-            "python_version": os.sys.version,
-        },
+        "metrics": metrics,
         "environment": os.getenv("ENVIRONMENT", "development")
     }

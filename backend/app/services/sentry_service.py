@@ -3,11 +3,21 @@ Sentry Error Tracking Service
 Centralized error tracking and performance monitoring with Sentry.
 """
 
-import sentry_sdk
-from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-from sentry_sdk.integrations.redis import RedisIntegration
-from sentry_sdk.integrations.asyncio import AsyncioIntegration
+# Optional Sentry imports for deployment compatibility
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+    from sentry_sdk.integrations.redis import RedisIntegration
+    from sentry_sdk.integrations.asyncio import AsyncioIntegration
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
+    sentry_sdk = None
+    FastApiIntegration = None
+    SqlalchemyIntegration = None
+    RedisIntegration = None
+    AsyncioIntegration = None
 from typing import Dict, Any, Optional
 from app.core.config import settings
 from app.core.logging import setup_logging, get_logger
@@ -24,7 +34,9 @@ class SentryService:
 
     def initialize(self):
         """Initialize Sentry SDK with comprehensive integrations"""
-        if self.initialized or not settings.SENTRY_DSN:
+        if self.initialized or not settings.SENTRY_DSN or not SENTRY_AVAILABLE:
+            if not SENTRY_AVAILABLE:
+                logger.info("Sentry SDK not available - skipping initialization")
             return
 
         try:
