@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Save, RefreshCw, Settings as SettingsIcon, Shield, Mail, Users } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { PamConnectionDiagnostic } from "@/components/PamConnectionDiagnostic";
+import { PAMConnectionTest } from "@/components/PAMConnectionTest";
 
 interface SystemSetting {
   id: string;
@@ -318,6 +319,16 @@ const Settings = () => {
         </CardHeader>
         <CardContent>
           <PamConnectionDiagnostic />
+        </CardContent>
+      </Card>
+
+      {/* PAM Connection Test */}
+      <Card>
+        <CardHeader>
+          <CardTitle>PAM Connection Test</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PAMConnectionTest />
         </CardContent>
       </Card>
     </div>
