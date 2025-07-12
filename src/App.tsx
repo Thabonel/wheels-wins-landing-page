@@ -26,6 +26,7 @@ import CancelTrial from "@/pages/CancelTrial";
 import PasswordResetRequest from "@/pages/PasswordResetRequest";
 import UpdatePassword from "@/pages/UpdatePassword";
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminProtection from './components/admin/AdminProtection';
 
 const queryClient = new QueryClient();
 
@@ -48,7 +49,7 @@ function App() {
                         <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                         <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
                         <Route path="/shop" element={<Shop />} />
-                        <Route path="/admin" element={<AdminDashboard />} />
+                        <Route path="/admin" element={<AdminProtection><AdminDashboard /></AdminProtection>} />
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/signup" element={<Signup />} />
@@ -58,6 +59,10 @@ function App() {
                         <Route path="/cancel-trial" element={<CancelTrial />} />
                         <Route path="/reset-password" element={<PasswordResetRequest />} />
                         <Route path="/update-password" element={<UpdatePassword />} />
+                        <Route path="/terms" element={<div className="container p-8"><h1 className="text-2xl font-bold mb-4">Terms of Service</h1><p>Terms of service content will be added here.</p></div>} />
+                        <Route path="/privacy" element={<div className="container p-8"><h1 className="text-2xl font-bold mb-4">Privacy Policy</h1><p>Privacy policy content will be added here.</p></div>} />
+                        <Route path="/cookies" element={<div className="container p-8"><h1 className="text-2xl font-bold mb-4">Cookie Policy</h1><p>Cookie policy content will be added here.</p></div>} />
+                        <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                       </Routes>
                     </Layout>
                   </WheelsProvider>

@@ -3,6 +3,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { User, Settings, MapPin, Car, Brain } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRegion } from "@/context/RegionContext";
@@ -108,6 +109,41 @@ const Profile = () => {
     }
   };
 
+  // Save profile data to database
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.fullName,
+          nickname: formData.nickname,
+          travel_style: formData.travelStyle,
+          partner_name: formData.partnerName,
+          partner_email: formData.partnerEmail,
+          vehicle_type: formData.vehicleType,
+          vehicle_make_model: formData.vehicleMakeModel,
+          fuel_type: formData.fuelType,
+          towing: formData.towing,
+          second_vehicle: formData.secondVehicle,
+          max_driving: formData.maxDriving,
+          camp_types: formData.campTypes,
+          accessibility: formData.accessibility,
+          pets: formData.pets,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile');
+    }
+  };
+
   if (!user) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -165,6 +201,13 @@ const Profile = () => {
                 uploadingPartnerPhoto={uploadingPartnerPhoto}
                 handleFileUpload={handleFileUpload}
               />
+              <Card>
+                <CardContent className="p-6">
+                  <Button onClick={handleSaveProfile} className="w-full">
+                    Save Identity Information
+                  </Button>
+                </CardContent>
+              </Card>
             </ErrorBoundary>
           </TabsContent>
 
@@ -174,6 +217,13 @@ const Profile = () => {
                 formData={formData}
                 setFormData={setFormData}
               />
+              <Card>
+                <CardContent className="p-6">
+                  <Button onClick={handleSaveProfile} className="w-full">
+                    Save Travel Preferences
+                  </Button>
+                </CardContent>
+              </Card>
             </ErrorBoundary>
           </TabsContent>
 
@@ -183,6 +233,13 @@ const Profile = () => {
                 formData={formData}
                 setFormData={setFormData}
               />
+              <Card>
+                <CardContent className="p-6">
+                  <Button onClick={handleSaveProfile} className="w-full">
+                    Save Vehicle Setup
+                  </Button>
+                </CardContent>
+              </Card>
             </ErrorBoundary>
           </TabsContent>
 
