@@ -10,8 +10,21 @@ from datetime import datetime, timedelta
 import json
 
 import aiohttp
-import googlemaps
-from yelpapi import YelpAPI
+
+# Optional imports with fallbacks
+try:
+    import googlemaps
+    GOOGLEMAPS_AVAILABLE = True
+except ImportError:
+    googlemaps = None
+    GOOGLEMAPS_AVAILABLE = False
+
+try:
+    from yelpapi import YelpAPI
+    YELP_AVAILABLE = True
+except ImportError:
+    YelpAPI = None
+    YELP_AVAILABLE = False
 
 from app.core.config import get_settings
 from app.services.knowledge.vector_store import VectorKnowledgeBase
@@ -55,6 +68,9 @@ class GooglePlacesAPI(RateLimitedAPI):
         self.api_key = getattr(settings, 'GOOGLE_PLACES_API_KEY', None)
         if not self.api_key:
             logger.warning("⚠️ Google Places API key not configured")
+            self.client = None
+        elif not GOOGLEMAPS_AVAILABLE:
+            logger.warning("⚠️ googlemaps library not available")
             self.client = None
         else:
             try:
@@ -259,6 +275,9 @@ class YelpFusionAPI(RateLimitedAPI):
         self.api_key = getattr(settings, 'YELP_API_KEY', None)
         if not self.api_key:
             logger.warning("⚠️ Yelp API key not configured")
+            self.client = None
+        elif not YELP_AVAILABLE:
+            logger.warning("⚠️ yelpapi library not available")
             self.client = None
         else:
             try:

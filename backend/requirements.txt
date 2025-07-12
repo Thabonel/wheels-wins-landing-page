@@ -56,7 +56,7 @@ numpy==1.26.4
 
 # Web search and HTML parsing
 beautifulsoup4==4.12.3
-lxml==4.9.3
+# lxml==4.9.3  # Commented out due to Python 3.13 compatibility issues
 
-# Additional search APIs (optional)
-googlemaps==4.10.0
+# Additional search APIs (optional) 
+# googlemaps==4.10.0  # Temporarily commented - may have Python 3.13 issues
