@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { RefreshCw, Search, UserPlus } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from '@/context/AuthContext';
 
 interface AdminUser {
   id: string;
@@ -22,6 +23,7 @@ interface AdminUser {
 }
 
 export default function UserManagement() {
+  const { user, session, isAuthenticated } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,12 +31,22 @@ export default function UserManagement() {
   const [filterStatus, setFilterStatus] = useState('all');
   
   const fetchUsers = async () => {
+    if (!isAuthenticated || !session) {
+      console.log('Not authenticated, skipping user fetch');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    console.log('Fetching users with auth:', { userEmail: user?.email, hasSession: !!session });
+    
     try {
       // Get admin users data
       const { data: adminUsers, error } = await supabase
         .from('admin_users')
         .select('*');
+
+      console.log('Query result:', { data: adminUsers, error });
 
       if (error) throw error;
 
@@ -49,8 +61,9 @@ export default function UserManagement() {
         last_login: user.last_login
       })) || [];
 
+      console.log('Formatted users:', formattedUsers);
       setUsers(formattedUsers);
-      toast.success("User data refreshed");
+      toast.success(`User data refreshed - found ${formattedUsers.length} users`);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error("Failed to fetch users");
@@ -134,8 +147,10 @@ export default function UserManagement() {
   });
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (isAuthenticated && session) {
+      fetchUsers();
+    }
+  }, [isAuthenticated, session]);
 
   return (
     <div className="p-6 space-y-6">
