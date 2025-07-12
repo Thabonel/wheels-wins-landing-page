@@ -18,6 +18,15 @@ from app.core.intelligent_conversation import IntelligentConversationHandler
 # Import the enhanced route intelligence
 from app.core.route_intelligence import route_intelligence
 
+# Import the knowledge tool
+try:
+    from app.tools.knowledge_tool import knowledge_tool
+    KNOWLEDGE_TOOL_AVAILABLE = True
+    logger.info("✅ Knowledge Tool available for enhanced PAM responses")
+except ImportError as e:
+    logger.warning(f"⚠️ Knowledge Tool not available: {e}")
+    KNOWLEDGE_TOOL_AVAILABLE = False
+
 # Import the scraping function
 try:
     from scraper_service.main import fetch_and_parse
@@ -242,7 +251,114 @@ class ActionPlanner:
         self.memory_node = MemoryNode()
         self.intelligent_handler = IntelligentConversationHandler()
         self.entity_extractor = EntityExtractor()
+        self.knowledge_initialized = False
         
+    async def initialize_knowledge_tool(self):
+        """Initialize the knowledge tool if available"""
+        if KNOWLEDGE_TOOL_AVAILABLE and not self.knowledge_initialized:
+            try:
+                await knowledge_tool.initialize()
+                self.knowledge_initialized = True
+                logger.info("✅ Knowledge Tool initialized successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize Knowledge Tool: {e}")
+                self.knowledge_initialized = False
+        
+    async def enhance_response_with_knowledge(
+        self, 
+        message: str, 
+        entities: Dict[str, Any], 
+        base_response: str,
+        user_location: Optional[tuple] = None
+    ) -> Dict[str, Any]:
+        """Enhance response with knowledge base information"""
+        
+        if not KNOWLEDGE_TOOL_AVAILABLE or not self.knowledge_initialized:
+            return {"enhanced": False, "content": base_response}
+        
+        try:
+            # Determine if this is a travel/location question
+            location_keywords = ["where", "near", "restaurant", "hotel", "attraction", "weather", "traffic"]
+            travel_keywords = ["travel", "trip", "route", "camping", "caravan park"]
+            
+            message_lower = message.lower()
+            is_location_query = any(keyword in message_lower for keyword in location_keywords)
+            is_travel_query = any(keyword in message_lower for keyword in travel_keywords)
+            
+            enhanced_content = base_response
+            knowledge_data = None
+            
+            # Get location from entities if not provided
+            if not user_location:
+                locations = entities.get('locations', {})
+                mentioned_places = locations.get('mentioned_places', [])
+                if mentioned_places:
+                    # For demo, using Brisbane coordinates - in production, you'd geocode the location
+                    user_location = (-27.4698, 153.0251)
+            
+            # Handle location-specific queries
+            if is_location_query and user_location:
+                knowledge_data = await knowledge_tool.get_local_recommendations(
+                    user_location=user_location,
+                    query=message,
+                    radius_km=15.0
+                )
+                
+                if knowledge_data and not knowledge_data.get("error"):
+                    recommendations = knowledge_data.get("recommendations", [])
+                    if recommendations:
+                        enhanced_content += "\n\n🎯 **Local Recommendations:**\n"
+                        for i, rec in enumerate(recommendations[:3], 1):
+                            name = rec.get("name", "Local Business")
+                            rating = rec.get("rating", "N/A")
+                            enhanced_content += f"{i}. **{name}** (Rating: {rating})\n"
+                        
+                        enhanced_content += "\n💡 *These recommendations are based on real-time local data*"
+            
+            # Handle general travel questions
+            elif is_travel_query:
+                knowledge_data = await knowledge_tool.answer_travel_question(
+                    question=message,
+                    user_location=user_location
+                )
+                
+                if knowledge_data and not knowledge_data.get("error"):
+                    knowledge_sources = knowledge_data.get("knowledge_sources", [])
+                    if knowledge_sources:
+                        enhanced_content += "\n\n📚 **Additional Information:**\n"
+                        for source in knowledge_sources[:2]:
+                            content = source.get("content", "")[:200] + "..."
+                            enhanced_content += f"• {content}\n"
+                        
+                        confidence = knowledge_data.get("confidence_score", 0)
+                        enhanced_content += f"\n💡 *Confidence: {confidence*100:.0f}% based on {len(knowledge_sources)} sources*"
+            
+            # General knowledge search as fallback
+            else:
+                search_result = await knowledge_tool.search_knowledge(
+                    query=message,
+                    user_location=user_location,
+                    max_results=3
+                )
+                
+                if search_result.get("success") and search_result.get("results"):
+                    results = search_result.get("results", [])
+                    if results:
+                        enhanced_content += "\n\n🔍 **Related Information:**\n"
+                        for result in results[:2]:
+                            content = result.get("content", "")[:150] + "..."
+                            enhanced_content += f"• {content}\n"
+            
+            return {
+                "enhanced": True,
+                "content": enhanced_content,
+                "knowledge_data": knowledge_data,
+                "user_location": user_location
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Knowledge enhancement failed: {e}")
+            return {"enhanced": False, "content": base_response, "error": str(e)}
         
     def classify_intent_with_entities(self, message: str, entities: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Enhanced intent classification using extracted entities"""
@@ -384,6 +500,9 @@ class ActionPlanner:
         user_id = context.get("user_id")
         session_id = context.get("session_id")
         
+        # Initialize knowledge tool if not already done
+        await self.initialize_knowledge_tool()
+        
         # Log full context received in orchestrator
         logger.info(f"🧠 Orchestrator received context: {json.dumps(context, indent=2)}")
         logger.info(f"🎯 Processing message: '{message}' for user: {user_id}")
@@ -405,6 +524,9 @@ class ActionPlanner:
         # Classify intent using entities
         intent_data = self.classify_intent_with_entities(message, entities, context)
         logger.info(f"🎯 Intent classification: {json.dumps(intent_data, indent=2)}")
+        
+        # Get user location from context if available
+        user_location = context.get("user_location")
         
         
         # Route to appropriate node
@@ -444,10 +566,21 @@ class ActionPlanner:
                     )
                     
                     ai_response = analysis.get("response", {})
+                    base_content = ai_response.get("content", "I'm here to help! How can I assist you today?")
+                    
+                    # Enhance response with knowledge base
+                    knowledge_enhancement = await self.enhance_response_with_knowledge(
+                        message=message,
+                        entities=entities,
+                        base_response=base_content,
+                        user_location=user_location
+                    )
+                    
                     result = {
                         "type": ai_response.get("type", "message"),
-                        "content": ai_response.get("content", "I'm here to help! How can I assist you today?"),
-                        "suggested_actions": ai_response.get("suggested_actions", [])
+                        "content": knowledge_enhancement.get("content", base_content),
+                        "suggested_actions": ai_response.get("suggested_actions", []),
+                        "knowledge_enhanced": knowledge_enhancement.get("enhanced", False)
                     }
                     
                     # Store interaction
@@ -506,14 +639,23 @@ class ActionPlanner:
             ai_response = analysis.get("response", {})
             
             # Get response content
-            response_content = ai_response.get("content", "I'm here to help! How can I assist you today?")
+            base_content = ai_response.get("content", "I'm here to help! How can I assist you today?")
+            
+            # Enhance response with knowledge base
+            knowledge_enhancement = await self.enhance_response_with_knowledge(
+                message=message,
+                entities=entities,
+                base_response=base_content,
+                user_location=user_location
+            )
             
             result = {
                 "type": ai_response.get("type", "message"),
-                "content": response_content,
+                "content": knowledge_enhancement.get("content", base_content),
                 "suggested_actions": ai_response.get("suggested_actions", []),
                 "entities": entities,  # Include entities in response
                 "intent_info": intent_data,  # Include intent classification info
+                "knowledge_enhanced": knowledge_enhancement.get("enhanced", False)
             }
             
             # Store interaction in memory
