@@ -34,24 +34,53 @@ export function PamConnectionDiagnostic() {
     return new Promise((resolve) => {
       try {
         const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/api/v1/pam/ws?token=test-connection`;
+        console.log('Testing WebSocket connection to:', wsUrl);
         const ws = new WebSocket(wsUrl);
         
         const timeout = setTimeout(() => {
+          console.log('WebSocket connection timeout');
           ws.close();
           resolve('disconnected');
-        }, 5000);
+        }, 8000); // Increased timeout
 
         ws.onopen = () => {
+          console.log('WebSocket connection opened successfully');
           clearTimeout(timeout);
-          ws.close();
-          resolve('connected');
+          
+          // Send a ping to ensure full connectivity
+          ws.send(JSON.stringify({ type: 'ping' }));
         };
 
-        ws.onerror = () => {
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('WebSocket message received:', data);
+            
+            // If we get any message back, the connection is working
+            clearTimeout(timeout);
+            ws.close();
+            resolve('connected');
+          } catch (error) {
+            console.error('WebSocket message parse error:', error);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
           clearTimeout(timeout);
           resolve('error');
         };
+
+        ws.onclose = (event) => {
+          console.log('WebSocket closed:', event.code, event.reason);
+          clearTimeout(timeout);
+          if (event.code === 1000) {
+            // Normal closure - connection was successful
+            resolve('connected');
+          }
+        };
       } catch (error) {
+        console.error('WebSocket connection setup error:', error);
         resolve('error');
       }
     });
@@ -59,6 +88,24 @@ export function PamConnectionDiagnostic() {
 
   const checkAPIStatus = async () => {
     try {
+      // First try the health endpoint which should always work
+      const healthResponse = await fetch(`${API_BASE_URL}/api/v1/pam/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (healthResponse.ok) {
+        const healthData = await healthResponse.json();
+        if (healthData.status === 'healthy') {
+          return 'operational';
+        } else if (healthData.status === 'degraded') {
+          return 'degraded';
+        } else {
+          return 'offline';
+        }
+      }
+      
+      // Fallback to OPTIONS check on chat endpoint
       const response = await fetch(`${API_BASE_URL}/api/v1/pam/chat`, {
         method: 'OPTIONS',
         signal: AbortSignal.timeout(5000)
@@ -72,6 +119,7 @@ export function PamConnectionDiagnostic() {
         return 'degraded';
       }
     } catch (error) {
+      console.error('API status check error:', error);
       return 'offline';
     }
   };
