@@ -90,7 +90,7 @@ numpy==1.26.4
 scikit-learn==1.4.0
 
 # Enhanced Web Scraping and APIs
-requests==2.31.0
+requests==2.32.4
 aiofiles==23.2.1
 googlemaps==4.10.0
 yelpapi==2.5.0
