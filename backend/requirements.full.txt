@@ -96,7 +96,7 @@ googlemaps==4.10.0
 yelpapi==2.5.0
 
 # Text Processing and NLP Enhancement (removed spacy to avoid blis compilation issues)
-nltk==3.8.1
+nltk==3.9
 textstat==0.7.3
 
 # Background Job Processing
