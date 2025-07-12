@@ -103,6 +103,15 @@ textstat>=0.7.3
 # Background Job Processing
 rq>=1.15.1
 schedule>=1.2.0
+apscheduler>=3.10.4
 
-# Note: TTS==0.23.1 temporarily removed due to Python 3.13 compatibility issues
+# TTS (Text-to-Speech) Services
+edge-tts>=6.1.9
+
+# Audio Processing  
+pydub>=0.25.1
+soundfile>=0.12.1
+
+# Note: TTS==0.23.1 (Coqui TTS) temporarily removed due to Python 3.13 compatibility issues
 # Will be re-added when a compatible version is available
+# Coqui TTS is already included in the project for open-source voice synthesis

@@ -33,7 +33,7 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 
 # Import API routers
-from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin, observability
+from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin, observability, tts
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
 from app.webhooks import stripe_webhooks
@@ -73,6 +73,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"⚠️ Knowledge Tool initialization failed: {e}")
         
+        # Initialize TTS Service for PAM
+        try:
+            from app.services.tts.tts_service import tts_service
+            await tts_service.initialize()
+            logger.info("✅ PAM TTS Service initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ TTS Service initialization failed: {e}")
+        
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
         
@@ -101,6 +109,14 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Knowledge Tool shutdown completed")
         except Exception as e:
             logger.warning(f"⚠️ Knowledge Tool shutdown warning: {e}")
+        
+        # Shutdown TTS Service
+        try:
+            from app.services.tts.tts_service import tts_service
+            await tts_service.shutdown()
+            logger.info("✅ TTS Service shutdown completed")
+        except Exception as e:
+            logger.warning(f"⚠️ TTS Service shutdown warning: {e}")
         
         logger.info("✅ Cleanup completed")
     except Exception as e:
@@ -167,6 +183,7 @@ app.include_router(support.router, prefix="/api", tags=["Support"])
 app.include_router(stripe_webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(observability.router, prefix="/api/v1", tags=["Admin Observability"])
+app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 # Mundi integration removed
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
 app.include_router(voice_streaming.router, prefix="/api/v1/voice", tags=["Voice Streaming"])
