@@ -2174,7 +2174,15 @@ export type Database = {
           listing_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_favorites_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       marketplace_listings: {
         Row: {
@@ -4216,17 +4224,23 @@ export type Database = {
       social_group_members: {
         Row: {
           group_id: string
+          is_active: boolean | null
           joined_at: string | null
+          role: string | null
           user_id: string
         }
         Insert: {
           group_id: string
+          is_active?: boolean | null
           joined_at?: string | null
+          role?: string | null
           user_id: string
         }
         Update: {
           group_id?: string
+          is_active?: boolean | null
           joined_at?: string | null
+          role?: string | null
           user_id?: string
         }
         Relationships: [
@@ -4253,6 +4267,7 @@ export type Database = {
           member_count: number | null
           name: string
           owner_id: string | null
+          privacy: string | null
           updated_at: string | null
         }
         Insert: {
@@ -4268,6 +4283,7 @@ export type Database = {
           member_count?: number | null
           name: string
           owner_id?: string | null
+          privacy?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -4283,6 +4299,7 @@ export type Database = {
           member_count?: number | null
           name?: string
           owner_id?: string | null
+          privacy?: string | null
           updated_at?: string | null
         }
         Relationships: []
