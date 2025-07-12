@@ -78,5 +78,5 @@ tiktoken==0.5.2
 # openai-whisper==20231117  # Heavy dependency, may cause issues
 # transformers==4.36.0      # Heavy dependency, may cause issues
 
-# Image processing for screenshot analysis
-Pillow==10.0.1
+# Image processing for screenshot analysis - Python 3.13 compatible
+Pillow>=10.4.0

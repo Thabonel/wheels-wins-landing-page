@@ -37,7 +37,8 @@ python-magic==0.4.27
 PyPDF2>=3.1.0
 
 # Enhanced image processing
-pillow==11.0.0
+# Python 3.13 compatible version
+Pillow>=10.4.0
 wand==0.6.13
 
 # Enhanced email support - SECURITY FIX: Updated jinja2 to fix sandbox breakout vulnerabilities
