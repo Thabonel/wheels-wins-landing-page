@@ -720,6 +720,7 @@ export type Database = {
           timezone: string | null
           title: string
           type: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -734,6 +735,7 @@ export type Database = {
           timezone?: string | null
           title: string
           type?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -748,6 +750,7 @@ export type Database = {
           timezone?: string | null
           title?: string
           type?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -5858,13 +5861,12 @@ export type Database = {
         Returns: string
       }
       get_conversation_history: {
-        Args: { p_user_id: string; p_limit?: number }
+        Args: { p_user_id: string; p_limit?: number } | { user_id: string }
         Returns: {
-          conversation_id: string
-          role: string
-          content: string
-          intent: string
+          id: string
           created_at: string
+          message: string
+          sender_id: string
         }[]
       }
       get_nearby_recommendations: {
@@ -5885,8 +5887,14 @@ export type Database = {
         }[]
       }
       get_or_create_pam_conversation: {
-        Args: { p_user_id: string; p_session_id: string; p_context?: Json }
-        Returns: string
+        Args:
+          | { p_user_id: string; p_session_id: string; p_context?: Json }
+          | { user_id: string }
+        Returns: {
+          id: string
+          created_at: string
+          updated_at: string
+        }[]
       }
       get_user_id_from_auth: {
         Args: Record<PropertyKey, never>
@@ -5941,16 +5949,18 @@ export type Database = {
         Returns: undefined
       }
       store_pam_message: {
-        Args: {
-          p_conversation_id: string
-          p_role: string
-          p_content: string
-          p_intent?: string
-          p_confidence?: number
-          p_entities?: Json
-          p_metadata?: Json
-        }
-        Returns: string
+        Args:
+          | Record<PropertyKey, never>
+          | {
+              p_conversation_id: string
+              p_role: string
+              p_content: string
+              p_intent?: string
+              p_confidence?: number
+              p_entities?: Json
+              p_metadata?: Json
+            }
+        Returns: undefined
       }
       store_user_context: {
         Args:
