@@ -20,8 +20,9 @@ from app.core.middleware import setup_middleware
 from app.core.security_middleware import setup_security_middleware
 from app.core.monitoring_middleware import MonitoringMiddleware
 from app.guardrails.guardrails_middleware import GuardrailsMiddleware
-from langserve import add_routes
-from app.services.pam.mcp.controllers.pauter_router import PauterRouter
+# Temporarily disabled due to WebSocket route conflicts
+# from langserve import add_routes
+# from app.services.pam.mcp.controllers.pauter_router import PauterRouter
 from app.voice.stt_whisper import whisper_stt
 # from app.voice.tts_coqui import coqui_tts  # Temporarily disabled due to TTS dependency issues
 from app.core.config import settings
