@@ -35,7 +35,24 @@ export function useSocialPosts() {
 
       if (error) {
         console.error("Error creating post:", error);
-        toast.error("Failed to create post. Please try again.");
+        console.error("Error code:", error.code);
+        console.error("Error details:", error.details);
+        console.error("Error hint:", error.hint);
+        console.error("Error message:", error.message);
+        console.error("Post data attempted:", { user_id: user.id, content, image_url: imageUrl, group_id: groupId, location, status: initialStatus });
+        
+        // More specific error messages
+        if (error.code === '23503') {
+          toast.error("Invalid group reference. Please refresh the page and try again.");
+        } else if (error.code === '23505') {
+          toast.error("Duplicate post detected. Please wait before posting again.");
+        } else if (error.code === '42501') {
+          toast.error("Permission denied. Please check your account settings.");
+        } else if (error.message?.includes('user_id')) {
+          toast.error("Authentication error. Please log out and log back in.");
+        } else {
+          toast.error(`Failed to create post: ${error.message || 'Unknown error'}`);
+        }
         return null;
       }
 
