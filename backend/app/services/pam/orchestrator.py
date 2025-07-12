@@ -28,6 +28,14 @@ from app.services.pam.context_manager import ContextManager
 from app.observability import observe_agent, observe_llm_call
 from app.observability.monitor import global_monitor
 
+# Optional web search import
+try:
+    from app.services.search.web_search import web_search_service
+    WEB_SEARCH_AVAILABLE = True
+except ImportError:
+    web_search_service = None
+    WEB_SEARCH_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class PamOrchestrator:
@@ -288,6 +296,96 @@ class PamOrchestrator:
                 context_triggers={}
             )
     
+    def _needs_web_search(self, message: str, intent_analysis: PamIntent) -> bool:
+        """Determine if the query needs web search for current information"""
+        
+        # Keywords that suggest need for internet search
+        search_indicators = [
+            'search', 'find', 'latest', 'current', 'news', 'today',
+            'what is', 'how to', 'where can', 'when does', 'who is',
+            'review', 'best', 'top', 'compare', 'vs', 'versus',
+            'weather', 'traffic', 'events', 'happening',
+            'definition', 'explain', 'meaning', 'tutorial'
+        ]
+        
+        message_lower = message.lower()
+        
+        # Check for search indicators
+        if any(indicator in message_lower for indicator in search_indicators):
+            return True
+        
+        # Check if intent suggests need for current info
+        if intent_analysis.intent_type in [
+            IntentType.GENERAL_CHAT,
+            IntentType.WEATHER_CHECK
+        ] and intent_analysis.confidence < 0.7:
+            # Low confidence general queries often benefit from web search
+            return True
+        
+        # Check entities for web search needs
+        entities = intent_analysis.entities
+        if 'search_query' in entities or 'information_request' in entities:
+            return True
+        
+        return False
+    
+    async def _perform_web_search(
+        self,
+        query: str,
+        context: PamContext,
+        search_type: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Perform web search when PAM needs current information from the internet"""
+        
+        if not WEB_SEARCH_AVAILABLE:
+            logger.warning("⚠️ Web search not available")
+            return None
+        
+        try:
+            # Build search context
+            search_context = {
+                'location': context.location,
+                'preferences': context.preferences,
+                'time_sensitive': True
+            }
+            
+            # Determine search type based on intent
+            if not search_type:
+                if any(word in query.lower() for word in ['news', 'latest', 'current', 'today']):
+                    search_type = 'news'
+                elif any(word in query.lower() for word in ['how to', 'tutorial', 'guide']):
+                    search_type = 'how-to'
+                elif any(word in query.lower() for word in ['near', 'nearby', 'local']):
+                    search_type = 'local'
+                elif any(word in query.lower() for word in ['travel', 'trip', 'destination']):
+                    search_type = 'travel'
+                elif any(word in query.lower() for word in ['review', 'best', 'comparison']):
+                    search_type = 'product'
+            
+            # Perform search
+            logger.info(f"🌐 Performing web search for: {query}")
+            
+            if search_type:
+                results = await web_search_service.specialized_search(
+                    search_type=search_type,
+                    query=query,
+                    location=context.location,
+                    num_results=5
+                )
+            else:
+                results = await web_search_service.search_with_context(
+                    query=query,
+                    context=search_context,
+                    num_results=5
+                )
+            
+            logger.info(f"✅ Web search returned {len(results.get('results', []))} results")
+            return results
+            
+        except Exception as e:
+            logger.error(f"❌ Web search error: {e}")
+            return None
+    
     async def _ai_first_response(
         self, 
         intent: IntentType, 
@@ -313,6 +411,13 @@ class PamOrchestrator:
                     'weather': node_data.get('weather', {}),
                     'user_data': node_data.get('user_data', {})
                 }
+            
+            # Check if we need web search data
+            if self._needs_web_search(message, intent_analysis):
+                web_results = await self._perform_web_search(message, context)
+                if web_results:
+                    enhanced_context['web_search_results'] = web_results
+                    enhanced_context['has_current_info'] = True
             
             # Let the intelligent conversation service generate the response
             ai_response = await self.conversation_service.generate_response(
