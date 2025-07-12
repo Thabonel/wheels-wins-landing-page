@@ -144,6 +144,19 @@ export default function ContentModeration() {
               </div>
 
               <div>
+                <Label htmlFor="content_id">Content ID</Label>
+                <input
+                  id="content_id"
+                  type="text"
+                  value={reportForm.content_id}
+                  onChange={(e) => setReportForm({...reportForm, content_id: e.target.value})}
+                  placeholder="Enter the ID of the content you're reporting"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
                 <Label htmlFor="category">Category</Label>
                 <Select 
                   value={reportForm.category} 
@@ -186,7 +199,7 @@ export default function ContentModeration() {
               <div className="flex gap-2">
                 <Button 
                   onClick={handleSubmitReport} 
-                  disabled={loading || !reportForm.reason}
+                  disabled={loading || !reportForm.reason || !reportForm.content_id}
                 >
                   Submit Report
                 </Button>

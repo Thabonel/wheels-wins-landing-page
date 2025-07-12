@@ -1,4 +1,5 @@
 import { Separator } from "@/components/ui/separator";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -12,17 +13,17 @@ const Footer = () => {
           <p>© {currentYear} Wheels and Wins. All rights reserved.</p>
 
           <div className="flex items-center space-x-3">
-            <a href="#" className="hover:text-primary transition-colors">
+            <Link to="/terms" className="hover:text-primary transition-colors">
               Terms of Service
-            </a>
+            </Link>
             <span className="opacity-40">|</span>
-            <a href="#" className="hover:text-primary transition-colors">
+            <Link to="/privacy" className="hover:text-primary transition-colors">
               Privacy Policy
-            </a>
+            </Link>
             <span className="opacity-40">|</span>
-            <a href="#" className="hover:text-primary transition-colors">
+            <Link to="/cookies" className="hover:text-primary transition-colors">
               Cookie Policy
-            </a>
+            </Link>
           </div>
         </div>
       </div>
