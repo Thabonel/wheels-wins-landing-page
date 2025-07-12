@@ -40,6 +40,9 @@ async def websocket_endpoint(
     connection_id = str(uuid.uuid4())
     
     try:
+        # IMPORTANT: Accept the WebSocket connection FIRST
+        await websocket.accept()
+        
         # Extract user_id from token - support both Supabase JWT and simple user_id tokens
         if token == "test-connection":
             user_id = "test-user"
@@ -58,6 +61,7 @@ async def websocket_endpoint(
                 user_id = token if token else "anonymous"
                 logger.info(f"💡 Using token as plain user_id: {user_id}")
         
+        # Now register the connection with the manager  
         await manager.connect(websocket, user_id, connection_id)
         
         # Send welcome message
