@@ -12,6 +12,7 @@ from datetime import datetime
 from app.models.schemas.pam import ChatRequest, ChatResponse
 from app.services.pam.orchestrator import get_orchestrator
 from app.core.logging import setup_logging, get_logger
+from app.core.database import get_supabase_client
 
 router = APIRouter()
 setup_logging()
@@ -135,31 +136,122 @@ async def update_context(
 ):
     """Update conversation context"""
     try:
-        # Implementation would update user context
+        supabase = get_supabase_client()
+        
+        # Check if session context exists
+        existing_result = supabase.table("chat_sessions")\
+            .select("*")\
+            .eq("session_id", session_id)\
+            .eq("user_id", user_id)\
+            .execute()
+        
+        context_data = {
+            "user_id": user_id,
+            "session_id": session_id,
+            "context_data": context_updates,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        if existing_result.data:
+            # Update existing session context
+            result = supabase.table("chat_sessions")\
+                .update(context_data)\
+                .eq("session_id", session_id)\
+                .eq("user_id", user_id)\
+                .execute()
+        else:
+            # Create new session context
+            context_data["created_at"] = datetime.utcnow().isoformat()
+            result = supabase.table("chat_sessions")\
+                .insert(context_data)\
+                .execute()
+        
+        logger.info(f"✅ Context updated for session {session_id}")
+        
         return {
             "status": "success",
             "user_id": user_id,
             "session_id": session_id,
+            "context_keys_updated": list(context_updates.keys()),
             "updated_at": datetime.utcnow()
         }
         
     except Exception as e:
-        logger.error(f"Context update error: {e}")
+        logger.error(f"❌ Context update error: {e}")
         raise HTTPException(status_code=500, detail="Could not update context")
 
+@router.get("/chat/context/{session_id}")
+async def get_session_context(session_id: str, user_id: Optional[str] = None):
+    """Get session context data"""
+    try:
+        supabase = get_supabase_client()
+        
+        query = supabase.table("chat_sessions")\
+            .select("*")\
+            .eq("session_id", session_id)
+        
+        if user_id:
+            query = query.eq("user_id", user_id)
+        
+        result = query.execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        session_data = result.data[0]
+        
+        return {
+            "session_id": session_id,
+            "user_id": session_data.get("user_id"),
+            "context_data": session_data.get("context_data", {}),
+            "created_at": session_data.get("created_at"),
+            "updated_at": session_data.get("updated_at"),
+            "status": session_data.get("status", "active")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error retrieving session context: {e}")
+        raise HTTPException(status_code=500, detail="Could not retrieve session context")
+
 @router.delete("/chat/session/{session_id}")
-async def end_chat_session(session_id: str):
+async def end_chat_session(session_id: str, user_id: Optional[str] = None):
     """End a chat session"""
     try:
-        # Implementation would clean up session data
+        supabase = get_supabase_client()
+        
+        # Mark session as ended in database
+        session_data = {
+            "status": "ended",
+            "ended_at": datetime.utcnow().isoformat()
+        }
+        
+        query = supabase.table("chat_sessions").update(session_data).eq("session_id", session_id)
+        
+        if user_id:
+            query = query.eq("user_id", user_id)
+        
+        result = query.execute()
+        
+        # Also clear any temporary session data
+        try:
+            orchestrator = await get_orchestrator()
+            await orchestrator.cleanup_session(session_id)
+        except Exception as cleanup_error:
+            logger.warning(f"⚠️ Session cleanup warning: {cleanup_error}")
+        
+        logger.info(f"✅ Session {session_id} ended successfully")
+        
         return {
             "status": "success",
             "session_id": session_id,
-            "ended_at": datetime.utcnow()
+            "ended_at": datetime.utcnow(),
+            "cleaned_records": len(result.data) if result.data else 0
         }
         
     except Exception as e:
-        logger.error(f"Session cleanup error: {e}")
+        logger.error(f"❌ Session cleanup error: {e}")
         raise HTTPException(status_code=500, detail="Could not end session")
 
 @router.get("/test")

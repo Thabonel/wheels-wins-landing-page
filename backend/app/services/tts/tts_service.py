@@ -61,10 +61,9 @@ class TTSService:
         
         try:
             # Get voice profile for context
-            voice_profile = None
-            if voice_preference:
-                # TODO: Look up voice by preference string
-                pass
+            voice_profile = await self._resolve_voice_preference(
+                voice_preference, user_id, context
+            )
             
             # Use streaming service
             result = await self.streaming_service.synthesize_text(
@@ -241,6 +240,151 @@ class TTSService:
         except Exception as e:
             return {"error": str(e)}
     
+    async def _resolve_voice_preference(
+        self,
+        voice_preference: Optional[str],
+        user_id: Optional[str],
+        context: str
+    ) -> Optional[VoiceProfile]:
+        """Resolve voice preference string to actual voice profile"""
+        try:
+            # If no preference specified, get user's default or context-based voice
+            if not voice_preference:
+                if user_id:
+                    # Get user's preferred voice for this context
+                    user_voice = await self.streaming_service.get_user_voice_preference(
+                        user_id=user_id,
+                        context=context
+                    )
+                    if user_voice:
+                        return user_voice
+                
+                # Fall back to system default for context
+                return await self._get_context_default_voice(context)
+            
+            # Handle specific voice preference string
+            if isinstance(voice_preference, str):
+                # Try to find voice by ID first
+                voice_profile = await self._find_voice_by_id(voice_preference)
+                if voice_profile:
+                    return voice_profile
+                
+                # Try to find voice by name
+                voice_profile = await self._find_voice_by_name(voice_preference)
+                if voice_profile:
+                    return voice_profile
+                
+                # Try to parse as voice characteristics (e.g., "female young british")
+                voice_profile = await self._find_voice_by_characteristics(voice_preference)
+                if voice_profile:
+                    return voice_profile
+            
+            # If voice_preference is already a VoiceProfile object, return it
+            if hasattr(voice_preference, 'voice_id'):
+                return voice_preference
+                
+            # Fall back to default
+            logger.warning(f"Could not resolve voice preference '{voice_preference}', using default")
+            return await self._get_context_default_voice(context)
+            
+        except Exception as e:
+            logger.error(f"❌ Error resolving voice preference: {e}")
+            return await self._get_context_default_voice(context)
+    
+    async def _get_context_default_voice(self, context: str) -> Optional[VoiceProfile]:
+        """Get default voice for specific context"""
+        try:
+            # Context-specific voice mappings
+            context_voices = {
+                "professional": "p267",  # Professional female voice
+                "casual": "p225",        # Casual female voice  
+                "formal": "p376",        # Formal male voice
+                "friendly": "p225",      # Friendly female voice
+                "general_conversation": "p225"  # Default
+            }
+            
+            voice_id = context_voices.get(context, "p225")  # Default to p225
+            return await self._find_voice_by_id(voice_id)
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting context default voice: {e}")
+            return None
+    
+    async def _find_voice_by_id(self, voice_id: str) -> Optional[VoiceProfile]:
+        """Find voice profile by voice ID"""
+        try:
+            for engine in self.streaming_service.tts_manager.engines.values():
+                if engine.is_initialized:
+                    voices = await engine.get_available_voices()
+                    for voice in voices:
+                        if voice.voice_id == voice_id:
+                            return voice
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error finding voice by ID: {e}")
+            return None
+    
+    async def _find_voice_by_name(self, name: str) -> Optional[VoiceProfile]:
+        """Find voice profile by name"""
+        try:
+            name_lower = name.lower()
+            for engine in self.streaming_service.tts_manager.engines.values():
+                if engine.is_initialized:
+                    voices = await engine.get_available_voices()
+                    for voice in voices:
+                        if voice.name.lower() == name_lower:
+                            return voice
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error finding voice by name: {e}")
+            return None
+    
+    async def _find_voice_by_characteristics(self, characteristics: str) -> Optional[VoiceProfile]:
+        """Find voice by characteristics like 'female young british'"""
+        try:
+            chars = characteristics.lower().split()
+            
+            # Extract characteristics
+            gender = None
+            age = None
+            accent = None
+            
+            for char in chars:
+                if char in ['male', 'female']:
+                    gender = char
+                elif char in ['young', 'adult', 'elderly']:
+                    age = char
+                elif char in ['british', 'american', 'australian', 'irish', 'scottish']:
+                    accent = char
+            
+            # Find matching voices
+            best_matches = []
+            for engine in self.streaming_service.tts_manager.engines.values():
+                if engine.is_initialized:
+                    voices = await engine.get_available_voices()
+                    for voice in voices:
+                        score = 0
+                        if gender and voice.gender.lower() == gender:
+                            score += 3
+                        if age and voice.age.lower() == age:
+                            score += 2
+                        if accent and voice.accent.lower() == accent:
+                            score += 2
+                        
+                        if score > 0:
+                            best_matches.append((voice, score))
+            
+            # Return highest scoring match
+            if best_matches:
+                best_matches.sort(key=lambda x: x[1], reverse=True)
+                return best_matches[0][0]
+                
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error finding voice by characteristics: {e}")
+            return None
+
     async def shutdown(self):
         """Shutdown TTS service"""
         try:

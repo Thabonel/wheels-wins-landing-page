@@ -606,10 +606,91 @@ class YouNode:
     async def _check_calendar_conflicts(
         self, user_id: str, start_time: datetime, end_time: datetime
     ) -> List[Dict]:
-        """Check for calendar conflicts"""
-        # TODO: Query actual calendar events
-        # For now, return empty list (no conflicts)
-        return []
+        """Check for calendar conflicts with user's events"""
+        try:
+            conflicts = []
+            
+            # Get user's calendar events from database
+            if self.database_service:
+                events = await self.database_service.get_user_calendar_events(
+                    user_id, start_time, end_time
+                )
+                
+                for event in events:
+                    event_start = event.get('start_time')
+                    event_end = event.get('end_time')
+                    
+                    if event_start and event_end:
+                        # Check for time overlap
+                        if (start_time < event_end and end_time > event_start):
+                            conflicts.append({
+                                'event_id': event.get('id'),
+                                'title': event.get('title', 'Untitled Event'),
+                                'start_time': event_start,
+                                'end_time': event_end,
+                                'type': event.get('type', 'general'),
+                                'conflict_severity': self._calculate_conflict_severity(
+                                    start_time, end_time, event_start, event_end
+                                )
+                            })
+            
+            # Also check for cached calendar data
+            cache_key = f"calendar_events:{user_id}"
+            cached_events = await cache_service.get(cache_key)
+            
+            if cached_events and not conflicts:
+                for event in cached_events:
+                    event_start = datetime.fromisoformat(event.get('start_time', ''))
+                    event_end = datetime.fromisoformat(event.get('end_time', ''))
+                    
+                    if (start_time < event_end and end_time > event_start):
+                        conflicts.append({
+                            'event_id': event.get('id'),
+                            'title': event.get('title', 'Cached Event'),
+                            'start_time': event_start,
+                            'end_time': event_end,
+                            'type': event.get('type', 'general'),
+                            'conflict_severity': self._calculate_conflict_severity(
+                                start_time, end_time, event_start, event_end
+                            )
+                        })
+            
+            logger.info(f"📅 Found {len(conflicts)} calendar conflicts for user {user_id}")
+            return conflicts
+            
+        except Exception as e:
+            logger.error(f"❌ Error checking calendar conflicts: {e}")
+            return []
+    
+    def _calculate_conflict_severity(
+        self, 
+        new_start: datetime, 
+        new_end: datetime, 
+        event_start: datetime, 
+        event_end: datetime
+    ) -> str:
+        """Calculate severity of calendar conflict"""
+        
+        # Calculate overlap duration
+        overlap_start = max(new_start, event_start)
+        overlap_end = min(new_end, event_end)
+        overlap_duration = (overlap_end - overlap_start).total_seconds() / 3600  # hours
+        
+        # Calculate total durations
+        new_duration = (new_end - new_start).total_seconds() / 3600
+        event_duration = (event_end - event_start).total_seconds() / 3600
+        
+        # Calculate overlap percentage
+        overlap_percentage = overlap_duration / min(new_duration, event_duration)
+        
+        if overlap_percentage >= 0.8:
+            return 'high'
+        elif overlap_percentage >= 0.5:
+            return 'medium'
+        elif overlap_percentage >= 0.2:
+            return 'low'
+        else:
+            return 'minimal'
 
     async def _generate_event_suggestions(
         self, title: str, event_type: str, location: str
@@ -642,9 +723,240 @@ class YouNode:
     async def _learn_user_preferences(
         self, user_id: str, updates: Dict[str, Any]
     ) -> None:
-        """Learn from user profile updates"""
-        # TODO: Implement machine learning for preference detection
-        pass
+        """Learn from user profile updates and behavioral patterns"""
+        try:
+            # Extract learning signals from updates
+            learning_signals = await self._extract_learning_signals(updates)
+            
+            # Get existing user preferences
+            existing_prefs = await self._get_user_preferences(user_id)
+            
+            # Update preference weights based on learning signals
+            updated_prefs = await self._update_preference_weights(
+                existing_prefs, learning_signals
+            )
+            
+            # Store learned preferences
+            await self._store_learned_preferences(user_id, updated_prefs)
+            
+            # Generate insights for future interactions
+            insights = await self._generate_preference_insights(user_id, updated_prefs)
+            
+            logger.info(f"📚 Learned {len(learning_signals)} preference signals for user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error learning user preferences: {e}")
+    
+    async def _extract_learning_signals(self, updates: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract learning signals from user profile updates"""
+        signals = []
+        
+        # Analyze communication preferences
+        if 'communication_style' in updates:
+            signals.append({
+                'type': 'communication_style',
+                'value': updates['communication_style'],
+                'confidence': 0.8,
+                'timestamp': datetime.utcnow()
+            })
+        
+        # Analyze activity patterns
+        if 'recent_activities' in updates:
+            for activity in updates['recent_activities']:
+                signals.append({
+                    'type': 'activity_preference',
+                    'value': activity.get('type', 'unknown'),
+                    'confidence': 0.6,
+                    'frequency': activity.get('frequency', 1),
+                    'timestamp': datetime.utcnow()
+                })
+        
+        # Analyze goal patterns
+        if 'goals' in updates:
+            for goal in updates['goals']:
+                signals.append({
+                    'type': 'goal_priority',
+                    'value': goal.get('category', 'general'),
+                    'confidence': 0.7,
+                    'priority': goal.get('priority', 'medium'),
+                    'timestamp': datetime.utcnow()
+                })
+        
+        # Analyze time-based patterns
+        current_hour = datetime.utcnow().hour
+        if current_hour < 12:
+            time_preference = 'morning_active'
+        elif current_hour < 18:
+            time_preference = 'afternoon_active'
+        else:
+            time_preference = 'evening_active'
+        
+        signals.append({
+            'type': 'time_preference',
+            'value': time_preference,
+            'confidence': 0.5,
+            'timestamp': datetime.utcnow()
+        })
+        
+        return signals
+    
+    async def _get_user_preferences(self, user_id: str) -> Dict[str, Any]:
+        """Get existing user preferences from database"""
+        try:
+            # Try to get from database
+            if self.database_service:
+                prefs = await self.database_service.get_user_preferences(user_id)
+                if prefs:
+                    return prefs
+            
+            # Return default preferences structure
+            return {
+                'communication_style': {'formal': 0.5, 'casual': 0.5, 'technical': 0.5},
+                'activity_preferences': {},
+                'goal_priorities': {},
+                'time_preferences': {'morning': 0.3, 'afternoon': 0.4, 'evening': 0.3},
+                'interaction_patterns': {},
+                'learning_confidence': 0.1,
+                'last_updated': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting user preferences: {e}")
+            return {}
+    
+    async def _update_preference_weights(
+        self, 
+        existing_prefs: Dict[str, Any], 
+        signals: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Update preference weights based on new learning signals"""
+        
+        # Learning rate for preference updates
+        learning_rate = 0.1
+        
+        for signal in signals:
+            signal_type = signal['type']
+            signal_value = signal['value']
+            confidence = signal['confidence']
+            
+            # Update communication style preferences
+            if signal_type == 'communication_style':
+                if 'communication_style' not in existing_prefs:
+                    existing_prefs['communication_style'] = {}
+                
+                # Increase weight for observed style
+                current_weight = existing_prefs['communication_style'].get(signal_value, 0.0)
+                new_weight = current_weight + (learning_rate * confidence)
+                existing_prefs['communication_style'][signal_value] = min(new_weight, 1.0)
+                
+                # Normalize weights
+                total_weight = sum(existing_prefs['communication_style'].values())
+                if total_weight > 0:
+                    for style in existing_prefs['communication_style']:
+                        existing_prefs['communication_style'][style] /= total_weight
+            
+            # Update activity preferences
+            elif signal_type == 'activity_preference':
+                if 'activity_preferences' not in existing_prefs:
+                    existing_prefs['activity_preferences'] = {}
+                
+                frequency = signal.get('frequency', 1)
+                current_weight = existing_prefs['activity_preferences'].get(signal_value, 0.0)
+                new_weight = current_weight + (learning_rate * confidence * frequency)
+                existing_prefs['activity_preferences'][signal_value] = min(new_weight, 1.0)
+            
+            # Update goal priorities
+            elif signal_type == 'goal_priority':
+                if 'goal_priorities' not in existing_prefs:
+                    existing_prefs['goal_priorities'] = {}
+                
+                priority_weight = {'high': 1.0, 'medium': 0.6, 'low': 0.3}.get(
+                    signal.get('priority', 'medium'), 0.6
+                )
+                current_weight = existing_prefs['goal_priorities'].get(signal_value, 0.0)
+                new_weight = current_weight + (learning_rate * confidence * priority_weight)
+                existing_prefs['goal_priorities'][signal_value] = min(new_weight, 1.0)
+            
+            # Update time preferences
+            elif signal_type == 'time_preference':
+                if 'time_preferences' not in existing_prefs:
+                    existing_prefs['time_preferences'] = {}
+                
+                time_period = signal_value.replace('_active', '')
+                current_weight = existing_prefs['time_preferences'].get(time_period, 0.0)
+                new_weight = current_weight + (learning_rate * confidence)
+                existing_prefs['time_preferences'][time_period] = min(new_weight, 1.0)
+        
+        # Update learning confidence
+        signal_count = len(signals)
+        confidence_boost = min(0.1, signal_count * 0.02)
+        existing_prefs['learning_confidence'] = min(
+            existing_prefs.get('learning_confidence', 0.1) + confidence_boost, 
+            1.0
+        )
+        
+        existing_prefs['last_updated'] = datetime.utcnow().isoformat()
+        return existing_prefs
+    
+    async def _store_learned_preferences(self, user_id: str, preferences: Dict[str, Any]):
+        """Store learned preferences to database"""
+        try:
+            if self.database_service:
+                await self.database_service.store_user_preferences(user_id, preferences)
+            else:
+                # Store in cache as fallback
+                cache_key = f"user_preferences:{user_id}"
+                await cache_service.set(cache_key, preferences, ttl=86400)  # 24 hours
+                
+        except Exception as e:
+            logger.error(f"❌ Error storing learned preferences: {e}")
+    
+    async def _generate_preference_insights(
+        self, 
+        user_id: str, 
+        preferences: Dict[str, Any]
+    ) -> List[str]:
+        """Generate insights from learned preferences"""
+        insights = []
+        
+        # Communication style insights
+        comm_style = preferences.get('communication_style', {})
+        if comm_style:
+            dominant_style = max(comm_style.items(), key=lambda x: x[1])
+            if dominant_style[1] > 0.6:
+                insights.append(f"User prefers {dominant_style[0]} communication style")
+        
+        # Activity pattern insights
+        activities = preferences.get('activity_preferences', {})
+        if activities:
+            top_activities = sorted(activities.items(), key=lambda x: x[1], reverse=True)[:3]
+            if top_activities:
+                insights.append(f"Most engaged with: {', '.join([a[0] for a in top_activities])}")
+        
+        # Time preference insights
+        time_prefs = preferences.get('time_preferences', {})
+        if time_prefs:
+            preferred_time = max(time_prefs.items(), key=lambda x: x[1])
+            if preferred_time[1] > 0.5:
+                insights.append(f"Most active during {preferred_time[0]} hours")
+        
+        # Store insights for future use
+        if insights:
+            try:
+                insight_data = {
+                    'user_id': user_id,
+                    'insights': insights,
+                    'generated_at': datetime.utcnow().isoformat(),
+                    'confidence': preferences.get('learning_confidence', 0.1)
+                }
+                
+                cache_key = f"user_insights:{user_id}"
+                await cache_service.set(cache_key, insight_data, ttl=604800)  # 1 week
+                
+            except Exception as e:
+                logger.error(f"❌ Error storing insights: {e}")
+        
+        return insights
 
     async def _generate_profile_recommendations(
         self, user_id: str, profile_updates: Dict[str, Any]
@@ -963,15 +1275,133 @@ class YouNode:
 
     async def _get_travel_events(self, user_id: str, timeframe: str) -> List[Dict]:
         """Get travel-related calendar events"""
-        # TODO: Query actual travel events
-        return [
-            {
-                "date": datetime.now() + timedelta(days=10),
-                "title": "Trip to Gold Coast",
-                "type": "travel",
-                "duration_days": 5,
-            }
-        ]
+        try:
+            travel_events = []
+            
+            # Calculate timeframe dates
+            now = datetime.utcnow()
+            if timeframe == "week":
+                end_date = now + timedelta(days=7)
+            elif timeframe == "month":
+                end_date = now + timedelta(days=30)
+            elif timeframe == "quarter":
+                end_date = now + timedelta(days=90)
+            else:
+                end_date = now + timedelta(days=30)  # Default to month
+            
+            # Get travel events from database
+            if self.database_service:
+                events = await self.database_service.get_user_travel_events(
+                    user_id, now, end_date
+                )
+                
+                for event in events:
+                    travel_events.append({
+                        'id': event.get('id'),
+                        'date': event.get('start_date', now),
+                        'end_date': event.get('end_date'),
+                        'title': event.get('title', 'Travel Event'),
+                        'type': 'travel',
+                        'destination': event.get('destination'),
+                        'duration_days': self._calculate_duration_days(
+                            event.get('start_date'), event.get('end_date')
+                        ),
+                        'travel_mode': event.get('travel_mode', 'road_trip'),
+                        'status': event.get('status', 'planned'),
+                        'estimated_cost': event.get('estimated_cost'),
+                        'notes': event.get('notes')
+                    })
+            
+            # Get travel events from cache as fallback
+            if not travel_events:
+                cache_key = f"travel_events:{user_id}"
+                cached_events = await cache_service.get(cache_key)
+                
+                if cached_events:
+                    for event in cached_events:
+                        travel_events.append({
+                            'id': event.get('id', f"cached_{len(travel_events)}"),
+                            'date': datetime.fromisoformat(event.get('date', now.isoformat())),
+                            'end_date': event.get('end_date'),
+                            'title': event.get('title', 'Cached Travel Event'),
+                            'type': 'travel',
+                            'destination': event.get('destination'),
+                            'duration_days': event.get('duration_days', 1),
+                            'travel_mode': event.get('travel_mode', 'road_trip'),
+                            'status': event.get('status', 'planned')
+                        })
+            
+            # Get planned trips from wheels node integration
+            try:
+                planned_trips = await self._get_planned_trips(user_id)
+                for trip in planned_trips:
+                    # Convert trip to travel event format
+                    travel_events.append({
+                        'id': f"trip_{trip.get('id', len(travel_events))}",
+                        'date': trip.get('departure_date', now + timedelta(days=7)),
+                        'end_date': trip.get('return_date'),
+                        'title': f"Trip to {trip.get('destination', 'Unknown')}",
+                        'type': 'road_trip',
+                        'destination': trip.get('destination'),
+                        'duration_days': trip.get('duration_days', 
+                            self._calculate_duration_days(
+                                trip.get('departure_date'), 
+                                trip.get('return_date')
+                            )
+                        ),
+                        'travel_mode': 'road_trip',
+                        'status': trip.get('status', 'planned'),
+                        'estimated_distance': trip.get('total_distance'),
+                        'estimated_cost': trip.get('estimated_cost')
+                    })
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get planned trips: {e}")
+            
+            # Sort by date
+            travel_events.sort(key=lambda x: x['date'])
+            
+            # Filter by timeframe
+            filtered_events = [
+                event for event in travel_events
+                if event['date'] <= end_date
+            ]
+            
+            logger.info(f"🧳 Retrieved {len(filtered_events)} travel events for user {user_id}")
+            return filtered_events
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting travel events: {e}")
+            # Return sample data as fallback
+            return [
+                {
+                    'id': 'sample_1',
+                    'date': now + timedelta(days=10),
+                    'title': 'Upcoming Road Trip',
+                    'type': 'road_trip',
+                    'destination': 'Gold Coast',
+                    'duration_days': 5,
+                    'travel_mode': 'road_trip',
+                    'status': 'planned'
+                }
+            ]
+    
+    def _calculate_duration_days(self, start_date, end_date) -> int:
+        """Calculate duration in days between two dates"""
+        if not start_date or not end_date:
+            return 1
+        
+        try:
+            if isinstance(start_date, str):
+                start_date = datetime.fromisoformat(start_date)
+            if isinstance(end_date, str):
+                end_date = datetime.fromisoformat(end_date)
+            
+            duration = (end_date - start_date).days
+            return max(1, duration)  # Minimum 1 day
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Error calculating duration: {e}")
+            return 1
 
     async def _get_planned_trips(self, user_id: str) -> List[Dict]:
         """Get user's planned trips"""

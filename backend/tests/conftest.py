@@ -1,18 +1,34 @@
 import os
 import pytest
-import pytest_asyncio
 import asyncio
 from typing import AsyncGenerator, Generator
-from httpx import AsyncClient
 from unittest.mock import AsyncMock, MagicMock
-from supabase import create_client, Client
+
+# Optional imports with fallbacks
+try:
+    from httpx import AsyncClient
+    HTTPX_AVAILABLE = True
+except ImportError:
+    HTTPX_AVAILABLE = False
+    AsyncClient = None
+
+try:
+    from supabase import create_client, Client
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    create_client = None
+    Client = None
 
 # Minimal environment defaults for tests before importing settings
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("DATABASE_URL", "sqlite:///test.db")
 os.environ.setdefault("POSTGRES_PASSWORD", "password")
-os.environ.setdefault("OPENAI_API_KEY", "test")
-os.environ.setdefault("SUPABASE_KEY", "test")
+os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
+os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-key")
+os.environ.setdefault("SUPABASE_KEY", "test-anon-key")
+os.environ.setdefault("ENVIRONMENT", "test")
 
 from app.core.config import settings
 from app.core.database import get_supabase_client
@@ -33,9 +49,12 @@ def event_loop():
     loop.close()
 
 
-@pytest_asyncio.fixture
-async def test_db() -> AsyncGenerator[Client, None]:
+@pytest.fixture
+async def test_db():
     """Create a test database client."""
+    if not SUPABASE_AVAILABLE:
+        pytest.skip("Supabase not available")
+    
     client = create_client(TEST_SUPABASE_URL, TEST_SUPABASE_KEY)
 
     # Setup: Clear test data
@@ -70,9 +89,12 @@ def mock_supabase_client():
     return mock_client
 
 
-@pytest_asyncio.fixture
-async def test_client() -> AsyncGenerator[AsyncClient, None]:
+@pytest.fixture
+async def test_client():
     """Create test HTTP client."""
+    if not HTTPX_AVAILABLE:
+        pytest.skip("HTTPX not available")
+    
     from app.main import app
 
     async with AsyncClient(app=app, base_url="http://test") as client:
