@@ -153,9 +153,9 @@ app.include_router(observability.router, prefix="/api/v1", tags=["Admin Observab
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
 app.include_router(voice_streaming.router, prefix="/api/v1/voice", tags=["Voice Streaming"])
 
-# LangServe router for PauterRouter
-pauter_router = PauterRouter()
-add_routes(app, pauter_router, path="/api/v1/pam/chat")
+# LangServe router for PauterRouter - TEMPORARILY DISABLED due to WebSocket route conflicts
+# pauter_router = PauterRouter()
+# add_routes(app, pauter_router, path="/api/v1/pam/chat")
 
 
 @app.post("/api/v1/pam/voice")
