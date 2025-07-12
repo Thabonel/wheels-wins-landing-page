@@ -53,3 +53,10 @@ edge-tts==6.1.9
 
 # Essential processing
 numpy==1.26.4
+
+# Web search and HTML parsing
+beautifulsoup4==4.12.3
+lxml==4.9.3
+
+# Additional search APIs (optional)
+googlemaps==4.10.0
