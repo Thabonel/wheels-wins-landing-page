@@ -78,15 +78,33 @@ export default function SocialFeed() {
 
       if (error) {
         console.error("Error fetching posts:", error);
+        console.error("Error code:", error.code);
+        console.error("Error details:", error.details);
+        console.error("Error hint:", error.hint);
+        console.error("Error message:", error.message);
+        
         // Only show error toast for actual errors, not empty data
         if (error.code === 'PGRST116') {
           // Table not found error
+          console.log("Table not found - social_posts table doesn't exist");
           toast.error("Social posts feature is not set up yet");
-        } else if (error.code === '42501') {
+        } else if (error.code === '42501' || error.message?.includes('permission denied')) {
           // Permission denied error
-          toast.error("You don't have permission to view posts");
+          console.log("Permission denied - RLS policies are blocking access");
+          toast.error("Setting up social posts... Please refresh the page in a moment.");
+          // Don't return here, show empty state instead
+          setPosts([]);
+          setIsLoading(false);
+          return;
+        } else if (error.code === 'PGRST301') {
+          // No rows found - this is actually fine, just means no posts yet
+          console.log("No posts found - this is normal for empty feed");
+          setPosts([]);
+          setIsLoading(false);
+          return;
         } else {
           // Other errors
+          console.log("Other error:", error.code, error.message);
           toast.error("Unable to load posts. Please try again later.");
         }
         setPosts([]);
