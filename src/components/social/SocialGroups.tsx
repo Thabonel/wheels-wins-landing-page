@@ -51,7 +51,24 @@ export default function SocialGroups() {
       
       if (error) {
         console.error("Error fetching groups:", error);
-        toast.error("Failed to load groups");
+        console.error('Error code:', error.code);
+        console.error('Error details:', error.details);
+        
+        // Only show error toast for actual errors, not empty data
+        if (error.code === 'PGRST116') {
+          // Table not found
+          console.log('Social groups table not found');
+          setGroups([]);
+          setRecommendedGroups([]);
+        } else if (error.code === 'PGRST301') {
+          // No rows found - this is fine, just empty data
+          console.log('No groups found - showing empty state');
+          setGroups([]);
+          setRecommendedGroups([]);
+        } else {
+          // Actual error
+          toast.error("Failed to load groups");
+        }
         return;
       }
       
@@ -69,6 +86,14 @@ export default function SocialGroups() {
         
         setGroups(formattedGroups);
         setRecommendedGroups(formattedGroups.slice(0, 2));
+        
+        // Log for debugging
+        console.log(`Loaded ${formattedGroups.length} groups`);
+      } else {
+        // No data returned but no error - empty state
+        console.log('No groups data returned - showing empty state');
+        setGroups([]);
+        setRecommendedGroups([]);
       }
     } catch (err) {
       console.error("Error in fetchGroups:", err);

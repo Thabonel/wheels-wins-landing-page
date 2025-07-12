@@ -44,10 +44,30 @@ export default function SocialHustleBoard() {
       });
       if (error) {
         console.error('Error fetching hustle ideas:', error);
-        toast.error('Failed to load hustle ideas');
+        console.error('Error code:', error.code);
+        console.error('Error details:', error.details);
+        
+        // Only show error toast for actual errors, not empty data
+        if (error.code === 'PGRST116') {
+          // Table not found
+          console.log('Hustle ideas table not found');
+          setHustleIdeas([]);
+        } else if (error.code === 'PGRST301') {
+          // No rows found - this is fine, just empty data
+          console.log('No hustle ideas found - showing empty state');
+          setHustleIdeas([]);
+        } else {
+          // Actual error
+          toast.error('Failed to load hustle ideas');
+        }
         return;
       }
+      
+      // Set data or empty array
       setHustleIdeas(data || []);
+      
+      // Log for debugging
+      console.log(`Loaded ${(data || []).length} hustle ideas`);
     } catch (err) {
       console.error('Error in fetchHustleIdeas:', err);
       toast.error('Something went wrong loading hustle ideas');

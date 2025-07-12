@@ -70,15 +70,35 @@ export default function SocialMarketplace() {
       const {
         data,
         error
-      } = await supabase.from('marketplace_listings').select('*').eq('status', 'approved').order('created_at', {
+      } = await supabase.from('marketplace_listings').select('*').eq('status', 'active').order('created_at', {
         ascending: false
       });
       if (error) {
         console.error('Error fetching marketplace listings:', error);
-        toast.error('Failed to load marketplace listings');
+        console.error('Error code:', error.code);
+        console.error('Error details:', error.details);
+        
+        // Only show error toast for actual errors, not empty data
+        if (error.code === 'PGRST116') {
+          // Table not found
+          console.log('Marketplace listings table not found');
+          setListings([]);
+        } else if (error.code === 'PGRST301') {
+          // No rows found - this is fine, just empty data
+          console.log('No marketplace listings found - showing empty state');
+          setListings([]);
+        } else {
+          // Actual error
+          toast.error('Failed to load marketplace listings');
+        }
         return;
       }
+      
+      // Set data or empty array
       setListings(data || []);
+      
+      // Log for debugging
+      console.log(`Loaded ${(data || []).length} marketplace listings`);
     } catch (err) {
       console.error('Error in fetchListings:', err);
       toast.error('Something went wrong loading listings');
