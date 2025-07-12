@@ -33,7 +33,7 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 
 # Import API routers
-from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin, observability, tts, search
+from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin, observability, tts, search, vision
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
 from app.webhooks import stripe_webhooks
@@ -188,6 +188,7 @@ app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
 app.include_router(voice_streaming.router, prefix="/api/v1/voice", tags=["Voice Streaming"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
+app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
 
 # LangServe router for PauterRouter - TEMPORARILY DISABLED due to WebSocket route conflicts
 # pauter_router = PauterRouter()

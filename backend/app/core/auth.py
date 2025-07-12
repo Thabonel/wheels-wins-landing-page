@@ -1,19 +1,21 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+import jwt  # SECURITY FIX: Replaced python-jose with PyJWT
+from jwt.exceptions import InvalidTokenError, DecodeError
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
 import os
 import requests
-from jose import jwk
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+import json
 
 # Add WebSocket auth verification
 async def verify_token_websocket(token: str) -> str:
     """Verify JWT token for WebSocket connections and return user_id"""
     try:
         # Try to decode as JWT first (for Supabase tokens)
-        import jwt as pyjwt
-        decoded = pyjwt.decode(token, options={"verify_signature": False})
+        decoded = jwt.decode(token, options={"verify_signature": False})
         user_id = decoded.get('sub', token)  # 'sub' is the user ID in Supabase JWT
         return str(user_id)
     except Exception:
@@ -59,7 +61,7 @@ def verify_token(token: str):
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return payload
-    except JWTError:
+    except (InvalidTokenError, DecodeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -78,8 +80,24 @@ def verify_supabase_token(token: str, supabase_url: str):
             None,
         )
         if not key_data:
-            raise JWTError("Signing key not found")
-        return jwt.decode(token, key_data, algorithms=[header.get("alg")], options={"verify_aud": False})
+            raise InvalidTokenError("Signing key not found")
+        
+        # Convert JWK to PEM format for PyJWT
+        if key_data.get("kty") == "RSA":
+            # Convert RSA key from JWK format
+            public_key = rsa.RSAPublicNumbers(
+                int.from_bytes(jwt.utils.base64url_decode(key_data["e"]), 'big'),
+                int.from_bytes(jwt.utils.base64url_decode(key_data["n"]), 'big')
+            ).public_key()
+            pem_key = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+        else:
+            # For other key types, use the key directly (may need additional handling)
+            pem_key = key_data
+        
+        return jwt.decode(token, pem_key, algorithms=[header.get("alg")], options={"verify_aud": False})
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
