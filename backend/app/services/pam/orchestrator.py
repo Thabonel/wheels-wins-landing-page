@@ -36,6 +36,14 @@ except ImportError:
     web_search_service = None
     WEB_SEARCH_AVAILABLE = False
 
+# Optional screenshot analysis import
+try:
+    from app.services.vision.screenshot_analyzer import screenshot_analyzer
+    SCREENSHOT_ANALYSIS_AVAILABLE = True
+except ImportError:
+    screenshot_analyzer = None
+    SCREENSHOT_ANALYSIS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class PamOrchestrator:
@@ -440,6 +448,136 @@ class PamOrchestrator:
             logger.error(f"AI-first response generation failed: {e}")
             # Fallback to basic node routing if AI fails
             return await self._route_to_node_backup(intent, user_id, message, context, intent_analysis)
+
+    async def analyze_screenshot(
+        self,
+        user_id: str,
+        image_data: bytes,
+        analysis_type: str = "general",
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Analyze a screenshot and provide PAM insights"""
+        
+        if not SCREENSHOT_ANALYSIS_AVAILABLE:
+            logger.warning("⚠️ Screenshot analysis not available")
+            return {
+                "error": "Screenshot analysis service not available",
+                "success": False
+            }
+        
+        try:
+            # Track screenshot analysis request
+            analysis_event = AnalyticsEvent(
+                event_type=EventType.PAM_RESPONSE,  # Using existing event type
+                user_id=user_id,
+                timestamp=datetime.now(),
+                event_data={
+                    "action": "screenshot_analysis",
+                    "analysis_type": analysis_type,
+                    "image_size": len(image_data)
+                }
+            )
+            await self.analytics.track_event(analysis_event)
+            
+            # Analyze the screenshot
+            logger.info(f"🖼️ Analyzing screenshot for user {user_id}")
+            analysis_result = await screenshot_analyzer.analyze_screenshot(
+                image_data=image_data,
+                analysis_type=analysis_type,
+                context=context
+            )
+            
+            # Enhance the analysis with PAM-specific insights
+            if analysis_result.get("success"):
+                pam_insights = analysis_result.get("pam_insights", {})
+                
+                # Generate contextual response based on analysis
+                contextual_response = await self._generate_screenshot_response(
+                    analysis_result, 
+                    user_id, 
+                    context
+                )
+                
+                analysis_result["pam_response"] = contextual_response
+                
+                logger.info(f"✅ Screenshot analysis completed for user {user_id}")
+                
+            return analysis_result
+            
+        except Exception as e:
+            logger.error(f"❌ Screenshot analysis error: {e}")
+            
+            # Track error
+            error_event = AnalyticsEvent(
+                event_type=EventType.ERROR_OCCURRED,
+                user_id=user_id,
+                timestamp=datetime.now(),
+                success=False,
+                error_message=str(e),
+                event_data={"context": "screenshot_analysis"}
+            )
+            await self.analytics.track_event(error_event)
+            
+            return {
+                "error": str(e),
+                "success": False,
+                "timestamp": datetime.now().isoformat()
+            }
+
+    async def _generate_screenshot_response(
+        self,
+        analysis_result: Dict[str, Any],
+        user_id: str,
+        context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Generate a contextual PAM response based on screenshot analysis"""
+        
+        try:
+            analysis_type = analysis_result.get("analysis_type", "general")
+            pam_insights = analysis_result.get("pam_insights", {})
+            
+            # Build response based on analysis type
+            if analysis_type == "error":
+                if analysis_result.get("error_detected"):
+                    response = "I can see you're encountering an error. "
+                    suggested_actions = pam_insights.get("suggested_actions", [])
+                    if suggested_actions:
+                        response += f"Here are some steps that might help: {', '.join(suggested_actions[:3])}. "
+                    response += "Would you like me to search for more specific solutions?"
+                else:
+                    response = "I've analyzed your screenshot. It looks like there might be an issue, but I need more context to provide specific help."
+                    
+            elif analysis_type == "ui":
+                response = "I can see the interface you're working with. "
+                actionable_items = pam_insights.get("actionable_items", [])
+                if actionable_items:
+                    response += f"I can help you with: {', '.join(actionable_items[:2])}. "
+                response += "What specific part would you like assistance with?"
+                
+            elif analysis_type == "dashboard":
+                response = "I can see your dashboard. "
+                if "analytics_dashboard" in analysis_result.get("dashboard_type", ""):
+                    response += "The metrics look interesting! Would you like me to help you interpret any specific data points or trends?"
+                else:
+                    response += "What information are you looking for from this dashboard?"
+                    
+            else:  # general analysis
+                content_type = analysis_result.get("content_type", "unknown")
+                if "screenshot" in content_type:
+                    response = "I've analyzed your screenshot. "
+                    follow_up_questions = pam_insights.get("follow_up_questions", [])
+                    if follow_up_questions:
+                        response += f"To help you better: {follow_up_questions[0]}"
+                    else:
+                        response += "How can I assist you with what you're seeing?"
+                else:
+                    response = "I've reviewed the image you shared. How can I help you with it?"
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error generating screenshot response: {e}")
+            return "I've analyzed your screenshot and I'm ready to help. What would you like to know about it?"
 
     async def _gather_node_data(
         self, 
