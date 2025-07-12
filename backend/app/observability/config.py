@@ -6,8 +6,21 @@ Integrates with existing settings and secrets management
 import logging
 from typing import Optional
 from openai import OpenAI
-import agentops
-from langfuse import Langfuse
+
+# Optional imports - make agentops optional for deployment
+try:
+    import agentops
+    AGENTOPS_AVAILABLE = True
+except ImportError:
+    AGENTOPS_AVAILABLE = False
+    agentops = None
+
+try:
+    from langfuse import Langfuse
+    LANGFUSE_AVAILABLE = True
+except ImportError:
+    LANGFUSE_AVAILABLE = False
+    Langfuse = None
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -53,8 +66,12 @@ class ObservabilityConfig:
             logger.error(f"❌ Failed to initialize OpenAI observability: {e}")
             return None
             
-    def initialize_langfuse(self) -> Optional[Langfuse]:
+    def initialize_langfuse(self) -> Optional['Langfuse']:
         """Initialize Langfuse for LLM observability"""
+        if not LANGFUSE_AVAILABLE:
+            logger.info("Langfuse not available, skipping Langfuse observability")
+            return None
+            
         if not (self.settings.LANGFUSE_SECRET_KEY and self.settings.LANGFUSE_PUBLIC_KEY):
             logger.warning("Langfuse credentials not configured, skipping Langfuse observability")
             return None
@@ -75,6 +92,10 @@ class ObservabilityConfig:
             
     def initialize_agentops(self) -> bool:
         """Initialize AgentOps for agent workflow tracking"""
+        if not AGENTOPS_AVAILABLE:
+            logger.info("AgentOps not available, skipping AgentOps observability")
+            return False
+            
         if not self.settings.AGENTOPS_API_KEY:
             logger.warning("AgentOps API key not configured, skipping AgentOps observability")
             return False
