@@ -216,7 +216,7 @@ async def verify_supabase_jwt_flexible(
     """
     Flexible Supabase JWT verification that handles both:
     1. Authorization header (standard method)
-    2. Request body _auth_token field (workaround for Render.com header size limits)
+    2. Request body auth_token field (workaround for Render.com header size limits)
     """
     token = None
     auth_method = "none"
@@ -230,11 +230,11 @@ async def verify_supabase_jwt_flexible(
     # Method 2: Check for X-Auth-Method header indicating body-based auth
     elif request.headers.get("X-Auth-Method") == "body-token":
         try:
-            # Parse request body to extract _auth_token
+            # Parse request body to extract auth_token
             body = await request.body()
             if body:
                 body_data = json.loads(body.decode())
-                token = body_data.get("_auth_token")
+                token = body_data.get("auth_token")
                 if token:
                     auth_method = "body"
                     logger.info(f"🔐 Using body-based auth (length: {len(token)})")
@@ -335,9 +335,9 @@ def verify_token_from_request_or_header(
         auth_method = "header"
         logger.info(f"🔐 Using Authorization header (length: {len(token)})")
     
-    # Method 2: Check for _auth_token in request data (workaround)
-    elif request_data and "_auth_token" in request_data:
-        token = request_data["_auth_token"]
+    # Method 2: Check for auth_token in request data (workaround)
+    elif request_data and "auth_token" in request_data:
+        token = request_data["auth_token"]
         if token:
             auth_method = "body"
             logger.info(f"🔐 Using body-based auth (length: {len(token)})")
