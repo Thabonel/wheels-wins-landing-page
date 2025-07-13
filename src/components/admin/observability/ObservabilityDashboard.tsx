@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import APIKeyManagement from './APIKeyManagement';
+import { PAMConnectionDiagnostic } from './PAMConnectionDiagnostic';
 import { 
   Activity, 
   BarChart3, 
@@ -370,17 +371,22 @@ export default function ObservabilityDashboard() {
         </Card>
       )}
 
-      {/* Detailed Metrics */}
-      {detailedMetrics && (
-        <Tabs defaultValue="metrics" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="metrics">Performance Metrics</TabsTrigger>
-            <TabsTrigger value="llm">LLM Analytics</TabsTrigger>
-            <TabsTrigger value="config">Configuration</TabsTrigger>
-            <TabsTrigger value="keys">API Keys</TabsTrigger>
-          </TabsList>
+      {/* PAM Diagnostics and Detailed Metrics */}
+      <Tabs defaultValue="diagnostics" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="diagnostics">PAM Diagnostics</TabsTrigger>
+          <TabsTrigger value="metrics">Performance Metrics</TabsTrigger>
+          <TabsTrigger value="llm">LLM Analytics</TabsTrigger>
+          <TabsTrigger value="config">Configuration</TabsTrigger>
+          <TabsTrigger value="keys">API Keys</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="metrics" className="space-y-4">
+        <TabsContent value="diagnostics" className="space-y-4">
+          <PAMConnectionDiagnostic />
+        </TabsContent>
+
+        <TabsContent value="metrics" className="space-y-4">
+          {detailedMetrics ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
                 <CardHeader>
@@ -429,9 +435,15 @@ export default function ObservabilityDashboard() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No performance metrics available yet. Initialize observability to start collecting data.</p>
+            </div>
+          )}
+        </TabsContent>
 
-          <TabsContent value="llm" className="space-y-4">
+        <TabsContent value="llm" className="space-y-4">
+          {detailedMetrics ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card>
                 <CardHeader>
@@ -472,9 +484,14 @@ export default function ObservabilityDashboard() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No LLM analytics available yet. Initialize observability to start collecting data.</p>
+            </div>
+          )}
+        </TabsContent>
 
-          <TabsContent value="config" className="space-y-4">
+        <TabsContent value="config" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Platform Configuration</CardTitle>
@@ -503,11 +520,10 @@ export default function ObservabilityDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="keys" className="space-y-4">
-            <APIKeyManagement />
-          </TabsContent>
-        </Tabs>
-      )}
+        <TabsContent value="keys" className="space-y-4">
+          <APIKeyManagement />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
