@@ -71,7 +71,7 @@ export function PAMConnectionDiagnostic() {
     }
   };
 
-  const runWebSocketTest = async (): Promise<TestResult> => {
+  const runWebSocketTest = (): Promise<TestResult> => {
     return new Promise(async (resolve) => {
       try {
         // Get the current session token for WebSocket authentication
@@ -222,6 +222,11 @@ export function PAMConnectionDiagnostic() {
 
   const runChatTest = async (): Promise<TestResult> => {
     try {
+      // Debug: Check which Supabase client we're using
+      console.log('🔍 Supabase client type:', typeof supabase);
+      console.log('🔍 Supabase auth methods:', Object.keys(supabase.auth));
+      console.log('🔍 Using client from:', '/src/integrations/supabase/client');
+      
       // Get the current session token
       let { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
@@ -255,9 +260,18 @@ export function PAMConnectionDiagnostic() {
       const tokenParts = session.access_token.split('.');
       console.log('🔧 Token parts count:', tokenParts.length);
       console.log('🔧 Token parts:', tokenParts);
+      console.log('🔧 First part preview:', tokenParts[0]?.substring(0, 20));
+      console.log('🔧 Second part preview:', tokenParts[1]?.substring(0, 20));
+      console.log('🔧 Third part preview:', tokenParts[2]?.substring(0, 20));
       
       if (tokenParts.length !== 3) {
         console.log('❌ Invalid JWT detected - investigating session state...');
+        
+        // Test manual JWT validation
+        const testJWT = "<JWT_TOKEN>";
+        const testParts = testJWT.split('.');
+        console.log('🧪 Test JWT parts count:', testParts.length);
+        console.log('🧪 Test JWT validation should be valid:', testParts.length === 3);
         
         // Check if we have a refresh token
         console.log('🔄 Refresh token available:', !!session.refresh_token);
@@ -267,7 +281,11 @@ export function PAMConnectionDiagnostic() {
         // Force a complete session refresh
         console.log('🔄 Attempting complete session refresh...');
         try {
-          // First try to get a fresh session from storage
+          // Check browser localStorage for any corrupted state
+          const pamAuthKey = localStorage.getItem('pam-auth-token');
+          console.log('🗄️ Local storage auth key:', pamAuthKey ? 'exists' : 'not found');
+          
+          // Try to get a fresh session from storage
           const { data: { session: storageSession } } = await supabase.auth.getSession();
           console.log('💾 Storage session:', storageSession?.access_token?.substring(0, 50));
           
@@ -315,7 +333,7 @@ export function PAMConnectionDiagnostic() {
 
       console.log('🔐 Testing PAM chat with user:', user?.email);
       console.log('🎫 Token length:', session.access_token.length);
-      console.log('🎫 Token preview:', session.access_token.substring(0, 50) + '...');
+      console.log('🎫 Token preview:', `${session.access_token.substring(0, 50)  }...`);
       console.log('🎫 Full session object:', JSON.stringify(session, null, 2));
 
       const startTime = Date.now();
@@ -718,8 +736,8 @@ export function PAMConnectionDiagnostic() {
                 <div className="mt-1 p-2 bg-green-50 border border-green-200 rounded text-xs">
                   <strong>AI Response Preview:</strong> {
                     typeof results.chatTest.data.response === 'string' 
-                      ? results.chatTest.data.response.substring(0, 100) + '...'
-                      : JSON.stringify(results.chatTest.data).substring(0, 100) + '...'
+                      ? `${results.chatTest.data.response.substring(0, 100)  }...`
+                      : `${JSON.stringify(results.chatTest.data).substring(0, 100)  }...`
                   }
                 </div>
               )}
