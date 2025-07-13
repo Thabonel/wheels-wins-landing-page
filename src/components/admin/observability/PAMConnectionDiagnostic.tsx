@@ -232,7 +232,7 @@ export function PAMConnectionDiagnostic() {
 
       const startTime = Date.now();
       
-      // Test the PAM chat endpoint directly with detailed error handling
+      // Test the PAM chat endpoint using authenticated fetch with automatic token refresh
       const response = await fetch(`${API_BASE_URL}/api/v1/pam/chat`, {
         method: 'POST',
         headers: {
