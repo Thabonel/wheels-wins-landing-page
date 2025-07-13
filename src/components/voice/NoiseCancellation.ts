@@ -281,7 +281,7 @@ export class NoiseCancellation {
       const wlen = { real: Math.cos(angle), imag: Math.sin(angle) };
       
       for (let i = 0; i < n; i += length) {
-        let w = { real: 1, imag: 0 };
+        const w = { real: 1, imag: 0 };
         
         for (let j = 0; j < length / 2; j++) {
           const u_idx = (i + j) * 2;

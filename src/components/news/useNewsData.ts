@@ -98,8 +98,8 @@ export const useNewsData = (selectedSources: string[]) => {
         
         if (title && title !== 'Untitled') {
           newsItems.push({
-            title: title.length > 150 ? title.substring(0, 150) + '...' : title,
-            link: link,
+            title: title.length > 150 ? `${title.substring(0, 150)  }...` : title,
+            link,
             pubDate,
             source: sourceName
           });

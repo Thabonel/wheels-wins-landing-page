@@ -263,7 +263,7 @@ export class OptimizedPamApiService {
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
-      let data = await response.json();
+      const data = await response.json();
       
       // Apply mobile optimizations
       if (this.isMobile) {

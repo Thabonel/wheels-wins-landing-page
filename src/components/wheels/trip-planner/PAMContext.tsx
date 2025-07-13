@@ -134,8 +134,8 @@ export function PAMProvider({ children, initialTrip }: PAMProviderProps) {
         },
         body: JSON.stringify({
           message: content,
-          context: context,
-          suggestions: suggestions
+          context,
+          suggestions
         })
       });
 

@@ -31,7 +31,7 @@ export interface NavigationExportHubProps {
 
 function buildGoogleMapsLink(route: RouteData) {
   const waypoints = route.waypoints && route.waypoints.length
-    ? '&waypoints=' + route.waypoints.map(w => `${w.lat},${w.lng}`).join('|')
+    ? `&waypoints=${  route.waypoints.map(w => `${w.lat},${w.lng}`).join('|')}`
     : '';
   return `https://www.google.com/maps/dir/?api=1&origin=${route.origin.lat},${route.origin.lng}&destination=${route.destination.lat},${route.destination.lng}${waypoints}`;
 }

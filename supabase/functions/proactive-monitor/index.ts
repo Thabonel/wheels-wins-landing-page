@@ -294,7 +294,7 @@ class ProactiveMonitor {
       const alertSummary = {
         user_id: userId,
         alert_count: alerts.length,
-        alerts: alerts,
+        alerts,
         created_at: new Date().toISOString(),
         priority: alerts.some(alert => alert.urgency === 'high') ? 'high' : 'medium'
       };

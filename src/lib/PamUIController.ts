@@ -146,7 +146,7 @@ class PamUIController {
       toast({
         title: variant === 'destructive' ? 'Error' : 'PAM Assistant',
         description: message,
-        variant: variant,
+        variant,
       });
     } catch (error) {
       console.error('Toast notification failed:', error);

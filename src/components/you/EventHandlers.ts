@@ -16,8 +16,8 @@ const convertDbEventToLocal = (dbEvent: any): CalendarEvent => {
     description: dbEvent.description || undefined,
     date: eventDate,
     time: startTime,
-    startTime: startTime,
-    endTime: endTime,
+    startTime,
+    endTime,
     type: (dbEvent.type as "reminder" | "trip" | "booking" | "maintenance" | "inspection") || "reminder",
     location: dbEvent.location || undefined,
   };

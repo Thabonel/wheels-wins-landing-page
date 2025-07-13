@@ -76,7 +76,7 @@ export default function BudgetSidebar({
   const [routeData, setRouteData] = useState<RouteData>({
     distance: 2850 * 1.60934, // Default 2850 miles in km for demo
     duration: 45, // hours
-    waypoints: waypoints,
+    waypoints,
   });
 
   // Extract route data from directions control
@@ -92,7 +92,7 @@ export default function BudgetSidebar({
             setRouteData({
               distance: totalDistance / 1000, // Convert to km
               duration: totalDuration / 3600, // Convert to hours
-              waypoints: waypoints,
+              waypoints,
             });
           }
         } catch (error) {
