@@ -252,9 +252,28 @@ export function PAMConnectionDiagnostic() {
         };
       }
     } catch (error: any) {
+      // Check if it's an authentication or authorization error
+      const errorMessage = error.message || 'Unknown error';
+      
+      if (errorMessage.includes('All PAM HTTP endpoints failed')) {
+        return { 
+          status: 'error', 
+          message: 'PAM chat requires valid authentication. Backend is operational but chat needs login.',
+          error 
+        };
+      }
+      
+      if (errorMessage.includes('credentials') || errorMessage.includes('authentication')) {
+        return { 
+          status: 'error', 
+          message: 'Authentication required for PAM chat. Please ensure you are logged in.',
+          error 
+        };
+      }
+      
       return { 
         status: 'error', 
-        message: `Chat test failed: ${error.message || 'Unknown error'}`,
+        message: `Chat test failed: ${errorMessage}`,
         error 
       };
     }
