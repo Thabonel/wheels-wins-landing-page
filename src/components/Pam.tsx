@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff, MapPin, Calendar, DollarSign } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
-import { getWebSocketUrl, apiFetch } from "@/services/api";
+import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 interface PamMessage {
@@ -49,12 +49,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadUserContext = async () => {
     try {
-      const response = await apiFetch('/api/v1/pam/chat', {
+      const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
         body: JSON.stringify({
           message: 'What is my current context and preferences?',
           context: {
@@ -75,12 +71,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadConversationMemory = async () => {
     try {
-      const response = await apiFetch('/api/v1/pam/chat', {
+      const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
         body: JSON.stringify({
           message: 'What is my conversation history?',
           context: {
@@ -107,12 +99,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const saveToMemory = async (message: string, sender: 'user' | 'pam', context?: any) => {
     try {
-      await apiFetch('/api/actions/execute', {
+      await authenticatedFetch('/api/actions/execute', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
         body: JSON.stringify({
           action: 'save_memory',
           payload: {
@@ -341,12 +329,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     // Fallback to REST API
     try {
-      const response = await apiFetch('/api/v1/pam/chat', {
+      const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
         body: JSON.stringify({
           message: message,
           context: messageData.context
