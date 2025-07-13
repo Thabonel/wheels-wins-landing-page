@@ -3,9 +3,6 @@ import { renderHook, act, waitFor } from '../../test/utils/test-utils';
 import { AuthProvider, useAuth } from '../../context/AuthContext';
 import { mockSupabase } from '../../test/mocks/supabase';
 
-// Import mocks
-import '../../test/mocks/supabase';
-
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
