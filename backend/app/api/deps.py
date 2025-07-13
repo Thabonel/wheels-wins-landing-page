@@ -2,7 +2,6 @@
 API Dependencies - Common dependencies for FastAPI endpoints
 """
 
-import logging
 from typing import Optional, Dict, Any, Generator
 from datetime import datetime, timedelta
 from functools import wraps
@@ -18,8 +17,9 @@ from app.services.database import DatabaseService
 from app.services.cache import CacheService
 from app.services.pam.orchestrator import orchestrator
 from app.core.exceptions import PAMError, AuthenticationError, PermissionError, ErrorCode
+from app.core.logging import get_logger
 
-logger = logging.getLogger("api.deps")
+logger = get_logger("api.deps")
 
 # Security scheme
 security = HTTPBearer()
