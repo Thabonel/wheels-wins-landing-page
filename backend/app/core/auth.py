@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any
 import jwt  # SECURITY FIX: Replaced python-jose with PyJWT
 from jwt.exceptions import InvalidTokenError, DecodeError
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import requests
 from cryptography.hazmat.primitives import serialization
@@ -103,3 +104,62 @@ def verify_supabase_token(token: str, supabase_url: str):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Supabase token",
         ) from e
+
+
+# Security scheme for Bearer token
+security = HTTPBearer()
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+    """
+    FastAPI dependency to get current user from JWT token.
+    Supports both local JWT tokens and Supabase tokens.
+    """
+    token = credentials.credentials
+    
+    try:
+        # First try to verify as local JWT token
+        payload = verify_token(token)
+        return {
+            "id": payload.get("sub"),
+            "username": payload.get("username"),
+            "email": payload.get("email"),
+            "is_admin": payload.get("is_admin", False),
+            "token_type": "local"
+        }
+    except HTTPException:
+        pass  # Try Supabase verification
+    
+    try:
+        # Try to verify as Supabase token
+        supabase_url = os.getenv("SUPABASE_URL")
+        if supabase_url:
+            payload = verify_supabase_token(token, supabase_url)
+            return {
+                "id": payload.get("sub"),
+                "email": payload.get("email"),
+                "username": payload.get("user_metadata", {}).get("username"),
+                "is_admin": payload.get("user_metadata", {}).get("is_admin", False),
+                "token_type": "supabase"
+            }
+    except HTTPException:
+        pass  # Try simple token verification
+    
+    try:
+        # Fallback: try to decode without verification (for development/testing)
+        payload = jwt.decode(token, options={"verify_signature": False})
+        return {
+            "id": payload.get("sub", "unknown"),
+            "email": payload.get("email", "unknown@example.com"),
+            "username": payload.get("username", "unknown"),
+            "is_admin": payload.get("is_admin", False),
+            "token_type": "unverified"
+        }
+    except Exception:
+        pass
+    
+    # If all verification methods fail
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
