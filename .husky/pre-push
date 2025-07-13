@@ -1,0 +1,3 @@
+# Run full CI before pushing to remote
+echo "🚀 Running full CI pipeline before push..."
+npm run ci:full

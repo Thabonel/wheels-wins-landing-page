@@ -1,8 +1,42 @@
 # Welcome to your Wheels and Wins project
 
+[![Code Quality](https://github.com/Thabonel/wheels-wins-landing-page/actions/workflows/code-quality.yml/badge.svg)](https://github.com/Thabonel/wheels-wins-landing-page/actions/workflows/code-quality.yml)
+[![Security Analysis](https://github.com/Thabonel/wheels-wins-landing-page/actions/workflows/code-quality.yml/badge.svg)](https://github.com/Thabonel/wheels-wins-landing-page/actions/workflows/code-quality.yml)
+
 ## Project info
 
 **URL**: <YOUR_PROJECT_URL>
+
+## 🛡️ Code Quality & Security
+
+This project implements comprehensive code quality and security measures:
+
+### ✅ Automated Quality Checks
+- **ESLint**: Code linting with security rules
+- **Prettier**: Consistent code formatting
+- **TypeScript**: Strict type checking
+- **Vitest**: 80% test coverage requirement
+- **Pre-commit hooks**: Quality gates before commits
+
+### 🔒 Security Features
+- **CodeQL**: Automated security vulnerability detection
+- **Dependency scanning**: Regular vulnerability audits
+- **Input validation**: Zod schema validation
+- **JWT security**: Proper token handling with Supabase
+
+### 📊 Quality Metrics
+- **Test Coverage**: 80% minimum requirement
+- **Code Analysis**: SonarCloud integration ready
+- **Performance**: Automated performance monitoring
+- **Technical Debt**: Structured tracking and management
+
+### 🚀 Development Workflow
+```bash
+npm run quality:check    # Full quality validation
+npm run quality:fix      # Auto-fix issues
+npm run security:audit   # Security scan
+npm run ci:full         # Complete CI pipeline
+```
 
 ## How can I edit this code?
 

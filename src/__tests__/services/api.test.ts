@@ -2,9 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { authenticatedFetch, apiFetch, getAuthenticatedWebSocketUrl } from '../../services/api';
 import { mockSupabase } from '../../test/mocks/supabase';
 
-// Import mocks
-import '../../test/mocks/supabase';
-
 // Mock fetch
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
