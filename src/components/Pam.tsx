@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
 import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PamMessage {
   id: string;
@@ -470,6 +471,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   <DollarSign className="w-4 h-4" />
                   🚀 Proactive Profile Analysis
                 </button>
+                <button 
+                  onClick={async () => {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    console.log('🧪 PAM MAIN: Session token:', session?.access_token?.substring(0, 30));
+                    console.log('🧪 PAM MAIN: Token parts:', session?.access_token?.split('.').length);
+                    console.log('🧪 PAM MAIN: Is mock token?', session?.access_token === 'mock-token');
+                    console.log('🧪 PAM MAIN: User:', user?.email);
+                  }}
+                  className="flex items-center gap-2 w-full p-2 text-left text-xs bg-red-100 rounded-lg hover:bg-red-200"
+                >
+                  🔍 Debug Session Token
+                </button>
               </div>
             </div>
           ) : (
@@ -588,6 +601,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   >
                     <DollarSign className="w-4 h-4" />
                     🚀 Proactive Profile Analysis
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      console.log('🧪 PAM MAIN: Session token:', session?.access_token?.substring(0, 30));
+                      console.log('🧪 PAM MAIN: Token parts:', session?.access_token?.split('.').length);
+                      console.log('🧪 PAM MAIN: Is mock token?', session?.access_token === 'mock-token');
+                      console.log('🧪 PAM MAIN: User:', user?.email);
+                    }}
+                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-red-100 rounded-lg hover:bg-red-200"
+                  >
+                    🔍 Debug Session Token
                   </button>
                 </div>
               </div>
