@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 // FORCE REAL SUPABASE CLIENT - NOT MOCK
 import { toast } from 'sonner';
-import { API_BASE_URL } from '@/services/api';
+import { API_BASE_URL, authenticatedFetch } from '@/services/api';
 
 interface TestResult {
   status: 'checking' | 'success' | 'error' | 'timeout' | 'online' | 'offline' | 'connected' | 'disconnected' | 'operational' | 'degraded';
@@ -226,155 +226,29 @@ export function PAMConnectionDiagnostic() {
 
   const runChatTest = async (): Promise<TestResult> => {
     try {
-      // FORCE IMPORT REAL SUPABASE CLIENT TO BYPASS CACHE
-      const { createClient } = await import('@supabase/supabase-js');
-      const realSupabase = createClient(
-        "https://kycoklimpzkyrecbjecn.supabase.co",
-        "<JWT_TOKEN>",
-        {
-          auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            storageKey: 'pam-auth-token',
-          }
-        }
-      );
-      
-      // Debug: Check which Supabase client we're using
-      console.log('🔍 DIAGNOSTIC: Using FORCED real Supabase client');
-      console.log('🔍 DIAGNOSTIC: Supabase client type:', typeof realSupabase);
-      
-      // Test the client directly
-      const testSession = await realSupabase.auth.getSession();
-      console.log('🧪 DIAGNOSTIC: Test session token preview:', testSession.data.session?.access_token?.substring(0, 30));
-      console.log('🧪 DIAGNOSTIC: Is this a mock token?', testSession.data.session?.access_token === 'mock-token');
-      
-      // Get the current session token using the FORCED real client
-      let { data: { session }, error: sessionError } = await realSupabase.auth.getSession();
-      
-      if (sessionError) {
+      // Check if user is authenticated
+      if (!user) {
         return { 
           status: 'error', 
-          message: `Session error: ${sessionError.message}` 
+          message: 'No user logged in. Please log in to test PAM chat.' 
         };
-      }
-      
-      if (!session) {
-        return { 
-          status: 'error', 
-          message: 'No active session. Please log in to test PAM chat.' 
-        };
-      }
-      
-      if (!session.access_token) {
-        return { 
-          status: 'error', 
-          message: 'No access token in session. Please log out and log in again.' 
-        };
-      }
-      
-      // Detailed JWT validation and debugging
-      console.log('🔍 DIAGNOSTIC: Raw session object:', JSON.stringify(session, null, 2));
-      console.log('🎫 DIAGNOSTIC: Raw access_token:', session.access_token);
-      console.log('🔢 DIAGNOSTIC: Token type:', typeof session.access_token);
-      console.log('📏 DIAGNOSTIC: Token length:', session.access_token?.length);
-      
-      const tokenParts = session.access_token.split('.');
-      console.log('🔧 Token parts count:', tokenParts.length);
-      console.log('🔧 Token parts:', tokenParts);
-      console.log('🔧 First part preview:', tokenParts[0]?.substring(0, 20));
-      console.log('🔧 Second part preview:', tokenParts[1]?.substring(0, 20));
-      console.log('🔧 Third part preview:', tokenParts[2]?.substring(0, 20));
-      
-      if (tokenParts.length !== 3) {
-        console.log('❌ Invalid JWT detected - investigating session state...');
-        
-        // Test manual JWT validation
-        const testJWT = "<JWT_TOKEN>";
-        const testParts = testJWT.split('.');
-        console.log('🧪 Test JWT parts count:', testParts.length);
-        console.log('🧪 Test JWT validation should be valid:', testParts.length === 3);
-        
-        // Check if we have a refresh token
-        console.log('🔄 Refresh token available:', !!session.refresh_token);
-        console.log('🕒 Session expires at:', session.expires_at);
-        console.log('🕒 Current time:', Date.now() / 1000);
-        
-        // Force a complete session refresh
-        console.log('🔄 Attempting complete session refresh...');
-        try {
-          // Check browser localStorage for any corrupted state
-          const pamAuthKey = localStorage.getItem('pam-auth-token');
-          console.log('🗄️ Local storage auth key:', pamAuthKey ? 'exists' : 'not found');
-          
-          // Try to get a fresh session from storage
-          const { data: { session: storageSession } } = await realSupabase.auth.getSession();
-          console.log('💾 Storage session:', storageSession?.access_token?.substring(0, 50));
-          
-          if (storageSession?.access_token && storageSession.access_token.split('.').length === 3) {
-            console.log('✅ Found valid token in storage');
-            session = storageSession;
-          } else {
-            // Try manual refresh
-            const { data: { session: refreshedSession }, error: refreshError } = await realSupabase.auth.refreshSession();
-            console.log('🔄 Refresh result:', { 
-              hasSession: !!refreshedSession, 
-              hasToken: !!refreshedSession?.access_token,
-              tokenParts: refreshedSession?.access_token?.split('.').length,
-              error: refreshError?.message 
-            });
-            
-            if (refreshError || !refreshedSession?.access_token) {
-              return { 
-                status: 'error', 
-                message: `Invalid JWT (${tokenParts.length} parts): ${session.access_token.substring(0, 50)}... Refresh failed: ${refreshError?.message || 'Unknown error'}` 
-              };
-            }
-            
-            const refreshedTokenParts = refreshedSession.access_token.split('.');
-            if (refreshedTokenParts.length !== 3) {
-              return { 
-                status: 'error', 
-                message: `JWT still invalid after refresh (${refreshedTokenParts.length} parts). Token: ${refreshedSession.access_token.substring(0, 50)}...` 
-              };
-            }
-            
-            console.log('✅ Session refreshed successfully');
-            session = refreshedSession;
-          }
-        } catch (refreshError) {
-          console.error('💥 Refresh error:', refreshError);
-          return { 
-            status: 'error', 
-            message: `Invalid JWT format: expected 3 parts, got ${tokenParts.length}. Session refresh failed: ${refreshError}` 
-          };
-        }
-      } else {
-        console.log('✅ Valid JWT format detected');
       }
 
       console.log('🔐 Testing PAM chat with user:', user?.email);
-      console.log('🎫 Token length:', session.access_token.length);
-      console.log('🎫 Token preview:', `${session.access_token.substring(0, 50)  }...`);
-      console.log('🎫 Full session object:', JSON.stringify(session, null, 2));
+      console.log('🌐 Using optimized authentication system (reference tokens or standard JWTs)');
 
       const startTime = Date.now();
       
-      // Test the PAM chat endpoint using authenticated fetch with automatic token refresh
-      console.log('🌐 DIAGNOSTIC: Sending PAM chat test to:', `${API_BASE_URL}/api/v1/pam/chat`);
-      console.log('🔐 DIAGNOSTIC: Using auth header:', `Bearer ${session.access_token.substring(0, 20)}...`);
+      // Test the PAM chat endpoint using our optimized authentication system
+      console.log('🌐 DIAGNOSTIC: Sending PAM chat test to:', `/api/v1/pam/chat`);
+      console.log('🔐 DIAGNOSTIC: Using optimized authentication (reference tokens or JWT)');
       
-      const response = await fetch(`${API_BASE_URL}/api/v1/pam/chat`, {
+      const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
         body: JSON.stringify({
           message: 'Hello PAM! This is a connection test from the observability dashboard.',
           user_id: user?.id || 'test-user'
         }),
-        signal: AbortSignal.timeout(15000)
       });
       
       console.log('📡 DIAGNOSTIC: Response status:', response.status);
