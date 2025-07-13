@@ -3,9 +3,11 @@ from typing import Dict, List, Any, Optional
 from enum import Enum
 import json
 import re
-import logging
 from datetime import datetime, timedelta
 from app.core.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger("pam")
 from app.nodes.wins_node import wins_node
 from app.nodes.wheels_node import wheels_node
 from app.nodes.social_node import social_node
@@ -32,10 +34,8 @@ try:
     from scraper_service.main import fetch_and_parse
     SCRAPER_AVAILABLE = True
 except ImportError as e:
-    logging.warning(f"Scraper service not available: {e}")
+    logger.warning(f"Scraper service not available: {e}")
     SCRAPER_AVAILABLE = False
-
-logger = logging.getLogger("pam")
 
 class EntityExtractor:
     """Extracts entities from user messages for better intent classification"""
