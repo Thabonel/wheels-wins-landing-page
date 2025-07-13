@@ -24,11 +24,11 @@ describe('AuthContext', () => {
 
     expect(result.current.isAuthenticated).toBe(true);
     expect(result.current.user).toEqual({
-      id: 'mock_user_id',
+      id: 'mock-user-id',
       email: 'test@example.com',
       full_name: 'Test User'
     });
-    expect(result.current.token).toBe('mock_access_token');
+    expect(result.current.token).toBe('mock-token');
   });
 
   it('handles sign in correctly', async () => {
