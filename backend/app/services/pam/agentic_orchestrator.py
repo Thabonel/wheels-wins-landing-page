@@ -12,7 +12,7 @@ from enum import Enum
 
 from app.core.logging import get_logger
 from app.core.intelligent_conversation import IntelligentConversationHandler
-from app.models.domain.pam import PamContext, PamMemory
+from app.models.domain.pam import PamContext
 
 logger = get_logger(__name__)
 
@@ -71,7 +71,7 @@ class AgenticOrchestrator:
     
     def __init__(self, conversation_service: IntelligentConversationHandler):
         self.conversation_service = conversation_service
-        self.memory = PamMemory()
+        self.memory = None  # Will be initialized when needed
         self.state = AgentState.IDLE
         self.current_plan: Optional[ExecutionPlan] = None
         self.tool_registry = {}
@@ -634,7 +634,7 @@ class LearningEngine:
 class ProactiveAssistant:
     """Identifies opportunities for proactive assistance"""
     
-    def __init__(self, memory: PamMemory):
+    def __init__(self, memory=None):
         self.memory = memory
     
     async def analyze_opportunities(self, user_id: str, context: PamContext,
