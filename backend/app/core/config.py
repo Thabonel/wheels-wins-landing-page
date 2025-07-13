@@ -45,10 +45,11 @@ class Settings(BaseSettings):
     AGENTOPS_API_KEY: Optional[str] = None
     OBSERVABILITY_ENABLED: bool = True
 
-    # CORS
+    # CORS - Allow requests from development and production origins
     CORS_ORIGINS: List[str] = [
+        "*",  # Allow all origins for development - TEMPORARY
         "http://localhost:3000",
-        "http://localhost:8080",
+        "http://localhost:8080", 
         "http://localhost:5173",
         "https://wheelsandwins.com",
         "https://www.wheelsandwins.com",
