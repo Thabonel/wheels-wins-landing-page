@@ -160,6 +160,79 @@ class DatabaseService:
         except Exception as e:
             logger.warning(f"Error storing user preference: {e}")
             return False
+    
+    # Reference Token Methods (SaaS Industry Standard)
+    async def create_user_session(self, user_id: str, token_hash: str, user_data: Dict[str, Any]) -> bool:
+        """Create a user session for reference token authentication"""
+        try:
+            if not self.client:
+                return False
+            
+            # Insert new session
+            result = self.client.table('user_sessions').insert({
+                'user_id': user_id,
+                'token_hash': token_hash,
+                'user_data': user_data,
+                'expires_at': (
+                    # Set expiration to 1 hour from now
+                    # Supabase will handle the timestamp formatting
+                    "now() + interval '1 hour'"
+                )
+            }).execute()
+            
+            return bool(result.data)
+        except Exception as e:
+            logger.error(f"Error creating user session: {e}")
+            return False
+    
+    async def get_user_session_by_token_hash(self, token_hash: str) -> Optional[Dict[str, Any]]:
+        """Get user session by token hash"""
+        try:
+            if not self.client:
+                return None
+            
+            result = self.client.table('user_sessions').select('*').eq(
+                'token_hash', token_hash
+            ).gt(
+                'expires_at', 'now()'  # Only non-expired sessions
+            ).single().execute()
+            
+            return result.data if result.data else None
+        except Exception as e:
+            logger.warning(f"Error getting user session: {e}")
+            return None
+    
+    async def delete_user_session(self, session_id: str) -> bool:
+        """Delete a user session (for logout/cleanup)"""
+        try:
+            if not self.client:
+                return False
+            
+            result = self.client.table('user_sessions').delete().eq(
+                'id', session_id
+            ).execute()
+            
+            return True
+        except Exception as e:
+            logger.warning(f"Error deleting user session: {e}")
+            return False
+    
+    async def cleanup_expired_sessions(self) -> int:
+        """Clean up expired sessions and return count of deleted sessions"""
+        try:
+            if not self.client:
+                return 0
+            
+            result = self.client.table('user_sessions').delete().lt(
+                'expires_at', 'now()'
+            ).execute()
+            
+            count = len(result.data) if result.data else 0
+            logger.info(f"Cleaned up {count} expired sessions")
+            return count
+        except Exception as e:
+            logger.warning(f"Error cleaning up expired sessions: {e}")
+            return 0
 
 # Global instance, initialized lazily
 database_service: Optional[DatabaseService] = None

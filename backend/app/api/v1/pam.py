@@ -1,5 +1,6 @@
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Query
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, Response
 from typing import List, Optional, Dict, Any
 import json
@@ -8,7 +9,7 @@ import logging
 from datetime import datetime
 
 from app.api.deps import (
-    get_current_user, verify_supabase_jwt_token, get_pam_orchestrator, get_database,
+    get_current_user, verify_supabase_jwt_token, verify_supabase_jwt_flexible, get_pam_orchestrator, get_database,
     apply_rate_limit, get_pagination_params, validate_user_context
 )
 from app.models.schemas.pam import (
@@ -241,13 +242,23 @@ async def health_options():
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(
     request: ChatRequest,
-    token_payload = Depends(verify_supabase_jwt_token),
     orchestrator = Depends(get_pam_orchestrator),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
     # _rate_limit = Depends(apply_rate_limit("chat", 30, 60))  # Disabled for now
 ):
-    """Process a chat message via REST API"""
+    """Process a chat message via REST API - supports both header and body-based JWT auth"""
     try:
         start_time = datetime.utcnow()
+        
+        # WORKAROUND: Handle both Authorization header and body-based JWT token
+        # This allows us to bypass Render.com's header size limits
+        from app.api.deps import verify_token_from_request_or_header
+        
+        # Convert request to dict for token verification
+        request_dict = request.dict()
+        
+        # Verify authentication using flexible method
+        token_payload = verify_token_from_request_or_header(request_dict, credentials)
         
         # Get user_id from token payload
         user_id = token_payload.get("sub")

@@ -7,13 +7,24 @@ export const API_BASE_URL =
 const WS_OVERRIDE = import.meta.env.VITE_PAM_WEBSOCKET_URL;
 
 /**
- * Enhanced API fetch with automatic authentication
- * Uses Supabase session management for proper JWT + refresh token flow
+ * Enhanced API fetch with SaaS-standard authentication
+ * Uses reference tokens (industry best practice) for minimal header size
+ * Falls back to optimized JWTs when needed
  */
 export async function authenticatedFetch(path: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${path}`;
   
-  // Get current session with automatic token refresh
+  // Check if we should use reference token (SaaS industry standard)
+  const useReferenceTokens = localStorage.getItem('use_reference_tokens') !== 'false';
+  
+  if (useReferenceTokens) {
+    console.log('🎫 Using SaaS-standard reference token authentication');
+    // Import dynamically to avoid circular dependencies
+    const { authenticatedFetchWithReferenceToken } = await import('./auth/referenceTokens');
+    return authenticatedFetchWithReferenceToken(path, options);
+  }
+  
+  // Fallback to JWT with optimization
   const { data: { session }, error } = await supabase.auth.getSession();
   
   if (error) {
@@ -24,17 +35,31 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
     throw new Error('No valid session found. Please log in.');
   }
   
-  // Merge authentication headers with provided options
+  // Check JWT size and warn if large
+  const jwtSize = session.access_token.length;
+  const headerSize = jwtSize + 7; // + "Bearer "
+  
+  console.log('🔐 API: JWT size analysis');
+  console.log('🔐 Token length:', jwtSize, 'characters');
+  console.log('🔐 Header size:', headerSize, 'characters');
+  console.log('🔐 Status:', headerSize > 500 ? '⚠️ LARGE (consider reference tokens)' : '✅ Optimal size');
+  
+  // Standard Authorization header approach
   const authenticatedOptions: RequestInit = {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
+      'X-Auth-Type': 'jwt', // Signal authentication method
       ...options.headers,
     },
   };
   
   const response = await fetch(url, authenticatedOptions);
+  
+  // Debug: Log response details
+  console.log('🔐 API: Response status:', response.status);
+  console.log('🔐 API: Response headers:', Object.fromEntries(response.headers.entries()));
   
   // Handle token expiration - trigger refresh
   if (response.status === 401) {
