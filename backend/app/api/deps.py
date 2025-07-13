@@ -5,6 +5,7 @@ API Dependencies - Common dependencies for FastAPI endpoints
 from typing import Optional, Dict, Any, Generator
 from datetime import datetime, timedelta
 from functools import wraps
+import json
 
 from fastapi import Depends, HTTPException, status, Header, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -129,11 +130,53 @@ def verify_supabase_jwt_token(
         logger.info(f"🔐 Attempting to verify token (length: {len(token)})")
         
         # Use lenient verification for Supabase tokens
-        payload = jwt.decode(
-            token, 
-            options={"verify_signature": False, "verify_exp": False},
-            algorithms=["HS256"]
-        )
+        # Try multiple JWT decoding approaches for Supabase compatibility
+        payload = None
+        decode_error = None
+        
+        # Method 1: Standard JWT decode with no verification
+        try:
+            payload = jwt.decode(
+                token, 
+                options={"verify_signature": False, "verify_exp": False},
+                algorithms=["HS256", "RS256"]
+            )
+            logger.info("🔐 JWT decoded with standard method")
+        except Exception as e1:
+            decode_error = e1
+            logger.warning(f"🔐 Standard JWT decode failed: {str(e1)}")
+            
+            # Method 2: Try without specifying algorithms
+            try:
+                payload = jwt.decode(
+                    token,
+                    options={"verify_signature": False, "verify_exp": False, "verify_aud": False}
+                )
+                logger.info("🔐 JWT decoded without algorithm specification")
+            except Exception as e2:
+                logger.warning(f"🔐 Algorithm-free JWT decode failed: {str(e2)}")
+                
+                # Method 3: Try manual base64 decode for debugging
+                try:
+                    import base64
+                    # JWT has 3 parts: header.payload.signature
+                    parts = token.split('.')
+                    if len(parts) >= 2:
+                        # Decode the payload part (second part)
+                        payload_part = parts[1]
+                        # Add padding if needed
+                        payload_part += '=' * (4 - len(payload_part) % 4)
+                        decoded_bytes = base64.urlsafe_b64decode(payload_part)
+                        payload = json.loads(decoded_bytes.decode('utf-8'))
+                        logger.info("🔐 JWT payload extracted via manual base64 decode")
+                    else:
+                        raise ValueError("Token doesn't have expected JWT structure")
+                except Exception as e3:
+                    logger.error(f"🔐 Manual decode also failed: {str(e3)}")
+                    raise decode_error  # Raise the original error
+        
+        if not payload:
+            raise ValueError("Could not decode JWT token with any method")
         
         user_id = payload.get('sub')
         if not user_id:
