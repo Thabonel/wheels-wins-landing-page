@@ -73,10 +73,11 @@ export function PAMConnectionDiagnostic() {
   };
 
   const runWebSocketTest = (): Promise<TestResult> => {
-    return new Promise(async (resolve) => {
-      try {
-        // Get the current session token for WebSocket authentication
-        const { data: { session } } = await supabase.auth.getSession();
+    return new Promise((resolve) => {
+      const performTest = async () => {
+        try {
+          // Get the current session token for WebSocket authentication
+          const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token || 'test-connection';
         
         const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/api/v1/pam/ws?token=${encodeURIComponent(token)}`;
@@ -146,13 +147,15 @@ export function PAMConnectionDiagnostic() {
             });
           }
         };
-      } catch (error) {
-        resolve({ 
-          status: 'error', 
-          message: 'WebSocket test setup failed',
-          error
-        });
-      }
+        } catch (error) {
+          resolve({ 
+            status: 'error', 
+            message: 'WebSocket test setup failed',
+            error
+          });
+        }
+      };
+      performTest();
     });
   };
 

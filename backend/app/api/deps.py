@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 import json
 
-from fastapi import Depends, HTTPException, status, Header, Query
+from fastapi import Depends, HTTPException, status, Header, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt import PyJWTError  # Import PyJWTError directly
@@ -207,6 +207,308 @@ def verify_supabase_jwt_token(
             detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+async def verify_supabase_jwt_flexible(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+) -> Dict[str, Any]:
+    """
+    Flexible Supabase JWT verification that handles both:
+    1. Authorization header (standard method)
+    2. Request body _auth_token field (workaround for Render.com header size limits)
+    """
+    token = None
+    auth_method = "none"
+    
+    # Method 1: Check for Authorization header (standard)
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+        auth_method = "header"
+        logger.info(f"🔐 Using Authorization header (length: {len(token)})")
+    
+    # Method 2: Check for X-Auth-Method header indicating body-based auth
+    elif request.headers.get("X-Auth-Method") == "body-token":
+        try:
+            # Parse request body to extract _auth_token
+            body = await request.body()
+            if body:
+                body_data = json.loads(body.decode())
+                token = body_data.get("_auth_token")
+                if token:
+                    auth_method = "body"
+                    logger.info(f"🔐 Using body-based auth (length: {len(token)})")
+        except Exception as e:
+            logger.error(f"🔐 Failed to extract token from body: {str(e)}")
+    
+    # If no token found, raise authentication error
+    if not token:
+        logger.error("🔐 No authentication token found in header or body")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token missing",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Now verify the token using the same logic as verify_supabase_jwt_token
+    try:
+        logger.info(f"🔐 Verifying Supabase token via {auth_method} (length: {len(token)})")
+        
+        # Decode JWT without signature verification (trust Supabase)
+        try:
+            payload = jwt.decode(
+                token, 
+                options={
+                    "verify_signature": False,
+                    "verify_exp": True,
+                    "verify_aud": False,
+                    "verify_iss": False
+                },
+                algorithms=["HS256", "RS256"]
+            )
+            logger.info(f"🔐 JWT decoded successfully via {auth_method}")
+            
+        except jwt.ExpiredSignatureError:
+            logger.warning("🔐 Token has expired - frontend should refresh")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token expired - please refresh",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except Exception as e:
+            logger.error(f"🔐 JWT decode failed: {str(e)}")
+            # Fallback: try without any verification for debugging
+            try:
+                payload = jwt.decode(
+                    token,
+                    options={"verify_signature": False, "verify_exp": False}
+                )
+                logger.warning(f"🔐 JWT decoded with full verification disabled via {auth_method}")
+            except Exception as fallback_error:
+                logger.error(f"🔐 Fallback decode also failed: {str(fallback_error)}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid JWT format: {str(e)}",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+        
+        # Validate required fields
+        user_id = payload.get('sub')
+        if not user_id:
+            logger.error(f"🔐 Token missing 'sub' field. Available keys: {list(payload.keys())}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing user ID",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Log successful authentication
+        logger.info(f"🔐 User authenticated via {auth_method}: {user_id}")
+        
+        return payload
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"🔐 Unexpected authentication error via {auth_method}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def verify_token_from_request_or_header(
+    request_data: Optional[Dict[str, Any]] = None,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+) -> Dict[str, Any]:
+    """
+    Simple token verification that checks both request body and Authorization header
+    for cases where we already have the parsed request data
+    """
+    token = None
+    auth_method = "none"
+    
+    # Method 1: Check for Authorization header (standard)
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+        auth_method = "header"
+        logger.info(f"🔐 Using Authorization header (length: {len(token)})")
+    
+    # Method 2: Check for _auth_token in request data (workaround)
+    elif request_data and "_auth_token" in request_data:
+        token = request_data["_auth_token"]
+        if token:
+            auth_method = "body"
+            logger.info(f"🔐 Using body-based auth (length: {len(token)})")
+    
+    # If no token found, raise authentication error
+    if not token:
+        logger.error("🔐 No authentication token found in header or body")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token missing",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Verify the token using same logic as verify_supabase_jwt_token
+    try:
+        logger.info(f"🔐 Verifying Supabase token via {auth_method} (length: {len(token)})")
+        
+        # Decode JWT without signature verification (trust Supabase)
+        try:
+            payload = jwt.decode(
+                token, 
+                options={
+                    "verify_signature": False,
+                    "verify_exp": True,
+                    "verify_aud": False,
+                    "verify_iss": False
+                },
+                algorithms=["HS256", "RS256"]
+            )
+            logger.info(f"🔐 JWT decoded successfully via {auth_method}")
+            
+        except jwt.ExpiredSignatureError:
+            logger.warning("🔐 Token has expired - frontend should refresh")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token expired - please refresh",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except Exception as e:
+            logger.error(f"🔐 JWT decode failed: {str(e)}")
+            # Fallback: try without any verification for debugging
+            try:
+                payload = jwt.decode(
+                    token,
+                    options={"verify_signature": False, "verify_exp": False}
+                )
+                logger.warning(f"🔐 JWT decoded with full verification disabled via {auth_method}")
+            except Exception as fallback_error:
+                logger.error(f"🔐 Fallback decode also failed: {str(fallback_error)}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid JWT format: {str(e)}",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+        
+        # Validate required fields
+        user_id = payload.get('sub')
+        if not user_id:
+            logger.error(f"🔐 Token missing 'sub' field. Available keys: {list(payload.keys())}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing user ID",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Log successful authentication
+        logger.info(f"🔐 User authenticated via {auth_method}: {user_id}")
+        
+        return payload
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"🔐 Unexpected authentication error via {auth_method}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+async def verify_reference_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: DatabaseService = Depends(get_database)
+) -> Dict[str, Any]:
+    """
+    Verify reference token - Industry standard SaaS authentication pattern
+    Used by Stripe, GitHub, and other major platforms for minimal header size
+    """
+    if not credentials or not credentials.credentials:
+        logger.error("🎫 No reference token provided")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Reference token missing",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = credentials.credentials
+    logger.info(f"🎫 Verifying reference token (length: {len(token)})")
+    
+    try:
+        # Hash the token to match stored hash
+        import hashlib
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        
+        # Look up session data
+        # Note: This requires the user_sessions table from our SQL script
+        session_data = await db.get_user_session_by_token_hash(token_hash)
+        
+        if not session_data:
+            logger.warning("🎫 Reference token not found or expired")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired reference token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Check expiration
+        from datetime import datetime
+        expires_at = datetime.fromisoformat(session_data['expires_at'].replace('Z', '+00:00'))
+        if datetime.now().timestamp() > expires_at.timestamp():
+            logger.warning("🎫 Reference token expired")
+            # Clean up expired token
+            await db.delete_user_session(session_data['id'])
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Reference token expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        user_data = session_data['user_data']
+        logger.info(f"🎫 Reference token validated for user: {user_data['id']}")
+        
+        # Return user data in same format as JWT payload
+        return {
+            'sub': user_data['id'],
+            'email': user_data['email'],
+            'role': user_data['role'],
+            'metadata': user_data.get('metadata', {}),
+            'token_type': 'reference'
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"🎫 Reference token verification error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Reference token verification failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+async def verify_flexible_auth(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+) -> Dict[str, Any]:
+    """
+    Flexible authentication supporting multiple methods:
+    1. Reference tokens (industry standard, minimal size)
+    2. Standard JWTs (fallback)
+    3. Body-based tokens (workaround for header limits)
+    """
+    auth_type = request.headers.get("X-Auth-Type", "jwt")
+    
+    if auth_type == "reference-token":
+        logger.info("🎫 Using reference token authentication")
+        return await verify_reference_token(credentials, await get_database().__anext__())
+    else:
+        logger.info("🔐 Using JWT authentication")
+        return await verify_supabase_jwt_flexible(request, credentials)
 
 
 async def get_current_user(

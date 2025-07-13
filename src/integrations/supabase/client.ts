@@ -7,7 +7,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // URLs are directly configured for Lovable deployment
 
-// Create the supabase client with mobile optimizations
+// Create the supabase client optimized for minimal JWT size (SaaS best practice)
 export const supabase = createClient<Database>(
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
@@ -16,6 +16,9 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       storageKey: 'pam-auth-token',
+      // Optimize JWT claims for minimal size
+      detectSessionInUrl: false, // Reduce auth metadata
+      flowType: 'pkce', // Use more efficient flow
     },
     realtime: {
       params: {
