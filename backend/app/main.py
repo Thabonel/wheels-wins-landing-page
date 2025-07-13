@@ -145,8 +145,8 @@ origins = settings.CORS_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],  # Temporarily allow all origins for debugging
+    allow_credentials=False,  # Disable credentials to allow wildcard
     allow_methods=["*"],
     allow_headers=["*"],
 )
