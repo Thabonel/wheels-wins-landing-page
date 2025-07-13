@@ -1,12 +1,12 @@
 """
 Production-ready with error handling and connection pooling
 """
-import logging
 from typing import Optional, Dict, Any, List
 from app.core.config import settings
 from supabase import create_client, Client
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class DatabaseService:
     """Production database service using Supabase"""
