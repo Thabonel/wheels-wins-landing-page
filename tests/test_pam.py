@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 
 # Ensure backend package is importable
@@ -15,7 +16,7 @@ from app.main import app
 if os.getenv("RUN_API_TESTS") != "1":
     pytest.skip("Skipping API tests", allow_module_level=True)
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_client() -> AsyncClient:
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
