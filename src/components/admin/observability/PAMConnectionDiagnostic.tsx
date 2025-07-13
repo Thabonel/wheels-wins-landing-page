@@ -6,7 +6,7 @@ import { RefreshCw, CheckCircle, XCircle, AlertCircle, Send, Activity, Wifi, Mes
 import { pamHealthCheck } from '@/services/pamHealthCheck';
 import { PamApiService } from '@/services/pamApiService';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { API_BASE_URL } from '@/services/api';
 
@@ -246,38 +246,71 @@ export function PAMConnectionDiagnostic() {
         };
       }
       
-      // Validate JWT format (should have 3 parts separated by dots)
+      // Detailed JWT validation and debugging
+      console.log('🔍 Raw session object:', JSON.stringify(session, null, 2));
+      console.log('🎫 Raw access_token:', session.access_token);
+      console.log('🔢 Token type:', typeof session.access_token);
+      console.log('📏 Token length:', session.access_token?.length);
+      
       const tokenParts = session.access_token.split('.');
+      console.log('🔧 Token parts count:', tokenParts.length);
+      console.log('🔧 Token parts:', tokenParts);
+      
       if (tokenParts.length !== 3) {
-        // Try to refresh the session once
-        console.log('🔄 Attempting to refresh session due to invalid token...');
+        console.log('❌ Invalid JWT detected - investigating session state...');
+        
+        // Check if we have a refresh token
+        console.log('🔄 Refresh token available:', !!session.refresh_token);
+        console.log('🕒 Session expires at:', session.expires_at);
+        console.log('🕒 Current time:', Date.now() / 1000);
+        
+        // Force a complete session refresh
+        console.log('🔄 Attempting complete session refresh...');
         try {
-          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError || !refreshedSession?.access_token) {
-            return { 
-              status: 'error', 
-              message: `Invalid JWT format: expected 3 parts, got ${tokenParts.length}. Session refresh failed. Please log out and log in again.` 
-            };
-          }
+          // First try to get a fresh session from storage
+          const { data: { session: storageSession } } = await supabase.auth.getSession();
+          console.log('💾 Storage session:', storageSession?.access_token?.substring(0, 50));
           
-          // Use the refreshed session
-          const refreshedTokenParts = refreshedSession.access_token.split('.');
-          if (refreshedTokenParts.length !== 3) {
-            return { 
-              status: 'error', 
-              message: `JWT still invalid after refresh. Please log out and log in again.` 
-            };
+          if (storageSession?.access_token && storageSession.access_token.split('.').length === 3) {
+            console.log('✅ Found valid token in storage');
+            session = storageSession;
+          } else {
+            // Try manual refresh
+            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+            console.log('🔄 Refresh result:', { 
+              hasSession: !!refreshedSession, 
+              hasToken: !!refreshedSession?.access_token,
+              tokenParts: refreshedSession?.access_token?.split('.').length,
+              error: refreshError?.message 
+            });
+            
+            if (refreshError || !refreshedSession?.access_token) {
+              return { 
+                status: 'error', 
+                message: `Invalid JWT (${tokenParts.length} parts): ${session.access_token.substring(0, 50)}... Refresh failed: ${refreshError?.message || 'Unknown error'}` 
+              };
+            }
+            
+            const refreshedTokenParts = refreshedSession.access_token.split('.');
+            if (refreshedTokenParts.length !== 3) {
+              return { 
+                status: 'error', 
+                message: `JWT still invalid after refresh (${refreshedTokenParts.length} parts). Token: ${refreshedSession.access_token.substring(0, 50)}...` 
+              };
+            }
+            
+            console.log('✅ Session refreshed successfully');
+            session = refreshedSession;
           }
-          
-          console.log('✅ Session refreshed successfully');
-          // Update session for this test
-          session = refreshedSession;
         } catch (refreshError) {
+          console.error('💥 Refresh error:', refreshError);
           return { 
             status: 'error', 
             message: `Invalid JWT format: expected 3 parts, got ${tokenParts.length}. Session refresh failed: ${refreshError}` 
           };
         }
+      } else {
+        console.log('✅ Valid JWT format detected');
       }
 
       console.log('🔐 Testing PAM chat with user:', user?.email);
