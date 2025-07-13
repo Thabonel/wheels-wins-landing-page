@@ -829,94 +829,106 @@ class WheelsNode:
         """Process travel-related messages and route to appropriate methods"""
         user_id = context.get('user_id')
         message_lower = message.lower()
+        entities = context.get('entities', {})
+        
+        self.logger.info(f"🚗 Wheels node processing: '{message}' for user: {user_id}")
         
         try:
-            # Trip planning requests - including location-based planning
-            if (any(word in message_lower for word in ["plan", "trip", "travel", "route", "journey"]) or 
-                any(word in message_lower for word in ["from", "to"]) or 
-                context.get("last_intent") == "wheels"):
+            # Extract locations from entities or message
+            locations = entities.get('locations', {})
+            origin = None
+            destination = None
+            
+            # Priority 1: Check entities for travel route
+            if locations.get('has_travel_route'):
+                origin = locations.get('origin')
+                destination = locations.get('destination')
                 
-                # Check if this is a location-based trip planning message
-                locations = []
-                if "from" in message_lower and "to" in message_lower:
-                    # Extract origin and destination
-                    parts = message_lower.split("from")[-1].split("to")
-                    if len(parts) >= 2:
-                        origin = parts[0].strip()
-                        destination = parts[1].strip()
-                        return {
-                            "type": "message",
-                            "content": f'Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get("user_profile", {}).get("vehicle_info", {}).get("type", "vehicle")} and prefer {context.get("user_profile", {}).get("travel_preferences", {}).get("style", "travel")} style. Let me create a personalized route with camping options and fuel stops along the way!'
-                        }
-                elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
+            # Priority 2: Parse "from X to Y" pattern from message
+            elif "from" in message_lower and "to" in message_lower:
+                parts = message_lower.split("from")[-1].split("to")
+                if len(parts) >= 2:
+                    origin = parts[0].strip()
+                    destination = parts[1].strip()
+            
+            # Trip planning with specific locations
+            if origin and destination:
+                self.logger.info(f"🗺️ Planning trip from {origin} to {destination}")
+                
+                # Call the actual trip planning method
+                trip_result = await self.plan_complete_trip(
+                    user_id=user_id or "default_user",
+                    origin=origin,
+                    destination=destination,
+                    constraints=entities.get('budget', {})
+                )
+                
+                if trip_result.get('success'):
+                    trip_data = trip_result['data']['trip_plan']
                     return {
-                        "type": "message",
-                        "content": f"Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
+                        "type": "trip_plan",
+                        "content": trip_result['message'],
+                        "data": trip_data,
+                        "actions": trip_result.get('actions', [])
                     }
                 else:
                     return {
                         "type": "message",
-                        "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?"
+                        "content": trip_result.get('message', 'I had trouble planning your trip. Please try again.')
                     }
             
-            # Default travel response
-            else:
+            # Trip planning request without specific locations
+            elif any(word in message_lower for word in ["plan", "trip", "travel", "route", "journey"]):
                 return {
                     "type": "message",
-                    "content": "I can help you with trip planning, route optimization, fuel tracking, and vehicle maintenance. What would you like assistance with?"
+                    "content": "I'd love to help plan your trip! 🗺️ To create a detailed route with camping spots and fuel stops, please tell me your starting point and destination. For example: 'Plan a trip from Brisbane to Sydney'"
                 }
-                
-        except Exception as e:
-            logger.error(f"Error in wheels_node.process: {e}")
-            return {
-                "type": "error",
-                "content": "Sorry, I had trouble processing your travel request. Please try again."
-            }
-
-
-    async def process(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Process travel-related messages and route to appropriate methods"""
-        user_id = context.get('user_id')
-        message_lower = message.lower()
-        
-        try:
-            # Trip planning requests - including location-based planning
-            if (any(word in message_lower for word in ["plan", "trip", "travel", "route", "journey"]) or 
-                any(word in message_lower for word in ["from", "to"]) or 
-                context.get("last_intent") == "wheels"):
-                
-                # Check if this is a location-based trip planning message
-                locations = []
-                if "from" in message_lower and "to" in message_lower:
-                    # Extract origin and destination
-                    parts = message_lower.split("from")[-1].split("to")
-                    if len(parts) >= 2:
-                        origin = parts[0].strip()
-                        destination = parts[1].strip()
-                        return {
-                            "type": "message",
-                            "content": f'Perfect! I can help you plan a trip from {origin.title()} to {destination.title()}. Based on your profile, I see you have a {context.get("user_profile", {}).get("vehicle_info", {}).get("type", "vehicle")} and prefer {context.get("user_profile", {}).get("travel_preferences", {}).get("style", "travel")} style. Let me create a personalized route with camping options and fuel stops along the way!'
-                        }
-                elif any(location in message_lower for location in ["cairns", "sydney", "brisbane", "melbourne", "perth", "adelaide", "darwin"]):
+            
+            # Fuel tracking
+            elif any(word in message_lower for word in ["fuel", "petrol", "diesel", "gas"]):
+                if any(word in message_lower for word in ["log", "record", "track", "bought", "filled"]):
                     return {
                         "type": "message",
-                        "content": f"Great! I can help plan your trip. I noticed you mentioned a location. Could you tell me your starting point and destination? For example: \"from Brisbane to Sydney\"."
+                        "content": "I can help you log your fuel purchases and track efficiency. Please provide: amount in litres, cost, and your current odometer reading."
                     }
                 else:
                     return {
                         "type": "message",
-                        "content": "I'd love to help plan your trip! Based on your vehicle and travel style, let me create a personalized route for you. Where would you like to go?"
+                        "content": "I can help with fuel tracking, finding fuel stops, or calculating fuel costs for your trips. What would you like to know?"
                     }
             
-            # Default travel response
+            # Vehicle maintenance
+            elif any(word in message_lower for word in ["service", "maintenance", "repair", "mechanic"]):
+                maintenance_result = await self.check_maintenance_schedule(user_id or "default_user")
+                return {
+                    "type": "maintenance",
+                    "content": maintenance_result.get('message', 'I can help check your vehicle maintenance schedule.'),
+                    "data": maintenance_result.get('data', {}),
+                    "actions": maintenance_result.get('actions', [])
+                }
+            
+            # Weather requests
+            elif any(word in message_lower for word in ["weather", "forecast", "rain", "storm"]):
+                mentioned_places = locations.get('mentioned_places', [])
+                location = mentioned_places[0] if mentioned_places else "your area"
+                
+                weather_result = await self.get_weather_forecast(location)
+                return {
+                    "type": "weather",
+                    "content": weather_result.get('message', f'Weather forecast for {location}'),
+                    "data": weather_result.get('data', {}),
+                    "actions": weather_result.get('actions', [])
+                }
+            
+            # General travel assistance
             else:
                 return {
                     "type": "message",
-                    "content": "I can help you with trip planning, route optimization, fuel tracking, and vehicle maintenance. What would you like assistance with?"
+                    "content": "I'm your travel assistant! 🚗 I can help you:\n• Plan complete trips with routes, camping spots, and fuel stops\n• Track fuel purchases and efficiency\n• Check vehicle maintenance schedules\n• Get weather forecasts for your destinations\n\nWhat would you like help with?"
                 }
                 
         except Exception as e:
-            logger.error(f"Error in wheels_node.process: {e}")
+            self.logger.error(f"Error in wheels_node.process: {e}")
             return {
                 "type": "error",
                 "content": "Sorry, I had trouble processing your travel request. Please try again."
