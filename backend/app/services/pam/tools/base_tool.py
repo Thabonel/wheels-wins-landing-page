@@ -3,16 +3,16 @@ Base Tool - Common functionality for all PAM tools
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-import logging
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class BaseTool(ABC):
     """Base class for all PAM tools"""
     
     def __init__(self, tool_name: str):
         self.tool_name = tool_name
-        self.logger = logging.getLogger(f"pam.tools.{tool_name}")
+        self.logger = get_logger(f"pam.tools.{tool_name}")
     
     @abstractmethod
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
