@@ -11,9 +11,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from app.core.logging import get_logger
-from app.services.pam.intelligent_conversation import IntelligentConversation
-from app.services.pam.context_manager import PamContext
-from app.services.pam.memory import PamMemory
+from app.core.intelligent_conversation import IntelligentConversation
+from app.models.domain.pam import PamContext, PamMemory
 
 logger = get_logger(__name__)
 
