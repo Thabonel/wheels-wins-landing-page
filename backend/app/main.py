@@ -140,12 +140,26 @@ setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
 # CORS middleware MUST be added LAST so it executes FIRST
-# Use CORS origins from settings instead of hardcoded list
-origins = settings.CORS_ORIGINS
+# Override CORS origins to include current Lovable domain
+cors_origins = [
+    "*",  # Temporarily allow all origins for debugging
+    "http://localhost:3000",
+    "http://localhost:8080", 
+    "http://localhost:5173",
+    "https://wheelsandwins.com",
+    "https://www.wheelsandwins.com",
+    "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+    "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+    "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",
+    "https://preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+    "https://main--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+]
+
+logger.info(f"🌐 Using CORS origins: {cors_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Temporarily allow all origins for debugging
+    allow_origins=cors_origins,
     allow_credentials=False,  # Disable credentials to allow wildcard
     allow_methods=["*"],
     allow_headers=["*"],
