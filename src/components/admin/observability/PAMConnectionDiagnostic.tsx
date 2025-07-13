@@ -227,54 +227,107 @@ export function PAMConnectionDiagnostic() {
         };
       }
 
+      console.log('🔐 Testing PAM chat with user:', user?.email);
+      console.log('🎫 Token length:', session.access_token.length);
+
       const startTime = Date.now();
-      const pamService = PamApiService.getInstance();
-      const result = await pamService.sendMessage({
-        message: 'Hello PAM! This is a connection test from the observability dashboard.',
-        user_id: user?.id || 'test-user'
-      }, session.access_token);
+      
+      // Test the PAM chat endpoint directly with detailed error handling
+      const response = await fetch(`${API_BASE_URL}/api/v1/pam/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          message: 'Hello PAM! This is a connection test from the observability dashboard.',
+          user_id: user?.id || 'test-user'
+        }),
+        signal: AbortSignal.timeout(15000)
+      });
       
       const responseTime = Date.now() - startTime;
       
-      if (result.response || result.message || result.content) {
-        return { 
-          status: 'success', 
-          message: 'PAM chat is working! Received response from AI.',
-          responseTime,
-          data: result 
-        };
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ PAM chat response:', result);
+        
+        if (result.response || result.message || result.content) {
+          return { 
+            status: 'success', 
+            message: 'PAM chat is working! Received response from AI.',
+            responseTime,
+            data: result 
+          };
+        } else {
+          return { 
+            status: 'error', 
+            message: 'No response content from PAM chat',
+            responseTime,
+            data: result 
+          };
+        }
       } else {
-        return { 
-          status: 'error', 
-          message: 'No response from PAM chat',
-          responseTime,
-          data: result 
-        };
+        // Handle HTTP error responses
+        let errorDetails = '';
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.detail || errorData.message || JSON.stringify(errorData);
+        } catch {
+          errorDetails = `HTTP ${response.status} ${response.statusText}`;
+        }
+        
+        console.error('❌ PAM chat HTTP error:', response.status, errorDetails);
+        
+        if (response.status === 401) {
+          return { 
+            status: 'error', 
+            message: `Authentication failed: ${errorDetails}`,
+            responseTime,
+            error: { status: response.status, detail: errorDetails }
+          };
+        } else if (response.status === 403) {
+          return { 
+            status: 'error', 
+            message: `Authorization failed: ${errorDetails}`,
+            responseTime,
+            error: { status: response.status, detail: errorDetails }
+          };
+        } else {
+          return { 
+            status: 'error', 
+            message: `PAM chat error (${response.status}): ${errorDetails}`,
+            responseTime,
+            error: { status: response.status, detail: errorDetails }
+          };
+        }
       }
+      
     } catch (error: any) {
-      // Check if it's an authentication or authorization error
+      console.error('❌ PAM chat test error:', error);
+      
       const errorMessage = error.message || 'Unknown error';
       
-      if (errorMessage.includes('All PAM HTTP endpoints failed')) {
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('network')) {
         return { 
           status: 'error', 
-          message: 'PAM chat requires valid authentication. Backend is operational but chat needs login.',
-          error 
+          message: 'Network error: Cannot connect to PAM backend. Check if backend is running.',
+          error: { message: errorMessage, type: 'network' }
         };
       }
       
-      if (errorMessage.includes('credentials') || errorMessage.includes('authentication')) {
+      if (errorMessage.includes('timeout') || errorMessage.includes('aborted')) {
         return { 
           status: 'error', 
-          message: 'Authentication required for PAM chat. Please ensure you are logged in.',
-          error 
+          message: 'Request timeout: PAM backend is not responding within 15 seconds.',
+          error: { message: errorMessage, type: 'timeout' }
         };
       }
       
       return { 
         status: 'error', 
         message: `Chat test failed: ${errorMessage}`,
-        error 
+        error: { message: errorMessage, stack: error.stack }
       };
     }
   };
