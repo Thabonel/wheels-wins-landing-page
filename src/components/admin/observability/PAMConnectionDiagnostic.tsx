@@ -223,9 +223,9 @@ export function PAMConnectionDiagnostic() {
   const runChatTest = async (): Promise<TestResult> => {
     try {
       // Debug: Check which Supabase client we're using
-      console.log('🔍 Supabase client type:', typeof supabase);
-      console.log('🔍 Supabase auth methods:', Object.keys(supabase.auth));
-      console.log('🔍 Using client from:', '/src/integrations/supabase/client');
+      console.log('🔍 DIAGNOSTIC: Supabase client type:', typeof supabase);
+      console.log('🔍 DIAGNOSTIC: Supabase auth methods:', Object.keys(supabase.auth));
+      console.log('🔍 DIAGNOSTIC: Using client from /src/integrations/supabase/client');
       
       // Get the current session token
       let { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -252,10 +252,10 @@ export function PAMConnectionDiagnostic() {
       }
       
       // Detailed JWT validation and debugging
-      console.log('🔍 Raw session object:', JSON.stringify(session, null, 2));
-      console.log('🎫 Raw access_token:', session.access_token);
-      console.log('🔢 Token type:', typeof session.access_token);
-      console.log('📏 Token length:', session.access_token?.length);
+      console.log('🔍 DIAGNOSTIC: Raw session object:', JSON.stringify(session, null, 2));
+      console.log('🎫 DIAGNOSTIC: Raw access_token:', session.access_token);
+      console.log('🔢 DIAGNOSTIC: Token type:', typeof session.access_token);
+      console.log('📏 DIAGNOSTIC: Token length:', session.access_token?.length);
       
       const tokenParts = session.access_token.split('.');
       console.log('🔧 Token parts count:', tokenParts.length);
@@ -339,6 +339,9 @@ export function PAMConnectionDiagnostic() {
       const startTime = Date.now();
       
       // Test the PAM chat endpoint using authenticated fetch with automatic token refresh
+      console.log('🌐 DIAGNOSTIC: Sending PAM chat test to:', `${API_BASE_URL}/api/v1/pam/chat`);
+      console.log('🔐 DIAGNOSTIC: Using auth header:', `Bearer ${session.access_token.substring(0, 20)}...`);
+      
       const response = await fetch(`${API_BASE_URL}/api/v1/pam/chat`, {
         method: 'POST',
         headers: {
@@ -351,6 +354,9 @@ export function PAMConnectionDiagnostic() {
         }),
         signal: AbortSignal.timeout(15000)
       });
+      
+      console.log('📡 DIAGNOSTIC: Response status:', response.status);
+      console.log('📡 DIAGNOSTIC: Response headers:', Object.fromEntries(response.headers.entries()));
       
       const responseTime = Date.now() - startTime;
       
@@ -375,11 +381,17 @@ export function PAMConnectionDiagnostic() {
         }
       } else {
         // Handle HTTP error responses
+        console.log('❌ DIAGNOSTIC: Response not OK, status:', response.status);
         let errorDetails = '';
         try {
-          const errorData = await response.json();
+          const responseText = await response.text();
+          console.log('📄 DIAGNOSTIC: Response text:', responseText.substring(0, 200));
+          
+          // Try to parse as JSON
+          const errorData = JSON.parse(responseText);
           errorDetails = errorData.detail || errorData.message || JSON.stringify(errorData);
-        } catch {
+        } catch (parseError) {
+          console.log('❌ DIAGNOSTIC: Failed to parse response as JSON:', parseError);
           errorDetails = `HTTP ${response.status} ${response.statusText}`;
         }
         
