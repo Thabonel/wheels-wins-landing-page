@@ -80,8 +80,8 @@ PAM uses Supabase Auth for user authentication with support for multiple authent
 ## Configuration
 
 ### Environment Variables
-- `SUPABASE_URL` - Supabase project URL
-- `SUPABASE_ANON_KEY` - Supabase anonymous key
+- `VITE_SUPABASE_URL` - Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key
 
 ### Security Settings
 - JWT expiration time
