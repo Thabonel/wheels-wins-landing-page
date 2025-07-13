@@ -90,7 +90,7 @@ async def root():
         ],
         "api_endpoints": {
             "💬 chat": "/api/chat/message - Main conversation interface",
-            "🎮 actions": "/api/actions/execute - UI control commands",
+            "🎮 actions": "/api/execute - UI control commands",
             "💰 wins": "/api/wins/* - Financial management endpoints",
             "🚗 wheels": "/api/wheels/* - Travel and vehicle endpoints", 
             "👥 social": "/api/social/* - Community and marketplace endpoints",
