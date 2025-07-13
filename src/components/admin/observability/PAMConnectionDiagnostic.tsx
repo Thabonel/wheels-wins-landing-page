@@ -72,9 +72,13 @@ export function PAMConnectionDiagnostic() {
   };
 
   const runWebSocketTest = async (): Promise<TestResult> => {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       try {
-        const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/api/v1/pam/ws?token=test-connection`;
+        // Get the current session token for WebSocket authentication
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || 'test-connection';
+        
+        const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/api/v1/pam/ws?token=${encodeURIComponent(token)}`;
         const ws = new WebSocket(wsUrl);
         const startTime = Date.now();
         
@@ -219,16 +223,41 @@ export function PAMConnectionDiagnostic() {
   const runChatTest = async (): Promise<TestResult> => {
     try {
       // Get the current session token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
         return { 
           status: 'error', 
-          message: 'No authentication token available. Please log in.' 
+          message: `Session error: ${sessionError.message}` 
+        };
+      }
+      
+      if (!session) {
+        return { 
+          status: 'error', 
+          message: 'No active session. Please log in to test PAM chat.' 
+        };
+      }
+      
+      if (!session.access_token) {
+        return { 
+          status: 'error', 
+          message: 'No access token in session. Please log out and log in again.' 
+        };
+      }
+      
+      // Validate JWT format (should have 3 parts separated by dots)
+      const tokenParts = session.access_token.split('.');
+      if (tokenParts.length !== 3) {
+        return { 
+          status: 'error', 
+          message: `Invalid JWT format: expected 3 parts, got ${tokenParts.length}. Token may be corrupted.` 
         };
       }
 
       console.log('🔐 Testing PAM chat with user:', user?.email);
       console.log('🎫 Token length:', session.access_token.length);
+      console.log('🎫 Token preview:', session.access_token.substring(0, 50) + '...');
 
       const startTime = Date.now();
       
