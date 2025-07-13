@@ -173,7 +173,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           reconnectTimeoutRef.current = null;
         }
         
-        addMessage("🤖 Hi! I'm PAM, your intelligent travel companion with enhanced capabilities. I can now analyze complex trips (like Sydney to Hobart with ferry logistics), remember our conversations, and provide personalized advice based on your vehicle and preferences. How can I help you today?", "pam");
+        addMessage("🤖 Hi! I'm PAM, your autonomous agentic AI travel companion! I can autonomously plan complex multi-step journeys, reason through complex logistics like Sydney→Hobart ferry crossings, learn from our conversations, and proactively identify potential issues. I use advanced tools for deep thinking, user profiling, and intelligent decision-making. How can I demonstrate my agentic capabilities for you today?", "pam");
       };
 
       wsRef.current.onmessage = async (event) => {
@@ -185,6 +185,21 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             const content = message.message || message.content;
             addMessage(content, "pam");
             await saveToMemory(content, "pam", message.actions);
+            
+            // Display agentic capabilities information
+            if (message.agentic_info) {
+              displayAgenticInfo(message.agentic_info);
+            }
+            
+            // Show thinking process if available
+            if (message.thinking_process) {
+              displayThinkingProcess(message.thinking_process);
+            }
+            
+            // Handle autonomous actions
+            if (message.autonomous_actions) {
+              handleAutonomousActions(message.autonomous_actions);
+            }
             
             // Handle Mundi geospatial data if present
             if (message.mundi_data) {
@@ -230,6 +245,28 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       setConnectionStatus("Disconnected");
     }
   }, [user?.id, sessionToken]);
+
+  const displayAgenticInfo = (agenticInfo: any) => {
+    console.log('🧠 Agentic capabilities displayed:', agenticInfo);
+    const infoMessage = `🧠 **Agentic Analysis Active**\n\n${agenticInfo.capabilities?.join('\n• ') || 'Advanced AI reasoning engaged'}`;
+    addMessage(infoMessage, "pam");
+  };
+
+  const displayThinkingProcess = (thinkingProcess: any) => {
+    console.log('💭 Thinking process:', thinkingProcess);
+    const thinkingMessage = `💭 **PAM's Thinking Process**\n\n${thinkingProcess.process?.join('\n') || 'Processing complex request...'}`;
+    addMessage(thinkingMessage, "pam");
+  };
+
+  const handleAutonomousActions = (autonomousActions: any[]) => {
+    console.log('🚀 Autonomous actions triggered:', autonomousActions);
+    autonomousActions.forEach((action, index) => {
+      setTimeout(() => {
+        const actionMessage = `🚀 **Autonomous Action ${index + 1}**: ${action.description || action.action}\n${action.result || 'Action completed successfully'}`;
+        addMessage(actionMessage, "pam");
+      }, index * 1000); // Stagger actions for visual effect
+    });
+  };
 
   const handleUIAction = (message: any) => {
     try {
@@ -406,7 +443,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             <div>
               <h3 className="font-semibold text-gray-800">PAM</h3>
               <p className="text-xs text-gray-500">
-                {connectionStatus === "Connected" ? "🟢 Online & Ready" : 
+                {connectionStatus === "Connected" ? "🟢 Agentic AI Online" : 
                  connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
               </p>
             </div>
@@ -417,17 +454,26 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             <div className="text-center text-gray-500 text-sm">
               <p>{getPersonalizedGreeting()}</p>
               <div className="mt-4 space-y-2">
-                <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                <button 
+                  onClick={() => setInputMessage("Autonomously plan a complex trip from Sydney to Hobart with ferry logistics")}
+                  className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                >
                   <MapPin className="w-4 h-4" />
-                  Plan my next trip
+                  🧠 Autonomous Complex Trip Planning
                 </button>
-                <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                <button 
+                  onClick={() => setInputMessage("Show me your thinking process for planning a budget-friendly 3-week road trip")}
+                  className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                >
                   <Calendar className="w-4 h-4" />
-                  Check my schedule
+                  💭 Show AI Reasoning Process
                 </button>
-                <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                <button 
+                  onClick={() => setInputMessage("Use your agentic tools to analyze my profile and suggest improvements")}
+                  className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                >
                   <DollarSign className="w-4 h-4" />
-                  Review my budget
+                  🚀 Proactive Profile Analysis
                 </button>
               </div>
             </div>
@@ -508,7 +554,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               <div>
                 <h3 className="font-semibold text-gray-800">PAM</h3>
                 <p className="text-xs text-gray-500">
-                  {connectionStatus === "Connected" ? "🟢 Online & Intelligent" : 
+                  {connectionStatus === "Connected" ? "🟢 Agentic AI Reasoning" : 
                    connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
                 </p>
               </div>
@@ -527,17 +573,26 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               <div className="text-center text-gray-500 text-sm">
                 <p>{getPersonalizedGreeting()}</p>
                 <div className="mt-4 space-y-2">
-                  <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                  <button 
+                    onClick={() => setInputMessage("Autonomously plan a complex trip from Sydney to Hobart with ferry logistics")}
+                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                  >
                     <MapPin className="w-4 h-4" />
-                    Plan my next adventure
+                    🧠 Autonomous Complex Trip Planning
                   </button>
-                  <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                  <button 
+                    onClick={() => setInputMessage("Show me your thinking process for planning a budget-friendly 3-week road trip")}
+                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                  >
                     <Calendar className="w-4 h-4" />
-                    What's my schedule?
+                    💭 Show AI Reasoning Process
                   </button>
-                  <button className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20">
+                  <button 
+                    onClick={() => setInputMessage("Use your agentic tools to analyze my profile and suggest improvements")}
+                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                  >
                     <DollarSign className="w-4 h-4" />
-                    How's my budget?
+                    🚀 Proactive Profile Analysis
                   </button>
                 </div>
               </div>
