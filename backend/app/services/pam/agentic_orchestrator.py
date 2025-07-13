@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from app.core.logging import get_logger
-from app.core.intelligent_conversation import IntelligentConversation
+from app.core.intelligent_conversation import IntelligentConversationHandler
 from app.models.domain.pam import PamContext, PamMemory
 
 logger = get_logger(__name__)
@@ -69,7 +69,7 @@ class AgenticOrchestrator:
     5. Proactively assist users
     """
     
-    def __init__(self, conversation_service: IntelligentConversation):
+    def __init__(self, conversation_service: IntelligentConversationHandler):
         self.conversation_service = conversation_service
         self.memory = PamMemory()
         self.state = AgentState.IDLE
@@ -334,7 +334,7 @@ class AgenticOrchestrator:
 class GoalPlanner:
     """Extracts and structures user goals from natural language"""
     
-    def __init__(self, conversation_service: IntelligentConversation):
+    def __init__(self, conversation_service: IntelligentConversationHandler):
         self.conversation_service = conversation_service
     
     async def extract_goals(self, message: str, context: PamContext) -> List[Dict]:
@@ -690,3 +690,7 @@ class ProactiveAssistant:
                 "suggested_action": "share_insights"
             }
         ]
+
+# Global instance with proper initialization
+conversation_service = IntelligentConversationHandler()
+agentic_orchestrator = AgenticOrchestrator(conversation_service)
