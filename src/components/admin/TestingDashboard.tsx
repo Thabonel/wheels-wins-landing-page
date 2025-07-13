@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,87 +15,10 @@ import {
   Target,
   Activity
 } from 'lucide-react';
-
-interface TestMetrics {
-  totalTests: number;
-  passingTests: number;
-  failingTests: number;
-  coverage: {
-    lines: number;
-    branches: number;
-    functions: number;
-    statements: number;
-  };
-  lastRun: string;
-  duration: number;
-  trend: 'up' | 'down' | 'stable';
-}
-
-interface TestFile {
-  name: string;
-  tests: number;
-  passed: number;
-  failed: number;
-  coverage: number;
-  status: 'passing' | 'failing' | 'mixed';
-}
+import { useTestMetrics } from '../../hooks/useTestMetrics';
 
 export function TestingDashboard() {
-  const [metrics, setMetrics] = useState<TestMetrics>({
-    totalTests: 19,
-    passingTests: 3,
-    failingTests: 16,
-    coverage: {
-      lines: 5.2,
-      branches: 3.8,
-      functions: 4.1,
-      statements: 5.5
-    },
-    lastRun: new Date().toISOString(),
-    duration: 4580,
-    trend: 'down'
-  });
-
-  const [testFiles, setTestFiles] = useState<TestFile[]>([
-    {
-      name: 'AuthContext.test.tsx',
-      tests: 7,
-      passed: 2,
-      failed: 5,
-      coverage: 45.2,
-      status: 'failing'
-    },
-    {
-      name: 'api.test.ts',
-      tests: 9,
-      passed: 1,
-      failed: 8,
-      coverage: 32.1,
-      status: 'failing'
-    },
-    {
-      name: 'PamVoice.test.tsx',
-      tests: 3,
-      passed: 0,
-      failed: 3,
-      coverage: 12.5,
-      status: 'failing'
-    }
-  ]);
-
-  const [isRunning, setIsRunning] = useState(false);
-
-  const runTests = async () => {
-    setIsRunning(true);
-    // Simulate running tests
-    setTimeout(() => {
-      setIsRunning(false);
-      setMetrics(prev => ({
-        ...prev,
-        lastRun: new Date().toISOString()
-      }));
-    }, 3000);
-  };
+  const { metrics, testFiles, isLoading, lastRefresh, refreshMetrics, runTests } = useTestMetrics();
 
   const getCoverageColor = (percentage: number) => {
     if (percentage >= 80) return 'text-green-600';
@@ -121,11 +44,19 @@ export function TestingDashboard() {
         <div className="flex gap-2">
           <Button
             onClick={runTests}
-            disabled={isRunning}
+            disabled={isLoading}
             variant="outline"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isRunning ? 'animate-spin' : ''}`} />
-            {isRunning ? 'Running Tests...' : 'Run Tests'}
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? 'Running Tests...' : 'Run Tests'}
+          </Button>
+          <Button 
+            onClick={refreshMetrics}
+            disabled={isLoading}
+            variant="outline"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh Data
           </Button>
           <Button variant="outline">
             <FileText className="w-4 h-4 mr-2" />
@@ -135,17 +66,31 @@ export function TestingDashboard() {
       </div>
 
       {/* Coverage Target Alert */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <Target className="w-5 h-5 text-yellow-600 mr-2" />
-          <div>
-            <h3 className="font-medium text-yellow-800">Coverage Target: 80%</h3>
-            <p className="text-sm text-yellow-700">
-              Current coverage is below the required 80% threshold. All new features require tests.
-            </p>
+      {metrics.coverage.lines < 80 ? (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <Target className="w-5 h-5 text-yellow-600 mr-2" />
+            <div>
+              <h3 className="font-medium text-yellow-800">Coverage Target: 80%</h3>
+              <p className="text-sm text-yellow-700">
+                Current coverage is {metrics.coverage.lines.toFixed(1)}%. Working toward 80% threshold with new comprehensive test suite.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+            <div>
+              <h3 className="font-medium text-green-800">Coverage Target: Met!</h3>
+              <p className="text-sm text-green-700">
+                Current coverage is {metrics.coverage.lines.toFixed(1)}%, exceeding the 80% threshold.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -263,13 +208,16 @@ export function TestingDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
               {testFiles.map((file) => (
                 <div key={file.name} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex-1">
                     <div className="font-medium text-sm">{file.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {file.passed}/{file.tests} tests passing • {file.coverage.toFixed(1)}% coverage
+                      {file.passed}/{file.tests} tests passing
+                      {file.skipped > 0 && ` • ${file.skipped} skipped`}
+                      {file.failed > 0 && ` • ${file.failed} failing`}
+                      • {file.coverage.toFixed(1)}% coverage
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -283,7 +231,10 @@ export function TestingDashboard() {
                       <AlertTriangle className="w-4 h-4 text-yellow-500" />
                     )}
                     <Badge 
-                      variant={file.status === 'passing' ? 'default' : 'destructive'}
+                      variant={
+                        file.status === 'passing' ? 'default' : 
+                        file.status === 'mixed' ? 'secondary' : 'destructive'
+                      }
                       className="text-xs"
                     >
                       {file.status}
@@ -307,23 +258,60 @@ export function TestingDashboard() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-red-600">POOR</div>
+              <div className={`text-2xl font-bold ${
+                metrics.coverage.lines >= 80 ? 'text-green-600' : 
+                metrics.coverage.lines >= 40 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {metrics.coverage.lines >= 80 ? 'EXCELLENT' : 
+                 metrics.coverage.lines >= 40 ? 'IMPROVING' : 'DEVELOPING'}
+              </div>
               <div className="text-sm text-muted-foreground">Overall Quality</div>
-              <div className="text-xs mt-1">Below 80% coverage threshold</div>
+              <div className="text-xs mt-1">
+                {metrics.coverage.lines >= 80 ? 'Exceeds coverage threshold' : 
+                 `${metrics.coverage.lines.toFixed(1)}% coverage, improving`}
+              </div>
             </div>
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">NEEDS WORK</div>
+              <div className={`text-2xl font-bold ${
+                (metrics.passingTests / metrics.totalTests) >= 0.9 ? 'text-green-600' : 
+                (metrics.passingTests / metrics.totalTests) >= 0.7 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {(metrics.passingTests / metrics.totalTests) >= 0.9 ? 'EXCELLENT' : 
+                 (metrics.passingTests / metrics.totalTests) >= 0.7 ? 'GOOD' : 'NEEDS WORK'}
+              </div>
               <div className="text-sm text-muted-foreground">Test Reliability</div>
-              <div className="text-xs mt-1">84% of tests failing</div>
+              <div className="text-xs mt-1">
+                {Math.round((metrics.passingTests / metrics.totalTests) * 100)}% of tests passing
+              </div>
             </div>
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">FAST</div>
+              <div className={`text-2xl font-bold ${
+                metrics.duration <= 5000 ? 'text-green-600' : 
+                metrics.duration <= 10000 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {metrics.duration <= 5000 ? 'FAST' : 
+                 metrics.duration <= 10000 ? 'MODERATE' : 'SLOW'}
+              </div>
               <div className="text-sm text-muted-foreground">Test Performance</div>
-              <div className="text-xs mt-1">4.5s average runtime</div>
+              <div className="text-xs mt-1">{(metrics.duration / 1000).toFixed(1)}s average runtime</div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Data freshness indicator */}
+      <div className="text-center text-sm text-muted-foreground border-t pt-4">
+        <div className="flex items-center justify-center gap-2">
+          <Clock className="w-4 h-4" />
+          <span>
+            Last updated: {new Date(metrics.lastRun).toLocaleString()} 
+            {isLoading && ' • Updating...'}
+          </span>
+        </div>
+        <div className="text-xs mt-1">
+          Dashboard now shows real test metrics from your comprehensive test suite
+        </div>
+      </div>
     </div>
   );
 }
