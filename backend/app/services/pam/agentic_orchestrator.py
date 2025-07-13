@@ -77,6 +77,7 @@ class AgenticOrchestrator:
         self.tool_registry = {}
         self.node_agents = {}
         self.learning_history = []
+        self.database_service = None  # Will be initialized when needed
         
         # Initialize agentic capabilities
         self._initialize_agent_systems()
@@ -91,6 +92,55 @@ class AgenticOrchestrator:
         self.proactive_assistant = ProactiveAssistant(self.memory)
         
         logger.info("🧠 Agentic AI systems initialized")
+    
+    async def initialize(self):
+        """Initialize orchestrator and dependencies"""
+        from app.services.database import get_database_service
+        self.database_service = get_database_service()
+        logger.info("🔗 Agentic orchestrator database service initialized")
+    
+    async def process_message(self, user_id: str, message: str, 
+                            session_id: str = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Process incoming message through agentic PAM system - API compatibility method"""
+        # Convert context dict to PamContext if needed
+        if isinstance(context, dict):
+            pam_context = PamContext(
+                user_id=user_id,
+                preferences=context,
+                conversation_history=[],
+                timestamp=datetime.now()
+            )
+        else:
+            pam_context = context or PamContext(
+                user_id=user_id,
+                preferences={},
+                conversation_history=[],
+                timestamp=datetime.now()
+            )
+        
+        # Process through agentic system
+        result = await self.process_user_request(user_id, message, pam_context)
+        
+        # Return in expected format for API compatibility
+        return {
+            "content": result.get("response", "I'm processing your request..."),
+            "actions": result.get("actions", []),
+            "confidence": result.get("confidence", 0.8),
+            "requires_followup": result.get("requires_followup", False),
+            "suggestions": result.get("suggestions", []),
+            "emotional_insight": result.get("emotional_insight"),
+            "proactive_items": result.get("proactive_items", [])
+        }
+    
+    async def get_conversation_history(self, user_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Get conversation history for user - API compatibility method"""
+        try:
+            if self.database_service:
+                return await self.database_service.get_conversation_context(user_id, limit)
+            return []
+        except Exception as e:
+            logger.error(f"Error getting conversation history: {e}")
+            return []
     
     async def process_user_request(self, user_id: str, message: str, 
                                  context: PamContext) -> Dict[str, Any]:
