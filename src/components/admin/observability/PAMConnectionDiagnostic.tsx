@@ -223,18 +223,31 @@ export function PAMConnectionDiagnostic() {
 
   const runChatTest = async (): Promise<TestResult> => {
     try {
+      // FORCE IMPORT REAL SUPABASE CLIENT TO BYPASS CACHE
+      const { createClient } = await import('@supabase/supabase-js');
+      const realSupabase = createClient(
+        "https://kycoklimpzkyrecbjecn.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5Y29rbGltcHpreXJlY2JqZWNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyNTU4MDAsImV4cCI6MjA2MTgzMTgwMH0.nRZhYxImQ0rOlh0xZjHcdVq2Q2NY0v-9W3wciaxV2EA",
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            storageKey: 'pam-auth-token',
+          }
+        }
+      );
+      
       // Debug: Check which Supabase client we're using
-      console.log('🔍 DIAGNOSTIC: Supabase client type:', typeof supabase);
-      console.log('🔍 DIAGNOSTIC: Supabase auth methods:', Object.keys(supabase.auth));
-      console.log('🔍 DIAGNOSTIC: Using client from /src/integrations/supabase/client');
+      console.log('🔍 DIAGNOSTIC: Using FORCED real Supabase client');
+      console.log('🔍 DIAGNOSTIC: Supabase client type:', typeof realSupabase);
       
       // Test the client directly
-      const testSession = await supabase.auth.getSession();
+      const testSession = await realSupabase.auth.getSession();
       console.log('🧪 DIAGNOSTIC: Test session token preview:', testSession.data.session?.access_token?.substring(0, 30));
       console.log('🧪 DIAGNOSTIC: Is this a mock token?', testSession.data.session?.access_token === 'mock-token');
       
-      // Get the current session token
-      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Get the current session token using the FORCED real client
+      let { data: { session }, error: sessionError } = await realSupabase.auth.getSession();
       
       if (sessionError) {
         return { 
@@ -292,7 +305,7 @@ export function PAMConnectionDiagnostic() {
           console.log('🗄️ Local storage auth key:', pamAuthKey ? 'exists' : 'not found');
           
           // Try to get a fresh session from storage
-          const { data: { session: storageSession } } = await supabase.auth.getSession();
+          const { data: { session: storageSession } } = await realSupabase.auth.getSession();
           console.log('💾 Storage session:', storageSession?.access_token?.substring(0, 50));
           
           if (storageSession?.access_token && storageSession.access_token.split('.').length === 3) {
@@ -300,7 +313,7 @@ export function PAMConnectionDiagnostic() {
             session = storageSession;
           } else {
             // Try manual refresh
-            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+            const { data: { session: refreshedSession }, error: refreshError } = await realSupabase.auth.refreshSession();
             console.log('🔄 Refresh result:', { 
               hasSession: !!refreshedSession, 
               hasToken: !!refreshedSession?.access_token,
