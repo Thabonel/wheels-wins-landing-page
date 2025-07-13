@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 export const API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
