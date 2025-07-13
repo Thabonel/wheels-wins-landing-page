@@ -10,6 +10,20 @@ vi.mock('../lib/voiceService', () => ({
   }
 }));
 
+// Mock useUserSettings to enable voice
+vi.mock('../hooks/useUserSettings', () => ({
+  useUserSettings: () => ({
+    settings: {
+      pam_preferences: {
+        voice_enabled: true,
+        proactive_suggestions: false
+      }
+    },
+    updateSettings: vi.fn(),
+    loading: false
+  })
+}));
+
 // Mock audio elements
 Object.defineProperty(window, 'HTMLAudioElement', {
   writable: true,

@@ -1,28 +1,55 @@
 import { vi } from 'vitest';
 
+// Create mock session data
+const createMockSession = (overrides = {}) => ({
+  access_token: 'mock-token',
+  refresh_token: 'mock-refresh-token',
+  expires_at: Date.now() + 3600000,
+  token_type: 'bearer',
+  user: {
+    id: 'mock-user-id',
+    email: 'test@example.com',
+    user_metadata: { 
+      full_name: 'Test User',
+      avatar_url: null 
+    },
+    app_metadata: {},
+    aud: 'authenticated',
+    created_at: '2023-01-01T00:00:00.000Z',
+    ...overrides?.user
+  },
+  ...overrides
+});
+
 // Mock Supabase client
 export const mockSupabase = {
   auth: {
     getSession: vi.fn().mockResolvedValue({
       data: {
-        session: {
-          access_token: 'mock_access_token',
-          refresh_token: 'mock_refresh_token',
-          user: {
-            id: 'mock_user_id',
-            email: 'test@example.com',
-            user_metadata: { full_name: 'Test User' }
-          }
-        }
+        session: createMockSession()
       },
       error: null
     }),
     signInWithPassword: vi.fn().mockResolvedValue({
-      data: { user: { id: 'mock_user_id' }, session: {} },
+      data: { 
+        user: {
+          id: 'mock-user-id',
+          email: 'test@example.com',
+          user_metadata: { full_name: 'Test User' }
+        }, 
+        session: createMockSession()
+      },
       error: null
     }),
     signUp: vi.fn().mockResolvedValue({
-      data: { user: { id: 'mock_user_id' }, session: {} },
+      data: { 
+        user: {
+          id: 'mock-user-id',
+          email: 'test@example.com',
+          user_metadata: { full_name: 'Test User' }
+        }, 
+        session: createMockSession()
+      },
       error: null
     }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
@@ -30,7 +57,9 @@ export const mockSupabase = {
       data: { subscription: { unsubscribe: vi.fn() } }
     }),
     refreshSession: vi.fn().mockResolvedValue({
-      data: { session: { access_token: 'new_mock_token' } },
+      data: { 
+        session: createMockSession({ access_token: 'refreshed-mock-token' })
+      },
       error: null
     })
   },
@@ -44,11 +73,16 @@ export const mockSupabase = {
   single: vi.fn().mockReturnThis()
 };
 
-// Mock the Supabase module
+// Mock the Supabase module - target the actual imports used by the app
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: mockSupabase
+  supabase: mockSupabase,
+  default: mockSupabase
 }));
 
 vi.mock('@/lib/supabase', () => ({
-  supabase: mockSupabase
+  supabase: mockSupabase,
+  createClient: () => mockSupabase
 }));
+
+// Export for use in tests
+export { createMockSession };
