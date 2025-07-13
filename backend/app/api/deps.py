@@ -11,19 +11,51 @@ from fastapi import Depends, HTTPException, status, Header, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt import PyJWTError  # Import PyJWTError directly
+import requests
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.services.database import DatabaseService
 from app.services.cache import CacheService
 from app.services.pam.orchestrator import orchestrator
-from app.core.exceptions import PAMError, AuthenticationError, PermissionError, ErrorCode
+from app.core.exceptions import (
+    PAMError,
+    AuthenticationError,
+    PermissionError,
+    ErrorCode,
+)
 from app.core.logging import get_logger
 
 logger = get_logger("api.deps")
 
+# JWKS caching for Supabase token verification
+_JWKS_CACHE: Optional[dict] = None
+_JWKS_CACHE_EXPIRES: float = 0
+_JWKS_CACHE_TTL = 600  # 10 minutes
+
 # Security scheme
 security = HTTPBearer()
+
+
+def _get_supabase_jwks() -> dict:
+    """Fetch JWKS from Supabase and cache the result."""
+    global _JWKS_CACHE, _JWKS_CACHE_EXPIRES
+    now = datetime.utcnow().timestamp()
+    if _JWKS_CACHE and _JWKS_CACHE_EXPIRES > now:
+        return _JWKS_CACHE
+
+    jwks_url = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/keys"
+    try:
+        response = requests.get(jwks_url, timeout=5)
+        response.raise_for_status()
+        _JWKS_CACHE = response.json()
+        _JWKS_CACHE_EXPIRES = now + _JWKS_CACHE_TTL
+        return _JWKS_CACHE
+    except Exception as e:  # pragma: no cover - network failure unlikely in tests
+        logger.error(f"Failed to fetch JWKS: {e}")
+        raise HTTPException(status_code=500, detail="Unable to fetch JWKS")
 
 
 # Models
@@ -55,7 +87,9 @@ async def get_database() -> Generator[DatabaseService, None, None]:
         yield db_service
     except Exception as e:
         logger.error(f"Database dependency error: {str(e)}")
-        raise PAMError(f"Database service error: {str(e)}", ErrorCode.DATABASE_CONNECTION_ERROR)
+        raise PAMError(
+            f"Database service error: {str(e)}", ErrorCode.DATABASE_CONNECTION_ERROR
+        )
     finally:
         # Cleanup if needed
         pass
@@ -68,7 +102,9 @@ async def get_cache() -> Generator[CacheService, None, None]:
         yield cache_service
     except Exception as e:
         logger.error(f"Cache dependency error: {str(e)}")
-        raise PAMError(f"Cache service error: {str(e)}", ErrorCode.CACHE_CONNECTION_ERROR)
+        raise PAMError(
+            f"Cache service error: {str(e)}", ErrorCode.CACHE_CONNECTION_ERROR
+        )
     finally:
         # Cleanup if needed
         pass
@@ -84,7 +120,9 @@ async def get_pam_orchestrator():
         return orchestrator
     except Exception as e:
         logger.error(f"PAM orchestrator dependency error: {str(e)}")
-        raise PAMError(f"PAM service error: {str(e)}", ErrorCode.NODE_INITIALIZATION_ERROR)
+        raise PAMError(
+            f"PAM service error: {str(e)}", ErrorCode.NODE_INITIALIZATION_ERROR
+        )
 
 
 # Authentication Dependencies
@@ -95,7 +133,9 @@ def verify_jwt_token(
     try:
         token = credentials.credentials
         payload = jwt.decode(
-            token, settings.SECRET_KEY.get_secret_value(), algorithms=[settings.ALGORITHM]
+            token,
+            settings.SECRET_KEY.get_secret_value(),
+            algorithms=[settings.ALGORITHM],
         )
         return payload
     except jwt.ExpiredSignatureError:
@@ -116,15 +156,7 @@ def verify_jwt_token(
 def verify_supabase_jwt_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> Dict[str, Any]:
-    """
-    Verify Supabase JWT token and return payload
-    
-    Supabase uses proper JWT + refresh token flow:
-    - Access tokens are short-lived (1 hour by default) 
-    - Refresh tokens are long-lived (stored securely)
-    - Frontend handles automatic token refresh
-    - We just need to validate the current access token
-    """
+    """Validate a Supabase access token using the project's JWKS."""
     try:
         if not credentials or not credentials.credentials:
             logger.error("🔐 No credentials provided")
@@ -133,70 +165,68 @@ def verify_supabase_jwt_token(
                 detail="Authorization header missing",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         token = credentials.credentials
         logger.info(f"🔐 Verifying Supabase access token (length: {len(token)})")
-        
-        # Supabase uses standard JWT format - decode without signature verification
-        # since we trust Supabase's token issuance and the frontend handles refresh
-        try:
-            payload = jwt.decode(
-                token, 
-                options={
-                    "verify_signature": False,  # Trust Supabase's signing
-                    "verify_exp": True,         # Check if token is expired
-                    "verify_aud": False,        # Don't verify audience
-                    "verify_iss": False         # Don't verify issuer
-                },
-                algorithms=["HS256", "RS256"]
-            )
-            logger.info("🔐 Supabase JWT decoded successfully")
-            
-        except jwt.ExpiredSignatureError:
-            logger.warning("🔐 Token has expired - frontend should refresh")
+
+        # Fetch JWKS and select the appropriate key
+        jwks = _get_supabase_jwks()
+        unverified_header = jwt.get_unverified_header(token)
+        key_data = next(
+            (
+                k
+                for k in jwks.get("keys", [])
+                if k.get("kid") == unverified_header.get("kid")
+            ),
+            None,
+        )
+        if not key_data:
+            logger.error("🔐 Signing key not found in JWKS")
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired - please refresh",
-                headers={"WWW-Authenticate": "Bearer"},
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
             )
-        except Exception as e:
-            logger.error(f"🔐 JWT decode failed: {str(e)}")
-            # Fallback: try without any verification for debugging
-            try:
-                payload = jwt.decode(
-                    token,
-                    options={"verify_signature": False, "verify_exp": False}
-                )
-                logger.warning("🔐 JWT decoded with full verification disabled")
-            except Exception as fallback_error:
-                logger.error(f"🔐 Fallback decode also failed: {str(fallback_error)}")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail=f"Invalid JWT format: {str(e)}",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-        
+
+        # Convert JWK to PEM for PyJWT
+        if key_data.get("kty") == "RSA":
+            public_key = rsa.RSAPublicNumbers(
+                int.from_bytes(jwt.utils.base64url_decode(key_data["e"]), "big"),
+                int.from_bytes(jwt.utils.base64url_decode(key_data["n"]), "big"),
+            ).public_key()
+            pem_key = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+        else:
+            pem_key = key_data
+
+        payload = jwt.decode(
+            token,
+            pem_key,
+            algorithms=[unverified_header.get("alg", "RS256")],
+            options={"verify_aud": False},
+        )
+
         # Validate required fields
-        user_id = payload.get('sub')
+        user_id = payload.get("sub")
         if not user_id:
-            logger.error(f"🔐 Token missing 'sub' field. Available keys: {list(payload.keys())}")
+            logger.error(
+                f"🔐 Token missing 'sub' field. Available keys: {list(payload.keys())}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token: missing user ID",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
-        # Log successful authentication
+
         logger.info(f"🔐 User authenticated: {user_id}")
         logger.debug(f"🔐 Token payload keys: {list(payload.keys())}")
-        
-        # Optional: Check token role and permissions
-        role = payload.get('role', 'authenticated')
-        if role not in ['authenticated', 'service_role']:
+
+        role = payload.get("role", "authenticated")
+        if role not in ["authenticated", "service_role"]:
             logger.warning(f"🔐 Unusual token role: {role}")
-        
+
         return payload
-        
+
     except HTTPException:
         # Re-raise HTTP exceptions as-is
         raise
@@ -210,7 +240,8 @@ def verify_supabase_jwt_token(
 
 
 async def get_current_user(
-    payload: Dict[str, Any] = Depends(verify_jwt_token), db: DatabaseService = Depends(get_database)
+    payload: Dict[str, Any] = Depends(verify_jwt_token),
+    db: DatabaseService = Depends(get_database),
 ) -> CurrentUser:
     """Get current authenticated user"""
     try:
@@ -237,7 +268,9 @@ async def get_current_user(
 
 
 async def get_optional_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
+        HTTPBearer(auto_error=False)
+    ),
     db: DatabaseService = Depends(get_database),
 ) -> Optional[CurrentUser]:
     """Get current user if authenticated, None otherwise"""
@@ -258,7 +291,8 @@ def require_permission(permission: str):
     def dependency(current_user: CurrentUser = Depends(get_current_user)):
         if permission not in current_user.permissions and current_user.role != "admin":
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail=f"Permission '{permission}' required"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission '{permission}' required",
             )
         return current_user
 
@@ -289,7 +323,8 @@ def require_user_or_admin():
     def dependency(current_user: CurrentUser = Depends(get_current_user)):
         if current_user.role not in ["user", "admin"]:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="User or admin role required"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User or admin role required",
             )
         return current_user
 
@@ -309,7 +344,9 @@ async def validate_api_key(
     valid_api_keys = getattr(settings, "VALID_API_KEYS", [])
 
     if x_api_key not in valid_api_keys:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key"
+        )
 
     return x_api_key
 
@@ -338,7 +375,8 @@ async def check_rate_limit(
 
         if not result.get("allow", False):
             raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded"
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded",
             )
 
         return True
@@ -350,6 +388,7 @@ async def check_rate_limit(
 
 def apply_rate_limit(endpoint: str, limit: int, window_minutes: int = 1):
     """Rate limiting factory that returns a dependency function"""
+
     async def rate_limit_dependency(
         current_user: CurrentUser = Depends(get_current_user),
         db: DatabaseService = Depends(get_database),
@@ -364,8 +403,8 @@ def apply_rate_limit(endpoint: str, limit: int, window_minutes: int = 1):
 
             if not result.get("allow", False):
                 raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS, 
-                    detail=f"Rate limit exceeded for {endpoint}. Try again later."
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Rate limit exceeded for {endpoint}. Try again later.",
                 )
 
             return current_user
@@ -375,7 +414,7 @@ def apply_rate_limit(endpoint: str, limit: int, window_minutes: int = 1):
             logger.error(f"Rate limit check error for {endpoint}: {str(e)}")
             # Allow request if rate limiting fails
             return current_user
-    
+
     return rate_limit_dependency
 
 
@@ -390,7 +429,11 @@ def validate_user_context(
 async def get_health_status() -> Dict[str, Any]:
     """Get system health status"""
     try:
-        health = {"status": "healthy", "timestamp": datetime.utcnow().isoformat(), "services": {}}
+        health = {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": {},
+        }
 
         # Check database
         try:
@@ -421,11 +464,17 @@ async def get_health_status() -> Dict[str, Any]:
         return health
     except Exception as e:
         logger.error(f"Health check error: {str(e)}")
-        return {"status": "unhealthy", "error": str(e), "timestamp": datetime.utcnow().isoformat()}
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
 
 
 async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
+        HTTPBearer(auto_error=False)
+    ),
 ) -> Optional[CurrentUser]:
     """
     Get current user from JWT token, but return None if no token provided.
@@ -433,7 +482,7 @@ async def get_current_user_optional(
     """
     if not credentials:
         return None
-    
+
     try:
         # Verify JWT token
         payload = verify_supabase_jwt_token(credentials)
@@ -444,7 +493,9 @@ async def get_current_user_optional(
 
 
 # Utility Dependencies
-def get_user_context(current_user: CurrentUser = Depends(get_current_user)) -> Dict[str, Any]:
+def get_user_context(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> Dict[str, Any]:
     """Get user context for requests"""
     return {
         "user_id": current_user.user_id,
