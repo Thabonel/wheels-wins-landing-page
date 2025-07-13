@@ -127,7 +127,7 @@ export default function LearnMoreModal({ isOpen, onClose, idea }: LearnMoreModal
               className="flex-1"
               onClick={() => {
                 // In a real app, this could link to external resources or guides
-                window.open(`https://www.google.com/search?q=${encodeURIComponent(idea.title + ' how to get started')}`, '_blank');
+                window.open(`https://www.google.com/search?q=${encodeURIComponent(`${idea.title  } how to get started`)}`, '_blank');
               }}
             >
               <ExternalLink size={16} className="mr-2" />

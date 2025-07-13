@@ -31,7 +31,7 @@ export function useTripSync({
         { event: '*', schema: 'public', table: 'group_trips', filter: `id=eq.${tripId}` },
         payload => {
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             const updated = payload.new as any;
             if (!updated || !updated.route_data) return;
             const route = JSON.parse(updated.route_data);

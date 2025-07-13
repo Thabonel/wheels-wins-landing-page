@@ -146,7 +146,7 @@ export default function MapControls({
             congestion: annotations.includes('congestion'), // Show traffic congestion if selected
             exclude: exclude.length ? exclude.join(',') : undefined,
             annotations: annotations.length ? annotations.join(',') : undefined,
-            vehicle: vehicle,
+            vehicle,
             flyTo: true, // Smooth camera transitions
             placeholderOrigin: 'Choose starting point',
             placeholderDestination: 'Choose destination',

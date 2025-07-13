@@ -74,7 +74,7 @@ export class DataEncryption {
       const encrypted = await crypto.subtle.encrypt(
         {
           name: 'AES-GCM',
-          iv: iv
+          iv
         },
         this.encryptionKey,
         dataBuffer

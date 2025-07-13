@@ -173,7 +173,7 @@ function createSmartChunks(text: string, filename: string) {
       
       // Start new chunk with overlap
       const overlapText = getLastWords(currentChunk, overlapSize);
-      currentChunk = overlapText + '\n\n' + paragraph;
+      currentChunk = `${overlapText  }\n\n${  paragraph}`;
       currentTokenCount = estimateTokenCount(currentChunk);
     } else {
       // Add paragraph to current chunk

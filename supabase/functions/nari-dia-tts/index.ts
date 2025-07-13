@@ -31,7 +31,7 @@ serve(async (req) => {
       throw new Error('Nari Labs Dia API key not configured')
     }
 
-    console.log('Generating voice for text:', text.substring(0, 100) + '...')
+    console.log('Generating voice for text:', `${text.substring(0, 100)  }...`)
 
     // Call Nari Labs Dia API through Hugging Face
     const response = await fetch('https://api-inference.huggingface.co/models/nari-labs/Dia-1.6B', {

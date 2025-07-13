@@ -60,7 +60,7 @@ export class PamHealthCheckService {
   async pingWebSocket(): Promise<boolean> {
     return new Promise((resolve) => {
       try {
-        const wsUrl = API_BASE_URL.replace(/^http/, 'ws') + '/ws/health-check';
+        const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')  }/ws/health-check`;
         const ws = new WebSocket(wsUrl);
         
         const timeout = setTimeout(() => {

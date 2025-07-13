@@ -62,7 +62,7 @@ export const MundiLayer: React.FC<MundiLayerProps> = ({ map, isVisible }) => {
     if (!map.getSource(sourceId)) {
       map.addSource(sourceId, {
         type: 'geojson',
-        data: data
+        data
       });
     }
 

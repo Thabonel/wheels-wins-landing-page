@@ -7,6 +7,7 @@ import { pamHealthCheck } from '@/services/pamHealthCheck';
 import { PamApiService } from '@/services/pamApiService';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+// FORCE REAL SUPABASE CLIENT - NOT MOCK
 import { toast } from 'sonner';
 import { API_BASE_URL } from '@/services/api';
 
@@ -226,6 +227,11 @@ export function PAMConnectionDiagnostic() {
       console.log('🔍 DIAGNOSTIC: Supabase client type:', typeof supabase);
       console.log('🔍 DIAGNOSTIC: Supabase auth methods:', Object.keys(supabase.auth));
       console.log('🔍 DIAGNOSTIC: Using client from /src/integrations/supabase/client');
+      
+      // Test the client directly
+      const testSession = await supabase.auth.getSession();
+      console.log('🧪 DIAGNOSTIC: Test session token preview:', testSession.data.session?.access_token?.substring(0, 30));
+      console.log('🧪 DIAGNOSTIC: Is this a mock token?', testSession.data.session?.access_token === 'mock-token');
       
       // Get the current session token
       let { data: { session }, error: sessionError } = await supabase.auth.getSession();
