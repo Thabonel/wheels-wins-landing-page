@@ -117,20 +117,50 @@ def verify_supabase_jwt_token(
 ) -> Dict[str, Any]:
     """Verify Supabase JWT token and return payload (lenient verification)"""
     try:
+        if not credentials or not credentials.credentials:
+            logger.error("🔐 No credentials provided")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization header missing",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
         token = credentials.credentials
+        logger.info(f"🔐 Attempting to verify token (length: {len(token)})")
+        
         # Use lenient verification for Supabase tokens
         payload = jwt.decode(
             token, 
             options={"verify_signature": False, "verify_exp": False},
             algorithms=["HS256"]
         )
-        logger.info(f"🔐 Supabase token verified for user: {payload.get('sub')}")
+        
+        user_id = payload.get('sub')
+        if not user_id:
+            logger.error(f"🔐 Token payload missing 'sub' field. Payload keys: {list(payload.keys())}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing user ID",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        logger.info(f"🔐 Supabase token verified for user: {user_id}")
+        logger.debug(f"🔐 Token payload: {payload}")
         return payload
+        
     except PyJWTError as e:
-        logger.error(f"Supabase JWT verification error: {str(e)}")
+        logger.error(f"🔐 Supabase JWT verification error: {str(e)}")
+        logger.error(f"🔐 Token content (first 50 chars): {token[:50] if 'token' in locals() else 'N/A'}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate Supabase credentials",
+            detail=f"Could not validate Supabase credentials: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        logger.error(f"🔐 Unexpected authentication error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
