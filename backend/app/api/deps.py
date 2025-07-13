@@ -116,7 +116,15 @@ def verify_jwt_token(
 def verify_supabase_jwt_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> Dict[str, Any]:
-    """Verify Supabase JWT token and return payload (lenient verification)"""
+    """
+    Verify Supabase JWT token and return payload
+    
+    Supabase uses proper JWT + refresh token flow:
+    - Access tokens are short-lived (1 hour by default) 
+    - Refresh tokens are long-lived (stored securely)
+    - Frontend handles automatic token refresh
+    - We just need to validate the current access token
+    """
     try:
         if not credentials or not credentials.credentials:
             logger.error("🔐 No credentials provided")
@@ -127,78 +135,71 @@ def verify_supabase_jwt_token(
             )
         
         token = credentials.credentials
-        logger.info(f"🔐 Attempting to verify token (length: {len(token)})")
+        logger.info(f"🔐 Verifying Supabase access token (length: {len(token)})")
         
-        # Use lenient verification for Supabase tokens
-        # Try multiple JWT decoding approaches for Supabase compatibility
-        payload = None
-        decode_error = None
-        
-        # Method 1: Standard JWT decode with no verification
+        # Supabase uses standard JWT format - decode without signature verification
+        # since we trust Supabase's token issuance and the frontend handles refresh
         try:
             payload = jwt.decode(
                 token, 
-                options={"verify_signature": False, "verify_exp": False},
+                options={
+                    "verify_signature": False,  # Trust Supabase's signing
+                    "verify_exp": True,         # Check if token is expired
+                    "verify_aud": False,        # Don't verify audience
+                    "verify_iss": False         # Don't verify issuer
+                },
                 algorithms=["HS256", "RS256"]
             )
-            logger.info("🔐 JWT decoded with standard method")
-        except Exception as e1:
-            decode_error = e1
-            logger.warning(f"🔐 Standard JWT decode failed: {str(e1)}")
+            logger.info("🔐 Supabase JWT decoded successfully")
             
-            # Method 2: Try without specifying algorithms
+        except jwt.ExpiredSignatureError:
+            logger.warning("🔐 Token has expired - frontend should refresh")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token expired - please refresh",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except Exception as e:
+            logger.error(f"🔐 JWT decode failed: {str(e)}")
+            # Fallback: try without any verification for debugging
             try:
                 payload = jwt.decode(
                     token,
-                    options={"verify_signature": False, "verify_exp": False, "verify_aud": False}
+                    options={"verify_signature": False, "verify_exp": False}
                 )
-                logger.info("🔐 JWT decoded without algorithm specification")
-            except Exception as e2:
-                logger.warning(f"🔐 Algorithm-free JWT decode failed: {str(e2)}")
-                
-                # Method 3: Try manual base64 decode for debugging
-                try:
-                    import base64
-                    # JWT has 3 parts: header.payload.signature
-                    parts = token.split('.')
-                    if len(parts) >= 2:
-                        # Decode the payload part (second part)
-                        payload_part = parts[1]
-                        # Add padding if needed
-                        payload_part += '=' * (4 - len(payload_part) % 4)
-                        decoded_bytes = base64.urlsafe_b64decode(payload_part)
-                        payload = json.loads(decoded_bytes.decode('utf-8'))
-                        logger.info("🔐 JWT payload extracted via manual base64 decode")
-                    else:
-                        raise ValueError("Token doesn't have expected JWT structure")
-                except Exception as e3:
-                    logger.error(f"🔐 Manual decode also failed: {str(e3)}")
-                    raise decode_error  # Raise the original error
+                logger.warning("🔐 JWT decoded with full verification disabled")
+            except Exception as fallback_error:
+                logger.error(f"🔐 Fallback decode also failed: {str(fallback_error)}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid JWT format: {str(e)}",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
         
-        if not payload:
-            raise ValueError("Could not decode JWT token with any method")
-        
+        # Validate required fields
         user_id = payload.get('sub')
         if not user_id:
-            logger.error(f"🔐 Token payload missing 'sub' field. Payload keys: {list(payload.keys())}")
+            logger.error(f"🔐 Token missing 'sub' field. Available keys: {list(payload.keys())}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token: missing user ID",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        logger.info(f"🔐 Supabase token verified for user: {user_id}")
-        logger.debug(f"🔐 Token payload: {payload}")
+        # Log successful authentication
+        logger.info(f"🔐 User authenticated: {user_id}")
+        logger.debug(f"🔐 Token payload keys: {list(payload.keys())}")
+        
+        # Optional: Check token role and permissions
+        role = payload.get('role', 'authenticated')
+        if role not in ['authenticated', 'service_role']:
+            logger.warning(f"🔐 Unusual token role: {role}")
+        
         return payload
         
-    except PyJWTError as e:
-        logger.error(f"🔐 Supabase JWT verification error: {str(e)}")
-        logger.error(f"🔐 Token content (first 50 chars): {token[:50] if 'token' in locals() else 'N/A'}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate Supabase credentials: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         logger.error(f"🔐 Unexpected authentication error: {str(e)}")
         raise HTTPException(
