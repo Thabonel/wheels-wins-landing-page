@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.services.database import DatabaseService
 from app.services.cache import CacheService
-from app.services.pam.orchestrator import orchestrator
+from app.services.pam.agentic_orchestrator import agentic_orchestrator as orchestrator
 from app.core.exceptions import PAMError, AuthenticationError, PermissionError, ErrorCode
 from app.core.logging import get_logger
 
