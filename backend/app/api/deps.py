@@ -436,7 +436,7 @@ async def get_current_user_optional(
     
     try:
         # Verify JWT token
-        payload = await verify_supabase_jwt_token(credentials)
+        payload = verify_supabase_jwt_token(credentials)
         db = DatabaseService()
         return await get_current_user(payload, db)
     except Exception:
