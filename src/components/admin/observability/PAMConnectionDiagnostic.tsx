@@ -223,7 +223,7 @@ export function PAMConnectionDiagnostic() {
   const runChatTest = async (): Promise<TestResult> => {
     try {
       // Get the current session token
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
         return { 
@@ -249,15 +249,41 @@ export function PAMConnectionDiagnostic() {
       // Validate JWT format (should have 3 parts separated by dots)
       const tokenParts = session.access_token.split('.');
       if (tokenParts.length !== 3) {
-        return { 
-          status: 'error', 
-          message: `Invalid JWT format: expected 3 parts, got ${tokenParts.length}. Token may be corrupted.` 
-        };
+        // Try to refresh the session once
+        console.log('🔄 Attempting to refresh session due to invalid token...');
+        try {
+          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError || !refreshedSession?.access_token) {
+            return { 
+              status: 'error', 
+              message: `Invalid JWT format: expected 3 parts, got ${tokenParts.length}. Session refresh failed. Please log out and log in again.` 
+            };
+          }
+          
+          // Use the refreshed session
+          const refreshedTokenParts = refreshedSession.access_token.split('.');
+          if (refreshedTokenParts.length !== 3) {
+            return { 
+              status: 'error', 
+              message: `JWT still invalid after refresh. Please log out and log in again.` 
+            };
+          }
+          
+          console.log('✅ Session refreshed successfully');
+          // Update session for this test
+          session = refreshedSession;
+        } catch (refreshError) {
+          return { 
+            status: 'error', 
+            message: `Invalid JWT format: expected 3 parts, got ${tokenParts.length}. Session refresh failed: ${refreshError}` 
+          };
+        }
       }
 
       console.log('🔐 Testing PAM chat with user:', user?.email);
       console.log('🎫 Token length:', session.access_token.length);
       console.log('🎫 Token preview:', session.access_token.substring(0, 50) + '...');
+      console.log('🎫 Full session object:', JSON.stringify(session, null, 2));
 
       const startTime = Date.now();
       
