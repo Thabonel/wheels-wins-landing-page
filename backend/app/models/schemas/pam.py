@@ -16,7 +16,7 @@ class ChatRequest(BaseModel):
     voice_input: bool = False
     attachments: List[str] = Field(default_factory=list)
     # WORKAROUND: Accept JWT token in body to bypass Render.com header size limits
-    _auth_token: Optional[str] = Field(None, description="JWT token for authentication (workaround for header limits)")
+    auth_token: Optional[str] = Field(None, description="JWT token for authentication (workaround for header limits)")
 
 class ChatResponse(BaseModel):
     response: str  # Primary response field
