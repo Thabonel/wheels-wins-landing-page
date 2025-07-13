@@ -47,7 +47,6 @@ class Settings(BaseSettings):
 
     # CORS - Allow requests from development and production origins
     CORS_ORIGINS: List[str] = [
-        "*",  # Allow all origins for development - TEMPORARY
         "http://localhost:3000",
         "http://localhost:8080", 
         "http://localhost:5173",
@@ -56,6 +55,9 @@ class Settings(BaseSettings):
         "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
         "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
         "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",
+        # Additional Lovable preview URLs
+        "https://preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+        "https://main--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     ]
 
     # Monitoring
