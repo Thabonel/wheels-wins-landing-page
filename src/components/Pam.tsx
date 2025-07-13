@@ -99,18 +99,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const saveToMemory = async (message: string, sender: 'user' | 'pam', context?: any) => {
     try {
-      await authenticatedFetch('/api/actions/execute', {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'save_memory',
-          payload: {
-            user_id: user?.id,
-            content: message,
-            topic: sender === 'user' ? 'user_message' : 'pam_response',
-            context
-          }
-        })
-      });
+      // Use PAM's built-in memory system instead of generic actions endpoint
+      // The PAM chat endpoint automatically saves conversation history
+      console.log('💾 Saving to PAM memory:', { message: message.substring(0, 100), sender, user_id: user?.id });
+      
+      // PAM automatically saves messages when processing them through the chat endpoint
+      // No need for explicit memory saving as it's handled by the agentic orchestrator
+      
     } catch (error) {
       console.error('Failed to save to memory:', error);
     }
@@ -184,7 +179,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (message.type === 'chat_response') {
             const content = message.message || message.content;
             addMessage(content, "pam");
-            await saveToMemory(content, "pam", message.actions);
+            // Note: PAM backend automatically saves all conversation history
             
             // Display agentic capabilities information
             if (message.agentic_info) {
@@ -337,7 +332,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     const message = inputMessage.trim();
     addMessage(message, "user");
-    await saveToMemory(message, "user");
+    // Note: PAM backend automatically saves all conversation history
     setInputMessage("");
 
     const messageData = {
@@ -369,7 +364,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
         body: JSON.stringify({
-          message: message,
+          message,
           context: messageData.context
         })
       });
@@ -378,7 +373,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         const data = await response.json();
         const pamResponse = data.response || data.message || "I'm sorry, I couldn't process that request.";
         addMessage(pamResponse, "pam");
-        await saveToMemory(pamResponse, "pam", data.actions);
+        // Note: PAM backend automatically saves all conversation history
         
         // Handle any UI actions from the response
         if (data.ui_action) {
