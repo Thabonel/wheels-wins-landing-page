@@ -107,7 +107,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const saveToMemory = async (message: string, sender: 'user' | 'pam', context?: any) => {
     try {
-      await apiFetch('/api/actions/execute', {
+      await apiFetch('/api/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
