@@ -10,7 +10,7 @@ from typing import Dict, List, Any, Optional
 import io
 import logging
 
-from app.core.auth import get_current_user
+from app.api.deps import get_current_user
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
