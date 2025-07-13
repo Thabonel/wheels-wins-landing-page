@@ -350,6 +350,25 @@ async def get_health_status() -> Dict[str, Any]:
         return {"status": "unhealthy", "error": str(e), "timestamp": datetime.utcnow().isoformat()}
 
 
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+) -> Optional[CurrentUser]:
+    """
+    Get current user from JWT token, but return None if no token provided.
+    Used for endpoints that work with or without authentication.
+    """
+    if not credentials:
+        return None
+    
+    try:
+        # Verify JWT token
+        payload = await verify_supabase_jwt_token(credentials)
+        db = DatabaseService()
+        return await get_current_user(payload, db)
+    except Exception:
+        return None
+
+
 # Utility Dependencies
 def get_user_context(current_user: CurrentUser = Depends(get_current_user)) -> Dict[str, Any]:
     """Get user context for requests"""

@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from fastapi.responses import JSONResponse
 
-from app.core.auth import get_current_user_optional
+from app.api.deps import get_current_user_optional
 from app.services.pam.orchestrator import get_orchestrator
 
 router = APIRouter()
