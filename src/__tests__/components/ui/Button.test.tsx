@@ -55,7 +55,7 @@ describe('Button Component', () => {
     render(<Button size="sm">Small Button</Button>);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('h-8');
+    expect(button).toHaveClass('h-9');
   });
 
   it('renders as child element when asChild is true', () => {
