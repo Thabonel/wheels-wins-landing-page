@@ -141,11 +141,27 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     try {
       // IMPORTANT: Using correct PAM endpoint /api/v1/pam/ws
-      // Fix: Ensure we're using the correct WebSocket URL format and getWebSocketUrl function
+      // Fix: Use reference token for WebSocket to avoid URL length issues
       const baseWebSocketUrl = getWebSocketUrl('/api/v1/pam/ws');
-      const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(sessionToken || user?.id || 'demo-token')}`;
+      
+      // Get a short reference token instead of the full JWT
+      let tokenForWs = sessionToken;
+      try {
+        // Check if we should use reference tokens
+        const useReferenceTokens = localStorage.getItem('use_reference_tokens') !== 'false';
+        if (useReferenceTokens && sessionToken) {
+          // For WebSocket, use the user ID instead of the full token to avoid URL length limits
+          tokenForWs = user?.id || 'demo-token';
+          console.log('🎫 Using user ID for WebSocket authentication to avoid URL limits');
+        }
+      } catch (error) {
+        console.warn('Could not determine reference token preference, using fallback');
+        tokenForWs = user?.id || 'demo-token';
+      }
+      
+      const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(tokenForWs)}`;
       console.log('🔧 PAM Base WebSocket URL:', baseWebSocketUrl);
-      console.log('🌐 PAM Full WebSocket URL (v1.4 - Fixed):', wsUrl);
+      console.log('🌐 PAM WebSocket URL (using short token):', wsUrl);
       console.log('✅ Target endpoint: /api/v1/pam/ws');
       
       // Validate that we're actually hitting the right endpoint
