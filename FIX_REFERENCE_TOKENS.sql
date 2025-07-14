@@ -66,10 +66,10 @@ SELECT
 
 -- 6. Show current policies
 SELECT 
-  pol.polname as policy_name,
-  pol.polcmd as command,
-  pol.polpermissive as permissive,
-  pol.polroles as roles
+  pol.policyname as policy_name,
+  pol.cmd as command,
+  pol.permissive as permissive,
+  pol.roles as roles
 FROM pg_policies pol 
 WHERE pol.schemaname = 'public' AND pol.tablename = 'user_sessions';
 
