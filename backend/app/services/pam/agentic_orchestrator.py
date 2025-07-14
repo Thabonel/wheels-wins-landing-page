@@ -234,7 +234,32 @@ class AgenticOrchestrator:
         try:
             logger.info(f"🎯 Processing agentic request from user {user_id}: {message[:100]}")
             
-            # 1. ANALYZE & UNDERSTAND
+            # Check if this is a simple conversational message that doesn't need complex agentic processing
+            simple_greetings = ['hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening']
+            simple_questions = ['how are you', 'what can you do', 'help', 'what is this']
+            
+            message_lower = message.lower().strip()
+            if any(greeting in message_lower for greeting in simple_greetings + simple_questions):
+                logger.info(f"💬 Simple conversational message detected, using direct response")
+                
+                # Use direct conversation analysis for simple messages
+                analysis = await self.conversation_service.analyze_conversation(
+                    message,
+                    conversation_history=context.conversation_history[-3:] if context.conversation_history else [],
+                    user_profile={"user_id": user_id, "context": context.dict()}
+                )
+                
+                return {
+                    "content": analysis.get("response", {}).get("content", "Hello! I'm PAM, your AI travel companion. How can I help you today?"),
+                    "actions": [],
+                    "confidence": analysis.get("intent", {}).get("confidence", 0.8),
+                    "requires_followup": True,
+                    "suggestions": analysis.get("response", {}).get("suggested_actions", ["Ask about travel planning", "Check your budget", "Find campgrounds"]),
+                    "emotional_insight": None,
+                    "proactive_items": []
+                }
+            
+            # 1. ANALYZE & UNDERSTAND (for complex requests)
             self.state = AgentState.PLANNING
             user_goals = await self.goal_planner.extract_goals(message, context)
             
@@ -428,7 +453,7 @@ class AgenticOrchestrator:
         
         # Build comprehensive response
         return {
-            "response": ai_analysis.get("suggested_response", "I've completed the requested tasks successfully."),
+            "response": ai_analysis.get("response", {}).get("content", "I've completed the requested tasks successfully."),
             "execution_summary": execution_summary,
             "agentic_insights": insights,
             "proactive_suggestions": await self._generate_proactive_suggestions(
@@ -526,7 +551,7 @@ class AgenticOrchestrator:
                             user_profile=params.get("user_context", {})
                         )
                         return {
-                            "result": analysis.get("suggested_response", f"Handled {tool_name} request"),
+                            "result": analysis.get("response", {}).get("content", f"Handled {tool_name} request"),
                             "success": True,
                             "tool_name": tool_name
                         }
