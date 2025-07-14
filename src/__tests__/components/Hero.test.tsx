@@ -27,7 +27,8 @@ describe('Hero Component', () => {
   it('contains hero content section', () => {
     render(<HeroWithRouter />);
     
-    const heroSection = screen.getByRole('main');
-    expect(heroSection).toBeInTheDocument();
+    const heroHeading = screen.getByRole('heading', { level: 1 });
+    expect(heroHeading).toBeInTheDocument();
+    expect(heroHeading).toHaveTextContent('Your Complete RV Companion. Plan, Budget & Connect');
   });
 });
