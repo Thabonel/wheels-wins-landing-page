@@ -14,7 +14,7 @@ cryptography>=41.0.7
 email-validator==2.2.0
 
 # Core APIs
-openai==1.35.3
+openai>=1.50.0,<2.0.0
 supabase==2.5.0
 stripe==9.8.0
 
@@ -73,7 +73,7 @@ opentelemetry-instrumentation-fastapi>=0.41b0
 
 # AI Agent Observability platforms (added 2025-07-14)
 langfuse>=2.0.0
-agentops>=0.1.0
+agentops>=0.4.15,<0.5.0  # Version range to avoid OpenAI compatibility issues
 
 # Web search and HTML parsing
 beautifulsoup4==4.12.3
