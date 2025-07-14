@@ -26,32 +26,41 @@ export class ReferenceTokenService {
    * Returns a ~32 character token instead of 700+ character JWT
    */
   static async createReferenceToken(userId: string, userData: any): Promise<string> {
-    // Generate short, secure reference token
-    const referenceToken = this.generateShortToken();
-    
-    // Hash the token for secure storage
-    const tokenHash = await this.hashToken(referenceToken);
-    
-    // Store session data server-side
-    const { error } = await supabase
-      .from('user_sessions')
-      .insert({
-        user_id: userId,
-        token_hash: tokenHash,
-        user_data: {
-          id: userId,
-          email: userData.email,
-          role: userData.app_metadata?.role || 'user',
-          metadata: userData.user_metadata
-        },
-        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
-      });
-    
-    if (error) {
-      throw new Error(`Failed to create reference token: ${error.message}`);
+    try {
+      // Generate short, secure reference token
+      const referenceToken = this.generateShortToken();
+      
+      // Hash the token for secure storage
+      const tokenHash = await this.hashToken(referenceToken);
+      
+      // Prepare user data with safe role handling
+      const safeUserData = {
+        id: userId,
+        email: userData.email || '',
+        role: 'user', // Always use 'user' role to avoid RLS issues
+        metadata: userData.user_metadata || {}
+      };
+      
+      // Store session data server-side
+      const { error } = await supabase
+        .from('user_sessions')
+        .insert({
+          user_id: userId,
+          token_hash: tokenHash,
+          user_data: safeUserData,
+          expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
+        });
+      
+      if (error) {
+        console.warn('Reference token creation failed, falling back to JWT:', error.message);
+        throw new Error(`Failed to create reference token: ${error.message}`);
+      }
+      
+      return referenceToken;
+    } catch (error) {
+      console.warn('Reference token system error:', error);
+      throw error;
     }
-    
-    return referenceToken;
   }
   
   /**
@@ -148,11 +157,27 @@ export async function authenticatedFetchWithReferenceToken(path: string, options
   
   if (!referenceToken) {
     console.log('🎫 Creating reference token for session optimization');
-    referenceToken = await ReferenceTokenService.createReferenceToken(
-      session.user.id, 
-      session.user
-    );
-    localStorage.setItem('reference_token', referenceToken);
+    try {
+      referenceToken = await ReferenceTokenService.createReferenceToken(
+        session.user.id, 
+        session.user
+      );
+      localStorage.setItem('reference_token', referenceToken);
+    } catch (error) {
+      console.warn('🎫 Reference token creation failed, falling back to JWT:', error);
+      // Fallback to using JWT directly
+      const authenticatedOptions: RequestInit = {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          ...options.headers,
+        },
+      };
+      
+      const url = `${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}${path}`;
+      return await fetch(url, authenticatedOptions);
+    }
   }
   
   console.log('🎫 Using reference token (length:', referenceToken.length, 'chars)');
