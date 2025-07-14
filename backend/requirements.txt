@@ -71,6 +71,10 @@ opentelemetry-api>=1.20.0
 opentelemetry-sdk>=1.20.0
 opentelemetry-instrumentation-fastapi>=0.41b0
 
+# AI Agent Observability platforms
+langfuse>=2.0.0
+agentops>=0.1.0
+
 # Web search and HTML parsing
 beautifulsoup4==4.12.3
 # lxml==4.9.3  # Commented out due to Python 3.13 compatibility issues
