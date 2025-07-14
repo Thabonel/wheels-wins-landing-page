@@ -58,7 +58,7 @@ class ObservabilityConfig:
     def initialize_openai(self) -> Optional[OpenAI]:
         """Initialize OpenAI client with tracing"""
         if not self.settings.OPENAI_API_KEY:
-            logger.warning("OpenAI API key not configured, skipping OpenAI observability")
+            logger.info("OpenAI API key not configured - set OPENAI_API_KEY to enable OpenAI observability")
             return None
             
         try:
@@ -75,17 +75,17 @@ class ObservabilityConfig:
             return self.openai_client
             
         except Exception as e:
-            logger.error(f"❌ Failed to initialize OpenAI observability: {e}")
+            logger.warning(f"Failed to initialize OpenAI observability: {e}")
             return None
             
     def initialize_langfuse(self) -> Optional['Langfuse']:
         """Initialize Langfuse for LLM observability"""
         if not LANGFUSE_AVAILABLE:
-            logger.info("Langfuse not available, skipping Langfuse observability")
+            logger.info("Langfuse not available - install langfuse package to enable Langfuse observability")
             return None
             
         if not (self.settings.LANGFUSE_SECRET_KEY and self.settings.LANGFUSE_PUBLIC_KEY):
-            logger.warning("Langfuse credentials not configured, skipping Langfuse observability")
+            logger.info("Langfuse credentials not configured - set LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY to enable Langfuse observability")
             return None
             
         try:
@@ -99,17 +99,17 @@ class ObservabilityConfig:
             return self.langfuse_client
             
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Langfuse observability: {e}")
+            logger.warning(f"Failed to initialize Langfuse observability: {e}")
             return None
             
     def initialize_agentops(self) -> bool:
         """Initialize AgentOps for agent workflow tracking"""
         if not AGENTOPS_AVAILABLE:
-            logger.info("AgentOps not available, skipping AgentOps observability")
+            logger.info("AgentOps not available - install agentops package to enable AgentOps observability")
             return False
             
         if not self.settings.AGENTOPS_API_KEY:
-            logger.warning("AgentOps API key not configured, skipping AgentOps observability")
+            logger.info("AgentOps API key not configured - set AGENTOPS_API_KEY to enable AgentOps observability")
             return False
             
         try:
@@ -123,7 +123,7 @@ class ObservabilityConfig:
             return True
             
         except Exception as e:
-            logger.error(f"❌ Failed to initialize AgentOps observability: {e}")
+            logger.warning(f"Failed to initialize AgentOps observability: {e}")
             return False
             
     def initialize_all(self):

@@ -134,31 +134,59 @@ class ObservabilityMonitor:
             "issues": []
         }
         
+        # Initialize observability if not already done
+        if status["enabled"] and not status["initialized"]:
+            try:
+                observability.initialize_all()
+                status = observability.get_status()  # Refresh status after initialization
+            except Exception as e:
+                logger.warning(f"Failed to initialize observability during health check: {e}")
+        
         # Check each platform
         for platform in ["openai", "langfuse", "agentops"]:
             platform_status = status.get(platform, {})
-            is_healthy = platform_status.get("configured", False) and (
-                platform_status.get("client_ready", False) or 
-                platform_status.get("initialized", False)
-            )
+            configured = platform_status.get("configured", False)
+            ready = platform_status.get("client_ready", False) or platform_status.get("initialized", False)
+            
+            # Determine platform health status
+            if configured and ready:
+                platform_health = "healthy"
+            elif configured and not ready:
+                platform_health = "degraded"
+            elif not configured:
+                platform_health = "not_configured"
+            else:
+                platform_health = "degraded"
             
             health["platforms"][platform] = {
-                "status": "healthy" if is_healthy else "degraded",
-                "configured": platform_status.get("configured", False),
-                "ready": platform_status.get("client_ready", False) or platform_status.get("initialized", False)
+                "status": platform_health,
+                "configured": configured,
+                "ready": ready
             }
             
-            if platform_status.get("configured", False) and not is_healthy:
-                health["issues"].append(f"{platform} is configured but not ready")
-            elif not platform_status.get("configured", False):
-                health["issues"].append(f"{platform} is not configured")
+            # Add specific issues for better diagnostics
+            if configured and not ready:
+                health["issues"].append(f"{platform} is configured but not ready - check credentials")
+            elif not configured:
+                if platform == "agentops":
+                    health["issues"].append(f"{platform} is not configured - set AGENTOPS_API_KEY environment variable")
+                elif platform == "langfuse":
+                    health["issues"].append(f"{platform} is not configured - set LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY")
+                elif platform == "openai":
+                    health["issues"].append(f"{platform} is not configured - set OPENAI_API_KEY environment variable")
         
-        # Overall health determination
-        ready_platforms = sum(1 for p in health["platforms"].values() if p["ready"])
-        if ready_platforms == 0:
-            health["overall_status"] = "unhealthy"
-        elif ready_platforms < len(health["platforms"]):
+        # Overall health determination - be more lenient since observability is optional
+        healthy_platforms = sum(1 for p in health["platforms"].values() if p["status"] == "healthy")
+        configured_platforms = sum(1 for p in health["platforms"].values() if p["configured"])
+        
+        if not status["enabled"]:
+            health["overall_status"] = "disabled"
+        elif healthy_platforms > 0:
+            health["overall_status"] = "healthy"
+        elif configured_platforms > 0:
             health["overall_status"] = "degraded"
+        else:
+            health["overall_status"] = "not_configured"
             
         return health
 
