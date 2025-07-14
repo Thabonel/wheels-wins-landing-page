@@ -122,7 +122,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             session_id=context.get("session_id"),
             context=context
         )
-        actions = pam_response.actions
+        actions = pam_response.get("actions", [])
         
         # Determine response message
         response_message = "I'm processing your request..."
@@ -279,14 +279,14 @@ async def chat_endpoint(
             session_id=request.conversation_id,
             context=context
         )
-        actions = pam_response.actions
+        actions = pam_response.get("actions", [])
         
         # Calculate processing time
         processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
         processing_time_seconds = processing_time / 1000.0
 
         # Determine response message
-        response_text = pam_response.content or "I'm processing your request..."
+        response_text = pam_response.get("content") or "I'm processing your request..."
         has_error = False
         for action in actions or []:
             if action.get("type") == "error":
