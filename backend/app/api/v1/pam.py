@@ -21,6 +21,7 @@ from app.models.schemas.common import SuccessResponse, PaginationParams
 from app.core.websocket_manager import manager
 from app.core.logging import setup_logging, get_logger
 from app.core.exceptions import PAMError
+from app.observability.monitor import global_monitor
 
 router = APIRouter()
 setup_logging()
@@ -282,13 +283,29 @@ async def chat_endpoint(
         
         # Calculate processing time
         processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+        processing_time_seconds = processing_time / 1000.0
 
         # Determine response message
         response_text = pam_response.content or "I'm processing your request..."
+        has_error = False
         for action in actions or []:
             if action.get("type") == "error":
                 response_text = f"❌ {action.get('content', response_text)}"
+                has_error = True
                 break
+        
+        # Record observability metrics
+        global_monitor.record_observation(
+            observation_type="pam_chat",
+            duration=processing_time_seconds,
+            success=not has_error,
+            metadata={
+                "user_id": user_id,
+                "message_length": len(request.message),
+                "response_length": len(response_text),
+                "has_actions": len(actions) > 0 if actions else False
+            }
+        )
         
         session_id = request.conversation_id or request.session_id or str(uuid.uuid4())
         
@@ -305,6 +322,21 @@ async def chat_endpoint(
     except Exception as e:
         logger.error(f"Chat endpoint error: {str(e)}", exc_info=True)
         
+        # Calculate processing time for error case
+        error_processing_time = (datetime.utcnow() - start_time).total_seconds()
+        
+        # Record failed observation
+        global_monitor.record_observation(
+            observation_type="pam_chat",
+            duration=error_processing_time,
+            success=False,
+            metadata={
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "message_length": len(request.message) if hasattr(request, 'message') else 0
+            }
+        )
+        
         # Return a proper error response instead of crashing
         session_id = request.conversation_id or request.session_id or str(uuid.uuid4())
         
@@ -314,7 +346,7 @@ async def chat_endpoint(
             conversation_id=session_id,
             session_id=session_id,
             message_id=str(uuid.uuid4()),
-            processing_time_ms=0,
+            processing_time_ms=int(error_processing_time * 1000),
             timestamp=datetime.utcnow()
         )
 
