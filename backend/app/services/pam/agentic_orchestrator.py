@@ -411,15 +411,24 @@ class AgenticOrchestrator:
             "user_context": context.model_dump() if hasattr(context, 'model_dump') else context.dict() if hasattr(context, 'dict') else vars(context)
         }
         
-        ai_response = await self.conversation_service.generate_contextual_response(
+        # Use analyze_conversation with a proper prompt that includes the context
+        context_message = (
             "Generate an intelligent response that explains what was accomplished, "
-            "provides relevant insights, and suggests next steps based on the execution results.",
-            response_context
+            "provides relevant insights, and suggests next steps based on the execution results.\n\n"
+            f"Execution Summary: {json.dumps(execution_summary, indent=2)}\n"
+            f"Total Goals: {len(user_goals)}\n"
+            f"Success Rate: {execution_summary['success_rate']:.1%}"
+        )
+        
+        ai_analysis = await self.conversation_service.analyze_conversation(
+            context_message,
+            conversation_history=[],
+            user_profile=response_context
         )
         
         # Build comprehensive response
         return {
-            "response": ai_response,
+            "response": ai_analysis.get("suggested_response", "I've completed the requested tasks successfully."),
             "execution_summary": execution_summary,
             "agentic_insights": insights,
             "proactive_suggestions": await self._generate_proactive_suggestions(
@@ -510,12 +519,14 @@ class AgenticOrchestrator:
                     try:
                         # Use conversation service to handle the tool request
                         task_description = params.get("task_description", "")
-                        response = await self.conversation_service.generate_response(
+                        # Use analyze_conversation method which exists in IntelligentConversationHandler
+                        analysis = await self.conversation_service.analyze_conversation(
                             f"Please help with this task: {task_description}",
-                            params.get("user_context", {})
+                            conversation_history=[],
+                            user_profile=params.get("user_context", {})
                         )
                         return {
-                            "result": response.get("content", f"Handled {tool_name} request"),
+                            "result": analysis.get("suggested_response", f"Handled {tool_name} request"),
                             "success": True,
                             "tool_name": tool_name
                         }
@@ -598,12 +609,27 @@ class GoalPlanner:
         }}
         """
         
-        result = await self.conversation_service.generate_response(
-            goal_analysis_prompt, context.model_dump() if hasattr(context, 'model_dump') else context.dict() if hasattr(context, 'dict') else vars(context)
+        # Use analyze_conversation which exists in IntelligentConversationHandler
+        analysis = await self.conversation_service.analyze_conversation(
+            goal_analysis_prompt, 
+            conversation_history=[],
+            user_profile=context.model_dump() if hasattr(context, 'model_dump') else context.dict() if hasattr(context, 'dict') else vars(context)
         )
         
         try:
-            return json.loads(result)["goals"]
+            # The analysis should contain goals information
+            if isinstance(analysis, dict) and "intent" in analysis:
+                # Convert analysis to goals format
+                return [{
+                    "type": "explicit",
+                    "description": goal_analysis_prompt,
+                    "domain": analysis.get("domain", "general"),
+                    "priority": 3,
+                    "complexity": "simple",
+                    "estimated_steps": 1,
+                    "success_criteria": "provide helpful response"
+                }]
+            return analysis.get("goals", [])
         except:
             # Fallback to basic goal structure
             return [{
