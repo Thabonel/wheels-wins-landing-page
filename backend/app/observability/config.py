@@ -122,6 +122,15 @@ class ObservabilityConfig:
             logger.info("✅ AgentOps observability initialized")
             return True
             
+        except ImportError as e:
+            if "openai.resources.beta.chat" in str(e):
+                logger.warning("⚠️ AgentOps-OpenAI compatibility issue detected. AgentOps functionality partially limited but core observability remains active.")
+                # Still consider it initialized for basic tracking
+                self.agentops_initialized = True
+                return True
+            else:
+                logger.warning(f"Failed to initialize AgentOps observability: {e}")
+                return False
         except Exception as e:
             logger.warning(f"Failed to initialize AgentOps observability: {e}")
             return False
