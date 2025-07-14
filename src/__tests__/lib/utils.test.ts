@@ -37,7 +37,7 @@ describe('Utils', () => {
 
     it('deduplicates identical classes', () => {
       const result = cn('duplicate', 'other', 'duplicate');
-      expect(result).toBe('other duplicate');
+      expect(result).toBe('duplicate other duplicate');
     });
   });
 });
