@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 
@@ -24,31 +24,31 @@ export function useFinancialSummary(days: number = 30) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchSummary = async () => {
-      if (!user) return;
-      setLoading(true);
-      try {
-        const response = await apiFetch(`/api/v1/wins/financial-summary/${user.id}?days=${days}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        if (!response.ok) throw new Error('Failed to fetch summary');
-        const data = await response.json();
-        setSummary(data);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching financial summary:', err);
-        setError('Failed to load summary');
-        setSummary(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSummary();
+  const fetchSummary = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const response = await apiFetch(`/api/v1/wins/financial-summary/${user.id}?days=${days}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch summary');
+      const data = await response.json();
+      setSummary(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching financial summary:', err);
+      setError('Failed to load summary');
+      setSummary(null);
+    } finally {
+      setLoading(false);
+    }
   }, [user, token, days]);
 
-  return { summary, loading, error };
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
+
+  return { summary, loading, error, refetch: fetchSummary };
 }

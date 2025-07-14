@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Pie, PieChart } from "recharts";
@@ -11,22 +11,26 @@ import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
 
-export default function WinsOverview() {
+const WinsOverview = React.memo(() => {
   const { user, token } = useAuth();
   const { summary } = useFinancialSummary();
   const { state: expensesState } = useExpenses();
   const { incomeData, chartData: incomeChartData } = useIncomeData();
   const [pamInsights, setPamInsights] = useState<string[]>([]);
 
+  const handlePamMessage = useCallback((msg: any) => {
+    if (msg.type === 'chat_response') {
+      setPamInsights((prev) => [...prev, msg.message || msg.content]);
+    }
+  }, []);
+
+  const handleStatusChange = useCallback(() => {}, []);
+
   const { isConnected, sendMessage } = usePamWebSocketConnection({
     userId: user?.id || 'anonymous',
     token,
-    onMessage: (msg) => {
-      if (msg.type === 'chat_response') {
-        setPamInsights((prev) => [...prev, msg.message || msg.content]);
-      }
-    },
-    onStatusChange: () => {}
+    onMessage: handlePamMessage,
+    onStatusChange: handleStatusChange
   });
 
   useEffect(() => {
@@ -38,7 +42,7 @@ export default function WinsOverview() {
         context: { source: 'wins_overview' }
       });
     }
-  }, [user, isConnected]);
+  }, [user, isConnected, pamInsights.length, sendMessage]);
 
   // Generate monthly data from real income and expense data
   const monthlyData = React.useMemo(() => {
@@ -69,7 +73,7 @@ export default function WinsOverview() {
   }, [incomeChartData, expensesState.expenses]);
   
   // Generate category data from real expense data or financial summary
-  const categoryData = React.useMemo(() => {
+  const categoryData = useMemo(() => {
     const colors = ['#8B5CF6', '#0EA5E9', '#10B981', '#F59E0B', '#6B7280', '#EF4444', '#F97316', '#84CC16'];
     
     if (summary?.expense_categories && summary.expense_categories.length > 0) {
@@ -93,7 +97,7 @@ export default function WinsOverview() {
     }));
   }, [summary?.expense_categories, expensesState.expenses]);
   
-  const summaryStats = summary
+  const summaryStats = useMemo(() => summary
     ? [
         {
           title: "Total Income",
@@ -133,7 +137,7 @@ export default function WinsOverview() {
           description: "All time",
           icon: <Calendar className="h-5 w-5 text-blue-500" />
         }
-      ];
+      ], [summary, incomeData, expensesState.expenses]);
   
   return (
     <div className="space-y-6">
@@ -246,7 +250,11 @@ export default function WinsOverview() {
       </div>
     </div>
   );
-}
+});
+
+WinsOverview.displayName = 'WinsOverview';
+
+export default WinsOverview;
 
 // Custom tooltip for charts
 const CustomTooltip = ({ active, payload, label }: any) => {

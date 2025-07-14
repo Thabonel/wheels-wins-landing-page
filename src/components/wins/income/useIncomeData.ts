@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -26,9 +26,9 @@ export function useIncomeData() {
     }
 
     fetchIncomeData();
-  }, [user]);
+  }, [user, fetchIncomeData]);
 
-  const fetchIncomeData = async () => {
+  const fetchIncomeData = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -60,9 +60,9 @@ export function useIncomeData() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
-  const addIncome = async (income: Omit<IncomeEntry, 'id'>) => {
+  const addIncome = useCallback(async (income: Omit<IncomeEntry, 'id'>) => {
     if (!user) return false;
 
     try {
@@ -102,9 +102,9 @@ export function useIncomeData() {
       toast.error('Failed to add income');
       return false;
     }
-  };
+  }, [user]);
 
-  const deleteIncome = async (id: string) => {
+  const deleteIncome = useCallback(async (id: string) => {
     if (!user) return false;
 
     try {
@@ -128,21 +128,22 @@ export function useIncomeData() {
       toast.error('Failed to delete income');
       return false;
     }
-  };
+  }, [user]);
 
-  // Calculate chart data
-  const chartData = incomeData.reduce((acc, entry) => {
-    const month = new Date(entry.date).toLocaleDateString('en-US', { month: 'short' });
-    const existing = acc.find(item => item.name === month);
+  // Calculate chart data with optimized O(1) lookups
+  const chartData = useMemo(() => {
+    const monthMap = new Map<string, number>();
     
-    if (existing) {
-      existing.income += entry.amount;
-    } else {
-      acc.push({ name: month, income: entry.amount });
-    }
+    incomeData.forEach(entry => {
+      const month = new Date(entry.date).toLocaleDateString('en-US', { month: 'short' });
+      monthMap.set(month, (monthMap.get(month) || 0) + entry.amount);
+    });
     
-    return acc;
-  }, [] as { name: string; income: number }[]);
+    return Array.from(monthMap.entries()).map(([name, income]) => ({
+      name,
+      income
+    }));
+  }, [incomeData]);
 
   return {
     incomeData,
