@@ -79,6 +79,10 @@ class AgenticOrchestrator:
         self.learning_history = []
         self.database_service = None  # Will be initialized when needed
         
+        # Add missing services for API compatibility
+        self.context_manager = None
+        self.analytics = None
+        
         # Initialize agentic capabilities
         self._initialize_agent_systems()
     
@@ -89,7 +93,7 @@ class AgenticOrchestrator:
         self.tool_selector = DynamicToolSelector(self.tool_registry)
         self.execution_monitor = ExecutionMonitor()
         self.learning_engine = LearningEngine()
-        self.proactive_assistant = ProactiveAssistant(self.memory)
+        self.proactive_assistant = ProactiveAssistant(None)  # Memory will be initialized later
         
         logger.info("🧠 Agentic AI systems initialized")
     
@@ -97,6 +101,33 @@ class AgenticOrchestrator:
         """Initialize orchestrator and dependencies"""
         from app.services.database import get_database_service
         self.database_service = get_database_service()
+        
+        # Initialize context manager for API compatibility
+        try:
+            from app.services.pam.context_manager import ContextManager
+            self.context_manager = ContextManager()
+            logger.info("🔗 Agentic orchestrator context manager initialized")
+        except ImportError as e:
+            logger.warning(f"Context manager not available: {e}")
+            # Create a minimal context manager for compatibility
+            class MinimalContextManager:
+                def validate_and_enrich_context(self, context_dict):
+                    return context_dict
+            self.context_manager = MinimalContextManager()
+        
+        # Initialize analytics for API compatibility
+        try:
+            from app.services.analytics.analytics import PamAnalytics
+            self.analytics = PamAnalytics()
+            logger.info("🔗 Agentic orchestrator analytics initialized")
+        except ImportError as e:
+            logger.warning(f"Analytics not available: {e}")
+            # Create a minimal analytics service for compatibility
+            class MinimalAnalytics:
+                async def track_event(self, event):
+                    logger.info(f"Analytics event: {event}")
+            self.analytics = MinimalAnalytics()
+        
         logger.info("🔗 Agentic orchestrator database service initialized")
     
     async def process_message(self, user_id: str, message: str, 
@@ -141,6 +172,54 @@ class AgenticOrchestrator:
         except Exception as e:
             logger.error(f"Error getting conversation history: {e}")
             return []
+    
+    async def _get_enhanced_context(self, user_id: str, session_id: str, additional_context: Dict[str, Any] = None) -> PamContext:
+        """Get enhanced conversation context - API compatibility method"""
+        try:
+            # Build basic context
+            recent_conversations = []
+            user_preferences = {}
+            
+            if self.database_service:
+                try:
+                    recent_conversations = await self.database_service.get_conversation_context(user_id)
+                    user_preferences = await self.database_service.get_user_preferences(user_id)
+                except Exception as e:
+                    logger.warning(f"Could not load user context from database: {e}")
+            
+            context = PamContext(
+                user_id=user_id,
+                preferences=user_preferences or {},
+                conversation_history=[conv.get('user_message', '') for conv in recent_conversations[-5:]] if recent_conversations else [],
+                timestamp=datetime.now()
+            )
+            
+            # Enhance with context manager if available
+            if self.context_manager and additional_context:
+                try:
+                    enhanced_data = self.context_manager.validate_and_enrich_context({
+                        "user_id": user_id,
+                        "session_id": session_id,
+                        **context.dict(),
+                        **additional_context
+                    })
+                    
+                    if enhanced_data.get("enhanced_preferences"):
+                        context.preferences.update(enhanced_data["enhanced_preferences"])
+                except Exception as e:
+                    logger.warning(f"Context enhancement failed: {e}")
+            
+            return context
+            
+        except Exception as e:
+            logger.error(f"Error building enhanced context: {e}")
+            # Return minimal context as fallback
+            return PamContext(
+                user_id=user_id,
+                preferences={},
+                conversation_history=[],
+                timestamp=datetime.now()
+            )
     
     async def process_user_request(self, user_id: str, message: str, 
                                  context: PamContext) -> Dict[str, Any]:
@@ -329,7 +408,7 @@ class AgenticOrchestrator:
             "execution_summary": execution_summary,
             "results_data": [r.outputs for r in results if r.success],
             "learned_insights": insights,
-            "user_context": context.dict()
+            "user_context": context.model_dump() if hasattr(context, 'model_dump') else context.dict() if hasattr(context, 'dict') else vars(context)
         }
         
         ai_response = await self.conversation_service.generate_contextual_response(
@@ -378,6 +457,114 @@ class AgenticOrchestrator:
         time_factor = max(0.1, 1.0 - (avg_execution_time / 30.0))  # Penalize slow execution
         
         return min(1.0, success_rate * 0.7 + time_factor * 0.3)
+    
+    # Missing method implementations (stubs for now)
+    
+    async def _optimize_task_order(self, tasks: List[Task]) -> List[Task]:
+        """Optimize task execution order based on dependencies"""
+        # Simple implementation - just return tasks as-is for now
+        return tasks
+    
+    async def _define_success_criteria(self, task: Task) -> Dict[str, Any]:
+        """Define success criteria for a task"""
+        return {"completion": True, "min_confidence": 0.5}
+    
+    async def _generate_fallback_options(self, task: Task) -> List[Dict[str, Any]]:
+        """Generate fallback options for a task"""
+        return [{"strategy": "retry", "max_attempts": 2}]
+    
+    async def _generate_plan_fallbacks(self, tasks: List[Task]) -> List[Dict[str, Any]]:
+        """Generate fallback strategies for the entire plan"""
+        return [{"strategy": "sequential_execution", "fallback_to_conversation": True}]
+    
+    async def _evaluate_step_success(self, step: Dict[str, Any], result: ExecutionResult) -> bool:
+        """Evaluate if a step was successful"""
+        return result.success
+    
+    async def _execute_fallback_strategies(self, step: Dict[str, Any], 
+                                         result: ExecutionResult, 
+                                         context: PamContext) -> ExecutionResult:
+        """Execute fallback strategies for a failed step"""
+        # For now, just return the original result
+        return result
+    
+    async def _adapt_remaining_steps(self, plan: ExecutionPlan, 
+                                   step_result: ExecutionResult, 
+                                   all_results: List[ExecutionResult]):
+        """Adapt remaining steps based on current results"""
+        # Placeholder - no adaptation for now
+        pass
+    
+    async def _discover_and_load_tool(self, tool_name: str):
+        """Dynamically discover and load a tool"""
+        # Try to load real tools from the system
+        try:
+            # Import the conversation service as a general-purpose tool
+            from app.core.intelligent_conversation import IntelligentConversationHandler
+            
+            class GeneralTool:
+                def __init__(self, conversation_service):
+                    self.conversation_service = conversation_service
+                    
+                async def execute(self, params, context):
+                    try:
+                        # Use conversation service to handle the tool request
+                        task_description = params.get("task_description", "")
+                        response = await self.conversation_service.generate_response(
+                            f"Please help with this task: {task_description}",
+                            params.get("user_context", {})
+                        )
+                        return {
+                            "result": response.get("content", f"Handled {tool_name} request"),
+                            "success": True,
+                            "tool_name": tool_name
+                        }
+                    except Exception as e:
+                        return {
+                            "result": f"Tool {tool_name} encountered an error: {str(e)}",
+                            "success": False,
+                            "tool_name": tool_name
+                        }
+            
+            return GeneralTool(self.conversation_service)
+        except Exception as e:
+            logger.warning(f"Failed to load tool {tool_name}: {e}")
+            # Fallback placeholder tool
+            class PlaceholderTool:
+                async def execute(self, params, context):
+                    return {"result": f"Tool {tool_name} temporarily unavailable", "success": False}
+            return PlaceholderTool()
+    
+    async def _validate_tool_result(self, tool_result: Any, step: Dict[str, Any]) -> bool:
+        """Validate if tool result meets step requirements"""
+        return tool_result is not None
+    
+    async def _generate_proactive_suggestions(self, user_goals: List[Dict], 
+                                            results: List[ExecutionResult], 
+                                            context: PamContext) -> List[str]:
+        """Generate proactive suggestions based on results"""
+        return ["Consider exploring related topics", "Would you like more details?"]
+    
+    async def _suggest_next_actions(self, user_goals: List[Dict], 
+                                  results: List[ExecutionResult], 
+                                  context: PamContext) -> List[str]:
+        """Suggest next recommended actions"""
+        return ["Ask follow-up questions", "Explore related features"]
+    
+    async def _queue_proactive_suggestion(self, user_id: str, opportunity: Dict[str, Any]):
+        """Queue a proactive suggestion for the user"""
+        logger.info(f"Proactive suggestion queued for {user_id}: {opportunity['description']}")
+    
+    async def _generate_error_response(self, error: Exception, context: PamContext) -> Dict[str, Any]:
+        """Generate a response when an error occurs"""
+        return {
+            "content": "I encountered an issue while processing your request. Please try again.",
+            "actions": [],
+            "confidence": 0.1,
+            "requires_followup": False,
+            "suggestions": ["Try rephrasing your request", "Contact support if the issue persists"],
+            "error": str(error)
+        }
 
 # Supporting Classes for Agentic Capabilities
 
@@ -393,7 +580,7 @@ class GoalPlanner:
         Analyze this user message and extract their goals:
         Message: "{message}"
         
-        Context: {context.dict()}
+        Context: {context.model_dump() if hasattr(context, 'model_dump') else context.dict() if hasattr(context, 'dict') else vars(context)}
         
         Return goals as JSON with structure:
         {{
@@ -412,7 +599,7 @@ class GoalPlanner:
         """
         
         result = await self.conversation_service.generate_response(
-            goal_analysis_prompt, context.dict()
+            goal_analysis_prompt, context.model_dump() if hasattr(context, 'model_dump') else context.dict() if hasattr(context, 'dict') else vars(context)
         )
         
         try:
@@ -446,7 +633,7 @@ class TaskDecomposer:
                     complexity=TaskComplexity.SIMPLE,
                     required_tools=await self._identify_required_tools(goal),
                     estimated_steps=goal["estimated_steps"],
-                    context=context.dict(),
+                    context=context.model_dump() if hasattr(context, 'model_dump') else context.dict() if hasattr(context, 'dict') else vars(context),
                     priority=goal["priority"]
                 )
                 tasks.append(task)
@@ -483,7 +670,7 @@ class TaskDecomposer:
             complexity=TaskComplexity.COMPLEX,
             required_tools=await self._identify_required_tools(goal),
             estimated_steps=goal["estimated_steps"],
-            context=context.dict(),
+            context=context.model_dump() if hasattr(context, 'model_dump') else context.dict() if hasattr(context, 'dict') else vars(context),
             priority=goal["priority"]
         )]
 
@@ -532,7 +719,7 @@ class DynamicToolSelector:
         # This would intelligently generate parameters based on task and context
         return {
             "task_description": task.description,
-            "user_context": context.dict(),
+            "user_context": context.model_dump() if hasattr(context, 'model_dump') else context.dict() if hasattr(context, 'dict') else vars(context),
             "complexity": task.complexity.value
         }
     
