@@ -113,9 +113,9 @@ class ObservabilityConfig:
             return False
             
         try:
+            # AgentOps API updated - remove environment parameter
             agentops.init(
-                api_key=self.settings.AGENTOPS_API_KEY,
-                environment=self.settings.ENVIRONMENT
+                api_key=self.settings.AGENTOPS_API_KEY
             )
             
             self.agentops_initialized = True

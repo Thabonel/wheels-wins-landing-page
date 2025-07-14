@@ -240,21 +240,34 @@ class AgenticOrchestrator:
             
             message_lower = message.lower().strip()
             if any(greeting in message_lower for greeting in simple_greetings + simple_questions):
-                logger.info(f"💬 Simple conversational message detected, using direct response")
+                logger.info(f"💬 Simple conversational message detected, using fast response")
                 
-                # Use direct conversation analysis for simple messages
-                analysis = await self.conversation_service.analyze_conversation(
-                    message,
-                    conversation_history=context.conversation_history[-3:] if context.conversation_history else [],
-                    user_profile={"user_id": user_id, "context": context.dict()}
-                )
+                # For very simple greetings, use a fast predefined response to avoid OpenAI delays
+                quick_responses = {
+                    'hi': "Hello! I'm PAM, your AI travel companion. Ready to help you explore, plan your next adventure, or manage your travel budget!",
+                    'hello': "Hello there! I'm PAM, here to assist with your RV travels. What can I help you with today?",
+                    'hey': "Hey! I'm PAM, your intelligent travel assistant. How can I make your journey better?",
+                    'how are you': "I'm doing great and ready to help! I'm PAM, your AI travel companion for Grey Nomads. What adventure are we planning today?",
+                    'what can you do': "I can help you with travel planning, route optimization, budget tracking, finding campgrounds, checking weather, and much more! What would you like to explore?",
+                    'help': "I'm here to help! I can assist with travel planning, budget management, finding campgrounds, route planning, and answering questions about RV life. What do you need help with?"
+                }
+                
+                # Find the best matching response
+                response_content = None
+                for key, response in quick_responses.items():
+                    if key in message_lower:
+                        response_content = response
+                        break
+                
+                if not response_content:
+                    response_content = "Hello! I'm PAM, your AI travel companion. How can I help you today?"
                 
                 return {
-                    "content": analysis.get("response", {}).get("content", "Hello! I'm PAM, your AI travel companion. How can I help you today?"),
+                    "content": response_content,
                     "actions": [],
-                    "confidence": analysis.get("intent", {}).get("confidence", 0.8),
+                    "confidence": 0.9,
                     "requires_followup": True,
-                    "suggestions": analysis.get("response", {}).get("suggested_actions", ["Ask about travel planning", "Check your budget", "Find campgrounds"]),
+                    "suggestions": ["Plan a trip", "Check my budget", "Find campgrounds", "Get weather updates"],
                     "emotional_insight": None,
                     "proactive_items": []
                 }
