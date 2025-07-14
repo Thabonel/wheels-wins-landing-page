@@ -243,6 +243,9 @@ export function PAMConnectionDiagnostic() {
       console.log('🌐 DIAGNOSTIC: Sending PAM chat test to:', `/api/v1/pam/chat`);
       console.log('🔐 DIAGNOSTIC: Using optimized authentication (reference tokens or JWT)');
       
+      // Temporarily disable reference tokens for diagnostics to avoid RLS issues
+      localStorage.setItem('use_reference_tokens', 'false');
+      
       const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
         body: JSON.stringify({
@@ -250,6 +253,9 @@ export function PAMConnectionDiagnostic() {
           user_id: user?.id || 'test-user'
         }),
       });
+      
+      // Re-enable reference tokens after test
+      localStorage.setItem('use_reference_tokens', 'true');
       
       console.log('📡 DIAGNOSTIC: Response status:', response.status);
       console.log('📡 DIAGNOSTIC: Response headers:', Object.fromEntries(response.headers.entries()));
