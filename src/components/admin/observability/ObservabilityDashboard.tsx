@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { authenticatedFetch } from '@/services/api';
 import APIKeyManagement from './APIKeyManagement';
 import { PAMConnectionDiagnostic } from './PAMConnectionDiagnostic';
 import { 
@@ -85,15 +86,9 @@ export default function ObservabilityDashboard() {
       setRefreshing(true);
       
       const [dashboardResponse, metricsResponse, healthResponse] = await Promise.all([
-        fetch('/api/v1/observability/dashboard-data', {
-          headers: { 'Admin-Token': 'admin-token-123' }
-        }),
-        fetch('/api/v1/observability/metrics', {
-          headers: { 'Admin-Token': 'admin-token-123' }
-        }),
-        fetch('/api/v1/observability/health', {
-          headers: { 'Admin-Token': 'admin-token-123' }
-        })
+        authenticatedFetch('/api/v1/observability/dashboard-data'),
+        authenticatedFetch('/api/v1/observability/metrics'),
+        authenticatedFetch('/api/v1/observability/health')
       ]);
 
       if (dashboardResponse.ok) {
@@ -125,9 +120,8 @@ export default function ObservabilityDashboard() {
 
   const initializeObservability = async () => {
     try {
-      const response = await fetch('/api/v1/observability/initialize', {
-        method: 'POST',
-        headers: { 'Admin-Token': 'admin-token-123' }
+      const response = await authenticatedFetch('/api/v1/observability/initialize', {
+        method: 'POST'
       });
 
       if (response.ok) {
@@ -145,9 +139,8 @@ export default function ObservabilityDashboard() {
 
   const resetMetrics = async () => {
     try {
-      const response = await fetch('/api/v1/observability/reset-metrics', {
-        method: 'POST',
-        headers: { 'Admin-Token': 'admin-token-123' }
+      const response = await authenticatedFetch('/api/v1/observability/reset-metrics', {
+        method: 'POST'
       });
 
       if (response.ok) {

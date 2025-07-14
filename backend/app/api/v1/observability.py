@@ -3,35 +3,32 @@ Admin API endpoints for AI Agent Observability
 Integrated with existing admin authentication system
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Header
-from typing import Dict, Any, Optional
+from fastapi import APIRouter, HTTPException, Depends
+from typing import Dict, Any
 import logging
 
 from app.observability.config import observability
 from app.observability.monitor import global_monitor
 from app.core.config import get_settings
+from app.api.deps import verify_supabase_jwt_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/observability", tags=["observability"])
 
-def verify_admin_token(admin_token: Optional[str] = Header(None)):
-    """Verify admin token (using existing admin authentication pattern)"""
-    if not admin_token:
-        raise HTTPException(status_code=401, detail="Admin token required")
+def verify_admin_access(jwt_payload: Dict[str, Any] = Depends(verify_supabase_jwt_token)):
+    """Verify admin access using JWT token"""
+    user_role = jwt_payload.get('role', '')
+    app_metadata = jwt_payload.get('app_metadata', {})
     
-    # For now, using simple token verification
-    # In production, this should validate against the admin_users table
-    settings = get_settings()
-    expected_token = getattr(settings, 'ADMIN_TOKEN', 'admin-token-123')
+    # Check if user has admin role
+    if user_role != 'admin' and app_metadata.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
     
-    if admin_token != expected_token:
-        raise HTTPException(status_code=403, detail="Invalid admin token")
-    
-    return True
+    return jwt_payload
 
 @router.get("/status")
 async def get_observability_status(
-    _: bool = Depends(verify_admin_token)
+    _: Dict[str, Any] = Depends(verify_admin_access)
 ) -> Dict[str, Any]:
     """Get current observability status"""
     try:
@@ -53,7 +50,7 @@ async def get_observability_status(
 
 @router.get("/health")
 async def get_observability_health(
-    _: bool = Depends(verify_admin_token)
+    _: Dict[str, Any] = Depends(verify_admin_access)
 ) -> Dict[str, Any]:
     """Health check for observability platforms"""
     try:
@@ -68,7 +65,7 @@ async def get_observability_health(
 
 @router.post("/initialize")
 async def initialize_observability(
-    _: bool = Depends(verify_admin_token)
+    _: Dict[str, Any] = Depends(verify_admin_access)
 ) -> Dict[str, Any]:
     """Initialize observability platforms"""
     try:
@@ -89,7 +86,7 @@ async def initialize_observability(
 
 @router.post("/reset-metrics")
 async def reset_observability_metrics(
-    _: bool = Depends(verify_admin_token)
+    _: Dict[str, Any] = Depends(verify_admin_access)
 ) -> Dict[str, Any]:
     """Reset observability metrics"""
     try:
@@ -104,7 +101,7 @@ async def reset_observability_metrics(
 
 @router.get("/metrics")
 async def get_detailed_metrics(
-    _: bool = Depends(verify_admin_token)
+    _: Dict[str, Any] = Depends(verify_admin_access)
 ) -> Dict[str, Any]:
     """Get detailed observability metrics"""
     try:
@@ -119,7 +116,7 @@ async def get_detailed_metrics(
 
 @router.get("/dashboard-data")
 async def get_dashboard_data(
-    _: bool = Depends(verify_admin_token)
+    _: Dict[str, Any] = Depends(verify_admin_access)
 ) -> Dict[str, Any]:
     """Get data formatted for admin dashboard"""
     try:
@@ -146,7 +143,7 @@ async def get_dashboard_data(
 
 @router.get("/configuration")
 async def get_observability_configuration(
-    _: bool = Depends(verify_admin_token)
+    _: Dict[str, Any] = Depends(verify_admin_access)
 ) -> Dict[str, Any]:
     """Get observability configuration (without sensitive data)"""
     try:
@@ -184,7 +181,7 @@ async def get_observability_configuration(
 @router.post("/test-connection/{platform}")
 async def test_platform_connection(
     platform: str,
-    _: bool = Depends(verify_admin_token)
+    _: Dict[str, Any] = Depends(verify_admin_access)
 ) -> Dict[str, Any]:
     """Test connection to a specific observability platform"""
     try:
