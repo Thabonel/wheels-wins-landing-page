@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Pie, PieChart } from "recharts";
@@ -11,22 +10,26 @@ import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
 
-function WinsOverview() {
+const WinsOverview = React.memo(() => {
   const { user, token } = useAuth();
   const { summary } = useFinancialSummary();
   const { state: expensesState } = useExpenses();
   const { incomeData, chartData: incomeChartData } = useIncomeData();
   const [pamInsights, setPamInsights] = useState<string[]>([]);
 
+  const handlePamMessage = useCallback((msg: any) => {
+    if (msg.type === 'chat_response') {
+      setPamInsights((prev) => [...prev, msg.message || msg.content]);
+    }
+  }, []);
+
+  const handleStatusChange = useCallback(() => {}, []);
+
   const { isConnected, sendMessage } = usePamWebSocketConnection({
     userId: user?.id || 'anonymous',
     token,
-    onMessage: (msg) => {
-      if (msg.type === 'chat_response') {
-        setPamInsights((prev) => [...prev, msg.message || msg.content]);
-      }
-    },
-    onStatusChange: () => {}
+    onMessage: handlePamMessage,
+    onStatusChange: handleStatusChange
   });
 
   useEffect(() => {
@@ -38,21 +41,16 @@ function WinsOverview() {
         context: { source: 'wins_overview' }
       });
     }
-  }, [user, isConnected]);
+  }, [user, isConnected, pamInsights.length, sendMessage]);
 
-  // Generate monthly data from real income and expense data
   const monthlyData = useMemo(() => {
     const months = new Map<string, { income: number; expenses: number }>();
-    
-    // Process income data
     incomeChartData.forEach(item => {
       if (!months.has(item.name)) {
         months.set(item.name, { income: 0, expenses: 0 });
       }
       months.get(item.name)!.income = item.income;
     });
-    
-    // Process expense data by month
     expensesState.expenses.forEach(expense => {
       const month = new Date(expense.date).toLocaleDateString('en-US', { month: 'short' });
       if (!months.has(month)) {
@@ -60,40 +58,34 @@ function WinsOverview() {
       }
       months.get(month)!.expenses += expense.amount;
     });
-    
     return Array.from(months.entries()).map(([name, data]) => ({
       name,
       income: data.income,
       expenses: data.expenses
     }));
   }, [incomeChartData, expensesState.expenses]);
-  
-  // Generate category data from real expense data or financial summary
+
   const categoryData = useMemo(() => {
     const colors = ['#8B5CF6', '#0EA5E9', '#10B981', '#F59E0B', '#6B7280', '#EF4444', '#F97316', '#84CC16'];
-    
-    if (summary?.expense_categories && summary.expense_categories.length > 0) {
+    if (summary?.expense_categories?.length) {
       return summary.expense_categories.map((cat, index) => ({
         name: cat.category,
         value: cat.amount,
         fill: colors[index % colors.length]
       }));
     }
-    
-    // Fallback: calculate from expenses data
     const categoryTotals = expensesState.expenses.reduce((acc, expense) => {
       acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
       return acc;
     }, {} as Record<string, number>);
-    
     return Object.entries(categoryTotals).map(([name, value], index) => ({
       name,
       value,
       fill: colors[index % colors.length]
     }));
   }, [summary?.expense_categories, expensesState.expenses]);
-  
-  const summaryStats = summary
+
+  const summaryStats = useMemo(() => summary
     ? [
         {
           title: "Total Income",
@@ -133,11 +125,10 @@ function WinsOverview() {
           description: "All time",
           icon: <Calendar className="h-5 w-5 text-blue-500" />
         }
-      ];
-  
+      ], [summary, incomeData, expensesState.expenses]);
+
   return (
     <div className="space-y-6">
-      {/* Big Number Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {summaryStats.map((stat, index) => (
           <Card key={index} className="hover:shadow-md transition-shadow">
@@ -159,7 +150,6 @@ function WinsOverview() {
         ))}
       </div>
 
-      {/* Line Chart: Money In vs Out */}
       <Card>
         <CardHeader>
           <CardTitle>Income vs Expenses</CardTitle>
@@ -167,10 +157,7 @@ function WinsOverview() {
         <CardContent>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={monthlyData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
+              <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="name" />
                 <YAxis />
@@ -184,7 +171,6 @@ function WinsOverview() {
         </CardContent>
       </Card>
 
-      {/* Spending Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -215,16 +201,11 @@ function WinsOverview() {
           </CardContent>
         </Card>
 
-        {/* Pam's Financial Summary */}
         <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-blue-100">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span className="bg-blue-100 p-1 rounded-full">
-                  <img
-                    src={getPublicAssetUrl('Pam.webp')}
-                    alt="Pam"
-                    className="h-6 w-6 rounded-full"
-                  />
+                <img src={getPublicAssetUrl('Pam.webp')} alt="Pam" className="h-6 w-6 rounded-full" />
               </span>
               <span>Pam's Financial Summary</span>
             </CardTitle>
@@ -246,9 +227,11 @@ function WinsOverview() {
       </div>
     </div>
   );
-}
+});
 
-// Custom tooltip for charts
+WinsOverview.displayName = 'WinsOverview';
+export default WinsOverview;
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -262,5 +245,3 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   }
   return null;
 };
-
-export default React.memo(WinsOverview);
