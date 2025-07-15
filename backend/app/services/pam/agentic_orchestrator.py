@@ -262,7 +262,9 @@ class AgenticOrchestrator:
                 if not response_content:
                     response_content = "Hello! I'm PAM, your AI travel companion. How can I help you today?"
                 
-                return {
+                logger.info(f"🎯 Returning simple response: {response_content}")
+                
+                response = {
                     "content": response_content,
                     "actions": [],
                     "confidence": 0.9,
@@ -271,6 +273,9 @@ class AgenticOrchestrator:
                     "emotional_insight": None,
                     "proactive_items": []
                 }
+                
+                logger.info(f"🎯 Complete response dict: {response}")
+                return response
             
             # 1. ANALYZE & UNDERSTAND (for complex requests)
             self.state = AgentState.PLANNING

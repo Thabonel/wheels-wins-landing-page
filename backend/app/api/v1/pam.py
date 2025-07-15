@@ -122,10 +122,15 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             session_id=context.get("session_id"),
             context=context
         )
+        
+        logger.info(f"🎯 PAM response received: {pam_response}")
+        
         actions = pam_response.get("actions", [])
         
         # Determine response message
         response_message = pam_response.get("content") or "I'm processing your request..."
+        
+        logger.info(f"🎯 Final response message: {response_message}")
         for action in actions or []:
             if action.get("type") == "message":
                 response_message = action.get("content", response_message)
