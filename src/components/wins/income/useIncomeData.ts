@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -18,15 +17,6 @@ export function useIncomeData() {
   const [incomeData, setIncomeData] = useState<IncomeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-
-    fetchIncomeData();
-  }, [user, fetchIncomeData]);
 
   const fetchIncomeData = useCallback(async () => {
     if (!user) return;
@@ -61,6 +51,15 @@ export function useIncomeData() {
       setIsLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+
+    fetchIncomeData();
+  }, [user, fetchIncomeData]);
 
   const addIncome = useCallback(async (income: Omit<IncomeEntry, 'id'>) => {
     if (!user) return false;
@@ -130,15 +129,14 @@ export function useIncomeData() {
     }
   }, [user]);
 
-  // Calculate chart data with optimized O(1) lookups
   const chartData = useMemo(() => {
     const monthMap = new Map<string, number>();
-    
+
     incomeData.forEach(entry => {
       const month = new Date(entry.date).toLocaleDateString('en-US', { month: 'short' });
       monthMap.set(month, (monthMap.get(month) || 0) + entry.amount);
     });
-    
+
     return Array.from(monthMap.entries()).map(([name, income]) => ({
       name,
       income
