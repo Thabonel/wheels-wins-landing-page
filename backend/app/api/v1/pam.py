@@ -127,16 +127,19 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         
         actions = pam_response.get("actions", [])
         
-        # Determine response message
-        response_message = pam_response.get("content") or "I'm processing your request..."
+        # Determine response message - prioritize PAM's actual content
+        response_message = pam_response.get("content", "I'm processing your request...")
         
-        logger.info(f"🎯 Final response message: {response_message}")
+        logger.info(f"🎯 Initial response message: {response_message}")
+        
         for action in actions or []:
             if action.get("type") == "message":
                 response_message = action.get("content", response_message)
+                logger.info(f"🎯 Overriding with message action: {response_message}")
                 break
             elif action.get("type") == "error":
                 response_message = f"❌ {action.get('content', 'An error occurred')}"
+                logger.info(f"🎯 Overriding with error action: {response_message}")
                 break
         
         # Send response
