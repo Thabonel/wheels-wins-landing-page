@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -19,16 +18,7 @@ export function useIncomeData() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-
-    fetchIncomeData();
-  }, [user]);
-
-  const fetchIncomeData = async () => {
+  const fetchIncomeData = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -60,9 +50,18 @@ export function useIncomeData() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
-  const addIncome = async (income: Omit<IncomeEntry, 'id'>) => {
+  useEffect(() => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+
+    fetchIncomeData();
+  }, [user, fetchIncomeData]);
+
+  const addIncome = useCallback(async (income: Omit<IncomeEntry, 'id'>) => {
     if (!user) return false;
 
     try {
@@ -102,9 +101,9 @@ export function useIncomeData() {
       toast.error('Failed to add income');
       return false;
     }
-  };
+  }, [user]);
 
-  const deleteIncome = async (id: string) => {
+  const deleteIncome = useCallback(async (id: string) => {
     if (!user) return false;
 
     try {
@@ -128,17 +127,16 @@ export function useIncomeData() {
       toast.error('Failed to delete income');
       return false;
     }
-  };
+  }, [user]);
 
-  // Calculate chart data with optimized Map-based approach
   const chartData = useMemo(() => {
     const monthMap = new Map<string, number>();
-    
+
     incomeData.forEach(entry => {
       const month = new Date(entry.date).toLocaleDateString('en-US', { month: 'short' });
       monthMap.set(month, (monthMap.get(month) || 0) + entry.amount);
     });
-    
+
     return Array.from(monthMap.entries()).map(([name, income]) => ({
       name,
       income

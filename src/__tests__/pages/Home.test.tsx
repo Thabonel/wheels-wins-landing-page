@@ -1,32 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import Home from '../../pages/Home';
-
-// Mock all the complex components
-vi.mock('../../components/Hero', () => ({
-  default: () => <div data-testid="hero">Hero Component</div>
-}));
-
-vi.mock('../../components/Features', () => ({
-  default: () => <div data-testid="features">Features Component</div>
-}));
-
-vi.mock('../../components/HowItWorks', () => ({
-  default: () => <div data-testid="how-it-works">How It Works Component</div>
-}));
-
-vi.mock('../../components/Testimonials', () => ({
-  default: () => <div data-testid="testimonials">Testimonials Component</div>
-}));
-
-vi.mock('../../components/PricingPlans', () => ({
-  default: () => <div data-testid="pricing">Pricing Component</div>
-}));
-
-vi.mock('../../components/CallToAction', () => ({
-  default: () => <div data-testid="cta">Call to Action Component</div>
-}));
 
 const HomeWithRouter = () => (
   <BrowserRouter>
@@ -35,21 +10,25 @@ const HomeWithRouter = () => (
 );
 
 describe('Home Page', () => {
-  it('renders all main sections', () => {
+  it('renders main heading and description', () => {
     render(<HomeWithRouter />);
     
-    expect(screen.getByTestId('hero')).toBeInTheDocument();
-    expect(screen.getByTestId('features')).toBeInTheDocument();
-    expect(screen.getByTestId('how-it-works')).toBeInTheDocument();
-    expect(screen.getByTestId('testimonials')).toBeInTheDocument();
-    expect(screen.getByTestId('pricing')).toBeInTheDocument();
-    expect(screen.getByTestId('cta')).toBeInTheDocument();
+    expect(screen.getByText('Welcome to Wheels & Wins')).toBeInTheDocument();
+    expect(screen.getByText('Your AI-powered travel community platform')).toBeInTheDocument();
+  });
+
+  it('renders all feature cards', () => {
+    render(<HomeWithRouter />);
+    
+    expect(screen.getByText('Plan Your Journey')).toBeInTheDocument();
+    expect(screen.getByText('Track Progress')).toBeInTheDocument();
+    expect(screen.getByText('Connect & Share')).toBeInTheDocument();
   });
 
   it('renders page container', () => {
     render(<HomeWithRouter />);
     
-    const pageContainer = screen.getByTestId('hero').parentElement;
-    expect(pageContainer).toBeInTheDocument();
+    const container = screen.getByText('Welcome to Wheels & Wins').closest('.container');
+    expect(container).toBeInTheDocument();
   });
 });

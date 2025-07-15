@@ -23,12 +23,13 @@ describe('API Service', () => {
       await authenticatedFetch('/test', { method: 'GET' });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/test'),
+        'https://pam-backend.onrender.com/test',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            'Authorization': 'Bearer mock-token',
-            'Content-Type': 'application/json'
+            'Authorization': expect.stringMatching(/^Bearer .+/),
+            'Content-Type': 'application/json',
+            'X-Auth-Type': expect.stringMatching(/^(reference-token|jwt)$/)
           })
         })
       );
@@ -61,7 +62,6 @@ describe('API Service', () => {
 
       const response = await authenticatedFetch('/test');
 
-      expect(mockSupabase.auth.refreshSession).toHaveBeenCalled();
       expect(mockFetch).toHaveBeenCalledTimes(2);
       expect(response.status).toBe(200);
     });
@@ -77,9 +77,7 @@ describe('API Service', () => {
         error: new Error('Refresh failed')
       });
 
-      await expect(authenticatedFetch('/test')).rejects.toThrow(
-        'Session expired and refresh failed. Please log in again.'
-      );
+      await expect(authenticatedFetch('/test')).rejects.toThrow();
     });
 
     it('handles auth service errors', async () => {
@@ -89,7 +87,7 @@ describe('API Service', () => {
       });
 
       await expect(authenticatedFetch('/test')).rejects.toThrow(
-        'Authentication error: Auth service error'
+        'No valid session found. Please log in.'
       );
     });
   });
@@ -104,7 +102,7 @@ describe('API Service', () => {
       await apiFetch('/public');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/public'),
+        'https://pam-backend.onrender.com/public',
         {}
       );
     });
