@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Pie, PieChart } from "recharts";
@@ -11,7 +11,7 @@ import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
 
-export default function WinsOverview() {
+function WinsOverview() {
   const { user, token } = useAuth();
   const { summary } = useFinancialSummary();
   const { state: expensesState } = useExpenses();
@@ -41,7 +41,7 @@ export default function WinsOverview() {
   }, [user, isConnected]);
 
   // Generate monthly data from real income and expense data
-  const monthlyData = React.useMemo(() => {
+  const monthlyData = useMemo(() => {
     const months = new Map<string, { income: number; expenses: number }>();
     
     // Process income data
@@ -69,7 +69,7 @@ export default function WinsOverview() {
   }, [incomeChartData, expensesState.expenses]);
   
   // Generate category data from real expense data or financial summary
-  const categoryData = React.useMemo(() => {
+  const categoryData = useMemo(() => {
     const colors = ['#8B5CF6', '#0EA5E9', '#10B981', '#F59E0B', '#6B7280', '#EF4444', '#F97316', '#84CC16'];
     
     if (summary?.expense_categories && summary.expense_categories.length > 0) {
@@ -262,3 +262,5 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   }
   return null;
 };
+
+export default React.memo(WinsOverview);
