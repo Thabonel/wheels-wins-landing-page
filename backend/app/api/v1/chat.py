@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 
 from app.models.schemas.pam import ChatRequest, ChatResponse
-from app.services.pam.orchestrator import get_orchestrator
+from app.core.simple_pam_service import simple_pam_service
 from app.core.logging import setup_logging, get_logger
 from app.core.database import get_supabase_client
 
@@ -61,12 +61,13 @@ async def chat_with_pam(
                 timestamp=datetime.utcnow()
             )
         
-        # Try to get orchestrator instance with fallback
+        # Use SimplePamService for processing
         try:
-            orchestrator = await get_orchestrator()
+            # Get conversation history if available
+            conversation_history = request.context.get("conversation_history", []) if request.context else []
             
-            # Process the message
-            response = await orchestrator.process_message(
+            # Process the message with SimplePamService
+            response_data = await simple_pam_service.process_message(
                 user_id=user_id,
                 message=request.message,
                 session_id=request.session_id or request.conversation_id,
@@ -75,21 +76,21 @@ async def chat_with_pam(
             
             # Convert to API response format
             return ChatResponse(
-                response=response.content,  # Fixed: use 'response' field instead of 'content'
-                intent=response.intent.value if response.intent else None,
-                confidence=response.confidence,
-                suggestions=response.suggestions,
-                actions=response.actions,
-                requires_followup=response.requires_followup,
-                context_updates=response.context_updates,
-                voice_enabled=response.voice_enabled,
+                response=response_data.get("content", "I'm here to help!"),
+                intent=response_data.get("intent"),
+                confidence=response_data.get("confidence", 0.8),
+                suggestions=response_data.get("suggestions", []),
+                actions=response_data.get("actions", []),
+                requires_followup=response_data.get("requires_followup", False),
+                context_updates=response_data.get("context_updates", {}),
+                voice_enabled=response_data.get("voice_enabled", False),
                 session_id=request.session_id or str(uuid.uuid4()),
                 timestamp=datetime.utcnow()
             )
-        except Exception as orchestrator_error:
-            logger.warning(f"Orchestrator failed, using fallback response: {orchestrator_error}")
+        except Exception as e:
+            logger.error(f"SimplePamService failed: {e}")
             
-            # Fallback response when orchestrator fails
+            # Fallback response when service fails
             fallback_response = generate_fallback_response(request.message)
             return ChatResponse(
                 response=fallback_response,
@@ -114,8 +115,8 @@ async def get_chat_history(
 ):
     """Get conversation history for a user"""
     try:
-        orchestrator = await get_orchestrator()
-        history = await orchestrator.get_conversation_history(user_id, limit)
+        # For now, return empty history - can be implemented later with database
+        history = []
         
         return {
             "user_id": user_id,
@@ -234,12 +235,8 @@ async def end_chat_session(session_id: str, user_id: Optional[str] = None):
         
         result = query.execute()
         
-        # Also clear any temporary session data
-        try:
-            orchestrator = await get_orchestrator()
-            await orchestrator.cleanup_session(session_id)
-        except Exception as cleanup_error:
-            logger.warning(f"⚠️ Session cleanup warning: {cleanup_error}")
+        # Session cleanup can be implemented later if needed
+        logger.info(f"Session {session_id} marked as ended")
         
         logger.info(f"✅ Session {session_id} ended successfully")
         

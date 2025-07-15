@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.core.auth import verify_token
 from app.core.logging import setup_logging, get_logger
-from app.core.orchestrator import orchestrator
+from app.core.simple_pam_service import simple_pam_service
 from app.core.websocket_manager import manager
 import uuid
 import json
@@ -122,16 +122,25 @@ async def websocket_handler(websocket: WebSocket, user_id: str):
                 logger.info(f"💬 Message: '{message}' from user: {user_id}")
 
                 try:
-                    logger.info(f"🧠 Calling orchestrator.plan for user {user_id}")
-                    actions = await orchestrator.plan(message, context)
+                    logger.info(f"🧠 Calling SimplePamService for user {user_id}")
                     
-                    # Extract response message
-                    response_message = next(
-                        (a["content"] for a in actions if a.get("type") == "message"),
-                        "I'm processing your request..."
+                    # Get conversation history if available
+                    conversation_history = context.get("conversation_history", [])
+                    
+                    # Get response from SimplePamService
+                    response_message = await simple_pam_service.get_response(
+                        message=message,
+                        context=context,
+                        conversation_history=conversation_history
                     )
                     
-                    logger.info(f"✅ Orchestrator returned {len(actions)} actions")
+                    # Create actions array for compatibility
+                    actions = [{
+                        "type": "message",
+                        "content": response_message
+                    }]
+                    
+                    logger.info(f"✅ SimplePamService returned response")
                     logger.info(f"📤 Response: {response_message}")
                     
                 except Exception as e:
