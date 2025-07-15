@@ -48,6 +48,58 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // eslint-disable-next-line
   }, [user?.id]);
 
+  // Listen for external PAM control events
+  useEffect(() => {
+    const handleOpenWithMessage = (event: CustomEvent) => {
+      const { message } = event.detail;
+      console.log('🎯 PAM: Opening with message:', message);
+      setIsOpen(true);
+      setInputMessage(message);
+      // Focus input after a brief delay to ensure component is rendered
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    };
+
+    const handleOpen = () => {
+      console.log('🎯 PAM: Opening');
+      setIsOpen(true);
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    };
+
+    const handleSendMessage = (event: CustomEvent) => {
+      const { message } = event.detail;
+      console.log('🎯 PAM: Sending message:', message);
+      if (isOpen) {
+        setInputMessage(message);
+        // Auto-send the message
+        setTimeout(() => {
+          handleSendMessage();
+        }, 100);
+      } else {
+        // Open PAM and send message
+        setIsOpen(true);
+        setInputMessage(message);
+        setTimeout(() => {
+          handleSendMessage();
+        }, 200);
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('pam-open-with-message', handleOpenWithMessage as EventListener);
+    window.addEventListener('pam-open', handleOpen);
+    window.addEventListener('pam-send-message', handleSendMessage as EventListener);
+
+    return () => {
+      window.removeEventListener('pam-open-with-message', handleOpenWithMessage as EventListener);
+      window.removeEventListener('pam-open', handleOpen);
+      window.removeEventListener('pam-send-message', handleSendMessage as EventListener);
+    };
+  }, [isOpen]);
+
   const loadUserContext = async () => {
     try {
       const response = await authenticatedFetch('/api/v1/pam/chat', {

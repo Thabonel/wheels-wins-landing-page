@@ -7,9 +7,11 @@ import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-direct
 interface GeocodeSearchProps {
   directionsControl: React.MutableRefObject<MapboxDirections | undefined>;
   disabled?: boolean;
+  originLocked?: boolean;
+  destinationLocked?: boolean;
 }
 
-export default function GeocodeSearch({ directionsControl, disabled = false }: GeocodeSearchProps) {
+export default function GeocodeSearch({ directionsControl, disabled = false, originLocked = false, destinationLocked = false }: GeocodeSearchProps) {
   const geocoderContainer = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,21 +31,25 @@ export default function GeocodeSearch({ directionsControl, disabled = false }: G
       const coordinates = e.result.geometry.coordinates as [number, number];
       const placeName = e.result.place_name;
       
-      // Add to directions as waypoint or origin/destination
+      // Add to directions as waypoint or origin/destination (respecting lock state)
       if (directionsControl.current) {
         const origin = directionsControl.current.getOrigin();
         const destination = directionsControl.current.getDestination();
         
-        if (!origin) {
-          // Set as origin if no origin exists
+        if (!origin && !originLocked) {
+          // Set as origin if no origin exists and origin is not locked
           directionsControl.current.setOrigin(coordinates);
-        } else if (!destination) {
-          // Set as destination if no destination exists
+        } else if (!destination && !destinationLocked) {
+          // Set as destination if no destination exists and destination is not locked
           directionsControl.current.setDestination(coordinates);
         } else {
           // Add as waypoint between origin and destination
+          // This happens when:
+          // 1. Both origin and destination exist, OR
+          // 2. Origin/destination is locked, OR
+          // 3. User is adding intermediate stops
           const waypoints = directionsControl.current.getWaypoints();
-          const insertIndex = waypoints.length > 0 ? waypoints.length : 0;
+          const insertIndex = waypoints.length;
           directionsControl.current.addWaypoint(insertIndex, coordinates);
         }
       }
@@ -67,7 +73,7 @@ export default function GeocodeSearch({ directionsControl, disabled = false }: G
         geocoderContainer.current.removeChild(geocoderElement);
       }
     };
-  }, [directionsControl, disabled]);
+  }, [directionsControl, disabled, originLocked, destinationLocked]);
 
   return (
     <div className="w-full">
