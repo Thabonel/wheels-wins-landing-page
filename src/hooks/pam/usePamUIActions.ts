@@ -32,6 +32,30 @@ export function usePamUIActions() {
             console.log('💡 PAM alert:', action.content);
             break;
             
+          case 'display_route':
+            // Emit custom event for trip planner to handle
+            window.dispatchEvent(new CustomEvent('pam-display-route', {
+              detail: action.payload
+            }));
+            console.log('🗺️ PAM displaying route:', action.payload);
+            break;
+            
+          case 'add_calendar_event':
+            // Emit custom event for calendar to handle
+            window.dispatchEvent(new CustomEvent('pam-add-calendar-event', {
+              detail: action.payload
+            }));
+            console.log('📅 PAM adding calendar event:', action.payload);
+            break;
+            
+          case 'add_expense':
+            // Emit custom event for expense tracker to handle
+            window.dispatchEvent(new CustomEvent('pam-add-expense', {
+              detail: action.payload
+            }));
+            console.log('💰 PAM adding expense:', action.payload);
+            break;
+            
           default:
             console.log('❓ Unknown PAM action type:', action.type);
         }
