@@ -111,28 +111,45 @@ class ObservabilityConfig:
         if not self.settings.AGENTOPS_API_KEY:
             logger.info("AgentOps API key not configured - set AGENTOPS_API_KEY to enable AgentOps observability")
             return False
-            
+        
+        logger.info("🔍 Attempting AgentOps initialization with OpenAI compatibility check...")
+        
         try:
+            import openai
+            logger.info(f"📋 OpenAI version detected: {openai.__version__}")
+            
+            try:
+                import openai.resources.beta.chat
+                logger.info("✅ OpenAI module structure compatible with AgentOps")
+            except ImportError:
+                logger.warning("⚠️ OpenAI module structure incompatible with current AgentOps version")
+                logger.warning("   AgentOps will be disabled to preserve core OpenAI functionality")
+                self.agentops_initialized = False
+                return False
+            
             # AgentOps API updated - remove environment parameter
             agentops.init(
                 api_key=self.settings.AGENTOPS_API_KEY
             )
             
             self.agentops_initialized = True
-            logger.info("✅ AgentOps observability initialized")
+            logger.info("✅ AgentOps observability initialized successfully")
             return True
             
         except ImportError as e:
             if "openai.resources.beta.chat" in str(e):
-                logger.warning("⚠️ AgentOps-OpenAI compatibility issue detected. AgentOps functionality partially limited but core observability remains active.")
-                # Still consider it initialized for basic tracking
-                self.agentops_initialized = True
-                return True
+                logger.warning("⚠️ AgentOps-OpenAI compatibility issue detected during initialization.")
+                logger.warning("   Disabling AgentOps to preserve core OpenAI functionality for PAM.")
+                logger.warning(f"   Error details: {e}")
+                self.agentops_initialized = False
+                return False
             else:
                 logger.warning(f"Failed to initialize AgentOps observability: {e}")
+                self.agentops_initialized = False
                 return False
         except Exception as e:
             logger.warning(f"Failed to initialize AgentOps observability: {e}")
+            self.agentops_initialized = False
             return False
             
     def initialize_all(self):
@@ -183,9 +200,14 @@ class ObservabilityConfig:
         try:
             if self.langfuse_client:
                 self.langfuse_client.flush()
+                logger.info("✅ Langfuse client flushed")
                 
-            if self.agentops_initialized:
-                agentops.end_session('Success')
+            if self.agentops_initialized and AGENTOPS_AVAILABLE:
+                try:
+                    agentops.end_session('Success')
+                    logger.info("✅ AgentOps session ended")
+                except Exception as agentops_error:
+                    logger.warning(f"⚠️ AgentOps shutdown error (non-critical): {agentops_error}")
                 
             logger.info("🔄 Observability platforms shut down cleanly")
             
