@@ -154,7 +154,7 @@ class AgenticOrchestrator:
         
         # Return in expected format for API compatibility
         return {
-            "content": result.get("response", "I'm processing your request..."),
+            "content": result.get("content", "I'm processing your request..."),
             "actions": result.get("actions", []),
             "confidence": result.get("confidence", 0.8),
             "requires_followup": result.get("requires_followup", False),
