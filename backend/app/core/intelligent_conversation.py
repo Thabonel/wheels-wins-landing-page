@@ -13,7 +13,16 @@ class IntelligentConversationHandler:
     """Handles natural language conversation understanding using OpenAI"""
     
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        try:
+            if not settings.OPENAI_API_KEY:
+                print("⚠️ OpenAI API key not configured - using fallback analysis only")
+                self.client = None
+            else:
+                self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                print("✅ OpenAI client initialized for intelligent conversation")
+        except Exception as e:
+            print(f"❌ Failed to initialize OpenAI client: {e}")
+            self.client = None
         
     async def analyze_conversation(
         self, 
@@ -26,6 +35,10 @@ class IntelligentConversationHandler:
         # Build context for OpenAI
         context_prompt = self._build_context_prompt(current_message, conversation_history, user_profile)
         
+        if not self.client:
+            print("⚠️ OpenAI client not available, using fallback analysis")
+            return self._fallback_analysis(current_message)
+            
         try:
             response = await self.client.chat.completions.create(
                 model="gpt-4",
