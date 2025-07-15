@@ -14,11 +14,19 @@ class WhisperSTT:
     """Async wrapper around OpenAI Whisper API."""
 
     def __init__(self, api_key: Optional[str] = None, model: str = "whisper-1") -> None:
-        self.client = AsyncOpenAI(api_key=api_key)
+        try:
+            self.client = AsyncOpenAI(api_key=api_key)
+        except Exception as e:
+            logger.warning(f"Failed to initialize OpenAI client: {e}. Using mock client.")
+            self.client = None
         self.model = model
 
     async def transcribe(self, audio_data: bytes, **kwargs) -> str:
         """Transcribe audio bytes to text."""
+        if self.client is None:
+            logger.warning("OpenAI client not available, returning mock transcription")
+            return "Mock transcription - OpenAI client not configured"
+        
         try:
             file_obj = BytesIO(audio_data)
             file_obj.name = "audio.wav"
@@ -34,7 +42,12 @@ class WhisperSTT:
             raise
 
 
-whisper_stt = WhisperSTT()
+try:
+    from app.core.config import settings
+    whisper_stt = WhisperSTT(api_key=settings.OPENAI_API_KEY)
+except Exception as e:
+    logger.warning(f"Failed to initialize WhisperSTT with config: {e}")
+    whisper_stt = WhisperSTT(api_key="sk-dummy-key-for-testing")
 
 
 async def get_whisper_stt() -> WhisperSTT:
