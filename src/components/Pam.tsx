@@ -194,7 +194,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           
           // Handle chat responses
           if (message.type === 'chat_response') {
-            const content = message.message || message.content;
+            const content = message.content || message.message || message.response;
             addMessage(content, "pam");
             // Note: PAM backend automatically saves all conversation history
             
@@ -388,7 +388,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       if (response.ok) {
         const data = await response.json();
-        const pamResponse = data.response || data.message || "I'm sorry, I couldn't process that request.";
+        const pamResponse = data.response || data.message || data.content || "I'm sorry, I couldn't process that request.";
         addMessage(pamResponse, "pam");
         // Note: PAM backend automatically saves all conversation history
         
