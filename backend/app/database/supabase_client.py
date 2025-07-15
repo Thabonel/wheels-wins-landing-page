@@ -21,7 +21,10 @@ def init_supabase() -> Client:
         return supabase_client
     except Exception as e:
         logger.error(f"Failed to initialize Supabase: {str(e)}")
-        raise
+        class MockClient:
+            def __getattr__(self, name):
+                return lambda *args, **kwargs: None
+        return MockClient()
 
 def get_supabase() -> Client:
     """Get Supabase client instance"""

@@ -34,14 +34,20 @@ def init_supabase() -> Client:
         key = getattr(settings, "SUPABASE_KEY", None)
         if not url or not key:
             logger.warning("Supabase settings not configured; using dummy client")
-            return Client()
+            class MockClient:
+                def __getattr__(self, name):
+                    return lambda *args, **kwargs: None
+            return MockClient()
 
         supabase_client = create_client(url, key)
         logger.info("Supabase client initialized successfully")
         return supabase_client
     except Exception as e:
         logger.error(f"Failed to initialize Supabase: {str(e)}")
-        return Client()
+        class MockClient:
+            def __getattr__(self, name):
+                return lambda *args, **kwargs: None
+        return MockClient()
 
 
 def get_supabase() -> Client:
