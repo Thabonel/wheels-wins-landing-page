@@ -15,6 +15,7 @@ import { useIntegratedTripState } from "./hooks/useIntegratedTripState";
 import { useTripPlannerHandlers } from "./hooks/useTripPlannerHandlers";
 import { PAMProvider } from "./PAMContext";
 import { useToast } from "@/hooks/use-toast";
+import { usePamControl } from "@/hooks/usePamControl";
 
 interface IntegratedTripPlannerProps {
   isOffline?: boolean;
@@ -22,6 +23,7 @@ interface IntegratedTripPlannerProps {
 
 export default function IntegratedTripPlanner({ isOffline = false }: IntegratedTripPlannerProps) {
   const { toast } = useToast();
+  const { openPamWithMessage } = usePamControl();
   const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
@@ -67,13 +69,21 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
     try {
       if (integratedState.route.originName && integratedState.route.destName) {
         const budget = integratedState.budget?.totalBudget || 0;
-        const message = `Optimize my trip from ${integratedState.route.originName} to ${integratedState.route.destName}. Budget: ${budget}. Consider social meetups and scenic routes.`;
-        await integratedState.sendPAMRequest(message);
+        const waypointsText = integratedState.route.waypoints.length > 0 
+          ? ` via ${integratedState.route.waypoints.map(w => w.name).join(', ')}`
+          : '';
+        
+        const message = `Plan my trip from ${integratedState.route.originName} to ${integratedState.route.destName}${waypointsText}. Budget: $${budget}. Travel mode: ${integratedState.travelMode}. Please suggest optimal stops, routes, and recommendations.`;
+        
+        // Open PAM chat with the trip details
+        openPamWithMessage(message);
+        
+        // Generate local itinerary as well
         await generateItinerary();
 
         toast({
-          title: "Trip Optimization Started",
-          description: "PAM is analyzing your route for the best recommendations.",
+          title: "Trip sent to PAM",
+          description: "PAM chat opened with your trip details. Check PAM for personalized recommendations!",
         });
       }
     } catch (error) {

@@ -8,6 +8,7 @@ import { useUserUnits } from "./hooks/useUserUnits";
 import { MapOptionsControl } from "./MapOptionsControl";
 import POILayer from "./POILayer";
 import MundiLayer from "./MundiLayer";
+import { toast } from "@/hooks/use-toast";
 
 interface MapControlsProps {
   region: string;
@@ -69,6 +70,7 @@ export default function MapControls({
   });
   const [mundiLayerVisible, setMundiLayerVisible] = useState(true);
   const optionsControlRef = useRef<MapOptionsControl>();
+  const isProgrammaticUpdate = useRef(false);
 
   // Initialize map and directions
   useEffect(() => {
@@ -160,7 +162,8 @@ export default function MapControls({
 
           // Set up event listeners for origin/destination changes
           dir.on("origin", (e) => {
-            if (isOffline || originLocked) return;
+            // Skip if this is a programmatic update or if origin is locked
+            if (isOffline || originLocked || isProgrammaticUpdate.current) return;
             if (e.feature && e.feature.place_name) {
               setOriginName(e.feature.place_name);
               lockOrigin();
@@ -168,7 +171,8 @@ export default function MapControls({
           });
 
           dir.on("destination", (e) => {
-            if (isOffline || destinationLocked) return;
+            // Skip if this is a programmatic update or if destination is locked
+            if (isOffline || destinationLocked || isProgrammaticUpdate.current) return;
             if (e.feature && e.feature.place_name) {
               setDestName(e.feature.place_name);
               lockDestination();
@@ -269,10 +273,33 @@ export default function MapControls({
       // Insert waypoint between origin and destination (never replace them)
       if (directionsControl.current && typeof directionsControl.current.addWaypoint === 'function') {
         try {
-          // Always insert before the last waypoint (destination)
+          // Get current route state
+          const origin = directionsControl.current.getOrigin();
+          const destination = directionsControl.current.getDestination();
           const currentWaypoints = directionsControl.current.getWaypoints();
-          const insertIndex = currentWaypoints.length;
-          directionsControl.current.addWaypoint(insertIndex, coords);
+          
+          // Only add waypoint if we have both origin and destination
+          if (origin && destination) {
+            // Set flag to prevent event handlers from firing during programmatic update
+            isProgrammaticUpdate.current = true;
+            
+            // Insert at the end of current waypoints (between origin and destination)
+            const insertIndex = currentWaypoints.length;
+            directionsControl.current.addWaypoint(insertIndex, coords);
+            
+            // Reset flag after a brief delay
+            setTimeout(() => {
+              isProgrammaticUpdate.current = false;
+            }, 100);
+          } else {
+            // Show user feedback when trying to add waypoint without A/B points
+            console.log('Cannot add waypoint: Origin or destination not set. Please set both A and B points first.');
+            toast({
+              title: "Cannot add waypoint",
+              description: "Please set both origin (A) and destination (B) points before adding waypoints.",
+              variant: "destructive",
+            });
+          }
         } catch (error) {
           console.warn('Error adding waypoint:', error);
         }
