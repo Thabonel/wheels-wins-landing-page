@@ -107,50 +107,46 @@ async def websocket_endpoint(
             pass
 
 async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, orchestrator):
-    """Handle chat messages over WebSocket"""
+    """Handle chat messages over WebSocket using SimplePamService"""
     try:
         message = data.get("content", "")
         context = data.get("context", {})
         context["user_id"] = user_id
+        context["connection_type"] = "websocket"
         
         logger.info(f"Processing chat message: '{message}' for user: {user_id}")
         
-        # Process through orchestrator using real service
-        pam_response = await orchestrator.process_message(
-            user_id,
-            message,
-            session_id=context.get("session_id"),
-            context=context
+        # Use SimplePamService instead of orchestrator
+        from app.core.simple_pam_service import simple_pam_service
+        
+        # Get conversation history if available
+        conversation_history = context.get("conversation_history", [])
+        
+        # Process through SimplePamService
+        response_message = await simple_pam_service.get_response(
+            message=message,
+            context=context,
+            conversation_history=conversation_history
         )
         
-        logger.info(f"🎯 PAM response received: {pam_response}")
+        logger.info(f"🎯 SimplePamService response received: {response_message}")
         
-        actions = pam_response.get("actions", [])
-        
-        # Determine response message - prioritize PAM's actual content
-        response_message = pam_response.get("content", "I'm processing your request...")
-        
-        logger.info(f"🎯 Initial response message: {response_message}")
-        
-        for action in actions or []:
-            if action.get("type") == "message":
-                response_message = action.get("content", response_message)
-                logger.info(f"🎯 Overriding with message action: {response_message}")
-                break
-            elif action.get("type") == "error":
-                response_message = f"❌ {action.get('content', 'An error occurred')}"
-                logger.info(f"🎯 Overriding with error action: {response_message}")
-                break
+        # Create actions array for compatibility
+        actions = [{
+            "type": "message",
+            "content": response_message
+        }]
         
         # Send response
         await websocket.send_json({
             "type": "chat_response",
             "message": response_message,
+            "content": response_message,  # Add content field for frontend compatibility
             "actions": actions,
             "timestamp": datetime.utcnow().isoformat()
         })
         
-        # Send UI actions if any
+        # Send UI actions if any (currently none from SimplePamService)
         ui_actions = [a for a in actions if a.get("type") in ["navigate", "fill_form", "click", "alert"]]
         if ui_actions:
             await websocket.send_json({
@@ -280,8 +276,14 @@ async def chat_endpoint(
         
         logger.info(f"Processing chat request for user {user_id}")
         
-        # Process through orchestrator using real service
-        pam_response = await orchestrator.process_message(
+        # Process through SimplePamService instead of orchestrator
+        from app.core.simple_pam_service import simple_pam_service
+        
+        # Get conversation history if available
+        conversation_history = context.get("conversation_history", [])
+        
+        # Process through SimplePamService
+        pam_response = await simple_pam_service.process_message(
             str(user_id),
             request.message,
             session_id=request.conversation_id,
@@ -294,7 +296,7 @@ async def chat_endpoint(
         processing_time_seconds = processing_time / 1000.0
 
         # Determine response message
-        response_text = pam_response.get("content") or "I'm processing your request..."
+        response_text = pam_response.get("content") or "I'm here to help!"
         has_error = False
         for action in actions or []:
             if action.get("type") == "error":
@@ -345,11 +347,19 @@ async def chat_endpoint(
             }
         )
         
-        # Return a proper error response instead of crashing
+        # Use SimplePamService fallback for error handling
+        from app.core.simple_pam_service import simple_pam_service
+        
+        # Get a helpful error response from SimplePamService
+        fallback_response = simple_pam_service._get_error_response(
+            request.message if hasattr(request, 'message') else "help",
+            str(e)
+        )
+        
         session_id = request.conversation_id or request.session_id or str(uuid.uuid4())
         
         return ChatResponse(
-            response=f"I'm having trouble processing your request right now. Error: {str(e)}",
+            response=fallback_response,
             actions=[{"type": "error", "content": str(e)}],
             conversation_id=session_id,
             session_id=session_id,
