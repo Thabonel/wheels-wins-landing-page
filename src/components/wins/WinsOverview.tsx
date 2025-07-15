@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -44,19 +43,14 @@ const WinsOverview = React.memo(() => {
     }
   }, [user, isConnected, pamInsights.length, sendMessage]);
 
-  // Generate monthly data from real income and expense data
-  const monthlyData = React.useMemo(() => {
+  const monthlyData = useMemo(() => {
     const months = new Map<string, { income: number; expenses: number }>();
-    
-    // Process income data
     incomeChartData.forEach(item => {
       if (!months.has(item.name)) {
         months.set(item.name, { income: 0, expenses: 0 });
       }
       months.get(item.name)!.income = item.income;
     });
-    
-    // Process expense data by month
     expensesState.expenses.forEach(expense => {
       const month = new Date(expense.date).toLocaleDateString('en-US', { month: 'short' });
       if (!months.has(month)) {
@@ -64,39 +58,33 @@ const WinsOverview = React.memo(() => {
       }
       months.get(month)!.expenses += expense.amount;
     });
-    
     return Array.from(months.entries()).map(([name, data]) => ({
       name,
       income: data.income,
       expenses: data.expenses
     }));
   }, [incomeChartData, expensesState.expenses]);
-  
-  // Generate category data from real expense data or financial summary
+
   const categoryData = useMemo(() => {
     const colors = ['#8B5CF6', '#0EA5E9', '#10B981', '#F59E0B', '#6B7280', '#EF4444', '#F97316', '#84CC16'];
-    
-    if (summary?.expense_categories && summary.expense_categories.length > 0) {
+    if (summary?.expense_categories?.length) {
       return summary.expense_categories.map((cat, index) => ({
         name: cat.category,
         value: cat.amount,
         fill: colors[index % colors.length]
       }));
     }
-    
-    // Fallback: calculate from expenses data
     const categoryTotals = expensesState.expenses.reduce((acc, expense) => {
       acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
       return acc;
     }, {} as Record<string, number>);
-    
     return Object.entries(categoryTotals).map(([name, value], index) => ({
       name,
       value,
       fill: colors[index % colors.length]
     }));
   }, [summary?.expense_categories, expensesState.expenses]);
-  
+
   const summaryStats = useMemo(() => summary
     ? [
         {
@@ -138,10 +126,9 @@ const WinsOverview = React.memo(() => {
           icon: <Calendar className="h-5 w-5 text-blue-500" />
         }
       ], [summary, incomeData, expensesState.expenses]);
-  
+
   return (
     <div className="space-y-6">
-      {/* Big Number Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {summaryStats.map((stat, index) => (
           <Card key={index} className="hover:shadow-md transition-shadow">
@@ -163,7 +150,6 @@ const WinsOverview = React.memo(() => {
         ))}
       </div>
 
-      {/* Line Chart: Money In vs Out */}
       <Card>
         <CardHeader>
           <CardTitle>Income vs Expenses</CardTitle>
@@ -171,10 +157,7 @@ const WinsOverview = React.memo(() => {
         <CardContent>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={monthlyData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
+              <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="name" />
                 <YAxis />
@@ -188,7 +171,6 @@ const WinsOverview = React.memo(() => {
         </CardContent>
       </Card>
 
-      {/* Spending Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -219,16 +201,11 @@ const WinsOverview = React.memo(() => {
           </CardContent>
         </Card>
 
-        {/* Pam's Financial Summary */}
         <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-blue-100">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span className="bg-blue-100 p-1 rounded-full">
-                  <img
-                    src={getPublicAssetUrl('Pam.webp')}
-                    alt="Pam"
-                    className="h-6 w-6 rounded-full"
-                  />
+                <img src={getPublicAssetUrl('Pam.webp')} alt="Pam" className="h-6 w-6 rounded-full" />
               </span>
               <span>Pam's Financial Summary</span>
             </CardTitle>
@@ -253,10 +230,8 @@ const WinsOverview = React.memo(() => {
 });
 
 WinsOverview.displayName = 'WinsOverview';
-
 export default WinsOverview;
 
-// Custom tooltip for charts
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (

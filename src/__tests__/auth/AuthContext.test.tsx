@@ -81,9 +81,16 @@ describe('AuthContext', () => {
   });
 
   it('throws error when useAuth is used outside AuthProvider', () => {
-    expect(() => {
+    let error: Error | null = null;
+    
+    try {
       renderHook(() => useAuth());
-    }).toThrow('useAuth must be used within an AuthProvider');
+    } catch (e) {
+      error = e as Error;
+    }
+    
+    expect(error).toBeTruthy();
+    expect(error?.message).toBe('useAuth must be used within an AuthProvider');
   });
 
   it('handles auth state changes', async () => {
