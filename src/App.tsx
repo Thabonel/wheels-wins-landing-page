@@ -27,6 +27,7 @@ import PasswordResetRequest from "@/pages/PasswordResetRequest";
 import UpdatePassword from "@/pages/UpdatePassword";
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtection from './components/admin/AdminProtection';
+import { PamIntegrationProvider } from './components/pam/PamIntegrationProvider';
 
 const queryClient = new QueryClient();
 
@@ -40,8 +41,9 @@ function App() {
               <OfflineProvider>
                 <ExpensesProvider>
                   <WheelsProvider>
-                    <ScrollToTop />
-                    <Layout>
+                    <PamIntegrationProvider>
+                      <ScrollToTop />
+                      <Layout>
                       <Routes>
                         <Route path="/" element={<Index />} />
                         <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
@@ -64,7 +66,8 @@ function App() {
                         <Route path="/cookies" element={<div className="container p-8"><h1 className="text-2xl font-bold mb-4">Cookie Policy</h1><p>Cookie policy content will be added here.</p></div>} />
                         <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                       </Routes>
-                    </Layout>
+                      </Layout>
+                    </PamIntegrationProvider>
                   </WheelsProvider>
                 </ExpensesProvider>
               </OfflineProvider>

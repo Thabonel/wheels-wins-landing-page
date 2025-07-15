@@ -173,25 +173,34 @@ User context: {context}""".format(
         # Get the response
         response_content = await self.get_response(message, full_context)
         
+        # Detect intent and generate UI actions
+        intent = self._detect_simple_intent(message)
+        ui_actions = self._generate_ui_actions(message, intent, response_content)
+        
         # Return in the expected format
         return {
             "content": response_content,
-            "intent": self._detect_simple_intent(message),
+            "intent": intent,
             "confidence": 0.8,
             "suggestions": self._get_suggestions(message),
-            "actions": [],
+            "actions": ui_actions,
             "requires_followup": "?" in response_content,
             "context_updates": {},
             "voice_enabled": False
         }
     
     def _detect_simple_intent(self, message: str) -> str:
-        """Simple intent detection for compatibility"""
+        """Enhanced intent detection with UI action support"""
         message_lower = message.lower()
         
-        if any(word in message_lower for word in ["trip", "travel", "route", "camping"]):
+        # Trip planning keywords
+        if any(word in message_lower for word in ["trip", "travel", "route", "camping", "plan a trip", "from", "to"]):
             return "wheels"
-        elif any(word in message_lower for word in ["budget", "expense", "money", "cost"]):
+        # Calendar/scheduling keywords  
+        elif any(word in message_lower for word in ["appointment", "meeting", "schedule", "calendar", "remind", "book"]):
+            return "calendar"
+        # Budget/financial keywords
+        elif any(word in message_lower for word in ["budget", "expense", "money", "cost", "spent", "track"]):
             return "wins"
         elif any(word in message_lower for word in ["group", "meet", "social", "community"]):
             return "social"
@@ -221,6 +230,198 @@ User context: {context}""".format(
             ]
         
         return suggestions[:3]  # Return max 3 suggestions
+    
+    def _generate_ui_actions(self, message: str, intent: str, response_content: str) -> List[Dict[str, Any]]:
+        """Generate UI actions based on message intent and content"""
+        actions = []
+        message_lower = message.lower()
+        
+        # Trip planning actions
+        if intent == "wheels" and any(word in message_lower for word in ["plan", "trip", "from", "to", "route"]):
+            # Extract locations if possible (simple regex)
+            import re
+            
+            # Look for "from X to Y" pattern
+            from_to_pattern = r'from\s+([^,]+?)\s+to\s+([^,\.!?]+)'
+            match = re.search(from_to_pattern, message_lower)
+            
+            if match:
+                origin = match.group(1).strip().title()
+                destination = match.group(2).strip().title()
+                
+                actions.extend([
+                    {
+                        "type": "navigate",
+                        "target": "/wheels",
+                        "params": {"view": "trip-planner"}
+                    },
+                    {
+                        "type": "display_route",
+                        "payload": {
+                            "origin": {"name": origin},
+                            "destination": {"name": destination},
+                            "message": f"Route from {origin} to {destination}"
+                        }
+                    }
+                ])
+            else:
+                # Just navigate to trip planner
+                actions.append({
+                    "type": "navigate", 
+                    "target": "/wheels",
+                    "params": {"view": "trip-planner"}
+                })
+        
+        # Calendar/appointment actions
+        elif intent == "calendar" and any(word in message_lower for word in ["appointment", "meeting", "schedule"]):
+            # Try to extract date/time info
+            event_data = self._extract_calendar_event(message)
+            
+            if event_data:
+                actions.extend([
+                    {
+                        "type": "navigate",
+                        "target": "/you",
+                        "params": {"view": "calendar"}
+                    },
+                    {
+                        "type": "add_calendar_event",
+                        "payload": event_data
+                    }
+                ])
+            else:
+                actions.append({
+                    "type": "navigate",
+                    "target": "/you", 
+                    "params": {"view": "calendar"}
+                })
+        
+        # Budget/expense actions
+        elif intent == "wins" and any(word in message_lower for word in ["spent", "expense", "cost"]):
+            # Try to extract expense amount
+            expense_data = self._extract_expense_data(message)
+            
+            if expense_data:
+                actions.extend([
+                    {
+                        "type": "navigate",
+                        "target": "/wins",
+                        "params": {"view": "expenses"}
+                    },
+                    {
+                        "type": "add_expense",
+                        "payload": expense_data
+                    }
+                ])
+            else:
+                actions.append({
+                    "type": "navigate",
+                    "target": "/wins"
+                })
+        
+        return actions
+    
+    def _extract_calendar_event(self, message: str) -> Optional[Dict[str, Any]]:
+        """Extract calendar event details from message"""
+        import re
+        from datetime import datetime, timedelta
+        
+        message_lower = message.lower()
+        
+        # Simple event extraction
+        event_data = {}
+        
+        # Extract event title (basic heuristic)
+        title_patterns = [
+            r'(?:schedule|book|add)\s+(?:a\s+)?(.+?)(?:\s+for|\s+at|\s+on|\s+tomorrow|\s+today|$)',
+            r'(?:meeting|appointment)\s+(?:with\s+)?(.+?)(?:\s+at|\s+on|\s+tomorrow|\s+today|$)'
+        ]
+        
+        for pattern in title_patterns:
+            match = re.search(pattern, message_lower)
+            if match:
+                event_data['title'] = match.group(1).strip().title()
+                break
+        
+        if not event_data.get('title'):
+            event_data['title'] = "Appointment"
+        
+        # Extract time (basic patterns)
+        time_patterns = [
+            r'at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?',
+            r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)',
+        ]
+        
+        for pattern in time_patterns:
+            match = re.search(pattern, message_lower)
+            if match:
+                hour = int(match.group(1))
+                minute = int(match.group(2)) if match.group(2) else 0
+                ampm = match.group(3)
+                
+                if ampm == 'pm' and hour != 12:
+                    hour += 12
+                elif ampm == 'am' and hour == 12:
+                    hour = 0
+                
+                event_data['time'] = f"{hour:02d}:{minute:02d}"
+                break
+        
+        # Extract date (basic patterns)
+        if 'tomorrow' in message_lower:
+            event_data['date'] = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif 'today' in message_lower:
+            event_data['date'] = datetime.now().strftime('%Y-%m-%d')
+        else:
+            # Default to tomorrow
+            event_data['date'] = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        return event_data if event_data.get('title') else None
+    
+    def _extract_expense_data(self, message: str) -> Optional[Dict[str, Any]]:
+        """Extract expense details from message"""
+        import re
+        
+        # Extract amount
+        amount_patterns = [
+            r'\$(\d+(?:\.\d{2})?)',
+            r'(\d+)\s*dollars?',
+            r'(\d+(?:\.\d{2})?)\s*\$'
+        ]
+        
+        amount = None
+        for pattern in amount_patterns:
+            match = re.search(pattern, message)
+            if match:
+                amount = float(match.group(1))
+                break
+        
+        if not amount:
+            return None
+        
+        # Extract category (basic heuristic)
+        category_keywords = {
+            'fuel': ['fuel', 'gas', 'petrol', 'diesel'],
+            'food': ['food', 'restaurant', 'grocery', 'meal', 'lunch', 'dinner'],
+            'accommodation': ['hotel', 'motel', 'camping', 'campsite', 'accommodation'],
+            'maintenance': ['repair', 'service', 'maintenance', 'mechanic'],
+            'entertainment': ['movie', 'show', 'attraction', 'park', 'entertainment']
+        }
+        
+        category = 'general'
+        message_lower = message.lower()
+        
+        for cat, keywords in category_keywords.items():
+            if any(keyword in message_lower for keyword in keywords):
+                category = cat
+                break
+        
+        return {
+            'amount': amount,
+            'category': category,
+            'description': f"Expense: ${amount:.2f} for {category}",
+            'date': datetime.now().strftime('%Y-%m-%d')
+        }
 
 
 # Create a singleton instance

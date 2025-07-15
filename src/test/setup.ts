@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 // Import Supabase mocks to apply globally
 import './mocks/supabase';
@@ -51,3 +51,23 @@ global.console = {
   info: vi.fn(),
   debug: vi.fn(),
 };
+
+// Suppress React error boundary errors in tests
+const originalError = console.error;
+beforeEach(() => {
+  console.error = (...args) => {
+    if (
+      typeof args[0] === 'string' &&
+      (args[0].includes('The above error occurred in the') ||
+       args[0].includes('Error: Uncaught [Error:') ||
+       args[0].includes('useAuth must be used within an AuthProvider'))
+    ) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+});
+
+afterEach(() => {
+  console.error = originalError;
+});

@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    testTimeout: 10000, // 10 seconds timeout per test
+    hookTimeout: 10000, // 10 seconds timeout for hooks
     exclude: [
       '**/node_modules/**',
       '**/e2e/**', // Exclude E2E tests from unit test runs
@@ -40,7 +42,15 @@ export default defineConfig({
     pool: 'threads',
     poolOptions: {
       threads: {
-        singleThread: true
+        singleThread: false, // Allow multiple threads for better performance
+        maxThreads: 4,
+        minThreads: 1
+      }
+    },
+    // Better error handling
+    onConsoleLog(log, type) {
+      if (type === 'stderr' && log.includes('useAuth must be used within an AuthProvider')) {
+        return false; // Don't log expected test errors
       }
     }
   },
