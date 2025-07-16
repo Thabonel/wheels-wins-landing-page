@@ -91,10 +91,15 @@ tiktoken>=0.8.0
 # Image processing for screenshot analysis - Python 3.13 compatible
 Pillow>=10.4.0
 
-# Missing dependencies causing deployment warnings
+# Missing dependencies causing deployment warnings - made optional for Python 3.13 compatibility
 APScheduler>=3.10.4
-chromadb>=0.5.0
-TTS>=0.22.0
 
 # Text processing for enhanced context engineering
 langchain-text-splitters>=0.3.0
+
+# Heavy dependencies that may cause deployment issues on Python 3.13 - commented out for now
+# chromadb>=0.5.0  # Vector database - can be enabled when Python 3.13 support improves
+# TTS>=0.22.0      # Text-to-speech - incompatible with Python 3.13, using edge-tts instead
+
+# Lightweight alternatives for core functionality
+# edge-tts==6.1.9 already included above for basic TTS
