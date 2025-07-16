@@ -1,6 +1,7 @@
 import RouteInputs from "./RouteInputs";
 import TravelModeButtons from "./TravelModeButtons";
 import TripControls from "./TripControls";
+import GeocodeSearch from "./GeocodeSearch";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import mapboxgl from "mapbox-gl";
 interface TripPlannerControlsProps {
@@ -62,6 +63,21 @@ export default function TripPlannerControls({
         {/* Route Inputs */}
         <div className="lg:col-span-2 space-y-6">
           <RouteInputs directionsControl={directionsControl} originName={originName} destName={destName} setOriginName={setOriginName} setDestName={setDestName} originLocked={originLocked} destinationLocked={destinationLocked} lockOrigin={lockOrigin} lockDestination={lockDestination} />
+
+          {/* Waypoint Search - show when both A and B are set */}
+          {originName && destName && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Add Waypoint (between A and B)
+              </label>
+              <GeocodeSearch 
+                directionsControl={directionsControl}
+                disabled={isOffline}
+                originLocked={originLocked}
+                destinationLocked={destinationLocked}
+              />
+            </div>
+          )}
 
           {/* Travel Mode Selection */}
           <TravelModeButtons activeMode={travelMode} onModeChange={setTravelMode} exclude={exclude} onExcludeChange={setExclude} annotations={annotations} onAnnotationsChange={setAnnotations} vehicle={vehicle} onVehicleChange={setVehicle} />
