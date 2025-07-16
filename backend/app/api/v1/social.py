@@ -14,6 +14,11 @@ from app.models.schemas.social import (
 )
 from app.services.database import get_database_service
 from app.core.logging import setup_logging, get_logger
+from app.core.unified_auth import (
+    get_current_user_unified, 
+    get_current_user_optional,
+    UnifiedUser
+)
 
 router = APIRouter()
 setup_logging()
@@ -23,54 +28,48 @@ logger = get_logger(__name__)
 async def search_groups(
     location: Optional[str] = None,
     group_type: Optional[str] = None,
-    limit: int = 20
+    limit: int = 20,
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Search for RV groups and communities"""
     try:
-        db_service = get_database_service()
+        # Use the user's appropriate Supabase client (admin if admin, regular if user)
+        client = current_user.get_supabase_client()
+        logger.info(f"Searching groups for user {current_user.user_id} (admin: {current_user.is_admin})")
         
-        where_conditions = []
-        params = []
-        param_count = 0
+        # Build Supabase query
+        query = client.table("social_groups").select("*")
         
         if location:
-            param_count += 1
-            where_conditions.append(f"location ILIKE ${param_count}")
-            params.append(f"%{location}%")
+            query = query.ilike("location", f"%{location}%")
         
         if group_type:
-            param_count += 1
-            where_conditions.append(f"group_type = ${param_count}")
-            params.append(group_type)
+            query = query.eq("category", group_type)
         
-        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+        # Execute query with proper authentication context
+        result = query.order("member_count", desc=True).limit(limit).execute()
         
-        query = f"""
-            SELECT group_name, group_type, location, member_count, description,
-                   activity_level, admin_contact, group_url
-            FROM facebook_groups 
-            {where_clause}
-            ORDER BY member_count DESC NULLS LAST
-            LIMIT {limit}
-        """
+        if result.error:
+            logger.error(f"Database error: {result.error}")
+            raise HTTPException(status_code=500, detail="Database query failed")
         
-        groups = await db_service.execute_query(query, *params)
+        groups = result.data or []
         
         return {
             "groups": [
-                GroupResponse(
-                    id=f"group_{i}",
-                    name=group['group_name'],
-                    group_type=group['group_type'],
-                    location=group['location'],
-                    member_count=group['member_count'] or 0,
-                    description=group['description'],
-                    activity_level=group['activity_level'],
-                    admin_contact=group['admin_contact'],
-                    group_url=group['group_url'],
-                    created_at=datetime.utcnow()
-                )
-                for i, group in enumerate(groups)
+                {
+                    "id": group.get('id'),
+                    "name": group.get('name', ''),
+                    "group_type": group.get('category', ''),
+                    "location": group.get('location', ''),
+                    "member_count": group.get('member_count', 0),
+                    "description": group.get('description', ''),
+                    "activity_level": "active",  # Default value
+                    "admin_contact": "",  # Would need to be added to schema
+                    "group_url": "",  # Would need to be added to schema
+                    "created_at": group.get('created_at', datetime.utcnow().isoformat())
+                }
+                for group in groups
             ],
             "total_groups": len(groups),
             "filters": {
