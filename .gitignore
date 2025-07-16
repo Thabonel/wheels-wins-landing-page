@@ -52,3 +52,18 @@ node_modules/
 .env.development
 .env.example
 .env.production
+
+# Temporary build files and artifacts
+*.timestamp-*
+vite.config.ts.timestamp-*.mjs
+*.temp
+*.tmp
+
+# Build artifacts
+build/
+coverage/
+playwright-report/
+test-results/
+
+# CodeQL analysis
+.codeql-database/
