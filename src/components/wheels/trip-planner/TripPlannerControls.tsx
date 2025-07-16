@@ -30,6 +30,11 @@ interface TripPlannerControlsProps {
   lockOrigin?: () => void;
   lockDestination?: () => void;
   tripId?: string | null;
+  // New routing props
+  routeType?: string;
+  setRouteType?: (routeType: string) => void;
+  manualMode?: boolean;
+  setManualMode?: (enabled: boolean) => void;
 }
 export default function TripPlannerControls({
   directionsControl,
@@ -56,7 +61,11 @@ export default function TripPlannerControls({
   destinationLocked = false,
   lockOrigin,
   lockDestination,
-  tripId
+  tripId,
+  routeType = "fastest",
+  setRouteType = () => {},
+  manualMode = false,
+  setManualMode = () => {}
 }: TripPlannerControlsProps) {
   return <div className="bg-white rounded-lg border p-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -80,7 +89,20 @@ export default function TripPlannerControls({
           )}
 
           {/* Travel Mode Selection */}
-          <TravelModeButtons activeMode={travelMode} onModeChange={setTravelMode} exclude={exclude} onExcludeChange={setExclude} annotations={annotations} onAnnotationsChange={setAnnotations} vehicle={vehicle} onVehicleChange={setVehicle} />
+          <TravelModeButtons 
+            activeMode={travelMode} 
+            onModeChange={setTravelMode} 
+            exclude={exclude} 
+            onExcludeChange={setExclude} 
+            annotations={annotations} 
+            onAnnotationsChange={setAnnotations} 
+            vehicle={vehicle} 
+            onVehicleChange={setVehicle} 
+            routeType={routeType}
+            onRouteTypeChange={setRouteType}
+            manualMode={manualMode}
+            onManualModeChange={setManualMode}
+          />
         </div>
 
         {/* Trip Controls */}

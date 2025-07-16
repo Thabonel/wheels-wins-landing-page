@@ -11,8 +11,14 @@ class TripStatus(str, Enum):
     CANCELLED = "cancelled"
 
 class RouteType(str, Enum):
-    HIGHWAY = "highway"
+    FASTEST = "fastest"
+    SHORTEST = "shortest"
     SCENIC = "scenic"
+    OFF_GRID = "off_grid"
+    LUXURY = "luxury"
+    MANUAL = "manual"
+    # Legacy types for backward compatibility
+    HIGHWAY = "highway"
     BACKROAD = "backroad"
     OFFROAD = "offroad"
 
@@ -30,6 +36,7 @@ class LocationType(str, Enum):
     REPAIR_SHOP = "repair_shop"
     ATTRACTION = "attraction"
     WAYPOINT = "waypoint"
+    MANUAL_WAYPOINT = "manual_waypoint"
 
 class Location(BaseModel):
     id: Optional[str] = None
@@ -49,6 +56,16 @@ class Location(BaseModel):
     website: Optional[str] = None
     hours: Optional[str] = None
 
+class ManualWaypoint(BaseModel):
+    """Manual waypoint created by user click - locks the route through this point"""
+    id: str
+    latitude: float
+    longitude: float
+    order: int  # Order in the route
+    is_locked: bool = True  # Can't be automatically removed/optimized
+    created_at: datetime
+    notes: Optional[str] = None
+
 class RouteSegment(BaseModel):
     start_location: Location
     end_location: Location
@@ -56,6 +73,7 @@ class RouteSegment(BaseModel):
     estimated_time_hours: float
     route_type: RouteType = RouteType.HIGHWAY
     waypoints: List[Location] = Field(default_factory=list)
+    manual_waypoints: List[ManualWaypoint] = Field(default_factory=list)  # New for Manual routing
     notes: Optional[str] = None
     fuel_stops: List[Location] = Field(default_factory=list)
 

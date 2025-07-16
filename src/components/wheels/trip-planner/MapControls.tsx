@@ -10,6 +10,14 @@ import POILayer from "./POILayer";
 import MundiLayer from "./MundiLayer";
 import { toast } from "@/hooks/use-toast";
 
+interface ManualWaypoint {
+  id: string;
+  latitude: number;
+  longitude: number;
+  order: number;
+  isLocked: boolean;
+}
+
 interface MapControlsProps {
   region: string;
   waypoints: Waypoint[];
@@ -33,6 +41,11 @@ interface MapControlsProps {
   destinationLocked: boolean;
   lockOrigin: () => void;
   lockDestination: () => void;
+  routeType: string;
+  manualMode: boolean;
+  manualWaypoints: ManualWaypoint[];
+  onManualWaypointAdd: (waypoint: ManualWaypoint) => void;
+  onManualWaypointRemove: (id: string) => void;
 }
 
 export default function MapControls({
@@ -58,6 +71,11 @@ export default function MapControls({
   destinationLocked,
   lockOrigin,
   lockDestination,
+  routeType,
+  manualMode,
+  manualWaypoints,
+  onManualWaypointAdd,
+  onManualWaypointRemove,
 }: MapControlsProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const { units, loading: unitsLoading } = useUserUnits();
@@ -71,6 +89,7 @@ export default function MapControls({
   const [mundiLayerVisible, setMundiLayerVisible] = useState(true);
   const optionsControlRef = useRef<MapOptionsControl>();
   const isProgrammaticUpdate = useRef(false);
+  const manualWaypointMarkers = useRef<mapboxgl.Marker[]>([]);
 
   // Initialize map and directions
   useEffect(() => {
@@ -361,6 +380,120 @@ export default function MapControls({
     };
   }, [adding, waypoints, setWaypoints, setAdding, isOffline]);
 
+  // Manual waypoint creation mode
+  useEffect(() => {
+    if (!map.current || !manualMode || isOffline) return;
+    
+    const onClick = async (e: mapboxgl.MapMouseEvent) => {
+      const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+      
+      // Create a new manual waypoint
+      const newWaypoint: ManualWaypoint = {
+        id: `manual-${Date.now()}`,
+        latitude: e.lngLat.lat,
+        longitude: e.lngLat.lng,
+        order: manualWaypoints.length,
+        isLocked: true
+      };
+      
+      // Add to parent state
+      onManualWaypointAdd(newWaypoint);
+      
+      // Create a visual marker
+      const el = document.createElement("div");
+      el.className = "manual-waypoint-marker";
+      el.style.cssText = `
+        width: 24px;
+        height: 24px;
+        background: #dc2626;
+        border: 2px solid white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      `;
+      el.innerText = String(manualWaypoints.length + 1);
+      
+      // Add click handler to remove waypoint
+      el.addEventListener('click', (event) => {
+        event.stopPropagation();
+        onManualWaypointRemove(newWaypoint.id);
+      });
+      
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat(coords)
+        .addTo(map.current!);
+      
+      manualWaypointMarkers.current.push(marker);
+      
+      toast({
+        title: "Manual waypoint added",
+        description: `Added waypoint ${manualWaypoints.length + 1}. Click the marker to remove it.`,
+      });
+    };
+    
+    // Change cursor to indicate manual mode
+    if (map.current) {
+      map.current.getCanvas().style.cursor = "crosshair";
+      map.current.on("click", onClick);
+    }
+    
+    return () => {
+      if (map.current) {
+        map.current.off("click", onClick);
+        map.current.getCanvas().style.cursor = "";
+      }
+    };
+  }, [manualMode, manualWaypoints, onManualWaypointAdd, onManualWaypointRemove, isOffline]);
+
+  // Update manual waypoint markers when waypoints change
+  useEffect(() => {
+    if (!map.current) return;
+    
+    // Clear existing markers
+    manualWaypointMarkers.current.forEach(marker => marker.remove());
+    manualWaypointMarkers.current = [];
+    
+    // Add markers for current waypoints
+    manualWaypoints.forEach((waypoint, index) => {
+      const el = document.createElement("div");
+      el.className = "manual-waypoint-marker";
+      el.style.cssText = `
+        width: 24px;
+        height: 24px;
+        background: #dc2626;
+        border: 2px solid white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      `;
+      el.innerText = String(index + 1);
+      
+      // Add click handler to remove waypoint
+      el.addEventListener('click', (event) => {
+        event.stopPropagation();
+        onManualWaypointRemove(waypoint.id);
+      });
+      
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([waypoint.longitude, waypoint.latitude])
+        .addTo(map.current!);
+      
+      manualWaypointMarkers.current.push(marker);
+    });
+  }, [manualWaypoints, onManualWaypointRemove]);
+
   return (
     <div className="w-full h-[60vh] lg:h-[70vh] relative">
       <div className="overflow-hidden rounded-lg border h-full">
@@ -377,8 +510,8 @@ export default function MapControls({
           </div>
         )}
         
-        {/* Visual indicators for locked points */}
-        {(originLocked || destinationLocked) && (
+        {/* Visual indicators for locked points and manual mode */}
+        {(originLocked || destinationLocked || manualMode) && (
           <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2">
             <div className="flex gap-2 text-xs">
               {originLocked && (
@@ -391,6 +524,12 @@ export default function MapControls({
                 <div className="flex items-center gap-1 text-purple-600">
                   <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
                   <span>B Locked</span>
+                </div>
+              )}
+              {manualMode && (
+                <div className="flex items-center gap-1 text-red-600">
+                  <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
+                  <span>Manual Mode</span>
                 </div>
               )}
             </div>

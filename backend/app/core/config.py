@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     SUPABASE_URL: str
     SUPABASE_KEY: str
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
     SITE_URL: str = "http://localhost:3000"
     MUNDI_URL: Optional[str] = None
     

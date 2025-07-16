@@ -4,6 +4,14 @@ import { useCachedTripData } from "@/hooks/useCachedTripData";
 import { useLockedPoints } from "./useLockedPoints";
 import { Waypoint, Suggestion } from "../types";
 
+interface ManualWaypoint {
+  id: string;
+  latitude: number;
+  longitude: number;
+  order: number;
+  isLocked: boolean;
+}
+
 export function useTripPlannerState(isOffline: boolean) {
   const { cachedTrip, saveTripData } = useCachedTripData();
   const lockedPointsState = useLockedPoints();
@@ -21,6 +29,24 @@ export function useTripPlannerState(isOffline: boolean) {
   const [exclude, setExclude] = useState<string[]>([]);
   const [annotations, setAnnotations] = useState<string[]>([]);
   const [vehicle, setVehicle] = useState("car");
+  
+  // New routing state
+  const [routeType, setRouteType] = useState("fastest");
+  const [manualMode, setManualMode] = useState(false);
+  const [manualWaypoints, setManualWaypoints] = useState<ManualWaypoint[]>([]);
+
+  // Manual waypoint handlers
+  const addManualWaypoint = (waypoint: ManualWaypoint) => {
+    setManualWaypoints(prev => [...prev, waypoint]);
+  };
+
+  const removeManualWaypoint = (id: string) => {
+    setManualWaypoints(prev => prev.filter(wp => wp.id !== id));
+  };
+
+  const clearManualWaypoints = () => {
+    setManualWaypoints([]);
+  };
 
   // Load cached data on mount
   useEffect(() => {
@@ -31,6 +57,7 @@ export function useTripPlannerState(isOffline: boolean) {
       setSuggestions(cachedTrip.suggestions);
       setRouteProfile(cachedTrip.routeProfile);
       setMode(cachedTrip.mode);
+      setRouteType(cachedTrip.routeType || "fastest");
     }
   }, [cachedTrip, isOffline]);
 
@@ -60,6 +87,16 @@ export function useTripPlannerState(isOffline: boolean) {
     saveTripData,
     tripId,
     setTripId,
+    // New routing state
+    routeType,
+    setRouteType,
+    manualMode,
+    setManualMode,
+    manualWaypoints,
+    setManualWaypoints,
+    addManualWaypoint,
+    removeManualWaypoint,
+    clearManualWaypoints,
     ...lockedPointsState,
   };
 }

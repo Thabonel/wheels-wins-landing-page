@@ -12,6 +12,7 @@ import asyncio
 from openai import AsyncOpenAI
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.services.database import get_database_service
 
 logger = get_logger("simple_pam")
 
@@ -45,8 +46,34 @@ class SimplePamService:
         
         logger.info(f"🤖 SimplePamService processing message for user {user_id}: '{message}'")
         
+        # Load comprehensive user data across all app sections
+        comprehensive_data = {}
+        if user_id != "anonymous":
+            try:
+                db_service = get_database_service()
+                
+                # Load complete user context - PAM's full knowledge base
+                comprehensive_data = await db_service.get_comprehensive_user_context(user_id)
+                
+                # Add specialized insights
+                financial_insights = await db_service.get_financial_travel_insights(user_id)
+                social_connections = await db_service.get_social_travel_connections(user_id)
+                
+                comprehensive_data.update({
+                    "financial_insights": financial_insights,
+                    "social_connections": social_connections,
+                    "has_data": True
+                })
+                
+                logger.info(f"📊 Loaded comprehensive data for user {user_id}: "
+                          f"{comprehensive_data.get('activity_summary', {})}")
+                          
+            except Exception as e:
+                logger.warning(f"⚠️ Could not load comprehensive data for user {user_id}: {e}")
+                comprehensive_data = {"has_data": False, "error": "Could not load user data"}
+        
         # Build the conversation messages for OpenAI
-        messages = self._build_conversation_messages(message, context, conversation_history)
+        messages = self._build_conversation_messages(message, context, conversation_history, comprehensive_data)
         
         # Try to get response with retries
         for attempt in range(self.max_retries):
@@ -80,10 +107,77 @@ class SimplePamService:
         self, 
         message: str, 
         context: Dict[str, Any],
-        conversation_history: Optional[List[Dict]] = None
+        conversation_history: Optional[List[Dict]] = None,
+        comprehensive_data: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
         """Build the messages array for OpenAI"""
         
+        # Build comprehensive user information for system message
+        user_info = ""
+        if comprehensive_data and comprehensive_data.get("has_data"):
+            activity_summary = comprehensive_data.get("activity_summary", {})
+            travel_data = comprehensive_data.get("travel", {})
+            financial_data = comprehensive_data.get("financial", {})
+            social_data = comprehensive_data.get("social", {})
+            shopping_data = comprehensive_data.get("shopping", {})
+            calendar_data = comprehensive_data.get("calendar", {})
+            financial_insights = comprehensive_data.get("financial_insights", {})
+            social_connections = comprehensive_data.get("social_connections", {})
+            
+            user_info = f"""
+
+**COMPLETE USER PROFILE & ACTIVITY ACROSS ALL SECTIONS:**
+
+**ACTIVITY SUMMARY:**
+• Total trips: {activity_summary.get('total_trips', 0)}
+• Total expenses tracked: {activity_summary.get('total_expenses', 0)}
+• Social activity score: {activity_summary.get('total_social_activity', 0)}
+• Total purchases: {activity_summary.get('total_purchases', 0)}
+
+**🚐 WHEELS (Travel & Vehicles):**
+Recent trips: {travel_data.get('trip_count', 0)}"""
+            
+            recent_trips = travel_data.get("recent_trips", [])
+            for i, trip in enumerate(recent_trips[:3], 1):
+                origin = trip.get("origin", {}).get("name", "Unknown") if trip.get("origin") else "Unknown"
+                destination = trip.get("destination", {}).get("name", "Unknown") if trip.get("destination") else "Unknown"
+                user_info += f"\n• Trip {i}: {trip.get('name', 'Untitled')} - From {origin} to {destination}"
+                if trip.get("waypoints"):
+                    user_info += f" ({len(trip['waypoints'])} stops)"
+            
+            user_info += f"""
+
+**💰 WINS (Financial Management):**
+• Total expenses: ${financial_data.get('total_expenses', 0):.2f}
+• Total budget: ${financial_data.get('total_budget', 0):.2f}
+• Travel expenses (6mo): ${financial_insights.get('total_travel_expenses', 0):.2f}
+• Average trip cost: ${financial_insights.get('average_trip_cost', 0):.2f}
+• Budget adherence: {financial_insights.get('budget_adherence', 0):.1f}%
+• Top expense category: {financial_insights.get('most_expensive_category', 'N/A')}
+
+**👥 SOCIAL (Community & Groups):**
+• Groups joined: {len(social_data.get('groups', []))}
+• Recent posts: {len(social_data.get('posts', []))}
+• Social score: {social_data.get('social_score', 0)}
+• Travel-social connections: {social_connections.get('travel_social_score', 0)}"""
+            
+            if social_data.get('groups'):
+                user_info += "\n• Active in groups: " + ", ".join([g.get('name', 'Unnamed') for g in social_data['groups'][:3]])
+            
+            user_info += f"""
+
+**🛒 SHOP (Purchases & Wishlists):**
+• Total spent: ${shopping_data.get('total_spent', 0):.2f}
+• Purchase history: {len(shopping_data.get('purchase_history', []))} items
+• Wishlist items: {len(shopping_data.get('wishlists', []))}
+
+**📅 YOU (Calendar & Personal):**
+• Upcoming events: {len(calendar_data.get('upcoming_events', []))}"""
+            
+            if calendar_data.get('upcoming_events'):
+                next_event = calendar_data['upcoming_events'][0]
+                user_info += f"\n• Next event: {next_event.get('title', 'Untitled')} on {next_event.get('start_date', 'TBD')}"
+
         # System message defining PAM's personality and capabilities
         system_message = {
             "role": "system",
@@ -104,9 +198,16 @@ Guidelines:
 - Keep responses concise but helpful
 - Use emojis to make responses more engaging
 - If unsure, ask clarifying questions
+- IMPORTANT: You have COMPLETE access to the user's data across ALL app sections and can provide intelligent, personalized assistance
+- You can correlate data across sections (e.g., link trip expenses to budgets, suggest social groups based on travel, etc.)
+- Provide proactive suggestions based on user patterns and preferences
+- You can help users manage their entire travel lifestyle - from planning to budgeting to socializing
+
+{user_info}
 
 Current timestamp: {timestamp}
 User context: {context}""".format(
+                user_info=user_info,
                 timestamp=datetime.utcnow().isoformat(),
                 context=json.dumps({
                     "user_id": context.get("user_id"),
@@ -422,6 +523,118 @@ User context: {context}""".format(
             'description': f"Expense: ${amount:.2f} for {category}",
             'date': datetime.now().strftime('%Y-%m-%d')
         }
+    
+    # Comprehensive PAM Action Methods - Enable PAM to interact with ALL pages
+    async def create_social_post_for_user(self, user_id: str, content: str, group_id: str = None) -> bool:
+        """Allow PAM to create social posts for users"""
+        try:
+            db_service = get_database_service()
+            success = await db_service.create_social_post(user_id, content, 'text', group_id)
+            
+            if success:
+                logger.info(f"📱 PAM created social post for user {user_id}")
+            return success
+        except Exception as e:
+            logger.error(f"❌ Error creating social post via PAM: {e}")
+            return False
+    
+    async def add_to_user_wishlist(self, user_id: str, product_id: str, product_name: str, price: float, notes: str = '') -> bool:
+        """Allow PAM to add items to user's wishlist"""
+        try:
+            db_service = get_database_service()
+            success = await db_service.add_to_wishlist(user_id, product_id, product_name, price, notes=notes)
+            
+            if success:
+                logger.info(f"🛒 PAM added item to wishlist for user {user_id}")
+            return success
+        except Exception as e:
+            logger.error(f"❌ Error adding to wishlist via PAM: {e}")
+            return False
+    
+    async def create_calendar_event_for_user(self, user_id: str, event_data: Dict[str, Any]) -> bool:
+        """Allow PAM to create calendar events for users"""
+        try:
+            db_service = get_database_service()
+            success = await db_service.create_calendar_event(user_id, event_data)
+            
+            if success:
+                logger.info(f"📅 PAM created calendar event for user {user_id}")
+            return success
+        except Exception as e:
+            logger.error(f"❌ Error creating calendar event via PAM: {e}")
+            return False
+    
+    async def join_social_group_for_user(self, user_id: str, group_id: str) -> bool:
+        """Allow PAM to help users join social groups"""
+        try:
+            db_service = get_database_service()
+            success = await db_service.join_social_group(user_id, group_id)
+            
+            if success:
+                logger.info(f"👥 PAM helped user {user_id} join social group {group_id}")
+            return success
+        except Exception as e:
+            logger.error(f"❌ Error joining social group via PAM: {e}")
+            return False
+    
+    async def get_trip_expense_correlation(self, user_id: str, trip_id: str) -> Dict[str, Any]:
+        """Get detailed correlation between a trip and related expenses"""
+        try:
+            db_service = get_database_service()
+            correlation = await db_service.correlate_trip_expenses(user_id, trip_id)
+            
+            if correlation:
+                logger.info(f"📊 PAM analyzed trip-expense correlation for user {user_id}")
+            return correlation
+        except Exception as e:
+            logger.error(f"❌ Error getting trip expense correlation via PAM: {e}")
+            return {}
+    
+    async def get_user_financial_insights(self, user_id: str) -> Dict[str, Any]:
+        """Get comprehensive financial insights for intelligent advice"""
+        try:
+            db_service = get_database_service()
+            insights = await db_service.get_financial_travel_insights(user_id)
+            
+            if insights:
+                logger.info(f"💰 PAM analyzed financial insights for user {user_id}")
+            return insights
+        except Exception as e:
+            logger.error(f"❌ Error getting financial insights via PAM: {e}")
+            return {}
+    
+    async def update_user_trip(self, user_id: str, trip_id: str, updates: Dict[str, Any]) -> bool:
+        """Update a user's trip - can be called by PAM when users request trip modifications"""
+        try:
+            db_service = get_database_service()
+            success = await db_service.update_trip(trip_id, user_id, updates)
+            
+            if success:
+                logger.info(f"🔄 PAM updated trip {trip_id} for user {user_id}")
+            else:
+                logger.warning(f"⚠️ PAM failed to update trip {trip_id} for user {user_id}")
+            
+            return success
+        except Exception as e:
+            logger.error(f"❌ Error updating trip via PAM: {e}")
+            return False
+    
+    async def get_trip_details_for_user(self, user_id: str, trip_id: str) -> Dict[str, Any]:
+        """Get detailed trip information - can be called by PAM when users ask about specific trips"""
+        try:
+            db_service = get_database_service()
+            trip = await db_service.get_trip_details(trip_id)
+            
+            # Ensure user owns the trip for security
+            if trip and trip.get('created_by') == user_id:
+                logger.info(f"📋 PAM retrieved trip details for {trip_id}")
+                return trip
+            else:
+                logger.warning(f"🚫 User {user_id} not authorized to access trip {trip_id}")
+                return {}
+        except Exception as e:
+            logger.error(f"❌ Error retrieving trip details via PAM: {e}")
+            return {}
 
 
 # Create a singleton instance
