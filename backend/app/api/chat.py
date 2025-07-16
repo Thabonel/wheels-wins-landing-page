@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 import openai
 from app.core.config import settings
-from app.core.security import verify_token
+from app.core.auth import get_current_user
 from app.core.logging import setup_logging, get_logger
 from app.core.orchestrator import orchestrator
 from app.core.websocket_manager import manager
@@ -31,7 +31,7 @@ class ChatResponse(BaseModel):
 @router.post("/message", response_model=ChatResponse)
 async def process_message(
     request: ChatRequest,
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Process a chat message from the user with intelligent orchestration"""
     try:
@@ -94,7 +94,7 @@ async def process_message(
 @router.get("/sessions/{session_id}")
 async def get_session(
     session_id: str,
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Get chat session history"""
     try:
@@ -130,7 +130,7 @@ async def get_session(
 
 @router.post("/demo")
 async def demo_expense(
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Demo endpoint to test PAM functionality"""
     try:

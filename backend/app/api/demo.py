@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-from app.core.security import verify_token
+from app.core.auth import get_current_user_id
 from app.core.logging import setup_logging, get_logger
 from app.core.orchestrator import orchestrator
 
@@ -17,7 +17,7 @@ class DemoRequest(BaseModel):
 @router.post("/scenarios")
 async def run_demo_scenario(
     request: DemoRequest,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Run complete PAM demo scenarios"""
     try:

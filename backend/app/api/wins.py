@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from app.core.security import verify_token
+from app.core.auth import get_current_user
 from app.core.logging import setup_logging, get_logger
 from app.nodes.wins_node import wins_node
 
@@ -40,7 +40,7 @@ class TipCreate(BaseModel):
 @router.post("/budgets", response_model=Dict[str, Any])
 async def create_budget(
     budget: BudgetCreate,
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Create a new budget"""
     user_id = token_data.get("user_id", "demo_user")
@@ -56,7 +56,7 @@ async def create_budget(
 
 @router.get("/budgets")
 async def get_budgets(
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Get all budgets for the user"""
     user_id = token_data.get("user_id", "demo_user")
@@ -65,7 +65,7 @@ async def get_budgets(
 @router.get("/budgets/{category}/status")
 async def check_budget_status(
     category: str,
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Check budget status for a category"""
     user_id = token_data.get("user_id", "demo_user")
@@ -75,7 +75,7 @@ async def check_budget_status(
 @router.post("/expenses", response_model=Dict[str, Any])
 async def add_expense(
     expense: ExpenseCreate,
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Add a new expense"""
     user_id = token_data.get("user_id", "demo_user")
@@ -94,7 +94,7 @@ async def get_expenses(
     category: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Get expenses with optional filters"""
     user_id = token_data.get("user_id", "demo_user")
@@ -111,7 +111,7 @@ async def get_expenses(
 
 @router.get("/expenses/analytics")
 async def get_expense_analytics(
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Get expense analytics and insights"""
     user_id = token_data.get("user_id", "demo_user")
@@ -121,7 +121,7 @@ async def get_expense_analytics(
 @router.post("/income", response_model=Dict[str, Any])
 async def add_income(
     income: IncomeCreate,
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Add income entry"""
     user_id = token_data.get("user_id", "demo_user")
@@ -146,7 +146,7 @@ async def get_community_tips(
 @router.post("/tips", response_model=Dict[str, Any])
 async def submit_tip(
     tip: TipCreate,
-    token_data: dict = Depends(verify_token)
+    token_data: dict = Depends(get_current_user)
 ):
     """Submit a money-saving tip"""
     user_id = token_data.get("user_id", "demo_user")
