@@ -163,8 +163,12 @@ export default function MapControls({
           // Set up event listeners for origin/destination changes
           dir.on("origin", (e) => {
             // Skip if this is a programmatic update or if origin is locked
-            if (isOffline || originLocked || isProgrammaticUpdate.current) return;
+            if (isOffline || originLocked || isProgrammaticUpdate.current) {
+              console.log('🔒 Origin event blocked: offline?', isOffline, 'locked?', originLocked, 'programmatic?', isProgrammaticUpdate.current);
+              return;
+            }
             if (e.feature && e.feature.place_name) {
+              console.log('🅰️ Setting origin:', e.feature.place_name);
               setOriginName(e.feature.place_name);
               lockOrigin();
             }
@@ -172,8 +176,12 @@ export default function MapControls({
 
           dir.on("destination", (e) => {
             // Skip if this is a programmatic update or if destination is locked
-            if (isOffline || destinationLocked || isProgrammaticUpdate.current) return;
+            if (isOffline || destinationLocked || isProgrammaticUpdate.current) {
+              console.log('🔒 Destination event blocked: offline?', isOffline, 'locked?', destinationLocked, 'programmatic?', isProgrammaticUpdate.current);
+              return;
+            }
             if (e.feature && e.feature.place_name) {
+              console.log('🅱️ Setting destination:', e.feature.place_name);
               setDestName(e.feature.place_name);
               lockDestination();
             }
@@ -280,17 +288,52 @@ export default function MapControls({
           
           // Only add waypoint if we have both origin and destination
           if (origin && destination) {
+            console.log('📍 Adding waypoint between A and B. Origin locked:', originLocked, 'Destination locked:', destinationLocked);
+            
             // Set flag to prevent event handlers from firing during programmatic update
             isProgrammaticUpdate.current = true;
             
+            // Store current origin and destination to restore if they get overwritten
+            const savedOrigin = origin;
+            const savedDestination = destination;
+            const savedOriginName = originName;
+            const savedDestName = destName;
+            
+            console.log('💾 Saved A point:', savedOriginName, 'B point:', savedDestName);
+            
             // Insert at the end of current waypoints (between origin and destination)
             const insertIndex = currentWaypoints.length;
+            console.log('➕ Calling addWaypoint at index:', insertIndex);
             directionsControl.current.addWaypoint(insertIndex, coords);
             
-            // Reset flag after a brief delay
+            // Extended timeout and restore mechanism
             setTimeout(() => {
+              console.log('🔍 Checking if A/B points were preserved...');
+              
+              // Double-check that origin and destination haven't been changed
+              const currentOrigin = directionsControl.current?.getOrigin();
+              const currentDestination = directionsControl.current?.getDestination();
+              
+              // If they were changed during waypoint insertion, restore them
+              if (directionsControl.current) {
+                if (!currentOrigin || (currentOrigin.geometry.coordinates[0] !== savedOrigin.geometry.coordinates[0] || 
+                                     currentOrigin.geometry.coordinates[1] !== savedOrigin.geometry.coordinates[1])) {
+                  console.log('🚨 Origin was changed! Restoring:', savedOriginName);
+                  directionsControl.current.setOrigin(savedOrigin.geometry.coordinates);
+                  setOriginName(savedOriginName);
+                }
+                
+                if (!currentDestination || (currentDestination.geometry.coordinates[0] !== savedDestination.geometry.coordinates[0] || 
+                                           currentDestination.geometry.coordinates[1] !== savedDestination.geometry.coordinates[1])) {
+                  console.log('🚨 Destination was changed! Restoring:', savedDestName);
+                  directionsControl.current.setDestination(savedDestination.geometry.coordinates);
+                  setDestName(savedDestName);
+                }
+              }
+              
+              console.log('✅ A/B point protection complete');
               isProgrammaticUpdate.current = false;
-            }, 100);
+            }, 500); // Increased timeout from 100ms to 500ms
           } else {
             // Show user feedback when trying to add waypoint without A/B points
             console.log('Cannot add waypoint: Origin or destination not set. Please set both A and B points first.');
