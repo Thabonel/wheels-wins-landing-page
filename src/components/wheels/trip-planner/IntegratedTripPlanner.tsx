@@ -106,6 +106,10 @@ export default function IntegratedTripPlanner({ isOffline: isOfflineProp }: Inte
           destinationLocked={integratedState.destinationLocked}
           lockOrigin={integratedState.lockOrigin}
           lockDestination={integratedState.lockDestination}
+          routeType={integratedState.routeType}
+          setRouteType={integratedState.setRouteType}
+          manualMode={integratedState.manualMode}
+          setManualMode={integratedState.setManualMode}
         />
 
         {/* Locked Point Controls */}
@@ -143,9 +147,14 @@ export default function IntegratedTripPlanner({ isOffline: isOfflineProp }: Inte
             isOffline={effectiveOfflineMode}
             originLocked={integratedState.originLocked}
             destinationLocked={integratedState.destinationLocked}
-          lockOrigin={integratedState.lockOrigin}
-          lockDestination={integratedState.lockDestination}
-        />
+            lockOrigin={integratedState.lockOrigin}
+            lockDestination={integratedState.lockDestination}
+            routeType={integratedState.routeType}
+            manualMode={integratedState.manualMode}
+            manualWaypoints={integratedState.manualWaypoints}
+            onManualWaypointAdd={integratedState.addManualWaypoint}
+            onManualWaypointRemove={integratedState.removeManualWaypoint}
+          />
         ) : (
           <div className="h-[60vh] lg:h-[70vh] relative">
             <div className="overflow-hidden rounded-lg border h-full bg-gradient-to-br from-blue-50 to-blue-100">

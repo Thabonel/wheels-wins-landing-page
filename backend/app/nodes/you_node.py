@@ -38,6 +38,8 @@ class YouNode:
     def __init__(self):
         self.logger = get_logger("you_node")
         self.supabase = get_supabase_client()
+        from app.database.supabase_client import get_supabase_service
+        self.supabase_service = get_supabase_service()
 
     async def process(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Main entry point for processing You node requests"""
@@ -167,8 +169,14 @@ class YouNode:
                 "type": event_type,
             }
 
+            # Check if user is admin and use appropriate client
+            is_admin = await self._is_user_admin(user_id)
+            client_to_use = self.supabase_service if is_admin else self.supabase
+            
+            self.logger.info(f"Creating calendar event for user {user_id} (admin: {is_admin})")
+            
             insert_result = (
-                self.supabase.table("calendar_events").insert(payload).execute()
+                client_to_use.table("calendar_events").insert(payload).execute()
             )
 
             if not insert_result.data:
@@ -217,6 +225,17 @@ class YouNode:
                 "error": str(e),
                 "message": "I couldn't create your calendar event. Please check the details and try again.",
             }
+
+    async def _is_user_admin(self, user_id: str) -> bool:
+        """Check if user has admin privileges"""
+        try:
+            admin_check = self.supabase.table('admin_users').select('role').eq(
+                'user_id', user_id
+            ).execute()
+            return bool(admin_check.data)
+        except Exception as e:
+            self.logger.warning(f"Error checking admin status for user {user_id}: {e}")
+            return False
 
     async def get_user_profile(self, user_id: str) -> Dict[str, Any]:
         """Get user profile from Supabase profiles table"""
