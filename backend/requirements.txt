@@ -90,3 +90,11 @@ tiktoken>=0.8.0
 
 # Image processing for screenshot analysis - Python 3.13 compatible
 Pillow>=10.4.0
+
+# Missing dependencies causing deployment warnings
+APScheduler>=3.10.4
+chromadb>=0.5.0
+TTS>=0.22.0
+
+# Text processing for enhanced context engineering
+langchain-text-splitters>=0.3.0
