@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 import httpx
-from app.core.security import verify_token
+from app.core.auth import get_current_user_id
 from app.core.logging import setup_logging, get_logger
 from app.nodes.wheels_node import wheels_node
 
@@ -32,7 +32,7 @@ class WeatherRequest(BaseModel):
 @router.post("/plan-trip")
 async def plan_trip(
     request: TripPlanRequest,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Plan a complete trip with route, stops, and attractions"""
     try:
@@ -60,7 +60,7 @@ async def plan_trip(
 @router.post("/fuel-log")
 async def log_fuel_purchase(
     request: FuelLogRequest,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Log a fuel purchase and update efficiency tracking"""
     try:
@@ -77,7 +77,7 @@ async def log_fuel_purchase(
 
 @router.get("/maintenance")
 async def check_maintenance(
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Check vehicle maintenance schedule"""
     try:
@@ -94,7 +94,7 @@ async def check_maintenance(
 @router.post("/weather")
 async def get_weather_forecast(
     request: WeatherRequest,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Get weather forecast for a location"""
     try:
@@ -116,7 +116,7 @@ async def get_nearby_attractions(
     lat: float,
     lon: float,
     radius_km: int = 50,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Get nearby attractions, camps, and services"""
     try:

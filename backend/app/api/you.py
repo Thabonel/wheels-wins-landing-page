@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-from app.core.security import verify_token
+from app.core.auth import get_current_user_id
 from app.core.logging import setup_logging, get_logger
 from app.nodes.you_node import you_node
 
@@ -42,7 +42,7 @@ class MaintenanceReminderRequest(BaseModel):
 @router.post("/calendar/events")
 async def create_calendar_event(
     request: CalendarEventRequest,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Create a new calendar event"""
     try:
@@ -62,7 +62,7 @@ async def get_calendar_events(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     event_type: Optional[str] = None,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Get calendar events for a date range"""
     try:
@@ -88,7 +88,7 @@ async def get_calendar_events(
 @router.put("/profile")
 async def update_user_profile(
     request: ProfileUpdateRequest,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Update user profile information"""
     try:
@@ -105,7 +105,7 @@ async def update_user_profile(
 
 @router.get("/profile")
 async def get_user_profile(
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Get user profile information"""
     try:
@@ -122,7 +122,7 @@ async def get_user_profile(
 @router.put("/preferences")
 async def set_user_preferences(
     request: PreferencesRequest,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Set or update user preferences"""
     try:
@@ -139,7 +139,7 @@ async def set_user_preferences(
 
 @router.get("/dashboard")
 async def get_personalized_dashboard(
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Get personalized dashboard view"""
     try:
@@ -156,7 +156,7 @@ async def get_personalized_dashboard(
 @router.post("/maintenance/reminders")
 async def schedule_maintenance_reminder(
     request: MaintenanceReminderRequest,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Schedule vehicle or equipment maintenance reminders"""
     try:
@@ -174,7 +174,7 @@ async def schedule_maintenance_reminder(
 @router.get("/timeline")
 async def get_travel_timeline(
     timeframe: Optional[str] = "month",
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Get user's travel timeline and itinerary"""
     try:
@@ -192,7 +192,7 @@ async def get_travel_timeline(
 async def get_personal_insights(
     category: Optional[str] = None,
     period: Optional[str] = "week",
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Get personalized insights and recommendations"""
     try:
@@ -221,7 +221,7 @@ async def get_personal_insights(
 
 @router.get("/quick-actions")
 async def get_quick_actions(
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Get personalized quick actions based on user patterns"""
     try:
@@ -246,7 +246,7 @@ async def get_quick_actions(
 @router.get("/notifications")
 async def get_pending_notifications(
     priority: Optional[str] = None,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Get pending notifications for user"""
     try:
@@ -276,7 +276,7 @@ async def get_pending_notifications(
 @router.put("/notifications/{notification_id}/read")
 async def mark_notification_read(
     notification_id: str,
-    user_id: str = Depends(verify_token)
+    user_id: str = Depends(get_current_user_id)
 ):
     """Mark a notification as read"""
     try:

@@ -109,6 +109,14 @@ def verify_supabase_token(token: str, supabase_url: str):
 # Security scheme for Bearer token
 security = HTTPBearer()
 
+async def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """
+    FastAPI dependency to get current user ID from JWT token.
+    Returns just the user_id string for API endpoints.
+    """
+    user_data = await get_current_user(credentials)
+    return user_data.get("id")
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     """
     FastAPI dependency to get current user from JWT token.
