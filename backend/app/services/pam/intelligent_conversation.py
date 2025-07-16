@@ -17,6 +17,7 @@ from app.models.domain.pam import PamResponse, PamContext, PamMemory
 from app.core.exceptions import PAMError, ErrorCode
 from app.core.config import settings
 from app.services.pam.tools import LoadUserProfileTool, LoadRecentMemoryTool, ThinkTool
+from app.services.pam.context_engineering.enhanced_context_engine import EnhancedContextEngine
 from app.observability import observe_llm_call, observe_agent
 from app.observability.monitor import global_monitor
 
@@ -60,6 +61,9 @@ class AdvancedIntelligentConversation:
         self.load_user_profile_tool = LoadUserProfileTool()
         self.load_recent_memory_tool = LoadRecentMemoryTool()
         self.think_tool = ThinkTool()
+        
+        # Initialize enhanced context engine
+        self.enhanced_context_engine = EnhancedContextEngine()
         
         # Import enhanced prompts
         try:
@@ -218,39 +222,54 @@ Return ONLY a JSON object with:
             # Check for proactive opportunities
             proactive_items = await self._check_proactive_opportunities(user_id, message, relationship_context)
             
-            # Generate personalized system prompt
-            personalized_prompt = await self._build_personalized_system_prompt(
-                pam_personality, user_personality, relationship_context, emotional_context, 
-                user_profile, recent_memory, thinking_result, subflow_data
+            # ENHANCED CONTEXT ENGINEERING: Process all context through enhanced pipeline
+            raw_context = {
+                'user_profile': user_profile,
+                'recent_memory': recent_memory,
+                'emotional_context': emotional_context,
+                'relationship_context': relationship_context,
+                'proactive_items': proactive_items,
+                'thinking_result': thinking_result,
+                'subflow_data': subflow_data,
+                'user_personality': user_personality,
+                'pam_personality': pam_personality
+            }
+            
+            # Process through enhanced context engineering pipeline
+            integrated_context = await self.enhanced_context_engine.process_context_engineering_pipeline(
+                user_id, message, raw_context
             )
             
+            # Generate personalized system prompt with enhanced context
+            personalized_prompt = await self._build_enhanced_system_prompt(
+                integrated_context, pam_personality, user_personality
+            )
+            
+            # Build enhanced conversation prompt using integrated context
             conversation_prompt = f"""Current message: "{message}"
 
-{relationship_context}
+{integrated_context.core_context}
 
-{emotional_context['context_string']}
+{integrated_context.supporting_context}
 
-{proactive_items['prompt_addition'] if proactive_items else ''}
+{integrated_context.emotional_context}
 
-{self._format_thinking_context(thinking_result) if thinking_result else ''}
+{integrated_context.proactive_context}
 
-{self._format_subflow_context(subflow_data) if subflow_data else ''}
+CONTEXT CONFIDENCE: {integrated_context.confidence_score:.2f}
+TOKEN USAGE: {integrated_context.token_count}/{self.enhanced_context_engine.max_context_tokens}
 
-Respond as PAM with the full depth of your relationship and emotional awareness. Reference relevant memories, show genuine care, and be the trusted AI companion this person knows you to be.
+Respond as PAM with the full depth of your relationship and emotional awareness. The enhanced context above has been intelligently processed to give you the most relevant information for this conversation.
 
-IMPORTANT INSTRUCTIONS:
-- You have access to their complete profile and recent conversations - use this knowledge naturally
-- If you used the Think tool, integrate those insights seamlessly into your response
-- If subflow_response data is present, transform it into warm, conversational advice rather than raw data
-- Use their name naturally in conversation when appropriate
-- Reference shared memories and past conversations
-- Show genuine excitement about their adventures and wins
-- Provide comfort and support during challenges
-- Be proactive about potential issues or opportunities
-- Include appropriate emojis and personality
-- Ask follow-up questions that show you care about them as a person
+ENHANCED INSTRUCTIONS:
+- All context has been relevance-scored and optimized for this specific message
+- Critical information is highlighted at the beginning and end of context sections
+- Use the emotional and proactive context to guide your response tone and suggestions
+- Reference the specific details provided in your integrated context naturally
+- The context confidence score indicates how well we understand the situation
+- Higher confidence (>0.8) means you can be more specific; lower confidence means ask clarifying questions
 
-For complex trip planning (like Sydney to Hobart), immediately recognize ferry requirements and provide comprehensive guidance."""
+For complex scenarios, the Think tool insights are integrated into your context above."""
 
             response = await self.client.chat.completions.create(
                 model="gpt-4o",  # Use the best model for emotional intelligence
@@ -993,6 +1012,50 @@ Return ONLY a JSON array of strings: ["suggestion1", "suggestion2", "suggestion3
         except Exception as e:
             logger.error(f"Advanced AI conversation handling failed: {str(e)}")
             raise PAMError(f"Failed to handle conversation with AI: {str(e)}", ErrorCode.EXTERNAL_API_ERROR)
+    
+    async def _build_enhanced_system_prompt(self, integrated_context, pam_personality, user_personality):
+        """Build enhanced system prompt using integrated context"""
+        
+        # Extract personality insights
+        emotional_state = pam_personality.current_mood.value if pam_personality else 'supportive'
+        relationship_stage = pam_personality.relationship_stage.value if pam_personality else 'getting_to_know'
+        
+        # Build dynamic personality section
+        personality_context = f"""
+## YOUR CURRENT STATE:
+Emotional Mode: {emotional_state}
+Relationship Stage: {relationship_stage}
+User's Personality Type: {user_personality.get('type', 'balanced') if user_personality else 'balanced'}
+Context Confidence: {integrated_context.confidence_score:.1f}/1.0
+"""
+        
+        # Build enhanced system prompt
+        enhanced_prompt = f"""{self.base_system_prompt}
+
+{personality_context}
+
+## ENHANCED CONTEXT INTELLIGENCE:
+You have access to intelligently processed context that has been:
+- Relevance-scored for this specific conversation
+- Temporally weighted (recent information prioritized)
+- Conflict-resolved and cross-validated
+- Optimized for token efficiency
+- Emotionally analyzed and relationship-aware
+
+## CONTEXT SUMMARY:
+{integrated_context.context_summary}
+
+## RESPONSE GUIDELINES:
+- The context provided in the conversation has been pre-processed for maximum relevance
+- Higher confidence scores (>0.8) indicate strong context - be specific and detailed
+- Lower confidence scores (<0.6) indicate uncertainty - ask clarifying questions
+- Emotional context sections require appropriate emotional intelligence in responses
+- Proactive opportunities should be mentioned naturally when relevant
+- Key context sections should be prioritized in your response
+
+Remember: You're not just an assistant, you're a trusted AI companion who knows this person well and genuinely cares about their journey."""
+
+        return enhanced_prompt
 
 # For backward compatibility - alias the enhanced class
 IntelligentConversation = AdvancedIntelligentConversation
