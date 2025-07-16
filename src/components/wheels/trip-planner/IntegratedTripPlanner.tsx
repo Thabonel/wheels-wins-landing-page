@@ -15,26 +15,30 @@ import { useIntegratedTripState } from "./hooks/useIntegratedTripState";
 import { useTripPlannerHandlers } from "./hooks/useTripPlannerHandlers";
 import { PAMProvider } from "./PAMContext";
 import { useToast } from "@/hooks/use-toast";
-import { usePamControl } from "@/hooks/usePamControl";
+import { useRegion } from "@/context/RegionContext";
+import { useOffline } from "@/context/OfflineContext";
+import TripPlannerLayout from "./TripPlannerLayout";
 
 interface IntegratedTripPlannerProps {
   isOffline?: boolean;
 }
 
-export default function IntegratedTripPlanner({ isOffline = false }: IntegratedTripPlannerProps) {
+export default function IntegratedTripPlanner({ isOffline: isOfflineProp }: IntegratedTripPlannerProps) {
   const { toast } = useToast();
-  const { openPamWithMessage } = usePamControl();
+  const { region } = useRegion();
+  const { isOffline } = useOffline();
+  const effectiveOfflineMode = isOfflineProp ?? isOffline;
   const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
 
   // Set Mapbox access token
-  if (!isOffline && import.meta.env.VITE_MAPBOX_TOKEN) {
+  if (!effectiveOfflineMode && import.meta.env.VITE_MAPBOX_TOKEN) {
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
   }
 
   // Use integrated state management
-  const integratedState = useIntegratedTripState(isOffline);
+  const integratedState = useIntegratedTripState(effectiveOfflineMode);
   const handlers = useTripPlannerHandlers({
     directionsControl,
     originName: integratedState.route.originName,
@@ -44,8 +48,8 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
     saveTripData: integratedState.saveTripData,
     routeProfile: integratedState.travelMode,
     mode: integratedState.mode,
-    tripId: null, // Add missing tripId property
-    setTripId: () => {} // Add missing setTripId property
+    tripId: integratedState.tripId,
+    setTripId: integratedState.setTripId
   });
 
   const generateItinerary = async () => {
@@ -64,45 +68,17 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
     }
   };
 
-  // Enhanced submit handler with PAM integration
-  const handleSubmitTrip = async () => {
-    try {
-      if (integratedState.route.originName && integratedState.route.destName) {
-        const budget = integratedState.budget?.totalBudget || 0;
-        const waypointsText = integratedState.route.waypoints.length > 0 
-          ? ` via ${integratedState.route.waypoints.map(w => w.name).join(', ')}`
-          : '';
-        
-        const message = `Plan my trip from ${integratedState.route.originName} to ${integratedState.route.destName}${waypointsText}. Budget: $${budget}. Travel mode: ${integratedState.travelMode}. Please suggest optimal stops, routes, and recommendations.`;
-        
-        // Open PAM chat with the trip details
-        openPamWithMessage(message);
-        
-        // Generate local itinerary as well
-        await generateItinerary();
-
-        toast({
-          title: "Trip sent to PAM",
-          description: "PAM chat opened with your trip details. Check PAM for personalized recommendations!",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send trip to PAM. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  // Use the proven working submit handler from handlers
+  const handleSubmitTrip = handlers.handleSubmitTrip;
 
   return (
     <PAMProvider>
-      <div className="space-y-6">
+      <TripPlannerLayout>
         {/* Header */}
-        <TripPlannerHeader isOffline={isOffline} />
+        <TripPlannerHeader isOffline={effectiveOfflineMode} />
 
         {/* Offline Banner */}
-        {isOffline && <OfflineTripBanner />}
+        {effectiveOfflineMode && <OfflineTripBanner />}
 
         {/* Trip Controls */}
         <TripPlannerControls
@@ -125,7 +101,7 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
           setAdding={integratedState.setAdding}
           onSubmitTrip={handleSubmitTrip}
           map={map}
-          isOffline={isOffline}
+          isOffline={effectiveOfflineMode}
           originLocked={integratedState.originLocked}
           destinationLocked={integratedState.destinationLocked}
           lockOrigin={integratedState.lockOrigin}
@@ -145,9 +121,9 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
         )}
 
         {/* Map Container - Now using MapControls component */}
-        {!isOffline ? (
+        {!effectiveOfflineMode ? (
           <MapControls
-            region="US"
+            region={region}
             waypoints={integratedState.route.waypoints}
             setWaypoints={integratedState.setWaypoints}
             adding={integratedState.adding}
@@ -164,7 +140,7 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
             annotations={integratedState.annotations}
             vehicle={integratedState.vehicle}
             map={map}
-            isOffline={isOffline}
+            isOffline={effectiveOfflineMode}
             originLocked={integratedState.originLocked}
             destinationLocked={integratedState.destinationLocked}
           lockOrigin={integratedState.lockOrigin}
@@ -248,7 +224,7 @@ export default function IntegratedTripPlanner({ isOffline = false }: IntegratedT
             ))}
           </div>
         )}
-      </div>
+      </TripPlannerLayout>
     </PAMProvider>
   );
 }

@@ -25,7 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 // Import existing components
-import TripPlanner from './TripPlanner';
+import IntegratedTripPlanner from './trip-planner/IntegratedTripPlanner';
 import BudgetSidebar from './trip-planner/BudgetSidebar';
 import SocialSidebar from './trip-planner/SocialSidebar';
 import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
@@ -426,7 +426,7 @@ export default function TripPlannerApp() {
           </TabsContent>
 
           <TabsContent value="plan-trip" className="mt-0">
-            <TripPlanner />
+            <IntegratedTripPlanner />
           </TabsContent>
 
           <TabsContent value="trip-details" className="mt-0">

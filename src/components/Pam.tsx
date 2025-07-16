@@ -69,7 +69,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       }, 100);
     };
 
-    const handleSendMessage = (event: CustomEvent) => {
+    const handleSendMessageEvent = (event: CustomEvent) => {
       const { message } = event.detail;
       console.log('🎯 PAM: Sending message:', message);
       if (isOpen) {
@@ -91,12 +91,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Add event listeners
     window.addEventListener('pam-open-with-message', handleOpenWithMessage as EventListener);
     window.addEventListener('pam-open', handleOpen);
-    window.addEventListener('pam-send-message', handleSendMessage as EventListener);
+    window.addEventListener('pam-send-message', handleSendMessageEvent as EventListener);
 
     return () => {
       window.removeEventListener('pam-open-with-message', handleOpenWithMessage as EventListener);
       window.removeEventListener('pam-open', handleOpen);
-      window.removeEventListener('pam-send-message', handleSendMessage as EventListener);
+      window.removeEventListener('pam-send-message', handleSendMessageEvent as EventListener);
     };
   }, [isOpen]);
 
