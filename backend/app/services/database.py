@@ -55,15 +55,11 @@ class DatabaseService:
             }
     
     async def _is_user_admin(self, user_id: str) -> bool:
-        """Check if user has admin privileges"""
-        try:
-            admin_check = self.client.table('admin_users').select('role').eq(
-                'user_id', user_id
-            ).execute()
-            return bool(admin_check.data)
-        except Exception as e:
-            logger.warning(f"Error checking admin status for user {user_id}: {e}")
-            return False
+        """Check if user has admin privileges - disabled to prevent role permission errors"""
+        # PERMANENT FIX: Remove admin_users table queries that cause "set role admin" errors
+        # For calendar and user operations, admin privileges are not needed
+        # This prevents PostgreSQL role switching attempts
+        return False
 
     def get_client(self) -> Client:
         """Get Supabase client instance"""
@@ -882,11 +878,11 @@ class DatabaseService:
                 'reminder_minutes': event_data.get('reminder_minutes', 15)
             }
             
-            # Use service client for calendar operations to avoid permission issues
-            # Calendar events should be accessible to all authenticated users
-            client_to_use = self.service_client if self.service_client else self.client
+            # PERMANENT FIX: Always use regular client for calendar operations
+            # This prevents PostgreSQL "permission denied to set role admin" errors
+            # Service client should only be used for true admin operations
             
-            result = client_to_use.table('calendar_events').insert(calendar_event).execute()
+            result = self.client.table('calendar_events').insert(calendar_event).execute()
             return bool(result.data)
         except Exception as e:
             logger.warning(f"Error creating calendar event: {e}")

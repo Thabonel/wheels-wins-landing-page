@@ -169,14 +169,14 @@ class YouNode:
                 "type": event_type,
             }
 
-            # Use service client for calendar operations to avoid permission issues
-            # Calendar events should be accessible to all authenticated users
-            client_to_use = self.supabase_service if self.supabase_service else self.supabase
+            # PERMANENT FIX: Always use regular client for calendar operations
+            # This prevents PostgreSQL "permission denied to set role admin" errors
+            # Service client should only be used for true admin operations
             
             self.logger.info(f"Creating calendar event for user {user_id}")
             
             insert_result = (
-                client_to_use.table("calendar_events").insert(payload).execute()
+                self.supabase.table("calendar_events").insert(payload).execute()
             )
 
             if not insert_result.data:
