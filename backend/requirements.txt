@@ -1,105 +1,43 @@
-# Minimal PAM Backend Dependencies for Deployment
-# Core FastAPI and ASGI server
-fastapi==0.111.0
-uvicorn[standard]==0.30.1
+# PERMANENT FIX: Load core stable dependencies
+-r requirements-core.txt
 
-# Data validation and settings
-pydantic==2.8.2
-pydantic-settings==2.3.4
-
-# Authentication and security - SECURITY FIX: Replaced python-jose due to CVE
-# python-jose[cryptography]==3.4.0  # VULNERABLE - replaced with PyJWT
-PyJWT[crypto]==2.8.0
-cryptography>=41.0.7
-email-validator==2.2.0
-
-# Core APIs
-openai>=1.50.0,<2.0.0
-supabase==2.5.0
+# Additional stable dependencies
 stripe==9.8.0
-
-# Database and caching
-redis==5.0.7
-sqlalchemy[asyncio]==2.0.41
-asyncpg==0.30.0
-
-# HTTP client
-httpx==0.27.0
-
-# Web scraping (basic) - SECURITY FIX: Updated requests to fix credential leak vulnerability
 beautifulsoup4==4.12.3
-requests>=2.32.0
-
-# Logging
-structlog==23.2.0
-python-json-logger==2.0.7
-
-# Environment and configuration
-python-dotenv==1.0.0
-
-# Date/time handling
-python-dateutil==2.8.2
-
-# Password hashing
-passlib[bcrypt]==1.7.4
-
-# CORS handling
-fastapi-cors==0.0.6
-
-# Utilities
-click==8.1.7
-# SECURITY FIX: Updated python-multipart to fix DoS vulnerabilities
-python-multipart>=0.0.10
-
-# Basic TTS (lightweight)
-edge-tts==6.1.9
-
-# Essential processing
-numpy==1.26.4
-
-# LangChain (for AI orchestration) - SECURITY FIX: Updated to patch file access vulnerabilities
-langchain-core>=0.3.0
-langchain>=0.3.0
-
-# Monitoring and error tracking - SECURITY FIX: Updated sentry-sdk to fix env var exposure
-sentry-sdk[fastapi]>=2.0.0
 psutil==5.9.8
 prometheus-client==0.19.0
+tiktoken>=0.8.0
 
-# OpenTelemetry for observability
+# OpenTelemetry for observability (stable versions)
 opentelemetry-api>=1.20.0
 opentelemetry-sdk>=1.20.0
 opentelemetry-instrumentation-fastapi>=0.41b0
 
-# AI Agent Observability platforms (added 2025-07-14)
+# AI Agent Observability (stable versions)
 langfuse>=2.0.0
-agentops>=0.4.15,<0.5.0  # Version range to avoid OpenAI compatibility issues
+agentops>=0.4.15,<0.5.0
 
-# Web search and HTML parsing
-beautifulsoup4==4.12.3
-# lxml==4.9.3  # Commented out due to Python 3.13 compatibility issues
+# OPTIONAL DEPENDENCIES - These will be gracefully handled if missing
+# The application code has try/catch blocks for all of these
 
-# Additional search APIs (optional) 
-# googlemaps==4.10.0  # Temporarily commented - may have Python 3.13 issues
+# Full LangChain (optional - core already included above)
+# langchain>=0.3.0
 
-# Additional dependencies that may be missing
-# DEPLOYMENT FIX: Updated tiktoken for Python 3.13 compatibility
-tiktoken>=0.8.0
-# openai-whisper==20231117  # Heavy dependency, may cause issues
-# transformers==4.36.0      # Heavy dependency, may cause issues
+# Vector database (optional - will use fallback mode if missing)
+# chromadb>=0.5.0
 
-# Image processing for screenshot analysis - Python 3.13 compatible
-Pillow>=10.4.0
+# Advanced TTS (optional - edge-tts provides basic functionality)
+# TTS>=0.22.0
 
-# Missing dependencies causing deployment warnings - made optional for Python 3.13 compatibility
-APScheduler>=3.10.4
+# Advanced web scraping (optional)
+# lxml==4.9.3
 
-# Text processing for enhanced context engineering
-langchain-text-splitters>=0.3.0
+# Search APIs (optional)
+# googlemaps==4.10.0
 
-# Heavy dependencies that may cause deployment issues on Python 3.13 - commented out for now
-# chromadb>=0.5.0  # Vector database - can be enabled when Python 3.13 support improves
-# TTS>=0.22.0      # Text-to-speech - incompatible with Python 3.13, using edge-tts instead
+# Audio processing (optional)
+# openai-whisper==20231117
+# transformers==4.36.0
 
-# Lightweight alternatives for core functionality
-# edge-tts==6.1.9 already included above for basic TTS
+# NOTE: All commented dependencies above are handled gracefully by the application
+# They will show warnings in logs but won't break deployment or core functionality
