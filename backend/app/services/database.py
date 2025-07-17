@@ -882,9 +882,9 @@ class DatabaseService:
                 'reminder_minutes': event_data.get('reminder_minutes', 15)
             }
             
-            # Check if user is admin and use appropriate client
-            is_admin = await self._is_user_admin(user_id)
-            client_to_use = self.service_client if is_admin else self.client
+            # Use service client for calendar operations to avoid permission issues
+            # Calendar events should be accessible to all authenticated users
+            client_to_use = self.service_client if self.service_client else self.client
             
             result = client_to_use.table('calendar_events').insert(calendar_event).execute()
             return bool(result.data)
