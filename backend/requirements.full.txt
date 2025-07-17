@@ -97,6 +97,7 @@ scikit-learn>=1.5.0
 
 # Enhanced Web Scraping and APIs - SECURITY FIX: Updated requests to fix credential leak vulnerability
 requests>=2.32.0
+assemblyai==0.42.0
 aiofiles==23.2.1
 googlemaps==4.10.0
 yelpapi==2.5.0
