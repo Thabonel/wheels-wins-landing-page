@@ -26,6 +26,19 @@ async def health_check():
         "environment": settings.ENVIRONMENT
     }
 
+@router.get("/config")
+async def get_frontend_config():
+    """Get frontend configuration including debug feature flags"""
+    return {
+        "environment": settings.ENVIRONMENT,
+        "debug_features": {
+            "enabled": settings.ENABLE_DEBUG_FEATURES and settings.ENVIRONMENT == "development",
+            "show_debug_tokens": settings.SHOW_DEBUG_TOKENS and settings.ENVIRONMENT == "development",
+            "enable_reasoning_debug": settings.ENABLE_REASONING_DEBUG and settings.ENVIRONMENT == "development",
+        },
+        "version": settings.VERSION
+    }
+
 @router.get("/health/detailed")
 async def detailed_health_check():
     """Detailed health check with service status"""
