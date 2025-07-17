@@ -1,13 +1,42 @@
 import asyncio
+import json
 import logging
 import os
+import subprocess
 import uuid
 from dataclasses import dataclass
-from typing import Dict, Optional, Callable
+from typing import Dict, Optional, Callable, Any
 
 from app.services.timeline_generator import Timeline
 
 logger = logging.getLogger(__name__)
+
+
+class ProjectStateManager:
+    """Simple JSON-based project state persistence."""
+
+    def __init__(self, path: str = "project_state.json") -> None:
+        self.path = path
+
+    def load(self) -> Dict[str, Any]:
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                logger.warning("Failed to load project state; starting fresh")
+        return {}
+
+    def save(self, data: Dict[str, Any]) -> None:
+        try:
+            with open(self.path, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+        except Exception as exc:  # pragma: no cover - best effort
+            logger.error(f"Failed to save project state: {exc}")
+
+    def override(self, data: Dict[str, Any]) -> None:
+        """Manually override project state."""
+        self.save(data)
 
 
 def _time_to_seconds(timestr: str) -> float:
@@ -30,6 +59,17 @@ class MediaProcessingService:
     def __init__(self) -> None:
         self.queue: asyncio.Queue[Optional[RenderJob]] = asyncio.Queue()
         self._worker: Optional[asyncio.Task] = None
+        self.state = ProjectStateManager()
+        self.project_state: Dict[str, Any] = self.state.load()
+
+    def resume_last(self) -> Optional[Dict[str, Any]]:
+        """Return last saved project state, if any."""
+        return self.project_state or None
+
+    def manual_override(self, data: Dict[str, Any]) -> None:
+        """Manually override saved state."""
+        self.state.override(data)
+        self.project_state = data
 
     async def start(self) -> None:
         if self._worker is None or self._worker.done():
@@ -48,6 +88,13 @@ class MediaProcessingService:
         media_files: Dict[str, str],
         progress_cb: Optional[Callable[[int], None]] = None,
     ) -> str:
+        # Validate media files before queueing
+        for media_id, path in media_files.items():
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Media file missing: {path}")
+            if not self._validate_media_format(path):
+                raise ValueError(f"Unsupported media format: {path}")
+
         await self.start()
         future: asyncio.Future = asyncio.get_event_loop().create_future()
         await self.queue.put(RenderJob(project_id, timeline, media_files, future, progress_cb))
@@ -59,7 +106,7 @@ class MediaProcessingService:
             if job is None:
                 break
             try:
-                result = await self.assemble_video(job.timeline, job.media_files, job.progress_cb)
+                result = await self.assemble_video(job.timeline, job.media_files, job.progress_cb, project_id=job.project_id)
                 job.future.set_result(result)
             except Exception as exc:  # pragma: no cover - best effort
                 logger.error(f"Rendering failed: {exc}")
@@ -71,18 +118,26 @@ class MediaProcessingService:
         timeline: Timeline,
         media_files: Dict[str, str],
         progress_cb: Optional[Callable[[int], None]] = None,
+        *,
+        project_id: str = "default",
     ) -> str:
         """Render video using FFmpeg based on the provided timeline."""
-
         filter_complex = self._build_filter_graph(timeline)
         output_path = os.path.abspath(f"render_{uuid.uuid4().hex}.mp4")
         cmd = self._build_ffmpeg_command(timeline, filter_complex, media_files, output_path)
+
         logger.info("Starting FFmpeg render")
-        process = await asyncio.create_subprocess_shell(
-            cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        self._save_progress(project_id, {"status": "started", "output": output_path})
+        try:
+            process = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except FileNotFoundError as exc:
+            self._save_progress(project_id, {"status": "error", "message": str(exc)})
+            raise
+
         duration = self._timeline_duration(timeline)
         while True:
             line = await process.stderr.readline()
@@ -92,7 +147,14 @@ class MediaProcessingService:
                 percent = self._parse_progress(line.decode(), duration)
                 if percent is not None:
                     progress_cb(percent)
+                    self._save_progress(project_id, {"status": "processing", "progress": percent})
         await process.wait()
+        if process.returncode != 0:
+            self._save_progress(project_id, {"status": "failed"})
+            stderr = await process.stderr.read()
+            raise RuntimeError(f"FFmpeg failed: {stderr.decode()}")
+
+        self._save_progress(project_id, {"status": "completed", "output": output_path})
         return output_path
 
     def _timeline_duration(self, timeline: Timeline) -> float:
@@ -147,6 +209,21 @@ class MediaProcessingService:
     ) -> str:
         inputs = ' '.join(f"-i {media_files[c.media_id]}" for c in timeline.clips)
         return f"ffmpeg -y {inputs} -filter_complex \"{filter_complex}\" -map [outv] -map [outa] {output_path}"
+
+    def _validate_media_format(self, path: str) -> bool:
+        allowed = {'.mp4', '.mov', '.mp3', '.wav'}
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in allowed:
+            return False
+        try:
+            result = subprocess.run(['ffprobe', '-v', 'error', path], capture_output=True)
+            return result.returncode == 0
+        except Exception:
+            return False
+
+    def _save_progress(self, project_id: str, data: Dict[str, Any]) -> None:
+        self.project_state[project_id] = data
+        self.state.save(self.project_state)
 
 
 media_processing_service = MediaProcessingService()
