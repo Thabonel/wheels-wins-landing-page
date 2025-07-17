@@ -2,6 +2,9 @@ import asyncio
 import uuid
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.core.logging import get_logger
+from app.services.script_analysis.openai_script_analyzer import (
+    OpenAIScriptAnalyzer,
+)
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -35,25 +38,26 @@ class EditingHub:
 
 hub = EditingHub()
 
-async def mock_processing(conn_id: str, websocket: WebSocket):
-    steps = [
-        "Analyzing script",
-        "Transcribing media files",
-        "Matching content to script",
-        "Generating timeline",
-        "Processing audio",
-    ]
-    total = len(steps)
-    for i, step in enumerate(steps, start=1):
-        await asyncio.sleep(1)
-        percent = int(i / total * 100)
-        await hub.send_progress(websocket, step, percent, "")
-    await hub.send_progress(websocket, "Complete", 100, "")
+async def process_script(conn_id: str, websocket: WebSocket, script: str):
+    """Process a script using OpenAI and stream progress."""
+
+    analyzer = OpenAIScriptAnalyzer()
+    try:
+        await hub.send_progress(websocket, "Analyzing script", 10, "Starting")
+        analysis = await analyzer.analyze_script(script)
+        await hub.send_progress(websocket, "Analyzing script", 100, "Complete")
+        await websocket.send_json({"type": "AnalysisResult", "data": analysis.model_dump()})
+    except Exception as e:
+        await hub.send_progress(websocket, "Error", 0, str(e))
 
 @router.websocket("/editing")
 async def editing_endpoint(websocket: WebSocket):
     conn_id = await hub.connect(websocket)
-    task = asyncio.create_task(mock_processing(conn_id, websocket))
+    # Wait for the first message containing the script
+    init_data = await websocket.receive_json()
+    script = init_data.get("script", "")
+
+    task = asyncio.create_task(process_script(conn_id, websocket, script))
     hub.tasks[conn_id] = task
     try:
         while True:
