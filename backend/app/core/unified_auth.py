@@ -151,16 +151,11 @@ async def verify_admin_token(token: str) -> Optional[UnifiedUser]:
         return None
 
 async def check_admin_status(user_id: str) -> bool:
-    """Check if user has admin privileges"""
-    try:
-        client = get_supabase_client()
-        admin_check = client.table('admin_users').select('role').eq(
-            'user_id', user_id
-        ).execute()
-        return bool(admin_check.data)
-    except Exception as e:
-        logger.debug(f"Admin status check error: {e}")
-        return False
+    """Check if user has admin privileges - disabled to prevent role permission errors"""
+    # PERMANENT FIX: Remove admin_users table queries that cause "set role admin" errors
+    # This function is disabled to prevent PostgreSQL role switching attempts
+    # For calendar and user operations, admin privileges are not needed
+    return False
 
 # FastAPI Dependencies
 async def get_current_user_unified(
