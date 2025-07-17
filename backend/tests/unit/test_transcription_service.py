@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 from app.services.transcription import TranscriptionService, TranscriptionResult
 
@@ -20,3 +20,17 @@ async def test_transcribe_media_success():
 
     assert isinstance(result, TranscriptionResult)
     assert result.text == 'hello'
+
+
+@pytest.mark.asyncio
+async def test_transcribe_media_cached():
+    service = TranscriptionService()
+    service.api_key = "test"
+    cached = TranscriptionResult(text='cached', segments=[])
+    service.cache = AsyncMock()
+    service.cache.get.return_value = cached
+
+    result = await service.transcribe_media('file.wav', 'file1')
+
+    assert result.text == 'cached'
+    service.cache.get.assert_awaited_once()

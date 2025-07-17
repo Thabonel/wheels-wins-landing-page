@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 30
     CACHE_TTL: int = 300
+    MAX_RENDER_WORKERS: int = 1
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 100
