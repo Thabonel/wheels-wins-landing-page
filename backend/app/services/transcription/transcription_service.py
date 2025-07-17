@@ -11,6 +11,7 @@ import httpx
 from app.core.config import get_settings
 from app.services.database import DatabaseService
 from app.api.editing_hub import hub
+from app.services.cache_service import cache_service, CacheService
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -31,11 +32,20 @@ class TranscriptionService:
         self,
         http_client: Optional[httpx.AsyncClient] = None,
         db: Optional[DatabaseService] = None,
+        cache: Optional[CacheService] = None,
     ) -> None:
         self.http_client = http_client or httpx.AsyncClient()
         self.db = db or DatabaseService()
+        self.cache = cache or cache_service
         self.api_key = getattr(settings, "ASSEMBLYAI_API_KEY", None)
         self.base_url = "https://api.assemblyai.com/v2"
+
+    async def _get_cached_result(self, file_id: str) -> Optional[TranscriptionResult]:
+        cache_key = f"transcription:{file_id}"
+        cached = await self.cache.get(cache_key, use_pickle=True)
+        if cached:
+            return cached
+        return None
 
     async def _upload_to_assemblyai(self, file_path: str) -> str:
         headers = {"authorization": self.api_key}
@@ -78,6 +88,12 @@ class TranscriptionService:
                     "created_at": datetime.utcnow().isoformat(),
                 }
             ).execute()
+            await self.cache.set(
+                f"transcription:{file_id}",
+                result,
+                ttl=86400,
+                use_pickle=True,
+            )
         except Exception as exc:  # pragma: no cover - best effort
             logger.warning(f"Failed to store transcript: {exc}")
 
@@ -87,6 +103,12 @@ class TranscriptionService:
         """Transcribe media file and stream progress."""
         if not self.api_key:
             raise RuntimeError("ASSEMBLYAI_API_KEY not configured")
+
+        cached = await self._get_cached_result(file_id)
+        if cached:
+            if websocket is not None:
+                await hub.send_progress(websocket, "TranscriptionProgress", 100, "cached")
+            return cached
 
         upload_url = await self._upload_to_assemblyai(file_path)
         transcript_id = await self._start_transcription(upload_url)
