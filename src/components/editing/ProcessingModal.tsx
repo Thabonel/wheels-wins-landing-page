@@ -13,6 +13,7 @@ import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';
 interface ProcessingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  script: string;
 }
 
 interface ProgressPayload {
@@ -21,7 +22,7 @@ interface ProgressPayload {
   details: string;
 }
 
-export default function ProcessingModal({ isOpen, onClose }: ProcessingModalProps) {
+export default function ProcessingModal({ isOpen, onClose, script }: ProcessingModalProps) {
   const [connection, setConnection] = useState<HubConnection | null>(null);
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
@@ -44,7 +45,10 @@ export default function ProcessingModal({ isOpen, onClose }: ProcessingModalProp
       });
     });
 
-    conn.start().then(() => setConnection(conn));
+    conn.start().then(() => {
+      setConnection(conn);
+      conn.send(JSON.stringify({ script }));
+    });
 
     return () => {
       conn.stop();
