@@ -10,9 +10,14 @@ from typing import List, Optional
 
 class Settings(BaseSettings):
     # Environment
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "production"  # Changed to production for deployed instances
     DEBUG: bool = False
     VERSION: str = "2.0.0"
+    
+    # Debug Features Control (only enabled in development)
+    ENABLE_DEBUG_FEATURES: bool = False
+    SHOW_DEBUG_TOKENS: bool = False
+    ENABLE_REASONING_DEBUG: bool = False
 
     # Security
     SECRET_KEY: SecretStr
