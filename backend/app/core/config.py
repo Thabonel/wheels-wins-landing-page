@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     SITE_URL: str = "http://localhost:3000"
     MUNDI_URL: Optional[str] = None
     
+    # Search APIs
+    GOOGLE_SEARCH_API_KEY: Optional[str] = None
+    GOOGLE_SEARCH_ENGINE_ID: Optional[str] = None
+    BING_SEARCH_API_KEY: Optional[str] = None
+    
     # AI Agent Observability
     LANGFUSE_SECRET_KEY: Optional[str] = None
     LANGFUSE_PUBLIC_KEY: Optional[str] = None
