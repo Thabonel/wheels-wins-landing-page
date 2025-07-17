@@ -1,11 +1,13 @@
 import json
 import logging
+import hashlib
 from typing import List, Optional, Literal
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.services.cache_service import cache_service, CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +30,17 @@ class ScriptAnalysis(BaseModel):
 class OpenAIScriptAnalyzer:
     """Service for analyzing news scripts using OpenAI."""
 
-    def __init__(self, client: Optional[AsyncOpenAI] = None):
+    def __init__(self, client: Optional[AsyncOpenAI] = None, cache: Optional[CacheService] = None):
         self.client = client or AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.cache = cache or cache_service
 
     async def analyze_script(self, script: str) -> ScriptAnalysis:
+        cache_key = f"script_analysis:{hashlib.sha1(script.encode()).hexdigest()}"
+
+        cached = await self.cache.get(cache_key)
+        if cached:
+            return ScriptAnalysis.model_validate(cached)
+
         prompt = (
             "Analyze this broadcast news script and extract:\n"
             "1. Voice-over segments with speaker names and text\n"
@@ -58,7 +67,9 @@ class OpenAIScriptAnalyzer:
             )
             content = response.choices[0].message.content
             data = json.loads(content)
-            return ScriptAnalysis.model_validate(data)
+            result = ScriptAnalysis.model_validate(data)
+            await self.cache.set(cache_key, result.model_dump(), ttl=86400)
+            return result
         except Exception as e:
             logger.error(f"Script analysis failed: {e}")
             raise

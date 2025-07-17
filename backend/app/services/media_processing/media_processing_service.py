@@ -5,7 +5,9 @@ import os
 import subprocess
 import uuid
 from dataclasses import dataclass
-from typing import Dict, Optional, Callable, Any
+from typing import Dict, Optional, Callable, Any, List
+
+from app.core.config import settings
 
 from app.services.timeline_generator import Timeline
 
@@ -56,9 +58,10 @@ class RenderJob:
 class MediaProcessingService:
     """Assemble videos from timelines using FFmpeg with a queued renderer."""
 
-    def __init__(self) -> None:
+    def __init__(self, max_workers: int = 1) -> None:
         self.queue: asyncio.Queue[Optional[RenderJob]] = asyncio.Queue()
-        self._worker: Optional[asyncio.Task] = None
+        self.max_workers = max_workers
+        self._workers: List[asyncio.Task] = []
         self.state = ProjectStateManager()
         self.project_state: Dict[str, Any] = self.state.load()
 
@@ -72,14 +75,17 @@ class MediaProcessingService:
         self.project_state = data
 
     async def start(self) -> None:
-        if self._worker is None or self._worker.done():
-            self._worker = asyncio.create_task(self._process_queue())
+        active = [w for w in self._workers if not w.done()]
+        self._workers = active
+        for _ in range(self.max_workers - len(self._workers)):
+            self._workers.append(asyncio.create_task(self._process_queue()))
 
     async def stop(self) -> None:
-        await self.queue.put(None)
-        if self._worker:
-            await self._worker
-            self._worker = None
+        for _ in self._workers:
+            await self.queue.put(None)
+        for worker in self._workers:
+            await worker
+        self._workers = []
 
     async def enqueue_render(
         self,
@@ -155,6 +161,7 @@ class MediaProcessingService:
             raise RuntimeError(f"FFmpeg failed: {stderr.decode()}")
 
         self._save_progress(project_id, {"status": "completed", "output": output_path})
+        asyncio.create_task(self._cleanup_file(output_path))
         return output_path
 
     def _timeline_duration(self, timeline: Timeline) -> float:
@@ -208,7 +215,10 @@ class MediaProcessingService:
         output_path: str,
     ) -> str:
         inputs = ' '.join(f"-i {media_files[c.media_id]}" for c in timeline.clips)
-        return f"ffmpeg -y {inputs} -filter_complex \"{filter_complex}\" -map [outv] -map [outa] {output_path}"
+        return (
+            f"ffmpeg -v warning -stats -y {inputs} "
+            f"-filter_complex \"{filter_complex}\" -map [outv] -map [outa] {output_path}"
+        )
 
     def _validate_media_format(self, path: str) -> bool:
         allowed = {'.mp4', '.mov', '.mp3', '.wav'}
@@ -225,5 +235,16 @@ class MediaProcessingService:
         self.project_state[project_id] = data
         self.state.save(self.project_state)
 
+    async def _cleanup_file(self, path: str) -> None:
+        """Remove temporary output files asynchronously."""
+        try:
+            await asyncio.sleep(300)
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            logger.warning(f"Failed to delete temp file {path}")
 
-media_processing_service = MediaProcessingService()
+
+media_processing_service = MediaProcessingService(
+    max_workers=getattr(settings, "MAX_RENDER_WORKERS", 1)
+)
