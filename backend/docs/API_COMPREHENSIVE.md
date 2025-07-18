@@ -4,13 +4,15 @@
 1. [Quick Start](#quick-start)
 2. [Authentication & Security](#authentication--security)
 3. [PAM AI Chat System](#pam-ai-chat-system)
-4. [Financial Management (Wins)](#financial-management-wins)
-5. [Travel Management (Wheels)](#travel-management-wheels)
-6. [Social Features](#social-features)
-7. [Node-Based Architecture](#node-based-architecture)
-8. [WebSocket Real-time Features](#websocket-real-time-features)
-9. [Error Handling & Rate Limiting](#error-handling--rate-limiting)
-10. [SDK & Client Libraries](#sdk--client-libraries)
+4. [PAM Database Management Tools](#pam-database-management-tools)
+5. [PAM Cross-Domain Intelligence](#pam-cross-domain-intelligence)
+6. [Financial Management (Wins)](#financial-management-wins)
+7. [Travel Management (Wheels)](#travel-management-wheels)
+8. [Social Features](#social-features)
+9. [Node-Based Architecture](#node-based-architecture)
+10. [WebSocket Real-time Features](#websocket-real-time-features)
+11. [Error Handling & Rate Limiting](#error-handling--rate-limiting)
+12. [SDK & Client Libraries](#sdk--client-libraries)
 
 ---
 
@@ -227,6 +229,436 @@ voice_settings: {
   "speed": 1.0,
   "pitch": 0.0,
   "voice_id": "australian_female"
+}
+```
+
+---
+
+## PAM Database Management Tools
+
+### Overview
+PAM includes 44 comprehensive tools with 100% database coverage across 39 tables. These tools provide unified access to all system data with advanced caching, security, and performance optimization.
+
+### Database Statistics
+```http
+GET /api/v1/pam/database/stats
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "stats": {
+    "total_tables": 39,
+    "accessible_tables": 39,
+    "coverage_percentage": 100,
+    "categories": {
+      "user_management": {"tables": 3, "records": 1247},
+      "pam_core": {"tables": 7, "records": 8934},
+      "financial": {"tables": 4, "records": 3456},
+      "vehicle_maintenance": {"tables": 3, "records": 892},
+      "location_travel": {"tables": 5, "records": 2341},
+      "business_hustles": {"tables": 3, "records": 567},
+      "ecommerce": {"tables": 3, "records": 234},
+      "social": {"tables": 5, "records": 1789},
+      "analytics": {"tables": 3, "records": 4567},
+      "other": {"tables": 3, "records": 1234}
+    },
+    "performance_metrics": {
+      "avg_query_time_ms": 51.2,
+      "cache_hit_rate": 79.8,
+      "bulk_operations_per_second": 844
+    }
+  }
+}
+```
+
+### Generic Database Operations
+
+#### Create Records
+```http
+POST /api/v1/pam/database/create
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "table_name": "expenses",
+  "data": {
+    "amount": 75.50,
+    "category": "fuel",
+    "description": "Shell Station",
+    "date": "2024-01-15"
+  },
+  "user_id": "user-uuid"
+}
+```
+
+#### Read Records with Filtering
+```http
+POST /api/v1/pam/database/read
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "table_name": "expenses",
+  "filters": {
+    "category": "fuel",
+    "date": {"gte": "2024-01-01", "lte": "2024-01-31"}
+  },
+  "user_id": "user-uuid",
+  "limit": 50,
+  "offset": 0,
+  "order_by": "date",
+  "order_direction": "desc"
+}
+```
+
+#### Update Records
+```http
+POST /api/v1/pam/database/update
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "table_name": "expenses",
+  "filters": {"id": "expense-uuid"},
+  "data": {
+    "amount": 80.00,
+    "description": "Shell Station - Updated"
+  },
+  "user_id": "user-uuid"
+}
+```
+
+#### Delete Records (with confirmation)
+```http
+POST /api/v1/pam/database/delete
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "table_name": "expenses",
+  "filters": {"id": "expense-uuid"},
+  "user_id": "user-uuid",
+  "confirm": true
+}
+```
+
+#### Bulk Operations
+```http
+POST /api/v1/pam/database/bulk
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "operations": [
+    {
+      "operation": "create",
+      "table_name": "expenses",
+      "data": {"amount": 50, "category": "food"}
+    },
+    {
+      "operation": "update",
+      "table_name": "expenses",
+      "filters": {"id": "expense-uuid"},
+      "data": {"amount": 55}
+    }
+  ],
+  "user_id": "user-uuid"
+}
+```
+
+### Database Health Monitoring
+```http
+GET /api/v1/pam/database/health
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "health": {
+    "overall_status": "healthy",
+    "database_connectivity": "excellent",
+    "query_performance": "good",
+    "cache_performance": "good",
+    "connection_pool": {
+      "active_connections": 12,
+      "idle_connections": 8,
+      "max_connections": 50
+    },
+    "recommendations": [
+      "Consider increasing cache TTL for camping_locations",
+      "Query optimization opportunities in social_posts table"
+    ]
+  }
+}
+```
+
+---
+
+## PAM Cross-Domain Intelligence
+
+### Overview
+PAM's cross-domain intelligence provides advanced analytics by correlating data across all domains - financial, travel, social, and business. This enables sophisticated insights and predictive capabilities.
+
+### User 360-Degree View
+```http
+GET /api/v1/pam/intelligence/user-360/{user_id}
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "user_360": {
+    "user_id": "user-uuid",
+    "generated_at": "2024-01-15T10:30:00Z",
+    "profile": {
+      "name": "John Doe",
+      "location": "Sydney, NSW",
+      "travel_style": "budget_conscious",
+      "preferences": {"currency": "AUD", "units": "metric"}
+    },
+    "financial": {
+      "total_budget": 2000,
+      "total_expenses": 1547.32,
+      "budget_utilization": 77.4,
+      "net_income": 3200,
+      "financial_health_score": 85
+    },
+    "travel": {
+      "total_trips": 12,
+      "upcoming_trips": 2,
+      "favorite_destinations": ["Blue Mountains", "Central Coast", "Hunter Valley"],
+      "average_daily_cost": 94.50
+    },
+    "vehicle": {
+      "total_maintenance": 8,
+      "overdue_maintenance": [],
+      "maintenance_up_to_date": true,
+      "vehicle_health_score": 92
+    },
+    "social": {
+      "total_posts": 23,
+      "group_memberships": 5,
+      "engagement_level": "high"
+    },
+    "hustles": {
+      "total_hustles": 3,
+      "active_hustles": 2,
+      "inactive_count": 1,
+      "hustle_performance_score": 67
+    },
+    "insights": [
+      {
+        "type": "warning",
+        "message": "High budget utilization with upcoming trips. Consider trip budget planning.",
+        "domains": ["financial", "travel"]
+      }
+    ]
+  }
+}
+```
+
+### Trip-Expense Correlation
+```http
+POST /api/v1/pam/intelligence/trip-expenses
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "user_id": "user-uuid",
+  "trip_id": "optional-trip-uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "correlations": [
+    {
+      "trip_id": "trip-uuid",
+      "trip_title": "Blue Mountains Weekend",
+      "trip_dates": {
+        "start": "2024-01-13",
+        "end": "2024-01-15"
+      },
+      "total_cost": 347.80,
+      "expense_breakdown": {
+        "fuel": 120.50,
+        "other_expenses": 227.30,
+        "daily_average": 115.93
+      },
+      "expense_categories": {
+        "fuel": 120.50,
+        "food": 145.80,
+        "camping": 45.00,
+        "activities": 36.50
+      },
+      "fuel_efficiency": 8.2
+    }
+  ],
+  "insights": [
+    {
+      "type": "info",
+      "message": "Most expensive trip: Blue Mountains Weekend at $347.80"
+    },
+    {
+      "type": "suggestion",
+      "message": "Average daily trip cost is $115.93. Consider budget camping options."
+    }
+  ],
+  "summary": {
+    "total_trips_analyzed": 1,
+    "average_trip_cost": 347.80
+  }
+}
+```
+
+### Predictive Maintenance
+```http
+POST /api/v1/pam/intelligence/maintenance-prediction
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "user_id": "user-uuid",
+  "months_ahead": 6
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "predictions": [
+    {
+      "maintenance_type": "oil_change",
+      "predicted_date": "2024-03-15T00:00:00Z",
+      "estimated_cost": 136.49,
+      "confidence": "high"
+    },
+    {
+      "maintenance_type": "tire_rotation",
+      "predicted_date": "2024-04-20T00:00:00Z",
+      "estimated_cost": 89.25,
+      "confidence": "medium"
+    }
+  ],
+  "summary": {
+    "total_predicted_cost": 225.74,
+    "monthly_average": 37.62,
+    "maintenance_items": 2,
+    "analysis_period_months": 6
+  },
+  "vehicle_usage": {
+    "average_monthly_mileage": 1247.5,
+    "maintenance_cost_per_km": 0.030
+  }
+}
+```
+
+### Hustle ROI Analysis
+```http
+GET /api/v1/pam/intelligence/hustle-roi/{user_id}
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "hustle_analysis": {
+    "hustle-uuid-1": {
+      "title": "YouTube Travel Vlogs",
+      "status": "approved",
+      "total_income": 1247.50,
+      "total_expenses": 435.20,
+      "profit": 812.30,
+      "roi_percentage": 186.6,
+      "attempt_count": 8,
+      "success_rate": 75.0,
+      "time_invested": 124.5,
+      "hourly_rate": 6.52
+    }
+  },
+  "summary": {
+    "total_hustles": 3,
+    "total_profit": 1456.80,
+    "best_performing": "hustle-uuid-1",
+    "average_roi": 156.3
+  },
+  "recommendations": [
+    {
+      "hustle_id": "hustle-uuid-2",
+      "recommendation": "Consider dropping Affiliate Marketing - ROI is only 12.4%"
+    }
+  ]
+}
+```
+
+### Intelligent Recommendations
+```http
+GET /api/v1/pam/intelligence/recommendations/{user_id}
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "recommendations": [
+    {
+      "type": "financial",
+      "priority": "high",
+      "title": "Budget Alert",
+      "description": "You're using over 90% of your budget. Consider reviewing expenses.",
+      "action": "Review and adjust budget categories"
+    },
+    {
+      "type": "travel",
+      "priority": "medium",
+      "title": "Travel Cost Optimization",
+      "description": "Your average daily travel cost is high. Consider budget-friendly options.",
+      "action": "Explore free camping and cooking options"
+    }
+  ],
+  "user_context": {
+    "financial_health": 73.5,
+    "vehicle_health": 92.0,
+    "hustle_performance": 67.0
+  }
+}
+```
+
+### Spending Pattern Analysis
+```http
+POST /api/v1/pam/intelligence/spending-patterns
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "user_id": "user-uuid",
+  "analysis_type": "monthly",
+  "include_predictions": true
+}
+```
+
+### Comprehensive Insights Report
+```http
+POST /api/v1/pam/intelligence/insights-report
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "user_id": "user-uuid",
+  "report_type": "comprehensive",
+  "time_period": "last_30_days"
 }
 ```
 

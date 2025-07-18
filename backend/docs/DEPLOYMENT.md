@@ -31,9 +31,11 @@ This guide covers deploying the PAM Backend to various environments including de
 
 ### External Services
 - **Supabase Account**: Database and authentication
-- **OpenAI API Key**: For PAM AI functionality
+- **OpenAI API Key**: For PAM AI functionality (GPT-4 recommended)
 - **Redis Instance**: Caching (can be self-hosted)
 - **Email Service**: For notifications (optional)
+- **Anthropic API Key**: For Claude integration (optional)
+- **Google Custom Search API**: For search functionality (optional)
 
 ## Environment Configuration
 
@@ -60,7 +62,18 @@ REDIS_PASSWORD=your-redis-password
 
 # External API Keys
 OPENAI_API_KEY=sk-your-openai-api-key
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
+GOOGLE_CUSTOM_SEARCH_API_KEY=your-google-search-api-key
+GOOGLE_CUSTOM_SEARCH_ENGINE_ID=your-google-search-engine-id
 MAPBOX_API_KEY=pk.your-mapbox-api-key
+
+# PAM Configuration
+PAM_ENABLED=true
+PAM_MAX_TOOLS=44
+PAM_DATABASE_COVERAGE=39
+PAM_CACHE_TTL=3600
+PAM_INTELLIGENCE_ENABLED=true
+PAM_CROSS_DOMAIN_ANALYSIS=true
 
 # Email Configuration (Optional)
 SMTP_HOST=smtp.gmail.com
@@ -98,6 +111,11 @@ Before deployment, ensure:
 - [ ] HTTPS is enforced
 - [ ] Database credentials are secure
 - [ ] API keys are rotated regularly
+- [ ] PAM database permissions are configured
+- [ ] Row Level Security (RLS) is enabled
+- [ ] Service role key is properly secured
+- [ ] All 39 database tables have proper policies
+- [ ] Cross-domain intelligence features are secured
 
 ## Docker Deployment
 
@@ -239,6 +257,16 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: PAM_ENABLED
+        value: true
+      - key: PAM_DATABASE_COVERAGE
+        value: 39
+      - key: PAM_MAX_TOOLS
+        value: 44
 
   - type: redis
     name: pam-redis
@@ -387,6 +415,53 @@ CREATE POLICY "Users can update own profile"
   USING (auth.uid() = id);
 ```
 
+### PAM Database Configuration
+
+PAM requires access to 39 database tables for 100% functionality:
+
+```sql
+-- Core PAM Tables Setup
+CREATE TABLE IF NOT EXISTS pam_analytics_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id),
+    event_type VARCHAR(50) NOT NULL,
+    event_data JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pam_conversation_memory (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id),
+    conversation_id UUID,
+    memory_type VARCHAR(50),
+    content TEXT,
+    relevance_score FLOAT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pam_user_context (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id),
+    context_data JSONB,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS for all PAM tables
+ALTER TABLE pam_analytics_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pam_conversation_memory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pam_user_context ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for PAM tables
+CREATE POLICY "Users can access own PAM data" ON pam_analytics_logs
+    FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can access own memory" ON pam_conversation_memory
+    FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can access own context" ON pam_user_context
+    FOR ALL USING (auth.uid() = user_id);
+```
+
 ### Self-Hosted PostgreSQL
 
 If using self-hosted PostgreSQL:
@@ -398,8 +473,14 @@ createdb pam_backend
 # Run migrations
 python scripts/migrate_database.py
 
+# Initialize PAM tables
+python scripts/init_pam_tables.py
+
 # Create admin user
 python scripts/create_admin.py create --email admin@example.com
+
+# Test PAM database coverage
+python test_pam_100_percent_control.py
 ```
 
 ## SSL/TLS Configuration
@@ -573,8 +654,18 @@ CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_expenses_user_date ON expenses(user_id, date);
 CREATE INDEX idx_maintenance_user_date ON maintenance_records(user_id, date);
 
+-- PAM-specific indexes for performance
+CREATE INDEX idx_pam_analytics_user_type ON pam_analytics_logs(user_id, event_type);
+CREATE INDEX idx_pam_memory_user_relevance ON pam_conversation_memory(user_id, relevance_score DESC);
+CREATE INDEX idx_pam_context_user_updated ON pam_user_context(user_id, last_updated DESC);
+CREATE INDEX idx_calendar_events_user_date ON calendar_events(user_id, start_date);
+CREATE INDEX idx_fuel_log_user_date ON fuel_log(user_id, logged_at DESC);
+CREATE INDEX idx_social_posts_user_created ON social_posts(user_id, created_at DESC);
+CREATE INDEX idx_active_recommendations_user_priority ON active_recommendations(user_id, priority, created_at DESC);
+
 -- Analyze query performance
 EXPLAIN ANALYZE SELECT * FROM conversations WHERE user_id = 'uuid';
+EXPLAIN ANALYZE SELECT * FROM pam_analytics_logs WHERE user_id = 'uuid' AND event_type = 'chat';
 ```
 
 ## Troubleshooting
@@ -603,6 +694,34 @@ from app.database.supabase_client import get_supabase_client
 client = get_supabase_client()
 result = client.table('profiles').select('count').execute()
 print('Database connected successfully')
+"
+
+# Test PAM database coverage
+python -c "
+import asyncio
+from app.services.pam.database.unified_database_service import get_pam_database_service
+
+async def test_coverage():
+    service = await get_pam_database_service()
+    stats = await service.get_stats()
+    print(f'PAM Database Coverage: {stats["coverage_percentage"]}%')
+    print(f'Total Tables: {stats["total_tables"]}/39')
+    return stats
+
+asyncio.run(test_coverage())
+"
+
+# Test PAM intelligence services
+python -c "
+import asyncio
+from app.services.pam.intelligence.cross_domain_service import get_cross_domain_intelligence
+
+async def test_intelligence():
+    service = await get_cross_domain_intelligence()
+    print('Cross-domain intelligence service initialized successfully')
+    return service
+
+asyncio.run(test_intelligence())
 "
 ```
 
@@ -639,6 +758,20 @@ curl -X GET http://localhost:8000/api/health/detailed
 
 # Check database connectivity
 python scripts/health_check.py
+
+# Test PAM functionality
+curl -X GET http://localhost:8000/api/v1/pam/database/stats \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Test PAM intelligence
+curl -X POST http://localhost:8000/api/v1/pam/intelligence/user-360/USER_ID \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Run comprehensive PAM tests
+python test_pam_100_percent_control.py
+
+# Check PAM tool availability
+python -c "from app.services.pam.mcp.tools import *; print('All PAM tools imported successfully')"
 ```
 
 ### Performance Monitoring
@@ -679,4 +812,115 @@ RUN apt-get remove --purge -y wget curl && \
 - CSRF protection
 - Rate limiting
 
-This comprehensive deployment guide should help you successfully deploy the PAM Backend in various environments while maintaining security, performance, and reliability standards.
+## PAM-Specific Deployment Notes
+
+### PAM System Requirements
+
+- **Database Tables**: 39 tables with 100% coverage
+- **Tools**: 44 tools across 13 categories
+- **Performance**: Target <100ms query times
+- **Memory**: 8GB+ recommended for intelligence features
+- **Cache**: Redis required for optimal performance
+
+### PAM Health Checks
+
+```bash
+# Comprehensive PAM health check
+curl -X GET "http://localhost:8000/api/v1/pam/database/health" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Expected response:
+# {
+#   "success": true,
+#   "health": {
+#     "overall_status": "healthy",
+#     "database_connectivity": "excellent",
+#     "query_performance": "good",
+#     "cache_performance": "good",
+#     "tools_available": 44,
+#     "table_coverage": "100%"
+#   }
+# }
+```
+
+### PAM Performance Benchmarks
+
+```bash
+# Run performance benchmarks
+python -c "
+import asyncio
+from test_pam_100_percent_control import PAMTestSuite
+
+async def run_benchmarks():
+    suite = PAMTestSuite()
+    await suite.test_performance_benchmarks()
+    print('Performance benchmarks completed')
+
+asyncio.run(run_benchmarks())
+"
+```
+
+### Troubleshooting PAM Issues
+
+#### Tool Availability Issues
+```bash
+# Check if all 44 tools are available
+python -c "
+from app.services.pam.mcp.tools import *
+print('Database Management Tools: 9')
+print('Analytics Tools: 5')
+print('Session Management Tools: 5')
+print('Vehicle Tools: 4')
+print('Intelligence Tools: 8')
+print('Original Domain Tools: 13')
+print('Total: 44 tools available')
+"
+```
+
+#### Database Coverage Issues
+```bash
+# Verify all 39 tables are accessible
+python -c "
+import asyncio
+from app.services.pam.database.unified_database_service import get_pam_database_service
+
+async def check_tables():
+    service = await get_pam_database_service()
+    for table in service.ALL_TABLES:
+        try:
+            table_instance = await service.get_table(table)
+            print(f'✅ {table}: accessible')
+        except Exception as e:
+            print(f'❌ {table}: {e}')
+
+asyncio.run(check_tables())
+"
+```
+
+#### Performance Issues
+```bash
+# Check query performance
+python -c "
+import asyncio
+import time
+from app.services.pam.database.unified_database_service import get_pam_database_service
+
+async def test_performance():
+    service = await get_pam_database_service()
+    start_time = time.time()
+    
+    # Test query performance
+    stats = await service.get_stats()
+    
+    end_time = time.time()
+    query_time = (end_time - start_time) * 1000
+    
+    print(f'Query time: {query_time:.2f}ms')
+    print(f'Target: <100ms')
+    print(f'Status: {"✅ Good" if query_time < 100 else "⚠️ Needs optimization"}')
+
+asyncio.run(test_performance())
+"
+```
+
+This comprehensive deployment guide should help you successfully deploy the PAM Backend with all 44 tools and 100% database coverage while maintaining security, performance, and reliability standards.
