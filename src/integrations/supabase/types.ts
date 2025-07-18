@@ -5870,10 +5870,6 @@ export type Database = {
         Args: { content_type: string; content_id: string; content_text: string }
         Returns: boolean
       }
-      bootstrap_admin_user: {
-        Args: { user_email: string; user_uuid?: string }
-        Returns: boolean
-      }
       calculate_model_performance_score: {
         Args: { model_version_param: string }
         Returns: number
@@ -5894,6 +5890,10 @@ export type Database = {
       }
       check_user_admin_status: {
         Args: Record<PropertyKey, never> | { check_user_id: string }
+        Returns: boolean
+      }
+      check_user_is_admin: {
+        Args: { check_user_id: string }
         Returns: boolean
       }
       cleanup_expired_audio_cache: {
@@ -5972,12 +5972,8 @@ export type Database = {
         Returns: Json
       }
       get_user_role: {
-        Args: Record<PropertyKey, never> | { check_user_id: string }
-        Returns: string
-      }
-      is_current_user_admin: {
         Args: Record<PropertyKey, never>
-        Returns: boolean
+        Returns: string
       }
       log_security_event: {
         Args: {
