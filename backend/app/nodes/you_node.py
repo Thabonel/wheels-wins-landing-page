@@ -115,7 +115,7 @@ class YouNode:
             }
 
     async def create_calendar_event(
-        self, user_id: str, event_data: Dict[str, Any]
+        self, user_id: str, event_data: Dict[str, Any], user_client=None
     ) -> Dict[str, Any]:
         """Create a new calendar event"""
         try:
@@ -169,14 +169,12 @@ class YouNode:
                 "type": event_type,
             }
 
-            # PERMANENT FIX: Always use regular client for calendar operations
-            # This prevents PostgreSQL "permission denied to set role admin" errors
-            # Service client should only be used for true admin operations
+            client_to_use = user_client if user_client else self.supabase
             
-            self.logger.info(f"Creating calendar event for user {user_id}")
+            self.logger.info(f"Creating calendar event for user {user_id} using {'user client' if user_client else 'default client'}")
             
             insert_result = (
-                self.supabase.table("calendar_events").insert(payload).execute()
+                client_to_use.table("calendar_events").insert(payload).execute()
             )
 
             if not insert_result.data:

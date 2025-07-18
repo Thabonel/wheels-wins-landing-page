@@ -48,7 +48,8 @@ async def create_calendar_event(
     """Create a new calendar event"""
     try:
         event_data = request.dict()
-        result = await you_node.create_calendar_event(current_user.user_id, event_data)
+        user_client = current_user.get_supabase_client()
+        result = await you_node.create_calendar_event(current_user.user_id, event_data, user_client)
         return result
         
     except Exception as e:

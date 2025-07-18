@@ -253,19 +253,55 @@ export const handleEventSubmit = async (
         if (reloadEvents) await reloadEvents();
       }
     } else {
-      // This is a local-only event, create it in the database
-      const { data: dbNewEvent, error } = await supabase
-        .from("calendar_events")
-        .insert([{ ...payload, user_id: user.id }])
-        .select()
-        .single();
+      // This is a local-only event, create it in the database via backend API
+      try {
+        const response = await fetch('/api/v1/you/calendar/events', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          },
+          body: JSON.stringify({
+            title: data.title,
+            description: data.description || "",
+            start_time: `${data.date.toISOString().split("T")[0]}T${data.startTime}:00`,
+            duration_hours: Math.max(1, (new Date(`1970-01-01T${data.endTime}:00`).getTime() - new Date(`1970-01-01T${data.startTime}:00`).getTime()) / (1000 * 60 * 60)),
+            location: data.location || "",
+            type: data.type
+          })
+        });
 
-      if (error) {
-        console.error("Database insert error:", error);
-        toast.error("Failed to save event.");
-      } else {
-        toast.success("Event saved.");
-        if (reloadEvents) await reloadEvents();
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to create event');
+        }
+
+        const dbNewEvent = result.data?.event ? {
+          id: result.data.event.id,
+          title: result.data.event.title,
+          description: result.data.event.description,
+          date: data.date.toISOString().split("T")[0],
+          start_time: `${data.startTime}:00`,
+          end_time: `${data.endTime}:00`,
+          type: data.type,
+          location: data.location || ""
+        } : null;
+        const error = null;
+
+        if (error) {
+          console.error("Database insert error:", error);
+          toast.error("Failed to save event.");
+        } else {
+          toast.success("Event saved.");
+          if (reloadEvents) await reloadEvents();
+        }
+      } catch (apiError) {
+        console.error("API call error:", apiError);
+        toast.error(`Failed to save event: ${apiError.message}`);
       }
     }
   } else {
@@ -294,40 +330,47 @@ export const handleEventSubmit = async (
     // Add to local state immediately for better UX
     setEvents((prev) => [...prev, tempEvent]);
 
-    // Prepare payload for database
-    const payload = {
-      title: data.title,
-      description: data.description || "",
-      date: data.date.toISOString().split("T")[0],
-      time: `${data.startTime}:00`,
-      start_time: `${data.startTime}:00`,
-      end_time: `${data.endTime}:00`,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      type: data.type,
-      user_id: user.id,
-      location: data.location || "",
-    };
+    try {
+      const response = await fetch('/api/v1/you/calendar/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: JSON.stringify({
+          title: data.title,
+          description: data.description || "",
+          start_time: `${data.date.toISOString().split("T")[0]}T${data.startTime}:00`,
+          duration_hours: Math.max(1, (new Date(`1970-01-01T${data.endTime}:00`).getTime() - new Date(`1970-01-01T${data.startTime}:00`).getTime()) / (1000 * 60 * 60)),
+          location: data.location || "",
+          type: data.type
+        })
+      });
 
-    const { data: insertedEvent, error } = await supabase
-      .from("calendar_events")
-      .insert([payload])
-      .select()
-      .single();
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
 
-    if (error) {
-      console.error("Database insert error:", error);
-      toast.error(`Failed to save event: ${error.message}`);
-      // Remove the temporary event on failure
-      setEvents((prev) => prev.filter(e => e.id !== tempId));
-    } else {
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to create event');
+      }
+
       toast.success("Event saved successfully!");
       // Replace temporary event with the saved one from database
-      const savedEvent = convertDbEventToLocal(insertedEvent);
-      setEvents((prev) => {
-        const filteredEvents = prev.filter(e => e.id !== tempId);
-        return [...filteredEvents, savedEvent];
-      });
+      if (result.data?.event) {
+        const savedEvent = convertDbEventToLocal(result.data.event);
+        setEvents((prev) => {
+          const filteredEvents = prev.filter(e => e.id !== tempId);
+          return [...filteredEvents, savedEvent];
+        });
+      }
       if (reloadEvents) await reloadEvents();
+    } catch (apiError) {
+      console.error("API call error:", apiError);
+      toast.error(`Failed to save event: ${apiError.message}`);
+      // Remove the temporary event on failure
+      setEvents((prev) => prev.filter(e => e.id !== tempId));
     }
   }
 

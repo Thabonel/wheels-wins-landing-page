@@ -34,7 +34,7 @@ from app.services.sentry_service import sentry_service
 
 # Import API routers
 from app.api.v1 import health, chat, wins, wheels, social, monitoring, pam, auth, subscription, support, admin, observability, tts, search, vision
-from app.api import websocket, actions
+from app.api import websocket, actions, you
 from app.api.v1 import voice_streaming
 from app.api import editing_hub
 from app.webhooks import stripe_webhooks
@@ -204,6 +204,7 @@ app.include_router(actions.router, prefix="/api", tags=["Actions"])
 app.include_router(voice_streaming.router, prefix="/api/v1/voice", tags=["Voice Streaming"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
+app.include_router(you.router, prefix="/api/v1/you", tags=["You"])
 app.include_router(editing_hub.router, prefix="/hubs", tags=["Editing"])
 
 # LangServe router for PauterRouter - TEMPORARILY DISABLED due to WebSocket route conflicts
