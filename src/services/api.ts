@@ -79,6 +79,7 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${refreshedSession.access_token}`,
+        'X-Auth-Type': 'jwt',
         ...options.headers,
       },
     };

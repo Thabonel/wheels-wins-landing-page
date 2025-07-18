@@ -198,8 +198,8 @@ export async function authenticatedFetchWithReferenceToken(path: string, options
   const url = `${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}${path}`;
   const response = await fetch(url, authenticatedOptions);
   
-  // Handle token expiration
-  if (response.status === 401) {
+  // Handle token expiration - check response exists first
+  if (response && response.status === 401) {
     console.log('🔄 Reference token expired, creating new one...');
     localStorage.removeItem('reference_token');
     
