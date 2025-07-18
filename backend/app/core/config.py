@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"  # Changed to production for deployed instances
     DEBUG: bool = False
     VERSION: str = "2.0.0"
-    
+
     # Debug Features Control (only enabled in development)
     ENABLE_DEBUG_FEATURES: bool = False
     SHOW_DEBUG_TOKENS: bool = False
@@ -43,23 +43,25 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
     SITE_URL: str = "http://localhost:3000"
     MUNDI_URL: Optional[str] = None
-    
+
     # Search APIs
     GOOGLE_SEARCH_API_KEY: Optional[str] = None
     GOOGLE_SEARCH_ENGINE_ID: Optional[str] = None
     BING_SEARCH_API_KEY: Optional[str] = None
-    
+
     # AI Agent Observability
     LANGFUSE_SECRET_KEY: Optional[str] = None
     LANGFUSE_PUBLIC_KEY: Optional[str] = None
     LANGFUSE_HOST: str = "https://cloud.langfuse.com"
     AGENTOPS_API_KEY: Optional[str] = None
     OBSERVABILITY_ENABLED: bool = True
+    OTLP_ENDPOINT: Optional[str] = None
+    OTLP_API_KEY: Optional[str] = None
 
     # CORS - Allow requests from development and production origins
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
-        "http://localhost:8080", 
+        "http://localhost:8080",
         "http://localhost:5173",
         "https://wheelsandwins.com",
         "https://www.wheelsandwins.com",
@@ -101,7 +103,9 @@ class Settings(BaseSettings):
         """Load settings and handle missing required environment variables."""
         try:
             return cls()
-        except ValidationError as exc:  # pragma: no cover - runtime configuration failure
+        except (
+            ValidationError
+        ) as exc:  # pragma: no cover - runtime configuration failure
             missing = ", ".join(err["loc"][0] for err in exc.errors())
             raise RuntimeError(f"Missing required settings: {missing}") from exc
 
