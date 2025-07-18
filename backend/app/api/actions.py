@@ -21,7 +21,7 @@ class ActionResponse(BaseModel):
     message: str
 
 @router.post("/execute", response_model=ActionResponse)
-async def execute_action(request: ActionRequest):
+def execute_action(request: ActionRequest):
     """Execute a specific action based on the request"""
     try:
         action_type = request.action  # Use action field
@@ -86,7 +86,7 @@ async def execute_action(request: ActionRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/available")
-async def get_available_actions():
+def get_available_actions():
     """Get list of available actions"""
     return {
         "actions": [
@@ -114,7 +114,7 @@ async def get_available_actions():
     }
 
 @router.get("/status")
-async def get_action_status():
+def get_action_status():
     """Get the status of the actions service"""
     return {
         "status": "operational",
@@ -123,7 +123,7 @@ async def get_action_status():
     }
 
 @router.post("/test")
-async def test_actions():
+def test_actions():
     """Test endpoint to verify actions API is working"""
     logger.info("🧪 Actions test endpoint called")
     return {

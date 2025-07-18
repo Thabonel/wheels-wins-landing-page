@@ -3,5 +3,5 @@ from fastapi import APIRouter
 router = APIRouter()
 
 @router.get("/status")
-async def get_status():
+def get_status():
     return {"status": "social module operational"}
