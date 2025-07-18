@@ -103,7 +103,7 @@ describe('API Service', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://pam-backend.onrender.com/public',
-        {}
+        expect.objectContaining({ signal: expect.any(Object) })
       );
     });
   });

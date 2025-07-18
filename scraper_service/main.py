@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import json
+import os
 
 import httpx
 from bs4 import BeautifulSoup
@@ -11,6 +12,9 @@ from scraper_service.config import DATA_SOURCES
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configurable HTTP timeout
+HTTP_TIMEOUT = float(os.getenv("HTTP_TIMEOUT", "10"))
 
 # === Parser Registry ===
 parsers = {}
@@ -45,7 +49,15 @@ def parse_overpass(html: str, **kwargs):
 
 async def fetch_and_parse(url: str, **kwargs):
     async with httpx.AsyncClient() as client:
-        resp = await client.get(url, timeout=10.0)
+        try:
+            resp = await client.get(url, timeout=HTTP_TIMEOUT)
+        except httpx.TimeoutException:
+            logger.error("Timeout fetching %s after %.1fs", url, HTTP_TIMEOUT)
+            return []
+        except httpx.RequestError as exc:
+            logger.error("Request error fetching %s: %s", url, exc)
+            return []
+
         resp.raise_for_status()
         domain = httpx.URL(url).host
         for registered_domain, parser in parsers.items():
