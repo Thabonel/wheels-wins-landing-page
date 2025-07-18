@@ -1,0 +1,91 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ staging, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  staging-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run tests
+      run: npm run test:ci
+      
+    - name: Run linting
+      run: npm run lint
+      
+    - name: Type check
+      run: npm run type-check
+      
+    - name: Build for staging
+      run: npm run build:staging
+      env:
+        VITE_ENVIRONMENT: staging
+        VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+        VITE_API_BASE_URL: ${{ secrets.STAGING_API_BASE_URL }}
+        VITE_MAPBOX_ACCESS_TOKEN: ${{ secrets.STAGING_MAPBOX_TOKEN }}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STAGING_STRIPE_PUBLISHABLE_KEY }}
+        VITE_SHOW_STAGING_BANNER: true
+        VITE_ENABLE_BETA_FEATURES: true
+        VITE_ENABLE_DEBUG_TOOLS: true
+        VITE_ENABLE_TEST_DATA: true
+        
+    - name: Deploy to Netlify Staging
+      uses: nwtgck/actions-netlify@v3.0
+      with:
+        publish-dir: './dist'
+        production-branch: never  # Never deploy to production from this workflow
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        deploy-message: "Deploy from GitHub Actions - ${{ github.event.head_commit.message }}"
+        alias: staging-${{ github.head_ref || github.ref_name }}
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_STAGING_SITE_ID }}
+        
+    - name: Comment PR with staging URL
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const deployUrl = `https://staging-${context.payload.pull_request.head.ref}--${process.env.NETLIFY_STAGING_SITE_ID}.netlify.app`;
+          const comment = `
+          🚀 **Staging deployment ready!**
+          
+          📱 **Preview URL**: ${deployUrl}
+          🧪 **Environment**: Staging
+          ⚠️ **Note**: This is a test environment with sample data
+          
+          **Test the following:**
+          - [ ] Authentication flow
+          - [ ] PAM AI functionality  
+          - [ ] Trip planning features
+          - [ ] Financial management
+          - [ ] Mobile responsiveness
+          
+          _This deployment will be automatically updated with new commits to this PR._
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+      env:
+        NETLIFY_STAGING_SITE_ID: ${{ secrets.NETLIFY_STAGING_SITE_ID }}

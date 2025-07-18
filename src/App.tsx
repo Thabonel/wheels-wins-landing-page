@@ -29,13 +29,21 @@ import UpdatePassword from "@/pages/UpdatePassword";
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtection from './components/admin/AdminProtection';
 import { PamIntegrationProvider } from './components/pam/PamIntegrationProvider';
+import { StagingBanner } from './components/StagingBanner';
+import { logEnvironmentInfo } from './config/environment';
 
 const queryClient = new QueryClient();
 
 function App() {
+  // Log environment info in development/staging
+  React.useEffect(() => {
+    logEnvironmentInfo();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Toaster />
+      <StagingBanner />
         <Router>
           <AuthProvider>
             <RegionProvider>

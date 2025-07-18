@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:staging": "vite build --mode staging",
+    "build:production": "vite build --mode production",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -27,6 +29,7 @@
     "security:audit": "npm audit --audit-level high",
     "security:fix": "npm audit fix",
     "ci:full": "npm run quality:check && npm run build && npm run e2e",
+    "test:staging": "node scripts/test-staging.js",
     "prepare": "husky install",
     "postinstall": "husky install"
   },

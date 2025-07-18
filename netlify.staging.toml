@@ -1,0 +1,42 @@
+[build]
+  publish = "dist"
+  command = "npm run build:staging"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NODE_ENV = "staging"
+  VITE_ENVIRONMENT = "staging"
+  # Add staging-specific environment variables here
+  VITE_SUPABASE_URL = "https://your-staging-supabase-url.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "your-staging-supabase-anon-key"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Security headers (same as production but with additional staging indicators)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Environment = "staging"
+
+# Add staging banner headers
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    X-Staging-Environment = "true"
+
+# Context-specific deployments for staging
+[context.staging]
+  environment = { NODE_ENV = "staging", VITE_ENVIRONMENT = "staging" }
+
+[context.deploy-preview]
+  environment = { NODE_ENV = "staging", VITE_ENVIRONMENT = "staging" }
+
+[context.branch-deploy]
+  environment = { NODE_ENV = "staging", VITE_ENVIRONMENT = "staging" }
