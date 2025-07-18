@@ -8,6 +8,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import requests
 from requests.exceptions import Timeout as RequestsTimeout
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 import json
@@ -31,6 +33,16 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # HTTP timeout for external requests
 HTTP_TIMEOUT = float(os.getenv("HTTP_TIMEOUT", "5"))
+
+# Reuse a session with connection pooling for external HTTP requests
+_http_session = requests.Session()
+_adapter = HTTPAdapter(
+    pool_connections=10,
+    pool_maxsize=10,
+    max_retries=Retry(total=3, backoff_factor=0.5)
+)
+_http_session.mount("http://", _adapter)
+_http_session.mount("https://", _adapter)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -79,7 +91,7 @@ def verify_supabase_token(token: str, supabase_url: str):
     try:
         jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/keys"
         try:
-            jwks_data = requests.get(jwks_url, timeout=HTTP_TIMEOUT).json()
+            jwks_data = _http_session.get(jwks_url, timeout=HTTP_TIMEOUT).json()
         except RequestsTimeout:
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
