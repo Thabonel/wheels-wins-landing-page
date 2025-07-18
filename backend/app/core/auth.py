@@ -7,6 +7,7 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import requests
+from requests.exceptions import Timeout as RequestsTimeout
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 import json
@@ -27,6 +28,9 @@ async def verify_token_websocket(token: str) -> str:
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# HTTP timeout for external requests
+HTTP_TIMEOUT = float(os.getenv("HTTP_TIMEOUT", "5"))
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -74,7 +78,13 @@ def verify_supabase_token(token: str, supabase_url: str):
     """Verify a Supabase-issued JWT using the project's public JWKS."""
     try:
         jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/keys"
-        jwks_data = requests.get(jwks_url, timeout=5).json()
+        try:
+            jwks_data = requests.get(jwks_url, timeout=HTTP_TIMEOUT).json()
+        except RequestsTimeout:
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="JWKS request timed out",
+            )
         header = jwt.get_unverified_header(token)
         key_data = next(
             (k for k in jwks_data.get("keys", []) if k.get("kid") == header.get("kid")),
