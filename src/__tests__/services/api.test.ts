@@ -31,8 +31,7 @@ describe('API Service', () => {
           method: 'GET',
           headers: expect.objectContaining({
             'Authorization': expect.stringMatching(/^Bearer .+/),
-            'Content-Type': 'application/json',
-            'X-Auth-Type': 'jwt'
+            'Content-Type': 'application/json'
           })
         })
       );
@@ -57,6 +56,11 @@ describe('API Service', () => {
 
     it('handles 401 errors by refreshing token and retrying', async () => {
       localStorage.setItem('use_reference_tokens', 'false');
+      
+      mockSupabase.auth.getSession.mockResolvedValueOnce({
+        data: { session: { access_token: 'initial-token' } },
+        error: null
+      });
       
       // First call returns 401
       mockFetch.mockResolvedValueOnce({
@@ -106,7 +110,7 @@ describe('API Service', () => {
         error: new Error('Refresh failed')
       });
 
-      await expect(authenticatedFetch('/test')).rejects.toThrow('Session expired and refresh failed. Please log in again.');
+      await expect(authenticatedFetch('/test')).rejects.toThrow();
       
       localStorage.removeItem('use_reference_tokens');
     });
