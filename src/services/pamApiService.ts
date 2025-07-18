@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './api';
+import { CircuitBreaker } from '../utils/circuitBreaker';
 
 export interface PamApiMessage {
   message: string;
@@ -19,7 +20,15 @@ export interface PamApiResponse {
 
 export class PamApiService {
   private static instance: PamApiService;
-  
+  private breaker: CircuitBreaker;
+
+  private constructor() {
+    this.breaker = new CircuitBreaker(
+      (url: RequestInfo, options?: RequestInit) => fetch(url, options),
+      { failureThreshold: 3, cooldownPeriod: 30000, timeout: 15000 }
+    );
+  }
+
   public static getInstance(): PamApiService {
     if (!PamApiService.instance) {
       PamApiService.instance = new PamApiService();
@@ -45,12 +54,14 @@ export class PamApiService {
       try {
         console.log(`🌐 Trying PAM HTTP endpoint: ${endpoint}`);
         
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(message),
-          signal: AbortSignal.timeout(15000) // 15 second timeout
-        });
+        const response = await this.breaker.call(
+          endpoint,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(message)
+          }
+        );
 
         if (response.ok) {
           const data = await response.json();
