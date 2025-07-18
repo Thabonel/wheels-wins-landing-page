@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export const API_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
+  import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 // Allow overriding the WebSocket endpoint separately if needed
 const WS_OVERRIDE = import.meta.env.VITE_PAM_WEBSOCKET_URL;
@@ -15,23 +15,32 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
   const url = `${API_BASE_URL}${path}`;
   
   // Check if we should use reference token (SaaS industry standard)
-  const useReferenceTokens = localStorage.getItem('use_reference_tokens') !== 'false';
+  const useReferenceTokens = localStorage.getItem('use_reference_tokens') === 'true';
+  console.log('🔐 API: useReferenceTokens =', useReferenceTokens);
   
   if (useReferenceTokens) {
     console.log('🎫 Using SaaS-standard reference token authentication');
-    // Import dynamically to avoid circular dependencies
-    const { authenticatedFetchWithReferenceToken } = await import('./auth/referenceTokens');
-    return authenticatedFetchWithReferenceToken(path, options);
+    try {
+      // Import dynamically to avoid circular dependencies
+      const { authenticatedFetchWithReferenceToken } = await import('./auth/referenceTokens');
+      return authenticatedFetchWithReferenceToken(path, options);
+    } catch (error) {
+      console.warn('🎫 Reference token import failed, falling back to JWT:', error);
+    }
   }
   
   // Fallback to JWT with optimization
+  console.log('🔐 API: Using JWT fallback');
   const { data: { session }, error } = await supabase.auth.getSession();
+  console.log('🔐 API: getSession result - session:', !!session, 'error:', !!error, 'error details:', error);
   
   if (error) {
+    console.log('🔐 API: Throwing auth error:', error.message);
     throw new Error(`Authentication error: ${error.message}`);
   }
   
   if (!session?.access_token) {
+    console.log('🔐 API: No session, throwing error');
     throw new Error('No valid session found. Please log in.');
   }
   
@@ -57,12 +66,14 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
   
   const response = await fetch(url, authenticatedOptions);
   
-  // Debug: Log response details
-  console.log('🔐 API: Response status:', response.status);
-  console.log('🔐 API: Response headers:', Object.fromEntries(response.headers.entries()));
+  // Debug: Log response details (only if response exists)
+  if (response) {
+    console.log('🔐 API: Response status:', response.status);
+    console.log('🔐 API: Response headers:', Object.fromEntries(response.headers.entries()));
+  }
   
   // Handle token expiration - trigger refresh
-  if (response.status === 401) {
+  if (response && response.status === 401) {
     console.log('🔄 Token expired, attempting refresh...');
     
     // Force session refresh

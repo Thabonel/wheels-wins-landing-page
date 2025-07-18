@@ -26,12 +26,13 @@ describe('API Service', () => {
       await authenticatedFetch('/test', { method: 'GET' });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://pam-backend.onrender.com/test',
+        'http://localhost:8000/test',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
             'Authorization': expect.stringMatching(/^Bearer .+/),
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Auth-Type': 'jwt'
           })
         })
       );
@@ -57,10 +58,15 @@ describe('API Service', () => {
     it('handles 401 errors by refreshing token and retrying', async () => {
       localStorage.setItem('use_reference_tokens', 'false');
       
-      mockSupabase.auth.getSession.mockResolvedValueOnce({
-        data: { session: { access_token: 'initial-token' } },
-        error: null
-      });
+      mockSupabase.auth.getSession
+        .mockResolvedValueOnce({
+          data: { session: { access_token: 'initial-token' } },
+          error: null
+        })
+        .mockResolvedValueOnce({
+          data: { session: { access_token: 'initial-token' } },
+          error: null
+        });
       
       // First call returns 401
       mockFetch.mockResolvedValueOnce({
@@ -110,22 +116,29 @@ describe('API Service', () => {
         error: new Error('Refresh failed')
       });
 
-      await expect(authenticatedFetch('/test')).rejects.toThrow();
+      await expect(authenticatedFetch('/test')).rejects.toThrow(
+        'Session expired and refresh failed. Please log in again.'
+      );
       
       localStorage.removeItem('use_reference_tokens');
     });
 
     it('handles auth service errors', async () => {
+      localStorage.clear();
       localStorage.setItem('use_reference_tokens', 'false');
+      
+      vi.clearAllMocks();
+      mockFetch.mockReset();
+      mockSupabase.auth.getSession.mockReset();
       
       mockSupabase.auth.getSession.mockResolvedValueOnce({
         data: { session: null },
         error: new Error('Auth service error')
       });
 
-      await expect(authenticatedFetch('/test')).rejects.toThrow(
-        'Authentication error: Auth service error'
-      );
+      await expect(authenticatedFetch('/test')).rejects.toThrow('Authentication error: Auth service error');
+      
+      expect(mockFetch).not.toHaveBeenCalled();
       
       localStorage.removeItem('use_reference_tokens');
     });
@@ -141,17 +154,26 @@ describe('API Service', () => {
       await apiFetch('/public');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://pam-backend.onrender.com/public',
+        'http://localhost:8000/public',
         {}
       );
     });
   });
 
   describe('getAuthenticatedWebSocketUrl', () => {
+    beforeEach(() => {
+      mockSupabase.auth.getSession.mockReset();
+    });
+
     it('generates WebSocket URL with token', async () => {
+      mockSupabase.auth.getSession.mockResolvedValueOnce({
+        data: { session: { access_token: 'mock-token' } },
+        error: null
+      });
+
       const url = await getAuthenticatedWebSocketUrl('/ws');
 
-      expect(url).toContain('wss://');
+      expect(url).toContain('ws://localhost:8000');
       expect(url).toContain('token=mock-token');
     });
 
