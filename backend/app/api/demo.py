@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from app.core.auth import get_current_user_id
+from app.core.unified_auth import get_current_user_unified, UnifiedUser
 from app.core.logging import setup_logging, get_logger
 from app.core.orchestrator import orchestrator
 
@@ -17,7 +18,7 @@ class DemoRequest(BaseModel):
 @router.post("/scenarios")
 async def run_demo_scenario(
     request: DemoRequest,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Run complete PAM demo scenarios"""
     try:
@@ -45,7 +46,7 @@ async def run_demo_scenario(
         
         # Create context with user profile
         context = {
-            "user_id": user_id,
+            "user_id": current_user.user_id,
             "user_profile": request.user_profile or {
                 "travel_style": "budget",
                 "vehicle_type": "motorhome", 

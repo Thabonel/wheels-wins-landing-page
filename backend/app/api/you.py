@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from app.core.auth import get_current_user_id
+from app.core.unified_auth import get_current_user_unified, UnifiedUser
 from app.core.logging import setup_logging, get_logger
 from app.nodes.you_node import you_node
 
@@ -42,12 +43,12 @@ class MaintenanceReminderRequest(BaseModel):
 @router.post("/calendar/events")
 async def create_calendar_event(
     request: CalendarEventRequest,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Create a new calendar event"""
     try:
         event_data = request.dict()
-        result = await you_node.create_calendar_event(user_id, event_data)
+        result = await you_node.create_calendar_event(current_user.user_id, event_data)
         return result
         
     except Exception as e:
@@ -62,12 +63,12 @@ async def get_calendar_events(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     event_type: Optional[str] = None,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get calendar events for a date range"""
     try:
         # Get upcoming events (simplified for now)
-        upcoming_events = await you_node._get_upcoming_events(user_id, days=30)
+        upcoming_events = await you_node._get_upcoming_events(current_user.user_id, days=30)
         
         return {
             "success": True,
@@ -88,12 +89,12 @@ async def get_calendar_events(
 @router.put("/profile")
 async def update_user_profile(
     request: ProfileUpdateRequest,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Update user profile information"""
     try:
         profile_data = {k: v for k, v in request.dict().items() if v is not None}
-        result = await you_node.update_user_profile(user_id, profile_data)
+        result = await you_node.update_user_profile(current_user.user_id, profile_data)
         return result
         
     except Exception as e:
@@ -105,11 +106,11 @@ async def update_user_profile(
 
 @router.get("/profile")
 async def get_user_profile(
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get user profile information"""
     try:
-        result = await you_node.get_user_profile(user_id)
+        result = await you_node.get_user_profile(current_user.user_id)
         return result
         
     except Exception as e:
@@ -122,12 +123,12 @@ async def get_user_profile(
 @router.put("/preferences")
 async def set_user_preferences(
     request: PreferencesRequest,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Set or update user preferences"""
     try:
         preferences = {k: v for k, v in request.dict().items() if v is not None}
-        result = await you_node.set_user_preferences(user_id, preferences)
+        result = await you_node.set_user_preferences(current_user.user_id, preferences)
         return result
         
     except Exception as e:
@@ -139,11 +140,11 @@ async def set_user_preferences(
 
 @router.get("/dashboard")
 async def get_personalized_dashboard(
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get personalized dashboard view"""
     try:
-        result = await you_node.get_personalized_dashboard(user_id)
+        result = await you_node.get_personalized_dashboard(current_user.user_id)
         return result
         
     except Exception as e:
@@ -156,12 +157,12 @@ async def get_personalized_dashboard(
 @router.post("/maintenance/reminders")
 async def schedule_maintenance_reminder(
     request: MaintenanceReminderRequest,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Schedule vehicle or equipment maintenance reminders"""
     try:
         maintenance_data = request.dict()
-        result = await you_node.schedule_maintenance_reminder(user_id, maintenance_data)
+        result = await you_node.schedule_maintenance_reminder(current_user.user_id, maintenance_data)
         return result
         
     except Exception as e:
@@ -174,11 +175,11 @@ async def schedule_maintenance_reminder(
 @router.get("/timeline")
 async def get_travel_timeline(
     timeframe: Optional[str] = "month",
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get user's travel timeline and itinerary"""
     try:
-        result = await you_node.get_travel_timeline(user_id, timeframe)
+        result = await you_node.get_travel_timeline(current_user.user_id, timeframe)
         return result
         
     except Exception as e:
@@ -192,11 +193,11 @@ async def get_travel_timeline(
 async def get_personal_insights(
     category: Optional[str] = None,
     period: Optional[str] = "week",
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get personalized insights and recommendations"""
     try:
-        insights = await you_node._generate_personal_insights(user_id)
+        insights = await you_node._generate_personal_insights(current_user.user_id)
         
         # Filter by category if specified
         if category:
@@ -221,11 +222,11 @@ async def get_personal_insights(
 
 @router.get("/quick-actions")
 async def get_quick_actions(
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get personalized quick actions based on user patterns"""
     try:
-        quick_actions = await you_node._get_personalized_quick_actions(user_id)
+        quick_actions = await you_node._get_personalized_quick_actions(current_user.user_id)
         
         return {
             "success": True,
@@ -246,11 +247,11 @@ async def get_quick_actions(
 @router.get("/notifications")
 async def get_pending_notifications(
     priority: Optional[str] = None,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get pending notifications for user"""
     try:
-        notifications = await you_node._get_pending_notifications(user_id)
+        notifications = await you_node._get_pending_notifications(current_user.user_id)
         
         # Filter by priority if specified
         if priority:
@@ -276,11 +277,12 @@ async def get_pending_notifications(
 @router.put("/notifications/{notification_id}/read")
 async def mark_notification_read(
     notification_id: str,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Mark a notification as read"""
     try:
-        result = await you_node.supabase.table("user_notifications").update({"read": True}).eq("id", notification_id).eq("user_id", user_id).execute()
+        supabase = current_user.get_supabase_client()
+        result = supabase.table("user_notifications").update({"read": True}).eq("id", notification_id).eq("user_id", current_user.user_id).execute()
         if result.error:
             raise Exception(result.error.message)
         return {

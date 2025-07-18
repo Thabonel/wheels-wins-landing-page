@@ -30,10 +30,14 @@ class UnifiedUser:
         self.authenticated = True
     
     def get_supabase_client(self):
-        """Get the appropriate Supabase client based on user permissions"""
-        if self.is_admin:
-            return get_supabase_service()
+        """Always return regular client for user operations to prevent role switching errors"""
         return get_supabase_client()
+    
+    def get_admin_service_client(self):
+        """Separate method for true admin operations only"""
+        if not self.is_admin:
+            raise PermissionError("Admin access required")
+        return get_supabase_service()
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for backward compatibility"""
