@@ -266,6 +266,16 @@ htop
 - Use appropriate refresh intervals
 - Optimize query expressions
 
+### Distributed Tracing
+The backend uses **OpenTelemetry** for distributed tracing. Set the following environment variables to export spans to your tracing backend:
+
+```bash
+OTLP_ENDPOINT=https://your-otel-collector.example.com
+OTLP_API_KEY=<optional-api-key>
+```
+
+Tracing is automatically enabled when these variables are present and `OBSERVABILITY_ENABLED` is `true`.
+
 ## Contact Information
 
 For monitoring-related issues:
