@@ -24,6 +24,7 @@ Complete guides for all PAM features and capabilities:
 - [Initial Setup](guides/setup/initial-setup.md) - Getting started
 - [API Configuration](guides/setup/api-configuration.md) - External service setup
 - [Platform Integrations](guides/setup/platform-integrations.md) - Third-party connections
+- **[Staging Environment Manual](STAGING_ENVIRONMENT_MANUAL.md) - Complete staging setup and usage guide**
 
 ### Troubleshooting Guides
 - [Common Issues](guides/troubleshooting/common-issues.md) - Frequent problems and solutions
@@ -31,6 +32,12 @@ Complete guides for all PAM features and capabilities:
 - [API Errors](guides/troubleshooting/api-errors.md) - API-specific troubleshooting
 - [Debugging Guide](guides/troubleshooting/debugging-guide.md) - Development debugging
 - [Deployment Issues](guides/troubleshooting/deployment-issues.md) - Production deployment problems
+
+### Deployment Documentation
+- **[Deployment Overview](deployment/README.md) - Complete deployment documentation**
+- **[Staging Environment Manual](STAGING_ENVIRONMENT_MANUAL.md) - User manual for staging environment**
+- **[Environment Variables Reference](deployment/environment-variables.md) - Configuration guide**
+- [Staging Deployment Guide](../STAGING_DEPLOYMENT_GUIDE.md) - Technical staging setup
 
 ### Development Guides
 - [Architecture Overview](guides/development/architecture-overview.md) - System architecture
@@ -53,9 +60,10 @@ Complete guides for all PAM features and capabilities:
 
 1. **New to PAM?** Start with [Getting Started](guides/user-guides/getting-started.md)
 2. **Setting up development?** Check [Initial Setup](guides/setup/initial-setup.md)
-3. **Having issues?** Visit [Common Issues](guides/troubleshooting/common-issues.md)
-4. **Admin access problems?** See [Admin Access Issues](guides/troubleshooting/admin-access-issues.md)
-5. **Need API info?** See [API Documentation](technical/api-documentation.md)
+3. **Setting up staging environment?** See [Staging Environment Manual](STAGING_ENVIRONMENT_MANUAL.md)
+4. **Having issues?** Visit [Common Issues](guides/troubleshooting/common-issues.md)
+5. **Admin access problems?** See [Admin Access Issues](guides/troubleshooting/admin-access-issues.md)
+6. **Need API info?** See [API Documentation](technical/api-documentation.md)
 
 ## 🔧 Current Deployment Status
 
@@ -66,6 +74,14 @@ The PAM backend is currently in development with the following status:
 - 📋 See [PAM Backend Deployment](technical/pam-backend-deployment.md) for current progress
 
 ## 🛡️ Recent Fixes & Updates
+
+### Staging Environment Implementation (2025-07-19)
+- ✅ Complete staging environment setup with Netlify integration
+- ✅ Automated CI/CD pipeline with GitHub Actions
+- ✅ Environment isolation with separate configs for staging/production
+- ✅ Visual indicators and safety features for staging
+- ✅ Comprehensive user manual and deployment guide
+- 📋 See [Staging Environment Manual](STAGING_ENVIRONMENT_MANUAL.md) for details
 
 ### Admin Access Issue Resolution (2025-06-18)
 - ✅ Fixed "permission denied to set role 'admin'" error
@@ -93,6 +109,6 @@ When updating documentation:
 
 ---
 
-*Last updated: 2025-06-18*
-*PAM System Version: 1.0.0*
-*Recent Update: Admin Access Bootstrap Fix*
+*Last updated: 2025-07-19*
+*PAM System Version: 1.1.0*
+*Recent Update: Staging Environment Implementation*
