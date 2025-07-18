@@ -1,6 +1,7 @@
 import { offlineManager } from './offlineManager';
 import { MobileOptimizer } from './mobileOptimizer';
 import { API_BASE_URL } from './api';
+import { CircuitBreaker } from '../utils/circuitBreaker';
 
 export interface OptimizedPamApiMessage {
   message: string;
@@ -31,9 +32,14 @@ export interface OptimizedPamApiResponse {
 export class OptimizedPamApiService {
   private static instance: OptimizedPamApiService;
   private isMobile: boolean;
+  private breaker: CircuitBreaker;
   
   private constructor() {
     this.isMobile = window.innerWidth <= 768;
+    this.breaker = new CircuitBreaker(
+      (url: RequestInfo, options?: RequestInit) => fetch(url, options),
+      { failureThreshold: 3, cooldownPeriod: 30000, timeout: 20000 }
+    );
     
     // Listen for network changes
     window.addEventListener('resize', () => {
@@ -133,13 +139,14 @@ export class OptimizedPamApiService {
       try {
         console.log(`🌐 Trying optimized PAM endpoint: ${endpoint}`);
         
-        const timeoutMs = this.isMobile ? 20000 : 15000; // Longer timeout for mobile
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(enhancedMessage),
-          signal: AbortSignal.timeout(timeoutMs)
-        });
+        const response = await this.breaker.call(
+          endpoint,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(enhancedMessage)
+          }
+        );
 
         if (response.ok) {
           let data = await response.json();
@@ -247,19 +254,22 @@ export class OptimizedPamApiService {
         return cached;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/chat/history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Mobile-Client': this.isMobile ? 'true' : 'false',
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          page,
-          limit: mobileLimit,
-          mobile_optimized: this.isMobile
-        })
-      });
+      const response = await this.breaker.call(
+        `${API_BASE_URL}/api/chat/history`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Mobile-Client': this.isMobile ? 'true' : 'false'
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            page,
+            limit: mobileLimit,
+            mobile_optimized: this.isMobile
+          })
+        }
+      );
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
