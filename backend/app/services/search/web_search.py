@@ -4,17 +4,19 @@ Provides internet search capabilities using multiple search engines
 """
 
 import asyncio
-import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime
+import hashlib
 import json
+import logging
 import re
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus
 
 import aiohttp
 from bs4 import BeautifulSoup
 
 from app.core.config import get_settings
+from app.services.cache import cache_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -318,6 +320,9 @@ class WebSearchService:
         self.google_search = GoogleSearchAPI()
         self.duckduckgo_search = DuckDuckGoSearch()
         self.bing_search = BingSearchAPI()
+
+        # Shared cache service
+        self.cache = cache_service
         
         self.search_engines = {
             'google': self.google_search,
@@ -342,11 +347,13 @@ class WebSearchService:
             await engine.close()
     
     async def search(
-        self, 
+        self,
         query: str,
         num_results: int = 10,
         engines: Optional[List[str]] = None,
-        aggregate: bool = True
+        aggregate: bool = True,
+        use_cache: bool = True,
+        ttl: int = 3600,
     ) -> Dict[str, Any]:
         """
         Perform web search across multiple engines
@@ -366,6 +373,14 @@ class WebSearchService:
         else:
             # Filter to only available engines
             engines = [e for e in engines if e in self.available_engines]
+
+        engine_key = ",".join(sorted(engines))
+        cache_key = f"web_search:{hashlib.sha1(f'{query}|{engine_key}|{num_results}|{aggregate}'.encode()).hexdigest()}"
+
+        if use_cache:
+            cached = await self.cache.get(cache_key)
+            if cached:
+                return cached
         
         if not engines:
             logger.error("❌ No search engines available")
@@ -403,7 +418,10 @@ class WebSearchService:
             aggregated = self._aggregate_results(results_by_engine, num_results)
             response['results'] = aggregated
             response['total_results'] = len(aggregated)
-        
+
+        if use_cache:
+            await self.cache.set(cache_key, response, ttl=ttl)
+
         return response
     
     def _aggregate_results(
@@ -442,7 +460,9 @@ class WebSearchService:
         self,
         query: str,
         context: Dict[str, Any],
-        num_results: int = 10
+        num_results: int = 10,
+        use_cache: bool = True,
+        ttl: int = 3600,
     ) -> Dict[str, Any]:
         """
         Perform context-aware search
@@ -458,15 +478,26 @@ class WebSearchService:
         
         # Enhance query based on context
         enhanced_query = self._enhance_query_with_context(query, context)
-        
+
+        context_hash = hashlib.sha1(json.dumps(context, sort_keys=True).encode()).hexdigest()
+        cache_key = f"web_search_ctx:{hashlib.sha1(f'{query}|{context_hash}|{num_results}'.encode()).hexdigest()}"
+
+        if use_cache:
+            cached = await self.cache.get(cache_key)
+            if cached:
+                return cached
+
         # Perform search
-        results = await self.search(enhanced_query, num_results)
+        results = await self.search(enhanced_query, num_results, use_cache=False)
         
         # Add context to results
         results['context_used'] = context
         results['original_query'] = query
         results['enhanced_query'] = enhanced_query
-        
+
+        if use_cache:
+            await self.cache.set(cache_key, results, ttl=ttl)
+
         return results
     
     def _enhance_query_with_context(self, query: str, context: Dict[str, Any]) -> str:
@@ -503,6 +534,8 @@ class WebSearchService:
         self,
         search_type: str,
         query: str,
+        use_cache: bool = True,
+        ttl: int = 3600,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -536,7 +569,7 @@ class WebSearchService:
             query = f"{query} travel guide tips destination"
         
         # Perform search
-        results = await self.search(query, **kwargs)
+        results = await self.search(query, use_cache=use_cache, ttl=ttl, **kwargs)
         results['search_type'] = search_type
         
         return results
