@@ -2,10 +2,10 @@
 -r requirements-core.txt
 
 # Additional stable dependencies
-stripe==9.8.0
-beautifulsoup4==4.12.3
-psutil==5.9.8
-prometheus-client==0.19.0
+stripe==12.3.0
+beautifulsoup4==4.13.4
+psutil==7.0.0
+prometheus-client==0.22.1
 tiktoken>=0.8.0
 assemblyai==0.42.0
 
