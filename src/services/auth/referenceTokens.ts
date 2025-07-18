@@ -74,7 +74,7 @@ export class ReferenceTokenService {
       .select('*')
       .eq('token_hash', tokenHash)
       .gt('expires_at', new Date().toISOString())
-      .single();
+      .maybeSingle();
     
     if (error || !data) {
       return null;
@@ -175,7 +175,7 @@ export async function authenticatedFetchWithReferenceToken(path: string, options
         },
       };
       
-      const url = `${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}${path}`;
+      const url = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}${path}`;
       return await fetch(url, authenticatedOptions);
     }
   }
@@ -195,17 +195,23 @@ export async function authenticatedFetchWithReferenceToken(path: string, options
     },
   };
   
-  const url = `${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}${path}`;
-  const response = await fetch(url, authenticatedOptions);
+  const url = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}${path}`;
   
-  // Handle token expiration - check response exists first
-  if (response && response.status === 401) {
-    console.log('🔄 Reference token expired, creating new one...');
-    localStorage.removeItem('reference_token');
+  try {
+    const response = await fetch(url, authenticatedOptions);
     
-    // Recursive call will create new token
-    return authenticatedFetchWithReferenceToken(path, options);
+    // Handle token expiration - check response exists first
+    if (response && response.status === 401) {
+      console.log('🔄 Reference token expired, creating new one...');
+      localStorage.removeItem('reference_token');
+      
+      // Recursive call will create new token
+      return authenticatedFetchWithReferenceToken(path, options);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('🎫 Reference token fetch failed:', error);
+    throw error;
   }
-  
-  return response;
 }
