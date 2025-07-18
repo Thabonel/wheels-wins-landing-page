@@ -40,7 +40,7 @@ openai==1.35.3
 tiktoken==0.5.1
 
 # HTTP clients
-httpx==0.27.0
+httpx==0.25.2
 requests==2.31.0
 urllib3==2.1.0
 
