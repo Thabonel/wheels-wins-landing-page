@@ -513,9 +513,47 @@ class AgenticOrchestrator:
     # Missing method implementations (stubs for now)
     
     async def _optimize_task_order(self, tasks: List[Task]) -> List[Task]:
-        """Optimize task execution order based on dependencies"""
-        # Simple implementation - just return tasks as-is for now
-        return tasks
+        """Optimize task execution order based on dependencies and priority."""
+
+        if not tasks:
+            return []
+
+        # Build maps for quick lookup
+        task_map: Dict[str, Task] = {t.id: t for t in tasks}
+        dependents: Dict[str, List[str]] = {t.id: [] for t in tasks}
+        indegree: Dict[str, int] = {t.id: 0 for t in tasks}
+
+        for task in tasks:
+            for dep in task.dependencies or []:
+                if dep in indegree:
+                    dependents.setdefault(dep, []).append(task.id)
+                    indegree[task.id] += 1
+
+        # Start with tasks that have no unmet dependencies
+        ready = [task_map[t_id] for t_id, d in indegree.items() if d == 0]
+
+        # Sort by priority (lower value means higher priority)
+        ready.sort(key=lambda t: t.priority)
+
+        ordered: List[Task] = []
+        while ready:
+            current = ready.pop(0)
+            ordered.append(current)
+
+            for child_id in dependents.get(current.id, []):
+                indegree[child_id] -= 1
+                if indegree[child_id] == 0:
+                    ready.append(task_map[child_id])
+                    ready.sort(key=lambda t: t.priority)
+
+        # If there are unresolved dependencies (cycle), append remaining tasks
+        remaining = [task_map[t_id] for t_id, d in indegree.items() if d > 0]
+        if remaining:
+            logger.warning("Dependency cycle detected in tasks; using best-effort order")
+            remaining.sort(key=lambda t: t.priority)
+            ordered.extend(remaining)
+
+        return ordered
     
     async def _define_success_criteria(self, task: Task) -> Dict[str, Any]:
         """Define success criteria for a task"""
