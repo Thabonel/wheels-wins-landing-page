@@ -226,12 +226,6 @@ class YouNode:
                 "message": "I couldn't create your calendar event. Please check the details and try again.",
             }
 
-    async def _is_user_admin(self, user_id: str) -> bool:
-        """Check if user has admin privileges - simplified to avoid permission issues"""
-        # For now, we'll use service client for all calendar operations
-        # This avoids the "permission denied to set role 'admin'" error
-        # Future enhancement: use proper role-based authentication
-        return False
 
     async def get_user_profile(self, user_id: str) -> Dict[str, Any]:
         """Get user profile from Supabase profiles table"""
