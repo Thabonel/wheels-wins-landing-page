@@ -8,9 +8,31 @@ import numpy as np
 from typing import Dict, Any, List, Optional, Union
 import json
 import time
+import os
+from pydantic import BaseModel, Field, ValidationError
 from observability_config import observability
 from langfuse_utils import langfuse_monitor
 from agentops_utils import agentops_monitor
+
+
+class _AnalysisOptions(BaseModel):
+    include_correlations: bool = True
+    detect_outliers: bool = True
+    generate_insights: bool = True
+    quality_assessment: bool = True
+
+
+class _AnalyzeParams(BaseModel):
+    data: Union[pd.DataFrame, str, Dict[str, Any]]
+    analysis_options: Optional[_AnalysisOptions] = None
+
+    @validator("data")
+    def validate_data(cls, v):
+        if isinstance(v, str) and not os.path.exists(v):
+            raise ValueError(f"File not found: {v}")
+        if not isinstance(v, (pd.DataFrame, str, dict)):
+            raise TypeError("data must be DataFrame, path, or dict")
+        return v
 
 class AnalyzeDatasetTool:
     """Comprehensive dataset analysis tool with full observability"""
@@ -22,7 +44,7 @@ class AnalyzeDatasetTool:
     
     @langfuse_monitor.observe_tool(tool_name="analyze_dataset", version="2.0")
     @agentops_monitor.track_tool_usage(tool_name="analyze_dataset", tool_version="2.0")
-    def analyze(self, data: Union[pd.DataFrame, str, dict], 
+    def analyze(self, data: Union[pd.DataFrame, str, dict],
                 analysis_options: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Comprehensive dataset analysis with full observability
@@ -35,19 +57,29 @@ class AnalyzeDatasetTool:
             Comprehensive analysis results
         """
         start_time = time.time()
-        observability.logger.info(f"🔍 Starting dataset analysis with {self.name} v{self.version}")
-        
-        # Default analysis options
-        options = analysis_options or {
+        observability.logger.info(
+            f"🔍 Starting dataset analysis with {self.name} v{self.version}"
+        )
+
+        try:
+            params = _AnalyzeParams(data=data, analysis_options=analysis_options)
+        except ValidationError as ve:
+            observability.logger.error(f"Input validation failed: {ve.errors()}")
+            return {
+                "error": "Invalid parameters",
+                "details": ve.errors(),
+            }
+
+        options = params.analysis_options.dict() if params.analysis_options else {
             "include_correlations": True,
             "detect_outliers": True,
             "generate_insights": True,
-            "quality_assessment": True
+            "quality_assessment": True,
         }
         
         try:
             # Data loading and preprocessing
-            df = self._load_data(data)
+            df = self._load_data(params.data)
             
             # Basic statistics
             basic_stats = self._compute_basic_statistics(df)

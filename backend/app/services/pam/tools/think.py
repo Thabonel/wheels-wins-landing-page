@@ -3,7 +3,9 @@ Think Tool - Internal reasoning for complex problems and planning
 """
 from typing import Dict, Any, List
 import json
+from pydantic import ValidationError
 from .base_tool import BaseTool
+from .validation_models import ThinkParams
 
 class ThinkTool(BaseTool):
     """Tool for internal reasoning and complex problem solving"""
@@ -16,10 +18,16 @@ class ThinkTool(BaseTool):
         try:
             if not parameters:
                 return self._create_error_response("Think tool requires parameters")
-            
-            problem_type = parameters.get("problem_type", "general")
-            context = parameters.get("context", {})
-            user_request = parameters.get("user_request", "")
+
+            try:
+                validated = ThinkParams(**parameters)
+            except ValidationError as ve:
+                self.logger.error(f"Input validation failed: {ve.errors()}")
+                return self._create_error_response("Invalid parameters")
+
+            problem_type = validated.problem_type
+            context = validated.context
+            user_request = validated.user_request
             
             self.logger.info(f"Thinking about {problem_type} for user {user_id}")
             
