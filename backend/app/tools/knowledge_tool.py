@@ -7,12 +7,31 @@ import logging
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 import json
+from pydantic import BaseModel, Field, ValidationError
 
 from ..services.knowledge.vector_store import VectorKnowledgeBase
 from ..services.knowledge.ingestion_pipeline import KnowledgeIngestionPipeline
 from ..services.scraping.enhanced_scraper import EnhancedScrapingService
 from ..services.scraping.api_integrations import APIIntegrationService
 from ..core.config import get_settings
+
+
+class _SearchParams(BaseModel):
+    query: str = Field(min_length=1)
+    user_location: Optional[Tuple[float, float]] = None
+    max_results: int = Field(default=5, ge=1, le=50)
+
+
+class _RecommendationParams(BaseModel):
+    user_location: Tuple[float, float]
+    query: str = Field(default="restaurants and attractions", min_length=1)
+    radius_km: float = Field(default=10.0, ge=0.1, le=100.0)
+
+
+class _QuestionParams(BaseModel):
+    question: str = Field(min_length=1)
+    user_location: Optional[Tuple[float, float]] = None
+    context: Optional[Dict[str, Any]] = None
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -71,17 +90,27 @@ class KnowledgeTool:
             logger.error(f"❌ Error during Knowledge Tool shutdown: {e}")
     
     async def search_knowledge(
-        self, 
-        query: str, 
+        self,
+        query: str,
         user_location: Optional[Tuple[float, float]] = None,
         max_results: int = 5
     ) -> Dict[str, Any]:
         """Search the knowledge base for relevant information"""
-        
+
         if not self.is_initialized:
             return {"error": "Knowledge Tool not initialized"}
-        
+
         try:
+            try:
+                params = _SearchParams(query=query, user_location=user_location, max_results=max_results)
+            except ValidationError as ve:
+                logger.error(f"Input validation failed: {ve.errors()}")
+                return {"error": "Invalid parameters"}
+
+            query = params.query
+            user_location = params.user_location
+            max_results = params.max_results
+
             logger.info(f"🔍 Searching knowledge base for: '{query}'")
             
             # Determine appropriate collection to search
@@ -129,18 +158,32 @@ class KnowledgeTool:
             return {"error": f"Search failed: {str(e)}"}
     
     async def get_local_recommendations(
-        self, 
+        self,
         user_location: Tuple[float, float],
         query: str = "restaurants and attractions",
         radius_km: float = 10.0
     ) -> Dict[str, Any]:
         """Get location-specific recommendations using real-time data"""
-        
+
         if not self.is_initialized:
             return {"error": "Knowledge Tool not initialized"}
-        
+
         try:
-            logger.info(f"📍 Getting local recommendations for ({user_location[0]:.4f}, {user_location[1]:.4f})")
+            try:
+                params = _RecommendationParams(
+                    user_location=user_location, query=query, radius_km=radius_km
+                )
+            except ValidationError as ve:
+                logger.error(f"Input validation failed: {ve.errors()}")
+                return {"error": "Invalid parameters"}
+
+            user_location = params.user_location
+            query = params.query
+            radius_km = params.radius_km
+
+            logger.info(
+                f"📍 Getting local recommendations for ({user_location[0]:.4f}, {user_location[1]:.4f})"
+            )
             
             # Add user location for real-time ingestion
             self.ingestion_pipeline.add_user_location(f"temp_{datetime.utcnow().timestamp()}", user_location)
@@ -177,17 +220,29 @@ class KnowledgeTool:
             return {"error": f"Local recommendations failed: {str(e)}"}
     
     async def answer_travel_question(
-        self, 
+        self,
         question: str,
         user_location: Optional[Tuple[float, float]] = None,
         context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Answer travel-related questions using the knowledge base"""
-        
+
         if not self.is_initialized:
             return {"error": "Knowledge Tool not initialized"}
-        
+
         try:
+            try:
+                params = _QuestionParams(
+                    question=question, user_location=user_location, context=context
+                )
+            except ValidationError as ve:
+                logger.error(f"Input validation failed: {ve.errors()}")
+                return {"error": "Invalid parameters"}
+
+            question = params.question
+            user_location = params.user_location
+            context = params.context
+
             logger.info(f"❓ Answering travel question: '{question}'")
             
             # Search for relevant information

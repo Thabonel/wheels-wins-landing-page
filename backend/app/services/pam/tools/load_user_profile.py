@@ -2,8 +2,16 @@
 Load User Profile Tool - Retrieves comprehensive user information
 """
 from typing import Dict, Any
+from pydantic import BaseModel, Field, ValidationError
 from .base_tool import BaseTool
 from app.core.database import get_supabase_client
+
+
+class _ExecuteParams(BaseModel):
+    """Validation model for execute parameters"""
+
+    user_id: str = Field(min_length=1)
+    parameters: Dict[str, Any] | None = None
 
 class LoadUserProfileTool(BaseTool):
     """Tool to load comprehensive user profile information"""
@@ -15,6 +23,13 @@ class LoadUserProfileTool(BaseTool):
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
         """Load user profile from database"""
         try:
+            # Validate inputs
+            try:
+                _ExecuteParams(user_id=user_id, parameters=parameters)
+            except ValidationError as ve:
+                self.logger.error(f"Input validation failed: {ve.errors()}")
+                return self._create_error_response("Invalid parameters")
+
             self.logger.info(f"Loading profile for user {user_id}")
             
             # Get user profile from Supabase

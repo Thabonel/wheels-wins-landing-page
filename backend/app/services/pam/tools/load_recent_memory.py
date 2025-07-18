@@ -3,9 +3,11 @@ Load Recent Memory Tool - Retrieves conversation history and context
 """
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
+from pydantic import ValidationError
 from .base_tool import BaseTool
 from app.services.database import get_database_service
 from app.services.cache import cache_service
+from .validation_models import RecentMemoryParams
 
 class LoadRecentMemoryTool(BaseTool):
     """Tool to load recent conversation memory and context"""
@@ -25,10 +27,15 @@ class LoadRecentMemoryTool(BaseTool):
         try:
             if not self.database_service:
                 self.initialize_sync()
-            
-            # Default parameters
-            limit = parameters.get("limit", 10) if parameters else 10
-            days_back = parameters.get("days_back", 7) if parameters else 7
+
+            try:
+                validated = RecentMemoryParams(**(parameters or {}))
+            except ValidationError as ve:
+                self.logger.error(f"Input validation failed: {ve.errors()}")
+                return self._create_error_response("Invalid parameters")
+
+            limit = validated.limit
+            days_back = validated.days_back
             
             self.logger.info(f"Loading recent memory for user {user_id} (last {days_back} days, limit {limit})")
             
