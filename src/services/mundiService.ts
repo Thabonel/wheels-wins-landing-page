@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '../integrations/supabase/client';
+import { CircuitBreaker } from '../utils/circuitBreaker';
 
 export interface MundiQueryRequest {
   prompt: string;
@@ -25,10 +26,15 @@ export interface MundiStatusResponse {
 
 class MundiService {
   private baseUrl = '';
+  private breaker: CircuitBreaker;
 
   constructor() {
     // Use environment variable or default to backend URL
     this.baseUrl = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
+    this.breaker = new CircuitBreaker(
+      (url: RequestInfo, options?: RequestInit) => fetch(url, options),
+      { failureThreshold: 3, cooldownPeriod: 30000, timeout: 15000 }
+    );
   }
 
   /**
@@ -43,14 +49,17 @@ class MundiService {
         throw new Error('Authentication required');
       }
 
-      const response = await fetch(`${this.baseUrl}/api/v1/mundi/query`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(request),
-      });
+      const response = await this.breaker.call(
+        `${this.baseUrl}/api/v1/mundi/query`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify(request)
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -79,12 +88,15 @@ class MundiService {
         throw new Error('Authentication required');
       }
 
-      const response = await fetch(`${this.baseUrl}/api/v1/mundi/status`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
+      const response = await this.breaker.call(
+        `${this.baseUrl}/api/v1/mundi/status`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          }
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
