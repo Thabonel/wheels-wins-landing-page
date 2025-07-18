@@ -515,6 +515,42 @@ Update vehicle information.
 ### DELETE /vehicles/{vehicle_id}
 Remove a vehicle.
 
+## Data Management Endpoints
+
+### Profiles
+- `GET /api/v1/profiles/{id}` - Retrieve a profile
+- `POST /api/v1/profiles` - Create a new profile
+- `PUT /api/v1/profiles/{id}` - Update a profile
+- `DELETE /api/v1/profiles/{id}` - Delete a profile
+
+### Products
+- `GET /api/v1/products` - List products
+- `GET /api/v1/products/{id}` - Retrieve a product
+- `POST /api/v1/products` - Create a product
+- `PUT /api/v1/products/{id}` - Update a product
+- `DELETE /api/v1/products/{id}` - Delete a product
+
+### Orders
+- `GET /api/v1/orders` - List orders
+- `GET /api/v1/orders/{id}` - Retrieve an order
+- `POST /api/v1/orders` - Create an order
+- `PUT /api/v1/orders/{id}` - Update an order
+- `DELETE /api/v1/orders/{id}` - Delete an order
+
+### Maintenance Records
+- `GET /api/v1/maintenance/{user_id}` - List maintenance records
+- `GET /api/v1/maintenance/record/{id}` - Retrieve a maintenance record
+- `POST /api/v1/maintenance` - Create a record
+- `PUT /api/v1/maintenance/{id}` - Update a record
+- `DELETE /api/v1/maintenance/{id}` - Delete a record
+
+### Custom Routes
+- `GET /api/v1/routes/{user_id}` - List saved routes
+- `GET /api/v1/route/{id}` - Retrieve a route
+- `POST /api/v1/routes` - Create a route
+- `PUT /api/v1/route/{id}` - Update a route
+- `DELETE /api/v1/route/{id}` - Delete a route
+
 ## Error Responses
 
 All endpoints may return the following error responses:
