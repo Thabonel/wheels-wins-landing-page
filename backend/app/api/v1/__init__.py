@@ -1,5 +1,39 @@
-from . import auth, chat, health, monitoring, pam, social, wheels, wins, subscription, voice, admin, observability
+from . import (
+    auth,
+    chat,
+    health,
+    monitoring,
+    pam,
+    social,
+    wheels,
+    wins,
+    subscription,
+    voice,
+    admin,
+    observability,
+    profiles,
+    products,
+    orders,
+    maintenance,
+    custom_routes,
+)
 
 __all__ = [
-    'auth', 'chat', 'health', 'monitoring', 'pam', 'social', 'wheels', 'wins', 'subscription', 'voice', 'admin', 'observability'
+    'auth',
+    'chat',
+    'health',
+    'monitoring',
+    'pam',
+    'social',
+    'wheels',
+    'wins',
+    'subscription',
+    'voice',
+    'admin',
+    'observability',
+    'profiles',
+    'products',
+    'orders',
+    'maintenance',
+    'custom_routes',
 ]

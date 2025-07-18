@@ -180,6 +180,41 @@ def sample_maintenance_data():
 
 
 @pytest.fixture
+def sample_product_data():
+    """Sample product data for tests."""
+    return {
+        "id": 1,
+        "name": "Test Product",
+        "price": 9.99,
+        "status": "active",
+    }
+
+
+@pytest.fixture
+def sample_order_data(sample_user_data):
+    """Sample order data for tests."""
+    return {
+        "id": 1,
+        "user_id": sample_user_data["id"],
+        "product_id": 1,
+        "quantity": 2,
+        "status": "pending",
+    }
+
+
+@pytest.fixture
+def sample_custom_route_data(sample_user_data):
+    """Sample custom route data for tests."""
+    return {
+        "id": 1,
+        "user_id": sample_user_data["id"],
+        "name": "Scenic Route",
+        "origin": "A",
+        "destination": "B",
+    }
+
+
+@pytest.fixture
 def sample_chat_data():
     """Sample chat conversation data for tests."""
     return {
