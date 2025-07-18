@@ -31,7 +31,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 @router.get("/social/feed")
-async def get_social_feed(
+def get_social_feed(
     location: str = "feed",
     current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
@@ -97,7 +97,7 @@ async def get_social_feed(
         }
 
 @router.post("/social/posts")
-async def create_social_post(
+def create_social_post(
     post_data: Dict[str, Any],
     current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
@@ -141,7 +141,7 @@ async def create_social_post(
         }
 
 @router.get("/social/groups")
-async def get_social_groups(
+def get_social_groups(
     current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get social groups"""
