@@ -6,6 +6,23 @@ export const API_BASE_URL =
 // Allow overriding the WebSocket endpoint separately if needed
 const WS_OVERRIDE = import.meta.env.VITE_PAM_WEBSOCKET_URL;
 
+// Default timeout in milliseconds for fetch requests
+const DEFAULT_TIMEOUT = Number(import.meta.env.VITE_FETCH_TIMEOUT || '10000');
+
+export async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  options: RequestInit = {},
+  timeout: number = DEFAULT_TIMEOUT
+) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    return await fetch(input, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 /**
  * Enhanced API fetch with SaaS-standard authentication
  * Uses reference tokens (industry best practice) for minimal header size
@@ -55,7 +72,7 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
     },
   };
   
-  const response = await fetch(url, authenticatedOptions);
+  const response = await fetchWithTimeout(url, authenticatedOptions);
   
   // Debug: Log response details
   console.log('🔐 API: Response status:', response.status);
@@ -83,7 +100,7 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
       },
     };
     
-    return fetch(url, retryOptions);
+    return fetchWithTimeout(url, retryOptions);
   }
   
   return response;
@@ -94,7 +111,7 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
  */
 export function apiFetch(path: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${path}`;
-  return fetch(url, options);
+  return fetchWithTimeout(url, options);
 }
 
 /**
