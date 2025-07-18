@@ -231,7 +231,7 @@ async def browse_marketplace(
         raise HTTPException(status_code=500, detail="Could not browse marketplace")
 
 @router.post("/marketplace")
-async def create_listing(request: ListingCreateRequest):
+async def create_listing(request: ListingCreateRequest, current_user: UnifiedUser = Depends(get_current_user_unified)):
     """Create a new marketplace listing"""
     try:
         db_service = get_database_service()
@@ -244,7 +244,7 @@ async def create_listing(request: ListingCreateRequest):
         """
         
         result = await db_service.execute_single(
-            query, request.user_id, request.title, request.description,
+            query, current_user.user_id, request.title, request.description,
             request.price, request.category, request.location, 
             request.condition, request.photos
         )
@@ -263,15 +263,15 @@ async def create_listing(request: ListingCreateRequest):
         logger.error(f"Listing creation error: {e}")
         raise HTTPException(status_code=500, detail="Could not create listing")
 
-@router.get("/feed/{user_id}")
-async def get_social_feed(user_id: str, limit: int = 50):
+@router.get("/feed")
+async def get_social_feed(current_user: UnifiedUser = Depends(get_current_user_unified), limit: int = 50):
     """Get personalized social feed"""
     try:
         # This would aggregate posts from user's groups, friends, etc.
         # For now, return a basic feed
         
         return SocialFeedResponse(
-            user_id=user_id,
+            user_id=current_user.user_id,
             posts=[],
             total_posts=0,
             last_updated=datetime.utcnow(),
@@ -283,7 +283,7 @@ async def get_social_feed(user_id: str, limit: int = 50):
         raise HTTPException(status_code=500, detail="Could not load social feed")
 
 @router.post("/groups/{group_id}/join")
-async def join_group(group_id: str, user_id: str):
+async def join_group(group_id: str, current_user: UnifiedUser = Depends(get_current_user_unified)):
     """Join an RV group"""
     try:
         db_service = get_database_service()
@@ -294,7 +294,7 @@ async def join_group(group_id: str, user_id: str):
             WHERE user_id = $1 AND group_id = $2 AND is_active = true
         """
         
-        existing = await db_service.execute_single(check_query, user_id, group_id)
+        existing = await db_service.execute_single(check_query, current_user.user_id, group_id)
         
         if existing:
             return {
@@ -309,7 +309,7 @@ async def join_group(group_id: str, user_id: str):
             RETURNING id
         """
         
-        result = await db_service.execute_single(insert_query, user_id, group_id)
+        result = await db_service.execute_single(insert_query, current_user.user_id, group_id)
         
         if not result:
             raise HTTPException(status_code=400, detail="Failed to join group")
@@ -324,8 +324,8 @@ async def join_group(group_id: str, user_id: str):
         logger.error(f"Group join error: {e}")
         raise HTTPException(status_code=500, detail="Could not join group")
 
-@router.get("/groups/{user_id}/memberships")
-async def get_user_groups(user_id: str):
+@router.get("/groups/memberships")
+async def get_user_groups(current_user: UnifiedUser = Depends(get_current_user_unified)):
     """Get user's group memberships"""
     try:
         db_service = get_database_service()
@@ -339,10 +339,10 @@ async def get_user_groups(user_id: str):
             ORDER BY gm.joined_at DESC
         """
         
-        memberships = await db_service.execute_query(query, user_id)
+        memberships = await db_service.execute_query(query, current_user.user_id)
         
         return {
-            "user_id": user_id,
+            "user_id": current_user.user_id,
             "groups": [
                 {
                     "name": group['group_name'],

@@ -13,6 +13,7 @@ from app.models.schemas.pam import ChatRequest, ChatResponse
 from app.core.simple_pam_service import simple_pam_service
 from app.core.logging import setup_logging, get_logger
 from app.core.database import get_supabase_client
+from app.core.unified_auth import get_current_user_unified, UnifiedUser
 
 router = APIRouter()
 setup_logging()
@@ -107,9 +108,9 @@ async def chat_with_pam(
             detail="I'm having trouble processing your message right now. Please try again."
         )
 
-@router.get("/chat/history/{user_id}")
+@router.get("/chat/history")
 async def get_chat_history(
-    user_id: str,
+    current_user: UnifiedUser = Depends(get_current_user_unified),
     limit: int = 20,
     session_id: Optional[str] = None
 ):
@@ -119,7 +120,7 @@ async def get_chat_history(
         history = []
         
         return {
-            "user_id": user_id,
+            "user_id": current_user.user_id,
             "session_id": session_id,
             "history": history,
             "total_messages": len(history)
@@ -131,23 +132,23 @@ async def get_chat_history(
 
 @router.post("/chat/context")
 async def update_context(
-    user_id: str,
     session_id: str,
-    context_updates: Dict[str, Any]
+    context_updates: Dict[str, Any],
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Update conversation context"""
     try:
-        supabase = get_supabase_client()
+        supabase = current_user.get_supabase_client()
         
         # Check if session context exists
         existing_result = supabase.table("chat_sessions")\
             .select("*")\
             .eq("session_id", session_id)\
-            .eq("user_id", user_id)\
+            .eq("user_id", current_user.user_id)\
             .execute()
         
         context_data = {
-            "user_id": user_id,
+            "user_id": current_user.user_id,
             "session_id": session_id,
             "context_data": context_updates,
             "updated_at": datetime.utcnow().isoformat()
@@ -158,7 +159,7 @@ async def update_context(
             result = supabase.table("chat_sessions")\
                 .update(context_data)\
                 .eq("session_id", session_id)\
-                .eq("user_id", user_id)\
+                .eq("user_id", current_user.user_id)\
                 .execute()
         else:
             # Create new session context
@@ -171,7 +172,7 @@ async def update_context(
         
         return {
             "status": "success",
-            "user_id": user_id,
+            "user_id": current_user.user_id,
             "session_id": session_id,
             "context_keys_updated": list(context_updates.keys()),
             "updated_at": datetime.utcnow()
@@ -182,17 +183,15 @@ async def update_context(
         raise HTTPException(status_code=500, detail="Could not update context")
 
 @router.get("/chat/context/{session_id}")
-async def get_session_context(session_id: str, user_id: Optional[str] = None):
+async def get_session_context(session_id: str, current_user: UnifiedUser = Depends(get_current_user_unified)):
     """Get session context data"""
     try:
-        supabase = get_supabase_client()
+        supabase = current_user.get_supabase_client()
         
         query = supabase.table("chat_sessions")\
             .select("*")\
-            .eq("session_id", session_id)
-        
-        if user_id:
-            query = query.eq("user_id", user_id)
+            .eq("session_id", session_id)\
+            .eq("user_id", current_user.user_id)
         
         result = query.execute()
         
@@ -217,10 +216,10 @@ async def get_session_context(session_id: str, user_id: Optional[str] = None):
         raise HTTPException(status_code=500, detail="Could not retrieve session context")
 
 @router.delete("/chat/session/{session_id}")
-async def end_chat_session(session_id: str, user_id: Optional[str] = None):
+async def end_chat_session(session_id: str, current_user: UnifiedUser = Depends(get_current_user_unified)):
     """End a chat session"""
     try:
-        supabase = get_supabase_client()
+        supabase = current_user.get_supabase_client()
         
         # Mark session as ended in database
         session_data = {
@@ -228,10 +227,7 @@ async def end_chat_session(session_id: str, user_id: Optional[str] = None):
             "ended_at": datetime.utcnow().isoformat()
         }
         
-        query = supabase.table("chat_sessions").update(session_data).eq("session_id", session_id)
-        
-        if user_id:
-            query = query.eq("user_id", user_id)
+        query = supabase.table("chat_sessions").update(session_data).eq("session_id", session_id).eq("user_id", current_user.user_id)
         
         result = query.execute()
         

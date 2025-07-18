@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 import httpx
 from app.core.auth import get_current_user_id
+from app.core.unified_auth import get_current_user_unified, UnifiedUser
 from app.core.logging import setup_logging, get_logger
 from app.nodes.wheels_node import wheels_node
 
@@ -32,7 +33,7 @@ class WeatherRequest(BaseModel):
 @router.post("/plan-trip")
 async def plan_trip(
     request: TripPlanRequest,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Plan a complete trip with route, stops, and attractions"""
     try:
@@ -47,7 +48,7 @@ async def plan_trip(
             }
         }
         
-        result = await wheels_node.plan_trip(user_id, trip_data)
+        result = await wheels_node.plan_trip(current_user.user_id, trip_data)
         return result
         
     except Exception as e:
@@ -60,12 +61,12 @@ async def plan_trip(
 @router.post("/fuel-log")
 async def log_fuel_purchase(
     request: FuelLogRequest,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Log a fuel purchase and update efficiency tracking"""
     try:
         fuel_data = request.dict()
-        result = await wheels_node.log_fuel_purchase(user_id, fuel_data)
+        result = await wheels_node.log_fuel_purchase(current_user.user_id, fuel_data)
         return result
         
     except Exception as e:
@@ -77,11 +78,11 @@ async def log_fuel_purchase(
 
 @router.get("/maintenance")
 async def check_maintenance(
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Check vehicle maintenance schedule"""
     try:
-        result = await wheels_node.check_maintenance_schedule(user_id)
+        result = await wheels_node.check_maintenance_schedule(current_user.user_id)
         return result
         
     except Exception as e:
@@ -94,7 +95,7 @@ async def check_maintenance(
 @router.post("/weather")
 async def get_weather_forecast(
     request: WeatherRequest,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get weather forecast for a location"""
     try:
@@ -116,7 +117,7 @@ async def get_nearby_attractions(
     lat: float,
     lon: float,
     radius_km: int = 50,
-    user_id: str = Depends(get_current_user_id)
+    current_user: UnifiedUser = Depends(get_current_user_unified)
 ):
     """Get nearby attractions, camps, and services"""
     try:
