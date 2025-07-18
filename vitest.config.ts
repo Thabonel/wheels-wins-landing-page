@@ -16,6 +16,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      include: [
+        'src/components/**/*.{ts,tsx}',
+        'src/lib/**/*.{ts,tsx}',
+        'src/services/**/*.{ts,tsx}',
+        'src/context/**/*.{ts,tsx}'
+      ],
       exclude: [
         'node_modules/',
         'src/test/',
