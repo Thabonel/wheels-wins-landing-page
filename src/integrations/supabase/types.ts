@@ -1724,6 +1724,33 @@ export type Database = {
         }
         Relationships: []
       }
+      health_check: {
+        Row: {
+          checked_at: string | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          service_name: string
+          status: string
+        }
+        Insert: {
+          checked_at?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          service_name?: string
+          status?: string
+        }
+        Update: {
+          checked_at?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          service_name?: string
+          status?: string
+        }
+        Relationships: []
+      }
       hustle_ideas: {
         Row: {
           avg_earnings: number | null
@@ -5307,6 +5334,33 @@ export type Database = {
           },
         ]
       }
+      user_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          token_hash: string
+          user_data: Json
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token_hash: string
+          user_data: Json
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          user_data?: Json
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           created_at: string | null
@@ -5878,13 +5932,11 @@ export type Database = {
         Returns: string
       }
       get_conversation_history: {
-        Args: { p_user_id: string; p_limit?: number } | { user_id: string }
-        Returns: {
-          id: string
-          created_at: string
-          message: string
-          sender_id: string
-        }[]
+        Args:
+          | Record<PropertyKey, never>
+          | { p_user_id: string; p_limit?: number }
+          | { user_id: string }
+        Returns: string[]
       }
       get_nearby_recommendations: {
         Args: {
@@ -5905,13 +5957,11 @@ export type Database = {
       }
       get_or_create_pam_conversation: {
         Args:
+          | Record<PropertyKey, never>
           | { p_user_id: string; p_session_id: string; p_context?: Json }
+          | { param1: string; param2: number }
           | { user_id: string }
-        Returns: {
-          id: string
-          created_at: string
-          updated_at: string
-        }[]
+        Returns: string
       }
       get_user_id_from_auth: {
         Args: Record<PropertyKey, never>
@@ -5924,10 +5974,6 @@ export type Database = {
       get_user_role: {
         Args: Record<PropertyKey, never> | { check_user_id: string }
         Returns: string
-      }
-      is_admin_user: {
-        Args: { user_id: string }
-        Returns: boolean
       }
       is_current_user_admin: {
         Args: Record<PropertyKey, never>
@@ -5982,6 +6028,7 @@ export type Database = {
       store_user_context: {
         Args:
           | Record<PropertyKey, never>
+          | { p_user_id: string; p_context: Json }
           | {
               p_user_id: string
               p_context_type: string
