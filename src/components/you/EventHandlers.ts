@@ -3,6 +3,21 @@ import { CalendarEvent } from "./types";
 import { formatEventTime } from "./EventFormatter";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+
+// Helper function to check if user is admin
+const isUserAdmin = async (): Promise<boolean> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return false;
+  const adminEmails = ['admin@wheelsandwins.com', 'thabonel0@gmail.com'];
+  return adminEmails.includes(user.email);
+};
+
+// Helper function to get appropriate Supabase client
+const getSupabaseClient = async () => {
+  const isAdmin = await isUserAdmin();
+  return isAdmin ? supabaseAdmin : supabase;
+};
 
 // Helper function to convert database event to local CalendarEvent format
 const convertDbEventToLocal = (dbEvent: any): CalendarEvent => {
@@ -63,7 +78,8 @@ export const handleEventMove = async (
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
-    const { error } = await supabase
+    const client = await getSupabaseClient();
+    const { error } = await client
       .from("calendar_events")
       .update({
         date: updatedEvent.date.toISOString().split("T")[0],
@@ -120,7 +136,8 @@ export const handleEventResize = async (
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
-    const { error } = await supabase
+    const client = await getSupabaseClient();
+    const { error } = await client
       .from("calendar_events")
       .update({
         start_time: `${updatedEvent.startTime}:00`,
@@ -238,7 +255,8 @@ export const handleEventSubmit = async (
 
     if (eventToUpdate.id) {
       // Update existing database record
-      const { error } = await supabase
+      const client = await getSupabaseClient();
+      const { error } = await client
         .from("calendar_events")
         .update(payload)
         .eq("id", eventToUpdate.id)
@@ -254,7 +272,8 @@ export const handleEventSubmit = async (
       }
     } else {
       // This is a local-only event, create it in the database
-      const { data: dbNewEvent, error } = await supabase
+      const client = await getSupabaseClient();
+      const { data: dbNewEvent, error } = await client
         .from("calendar_events")
         .insert([{ ...payload, user_id: user.id }])
         .select()
@@ -308,7 +327,8 @@ export const handleEventSubmit = async (
       location: data.location || "",
     };
 
-    const { data: insertedEvent, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data: insertedEvent, error } = await client
       .from("calendar_events")
       .insert([payload])
       .select()
