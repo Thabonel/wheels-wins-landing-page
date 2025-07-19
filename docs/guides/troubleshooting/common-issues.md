@@ -15,6 +15,17 @@ This document covers the most frequently encountered issues and their solutions.
 
 **Quick Fix**: See the comprehensive [Admin Access Issues & Solutions guide](admin-access-issues.md) for detailed steps.
 
+### Issue: "Permission denied for table [table_name]" for Admin Operations
+**Symptoms**: Admin users get permission errors when creating calendar events, managing expenses, or other admin operations
+**Root Cause**: Frontend using regular Supabase client instead of admin client for admin users
+**Solutions**:
+1. **Database**: Grant BYPASSRLS privilege to admin role: `ALTER ROLE admin BYPASSRLS;`
+2. **Database**: Grant table permissions: `GRANT ALL PRIVILEGES ON TABLE calendar_events TO admin;`
+3. **Frontend**: Use admin client for admin users (see pattern in [Admin Access Issues](admin-access-issues.md))
+4. **Frontend**: Update all database operations to use `getSupabaseClient()` helper function
+
+**Quick Fix**: Apply the admin client pattern from [Admin Access Issues guide](admin-access-issues.md#issue-permission-denied-for-table-table_name-for-admin-operations) to your components.
+
 ## Authentication Issues
 
 ### Issue: "Invalid JWT token" errors
