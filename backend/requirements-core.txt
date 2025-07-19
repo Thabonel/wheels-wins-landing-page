@@ -17,8 +17,8 @@ passlib[bcrypt]==1.7.4
 
 # Core APIs and HTTP
 openai>=1.50.0,<2.0.0
-supabase==2.5.0
-httpx==0.27.2
+supabase==2.17.0
+httpx==0.28.1
 requests==2.32.4
 urllib3==2.5.0
 
