@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Use direct URLs instead of environment variables for Lovable
-const SUPABASE_URL = "https://kycoklimpzkyrecbjecn.supabase.co";
-const SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY>
+// Load Supabase configuration from environment variables
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://kycoklimpzkyrecbjecn.supabase.co";
+const SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY> || "<JWT_TOKEN>";
 
-// URLs are directly configured for Lovable deployment
+// Environment variables allow for flexible deployment across environments
 
 // Create the supabase client optimized for minimal JWT size (SaaS best practice)
 export const supabase = createClient<Database>(
