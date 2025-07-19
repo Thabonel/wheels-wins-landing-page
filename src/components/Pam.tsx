@@ -412,7 +412,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         userLocation: userContext?.current_location,
         vehicleInfo: userContext?.vehicle_info,
         travelStyle: userContext?.travel_style,
-        conversationHistory: messages.slice(-5),
+        conversation_history: messages.slice(-5).map(msg => ({
+          role: msg.sender === "user" ? "user" : "assistant",
+          content: msg.content
+        })),
         timestamp: new Date().toISOString(),
         session_id: `session_${user?.id}_${Date.now()}`
       }
