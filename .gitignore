@@ -31,6 +31,8 @@ __pycache__/
 *.pyo
 *.pyd
 venv/
+scraper_service/venv/
+backend/venv/
 .env
 !src/.env
 
