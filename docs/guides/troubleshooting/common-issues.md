@@ -165,3 +165,4 @@ npm run build --verbose
    - [API Errors](api-errors.md)
    - [Debugging Guide](debugging-guide.md)
    - [Deployment Issues](deployment-issues.md)
+   - [Performance Optimization](../performance-optimization.md)
