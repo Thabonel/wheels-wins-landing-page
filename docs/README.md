@@ -55,6 +55,8 @@ Complete guides for all PAM features and capabilities:
 - [Integration Patterns](technical/integration-patterns.md) - Integration guidelines
 - [Security Considerations](technical/security-considerations.md) - Security practices
 - [PAM Backend Deployment](technical/pam-backend-deployment.md) - Backend deployment progress
+- [Performance Optimization](guides/performance-optimization.md) - Tuning tips
+- [Legal Compliance](legal-compliance.md) - Data privacy guidelines
 
 ## 🚀 Quick Start
 

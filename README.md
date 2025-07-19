@@ -7,6 +7,27 @@
 
 **URL**: <YOUR_PROJECT_URL>
 
+## Setup & Usage
+
+Clone the repository and install dependencies:
+
+```bash
+git clone <YOUR_GIT_URL>
+cd wheels-wins-landing-page
+npm install
+python -m venv venv && source venv/bin/activate
+pip install -r backend/requirements.txt
+```
+
+Start the development servers:
+
+```bash
+npm run dev        # Frontend
+uvicorn app.main:app --reload --app-dir backend
+```
+
+API endpoints and authentication details are documented in [API Documentation](docs/technical/api-documentation.md).
+
 ## 🛡️ Code Quality & Security
 
 This project implements comprehensive code quality and security measures:
@@ -141,6 +162,10 @@ pytest
 ## Troubleshooting
 
 If you run into errors or need help debugging, see the [Common Issues guide](docs/guides/troubleshooting/common-issues.md).
+For performance tuning tips see [Performance Optimization](docs/guides/performance-optimization.md).
+Review the [Legal Compliance](docs/legal-compliance.md) guidelines before going live.
+
+
 
 
 ## Phase 2 Complete

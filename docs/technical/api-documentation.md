@@ -11,6 +11,17 @@ Complete reference for the PAM Backend API endpoints, authentication, and integr
 **Content-Type**: `application/json`  
 **Authentication**: Bearer Token (JWT)
 
+### Modules Overview
+The API is organized into the following modules:
+
+| Module | Key Endpoints |
+| ------ | ------------- |
+| Authentication | `/auth/login`, `/auth/refresh`, `/auth/logout` |
+| Budgets | `/budgets`, `/budgets/{id}` |
+| Expenses | `/expenses`, `/expenses/{id}` |
+| Vehicles | `/vehicles`, `/vehicles/{id}` |
+| Trips | `/trips`, `/trips/{id}` |
+
 ## Authentication
 
 ### Overview
