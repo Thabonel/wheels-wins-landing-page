@@ -67,3 +67,4 @@ test-results/
 
 # CodeQL analysis
 .codeql-database/
+!rv-trip-extractor/.env
