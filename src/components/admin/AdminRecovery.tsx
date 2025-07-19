@@ -19,9 +19,8 @@ const AdminRecovery: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.rpc('bootstrap_admin_user', {
-        user_email: email.trim()
-      });
+      // Note: bootstrap_admin_user function not available, this would need to be implemented
+      const error = new Error('Bootstrap admin function not implemented');
 
       if (error) {
         toast.error(`Failed to bootstrap admin: ${error.message}`);
