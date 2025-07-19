@@ -190,13 +190,167 @@ If automatic recovery fails:
 3. Click "Bootstrap Admin Access"
 4. Refresh the page to verify access
 
+## Issue: "Permission denied for table [table_name]" for Admin Operations
+
+**Symptoms**:
+- Admin users get "permission denied for table calendar_events" when creating events
+- Admin operations fail with table-level permission errors
+- Admin functions work in SQL but fail in frontend application
+- Error occurs across multiple admin features (calendar, expenses, user management)
+
+**Root Cause**:
+This error occurs when admin users' frontend operations use the regular Supabase client (with anon key) instead of the admin client (with service role key), causing them to be subject to Row Level Security (RLS) policies even though they have admin privileges.
+
+**Solution**: Frontend Admin Client Integration
+
+### Step 1: Verify Database Admin Permissions
+
+Ensure admin role has proper database privileges:
+
+```sql
+-- 1. Check if admin role exists and has BYPASSRLS
+SELECT rolname, rolsuper, rolbypassrls 
+FROM pg_roles 
+WHERE rolname = 'admin';
+
+-- 2. Grant BYPASSRLS privilege to admin role
+RESET ROLE;
+ALTER ROLE admin BYPASSRLS;
+
+-- 3. Grant table permissions to admin role
+GRANT ALL PRIVILEGES ON TABLE calendar_events TO admin;
+GRANT ALL PRIVILEGES ON TABLE expenses TO admin;
+GRANT ALL PRIVILEGES ON TABLE user_sessions TO admin;
+GRANT ALL PRIVILEGES ON TABLE profiles TO admin;
+-- Add other tables as needed
+
+-- 4. Grant sequence permissions for auto-incrementing IDs
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO admin;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO authenticator;
+```
+
+### Step 2: Implement Frontend Admin Client Usage
+
+**Problem**: Frontend code uses regular `supabase` client for all operations:
+```typescript
+// WRONG: Uses anon key, subject to RLS
+const { data, error } = await supabase
+  .from("calendar_events")
+  .insert(eventData);
+```
+
+**Solution**: Use admin client for admin users:
+
+1. **Create admin detection helper** (add to component files):
+```typescript
+import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+
+// Helper function to check if user is admin
+const isUserAdmin = async (): Promise<boolean> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return false;
+  const adminEmails = ['admin@wheelsandwins.com', 'thabonel0@gmail.com'];
+  return adminEmails.includes(user.email);
+};
+
+// Helper function to get appropriate Supabase client
+const getSupabaseClient = async () => {
+  const isAdmin = await isUserAdmin();
+  return isAdmin ? supabaseAdmin : supabase;
+};
+```
+
+2. **Update database operations** to use dynamic client:
+```typescript
+// CORRECT: Uses admin client for admin users
+const client = await getSupabaseClient();
+const { data, error } = await client
+  .from("calendar_events")
+  .insert(eventData);
+```
+
+### Step 3: Apply Pattern to All Admin Operations
+
+This pattern should be applied to any component where admin users perform database operations:
+
+- **Calendar event creation/editing** ✅ (Fixed in EventHandlers.ts)
+- **Expense management** (needs fixing)
+- **User management** (needs fixing)
+- **Profile updates** (needs fixing)
+- **Admin dashboard operations** (needs fixing)
+
+### Example Implementation
+
+**Before** (causing permission errors):
+```typescript
+export const handleEventSubmit = async (data: CalendarEvent) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  // This uses anon key, gets blocked by RLS for admin operations
+  const { error } = await supabase
+    .from("calendar_events")
+    .insert({ ...data, user_id: user.id });
+};
+```
+
+**After** (working for admin users):
+```typescript
+export const handleEventSubmit = async (data: CalendarEvent) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  // This uses admin client for admin users, bypasses RLS
+  const client = await getSupabaseClient();
+  const { error } = await client
+    .from("calendar_events")
+    .insert({ ...data, user_id: user.id });
+};
+```
+
+### Benefits of This Approach
+
+1. **Admin users bypass RLS** - Use service role key with BYPASSRLS privilege
+2. **Regular users stay protected** - Continue using anon key with RLS policies
+3. **Automatic detection** - No manual role switching required
+4. **Secure by default** - Admin privileges only for verified admin emails
+
+### Troubleshooting Admin Client Issues
+
+1. **Check admin email list**:
+   ```typescript
+   // Verify your email is in the admin list
+   const adminEmails = ['admin@wheelsandwins.com', 'thabonel0@gmail.com'];
+   ```
+
+2. **Verify service role key**:
+   ```typescript
+   // Check if SUPABASE_SERVICE_ROLE_KEY is set
+   console.log('Service key exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+   ```
+
+3. **Test admin client directly**:
+   ```typescript
+   // Test admin client in browser console
+   import { supabaseAdmin } from "@/lib/supabase-admin";
+   const result = await supabaseAdmin.from("calendar_events").select("*").limit(1);
+   console.log(result);
+   ```
+
+### Prevention Strategies
+
+1. **Always check user role** before database operations in admin contexts
+2. **Use consistent admin detection** across all components
+3. **Test with both admin and regular user accounts**
+4. **Monitor for RLS policy violations** in error logs
+
 ## Related Documentation
 
-- [Admin Dashboard Features](../features/admin-dashboard.md)
-- [Database Schema](../technical/database-schema.md)
-- [Security Considerations](../technical/security-considerations.md)
+- [Admin Dashboard Features](../../features/admin-dashboard.md)
+- [Database Schema](../../technical/database-schema.md)
+- [Security Considerations](../../technical/security-considerations.md)
+- [Supabase Admin Client Setup](../../technical/integration-patterns.md)
 
 ---
 
-*Last updated: 2025-06-18*
-*Issue Resolution: Admin Access Bootstrap Fix*
+*Last updated: 2025-07-19*
+*Issue Resolution: Admin Access Bootstrap Fix + Frontend Admin Client Integration*
