@@ -3,7 +3,6 @@ import { CalendarEvent } from "./types";
 import { formatEventTime } from "./EventFormatter";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { supabaseAdmin } from "@/lib/supabase-admin";
 
 // Helper function to check if user is admin
 const isUserAdmin = async (): Promise<boolean> => {
@@ -13,10 +12,10 @@ const isUserAdmin = async (): Promise<boolean> => {
   return adminEmails.includes(user.email);
 };
 
-// Helper function to get appropriate Supabase client
-const getSupabaseClient = async () => {
-  const isAdmin = await isUserAdmin();
-  return isAdmin ? supabaseAdmin : supabase;
+// For client-side operations, we always use the regular supabase client
+// Admin operations should be handled via RLS policies, not service role
+const getSupabaseClient = () => {
+  return supabase;
 };
 
 // Helper function to convert database event to local CalendarEvent format
@@ -78,7 +77,7 @@ export const handleEventMove = async (
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
-    const client = await getSupabaseClient();
+    const client = getSupabaseClient();
     const { error } = await client
       .from("calendar_events")
       .update({
@@ -136,7 +135,7 @@ export const handleEventResize = async (
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
-    const client = await getSupabaseClient();
+    const client = getSupabaseClient();
     const { error } = await client
       .from("calendar_events")
       .update({
@@ -255,7 +254,7 @@ export const handleEventSubmit = async (
 
     if (eventToUpdate.id) {
       // Update existing database record
-      const client = await getSupabaseClient();
+      const client = getSupabaseClient();
       const { error } = await client
         .from("calendar_events")
         .update(payload)
@@ -272,7 +271,7 @@ export const handleEventSubmit = async (
       }
     } else {
       // This is a local-only event, create it in the database
-      const client = await getSupabaseClient();
+      const client = getSupabaseClient();
       const { data: dbNewEvent, error } = await client
         .from("calendar_events")
         .insert([{ ...payload, user_id: user.id }])
@@ -327,7 +326,7 @@ export const handleEventSubmit = async (
       location: data.location || "",
     };
 
-    const client = await getSupabaseClient();
+    const client = getSupabaseClient();
     const { data: insertedEvent, error } = await client
       .from("calendar_events")
       .insert([payload])
