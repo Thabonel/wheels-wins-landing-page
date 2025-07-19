@@ -35,10 +35,9 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
   const useReferenceTokens = localStorage.getItem('use_reference_tokens') !== 'false';
   
   if (useReferenceTokens) {
-    console.log('🎫 Using SaaS-standard reference token authentication');
-    // Import dynamically to avoid circular dependencies
-    const { authenticatedFetchWithReferenceToken } = await import('./auth/referenceTokens');
-    return authenticatedFetchWithReferenceToken(path, options);
+    console.log('🎫 Reference token authentication not available');
+    // Reference token authentication has been removed
+    throw new Error('Reference token authentication not implemented');
   }
   
   // Fallback to JWT with optimization

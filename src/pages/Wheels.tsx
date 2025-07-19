@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
-import TripPlannerApp from "@/components/wheels/TripPlannerApp";
+// import TripPlannerApp from '@/components/wheels/TripPlannerApp'; // Removed
 import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
 import FuelLog from "@/components/wheels/FuelLog";
 import VehicleMaintenance from "@/components/wheels/VehicleMaintenance";
@@ -70,7 +70,9 @@ const Wheels = () => {
               <div className="min-h-[600px]">
                 <TabsContent value="trip-planner" className="mt-0">
                   <PAMProvider>
-                    <TripPlannerApp />
+                    <div className="p-4 text-center text-gray-500">
+                      Trip Planner temporarily unavailable
+                    </div>
                   </PAMProvider>
                 </TabsContent>
                 

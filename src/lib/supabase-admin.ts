@@ -127,7 +127,7 @@ export class AdminUserService {
         throw new Error(`Failed to fetch auth users: ${authError.message}`);
       }
 
-      // Get profiles and user_profiles
+      // Get profiles
       const { data: profiles, error: profilesError } = await supabaseAdmin
         .from('profiles')
         .select(`
@@ -136,19 +136,15 @@ export class AdminUserService {
           role,
           status,
           region,
-          created_at,
-          user_profiles (
-            full_name,
-            nickname
-          )
+          created_at
         `);
 
       if (profilesError) {
         throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
       }
 
-      // Get post counts
-      const { data: posts, error: postsError } = await supabaseAdmin
+      // Get post counts from existing tables
+      const { data: posts } = await supabaseAdmin
         .from('social_posts')
         .select('user_id');
 
@@ -160,7 +156,6 @@ export class AdminUserService {
       // Combine auth users with profile data
       const users: AdminUser[] = authUsers.users.map(authUser => {
         const profile = profiles?.find(p => p.user_id === authUser.id);
-        const userProfile = Array.isArray(profile?.user_profiles) ? profile.user_profiles[0] : profile?.user_profiles;
         
         return {
           id: authUser.id,
@@ -169,11 +164,11 @@ export class AdminUserService {
           email_confirmed_at: authUser.email_confirmed_at,
           last_sign_in_at: authUser.last_sign_in_at,
           phone: authUser.phone,
-          role: profile?.role || 'user',
-          status: profile?.status || 'pending',
+          role: (profile?.role as 'user' | 'admin' | 'moderator' | 'premium') || 'user',
+          status: (profile?.status as 'active' | 'suspended' | 'pending') || 'pending',
           region: profile?.region,
-          full_name: userProfile?.full_name,
-          nickname: userProfile?.nickname,
+          full_name: authUser.user_metadata?.full_name,
+          nickname: authUser.user_metadata?.nickname,
           posts_count: postCounts[authUser.id] || 0,
           app_metadata: authUser.app_metadata,
           user_metadata: authUser.user_metadata
@@ -222,23 +217,6 @@ export class AdminUserService {
         throw new Error(`Failed to create user profile: ${profileError.message}`);
       }
 
-      // Create user profile record if full name provided
-      if (userData.full_name) {
-        const { error: userProfileError } = await supabaseAdmin
-          .from('user_profiles')
-          .insert({
-            user_id: authData.user.id,
-            full_name: userData.full_name,
-            email: userData.email,
-            region: userData.region
-          });
-
-        if (userProfileError) {
-          console.warn('Failed to create user_profiles record:', userProfileError.message);
-          // Don't fail the entire operation for this
-        }
-      }
-
       // Return the created user
       return {
         id: authData.user.id,
@@ -276,9 +254,13 @@ export class AdminUserService {
       }
 
       // Update user metadata
-      if (updates.full_name) {
+      if (updates.full_name || updates.nickname) {
+        const metadata: any = {};
+        if (updates.full_name) metadata.full_name = updates.full_name;
+        if (updates.nickname) metadata.nickname = updates.nickname;
+        
         const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-          user_metadata: { full_name: updates.full_name }
+          user_metadata: metadata
         });
 
         if (metadataError) {
@@ -304,26 +286,6 @@ export class AdminUserService {
         }
       }
 
-      // Update user_profiles
-      const userProfileUpdates: any = {};
-      if (updates.full_name) userProfileUpdates.full_name = updates.full_name;
-      if (updates.nickname) userProfileUpdates.nickname = updates.nickname;
-      if (updates.region) userProfileUpdates.region = updates.region;
-      if (updates.email) userProfileUpdates.email = updates.email;
-
-      if (Object.keys(userProfileUpdates).length > 0) {
-        const { error: userProfileError } = await supabaseAdmin
-          .from('user_profiles')
-          .upsert({
-            user_id: userId,
-            ...userProfileUpdates
-          });
-
-        if (userProfileError) {
-          console.warn('Failed to update user_profiles:', userProfileError.message);
-        }
-      }
-
       // Get and return updated user
       const users = await this.getAllUsers();
       const updatedUser = users.find(u => u.id === userId);
@@ -345,16 +307,11 @@ export class AdminUserService {
     try {
       // Delete related records first to maintain referential integrity
       const deleteOperations = [
-        // Delete user-related data
-        supabaseAdmin.from('user_profiles').delete().eq('user_id', userId),
         supabaseAdmin.from('profiles').delete().eq('user_id', userId),
-        supabaseAdmin.from('social_posts').delete().eq('user_id', userId),
         supabaseAdmin.from('expenses').delete().eq('user_id', userId),
-        supabaseAdmin.from('maintenance_records').delete().eq('user_id', userId),
         supabaseAdmin.from('fuel_log').delete().eq('user_id', userId),
         supabaseAdmin.from('calendar_events').delete().eq('user_id', userId),
         supabaseAdmin.from('budgets').delete().eq('user_id', userId),
-        // Add other user-related tables as needed
       ];
 
       // Execute all deletions
