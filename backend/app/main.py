@@ -47,7 +47,6 @@ from app.api.v1 import (
     subscription,
     support,
     admin,
-    observability,
     tts,
     search,
     vision,
@@ -57,6 +56,7 @@ from app.api.v1 import (
     maintenance,
     custom_routes,
 )
+from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
 from app.api import editing_hub
@@ -250,7 +250,7 @@ app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(support.router, prefix="/api", tags=["Support"])
 app.include_router(stripe_webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
-app.include_router(observability.router, prefix="/api/v1", tags=["Admin Observability"])
+app.include_router(observability_api.router, prefix="/api/v1", tags=["Admin Observability"])
 app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 # Mundi integration removed
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
