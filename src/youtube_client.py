@@ -39,6 +39,7 @@ class SearchFilters:
     published_before: Optional[str] = None  # RFC3339 formatted date-time
     view_count_min: Optional[int] = None
     channel_id: Optional[str] = None
+    region_code: Optional[str] = None
 
 
 class YouTubeAPIError(Exception):
@@ -112,6 +113,8 @@ class YouTubeAPIClient:
             params["publishedBefore"] = filters.published_before
         if filters.channel_id:
             params["channelId"] = filters.channel_id
+        if filters.region_code:
+            params["regionCode"] = filters.region_code
         if filters.view_count_min:
             params["order"] = "viewCount"
 
