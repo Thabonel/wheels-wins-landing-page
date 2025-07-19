@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
-import { Database } from './database.types';
+import { Database } from '@/integrations/supabase/types';
 
 // Service role client for admin operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = 'https://kycoklimpzkyrecbjecn.supabase.co';
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing Supabase environment variables for admin client');
@@ -72,7 +72,7 @@ export async function validateAdminUser(userToken: string): Promise<{ userId: st
   try {
     // Verify the JWT token using regular Supabase client
     const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const supabase = createClient(supabaseUrl, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5Y29rbGltcHpreXJlY2JqZWNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyNTU4MDAsImV4cCI6MjA2MTgzMTgwMH0.nRZhYxImQ0rOlh0xZjHcdVq2Q2NY0v-9W3wciaxV2EA');
     
     // Set the auth token
     const { data: { user }, error: authError } = await supabase.auth.getUser(userToken);
