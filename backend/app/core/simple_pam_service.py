@@ -278,6 +278,30 @@ User context: {context}""".format(
         intent = self._detect_simple_intent(message)
         ui_actions = self._generate_ui_actions(message, intent, response_content)
         
+        # Handle calendar events - actually create them in the database
+        if intent == "calendar" and any(word in message.lower() for word in ["appointment", "meeting", "schedule", "calendar", "flying", "flight"]):
+            event_data = self._extract_calendar_event(message)
+            if event_data:
+                try:
+                    # Create the actual calendar event in the database
+                    success = await self.create_calendar_event_for_user(user_id, {
+                        'title': event_data.get('title', 'New Event'),
+                        'description': f"Created by PAM from: {message}",
+                        'start_date': f"{event_data.get('date')}T{event_data.get('time', '09:00')}:00",
+                        'end_date': f"{event_data.get('date')}T{event_data.get('time', '10:00')}:00",  # Default 1 hour duration
+                        'location': '',
+                        'event_type': 'personal',
+                        'reminder_minutes': 60  # 1 hour reminder
+                    })
+                    
+                    if success:
+                        logger.info(f"✅ Successfully created calendar event for user {user_id}")
+                    else:
+                        logger.warning(f"⚠️ Failed to create calendar event for user {user_id}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error creating calendar event for user {user_id}: {e}")
+        
         # Return in the expected format
         return {
             "content": response_content,
@@ -432,25 +456,36 @@ User context: {context}""".format(
         # Simple event extraction
         event_data = {}
         
-        # Extract event title (basic heuristic)
+        # Extract event title (enhanced heuristic)
         title_patterns = [
             r'(?:schedule|book|add)\s+(?:a\s+)?(.+?)(?:\s+for|\s+at|\s+on|\s+tomorrow|\s+today|$)',
-            r'(?:meeting|appointment)\s+(?:with\s+)?(.+?)(?:\s+at|\s+on|\s+tomorrow|\s+today|$)'
+            r'(?:meeting|appointment)\s+(?:with\s+)?(.+?)(?:\s+at|\s+on|\s+tomorrow|\s+today|$)',
+            r'(?:flying|flight)\s+to\s+(.+?)(?:\s+on|\s+at|$)',  # Handle "flying to Brisbane"
+            r'i\s+am\s+(.+?)(?:\s+on|\s+at|$)',  # Handle "I am flying to Brisbane"
         ]
         
         for pattern in title_patterns:
             match = re.search(pattern, message_lower)
             if match:
-                event_data['title'] = match.group(1).strip().title()
+                title = match.group(1).strip()
+                if 'flying' in message_lower or 'flight' in message_lower:
+                    event_data['title'] = f"Flight to {title.title()}"
+                else:
+                    event_data['title'] = title.title()
                 break
         
         if not event_data.get('title'):
-            event_data['title'] = "Appointment"
+            if 'flying' in message_lower or 'flight' in message_lower:
+                event_data['title'] = "Flight"
+            else:
+                event_data['title'] = "Appointment"
         
-        # Extract time (basic patterns)
+        # Extract time (enhanced patterns)
         time_patterns = [
-            r'at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?',
-            r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)',
+            r'at\s+(\d{1,2})(?:[.:](\d{2}))?\s*(am|pm)',  # "at 9.30am" or "at 9:30am"
+            r'(\d{1,2})(?:[.:](\d{2}))?\s*(am|pm)',       # "9.30am" or "9:30am"
+            r'at\s+(\d{1,2})(?:[.:](\d{2}))?',            # "at 9.30" or "at 9:30"
+            r'(\d{1,2})(?:[.:](\d{2}))?(?:\s+o\'?clock)?', # "9.30" or "9 o'clock"
         ]
         
         for pattern in time_patterns:
@@ -468,14 +503,42 @@ User context: {context}""".format(
                 event_data['time'] = f"{hour:02d}:{minute:02d}"
                 break
         
-        # Extract date (basic patterns)
+        # Extract date (enhanced patterns)
         if 'tomorrow' in message_lower:
             event_data['date'] = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
         elif 'today' in message_lower:
             event_data['date'] = datetime.now().strftime('%Y-%m-%d')
         else:
-            # Default to tomorrow
-            event_data['date'] = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+            # Look for specific dates like "on the 26th", "26th", "on 26th"
+            date_patterns = [
+                r'on\s+the\s+(\d{1,2})(?:st|nd|rd|th)?',
+                r'on\s+(\d{1,2})(?:st|nd|rd|th)?',
+                r'(\d{1,2})(?:st|nd|rd|th)',
+            ]
+            
+            for pattern in date_patterns:
+                match = re.search(pattern, message_lower)
+                if match:
+                    day = int(match.group(1))
+                    current_date = datetime.now()
+                    
+                    # Assume current month, but if the day has passed, use next month
+                    if day < current_date.day:
+                        # Next month
+                        if current_date.month == 12:
+                            target_date = current_date.replace(year=current_date.year + 1, month=1, day=day)
+                        else:
+                            target_date = current_date.replace(month=current_date.month + 1, day=day)
+                    else:
+                        # This month
+                        target_date = current_date.replace(day=day)
+                    
+                    event_data['date'] = target_date.strftime('%Y-%m-%d')
+                    break
+            
+            # If no specific date found, default to tomorrow
+            if not event_data.get('date'):
+                event_data['date'] = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
         
         return event_data if event_data.get('title') else None
     

@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     GOOGLE_SEARCH_API_KEY: Optional[str] = None
     GOOGLE_SEARCH_ENGINE_ID: Optional[str] = None
     BING_SEARCH_API_KEY: Optional[str] = None
+    
+    # YouTube API
+    YOUTUBE_API_KEY: Optional[str] = None
 
     # AI Agent Observability
     LANGFUSE_SECRET_KEY: Optional[str] = None
