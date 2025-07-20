@@ -33,8 +33,6 @@ __pycache__/
 venv/
 scraper_service/venv/
 backend/venv/
-.env
-!src/.env
 
 # Node
 node_modules/
@@ -43,17 +41,10 @@ node_modules/
 # IDE
 .vscode/
 .idea/
-.env
-
-.env*
-!.env.example
-
 
 # Environment files
-.env
-.env.development
-.env.example
-.env.production
+.env*
+!.env.example
 
 # Temporary build files and artifacts
 *.timestamp-*
