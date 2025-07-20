@@ -483,8 +483,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  // Initialize wake word detection when component mounts
+  // Only initialize wake word detection setup, don't auto-start
   useEffect(() => {
+    // Just set up the recognition object, don't start listening automatically
     initializeWakeWordDetection().catch(error => {
       console.warn('⚠️ Failed to initialize wake word detection:', error);
     });
@@ -629,11 +630,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       setWakeWordRecognition(recognition);
       
-      // Start wake word detection automatically if user wants it
-      const wakeWordEnabled = localStorage.getItem('pam_wake_word_enabled') !== 'false';
-      if (wakeWordEnabled) {
-        startWakeWordListening(recognition);
-      }
+      // Don't auto-start wake word detection - only start when user clicks continuous button
+      // Remove automatic startup based on localStorage
+      console.log('✅ Wake word detection initialized, but not started. User must click Continuous button to activate.');
     } catch (error) {
       console.warn('⚠️ Could not initialize wake word detection:', error);
     }
@@ -669,10 +668,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('📱 PAM opened by wake word');
     }
     
-    // Start continuous voice mode
-    setTimeout(() => {
-      startContinuousVoiceMode();
-    }, 500); // Small delay to ensure PAM is open
+    // Don't automatically start continuous mode when wake word detected
+    // The user should explicitly choose to start continuous mode via the button
+    console.log('👂 Wake word "PAM" detected - PAM is now open and ready');
   };
 
   const handleContinuousConversation = async (transcript: string) => {
@@ -729,17 +727,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Stop audio level monitoring
     stopAudioLevelMonitoring();
     
-    // Stop speech recognition if wake word detection is not enabled
-    if (wakeWordRecognition && !isWakeWordListening) {
-      try {
-        wakeWordRecognition.stop();
-        console.log('🔇 Speech recognition stopped');
-      } catch (error) {
-        console.warn('⚠️ Could not stop speech recognition:', error);
-      }
-    }
+    // Stop wake word listening when continuous mode is turned off
+    stopWakeWordListening();
     
-    addMessage("🔇 Continuous voice mode deactivated.", "pam");
+    addMessage("🔇 Continuous voice mode deactivated. Microphone is now off.", "pam");
   };
 
   const handleTextMessage = async (message: string) => {

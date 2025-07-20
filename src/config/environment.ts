@@ -12,7 +12,7 @@ export const ENV = {
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
   
   // External APIs
-  MAPBOX_TOKEN: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '',
+  MAPBOX_TOKEN: import.meta.env.VITE_MAPBOX_TOKEN || '',
   
   // Feature Flags
   ENABLE_BETA_FEATURES: import.meta.env.VITE_ENABLE_BETA_FEATURES === 'true',

@@ -31,6 +31,17 @@ export default function IntegratedTripPlanner({
   const { region } = useRegion();
   const { isOffline } = useOffline();
   const effectiveOfflineMode = isOfflineProp ?? isOffline;
+  
+  // Debug logging for map token detection
+  console.log('🗺️ Map Token Debug:', {
+    rawToken: import.meta.env.VITE_MAPBOX_TOKEN,
+    tokenType: typeof import.meta.env.VITE_MAPBOX_TOKEN,
+    tokenLength: import.meta.env.VITE_MAPBOX_TOKEN?.length,
+    tokenExists: !!import.meta.env.VITE_MAPBOX_TOKEN,
+    effectiveOfflineMode,
+    allEnvVars: Object.keys(import.meta.env).filter(key => key.includes('MAPBOX'))
+  });
+  
   const hasMapToken = Boolean(import.meta.env.VITE_MAPBOX_TOKEN);
   const mapUnavailable = !hasMapToken && !effectiveOfflineMode;
   const map = useRef<mapboxgl.Map>();
