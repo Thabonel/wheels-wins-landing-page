@@ -1213,7 +1213,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             />
             <button
               onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
-              className={`p-2 rounded-lg transition-colors relative ${
+              className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
                 isContinuousMode ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600 hover:bg-blue-200"
               }`}
               disabled={connectionStatus !== "Connected"}
@@ -1227,7 +1227,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             </button>
             <button
               onClick={handleVoiceToggle}
-              className={`p-2 rounded-lg transition-colors relative ${
+              className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
                 voiceStatus === "listening" ? "bg-green-500 text-white" : 
                 voiceStatus === "processing" ? "bg-yellow-500 text-white" :
                 voiceStatus === "error" ? "bg-red-600 text-white" :
@@ -1403,7 +1403,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               />
               <button
                 onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
-                className={`p-2 rounded-lg transition-colors relative ${
+                className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
                   isContinuousMode ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600 hover:bg-blue-200"
                 }`}
                 disabled={connectionStatus !== "Connected"}
@@ -1417,7 +1417,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               </button>
               <button
                 onClick={handleVoiceToggle}
-                className={`p-2 rounded-lg transition-colors relative ${
+                className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
                   voiceStatus === "listening" ? "bg-green-500 text-white" : 
                   voiceStatus === "processing" ? "bg-yellow-500 text-white" :
                   voiceStatus === "error" ? "bg-red-600 text-white" :
