@@ -721,16 +721,39 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           // Remove processing message
           setMessages(prev => prev.filter(msg => msg.id !== processingMessage.id));
           
+          // Show user's transcribed message if available
           if (data.text && data.text.trim()) {
             addMessage(data.text, "user");
           }
           
+          // Handle different response types with better user guidance
           if (data.response) {
-            addMessage(data.response, "pam");
+            // Successful voice processing but no audio
+            if (data.voice_ready === false && data.guidance) {
+              addMessage(data.response, "pam");
+              addMessage(`💡 ${data.guidance}`, "pam");
+            } else {
+              addMessage(data.response, "pam");
+            }
           } else if (data.error) {
-            addMessage(`❌ Voice processing error: ${data.error}`, "pam");
+            // Voice processing error
+            if (data.guidance) {
+              addMessage(`${data.response || "I had trouble processing your voice message."}`, "pam");
+              addMessage(`💡 ${data.guidance}`, "pam");
+            } else {
+              addMessage(`❌ ${data.error}`, "pam");
+            }
           } else {
-            addMessage("I processed your voice message but couldn't generate an audio response.", "pam");
+            // Fallback message
+            addMessage("I processed your voice message but couldn't generate an audio response. You can continue typing your messages!", "pam");
+          }
+          
+          // Log technical details for debugging
+          if (data.pipeline) {
+            console.log(`🔧 Voice pipeline: ${data.pipeline}`);
+          }
+          if (data.technical_details) {
+            console.log(`🔍 Technical details: ${data.technical_details}`);
           }
         }
       } else {
