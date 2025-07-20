@@ -24,8 +24,8 @@ class WhisperSTT:
     async def transcribe(self, audio_data: bytes, **kwargs) -> str:
         """Transcribe audio bytes to text."""
         if self.client is None:
-            logger.warning("OpenAI client not available, returning mock transcription")
-            return "Mock transcription - OpenAI client not configured"
+            logger.error("OpenAI client not available - speech-to-text requires valid API key")
+            raise RuntimeError("Speech-to-text service not configured. OpenAI API key required.")
         
         try:
             file_obj = BytesIO(audio_data)
@@ -47,7 +47,8 @@ try:
     whisper_stt = WhisperSTT(api_key=settings.OPENAI_API_KEY)
 except Exception as e:
     logger.warning(f"Failed to initialize WhisperSTT with config: {e}")
-    whisper_stt = WhisperSTT(api_key="sk-dummy-key-for-testing")
+    # Don't create a dummy instance - let it fail properly
+    whisper_stt = WhisperSTT(api_key=None)
 
 
 async def get_whisper_stt() -> WhisperSTT:

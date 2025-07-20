@@ -276,23 +276,29 @@ async def pam_voice(audio: UploadFile = File(...)):
         logger.info("🎤 Processing voice input...")
         audio_data = await audio.read()
         
-        # Check if we have a valid OpenAI API key for STT
+        # Step 1: Speech-to-Text (STT) - Must have valid OpenAI API
         try:
             text = await whisper_stt.transcribe(audio_data)
             logger.info(f"📝 Transcribed: {text}")
         except Exception as stt_error:
             logger.error(f"❌ STT failed: {stt_error}")
-            # If STT fails due to API key, provide mock transcription for testing
+            
+            # Determine the specific error type for better user feedback
             if "401" in str(stt_error) or "invalid_api_key" in str(stt_error):
-                text = "Hello PAM, this is a test voice message"
-                logger.info(f"🔧 Using mock transcription for testing: {text}")
+                return JSONResponse(content={
+                    "error": "Voice recognition unavailable",
+                    "text": "",
+                    "response": "Voice recognition requires API configuration. Please use the text chat instead.",
+                    "pipeline": "STT-API-Key-Missing",
+                    "guidance": "Voice features need to be configured by an administrator. You can still chat with PAM by typing your messages."
+                })
             else:
                 return JSONResponse(content={
                     "error": "Speech-to-text failed",
                     "text": "",
-                    "response": "I couldn't understand your voice message. Please try again.",
-                    "pipeline": "STT-Failed",
-                    "technical_details": str(stt_error)
+                    "response": "I couldn't understand your voice message. Please try speaking more clearly or use text chat.",
+                    "pipeline": "STT-Processing-Failed",
+                    "guidance": "Try speaking more clearly, reducing background noise, or use the text chat feature instead."
                 })
 
         if not text or text.strip() == "":

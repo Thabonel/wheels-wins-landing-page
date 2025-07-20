@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Debug script to test the voice pipeline components individually
+This script tests actual functionality - no mock data or fake responses.
+Each component must be properly configured to pass its test.
 """
 
 import asyncio
