@@ -108,6 +108,13 @@ async def lifespan(app: FastAPI):
             logger.info("✅ PAM TTS Service initialized")
         except Exception as e:
             logger.warning(f"⚠️ TTS Service initialization failed: {e}")
+            # Initialize fallback TTS service
+            try:
+                from app.services.tts.fallback_tts import fallback_tts_service
+                await fallback_tts_service.initialize()
+                logger.info("✅ Fallback TTS Service initialized")
+            except Exception as fallback_error:
+                logger.warning(f"⚠️ Fallback TTS Service initialization failed: {fallback_error}")
 
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
@@ -375,6 +382,37 @@ async def pam_voice(audio: UploadFile = File(...)):
                 
         except Exception as tts_error:
             logger.error(f"❌ Local TTS synthesis failed: {tts_error}")
+        
+        # Try fallback TTS if main TTS failed
+        try:
+            from app.services.tts.fallback_tts import fallback_tts_service
+            
+            if fallback_tts_service.is_initialized:
+                logger.info("🔄 Trying fallback TTS service...")
+                fallback_result = await fallback_tts_service.synthesize_speech(
+                    text=response_text,
+                    user_id="voice-user"
+                )
+                
+                if fallback_result and fallback_result.get('success') and fallback_result.get('audio_data'):
+                    logger.info(f"✅ Fallback TTS synthesis successful: {len(fallback_result['audio_data'])} bytes")
+                    
+                    # Return audio as binary response
+                    return Response(
+                        content=fallback_result['audio_data'],
+                        media_type=f"audio/{fallback_result.get('format', 'wav')}",
+                        headers={
+                            "Content-Disposition": f"inline; filename=pam_response.{fallback_result.get('format', 'wav')}",
+                            "X-Transcription": text,
+                            "X-Response-Text": response_text,
+                            "X-Pipeline": f"STT→LLM→TTS-Fallback-{fallback_result.get('engine', 'unknown')}"
+                        }
+                    )
+                elif fallback_result and fallback_result.get('success'):
+                    logger.info("✅ Fallback TTS completed (text-only response)")
+                    
+        except Exception as fallback_tts_error:
+            logger.error(f"❌ Fallback TTS synthesis failed: {fallback_tts_error}")
         
         # Second, try Supabase TTS fallback
         try:
