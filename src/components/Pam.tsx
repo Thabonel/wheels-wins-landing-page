@@ -9,8 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 // Extend Window interface for SpeechRecognition
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
   }
 }
 
@@ -34,6 +34,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [isContinuousMode, setIsContinuousMode] = useState(false);
+  const [messages, setMessages] = useState<PamMessage[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
+  const [userContext, setUserContext] = useState<any>(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [isWakeWordListening, setIsWakeWordListening] = useState(false);
+  const [wakeWordRecognition, setWakeWordRecognition] = useState<any | null>(null);
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -47,14 +55,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     isListeningRef.current = isListening;
   }, [isListening]);
-  const [messages, setMessages] = useState<PamMessage[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
-  const [userContext, setUserContext] = useState<any>(null);
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
-  const [isWakeWordListening, setIsWakeWordListening] = useState(false);
-  const [wakeWordRecognition, setWakeWordRecognition] = useState<SpeechRecognition | null>(null);
   
   // Use refs to avoid stale closure problem
   const isWakeWordListeningRef = useRef(false);
@@ -623,7 +623,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const startWakeWordListening = (recognition?: SpeechRecognition) => {
+  const startWakeWordListening = (recognition?: any) => {
     const recognizer = recognition || wakeWordRecognition;
     if (!recognizer) return;
 
