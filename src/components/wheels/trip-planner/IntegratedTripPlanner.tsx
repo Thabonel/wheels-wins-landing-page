@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
+import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css';
 import TripPlannerControls from './TripPlannerControls';
 import TripPlannerHeader from './TripPlannerHeader';
 import OfflineTripBanner from './OfflineTripBanner';
@@ -32,25 +34,30 @@ export default function IntegratedTripPlanner({
   const { isOffline } = useOffline();
   const effectiveOfflineMode = isOfflineProp ?? isOffline;
   
+  // Get Mapbox token with improved detection
+  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+  const hasMapToken = Boolean(mapboxToken && mapboxToken.trim().length > 0 && !mapboxToken.includes('your_mapbox_token_here'));
+  
   // Debug logging for map token detection
   console.log('🗺️ Map Token Debug:', {
-    rawToken: import.meta.env.VITE_MAPBOX_TOKEN,
-    tokenType: typeof import.meta.env.VITE_MAPBOX_TOKEN,
-    tokenLength: import.meta.env.VITE_MAPBOX_TOKEN?.length,
-    tokenExists: !!import.meta.env.VITE_MAPBOX_TOKEN,
+    rawToken: mapboxToken,
+    tokenType: typeof mapboxToken,
+    tokenLength: mapboxToken?.length,
+    tokenExists: !!mapboxToken,
+    hasValidToken: hasMapToken,
     effectiveOfflineMode,
     allEnvVars: Object.keys(import.meta.env).filter(key => key.includes('MAPBOX'))
   });
   
-  const hasMapToken = Boolean(import.meta.env.VITE_MAPBOX_TOKEN);
   const mapUnavailable = !hasMapToken && !effectiveOfflineMode;
   const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
 
   // Set Mapbox access token when available
-  if (!effectiveOfflineMode && hasMapToken) {
-    mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
+  if (!effectiveOfflineMode && hasMapToken && mapboxToken) {
+    mapboxgl.accessToken = mapboxToken;
+    console.log('✅ Mapbox token set successfully');
   }
 
   // Use integrated state management

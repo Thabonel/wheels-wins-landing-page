@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
+import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
@@ -98,17 +100,38 @@ export default function MapControls({
     const center = regionCenters[region] || regionCenters.US;
 
     if (!map.current) {
-      console.log('Initializing map with token:', import.meta.env.VITE_MAPBOX_TOKEN ? 'Token present' : 'Token missing');
-      mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      const hasValidToken = Boolean(mapboxToken && mapboxToken.trim().length > 0 && !mapboxToken.includes('your_mapbox_token_here'));
       
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: "mapbox://styles/mapbox/streets-v11",
-        center,
-        zoom: 3.5,
-        hash: true, // Enable URL hash for sharing map state
-        projection: 'mercator'
-      });
+      console.log('🗺️ MapControls - Initializing map with token:', hasValidToken ? 'Valid token present' : 'Invalid or missing token');
+      
+      if (!hasValidToken) {
+        console.error('❌ Cannot initialize map: Invalid or missing Mapbox token');
+        return;
+      }
+      
+      mapboxgl.accessToken = mapboxToken;
+      
+      try {
+        map.current = new mapboxgl.Map({
+          container: mapContainer.current,
+          style: "mapbox://styles/mapbox/streets-v11",
+          center,
+          zoom: 3.5,
+          hash: true, // Enable URL hash for sharing map state
+          projection: 'mercator'
+        });
+        
+        console.log('✅ Map initialized successfully');
+      } catch (error) {
+        console.error('❌ Failed to initialize map:', error);
+        toast({
+          title: "Map Error",
+          description: "Failed to initialize map. Please check your internet connection and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       // Add navigation controls with compass and zoom
       map.current.addControl(new mapboxgl.NavigationControl({
