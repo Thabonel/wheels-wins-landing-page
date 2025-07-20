@@ -477,9 +477,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       recognition.onresult = (event) => {
         const latest = event.results[event.results.length - 1];
+        const transcript = latest[0].transcript.toLowerCase().trim();
+        
+        // Log all speech for debugging
+        console.log('🎙️ Speech detected:', {
+          transcript: transcript,
+          isFinal: latest.isFinal,
+          confidence: latest[0].confidence,
+          isWakeWordListening: isWakeWordListening,
+          isContinuousMode: isContinuousMode
+        });
+        
         if (latest.isFinal) {
-          const transcript = latest[0].transcript.toLowerCase().trim();
-          console.log('🎙️ Wake word detection heard:', transcript);
+          console.log('🎙️ Final speech result:', transcript);
           
           // Check for "Hi PAM" or variations (activation)
           if (transcript.includes('hi pam') || transcript.includes('hey pam') || 
@@ -495,22 +505,46 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             console.log('✅ PAM conversation detected in continuous mode!');
             handleContinuousConversation(transcript);
           }
+          // Log when no match is found for debugging
+          else {
+            console.log('🔍 Speech detected but no wake word match:', transcript);
+          }
         }
       };
 
+      recognition.onstart = () => {
+        console.log('🎤 Speech recognition started successfully');
+      };
+
       recognition.onerror = (event) => {
-        console.warn('⚠️ Wake word recognition error:', event.error);
+        console.error('⚠️ Speech recognition error:', {
+          error: event.error,
+          message: event.message,
+          isWakeWordListening: isWakeWordListening,
+          isContinuousMode: isContinuousMode
+        });
+        
         if (event.error === 'not-allowed') {
-          console.warn('⚠️ Microphone permission denied for wake word detection');
+          console.warn('⚠️ Microphone permission denied for speech recognition');
+          addMessage("🚫 Microphone permission denied. Please allow microphone access for voice features.", "pam");
+        } else if (event.error === 'no-speech') {
+          console.log('🔇 No speech detected, will restart automatically');
+        } else if (event.error === 'audio-capture') {
+          console.warn('⚠️ Audio capture error - check microphone');
+          addMessage("🎤 Microphone error. Please check your audio device.", "pam");
+        } else if (event.error === 'network') {
+          console.warn('⚠️ Network error in speech recognition');
+          addMessage("🌐 Network error during speech recognition.", "pam");
         }
       };
 
       recognition.onend = () => {
-        // Restart recognition if wake word listening is still enabled
-        if (isWakeWordListening && !isListening) {
+        // Restart recognition if wake word listening OR continuous mode is enabled
+        if ((isWakeWordListening || isContinuousMode) && !isListening) {
           setTimeout(() => {
             try {
               recognition.start();
+              console.log('🔄 Restarting speech recognition...');
             } catch (error) {
               console.warn('⚠️ Could not restart wake word recognition:', error);
             }
@@ -585,6 +619,21 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🔄 Starting continuous voice mode');
     setIsContinuousMode(true);
     setVoiceStatus("listening");
+    
+    // Ensure speech recognition is running for continuous mode
+    if (wakeWordRecognition) {
+      try {
+        // Stop any existing recognition first
+        wakeWordRecognition.stop();
+        setTimeout(() => {
+          wakeWordRecognition.start();
+          console.log('🎤 Speech recognition started for continuous mode');
+        }, 100);
+      } catch (error) {
+        console.warn('⚠️ Could not start speech recognition for continuous mode:', error);
+      }
+    }
+    
     addMessage("🎙️ **Continuous voice mode activated!** Say 'PAM' followed by your question. Click microphone to stop.", "pam");
   };
 
@@ -592,6 +641,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🔇 Stopping continuous voice mode');
     setIsContinuousMode(false);
     setVoiceStatus("idle");
+    
+    // Stop speech recognition if wake word detection is not enabled
+    if (wakeWordRecognition && !isWakeWordListening) {
+      try {
+        wakeWordRecognition.stop();
+        console.log('🔇 Speech recognition stopped');
+      } catch (error) {
+        console.warn('⚠️ Could not stop speech recognition:', error);
+      }
+    }
+    
     addMessage("🔇 Continuous voice mode deactivated.", "pam");
   };
 
