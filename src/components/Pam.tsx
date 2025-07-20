@@ -707,8 +707,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.warn('⚠️ Could not start audio level monitoring for continuous mode:', error);
     }
     
-    // Don't manually restart - let the onend handler do it
-    // Just ensure wake word listening is enabled so recognition continues
+    // Initialize speech recognition for continuous mode
+    if (!wakeWordRecognition) {
+      await initializeWakeWordDetection();
+    }
+    
+    // Ensure wake word listening is enabled
     if (!isWakeWordListening) {
       setIsWakeWordListening(true);
       localStorage.setItem('pam_wake_word_enabled', 'true');
