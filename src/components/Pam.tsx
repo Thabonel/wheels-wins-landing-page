@@ -613,7 +613,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         setIsListening(true);
         
         console.log('🎤 Started voice recording');
-        addMessage("🎤 Listening... Click the microphone again to stop recording.", "pam");
+        addMessage("🟢 Recording... Click the green microphone to stop recording.", "pam");
         
         // Auto-stop after 30 seconds to prevent infinite recording
         setTimeout(() => {
@@ -976,22 +976,26 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             <button
               onClick={handleVoiceToggle}
               className={`p-2 rounded-lg transition-colors relative ${
-                voiceStatus === "listening" ? "bg-red-500 text-white animate-pulse" : 
+                voiceStatus === "listening" ? "bg-green-500 text-white" : 
                 voiceStatus === "processing" ? "bg-yellow-500 text-white" :
                 voiceStatus === "error" ? "bg-red-600 text-white" :
                 "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
               disabled={connectionStatus !== "Connected" || isProcessingVoice}
               title={
-                voiceStatus === "listening" ? "🔴 Recording... Click to stop" :
+                voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
                 voiceStatus === "processing" ? "⏳ Processing voice..." :
                 voiceStatus === "error" ? "❌ Voice error" :
                 "🎤 Start voice recording"
               }
             >
-              {voiceStatus === "listening" ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              <Mic className="w-4 h-4" />
+              {voiceStatus === "listening" && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-300 rounded-full animate-pulse" 
+                     title="Recording active" />
+              )}
               {isWakeWordListening && voiceStatus === "idle" && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" 
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
                      title="Wake word 'Hi PAM' active" />
               )}
             </button>
@@ -1139,22 +1143,26 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               <button
                 onClick={handleVoiceToggle}
                 className={`p-2 rounded-lg transition-colors relative ${
-                  voiceStatus === "listening" ? "bg-red-500 text-white animate-pulse" : 
+                  voiceStatus === "listening" ? "bg-green-500 text-white" : 
                   voiceStatus === "processing" ? "bg-yellow-500 text-white" :
                   voiceStatus === "error" ? "bg-red-600 text-white" :
                   "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
                 disabled={connectionStatus !== "Connected" || isProcessingVoice}
                 title={
-                  voiceStatus === "listening" ? "🔴 Recording... Click to stop" :
+                  voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
                   voiceStatus === "processing" ? "⏳ Processing voice..." :
                   voiceStatus === "error" ? "❌ Voice error" :
                   "🎤 Start voice recording"
                 }
               >
-                {voiceStatus === "listening" ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                <Mic className="w-4 h-4" />
+                {voiceStatus === "listening" && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-300 rounded-full animate-pulse" 
+                       title="Recording active" />
+                )}
                 {isWakeWordListening && voiceStatus === "idle" && (
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" 
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
                        title="Wake word 'Hi PAM' active" />
                 )}
               </button>
