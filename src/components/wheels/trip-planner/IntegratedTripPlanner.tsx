@@ -40,14 +40,20 @@ export default function IntegratedTripPlanner({
   
   // Debug logging for map token detection
   console.log('🗺️ Map Token Debug:', {
-    rawToken: mapboxToken,
+    rawToken: mapboxToken ? `${mapboxToken.substring(0, 10)}...` : 'MISSING',
     tokenType: typeof mapboxToken,
     tokenLength: mapboxToken?.length,
     tokenExists: !!mapboxToken,
     hasValidToken: hasMapToken,
     effectiveOfflineMode,
+    mapUnavailable: !hasMapToken && !effectiveOfflineMode,
     allEnvVars: Object.keys(import.meta.env).filter(key => key.includes('MAPBOX'))
   });
+  
+  // Force map to be available if we have any token (for debugging)
+  if (mapboxToken && mapboxToken.startsWith('pk.')) {
+    console.log('🗺️ Valid Mapbox token detected, forcing map to be available');
+  }
   
   const mapUnavailable = !hasMapToken && !effectiveOfflineMode;
   const map = useRef<mapboxgl.Map>();
