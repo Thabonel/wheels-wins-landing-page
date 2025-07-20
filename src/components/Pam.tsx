@@ -908,7 +908,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       formData.append('audio', audioBlob, `recording.${audioBlob.type.includes('webm') ? 'webm' : 'mp4'}`);
 
       console.log('📤 Sending audio to backend...');
-      const response = await authenticatedFetch('/api/v1/pam/voice', {
+      const response = await apiFetch('/api/v1/pam/voice', {
         method: 'POST',
         body: formData
       });
