@@ -32,12 +32,11 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
   const url = `${API_BASE_URL}${path}`;
   
   // Check if we should use reference token (SaaS industry standard)
-  const useReferenceTokens = localStorage.getItem('use_reference_tokens') !== 'false';
+  const useReferenceTokens = localStorage.getItem('use_reference_tokens') === 'true';
   
   if (useReferenceTokens) {
-    console.log('🎫 Reference token authentication not available');
-    // Reference token authentication has been removed
-    throw new Error('Reference token authentication not implemented');
+    console.log('🎫 Reference token authentication not available, falling back to JWT');
+    // Reference token authentication has been removed, fall back to JWT
   }
   
   // Fallback to JWT with optimization
@@ -48,6 +47,11 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
   }
   
   if (!session?.access_token) {
+    // For voice endpoints, allow anonymous access in development/testing
+    if (path.includes('/voice') && import.meta.env.DEV) {
+      console.log('🔓 Voice endpoint: allowing anonymous access in development mode');
+      return fetchWithTimeout(url, options);
+    }
     throw new Error('No valid session found. Please log in.');
   }
   
