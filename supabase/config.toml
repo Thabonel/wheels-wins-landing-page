@@ -9,7 +9,6 @@ max_rows = 1000
 
 [auth]
 enabled = true
-port = 54322
 site_url = "https://wheelsandwins.com"
 additional_redirect_urls = ["https://wheelsandwins.com/onboarding", "https://wheelsandwins.com/auth", "https://wheelsandwins.com/you"]
 jwt_expiry = 3600
@@ -25,7 +24,6 @@ verify_jwt = false
 verify_jwt = false
 
 [db]
-enabled = true
 port = 54323
 shadow_port = 54324
 major_version = 15
