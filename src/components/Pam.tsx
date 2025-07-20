@@ -1212,6 +1212,20 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               disabled={connectionStatus !== "Connected"}
             />
             <button
+              onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
+              className={`p-2 rounded-lg transition-colors relative ${
+                isContinuousMode ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600 hover:bg-blue-200"
+              }`}
+              disabled={connectionStatus !== "Connected"}
+              title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Start continuous voice chat"}
+            >
+              <Mic className="w-4 h-4" />
+              {isContinuousMode && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
+                     title="Continuous mode active" />
+              )}
+            </button>
+            <button
               onClick={handleVoiceToggle}
               className={`p-2 rounded-lg transition-colors relative ${
                 voiceStatus === "listening" ? "bg-green-500 text-white" : 
@@ -1387,6 +1401,20 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
                 disabled={connectionStatus !== "Connected"}
               />
+              <button
+                onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
+                className={`p-2 rounded-lg transition-colors relative ${
+                  isContinuousMode ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                }`}
+                disabled={connectionStatus !== "Connected"}
+                title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Start continuous voice chat"}
+              >
+                <Mic className="w-4 h-4" />
+                {isContinuousMode && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
+                       title="Continuous mode active" />
+                )}
+              </button>
               <button
                 onClick={handleVoiceToggle}
                 className={`p-2 rounded-lg transition-colors relative ${
