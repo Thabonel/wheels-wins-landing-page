@@ -50,6 +50,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -699,8 +700,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       await setupAudioLevelMonitoring(stream);
       
-      // Important: Don't keep the stream open since speech recognition will handle audio
-      stream.getTracks().forEach(track => track.stop());
+      // Keep the stream open for audio level monitoring
+      // Store stream reference for cleanup later
+      audioStreamRef.current = stream;
     } catch (error) {
       console.warn('⚠️ Could not start audio level monitoring for continuous mode:', error);
     }
@@ -1075,6 +1077,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
+    }
+    
+    // Stop audio stream tracks
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('🔌 Audio stream track stopped');
+      });
+      audioStreamRef.current = null;
     }
     
     // Close audio context
