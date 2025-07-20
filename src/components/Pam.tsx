@@ -27,6 +27,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
   const [userContext, setUserContext] = useState<any>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [sessionId, setSessionId] = useState<string>(() => {
+    // Generate or restore session ID for conversation continuity
+    const saved = localStorage.getItem('pam_session_id');
+    return saved || `session_${user?.id}_${Date.now()}`;
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -39,6 +46,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🚀 PAM useEffect triggered with user:', { userId: user?.id, hasUser: !!user, hasSession: !!session });
     if (user?.id) {
       console.log('📋 PAM: Loading user context and connecting...');
+      
+      // Persist session ID for conversation continuity
+      localStorage.setItem('pam_session_id', sessionId);
+      
       loadUserContext();
       loadConversationMemory();
       connectToBackend();
@@ -46,7 +57,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('❌ PAM: No user ID, skipping connection');
     }
     // eslint-disable-next-line
-  }, [user?.id]);
+  }, [user?.id, sessionId]);
 
   // Listen for external PAM control events
   useEffect(() => {
@@ -124,6 +135,27 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadConversationMemory = async () => {
     try {
+      // ROBUST MEMORY: First try to restore from localStorage
+      const savedState = localStorage.getItem(`pam_conversation_${user?.id}`);
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          if (parsed.messages && Array.isArray(parsed.messages)) {
+            setMessages(parsed.messages);
+            console.log('📚 PAM: Restored conversation from localStorage:', parsed.messages.length, 'messages');
+            
+            // Restore session ID if available
+            if (parsed.sessionId) {
+              setSessionId(parsed.sessionId);
+            }
+            return; // Successfully restored from localStorage
+          }
+        } catch (parseError) {
+          console.warn('⚠️ Could not parse saved conversation state:', parseError);
+        }
+      }
+      
+      // Fallback to backend memory system
       const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
         body: JSON.stringify({
@@ -144,6 +176,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           context: m.context
         })) || [];
         setMessages(memoryMessages);
+        console.log('📚 PAM: Loaded conversation from backend:', memoryMessages.length, 'messages');
       }
     } catch (error) {
       console.error('Failed to load conversation memory:', error);
@@ -237,7 +270,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           reconnectTimeoutRef.current = null;
         }
         
-        addMessage("🤖 Hi! I'm PAM, your autonomous agentic AI travel companion! I can autonomously plan complex multi-step journeys, reason through complex logistics like Sydney→Hobart ferry crossings, learn from our conversations, and proactively identify potential issues. I use advanced tools for deep thinking, user profiling, and intelligent decision-making. How can I demonstrate my agentic capabilities for you today?", "pam");
+        // ROBUST MEMORY: Only show greeting if no previous conversation
+        if (messages.length === 0) {
+          addMessage("🤖 Hi! I'm PAM, your autonomous agentic AI travel companion! I can autonomously plan complex multi-step journeys, reason through complex logistics like Sydney→Hobart ferry crossings, learn from our conversations, and proactively identify potential issues. I use advanced tools for deep thinking, user profiling, and intelligent decision-making. How can I demonstrate my agentic capabilities for you today?", "pam");
+        } else {
+          console.log('📚 PAM: Session restored with existing conversation history');
+        }
       };
 
       wsRef.current.onmessage = async (event) => {
@@ -287,6 +325,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       wsRef.current.onclose = (event) => {
         console.log('🔌 PAM WebSocket closed:', event.code, event.reason);
         setConnectionStatus("Disconnected");
+        
+        // ROBUST MEMORY: Save conversation state on disconnect
+        try {
+          localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
+            messages: messages.slice(-10), // Keep last 10 messages
+            sessionId: sessionId,
+            timestamp: new Date().toISOString()
+          }));
+          console.log('💾 PAM: Conversation state saved to localStorage');
+        } catch (error) {
+          console.warn('⚠️ Could not save conversation state:', error);
+        }
         
         // Attempt to reconnect if not manually closed
         if (event.code !== 1000 && reconnectAttempts < 5) {
@@ -386,6 +436,108 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
+  const handleVoiceToggle = async () => {
+    try {
+      if (!isListening) {
+        // Start recording
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream);
+        const chunks: Blob[] = [];
+
+        recorder.ondataavailable = (event) => {
+          chunks.push(event.data);
+        };
+
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+          await handleVoiceSubmission(audioBlob);
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        recorder.start();
+        setMediaRecorder(recorder);
+        setAudioChunks(chunks);
+        setIsListening(true);
+        console.log('🎤 Started voice recording');
+      } else {
+        // Stop recording
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+          setIsListening(false);
+          console.log('🛑 Stopped voice recording');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Voice recording error:', error);
+      addMessage("Sorry, I couldn't access your microphone. Please check your browser permissions.", "pam");
+    }
+  };
+
+  const handleVoiceSubmission = async (audioBlob: Blob) => {
+    try {
+      console.log('🎤 Processing voice message...');
+      addMessage("🎤 Processing your voice message...", "pam");
+
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.wav');
+
+      const response = await authenticatedFetch('/api/v1/pam/voice', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.startsWith('audio/')) {
+          // Backend returned audio - play it
+          const audioBuffer = await response.arrayBuffer();
+          const audioBlob = new Blob([audioBuffer], { type: contentType });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          
+          // Get transcription and response text from headers
+          const transcription = response.headers.get('X-Transcription') || '';
+          const responseText = response.headers.get('X-Response-Text') || 'PAM responded with audio';
+          const pipeline = response.headers.get('X-Pipeline') || 'STT→LLM→TTS';
+          
+          // Show transcription and response
+          if (transcription) {
+            addMessage(transcription, "user");
+          }
+          addMessage(`${responseText} 🔊`, "pam");
+          
+          // Play audio
+          audio.play().catch(err => {
+            console.warn('⚠️ Could not play audio:', err);
+          });
+          
+          console.log(`✅ Voice response received via ${pipeline}`);
+        } else {
+          // Backend returned JSON (fallback or error)
+          const data = await response.json();
+          
+          if (data.text) {
+            addMessage(data.text, "user");
+          }
+          
+          if (data.response) {
+            addMessage(data.response, "pam");
+          } else if (data.error) {
+            addMessage(`Voice processing error: ${data.error}`, "pam");
+          }
+          
+          console.log('📝 Voice response received as text:', data);
+        }
+      } else {
+        addMessage("Sorry, I had trouble processing your voice message. Please try again.", "pam");
+      }
+    } catch (error) {
+      console.error('❌ Voice submission error:', error);
+      addMessage("Sorry, there was an error processing your voice message.", "pam");
+    }
+  };
+
   const addMessage = (content: string, sender: "user" | "pam") => {
     const newMessage: PamMessage = {
       id: Date.now().toString(),
@@ -393,7 +545,22 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       sender,
       timestamp: new Date().toISOString()
     };
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => {
+      const updatedMessages = [...prev, newMessage];
+      
+      // ROBUST MEMORY: Save to localStorage on every message
+      try {
+        localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
+          messages: updatedMessages.slice(-10), // Keep last 10 messages
+          sessionId: sessionId,
+          timestamp: new Date().toISOString()
+        }));
+      } catch (error) {
+        console.warn('⚠️ Could not save message to localStorage:', error);
+      }
+      
+      return updatedMessages;
+    });
   };
 
   const handleSendMessage = async () => {
@@ -417,7 +584,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           content: msg.content
         })),
         timestamp: new Date().toISOString(),
-        session_id: `session_${user?.id}_${Date.now()}`
+        session_id: sessionId
       }
     };
 
@@ -585,6 +752,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               disabled={connectionStatus !== "Connected"}
             />
             <button
+              onClick={handleVoiceToggle}
+              className={`p-2 rounded-lg transition-colors ${
+                isListening ? "bg-red-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+              disabled={connectionStatus !== "Connected"}
+              title={isListening ? "Stop recording" : "Start voice recording"}
+            >
+              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+            <button
               onClick={handleSendMessage}
               disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
               className="bg-primary text-white p-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -717,10 +894,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 disabled={connectionStatus !== "Connected"}
               />
               <button
-                onClick={() => setIsListening(!isListening)}
+                onClick={handleVoiceToggle}
                 className={`p-2 rounded-lg transition-colors ${
                   isListening ? "bg-red-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
+                disabled={connectionStatus !== "Connected"}
+                title={isListening ? "Stop recording" : "Start voice recording"}
               >
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
