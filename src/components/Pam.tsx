@@ -33,6 +33,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
+  const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [messages, setMessages] = useState<PamMessage[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
   const [userContext, setUserContext] = useState<any>(null);
@@ -480,11 +481,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           const transcript = latest[0].transcript.toLowerCase().trim();
           console.log('🎙️ Wake word detection heard:', transcript);
           
-          // Check for "Hi PAM" or variations
+          // Check for "Hi PAM" or variations (activation)
           if (transcript.includes('hi pam') || transcript.includes('hey pam') || 
               transcript.includes('hello pam') || transcript.includes('hi palm')) {
-            console.log('✅ Wake word detected!');
+            console.log('✅ Wake word detected - activating PAM!');
             handleWakeWordDetected();
+          }
+          // Check for "PAM" followed by question (continuous conversation)
+          else if (isContinuousMode && (
+            transcript.startsWith('pam ') || transcript.startsWith('palm ') ||
+            transcript.includes(' pam ') || transcript.includes(' palm ')
+          )) {
+            console.log('✅ PAM conversation detected in continuous mode!');
+            handleContinuousConversation(transcript);
           }
         }
       };
@@ -551,14 +560,89 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('📱 PAM opened by wake word');
     }
     
-    // Start voice recording automatically
+    // Start continuous voice mode
     setTimeout(() => {
-      handleVoiceToggle();
+      startContinuousVoiceMode();
     }, 500); // Small delay to ensure PAM is open
+  };
+
+  const handleContinuousConversation = async (transcript: string) => {
+    console.log('🎙️ Processing continuous conversation:', transcript);
+    
+    // Extract the actual question after "PAM"
+    const question = transcript.replace(/^.*?(pam|palm)\s+/i, '').trim();
+    
+    if (question.length > 0) {
+      // Add user message immediately
+      addMessage(question, "user");
+      
+      // Process through text chat (faster than voice processing)
+      await handleTextMessage(question);
+    }
+  };
+
+  const startContinuousVoiceMode = () => {
+    console.log('🔄 Starting continuous voice mode');
+    setIsContinuousMode(true);
+    setVoiceStatus("listening");
+    addMessage("🎙️ **Continuous voice mode activated!** Say 'PAM' followed by your question. Click microphone to stop.", "pam");
+  };
+
+  const stopContinuousVoiceMode = () => {
+    console.log('🔇 Stopping continuous voice mode');
+    setIsContinuousMode(false);
+    setVoiceStatus("idle");
+    addMessage("🔇 Continuous voice mode deactivated.", "pam");
+  };
+
+  const handleTextMessage = async (message: string) => {
+    // Process text message through PAM (used for continuous voice conversations)
+    const messageData = {
+      type: "chat",
+      content: message,
+      context: {
+        user_id: user?.id,
+        userLocation: userContext?.current_location,
+        vehicleInfo: userContext?.vehicle_info,
+        travelStyle: userContext?.travel_style,
+        conversation_history: messages.slice(-5).map(msg => ({
+          role: msg.sender === "user" ? "user" : "assistant",
+          content: msg.content
+        })),
+        timestamp: new Date().toISOString(),
+        session_id: sessionId,
+        input_type: "voice_continuous"
+      }
+    };
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(messageData));
+    } else {
+      // Fallback to REST API
+      try {
+        const response = await authenticatedFetch('/api/v1/pam/chat', {
+          method: 'POST',
+          body: JSON.stringify(messageData)
+        });
+        if (response.ok) {
+          const data = await response.json();
+          addMessage(data.response, "pam");
+        }
+      } catch (error) {
+        console.error('Failed to send message via REST:', error);
+        addMessage("Sorry, I had trouble processing that message.", "pam");
+      }
+    }
   };
 
   const handleVoiceToggle = async () => {
     try {
+      // If in continuous mode, just toggle it off
+      if (isContinuousMode) {
+        stopContinuousVoiceMode();
+        return;
+      }
+
       if (!isListening) {
         // Start recording
         setVoiceStatus("listening");
@@ -955,6 +1039,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word"}
                 </button>
                 <button 
+                  onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
+                  className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
+                    isContinuousMode ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  <Mic className="w-4 h-4" />
+                  {isContinuousMode ? "🔄 Continuous Mode ON - Say 'PAM'" : "🎙️ Start Continuous Voice Chat"}
+                </button>
+                <button 
                   onClick={async () => {
                     const { data: { session } } = await supabase.auth.getSession();
                     console.log('🧪 PAM MAIN: Session token:', session?.access_token?.substring(0, 30));
@@ -1119,6 +1212,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   >
                     <Mic className="w-4 h-4" />
                     {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word"}
+                  </button>
+                  <button 
+                    onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
+                    className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
+                      isContinuousMode ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    <Mic className="w-4 h-4" />
+                    {isContinuousMode ? "🔄 Continuous Mode ON - Say 'PAM'" : "🎙️ Start Continuous Voice Chat"}
                   </button>
                   <button 
                     onClick={async () => {
