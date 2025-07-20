@@ -538,16 +538,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         if (latest.isFinal) {
           console.log('🎙️ Final speech result:', transcript);
           
-          // Check for "Hi PAM" or variations (activation)
+          // Check for "Hi PAM" or variations (activation) - including "bam" misrecognition
           if (transcript.includes('hi pam') || transcript.includes('hey pam') || 
-              transcript.includes('hello pam') || transcript.includes('hi palm')) {
+              transcript.includes('hello pam') || transcript.includes('hi palm') ||
+              transcript.includes('hi bam') || transcript.includes('hey bam')) {
             console.log('✅ Wake word detected - activating PAM!');
             handleWakeWordDetected();
           }
-          // Check for "PAM" followed by question (continuous conversation)
+          // Check for "PAM" followed by question (continuous conversation) - including "bam"
           else if (currentIsContinuousMode && (
-            transcript.startsWith('pam ') || transcript.startsWith('palm ') ||
-            transcript.includes(' pam ') || transcript.includes(' palm ')
+            transcript.startsWith('pam ') || transcript.startsWith('palm ') || transcript.startsWith('bam ') ||
+            transcript.includes(' pam ') || transcript.includes(' palm ') || transcript.includes(' bam ')
           )) {
             console.log('✅ PAM conversation detected in continuous mode!');
             handleContinuousConversation(transcript);
@@ -661,11 +662,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const handleContinuousConversation = async (transcript: string) => {
     console.log('🎙️ Processing continuous conversation:', transcript);
     
-    // Extract the actual question after "PAM"
-    const question = transcript.replace(/^.*?(pam|palm)\s+/i, '').trim();
+    // Extract the actual question after "PAM/BAM" and clean it up
+    const question = transcript.replace(/^.*?(pam|palm|bam)\s+/i, '').trim();
     
     if (question.length > 0) {
-      // Add user message immediately
+      // Add user message immediately (show what they actually asked)
       addMessage(question, "user");
       
       // Process through text chat (faster than voice processing)
@@ -685,7 +686,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       localStorage.setItem('pam_wake_word_enabled', 'true');
     }
     
-    addMessage("🎙️ **Continuous voice mode activated!** Say 'PAM' followed by your question. Click microphone to stop.", "pam");
+    addMessage("🎙️ **Continuous voice mode activated!** \n\n✅ **Just speak naturally**: Say 'PAM tell me a joke' or 'BAM what's the weather'\n✅ **No need to click anything** - I'm always listening\n✅ **Click microphone to stop** when done\n\n**Try saying: 'PAM tell me a joke' right now!**", "pam");
   };
 
   const stopContinuousVoiceMode = () => {
