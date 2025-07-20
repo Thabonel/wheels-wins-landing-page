@@ -56,6 +56,7 @@ from app.api.v1 import (
     orders,
     maintenance,
     custom_routes,
+    mapbox,
 )
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
@@ -268,6 +269,7 @@ app.include_router(
 )
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
+app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
 app.include_router(editing_hub.router, prefix="/hubs", tags=["Editing"])
 
 # LangServe router for PauterRouter - TEMPORARILY DISABLED due to WebSocket route conflicts

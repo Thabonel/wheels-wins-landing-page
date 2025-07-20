@@ -1,15 +1,16 @@
 
-import { getMapboxToken } from "@/utils/mapboxToken";
+import { mapboxProxy } from "@/services/mapboxProxy";
 import { circle } from "@turf/turf";
 import type { FeatureCollection, Feature } from "geojson";
 
 export async function reverseGeocode([lng, lat]: [number, number]): Promise<string> {
-  const token = getMapboxToken();
-  const res = await fetch(
-    `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token || ''}`
-  );
-  const data = await res.json();
-  return data.features?.[0]?.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  try {
+    const data = await mapboxProxy.geocoding.reverse(lng, lat);
+    return data.features?.[0]?.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  } catch (error) {
+    console.error('Reverse geocoding failed:', error);
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
 }
 
 export function hideGeocoderIcon() {

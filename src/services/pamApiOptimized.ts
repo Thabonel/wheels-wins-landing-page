@@ -96,7 +96,7 @@ export class OptimizedPamApiService {
 
     const endpoints = [
       `${API_BASE_URL}/api/chat`,
-      'https://treflip2025.app.n8n.cloud/webhook/4cd18979-6ee8-451e-b4e6-095c3d7ca31a'
+      // n8n webhook discontinued - removed n8n endpoint
     ];
 
     const headers: Record<string, string> = {

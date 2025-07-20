@@ -4,12 +4,12 @@ export const PAM_CONFIG = {
   WEBSOCKET_ENDPOINTS: [
     import.meta.env.VITE_PAM_WEBSOCKET_URL || 'wss://pam-backend.onrender.com/ws',
     'wss://api.wheelsandwins.com/pam/ws',  // Alternate production endpoint
-    'wss://treflip2025.app.n8n.cloud/ws/pam' // N8N WebSocket proxy
+    // n8n WebSocket discontinued - removed n8n endpoint
   ],
   
   // Fallback HTTP endpoints for when WebSocket isn't available
   HTTP_ENDPOINTS: [
-    'https://treflip2025.app.n8n.cloud/webhook/4cd18979-6ee8-451e-b4e6-095c3d7ca31a',
+    // n8n webhook discontinued - removed n8n endpoint
     'https://api.wheelsandwins.com/pam/chat'
   ],
   

@@ -3,33 +3,14 @@ import { supabase } from "@/integrations/supabase";
 import { TripPayload, Waypoint, Suggestion } from "./types";
 
 export class TripService {
-  private static TRIP_WEBHOOK_URL = import.meta.env.VITE_N8N_TRIP_WEBHOOK;
+  // n8n integration discontinued - webhook functionality removed
 
   static async submitTripPlan(payload: TripPayload): Promise<void> {
-    console.log('🚀 Sending trip to PAM webhook:', this.TRIP_WEBHOOK_URL);
-    console.log('📦 Trip payload:', payload);
+    console.log('📦 Trip payload saved locally (n8n webhook discontinued):', payload);
     
-    if (!this.TRIP_WEBHOOK_URL) {
-      console.error('❌ PAM webhook URL not configured! Add VITE_N8N_TRIP_WEBHOOK to .env file');
-      throw new Error('PAM webhook URL not configured');
-    }
-    
-    try {
-      const response = await fetch(this.TRIP_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      
-      if (response.ok) {
-        console.log('✅ Trip successfully sent to PAM!');
-      } else {
-        console.error('❌ PAM webhook responded with error:', response.status, response.statusText);
-      }
-    } catch (err) {
-      console.error("❌ Trip webhook failed:", err);
-      throw err; // Re-throw so calling code can handle the error
-    }
+    // Note: n8n webhook integration has been discontinued
+    // Trip data is now saved directly to Supabase database
+    console.log('✅ Trip data processed locally - webhook integration removed');
   }
 
   static async fetchTripSuggestions(
@@ -39,27 +20,10 @@ export class TripService {
     profile: string,
     mode: string
   ): Promise<Suggestion[]> {
-    try {
-      const payload = {
-        origin,
-        destination,
-        waypoints: waypoints.map(wp => ({ coordinates: wp.coords, name: wp.name })),
-        profile,
-        mode,
-      };
-      
-      const res = await fetch(this.TRIP_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      
-      const json = await res.json();
-      return json.suggestions || [];
-    } catch (error) {
-      console.error("Error fetching trip suggestions:", error);
-      return [];
-    }
+    // n8n webhook discontinued - return empty suggestions for now
+    // This functionality can be implemented directly in backend if needed
+    console.log('Trip suggestions: n8n integration discontinued, returning empty array');
+    return [];
   }
 
   static async saveTrip(
