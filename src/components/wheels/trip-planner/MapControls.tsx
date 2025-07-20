@@ -100,17 +100,8 @@ export default function MapControls({
     const center = regionCenters[region] || regionCenters.US;
 
     if (!map.current) {
-      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
-      const hasValidToken = Boolean(mapboxToken && mapboxToken.trim().length > 0 && !mapboxToken.includes('your_mapbox_token_here'));
-      
-      console.log('🗺️ MapControls - Initializing map with token:', hasValidToken ? 'Valid token present' : 'Invalid or missing token');
-      
-      if (!hasValidToken) {
-        console.error('❌ Cannot initialize map: Invalid or missing Mapbox token');
-        return;
-      }
-      
-      mapboxgl.accessToken = mapboxToken;
+      console.log('🗺️ MapControls - Initializing map with token:', import.meta.env.VITE_MAPBOX_TOKEN ? 'Token present' : 'Token missing');
+      mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
       
       try {
         map.current = new mapboxgl.Map({

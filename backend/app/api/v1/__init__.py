@@ -16,6 +16,7 @@ from . import (
     orders,
     maintenance,
     custom_routes,
+    mapbox,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     'orders',
     'maintenance',
     'custom_routes',
+    'mapbox',
 ]
