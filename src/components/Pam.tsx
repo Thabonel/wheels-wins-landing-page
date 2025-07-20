@@ -6,6 +6,14 @@ import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 
+// Extend Window interface for SpeechRecognition
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
+
 interface PamMessage {
   id: string;
   content: string;
@@ -23,12 +31,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [messages, setMessages] = useState<PamMessage[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
   const [userContext, setUserContext] = useState<any>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [isWakeWordListening, setIsWakeWordListening] = useState(false);
+  const [wakeWordRecognition, setWakeWordRecognition] = useState<SpeechRecognition | null>(null);
   const [sessionId, setSessionId] = useState<string>(() => {
     // Generate or restore session ID for conversation continuity
     const saved = localStorage.getItem('pam_session_id');
@@ -436,51 +448,217 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
+  // Initialize wake word detection when component mounts
+  useEffect(() => {
+    initializeWakeWordDetection();
+    return () => {
+      // Cleanup wake word detection
+      if (wakeWordRecognition) {
+        wakeWordRecognition.stop();
+      }
+    };
+  }, []);
+
+  const initializeWakeWordDetection = () => {
+    try {
+      // Check if SpeechRecognition is available
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        console.warn('⚠️ SpeechRecognition not supported in this browser');
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        const latest = event.results[event.results.length - 1];
+        if (latest.isFinal) {
+          const transcript = latest[0].transcript.toLowerCase().trim();
+          console.log('🎙️ Wake word detection heard:', transcript);
+          
+          // Check for "Hi PAM" or variations
+          if (transcript.includes('hi pam') || transcript.includes('hey pam') || 
+              transcript.includes('hello pam') || transcript.includes('hi palm')) {
+            console.log('✅ Wake word detected!');
+            handleWakeWordDetected();
+          }
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('⚠️ Wake word recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          console.warn('⚠️ Microphone permission denied for wake word detection');
+        }
+      };
+
+      recognition.onend = () => {
+        // Restart recognition if wake word listening is still enabled
+        if (isWakeWordListening && !isListening) {
+          setTimeout(() => {
+            try {
+              recognition.start();
+            } catch (error) {
+              console.warn('⚠️ Could not restart wake word recognition:', error);
+            }
+          }, 100);
+        }
+      };
+
+      setWakeWordRecognition(recognition);
+      
+      // Start wake word detection automatically if user wants it
+      const wakeWordEnabled = localStorage.getItem('pam_wake_word_enabled') !== 'false';
+      if (wakeWordEnabled) {
+        startWakeWordListening(recognition);
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not initialize wake word detection:', error);
+    }
+  };
+
+  const startWakeWordListening = (recognition?: SpeechRecognition) => {
+    const recognizer = recognition || wakeWordRecognition;
+    if (!recognizer) return;
+
+    try {
+      recognizer.start();
+      setIsWakeWordListening(true);
+      localStorage.setItem('pam_wake_word_enabled', 'true');
+      console.log('👂 Wake word detection started - say "Hi PAM" to activate');
+    } catch (error) {
+      console.warn('⚠️ Could not start wake word detection:', error);
+    }
+  };
+
+  const stopWakeWordListening = () => {
+    if (wakeWordRecognition) {
+      wakeWordRecognition.stop();
+      setIsWakeWordListening(false);
+      localStorage.setItem('pam_wake_word_enabled', 'false');
+      console.log('🔇 Wake word detection stopped');
+    }
+  };
+
+  const handleWakeWordDetected = () => {
+    // Open PAM if not already open
+    if (!isOpen) {
+      setIsOpen(true);
+      console.log('📱 PAM opened by wake word');
+    }
+    
+    // Start voice recording automatically
+    setTimeout(() => {
+      handleVoiceToggle();
+    }, 500); // Small delay to ensure PAM is open
+  };
+
   const handleVoiceToggle = async () => {
     try {
       if (!isListening) {
         // Start recording
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const recorder = new MediaRecorder(stream);
+        setVoiceStatus("listening");
+        console.log('🎤 Requesting microphone access...');
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
+        
+        const recorder = new MediaRecorder(stream, {
+          mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+        });
         const chunks: Blob[] = [];
 
         recorder.ondataavailable = (event) => {
-          chunks.push(event.data);
+          if (event.data.size > 0) {
+            chunks.push(event.data);
+          }
         };
 
         recorder.onstop = async () => {
-          const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+          console.log('🛑 Recording stopped, processing audio...');
+          setVoiceStatus("processing");
+          
+          const audioBlob = new Blob(chunks, { type: recorder.mimeType });
+          console.log('📦 Audio blob created:', audioBlob.size, 'bytes');
+          
           await handleVoiceSubmission(audioBlob);
-          stream.getTracks().forEach(track => track.stop());
+          
+          // Stop all tracks to release microphone
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.log('🔌 Audio track stopped');
+          });
+          
+          setVoiceStatus("idle");
+        };
+
+        recorder.onerror = (event) => {
+          console.error('❌ MediaRecorder error:', event);
+          setVoiceStatus("error");
+          addMessage("Recording error occurred. Please try again.", "pam");
         };
 
         recorder.start();
         setMediaRecorder(recorder);
         setAudioChunks(chunks);
         setIsListening(true);
+        
         console.log('🎤 Started voice recording');
+        addMessage("🎤 Listening... Click the microphone again to stop recording.", "pam");
+        
+        // Auto-stop after 30 seconds to prevent infinite recording
+        setTimeout(() => {
+          if (isListening && recorder.state === 'recording') {
+            console.log('⏰ Auto-stopping recording after 30 seconds');
+            recorder.stop();
+            setIsListening(false);
+          }
+        }, 30000);
+        
       } else {
         // Stop recording
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        console.log('🛑 Stopping voice recording...');
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
           mediaRecorder.stop();
           setIsListening(false);
-          console.log('🛑 Stopped voice recording');
         }
       }
     } catch (error) {
       console.error('❌ Voice recording error:', error);
-      addMessage("Sorry, I couldn't access your microphone. Please check your browser permissions.", "pam");
+      setVoiceStatus("error");
+      setIsListening(false);
+      
+      if (error.name === 'NotAllowedError') {
+        addMessage("🚫 Microphone access denied. Please allow microphone permissions and try again.", "pam");
+      } else if (error.name === 'NotFoundError') {
+        addMessage("🎤 No microphone found. Please check your audio devices.", "pam");
+      } else {
+        addMessage(`Voice recording error: ${error.message}. Please try again.`, "pam");
+      }
     }
   };
 
   const handleVoiceSubmission = async (audioBlob: Blob) => {
     try {
-      console.log('🎤 Processing voice message...');
-      addMessage("🎤 Processing your voice message...", "pam");
+      console.log('🎤 Processing voice message...', `${audioBlob.size} bytes`);
+      setIsProcessingVoice(true);
+      
+      // Remove the temporary processing message and add a better one
+      const processingMessage = addMessage("🎤 Processing your voice message...", "pam");
 
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.wav');
+      formData.append('audio', audioBlob, `recording.${audioBlob.type.includes('webm') ? 'webm' : 'mp4'}`);
 
+      console.log('📤 Sending audio to backend...');
       const response = await authenticatedFetch('/api/v1/pam/voice', {
         method: 'POST',
         body: formData
@@ -488,12 +666,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       if (response.ok) {
         const contentType = response.headers.get('content-type');
+        console.log('📥 Response received, content-type:', contentType);
         
         if (contentType && contentType.startsWith('audio/')) {
           // Backend returned audio - play it
           const audioBuffer = await response.arrayBuffer();
-          const audioBlob = new Blob([audioBuffer], { type: contentType });
-          const audioUrl = URL.createObjectURL(audioBlob);
+          const responseAudioBlob = new Blob([audioBuffer], { type: contentType });
+          const audioUrl = URL.createObjectURL(responseAudioBlob);
           const audio = new Audio(audioUrl);
           
           // Get transcription and response text from headers
@@ -501,44 +680,76 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           const responseText = response.headers.get('X-Response-Text') || 'PAM responded with audio';
           const pipeline = response.headers.get('X-Pipeline') || 'STT→LLM→TTS';
           
+          console.log(`✅ Voice response received via ${pipeline}`);
+          console.log('📝 Transcription:', transcription);
+          console.log('🤖 Response:', responseText);
+          
+          // Remove processing message
+          setMessages(prev => prev.filter(msg => msg.id !== processingMessage.id));
+          
           // Show transcription and response
-          if (transcription) {
+          if (transcription && transcription.trim()) {
             addMessage(transcription, "user");
           }
           addMessage(`${responseText} 🔊`, "pam");
           
-          // Play audio
-          audio.play().catch(err => {
-            console.warn('⚠️ Could not play audio:', err);
-          });
+          // Play audio response
+          audio.oncanplaythrough = () => {
+            console.log('🔊 Playing audio response...');
+            audio.play().catch(err => {
+              console.warn('⚠️ Could not play audio:', err);
+              addMessage("(Audio response ready but playback failed)", "pam");
+            });
+          };
           
-          console.log(`✅ Voice response received via ${pipeline}`);
+          audio.onerror = (err) => {
+            console.warn('⚠️ Audio playback error:', err);
+            addMessage("(Audio response received but playback failed)", "pam");
+          };
+          
+          // Cleanup audio URL after playback
+          audio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            console.log('🔄 Audio playback completed');
+          };
+          
         } else {
           // Backend returned JSON (fallback or error)
           const data = await response.json();
+          console.log('📝 Voice response received as JSON:', data);
           
-          if (data.text) {
+          // Remove processing message
+          setMessages(prev => prev.filter(msg => msg.id !== processingMessage.id));
+          
+          if (data.text && data.text.trim()) {
             addMessage(data.text, "user");
           }
           
           if (data.response) {
             addMessage(data.response, "pam");
           } else if (data.error) {
-            addMessage(`Voice processing error: ${data.error}`, "pam");
+            addMessage(`❌ Voice processing error: ${data.error}`, "pam");
+          } else {
+            addMessage("I processed your voice message but couldn't generate an audio response.", "pam");
           }
-          
-          console.log('📝 Voice response received as text:', data);
         }
       } else {
+        console.error('❌ Voice API response error:', response.status, response.statusText);
+        // Remove processing message
+        setMessages(prev => prev.filter(msg => msg.id !== processingMessage.id));
         addMessage("Sorry, I had trouble processing your voice message. Please try again.", "pam");
       }
     } catch (error) {
       console.error('❌ Voice submission error:', error);
+      setIsProcessingVoice(false);
       addMessage("Sorry, there was an error processing your voice message.", "pam");
+    } finally {
+      setIsProcessingVoice(false);
+      setVoiceStatus("idle");
     }
   };
 
-  const addMessage = (content: string, sender: "user" | "pam") => {
+  const addMessage = (content: string, sender: "user" | "pam"): PamMessage => {
     const newMessage: PamMessage = {
       id: Date.now().toString(),
       content,
@@ -561,6 +772,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       return updatedMessages;
     });
+    
+    return newMessage;
   };
 
   const handleSendMessage = async () => {
@@ -710,6 +923,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   🚀 Proactive Profile Analysis
                 </button>
                 <button 
+                  onClick={() => isWakeWordListening ? stopWakeWordListening() : startWakeWordListening()}
+                  className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
+                    isWakeWordListening ? "bg-green-100 text-green-800 hover:bg-green-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  <Mic className="w-4 h-4" />
+                  {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word"}
+                </button>
+                <button 
                   onClick={async () => {
                     const { data: { session } } = await supabase.auth.getSession();
                     console.log('🧪 PAM MAIN: Session token:', session?.access_token?.substring(0, 30));
@@ -753,13 +975,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             />
             <button
               onClick={handleVoiceToggle}
-              className={`p-2 rounded-lg transition-colors ${
-                isListening ? "bg-red-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              className={`p-2 rounded-lg transition-colors relative ${
+                voiceStatus === "listening" ? "bg-red-500 text-white animate-pulse" : 
+                voiceStatus === "processing" ? "bg-yellow-500 text-white" :
+                voiceStatus === "error" ? "bg-red-600 text-white" :
+                "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
-              disabled={connectionStatus !== "Connected"}
-              title={isListening ? "Stop recording" : "Start voice recording"}
+              disabled={connectionStatus !== "Connected" || isProcessingVoice}
+              title={
+                voiceStatus === "listening" ? "🔴 Recording... Click to stop" :
+                voiceStatus === "processing" ? "⏳ Processing voice..." :
+                voiceStatus === "error" ? "❌ Voice error" :
+                "🎤 Start voice recording"
+              }
             >
-              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              {voiceStatus === "listening" ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              {isWakeWordListening && voiceStatus === "idle" && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" 
+                     title="Wake word 'Hi PAM' active" />
+              )}
             </button>
             <button
               onClick={handleSendMessage}
@@ -851,6 +1085,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     🚀 Proactive Profile Analysis
                   </button>
                   <button 
+                    onClick={() => isWakeWordListening ? stopWakeWordListening() : startWakeWordListening()}
+                    className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
+                      isWakeWordListening ? "bg-green-100 text-green-800 hover:bg-green-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    <Mic className="w-4 h-4" />
+                    {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word"}
+                  </button>
+                  <button 
                     onClick={async () => {
                       const { data: { session } } = await supabase.auth.getSession();
                       console.log('🧪 PAM MAIN: Session token:', session?.access_token?.substring(0, 30));
@@ -895,13 +1138,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               />
               <button
                 onClick={handleVoiceToggle}
-                className={`p-2 rounded-lg transition-colors ${
-                  isListening ? "bg-red-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                className={`p-2 rounded-lg transition-colors relative ${
+                  voiceStatus === "listening" ? "bg-red-500 text-white animate-pulse" : 
+                  voiceStatus === "processing" ? "bg-yellow-500 text-white" :
+                  voiceStatus === "error" ? "bg-red-600 text-white" :
+                  "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
-                disabled={connectionStatus !== "Connected"}
-                title={isListening ? "Stop recording" : "Start voice recording"}
+                disabled={connectionStatus !== "Connected" || isProcessingVoice}
+                title={
+                  voiceStatus === "listening" ? "🔴 Recording... Click to stop" :
+                  voiceStatus === "processing" ? "⏳ Processing voice..." :
+                  voiceStatus === "error" ? "❌ Voice error" :
+                  "🎤 Start voice recording"
+                }
               >
-                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {voiceStatus === "listening" ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isWakeWordListening && voiceStatus === "idle" && (
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" 
+                       title="Wake word 'Hi PAM' active" />
+                )}
               </button>
               <button
                 onClick={handleSendMessage}
