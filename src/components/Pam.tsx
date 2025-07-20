@@ -483,23 +483,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  // Only initialize wake word detection setup, don't auto-start
-  useEffect(() => {
-    // Just set up the recognition object, don't start listening automatically
-    initializeWakeWordDetection().catch(error => {
-      console.warn('⚠️ Failed to initialize wake word detection:', error);
-    });
-    return () => {
-      // Cleanup wake word detection
-      if (wakeWordRecognition) {
-        try {
-          wakeWordRecognition.stop();
-        } catch (error) {
-          console.warn('⚠️ Error stopping speech recognition during cleanup:', error);
-        }
-      }
-    };
-  }, []);
+  // Don't auto-initialize wake word detection - only when user explicitly enables it
+  // Removed auto-initialization to prevent unwanted microphone access
 
   const requestMicrophonePermission = async () => {
     try {
@@ -524,12 +509,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         return;
       }
 
-      // Request microphone permission first
-      const hasPermission = await requestMicrophonePermission();
-      if (!hasPermission) {
-        console.warn('⚠️ Cannot initialize speech recognition without microphone permission');
-        return;
-      }
+      // Don't automatically request microphone permission - wait for user action
+      console.log('🎙️ Wake word detection available, waiting for user to enable...');
 
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
@@ -638,17 +619,31 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const startWakeWordListening = (recognition?: any) => {
+  const startWakeWordListening = async (recognition?: any) => {
+    // Request microphone permission first
+    const hasPermission = await requestMicrophonePermission();
+    if (!hasPermission) {
+      console.warn('⚠️ Cannot start wake word detection without microphone permission');
+      addMessage("🚫 Microphone permission needed for wake word detection. Please allow microphone access.", "pam");
+      return;
+    }
+
     const recognizer = recognition || wakeWordRecognition;
-    if (!recognizer) return;
+    if (!recognizer) {
+      // Initialize if not already done
+      await initializeWakeWordDetection();
+      return;
+    }
 
     try {
       recognizer.start();
       setIsWakeWordListening(true);
       localStorage.setItem('pam_wake_word_enabled', 'true');
       console.log('👂 Wake word detection started - say "Hi PAM" to activate');
+      addMessage("👂 Wake word detection enabled. Say 'Hi PAM' to activate voice chat.", "pam");
     } catch (error) {
       console.warn('⚠️ Could not start wake word detection:', error);
+      addMessage("❌ Could not start wake word detection. Please try again.", "pam");
     }
   };
 
@@ -690,6 +685,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const startContinuousVoiceMode = async () => {
     console.log('🔄 Starting continuous voice mode');
+    
+    // Request microphone permission first
+    const hasPermission = await requestMicrophonePermission();
+    if (!hasPermission) {
+      console.warn('⚠️ Cannot start continuous mode without microphone permission');
+      addMessage("🚫 Microphone permission needed for continuous voice mode. Please allow microphone access.", "pam");
+      return;
+    }
+
     setIsContinuousMode(true);
     setVoiceStatus("listening");
     
@@ -703,6 +707,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       audioStreamRef.current = stream;
     } catch (error) {
       console.warn('⚠️ Could not start audio level monitoring for continuous mode:', error);
+      addMessage("❌ Could not access microphone for continuous mode. Please check permissions.", "pam");
+      setIsContinuousMode(false);
+      setVoiceStatus("idle");
+      return;
     }
     
     // Initialize speech recognition for continuous mode
@@ -710,11 +718,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       await initializeWakeWordDetection();
     }
     
-    // Ensure wake word listening is enabled
-    if (!isWakeWordListening) {
-      setIsWakeWordListening(true);
-      localStorage.setItem('pam_wake_word_enabled', 'true');
-    }
+    // Start wake word listening for continuous mode
+    await startWakeWordListening();
     
     addMessage("🎙️ **Continuous voice mode activated!** \n\n✅ **Just speak naturally**: Say 'PAM tell me a joke' or 'BAM what's the weather'\n✅ **No need to click anything** - I'm always listening\n✅ **Click microphone to stop** when done\n\n**Try saying: 'PAM tell me a joke' right now!**", "pam");
   };
@@ -724,13 +729,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     setIsContinuousMode(false);
     setVoiceStatus("idle");
     
-    // Stop audio level monitoring
+    // Stop audio level monitoring and release microphone
     stopAudioLevelMonitoring();
     
     // Stop wake word listening when continuous mode is turned off
     stopWakeWordListening();
     
-    addMessage("🔇 Continuous voice mode deactivated. Microphone is now off.", "pam");
+    addMessage("🔇 Continuous voice mode deactivated. Microphone access has been released.", "pam");
   };
 
   const handleTextMessage = async (message: string) => {
@@ -782,6 +787,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
 
       if (!isListening) {
+        // Request microphone permission first
+        const hasPermission = await requestMicrophonePermission();
+        if (!hasPermission) {
+          console.warn('⚠️ Cannot start voice recording without microphone permission');
+          addMessage("🚫 Microphone permission needed for voice recording. Please allow microphone access.", "pam");
+          return;
+        }
         // Stop speech recognition while recording to avoid conflicts
         if (wakeWordRecognition) {
           try {
@@ -1255,12 +1267,28 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      console.log('🧹 PAM component unmounting - cleaning up resources...');
+      
+      // Clear timeouts
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
+      
+      // Close WebSocket
       if (wsRef.current) {
         wsRef.current.close(1000, 'Component unmounting');
       }
+      
+      // Stop all voice-related activities and release microphone
+      stopAudioLevelMonitoring();
+      stopWakeWordListening();
+      
+      // Stop any active media recording
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+      
+      console.log('✅ PAM cleanup completed - microphone released');
     };
   }, []);
 
@@ -1317,7 +1345,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   }`}
                 >
                   <Mic className="w-4 h-4" />
-                  {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word"}
+                  {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word (Needs Mic)"}
                 </button>
                 <button 
                   onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
@@ -1326,7 +1354,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   }`}
                 >
                   <Mic className="w-4 h-4" />
-                  {isContinuousMode ? "🔄 Continuous Mode ON - Say 'PAM'" : "🎙️ Start Continuous Voice Chat"}
+                  {isContinuousMode ? "🔄 Continuous Mode ON - Say 'PAM'" : "🎙️ Start Continuous Voice Chat (Needs Mic)"}
                 </button>
                 <button 
                   onClick={async () => {
@@ -1513,7 +1541,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     }`}
                   >
                     <Mic className="w-4 h-4" />
-                    {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word"}
+                    {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word (Needs Mic)"}
                   </button>
                   <button 
                     onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
@@ -1522,7 +1550,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     }`}
                   >
                     <Mic className="w-4 h-4" />
-                    {isContinuousMode ? "🔄 Continuous Mode ON - Say 'PAM'" : "🎙️ Start Continuous Voice Chat"}
+                    {isContinuousMode ? "🔄 Continuous Mode ON - Say 'PAM'" : "🎙️ Start Continuous Voice Chat (Needs Mic)"}
                   </button>
                   <button 
                     onClick={async () => {
