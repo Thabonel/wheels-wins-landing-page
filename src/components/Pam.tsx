@@ -34,6 +34,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [isContinuousMode, setIsContinuousMode] = useState(false);
+  
+  // Keep refs in sync with state
+  useEffect(() => {
+    isWakeWordListeningRef.current = isWakeWordListening;
+  }, [isWakeWordListening]);
+  
+  useEffect(() => {
+    isContinuousModeRef.current = isContinuousMode;
+  }, [isContinuousMode]);
+  
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
   const [messages, setMessages] = useState<PamMessage[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
   const [userContext, setUserContext] = useState<any>(null);
@@ -42,6 +55,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [isWakeWordListening, setIsWakeWordListening] = useState(false);
   const [wakeWordRecognition, setWakeWordRecognition] = useState<SpeechRecognition | null>(null);
+  
+  // Use refs to avoid stale closure problem
+  const isWakeWordListeningRef = useRef(false);
+  const isContinuousModeRef = useRef(false);
+  const isListeningRef = useRef(false);
   const [sessionId, setSessionId] = useState<string>(() => {
     // Generate or restore session ID for conversation continuity
     const saved = localStorage.getItem('pam_session_id');
@@ -451,22 +469,48 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   // Initialize wake word detection when component mounts
   useEffect(() => {
-    initializeWakeWordDetection();
+    initializeWakeWordDetection().catch(error => {
+      console.warn('⚠️ Failed to initialize wake word detection:', error);
+    });
     return () => {
       // Cleanup wake word detection
       if (wakeWordRecognition) {
-        wakeWordRecognition.stop();
+        try {
+          wakeWordRecognition.stop();
+        } catch (error) {
+          console.warn('⚠️ Error stopping speech recognition during cleanup:', error);
+        }
       }
     };
   }, []);
 
-  const initializeWakeWordDetection = () => {
+  const requestMicrophonePermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Immediately stop the stream - we just wanted permission
+      stream.getTracks().forEach(track => track.stop());
+      console.log('✅ Microphone permission granted');
+      return true;
+    } catch (error) {
+      console.warn('⚠️ Microphone permission denied:', error);
+      return false;
+    }
+  };
+
+  const initializeWakeWordDetection = async () => {
     try {
       // Check if SpeechRecognition is available
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       
       if (!SpeechRecognition) {
         console.warn('⚠️ SpeechRecognition not supported in this browser');
+        return;
+      }
+
+      // Request microphone permission first
+      const hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        console.warn('⚠️ Cannot initialize speech recognition without microphone permission');
         return;
       }
 
@@ -479,13 +523,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         const latest = event.results[event.results.length - 1];
         const transcript = latest[0].transcript.toLowerCase().trim();
         
-        // Log all speech for debugging
+        // Use current ref values instead of stale state
+        const currentIsWakeWordListening = isWakeWordListeningRef.current;
+        const currentIsContinuousMode = isContinuousModeRef.current;
+        
         console.log('🎙️ Speech detected:', {
           transcript: transcript,
           isFinal: latest.isFinal,
           confidence: latest[0].confidence,
-          isWakeWordListening: isWakeWordListening,
-          isContinuousMode: isContinuousMode
+          isWakeWordListening: currentIsWakeWordListening,
+          isContinuousMode: currentIsContinuousMode
         });
         
         if (latest.isFinal) {
@@ -498,7 +545,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             handleWakeWordDetected();
           }
           // Check for "PAM" followed by question (continuous conversation)
-          else if (isContinuousMode && (
+          else if (currentIsContinuousMode && (
             transcript.startsWith('pam ') || transcript.startsWith('palm ') ||
             transcript.includes(' pam ') || transcript.includes(' palm ')
           )) {
@@ -539,14 +586,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       };
 
       recognition.onend = () => {
-        // Restart recognition if wake word listening OR continuous mode is enabled
-        if ((isWakeWordListening || isContinuousMode) && !isListening) {
+        // Use current ref values for restart logic
+        const currentIsWakeWordListening = isWakeWordListeningRef.current;
+        const currentIsContinuousMode = isContinuousModeRef.current;
+        const currentIsListening = isListeningRef.current;
+        
+        console.log('🔚 Speech recognition ended, checking restart conditions:', {
+          isWakeWordListening: currentIsWakeWordListening,
+          isContinuousMode: currentIsContinuousMode,
+          isListening: currentIsListening
+        });
+        
+        // Restart if wake word OR continuous mode is active AND not doing voice recording
+        if ((currentIsWakeWordListening || currentIsContinuousMode) && !currentIsListening) {
           setTimeout(() => {
             try {
               recognition.start();
               console.log('🔄 Restarting speech recognition...');
             } catch (error) {
-              console.warn('⚠️ Could not restart wake word recognition:', error);
+              console.warn('⚠️ Could not restart speech recognition:', error);
             }
           }, 100);
         }
@@ -620,18 +678,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     setIsContinuousMode(true);
     setVoiceStatus("listening");
     
-    // Ensure speech recognition is running for continuous mode
-    if (wakeWordRecognition) {
-      try {
-        // Stop any existing recognition first
-        wakeWordRecognition.stop();
-        setTimeout(() => {
-          wakeWordRecognition.start();
-          console.log('🎤 Speech recognition started for continuous mode');
-        }, 100);
-      } catch (error) {
-        console.warn('⚠️ Could not start speech recognition for continuous mode:', error);
-      }
+    // Don't manually restart - let the onend handler do it
+    // Just ensure wake word listening is enabled so recognition continues
+    if (!isWakeWordListening) {
+      setIsWakeWordListening(true);
+      localStorage.setItem('pam_wake_word_enabled', 'true');
     }
     
     addMessage("🎙️ **Continuous voice mode activated!** Say 'PAM' followed by your question. Click microphone to stop.", "pam");
@@ -704,6 +755,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
 
       if (!isListening) {
+        // Stop speech recognition while recording to avoid conflicts
+        if (wakeWordRecognition) {
+          try {
+            wakeWordRecognition.stop();
+            console.log('🔇 Stopped speech recognition for voice recording');
+          } catch (error) {
+            console.warn('⚠️ Could not stop speech recognition:', error);
+          }
+        }
+        
         // Start recording
         setVoiceStatus("listening");
         console.log('🎤 Requesting microphone access...');
