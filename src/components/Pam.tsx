@@ -42,11 +42,26 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [isWakeWordListening, setIsWakeWordListening] = useState(false);
   const [wakeWordRecognition, setWakeWordRecognition] = useState<any | null>(null);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [isShowingAudioLevel, setIsShowingAudioLevel] = useState(false);
+  
+  // Audio analysis refs
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   
   // Keep refs in sync with state
   useEffect(() => {
     isWakeWordListeningRef.current = isWakeWordListening;
   }, [isWakeWordListening]);
+
+  // Cleanup audio level monitoring on unmount
+  useEffect(() => {
+    return () => {
+      stopAudioLevelMonitoring();
+    };
+  }, []);
   
   useEffect(() => {
     isContinuousModeRef.current = isContinuousMode;
@@ -674,10 +689,21 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const startContinuousVoiceMode = () => {
+  const startContinuousVoiceMode = async () => {
     console.log('🔄 Starting continuous voice mode');
     setIsContinuousMode(true);
     setVoiceStatus("listening");
+    
+    // Setup audio level monitoring for continuous mode
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      await setupAudioLevelMonitoring(stream);
+      
+      // Important: Don't keep the stream open since speech recognition will handle audio
+      stream.getTracks().forEach(track => track.stop());
+    } catch (error) {
+      console.warn('⚠️ Could not start audio level monitoring for continuous mode:', error);
+    }
     
     // Don't manually restart - let the onend handler do it
     // Just ensure wake word listening is enabled so recognition continues
@@ -693,6 +719,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🔇 Stopping continuous voice mode');
     setIsContinuousMode(false);
     setVoiceStatus("idle");
+    
+    // Stop audio level monitoring
+    stopAudioLevelMonitoring();
     
     // Stop speech recognition if wake word detection is not enabled
     if (wakeWordRecognition && !isWakeWordListening) {
@@ -804,6 +833,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             console.log('🔌 Audio track stopped');
           });
           
+          // Stop audio level monitoring
+          stopAudioLevelMonitoring();
+          
           setVoiceStatus("idle");
         };
 
@@ -817,6 +849,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         setMediaRecorder(recorder);
         setAudioChunks(chunks);
         setIsListening(true);
+        
+        // Setup audio level monitoring
+        await setupAudioLevelMonitoring(stream);
         
         console.log('🎤 Started voice recording');
         addMessage("🟢 Recording... Click the green microphone to stop recording.", "pam");
@@ -837,6 +872,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           mediaRecorder.stop();
           setIsListening(false);
         }
+        // Stop audio level monitoring
+        stopAudioLevelMonitoring();
       }
     } catch (error) {
       console.error('❌ Voice recording error:', error);
@@ -976,6 +1013,122 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       setIsProcessingVoice(false);
       setVoiceStatus("idle");
     }
+  };
+
+  // Audio Level Monitoring Functions
+  const setupAudioLevelMonitoring = async (stream: MediaStream) => {
+    try {
+      // Create audio context and analyser
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      
+      // Configure analyser
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.3;
+      microphone.connect(analyser);
+      
+      // Set up data array for frequency analysis
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      // Store references
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      dataArrayRef.current = dataArray;
+      
+      console.log('🎵 Audio level monitoring setup successful');
+      setIsShowingAudioLevel(true);
+      
+      // Start monitoring loop
+      monitorAudioLevel();
+      
+    } catch (error) {
+      console.warn('⚠️ Audio level monitoring setup failed:', error);
+    }
+  };
+
+  const monitorAudioLevel = () => {
+    if (!analyserRef.current || !dataArrayRef.current) {
+      return;
+    }
+
+    // Get frequency data
+    analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+    
+    // Calculate average volume level
+    let sum = 0;
+    for (let i = 0; i < dataArrayRef.current.length; i++) {
+      sum += dataArrayRef.current[i];
+    }
+    const average = sum / dataArrayRef.current.length;
+    
+    // Normalize to 0-100 scale
+    const level = Math.min(100, Math.max(0, (average / 255) * 100));
+    setAudioLevel(level);
+    
+    // Continue monitoring
+    animationFrameRef.current = requestAnimationFrame(monitorAudioLevel);
+  };
+
+  const stopAudioLevelMonitoring = () => {
+    // Cancel animation frame
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    // Close audio context
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    // Clear references
+    analyserRef.current = null;
+    dataArrayRef.current = null;
+    
+    // Reset state
+    setAudioLevel(0);
+    setIsShowingAudioLevel(false);
+    
+    console.log('🔇 Audio level monitoring stopped');
+  };
+
+  // Audio Level Meter Component
+  const AudioLevelMeter = () => {
+    if (!isShowingAudioLevel) return null;
+    
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border">
+        <div className="flex items-center gap-1">
+          <Mic className="w-3 h-3 text-gray-600" />
+          <span className="text-xs text-gray-600">Audio</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          {[...Array(10)].map((_, i) => {
+            const barThreshold = (i + 1) * 10;
+            const isActive = audioLevel >= barThreshold;
+            return (
+              <div
+                key={i}
+                className={`w-1 h-4 rounded-sm transition-colors duration-75 ${
+                  isActive
+                    ? i < 6
+                      ? 'bg-green-500'
+                      : i < 8
+                      ? 'bg-yellow-500'
+                      : 'bg-red-500'
+                    : 'bg-gray-200'
+                }`}
+              />
+            );
+          })}
+        </div>
+        <span className="text-xs text-gray-500 min-w-[3ch]">
+          {Math.round(audioLevel)}%
+        </span>
+      </div>
+    );
   };
 
   const addMessage = (content: string, sender: "user" | "pam"): PamMessage => {
@@ -1200,6 +1353,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           <div ref={messagesEndRef} />
         </div>
         <div className="p-3 border-t">
+          <AudioLevelMeter />
           <div className="flex items-center space-x-2">
             <input
               ref={inputRef}
@@ -1396,6 +1550,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           </div>
           {/* Input */}
           <div className="p-4 border-t">
+            <AudioLevelMeter />
             <div className="flex items-center space-x-2">
               <input
                 ref={inputRef}
