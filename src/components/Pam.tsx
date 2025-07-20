@@ -1214,12 +1214,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             <button
               onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
               className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                isContinuousMode ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
               }`}
               disabled={connectionStatus !== "Connected"}
-              title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Start continuous voice chat"}
+              title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Continuous Voice Chat"}
             >
-              <Mic className="w-4 h-4" />
+              <div className="flex flex-col items-center gap-0.5">
+                <Mic className="w-4 h-4" />
+                <span className="text-xs font-medium">Continuous</span>
+              </div>
               {isContinuousMode && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
                      title="Continuous mode active" />
@@ -1228,20 +1231,23 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             <button
               onClick={handleVoiceToggle}
               className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                voiceStatus === "listening" ? "bg-green-500 text-white" : 
+                voiceStatus === "listening" ? "bg-green-600 text-white" : 
                 voiceStatus === "processing" ? "bg-yellow-500 text-white" :
                 voiceStatus === "error" ? "bg-red-600 text-white" :
-                "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                "bg-green-50 text-green-600 border border-green-200 hover:bg-green-100"
               }`}
               disabled={connectionStatus !== "Connected" || isProcessingVoice}
               title={
                 voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
                 voiceStatus === "processing" ? "⏳ Processing voice..." :
                 voiceStatus === "error" ? "❌ Voice error" :
-                "🎤 Start voice recording"
+                "🎤 Record Voice Message"
               }
             >
-              <Mic className="w-4 h-4" />
+              <div className="flex flex-col items-center gap-0.5">
+                <Mic className="w-4 h-4" />
+                <span className="text-xs font-medium">Record</span>
+              </div>
               {voiceStatus === "listening" && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-300 rounded-full animate-pulse" 
                      title="Recording active" />
@@ -1404,12 +1410,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               <button
                 onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
                 className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                  isContinuousMode ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                  isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
                 }`}
                 disabled={connectionStatus !== "Connected"}
-                title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Start continuous voice chat"}
+                title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Continuous Voice Chat"}
               >
-                <Mic className="w-4 h-4" />
+                <div className="flex flex-col items-center gap-0.5">
+                  <Mic className="w-4 h-4" />
+                  <span className="text-xs font-medium">Continuous</span>
+                </div>
                 {isContinuousMode && (
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
                        title="Continuous mode active" />
@@ -1418,20 +1427,23 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               <button
                 onClick={handleVoiceToggle}
                 className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                  voiceStatus === "listening" ? "bg-green-500 text-white" : 
+                  voiceStatus === "listening" ? "bg-green-600 text-white" : 
                   voiceStatus === "processing" ? "bg-yellow-500 text-white" :
                   voiceStatus === "error" ? "bg-red-600 text-white" :
-                  "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  "bg-green-50 text-green-600 border border-green-200 hover:bg-green-100"
                 }`}
                 disabled={connectionStatus !== "Connected" || isProcessingVoice}
                 title={
                   voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
                   voiceStatus === "processing" ? "⏳ Processing voice..." :
                   voiceStatus === "error" ? "❌ Voice error" :
-                  "🎤 Start voice recording"
+                  "🎤 Record Voice Message"
                 }
               >
-                <Mic className="w-4 h-4" />
+                <div className="flex flex-col items-center gap-0.5">
+                  <Mic className="w-4 h-4" />
+                  <span className="text-xs font-medium">Record</span>
+                </div>
                 {voiceStatus === "listening" && (
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-300 rounded-full animate-pulse" 
                        title="Recording active" />
