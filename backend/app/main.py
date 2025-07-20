@@ -283,28 +283,31 @@ async def pam_voice(audio: UploadFile = File(...)):
         logger.info("🎤 Processing voice input...")
         audio_data = await audio.read()
         
-        # Step 1: Speech-to-Text (STT) - Must have valid OpenAI API
+        # Step 1: Speech-to-Text (STT) - Try primary then fallback
+        text = None
+        stt_engine = "unknown"
+        
         try:
             text = await whisper_stt.transcribe(audio_data)
-            logger.info(f"📝 Transcribed: {text}")
+            stt_engine = "whisper-openai"
+            logger.info(f"📝 Transcribed via Whisper: {text}")
         except Exception as stt_error:
-            logger.error(f"❌ STT failed: {stt_error}")
+            logger.warning(f"⚠️ Primary STT failed: {stt_error}")
             
-            # Determine the specific error type for better user feedback
-            if "401" in str(stt_error) or "invalid_api_key" in str(stt_error):
-                return JSONResponse(content={
-                    "error": "Voice recognition unavailable",
-                    "text": "",
-                    "response": "Voice recognition requires API configuration. Please use the text chat instead.",
-                    "pipeline": "STT-API-Key-Missing",
-                    "guidance": "Voice features need to be configured by an administrator. You can still chat with PAM by typing your messages."
-                })
-            else:
+            # Try fallback STT service
+            try:
+                from app.voice.fallback_stt import fallback_stt_service
+                text = await fallback_stt_service.transcribe(audio_data)
+                stt_engine = "fallback-stt"
+                logger.info(f"📝 Transcribed via fallback: {text}")
+            except Exception as fallback_error:
+                logger.error(f"❌ Fallback STT failed: {fallback_error}")
+                
                 return JSONResponse(content={
                     "error": "Speech-to-text failed",
                     "text": "",
                     "response": "I couldn't understand your voice message. Please try speaking more clearly or use text chat.",
-                    "pipeline": "STT-Processing-Failed",
+                    "pipeline": "STT-All-Failed",
                     "guidance": "Try speaking more clearly, reducing background noise, or use the text chat feature instead."
                 })
 
@@ -372,7 +375,7 @@ async def pam_voice(audio: UploadFile = File(...)):
                             "Content-Length": str(len(tts_result.audio_data)),
                             "X-Transcription": text,
                             "X-Response-Text": response_text,
-                            "X-Pipeline": "STT→LLM→TTS-Local"
+                            "X-Pipeline": f"STT-{stt_engine}→LLM→TTS-Local"
                         }
                     )
                 else:
@@ -405,7 +408,7 @@ async def pam_voice(audio: UploadFile = File(...)):
                             "Content-Disposition": f"inline; filename=pam_response.{fallback_result.get('format', 'wav')}",
                             "X-Transcription": text,
                             "X-Response-Text": response_text,
-                            "X-Pipeline": f"STT→LLM→TTS-Fallback-{fallback_result.get('engine', 'unknown')}"
+                            "X-Pipeline": f"STT-{stt_engine}→LLM→TTS-Fallback-{fallback_result.get('engine', 'unknown')}"
                         }
                     )
                 elif fallback_result and fallback_result.get('success'):
@@ -437,7 +440,7 @@ async def pam_voice(audio: UploadFile = File(...)):
                         "Content-Length": str(len(audio_bytes)),
                         "X-Transcription": text,
                         "X-Response-Text": response_text,
-                        "X-Pipeline": "STT→LLM→TTS-Supabase",
+                        "X-Pipeline": f"STT-{stt_engine}→LLM→TTS-Supabase",
                         "X-Duration": str(voice_response.duration),
                         "X-Cached": str(voice_response.cached)
                     }
@@ -454,7 +457,7 @@ async def pam_voice(audio: UploadFile = File(...)):
             "text": text,
             "response": response_text,
             "voice_ready": False,
-            "pipeline": "STT→LLM→TTS-TextOnly",
+            "pipeline": f"STT-{stt_engine}→LLM→TTS-TextOnly",
             "note": "Voice processing successful but audio synthesis unavailable. Please check API configuration.",
             "guidance": "The voice recognition and AI response worked, but we couldn't generate audio. You can still read PAM's response above."
         })
