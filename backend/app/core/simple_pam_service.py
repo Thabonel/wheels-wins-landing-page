@@ -271,6 +271,26 @@ User context: {context}""".format(
             **(context or {})
         }
         
+        # ROBUST MEMORY: Load stored conversation history if not provided
+        if not full_context.get("conversation_history") and user_id != "anonymous":
+            try:
+                db_service = get_database_service()
+                stored_conversation = await db_service.get_conversation_context(user_id, limit=5)
+                if stored_conversation:
+                    # Convert database format to OpenAI format
+                    full_context["conversation_history"] = [
+                        {
+                            "role": msg.get("role", "user"),
+                            "content": msg.get("content", "")
+                        }
+                        for msg in stored_conversation
+                        if msg.get("content")
+                    ]
+                    logger.info(f"📚 Loaded {len(full_context['conversation_history'])} stored messages for user {user_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not load stored conversation history: {e}")
+                # Continue without stored history - don't break the conversation
+        
         # Get the response
         response_content = await self.get_response(message, full_context)
         
@@ -278,7 +298,8 @@ User context: {context}""".format(
         intent = self._detect_simple_intent(message)
         ui_actions = self._generate_ui_actions(message, intent, response_content)
         
-        # Handle calendar events - actually create them in the database
+        # Handle calendar events - actually create them in the database with verification
+        calendar_action_result = None
         if intent == "calendar" and any(word in message.lower() for word in ["appointment", "meeting", "schedule", "calendar", "flying", "flight"]):
             event_data = self._extract_calendar_event(message)
             if event_data:
@@ -295,12 +316,70 @@ User context: {context}""".format(
                     })
                     
                     if success:
-                        logger.info(f"✅ Successfully created calendar event for user {user_id}")
+                        # VERIFY the event was actually created by checking the database
+                        try:
+                            db_service = get_database_service()
+                            # Check for events created in the last 5 minutes with matching title
+                            from datetime import datetime, timedelta
+                            recent_time = (datetime.now() - timedelta(minutes=5)).isoformat()
+                            
+                            verification_result = db_service.client.table('calendar_events').select('*').eq('user_id', user_id).gte('created_at', recent_time).execute()
+                            
+                            if verification_result.data and any(event.get('title', '').lower() in event_data.get('title', '').lower() for event in verification_result.data):
+                                calendar_action_result = "✅ VERIFIED: Calendar event successfully created"
+                                logger.info(f"✅ VERIFIED: Calendar event created for user {user_id}")
+                            else:
+                                calendar_action_result = "❌ FAILED: Event creation reported success but could not verify in database"
+                                logger.error(f"❌ VERIFICATION FAILED: Event not found in database for user {user_id}")
+                        except Exception as ve:
+                            calendar_action_result = "⚠️ UNCERTAIN: Event may have been created but verification failed"
+                            logger.warning(f"⚠️ Could not verify calendar event creation: {ve}")
                     else:
+                        calendar_action_result = "❌ FAILED: Calendar event creation failed"
                         logger.warning(f"⚠️ Failed to create calendar event for user {user_id}")
                         
                 except Exception as e:
+                    calendar_action_result = f"❌ ERROR: Calendar event creation failed with error: {str(e)}"
                     logger.error(f"❌ Error creating calendar event for user {user_id}: {e}")
+                
+                # Update response content to reflect actual result
+                if calendar_action_result:
+                    if "VERIFIED" in calendar_action_result:
+                        # Success - enhance the positive response
+                        response_content = response_content.replace(
+                            "I'll add", "I have successfully added"
+                        ).replace(
+                            "I can", "I have"
+                        ) + f"\n\n{calendar_action_result}"
+                    else:
+                        # Failure - be honest about it
+                        response_content = f"I attempted to create the calendar event '{event_data.get('title', 'your event')}', but {calendar_action_result.split(': ', 1)[1] if ': ' in calendar_action_result else calendar_action_result}. Please try creating the event manually in your calendar app, or let me try again."
+        
+        # ROBUST MEMORY: Store conversation to database for persistence
+        if user_id != "anonymous":
+            try:
+                db_service = get_database_service()
+                memory_data = {
+                    "user_message": message,
+                    "assistant_response": response_content,
+                    "intent": intent,
+                    "confidence": 0.8,
+                    "context": {
+                        "session_id": session_id,
+                        "ui_actions": ui_actions,
+                        "timestamp": full_context.get("timestamp")
+                    }
+                }
+                
+                success = await db_service.store_conversation(user_id, session_id or "default", memory_data)
+                if success:
+                    logger.info(f"💾 Stored conversation for user {user_id}")
+                else:
+                    logger.warning(f"⚠️ Failed to store conversation for user {user_id}")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Could not store conversation: {e}")
+                # Continue - don't break the response if storage fails
         
         # Return in the expected format
         return {
@@ -589,26 +668,55 @@ User context: {context}""".format(
     
     # Comprehensive PAM Action Methods - Enable PAM to interact with ALL pages
     async def create_social_post_for_user(self, user_id: str, content: str, group_id: str = None) -> bool:
-        """Allow PAM to create social posts for users"""
+        """Allow PAM to create social posts for users with verification"""
         try:
             db_service = get_database_service()
             success = await db_service.create_social_post(user_id, content, 'text', group_id)
             
             if success:
                 logger.info(f"📱 PAM created social post for user {user_id}")
+                
+                # ACTION VERIFICATION: Check if post was actually created
+                try:
+                    from datetime import datetime, timedelta
+                    recent_time = (datetime.now() - timedelta(minutes=5)).isoformat()
+                    
+                    verification = db_service.client.table('social_posts').select('*').eq('user_id', user_id).gte('created_at', recent_time).execute()
+                    if verification.data and any(post.get('content', '').lower() in content.lower() for post in verification.data):
+                        logger.info(f"✅ VERIFIED: Social post successfully created")
+                        return True
+                    else:
+                        logger.error(f"❌ VERIFICATION FAILED: Social post not found in database")
+                        return False
+                except Exception as ve:
+                    logger.warning(f"⚠️ Could not verify social post creation: {ve}")
+                    return success  # Return original result if verification fails
             return success
         except Exception as e:
             logger.error(f"❌ Error creating social post via PAM: {e}")
             return False
     
     async def add_to_user_wishlist(self, user_id: str, product_id: str, product_name: str, price: float, notes: str = '') -> bool:
-        """Allow PAM to add items to user's wishlist"""
+        """Allow PAM to add items to user's wishlist with verification"""
         try:
             db_service = get_database_service()
             success = await db_service.add_to_wishlist(user_id, product_id, product_name, price, notes=notes)
             
             if success:
                 logger.info(f"🛒 PAM added item to wishlist for user {user_id}")
+                
+                # ACTION VERIFICATION: Check if item was actually added
+                try:
+                    verification = db_service.client.table('wishlists').select('*').eq('user_id', user_id).eq('product_name', product_name).execute()
+                    if verification.data:
+                        logger.info(f"✅ VERIFIED: Wishlist item '{product_name}' successfully added")
+                        return True
+                    else:
+                        logger.error(f"❌ VERIFICATION FAILED: Wishlist item '{product_name}' not found in database")
+                        return False
+                except Exception as ve:
+                    logger.warning(f"⚠️ Could not verify wishlist addition: {ve}")
+                    return success  # Return original result if verification fails
             return success
         except Exception as e:
             logger.error(f"❌ Error adding to wishlist via PAM: {e}")
@@ -628,13 +736,26 @@ User context: {context}""".format(
             return False
     
     async def join_social_group_for_user(self, user_id: str, group_id: str) -> bool:
-        """Allow PAM to help users join social groups"""
+        """Allow PAM to help users join social groups with verification"""
         try:
             db_service = get_database_service()
             success = await db_service.join_social_group(user_id, group_id)
             
             if success:
                 logger.info(f"👥 PAM helped user {user_id} join social group {group_id}")
+                
+                # ACTION VERIFICATION: Check if user was actually added to group
+                try:
+                    verification = db_service.client.table('group_memberships').select('*').eq('user_id', user_id).eq('group_id', group_id).execute()
+                    if verification.data:
+                        logger.info(f"✅ VERIFIED: User {user_id} successfully joined group {group_id}")
+                        return True
+                    else:
+                        logger.error(f"❌ VERIFICATION FAILED: Group membership not found in database")
+                        return False
+                except Exception as ve:
+                    logger.warning(f"⚠️ Could not verify group membership: {ve}")
+                    return success  # Return original result if verification fails
             return success
         except Exception as e:
             logger.error(f"❌ Error joining social group via PAM: {e}")
@@ -667,13 +788,44 @@ User context: {context}""".format(
             return {}
     
     async def update_user_trip(self, user_id: str, trip_id: str, updates: Dict[str, Any]) -> bool:
-        """Update a user's trip - can be called by PAM when users request trip modifications"""
+        """Update a user's trip with verification - can be called by PAM when users request trip modifications"""
         try:
             db_service = get_database_service()
+            
+            # Get original trip data for verification
+            original_trip = await db_service.get_trip_details(trip_id)
+            if not original_trip or original_trip.get('created_by') != user_id:
+                logger.warning(f"🚫 User {user_id} not authorized to update trip {trip_id}")
+                return False
+            
             success = await db_service.update_trip(trip_id, user_id, updates)
             
             if success:
                 logger.info(f"🔄 PAM updated trip {trip_id} for user {user_id}")
+                
+                # ACTION VERIFICATION: Check if updates were actually applied
+                try:
+                    updated_trip = await db_service.get_trip_details(trip_id)
+                    if updated_trip:
+                        # Check if at least one update was applied
+                        verification_passed = False
+                        for key, value in updates.items():
+                            if updated_trip.get(key) == value:
+                                verification_passed = True
+                                break
+                        
+                        if verification_passed:
+                            logger.info(f"✅ VERIFIED: Trip {trip_id} successfully updated")
+                            return True
+                        else:
+                            logger.error(f"❌ VERIFICATION FAILED: Trip updates not found in database")
+                            return False
+                    else:
+                        logger.error(f"❌ VERIFICATION FAILED: Could not retrieve updated trip")
+                        return False
+                except Exception as ve:
+                    logger.warning(f"⚠️ Could not verify trip update: {ve}")
+                    return success  # Return original result if verification fails
             else:
                 logger.warning(f"⚠️ PAM failed to update trip {trip_id} for user {user_id}")
             

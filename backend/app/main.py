@@ -50,6 +50,7 @@ from app.api.v1 import (
     tts,
     search,
     vision,
+    voice,
     profiles,
     products,
     orders,
@@ -254,6 +255,7 @@ app.include_router(observability_api.router, prefix="/api/v1", tags=["Admin Obse
 app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 # Mundi integration removed
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
+app.include_router(voice.router, prefix="/api/v1", tags=["Voice"])
 app.include_router(
     voice_streaming.router, prefix="/api/v1/voice", tags=["Voice Streaming"]
 )
@@ -268,7 +270,7 @@ app.include_router(editing_hub.router, prefix="/hubs", tags=["Editing"])
 
 @app.post("/api/v1/pam/voice")
 async def pam_voice(audio: UploadFile = File(...)):
-    """Complete STT→LLM→TTS pipeline for voice conversations"""
+    """Complete STT→LLM→TTS pipeline for voice conversations - returns synthesized audio"""
     try:
         # Step 1: Speech-to-Text (STT)
         logger.info("🎤 Processing voice input...")
@@ -277,13 +279,12 @@ async def pam_voice(audio: UploadFile = File(...)):
         logger.info(f"📝 Transcribed: {text}")
 
         if not text or text.strip() == "":
-            return {"error": "No speech detected", "text": "", "response": ""}
+            # Return JSON for error cases
+            return JSONResponse(content={"error": "No speech detected", "text": "", "response": ""})
 
-        # Step 2: LLM Processing through PAM Orchestrator
+        # Step 2: LLM Processing through SimplePamService (more reliable than orchestrator)
         logger.info("🧠 Processing through PAM...")
-        from app.services.pam.orchestrator import get_orchestrator
-
-        orchestrator = await get_orchestrator()
+        from app.core.simple_pam_service import simple_pam_service
 
         # Create a simple context for voice input
         voice_context = {
@@ -293,36 +294,111 @@ async def pam_voice(audio: UploadFile = File(...)):
             "timestamp": str(datetime.utcnow()),
         }
 
-        # Process message through PAM
-        pam_response = await orchestrator.process_message(
-            user_id="voice-user",
+        # Process message through SimplePamService
+        response_text = await simple_pam_service.get_response(
             message=text,
-            session_id="voice-session",
-            context=voice_context,
+            context=voice_context
         )
 
-        response_text = pam_response.content or "I processed your message."
         logger.info(f"🤖 PAM Response: {response_text}")
 
-        # Step 3: Text-to-Speech (TTS) - Return both text and TTS instruction
-        # For now, return JSON response since frontend handles TTS via Nari Labs
-        return {
+        # Step 3: Text-to-Speech (TTS) - Return actual synthesized audio
+        logger.info("🔊 Synthesizing audio response...")
+        
+        try:
+            # Import TTS service
+            from app.services.tts.tts_service import TTSService
+            
+            tts_service = TTSService()
+            
+            # Initialize TTS service if not already done
+            if not tts_service.is_initialized:
+                await tts_service.initialize()
+            
+            if tts_service.is_initialized:
+                # Synthesize audio using TTS service
+                tts_result = await tts_service.synthesize_for_pam(
+                    text=response_text,
+                    user_id="voice-user",
+                    context="voice_conversation",
+                    stream=False
+                )
+                
+                if tts_result and hasattr(tts_result, 'audio_data') and tts_result.audio_data:
+                    logger.info(f"✅ TTS synthesis successful: {len(tts_result.audio_data)} bytes")
+                    
+                    # Return audio as binary response
+                    return Response(
+                        content=tts_result.audio_data,
+                        media_type="audio/mpeg",
+                        headers={
+                            "Content-Disposition": "inline; filename=pam_response.mp3",
+                            "Content-Length": str(len(tts_result.audio_data)),
+                            "X-Transcription": text,
+                            "X-Response-Text": response_text,
+                            "X-Pipeline": "STT→LLM→TTS"
+                        }
+                    )
+                else:
+                    logger.warning("⚠️ TTS synthesis returned no audio data")
+            else:
+                logger.warning("⚠️ TTS service not available")
+                
+        except Exception as tts_error:
+            logger.error(f"❌ TTS synthesis failed: {tts_error}")
+        
+        # Fallback: Use existing /api/v1/voice endpoint for TTS
+        try:
+            logger.info("🔄 Falling back to Supabase TTS...")
+            from app.api.v1.voice import generate_voice, VoiceRequest
+            
+            voice_request = VoiceRequest(text=response_text)
+            voice_response = await generate_voice(voice_request)
+            
+            if voice_response and voice_response.audio:
+                # Convert array of integers to bytes
+                import struct
+                audio_bytes = struct.pack(f"{len(voice_response.audio)}h", *voice_response.audio)
+                
+                logger.info(f"✅ Supabase TTS successful: {len(audio_bytes)} bytes")
+                
+                return Response(
+                    content=audio_bytes,
+                    media_type="audio/wav",
+                    headers={
+                        "Content-Disposition": "inline; filename=pam_response.wav",
+                        "Content-Length": str(len(audio_bytes)),
+                        "X-Transcription": text,
+                        "X-Response-Text": response_text,
+                        "X-Pipeline": "STT→LLM→TTS-Supabase",
+                        "X-Duration": str(voice_response.duration),
+                        "X-Cached": str(voice_response.cached)
+                    }
+                )
+            else:
+                logger.warning("⚠️ Supabase TTS returned no audio data")
+                
+        except Exception as fallback_error:
+            logger.error(f"❌ Supabase TTS fallback failed: {fallback_error}")
+        
+        # Final fallback: Return JSON with text response
+        logger.info("📝 Returning text-only response as fallback")
+        return JSONResponse(content={
             "text": text,
             "response": response_text,
-            "actions": pam_response.actions,
-            "confidence": pam_response.confidence,
-            "voice_ready": True,
-            "pipeline": "STT→LLM→TTS",
-        }
+            "voice_ready": False,
+            "pipeline": "STT→LLM→TTS-Failed",
+            "note": "Audio synthesis failed, text response only"
+        })
 
     except Exception as e:
         logger.error(f"❌ Voice pipeline error: {e}")
-        return {
+        return JSONResponse(content={
             "error": str(e),
             "text": "",
             "response": "Sorry, I had trouble processing your voice message.",
             "pipeline": "STT→LLM→TTS",
-        }
+        })
 
 
 # Global exception handler with monitoring
