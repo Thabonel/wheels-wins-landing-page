@@ -183,9 +183,15 @@ class DatabaseService:
             if not self.client:
                 return {}
             
-            # Get user basic info from auth.users
-            user_result = self.client.table('users').select('*').eq('id', user_id).single().execute()
-            profile = user_result.data if user_result.data else {}
+            # Get user basic info from profiles table (not users table)
+            # The error shows we're trying to use UUID on integer field, so use profiles table
+            try:
+                profile_result = self.client.table('profiles').select('*').eq('id', user_id).single().execute()
+                profile = profile_result.data if profile_result.data else {}
+            except Exception as e:
+                logger.warning(f"Error fetching user profile: {e}")
+                # Fallback to basic profile structure
+                profile = {"id": user_id}
             
             # Get user preferences and travel context
             preferences = await self.get_user_preferences(user_id)
