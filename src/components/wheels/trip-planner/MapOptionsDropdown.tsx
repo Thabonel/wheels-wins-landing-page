@@ -591,13 +591,47 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
   return (
     <>
       <style>{`
-        .force-dropdown-down[data-radix-popper-content-wrapper] {
-          transform: none !important;
+        /* Force dropdown to open downward with maximum specificity */
+        .force-dropdown-down[data-radix-popper-content-wrapper],
+        [data-radix-popper-content-wrapper] .force-dropdown-down {
+          transform: translateY(0px) !important;
+          top: 100% !important;
+          bottom: auto !important;
+          position: absolute !important;
         }
+        
+        .force-dropdown-down[data-side="top"] {
+          top: 100% !important;
+          bottom: auto !important;
+        }
+        
+        /* Ensure dropdown content is positioned correctly */
         .force-dropdown-down {
           position: absolute !important;
           top: 100% !important;
           bottom: auto !important;
+          margin-top: 8px !important;
+        }
+        
+        /* Additional Radix UI overrides */
+        [data-radix-popper-content-wrapper] {
+          transform: none !important;
+        }
+        
+        /* Force icon centering in map control button */
+        .mapboxgl-ctrl-icon.map-options-button {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 30px !important;
+          height: 30px !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        
+        .mapboxgl-ctrl-icon.map-options-button svg {
+          margin: 0 !important;
+          flex-shrink: 0 !important;
         }
       `}</style>
       <DropdownMenu modal={false}>
@@ -605,7 +639,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         <Button 
           variant="outline" 
           className={isMapControl 
-            ? "mapboxgl-ctrl-icon w-[30px] h-[30px] bg-white border-none shadow-none rounded-[2px] p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
+            ? "mapboxgl-ctrl-icon map-options-button w-[30px] h-[30px] bg-white border-none shadow-none rounded-[2px] p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
             : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2 flex items-center"
           }
           style={isMapControl ? {
@@ -629,8 +663,10 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         className="w-64 max-h-[50vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[9999] force-dropdown-down" 
         align="start"
         side="bottom"
-        sideOffset={8}
+        sideOffset={12}
         avoidCollisions={false}
+        sticky="always"
+        hideWhenDetached={false}
       >
         {/* Base Map Section */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
