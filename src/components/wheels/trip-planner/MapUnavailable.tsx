@@ -1,8 +1,18 @@
-import { getMapboxDebugInfo, getMapUnavailableReason } from '@/utils/mapboxConfig';
-
 export default function MapUnavailable() {
-  const debugInfo = getMapboxDebugInfo();
-  const reason = getMapUnavailableReason();
+  // Simple debug info like the working version
+  const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+  const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
+  const currentToken = publicToken || legacyToken;
+  
+  const debugInfo = {
+    hasPublicToken: Boolean(publicToken),
+    hasLegacyToken: Boolean(legacyToken),
+    currentToken: currentToken ? `${currentToken.substring(0, 10)}...` : null,
+    tokenSource: publicToken ? 'public' : legacyToken ? 'legacy' : 'none',
+    environment: import.meta.env.MODE,
+  };
+  
+  const reason = currentToken ? 'Map should be available' : 'No valid Mapbox token configured';
   
   return (
     <div className="h-[60vh] lg:h-[70vh] flex items-center justify-center rounded-lg border bg-gray-100">
@@ -19,10 +29,10 @@ export default function MapUnavailable() {
           Active Token: {debugInfo.currentToken || 'None'}<br />
           Token Source: {debugInfo.tokenSource}<br />
           Environment: {debugInfo.environment}<br />
-          {debugInfo.recommendations.createPublicToken && (
+          {!debugInfo.hasPublicToken && (
             <><br /><strong className="text-orange-600">⚠️ Recommendation:</strong> Create VITE_MAPBOX_PUBLIC_TOKEN</>
           )}
-          {debugInfo.recommendations.migrateFromLegacy && (
+          {debugInfo.hasLegacyToken && !debugInfo.hasPublicToken && (
             <><br /><strong className="text-blue-600">🔄 Migration:</strong> Switch to public token for better security</>
           )}
         </div>
