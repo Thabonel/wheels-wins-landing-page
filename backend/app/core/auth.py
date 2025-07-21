@@ -18,13 +18,27 @@ import json
 async def verify_token_websocket(token: str) -> str:
     """Verify JWT token for WebSocket connections and return user_id"""
     try:
-        # Try to decode as JWT first (for Supabase tokens)
-        decoded = jwt.decode(token, options={"verify_signature": False})
-        user_id = decoded.get('sub', token)  # 'sub' is the user ID in Supabase JWT
-        return str(user_id)
+        # First try to verify as local JWT token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id:
+            return str(user_id)
+    except (InvalidTokenError, DecodeError):
+        pass
+    
+    try:
+        # Try to verify as Supabase token
+        supabase_url = os.getenv("SUPABASE_URL")
+        if supabase_url:
+            payload = verify_supabase_token(token, supabase_url)
+            user_id = payload.get("sub")
+            if user_id:
+                return str(user_id)
     except Exception:
-        # Fall back to treating token as plain user_id
-        return token
+        pass
+    
+    # If all verification fails, reject the connection
+    raise ValueError("Invalid or expired token")
 
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
@@ -174,18 +188,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except HTTPException:
         pass  # Try simple token verification
     
-    try:
-        # Fallback: try to decode without verification (for development/testing)
-        payload = jwt.decode(token, options={"verify_signature": False})
-        return {
-            "id": payload.get("sub", "unknown"),
-            "email": payload.get("email", "unknown@example.com"),
-            "username": payload.get("username", "unknown"),
-            "is_admin": payload.get("is_admin", False),
-            "token_type": "unverified"
-        }
-    except Exception:
-        pass
+    # REMOVED: Insecure unverified token fallback - Security Risk
+    # This fallback allowed token manipulation and bypassed authentication
     
     # If all verification methods fail
     raise HTTPException(

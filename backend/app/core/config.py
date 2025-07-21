@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     GOOGLE_SEARCH_ENGINE_ID: Optional[str] = None
     BING_SEARCH_API_KEY: Optional[str] = None
     
+    # Map APIs
+    MAPBOX_PUBLIC_TOKEN: Optional[str] = None
+    MAPBOX_SECRET_TOKEN: Optional[str] = None
+    
     # YouTube API
     YOUTUBE_API_KEY: Optional[str] = None
 
