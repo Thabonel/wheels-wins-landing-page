@@ -111,36 +111,70 @@ const Profile = () => {
 
   // Save profile data to database
   const handleSaveProfile = async () => {
-    if (!user) return;
+    if (!user) {
+      toast.error('User not authenticated');
+      return;
+    }
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.fullName,
-          nickname: formData.nickname,
-          travel_style: formData.travelStyle,
-          partner_name: formData.partnerName,
-          partner_email: formData.partnerEmail,
-          vehicle_type: formData.vehicleType,
-          vehicle_make_model: formData.vehicleMakeModel,
-          fuel_type: formData.fuelType,
-          towing: formData.towing,
-          second_vehicle: formData.secondVehicle,
-          max_driving: formData.maxDriving,
-          camp_types: formData.campTypes,
-          accessibility: formData.accessibility,
-          pets: formData.pets,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
+      const updateData = {
+        full_name: formData.fullName,
+        nickname: formData.nickname,
+        travel_style: formData.travelStyle,
+        partner_name: formData.partnerName,
+        partner_email: formData.partnerEmail,
+        vehicle_type: formData.vehicleType,
+        vehicle_make_model: formData.vehicleMakeModel,
+        fuel_type: formData.fuelType,
+        towing: formData.towing,
+        second_vehicle: formData.secondVehicle,
+        max_driving: formData.maxDriving,
+        camp_types: formData.campTypes,
+        accessibility: formData.accessibility,
+        pets: formData.pets,
+        user_id: user.id // Ensure user_id is set
+        // Note: updated_at is automatically handled by database trigger
+      };
 
-      if (error) throw error;
+      // First try to update existing profile
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('user_id', user.id)
+        .select();
+
+      // If no rows were updated, try to insert a new profile
+      if (error || !data || data.length === 0) {
+        console.log('No existing profile found, creating new one...');
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email,
+            ...updateData
+          });
+        
+        if (insertError) {
+          throw insertError;
+        }
+      } else if (error) {
+        throw error;
+      }
       
       toast.success('Profile updated successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      
+      // Provide more specific error messages
+      if (error?.code === 'PGRST116') {
+        toast.error('Profile not found. Please refresh the page and try again.');
+      } else if (error?.code === '23503') {
+        toast.error('Invalid user reference. Please contact support.');
+      } else if (error?.message?.includes('permission')) {
+        toast.error('Permission denied. Please check your account status.');
+      } else {
+        toast.error(`Failed to update profile: ${error?.message || 'Unknown error'}`);
+      }
     }
   };
 
