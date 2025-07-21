@@ -9,11 +9,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import CalendarContainer from "@/components/you/CalendarContainer";
 import EventModal from "@/components/you/EventModal";
 import { getFormattedTime } from "@/components/you/EventFormatter";
+import { supabase } from "@/integrations/supabase/client";
 import {
   handleEventCreate,
   handleEventMove,
   handleEventResize,
-  handleEventSubmit
+  handleEventSubmit,
+  handleEventDelete
 } from "@/components/you/EventHandlers";
 
 const UserCalendar = () => {
@@ -145,6 +147,13 @@ const UserCalendar = () => {
           );
         }}
         onCancel={() => setIsEventModalOpen(false)}
+        onDelete={editingEventId ? () => handleEventDelete(
+          editingEventId,
+          supabase,
+          setEvents,
+          setIsEventModalOpen,
+          setEditingEventId
+        ) : undefined}
       />
     </>
   );

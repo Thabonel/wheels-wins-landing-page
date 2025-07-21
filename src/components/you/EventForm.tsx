@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Trash2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -30,6 +31,7 @@ interface EventFormProps {
   isEditing?: boolean;
   onSubmit: (data: EventFormData) => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }
 
 const EventForm: React.FC<EventFormProps> = ({
@@ -42,6 +44,7 @@ const EventForm: React.FC<EventFormProps> = ({
   isEditing = false,
   onSubmit,
   onCancel,
+  onDelete,
 }) => {
   const formatTimeToString = (hour: number, minute: number = 0) =>
     `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
@@ -142,12 +145,29 @@ const EventForm: React.FC<EventFormProps> = ({
         </div>
 
         <DialogFooter className="pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit">
-            {isEditing ? "Update Event" : "Save Event"}
-          </Button>
+          <div className="flex justify-between w-full">
+            <div>
+              {isEditing && onDelete && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={onDelete}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Event
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {isEditing ? "Update Event" : "Save Event"}
+              </Button>
+            </div>
+          </div>
         </DialogFooter>
       </form>
     </Form>

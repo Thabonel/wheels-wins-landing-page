@@ -352,3 +352,39 @@ export const handleEventSubmit = async (
 
   setIsEventModalOpen(false);
 };
+
+// Handle event deletion
+export const handleEventDelete = async (
+  eventId: string,
+  supabase: any,
+  setEvents: (updateFn: (prevEvents: CalendarEvent[]) => CalendarEvent[]) => void,
+  setIsEventModalOpen: (open: boolean) => void,
+  setEditingEventId: (id: string | null) => void
+) => {
+  try {
+    // Delete the event from the database
+    const { error } = await supabase
+      .from('calendar_events')
+      .delete()
+      .eq('id', eventId);
+
+    if (error) {
+      console.error('Error deleting event:', error);
+      throw error;
+    }
+
+    // Remove the event from local state
+    setEvents((prevEvents: CalendarEvent[]) => 
+      prevEvents.filter(event => event.id !== eventId)
+    );
+
+    // Close the modal and clear editing state
+    setIsEventModalOpen(false);
+    setEditingEventId(null);
+    
+    console.log('Event deleted successfully');
+  } catch (error) {
+    console.error('Failed to delete event:', error);
+    // You could add a toast notification here for better UX
+  }
+};
