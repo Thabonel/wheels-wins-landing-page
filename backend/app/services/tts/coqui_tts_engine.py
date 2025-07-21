@@ -12,7 +12,19 @@ from .base_tts import (
     BaseTTSEngine, TTSEngine, VoiceProfile, VoiceSettings, AudioFormat,
     TTSRequest, TTSResponse, AudioChunk, VoiceStyle
 )
-from app.voice.tts_coqui import get_coqui_tts
+# Try to import Coqui TTS, fallback to pyttsx3 if not available
+try:
+    from app.voice.tts_coqui import get_coqui_tts
+    COQUI_AVAILABLE = True
+except (ImportError, ModuleNotFoundError) as e:
+    logger.info(f"Coqui TTS not available ({e}), will use pyttsx3 fallback")
+    COQUI_AVAILABLE = False
+    try:
+        import pyttsx3
+        PYTTSX3_AVAILABLE = True
+    except ImportError:
+        logger.warning("Neither Coqui TTS nor pyttsx3 available")
+        PYTTSX3_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -94,21 +106,52 @@ class CoquiTTSEngine(BaseTTSEngine):
         ]
     
     async def initialize(self) -> bool:
-        """Initialize Coqui TTS engine"""
+        """Initialize TTS engine (Coqui TTS or pyttsx3 fallback)"""
         try:
-            # Get the existing Coqui TTS instance
-            self.coqui_tts = await get_coqui_tts()
-            
-            # Test synthesis to verify it works
-            test_result = await self.coqui_tts.synthesize("Test")
-            
-            if test_result and len(test_result) > 0:
-                self.is_initialized = True
-                self.available_voices = self.coqui_voices
-                logger.info("✅ Coqui TTS engine initialized successfully")
-                return True
+            if COQUI_AVAILABLE:
+                # Try Coqui TTS first
+                self.coqui_tts = await get_coqui_tts()
+                
+                # Test synthesis to verify it works
+                test_result = await self.coqui_tts.synthesize("Test")
+                
+                if test_result and len(test_result) > 0:
+                    self.is_initialized = True
+                    self.available_voices = self.coqui_voices
+                    logger.info("✅ Coqui TTS engine initialized successfully")
+                    return True
+                else:
+                    logger.error("❌ Coqui TTS test synthesis failed")
+                    return False
+            elif PYTTSX3_AVAILABLE:
+                # Fallback to pyttsx3
+                try:
+                    self.pyttsx3_engine = pyttsx3.init()
+                    # Test basic functionality
+                    voices = self.pyttsx3_engine.getProperty('voices')
+                    if voices:
+                        self.is_initialized = True
+                        # Create basic voice profiles for pyttsx3
+                        self.available_voices = [
+                            VoiceProfile(
+                                voice_id="pyttsx3_default",
+                                name="System Voice",
+                                gender="neutral",
+                                age="adult",
+                                accent="system",
+                                engine=TTSEngine.COQUI  # Reuse the enum
+                            )
+                        ]
+                        logger.info("✅ pyttsx3 TTS engine initialized as fallback")
+                        return True
+                    else:
+                        logger.error("❌ pyttsx3 initialization failed - no voices available")
+                        return False
+                except Exception as e:
+                    logger.error(f"❌ pyttsx3 initialization failed: {e}")
+                    return False
             else:
-                logger.error("❌ Coqui TTS test synthesis failed")
+                logger.error("❌ No TTS engines available (neither Coqui TTS nor pyttsx3)")
                 return False
                 
         except Exception as e:
@@ -145,8 +188,36 @@ class CoquiTTSEngine(BaseTTSEngine):
                 # For VCTK model, use speaker_wav parameter
                 synthesis_kwargs['speaker_wav'] = None  # Could be implemented for voice cloning
             
-            # Synthesize with Coqui TTS
-            audio_data = await self.coqui_tts.synthesize(text, **synthesis_kwargs)
+            # Synthesize with available TTS engine
+            if hasattr(self, 'coqui_tts') and self.coqui_tts:
+                # Use Coqui TTS
+                audio_data = await self.coqui_tts.synthesize(text, **synthesis_kwargs)
+            elif hasattr(self, 'pyttsx3_engine') and self.pyttsx3_engine:
+                # Use pyttsx3 fallback
+                import tempfile
+                import asyncio
+                import os
+                
+                # Save to temporary file
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+                    temp_path = tmp_file.name
+                
+                # Use pyttsx3 to save audio
+                loop = asyncio.get_event_loop()
+                def _synthesize():
+                    self.pyttsx3_engine.save_to_file(text, temp_path)
+                    self.pyttsx3_engine.runAndWait()
+                
+                await loop.run_in_executor(None, _synthesize)
+                
+                # Read the audio file
+                with open(temp_path, 'rb') as f:
+                    audio_data = f.read()
+                
+                # Clean up
+                os.unlink(temp_path)
+            else:
+                raise Exception("No TTS engine available")
             
             # Calculate metrics
             generation_time = (datetime.utcnow() - start_time).total_seconds() * 1000
