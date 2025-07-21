@@ -1,9 +1,12 @@
+
 /**
  * Animation Configuration - Site-wide Animation Standards
  * 
  * Centralized configuration for all animations across the application.
  * Ensures consistent timing, easing, and effects throughout the site.
  */
+
+import { Easing } from 'framer-motion';
 
 export const ANIMATION_CONFIG = {
   /** Standard slide transition effect used site-wide */
@@ -28,11 +31,11 @@ export const ANIMATION_CONFIG = {
   /** Easing functions for different transition types */
   EASING: {
     /** Smooth ease for most transitions */
-    default: 'easeInOut',
+    default: [0.4, 0.0, 0.2, 1] as Easing,
     /** Snappy ease for interactive elements */
-    snappy: 'easeOut',
+    snappy: [0.4, 0.0, 0.6, 1] as Easing,
     /** Gentle ease for large content */
-    gentle: 'easeIn',
+    gentle: [0.25, 0.46, 0.45, 0.94] as Easing,
   },
   
   /** Slide distances for different contexts */
@@ -107,7 +110,7 @@ export const ANIMATION_VARIANTS = {
   
   /** Card/component hover effects */
   hover: {
-    scale: 1.02,
+    whileHover: { scale: 1.02 },
     transition: { 
       duration: ANIMATION_CONFIG.DURATIONS.quick, 
       ease: ANIMATION_CONFIG.EASING.snappy 

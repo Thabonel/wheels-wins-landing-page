@@ -1,3 +1,4 @@
+
 /**
  * AnimatedAlertDialog - Enhanced alert dialog components with slide transitions
  * 
@@ -39,7 +40,7 @@ const AnimatedAlertDialogOverlay = React.forwardRef<
         exit={{ opacity: 0 }}
         transition={{ 
           duration: prefersReducedMotion ? 0 : 0.2,
-          ease: "easeInOut"
+          ease: [0.4, 0.0, 0.2, 1]
         }}
       />
     </AlertDialogPrimitive.Overlay>
@@ -64,7 +65,7 @@ const AnimatedAlertDialogContent = React.forwardRef<
         initial: { opacity: 0, scale: 0.9, y: 20 },
         animate: { opacity: 1, scale: 1, y: 0 },
         exit: { opacity: 0, scale: 0.9, y: 20 },
-        transition: { duration: 0.25, ease: "easeOut" }
+        transition: { duration: 0.25, ease: [0.4, 0.0, 0.6, 1] }
       }
   
   return (
@@ -95,7 +96,7 @@ const AnimatedAlertDialogHeader = React.forwardRef<
     /** Enable subtle slide animation for header content */
     animated?: boolean
   }
->(({ className, animated = false, children, ...props }, ref) => {
+>(({ className, animated = false, children, ...htmlProps }, ref) => {
   const contentVariant = ANIMATION_UTILS.getVariant('content')
   
   if (animated) {
@@ -107,7 +108,7 @@ const AnimatedAlertDialogHeader = React.forwardRef<
           className
         )}
         {...contentVariant}
-        {...props}
+        {...htmlProps}
       >
         {children}
       </motion.div>
@@ -121,7 +122,7 @@ const AnimatedAlertDialogHeader = React.forwardRef<
         "flex flex-col space-y-2 text-center sm:text-left",
         className
       )}
-      {...props}
+      {...htmlProps}
     >
       {children}
     </div>
@@ -138,7 +139,7 @@ const AnimatedAlertDialogFooter = React.forwardRef<
     /** Enable subtle slide animation for footer content */
     animated?: boolean
   }
->(({ className, animated = false, children, ...props }, ref) => {
+>(({ className, animated = false, children, ...htmlProps }, ref) => {
   const contentVariant = ANIMATION_UTILS.getVariant('content')
   
   if (animated) {
@@ -151,7 +152,7 @@ const AnimatedAlertDialogFooter = React.forwardRef<
         )}
         {...contentVariant}
         transition={{ ...contentVariant.transition, delay: 0.1 }}
-        {...props}
+        {...htmlProps}
       >
         {children}
       </motion.div>
@@ -165,7 +166,7 @@ const AnimatedAlertDialogFooter = React.forwardRef<
         "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
         className
       )}
-      {...props}
+      {...htmlProps}
     >
       {children}
     </div>

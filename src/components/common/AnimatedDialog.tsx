@@ -1,3 +1,4 @@
+
 /**
  * AnimatedDialog - Enhanced dialog components with slide transitions
  * 
@@ -40,7 +41,7 @@ const AnimatedDialogOverlay = React.forwardRef<
         exit={{ opacity: 0 }}
         transition={{ 
           duration: prefersReducedMotion ? 0 : 0.2,
-          ease: "easeInOut"
+          ease: [0.4, 0.0, 0.2, 1]
         }}
       />
     </DialogPrimitive.Overlay>
@@ -93,7 +94,7 @@ const AnimatedDialogHeader = React.forwardRef<
     /** Enable subtle slide animation for header content */
     animated?: boolean
   }
->(({ className, animated = false, children, ...props }, ref) => {
+>(({ className, animated = false, children, ...htmlProps }, ref) => {
   const contentVariant = ANIMATION_UTILS.getVariant('content')
   
   if (animated) {
@@ -105,7 +106,7 @@ const AnimatedDialogHeader = React.forwardRef<
           className
         )}
         {...contentVariant}
-        {...props}
+        {...htmlProps}
       >
         {children}
       </motion.div>
@@ -119,7 +120,7 @@ const AnimatedDialogHeader = React.forwardRef<
         "flex flex-col space-y-1.5 text-center sm:text-left",
         className
       )}
-      {...props}
+      {...htmlProps}
     >
       {children}
     </div>
@@ -136,7 +137,7 @@ const AnimatedDialogFooter = React.forwardRef<
     /** Enable subtle slide animation for footer content */
     animated?: boolean
   }
->(({ className, animated = false, children, ...props }, ref) => {
+>(({ className, animated = false, children, ...htmlProps }, ref) => {
   const contentVariant = ANIMATION_UTILS.getVariant('content')
   
   if (animated) {
@@ -149,7 +150,7 @@ const AnimatedDialogFooter = React.forwardRef<
         )}
         {...contentVariant}
         transition={{ ...contentVariant.transition, delay: 0.1 }}
-        {...props}
+        {...htmlProps}
       >
         {children}
       </motion.div>
@@ -163,7 +164,7 @@ const AnimatedDialogFooter = React.forwardRef<
         "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
         className
       )}
-      {...props}
+      {...htmlProps}
     >
       {children}
     </div>
@@ -209,7 +210,7 @@ const DialogStaggeredContent = React.forwardRef<
     /** Stagger delay between child animations */
     staggerDelay?: number
   }
->(({ className, children, staggerDelay = 0.05, ...props }, ref) => {
+>(({ className, children, staggerDelay = 0.05, ...htmlProps }, ref) => {
   const prefersReducedMotion = ANIMATION_UTILS.prefersReducedMotion()
   
   const containerVariants = {
@@ -230,7 +231,7 @@ const DialogStaggeredContent = React.forwardRef<
       initial="initial"
       animate="animate"
       exit="exit"
-      {...props}
+      {...htmlProps}
     >
       {React.Children.map(children, (child, index) => (
         <motion.div key={index} variants={itemVariants}>
