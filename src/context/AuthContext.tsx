@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { recordLogin, endSession } from '@/lib/authLogging';
+import { setUser as setSentryUser, setTag, captureMessage } from '@/lib/sentry';
 
 interface User {
   id: string;
@@ -71,13 +72,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(session?.access_token || null);
         
         if (session?.user) {
-          setUser({
+          const userData = {
             id: session.user.id,
             email: session.user.email || '',
             full_name: session.user.user_metadata?.full_name
+          };
+          setUser(userData);
+          
+          // Update Sentry user context (without PII)
+          setSentryUser({
+            id: userData.id,
+            // Don't include email for privacy
           });
+          setTag('authenticated', 'true');
+          
+          if (event === 'SIGNED_IN') {
+            captureMessage('User signed in', 'info');
+          }
         } else {
           setUser(null);
+          
+          // Clear Sentry user context
+          setSentryUser(null);
+          setTag('authenticated', 'false');
+          
+          if (event === 'SIGNED_OUT') {
+            captureMessage('User signed out', 'info');
+          }
         }
         
         setLoading(false);
@@ -95,11 +116,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(session?.access_token || null);
       
       if (session?.user) {
-        setUser({
+        const userData = {
           id: session.user.id,
           email: session.user.email || '',
           full_name: session.user.user_metadata?.full_name
+        };
+        setUser(userData);
+        
+        // Set initial Sentry user context
+        setSentryUser({
+          id: userData.id,
         });
+        setTag('authenticated', 'true');
+      } else {
+        setSentryUser(null);
+        setTag('authenticated', 'false');
       }
       
       setLoading(false);

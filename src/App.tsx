@@ -32,6 +32,8 @@ import AdminProtection from './components/admin/AdminProtection';
 import { PamIntegrationProvider } from './components/pam/PamIntegrationProvider';
 import { StagingBanner } from './components/StagingBanner';
 import { logEnvironmentInfo } from './config/environment';
+import { AppErrorBoundary } from './components/common/ErrorBoundary';
+import { SentryTestButton } from './components/common/SentryTestButton';
 
 const queryClient = new QueryClient();
 
@@ -43,8 +45,9 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Toaster />
-      <StagingBanner />
+      <AppErrorBoundary>
+        <Toaster />
+        <StagingBanner />
         <Router>
           <AuthProvider>
             <RegionProvider>
@@ -87,6 +90,8 @@ function App() {
             </RegionProvider>
           </AuthProvider>
         </Router>
+        <SentryTestButton />
+      </AppErrorBoundary>
     </QueryClientProvider>
   );
 }
