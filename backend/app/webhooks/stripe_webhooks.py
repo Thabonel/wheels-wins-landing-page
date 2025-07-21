@@ -41,7 +41,10 @@ async def stripe_webhook(request: Request):
         try:
             supabase.table("affiliate_sales").insert(record).execute()
         except Exception as exc:
-            logger.error(f"Failed to store affiliate sale: {exc}")
-            raise HTTPException(status_code=500, detail="Supabase insert failed")
+            if 'does not exist' in str(exc).lower():
+                logger.info(f"affiliate_sales table doesn't exist yet - skipping webhook storage")
+            else:
+                logger.error(f"Failed to store affiliate sale: {exc}")
+                raise HTTPException(status_code=500, detail="Supabase insert failed")
 
     return {"status": "success"}

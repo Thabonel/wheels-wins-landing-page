@@ -38,7 +38,11 @@ async def fetch_dashboard_stats() -> Dict[str, Any]:
         records = resp.data or []
         revenue = sum(r.get("amount_total", 0) or 0 for r in records) / 100
     except Exception as exc:
-        logger.error(f"Failed to fetch revenue stats: {exc}")
+        if 'does not exist' in str(exc).lower():
+            logger.info(f"affiliate_sales table doesn't exist yet - revenue will be 0")
+            revenue = 0
+        else:
+            logger.error(f"Failed to fetch revenue stats: {exc}")
 
     return {
         "daily_active_users": daily_active_users,
