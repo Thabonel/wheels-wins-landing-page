@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import {
   ChevronDown,
-  Settings,
   Satellite,
   Mountain,
   MapPin,
@@ -16,7 +15,7 @@ import {
   CircleParking,
   Ambulance,
   Carrot,
-  Globe
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,11 +37,9 @@ interface MapOptionsDropdownProps {
   isMapControl?: boolean; // New prop to indicate if this is a native map control
   poiFilters?: Record<string, boolean>;
   onPOIFilterChange?: (filters: Record<string, boolean>) => void;
-  mundiLayerVisible?: boolean;
-  onMundiLayerToggle?: (visible: boolean) => void;
 }
 
-export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, isMapControl = false, poiFilters, onPOIFilterChange, mundiLayerVisible = true, onMundiLayerToggle }: MapOptionsDropdownProps) {
+export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, isMapControl = false, poiFilters, onPOIFilterChange }: MapOptionsDropdownProps) {
   const [baseMapStyle, setBaseMapStyle] = useState('satellite');
   // Fixed to scenic theme as requested
   const baseMapTheme = 'scenic';
@@ -238,7 +235,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2"
           }
         >
-          <Settings className="w-4 h-4" />
+          <Layers className="w-4 h-4" />
           {!isMapControl && (
             <>
               <span className="ml-1">Options</span>
@@ -260,7 +257,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         <DropdownMenuRadioGroup value={baseMapStyle} onValueChange={handleBaseMapChange}>
           <DropdownMenuRadioItem value="wheelers" className="flex items-center gap-3 py-2">
             <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
-              <Settings className="w-3 h-3 text-green-600" />
+              <MapPin className="w-3 h-3 text-green-600" />
             </div>
             <span>Wheelers</span>
           </DropdownMenuRadioItem>
@@ -366,22 +363,6 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
 
         <DropdownMenuSeparator />
 
-        {/* AI Geospatial */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
-          AI Geospatial
-        </DropdownMenuLabel>
-        <DropdownMenuCheckboxItem
-          checked={mundiLayerVisible}
-          onCheckedChange={(checked) => onMundiLayerToggle?.(checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-            <Globe className="w-3 h-3 text-blue-600" />
-          </div>
-          <span>Mundi AI Results</span>
-        </DropdownMenuCheckboxItem>
-
-        <DropdownMenuSeparator />
 
         {/* Points of Interest */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
