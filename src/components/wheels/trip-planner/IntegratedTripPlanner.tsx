@@ -1,3 +1,4 @@
+
 import { useRef, useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -94,6 +95,36 @@ export default function IntegratedTripPlanner({
   // Use the proven working submit handler from handlers
   const handleSubmitTrip = handlers.handleSubmitTrip;
 
+  // Convert waypoints to manual waypoints for compatibility
+  const convertToManualWaypoints = (waypoints: typeof integratedState.route.waypoints) => {
+    return waypoints.map((waypoint, index) => ({
+      id: `waypoint-${index}`,
+      latitude: waypoint.coords[1],
+      longitude: waypoint.coords[0],
+      order: index,
+      isLocked: false,
+      name: waypoint.name,
+      coords: waypoint.coords,
+    }));
+  };
+
+  const handleManualWaypointAdd = (waypoint: any) => {
+    // Convert back to regular waypoint format
+    const regularWaypoint = {
+      coords: [waypoint.longitude, waypoint.latitude] as [number, number],
+      name: waypoint.name || `Waypoint ${integratedState.route.waypoints.length + 1}`,
+    };
+    integratedState.addManualWaypoint(regularWaypoint);
+  };
+
+  const handleManualWaypointRemove = (id: string) => {
+    // Extract index from ID and remove by index
+    const index = parseInt(id.split('-')[1]);
+    if (!isNaN(index)) {
+      integratedState.removeManualWaypoint(index);
+    }
+  };
+
   return (
     <PAMProvider>
       <TripPlannerLayout>
@@ -176,9 +207,9 @@ export default function IntegratedTripPlanner({
             lockDestination={integratedState.lockDestination}
             routeType={integratedState.routeType}
             manualMode={integratedState.manualMode}
-            manualWaypoints={integratedState.manualWaypoints}
-            onManualWaypointAdd={integratedState.addManualWaypoint}
-            onManualWaypointRemove={integratedState.removeManualWaypoint}
+            manualWaypoints={convertToManualWaypoints(integratedState.route.waypoints)}
+            onManualWaypointAdd={handleManualWaypointAdd}
+            onManualWaypointRemove={handleManualWaypointRemove}
           />
         ) : !effectiveOfflineMode && !mapboxInitialized ? (
           <div className="h-[60vh] lg:h-[70vh] flex items-center justify-center rounded-lg border bg-blue-50">

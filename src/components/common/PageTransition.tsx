@@ -1,3 +1,4 @@
+
 /**
  * PageTransition - Standard slide transition for all pages/views
  * 
@@ -57,7 +58,7 @@ export function PageTransition({
     initial: { opacity: 0, x: -slideDistance },
     animate: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: slideDistance },
-    transition: { duration, ease: 'easeInOut' },
+    transition: { duration, ease: [0.4, 0.0, 0.2, 1] as const },
   };
 
   return (
@@ -80,7 +81,7 @@ export function usePageTransition(currentView: string) {
   return {
     key: currentView,
     ...SLIDE_TRANSITION,
-    transition: { duration: 0.3, ease: 'easeInOut' },
+    transition: { duration: 0.3, ease: [0.4, 0.0, 0.2, 1] as const },
   };
 }
 
@@ -93,7 +94,7 @@ export const PageTransitionVariants = {
     initial: { opacity: 0, x: -20 },
     animate: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: 20 },
-    transition: { duration: 0.3, ease: 'easeInOut' },
+    transition: { duration: 0.3, ease: [0.4, 0.0, 0.2, 1] as const },
   },
   
   /** Fast transition for tabs/quick navigation */
@@ -101,7 +102,7 @@ export const PageTransitionVariants = {
     initial: { opacity: 0, x: -15 },
     animate: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: 15 },
-    transition: { duration: 0.2, ease: 'easeInOut' },
+    transition: { duration: 0.2, ease: [0.4, 0.0, 0.2, 1] as const },
   },
   
   /** Slow transition for major navigation */
@@ -109,7 +110,7 @@ export const PageTransitionVariants = {
     initial: { opacity: 0, x: -30 },
     animate: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: 30 },
-    transition: { duration: 0.4, ease: 'easeInOut' },
+    transition: { duration: 0.4, ease: [0.4, 0.0, 0.2, 1] as const },
   },
   
   /** Subtle transition for content updates */
@@ -117,7 +118,7 @@ export const PageTransitionVariants = {
     initial: { opacity: 0, x: -10 },
     animate: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: 10 },
-    transition: { duration: 0.15, ease: 'easeInOut' },
+    transition: { duration: 0.15, ease: [0.4, 0.0, 0.2, 1] as const },
   },
 } as const;
 
