@@ -52,10 +52,15 @@ export const useUserSettings = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchSettings = async () => {
+    console.log('fetchSettings called, user:', user);
+    
     if (!user) {
+      console.log('No user found, setting loading to false');
       setLoading(false);
       return;
     }
+    
+    console.log('User found, fetching settings for user ID:', user.id);
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -79,9 +84,24 @@ export const useUserSettings = () => {
       } else {
         setSettings(data as unknown as UserSettings);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading settings:', err);
-      toast.error('Failed to load settings');
+      console.error('Error details:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint,
+        userId: user?.id
+      });
+      
+      // More specific error messages
+      if (err?.message?.includes('relation "user_settings" does not exist')) {
+        toast.error('Settings table not found. Please contact support.');
+      } else if (err?.message?.includes('permission denied')) {
+        toast.error('Permission denied. Please try logging out and back in.');
+      } else {
+        toast.error(`Failed to load settings: ${err?.message || 'Unknown error'}`);
+      }
     } finally {
       setLoading(false);
     }

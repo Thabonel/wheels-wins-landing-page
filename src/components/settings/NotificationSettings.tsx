@@ -7,6 +7,8 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const NotificationSettings = () => {
   const { settings, updateSettings, updating, loading } = useUserSettings();
+  
+  console.log('NotificationSettings render:', { settings, loading, updating });
 
   if (loading) {
     return (
