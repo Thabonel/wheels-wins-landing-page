@@ -34,23 +34,27 @@ export function useSentryUser() {
 }
 
 /**
- * Utility to manually report specific user actions or errors to Sentry
+ * Hook to get user-aware Sentry reporting functions
  */
-export function reportUserAction(action: string, data?: Record<string, any>) {
+export function useSentryReporting() {
   const { user } = useAuth();
   
-  // Add breadcrumb for user action
-  import('@/lib/sentry').then(({ addBreadcrumb }) => {
-    addBreadcrumb({
-      message: `User action: ${action}`,
-      level: 'info',
-      category: 'user_action',
-      data: {
-        action,
-        userId: user?.id,
-        timestamp: new Date().toISOString(),
-        ...data,
-      },
+  const reportUserAction = (action: string, data?: Record<string, any>) => {
+    // Add breadcrumb for user action
+    import('@/lib/sentry').then(({ addBreadcrumb }) => {
+      addBreadcrumb({
+        message: `User action: ${action}`,
+        level: 'info',
+        category: 'user_action',
+        data: {
+          action,
+          userId: user?.id,
+          timestamp: new Date().toISOString(),
+          ...data,
+        },
+      });
     });
-  });
+  };
+  
+  return { reportUserAction };
 }
