@@ -25,8 +25,18 @@ interface UserLocation {
   } | null;
 }
 
+// Safe auth hook that doesn't crash if AuthProvider is missing
+function useSafeAuth() {
+  try {
+    return useAuth();
+  } catch (error) {
+    console.warn('WheelersLayer: AuthProvider not available, proceeding without authentication');
+    return { user: null };
+  }
+}
+
 export default function WheelersLayer({ map, isVisible }: WheelersLayerProps) {
-  const { user } = useAuth();
+  const { user } = useSafeAuth();
   const [userLocations, setUserLocations] = useState<UserLocation[]>([]);
   const [markers, setMarkers] = useState<mapboxgl.Marker[]>([]);
 
