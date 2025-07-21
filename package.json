@@ -73,6 +73,7 @@
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
     "@rollup/rollup-darwin-x64": "^4.45.1",
+    "@sentry/react": "^9.40.0",
     "@supabase/auth-helpers-react": "^0.5.0",
     "@supabase/mcp-server-supabase": "^0.4.5",
     "@supabase/supabase-js": "^2.50.3",
