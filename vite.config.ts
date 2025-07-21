@@ -7,6 +7,9 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => {
   console.log(`🔧 Building for mode: ${mode}`);
   
+  // Ensure production mode is properly set
+  const isProduction = mode === 'production';
+  
   return {
   server: {
     host: "::",
@@ -19,6 +22,8 @@ export default defineConfig(({ mode }) => {
   define: {
     __ENVIRONMENT__: JSON.stringify(mode),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    // Ensure NODE_ENV is properly set for Redux
+    'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : mode),
   },
   plugins: [
     react(),
@@ -38,16 +43,27 @@ export default defineConfig(({ mode }) => {
   
   // Environment-specific build options
   build: {
-    sourcemap: mode !== 'production',
-    minify: mode === 'production' ? 'esbuild' : false,
+    sourcemap: !isProduction,
+    minify: isProduction ? 'esbuild' : false,
+    target: 'esnext',
     rollupOptions: {
       output: {
         // Add environment to chunk names for better debugging
         chunkFileNames: `assets/[name]-${mode}.[hash].js`,
         entryFileNames: `assets/[name]-${mode}.[hash].js`,
         assetFileNames: `assets/[name]-${mode}.[hash].[ext]`,
+        manualChunks: isProduction ? {
+          'react-vendor': ['react', 'react-dom'],
+          'routing-vendor': ['react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+        } : undefined,
       },
     },
+    // Optimize for production
+    ...(isProduction && {
+      reportCompressedSize: false,
+      chunkSizeWarningLimit: 1000,
+    }),
   },
 };
 });

@@ -7,6 +7,16 @@ export function initializeSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE || 'development';
   
+  // Debug environment variable loading
+  if (import.meta.env.DEV) {
+    console.log('🐛 Sentry Environment Check:', {
+      dsn: dsn ? '✅ Present' : '❌ Missing',
+      environment,
+      mode: import.meta.env.MODE,
+      allEnvVars: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
+    });
+  }
+  
   if (!dsn) {
     console.warn('Sentry DSN not provided - error monitoring disabled');
     return;

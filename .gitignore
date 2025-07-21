@@ -46,6 +46,7 @@ node_modules/
 # Environment files
 .env*
 !.env.example
+!.env.production
 
 # Temporary build files and artifacts
 *.timestamp-*
