@@ -1,11 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Load Supabase configuration from environment variables
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://kycoklimpzkyrecbjecn.supabase.co";
-const SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY> || "<JWT_TOKEN>";
+// Load Supabase configuration from environment variables - NO HARDCODED FALLBACKS
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY>
 
-// Environment variables allow for flexible deployment across environments
+// Validate required environment variables
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    'Missing required Supabase environment variables. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.'
+  );
+}
 
 // Create the supabase client optimized for minimal JWT size (SaaS best practice)
 export const supabase = createClient<Database>(

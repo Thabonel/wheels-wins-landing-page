@@ -26,7 +26,7 @@ import { AccountDeletion } from "@/components/settings/AccountDeletion";
 const Profile = () => {
   const { user } = useAuth();
   const { region, setRegion } = useRegion();
-  const { profile, loading } = useProfile();
+  const { profile, loading, refreshProfile } = useProfile();
   const [activeTab, setActiveTab] = useState("identity");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingPartnerPhoto, setUploadingPartnerPhoto] = useState(false);
@@ -99,8 +99,7 @@ const Profile = () => {
       toast.success(`${isPartner ? 'Partner' : 'Profile'} photo updated successfully`);
       
       // Refresh profile data to show new image
-      if (profile) {
-        const { refreshProfile } = useProfile();
+      if (refreshProfile) {
         await refreshProfile();
       }
     } catch (error) {
@@ -154,8 +153,9 @@ const Profile = () => {
       toast.success('Profile updated successfully');
       
       // Refresh profile data to reflect changes
-      const { refreshProfile } = useProfile();
-      await refreshProfile();
+      if (refreshProfile) {
+        await refreshProfile();
+      }
       
     } catch (error: any) {
       console.error('Error updating profile:', error);
