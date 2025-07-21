@@ -1,6 +1,5 @@
 
 import { Button } from "@/components/ui/button";
-import { modes } from "./constants";
 
 interface TripControlsProps {
   mode: string;
@@ -25,23 +24,7 @@ export default function TripControls({
 }: TripControlsProps) {
   return (
     <div className="space-y-3">
-      {/* Mode Selection */}
-      <select
-        value={mode}
-        onChange={(e) => !isOffline && setMode(e.target.value)}
-        disabled={isOffline}
-        className={`w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-          isOffline 
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-            : 'bg-white'
-        }`}
-      >
-        {modes.map((m) => (
-          <option key={m.value} value={m.value}>
-            {m.label}
-          </option>
-        ))}
-      </select>
+      {/* Route type selection moved to TravelModeButtons component */}
 
       {/* Action Buttons */}
       <div className="flex flex-col gap-2">

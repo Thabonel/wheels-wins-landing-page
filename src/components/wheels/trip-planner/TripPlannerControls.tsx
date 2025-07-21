@@ -1,4 +1,3 @@
-import RouteInputs from "./RouteInputs";
 import TravelModeButtons from "./TravelModeButtons";
 import TripControls from "./TripControls";
 import GeocodeSearch from "./GeocodeSearch";
@@ -69,9 +68,8 @@ export default function TripPlannerControls({
 }: TripPlannerControlsProps) {
   return <div className="bg-white rounded-lg border p-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Route Inputs */}
+        {/* Map Integration - Origin/Destination handled by map controls */}
         <div className="lg:col-span-2 space-y-6">
-          <RouteInputs directionsControl={directionsControl} originName={originName} destName={destName} setOriginName={setOriginName} setDestName={setDestName} originLocked={originLocked} destinationLocked={destinationLocked} lockOrigin={lockOrigin} lockDestination={lockDestination} />
 
           {/* Waypoint Search - show when both A and B are set */}
           {originName && destName && (
