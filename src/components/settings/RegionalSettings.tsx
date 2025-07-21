@@ -6,9 +6,41 @@ import { Globe } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const RegionalSettings = () => {
-  const { settings, updateSettings, updating } = useUserSettings();
+  const { settings, updateSettings, updating, loading } = useUserSettings();
 
-  if (!settings) return null;
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Regional
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">Loading regional settings...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!settings) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Regional
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-gray-600">
+            Unable to load regional settings. Please try refreshing the page.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleSelect = (key: keyof typeof settings.regional_preferences, value: string) => {
     updateSettings({

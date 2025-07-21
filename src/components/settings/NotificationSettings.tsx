@@ -6,9 +6,41 @@ import { Bell } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const NotificationSettings = () => {
-  const { settings, updateSettings, updating } = useUserSettings();
+  const { settings, updateSettings, updating, loading } = useUserSettings();
 
-  if (!settings) return null;
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            Notifications
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">Loading notification settings...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!settings) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            Notifications
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-gray-600">
+            Unable to load notification settings. Please try refreshing the page.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleToggle = (key: keyof typeof settings.notification_preferences) => {
     updateSettings({

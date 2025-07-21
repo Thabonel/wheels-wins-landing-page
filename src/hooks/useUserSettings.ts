@@ -52,7 +52,10 @@ export const useUserSettings = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchSettings = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase
