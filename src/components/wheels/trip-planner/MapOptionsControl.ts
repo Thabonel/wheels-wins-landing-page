@@ -47,16 +47,23 @@ export class MapOptionsControl implements mapboxgl.IControl {
 
     const mapRef = { current: this.map };
     
-    this.root.render(
+    // Create a wrapper div to ensure proper event handling
+    const wrapper = React.createElement('div', {
+      style: { position: 'relative' },
+      onMouseDown: (e: React.MouseEvent) => e.stopPropagation(),
+      onTouchStart: (e: React.TouchEvent) => e.stopPropagation()
+    }, 
       React.createElement(MapOptionsDropdown, {
         map: mapRef,
         onStyleChange: this.options.onStyleChange,
         currentStyle: this.options.currentStyle,
-        isMapControl: true, // Add this prop to style it differently as a map control
+        isMapControl: true,
         poiFilters: this.options.poiFilters,
         onPOIFilterChange: this.options.onPOIFilterChange
       })
     );
+    
+    this.root.render(wrapper);
   }
 
   // Method to update the control when needed

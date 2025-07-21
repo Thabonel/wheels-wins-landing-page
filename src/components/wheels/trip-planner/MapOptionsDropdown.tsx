@@ -658,7 +658,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
           margin-right: 0 !important;
         }
       `}</style>
-      <DropdownMenu modal={false}>
+      <DropdownMenu modal={false} dir="ltr">
         <DropdownMenuTrigger asChild>
         <Button 
           variant="outline" 
@@ -693,6 +693,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         hideWhenDetached={false}
         collisionPadding={0}
         arrowPadding={0}
+        container={document.body}
       >
         {/* Base Map Section */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
