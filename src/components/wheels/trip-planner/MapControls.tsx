@@ -10,8 +10,8 @@ import { Waypoint } from "./types";
 import { useUserUnits } from "./hooks/useUserUnits";
 import { MapOptionsControl } from "./MapOptionsControl";
 import POILayer from "./POILayer";
-import MundiLayer from "./MundiLayer";
 import { toast } from "@/hooks/use-toast";
+import { useLocationTracking } from "@/hooks/useLocationTracking";
 
 interface ManualWaypoint {
   id: string;
@@ -83,13 +83,13 @@ export default function MapControls({
   const mapContainer = useRef<HTMLDivElement>(null);
   const { units, loading: unitsLoading } = useUserUnits();
   const [currentStyle, setCurrentStyle] = useState("mapbox://styles/mapbox/streets-v11");
+  const locationTracking = useLocationTracking();
   const [poiFilters, setPOIFilters] = useState<Record<string, boolean>>({
     pet_stop: true,
     wide_parking: true,
     medical: true,
     farmers_market: true
   });
-  const [mundiLayerVisible, setMundiLayerVisible] = useState(true);
   const optionsControlRef = useRef<MapOptionsControl>();
   const isProgrammaticUpdate = useRef(false);
   const manualWaypointMarkers = useRef<mapboxgl.Marker[]>([]);
@@ -175,9 +175,7 @@ export default function MapControls({
         onStyleChange: setCurrentStyle,
         currentStyle,
         poiFilters,
-        onPOIFilterChange: setPOIFilters,
-        mundiLayerVisible,
-        onMundiLayerToggle: setMundiLayerVisible
+        onPOIFilterChange: setPOIFilters
       });
       optionsControlRef.current = optionsControl;
       map.current.addControl(optionsControl, 'top-right');
@@ -292,12 +290,6 @@ export default function MapControls({
     }
   }, [poiFilters]);
 
-  // Update map options control when Mundi layer visibility changes
-  useEffect(() => {
-    if (optionsControlRef.current) {
-      optionsControlRef.current.updateOptions({ mundiLayerVisible });
-    }
-  }, [mundiLayerVisible]);
   // Update routing options when exclude, annotations or vehicle change
   useEffect(() => {
     if (directionsControl.current && !isOffline) {
@@ -534,7 +526,7 @@ export default function MapControls({
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
         <POILayer map={map} filters={poiFilters} />
-        <MundiLayer map={map.current} isVisible={mundiLayerVisible} />
+{/* MundiLayer removed - functionality deleted */}
         {/* Map Options Control is now a native map control added in useEffect */}
         
         {isOffline && (
@@ -545,8 +537,8 @@ export default function MapControls({
           </div>
         )}
         
-        {/* Visual indicators for locked points and manual mode */}
-        {(originLocked || destinationLocked || manualMode) && (
+        {/* Visual indicators for locked points, manual mode, and location tracking */}
+        {(originLocked || destinationLocked || manualMode || locationTracking.isTracking) && (
           <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2">
             <div className="flex gap-2 text-xs">
               {originLocked && (
@@ -565,6 +557,12 @@ export default function MapControls({
                 <div className="flex items-center gap-1 text-red-600">
                   <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
                   <span>Manual Mode</span>
+                </div>
+              )}
+              {locationTracking.isTracking && (
+                <div className="flex items-center gap-1 text-green-600">
+                  <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
+                  <span>Live on Map</span>
                 </div>
               )}
             </div>
