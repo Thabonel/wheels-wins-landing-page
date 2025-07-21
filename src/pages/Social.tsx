@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { useScrollReset } from "@/hooks/useScrollReset";
+import { SocialErrorBoundary } from "@/components/common/SocialErrorBoundary";
 
 // Social page components
 import SocialFeed from "@/components/social/SocialFeed";
@@ -54,25 +55,39 @@ export default function Social() {
             
             <div className="bg-white rounded-lg border p-4 min-h-[600px]">
               <TabsContent value="feed">
-                <SocialFeed />
+                <SocialErrorBoundary>
+                  <SocialFeed />
+                </SocialErrorBoundary>
               </TabsContent>
               <TabsContent value="groups">
-                <SocialGroups />
+                <SocialErrorBoundary>
+                  <SocialGroups />
+                </SocialErrorBoundary>
               </TabsContent>
               <TabsContent value="networking">
-                <SocialNetworking />
+                <SocialErrorBoundary>
+                  <SocialNetworking />
+                </SocialErrorBoundary>
               </TabsContent>
               <TabsContent value="planning">
-                <GroupPlanning />
+                <SocialErrorBoundary>
+                  <GroupPlanning />
+                </SocialErrorBoundary>
               </TabsContent>
               <TabsContent value="marketplace">
-                <SocialMarketplace />
+                <SocialErrorBoundary>
+                  <SocialMarketplace />
+                </SocialErrorBoundary>
               </TabsContent>
               <TabsContent value="hustle-board">
-                <SocialHustleBoard />
+                <SocialErrorBoundary>
+                  <SocialHustleBoard />
+                </SocialErrorBoundary>
               </TabsContent>
               <TabsContent value="moderation">
-                <ContentModeration />
+                <SocialErrorBoundary>
+                  <ContentModeration />
+                </SocialErrorBoundary>
               </TabsContent>
             </div>
           </Tabs>

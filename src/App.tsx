@@ -33,6 +33,7 @@ import { PamIntegrationProvider } from './components/pam/PamIntegrationProvider'
 import { StagingBanner } from './components/StagingBanner';
 import { logEnvironmentInfo } from './config/environment';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
+import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import CookiePolicy from './pages/CookiePolicy';
@@ -57,7 +58,8 @@ function App() {
               <OfflineProvider>
                 <ExpensesProvider>
                   <WheelsProvider>
-                    <PamIntegrationProvider>
+                    <PAMErrorBoundary>
+                      <PamIntegrationProvider>
                       <ScrollToTop />
                       <Layout>
                         <RouteTransition>
@@ -86,7 +88,8 @@ function App() {
                           </Routes>
                         </RouteTransition>
                       </Layout>
-                    </PamIntegrationProvider>
+                      </PamIntegrationProvider>
+                    </PAMErrorBoundary>
                   </WheelsProvider>
                 </ExpensesProvider>
               </OfflineProvider>

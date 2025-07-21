@@ -92,18 +92,33 @@ export default function SocialNetworking() {
   };
 
   const fetchFriendships = async () => {
-    const data = await getUserFriendships();
-    setFriendships(data);
+    try {
+      const data = await getUserFriendships();
+      setFriendships(data);
+    } catch (error) {
+      console.log('Friendships feature not yet available - missing user_friendships table');
+      setFriendships([]);
+    }
   };
 
   const fetchInteractions = async () => {
-    const data = await getSocialInteractions();
-    setInteractions(data);
+    try {
+      const data = await getSocialInteractions();
+      setInteractions(data);
+    } catch (error) {
+      console.log('Interactions feature not yet available - missing social_interactions table');
+      setInteractions([]);
+    }
   };
 
   const fetchTrustScore = async () => {
-    const score = await getUserTrustScore();
-    setTrustScore(score?.score || null);
+    try {
+      const score = await getUserTrustScore();
+      setTrustScore(score?.score || null);
+    } catch (error) {
+      console.log('Trust scores not yet available - missing trust_scores table');
+      setTrustScore(50); // Default score
+    }
   };
 
   const handleFriendRequest = async (userId: string) => {
