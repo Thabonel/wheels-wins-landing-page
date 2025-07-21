@@ -4717,6 +4717,66 @@ export type Database = {
           },
         ]
       }
+      trips: {
+        Row: {
+          best_time: string | null
+          category: string | null
+          country: string | null
+          created_at: string | null
+          description: string | null
+          difficulty: string | null
+          distance: string | null
+          duration: string | null
+          end_location: string | null
+          highlights: string[] | null
+          id: string
+          name: string
+          route_type: string | null
+          source: string | null
+          start_location: string | null
+          updated_at: string | null
+          vehicle_requirements: string | null
+        }
+        Insert: {
+          best_time?: string | null
+          category?: string | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          difficulty?: string | null
+          distance?: string | null
+          duration?: string | null
+          end_location?: string | null
+          highlights?: string[] | null
+          id?: string
+          name: string
+          route_type?: string | null
+          source?: string | null
+          start_location?: string | null
+          updated_at?: string | null
+          vehicle_requirements?: string | null
+        }
+        Update: {
+          best_time?: string | null
+          category?: string | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          difficulty?: string | null
+          distance?: string | null
+          duration?: string | null
+          end_location?: string | null
+          highlights?: string[] | null
+          id?: string
+          name?: string
+          route_type?: string | null
+          source?: string | null
+          start_location?: string | null
+          updated_at?: string | null
+          vehicle_requirements?: string | null
+        }
+        Relationships: []
+      }
       trust_scores: {
         Row: {
           factors: Json | null
@@ -5893,7 +5953,7 @@ export type Database = {
         Returns: boolean
       }
       check_user_is_admin: {
-        Args: { check_user_id: string }
+        Args: Record<PropertyKey, never> | { check_user_id: string }
         Returns: boolean
       }
       cleanup_expired_audio_cache: {
@@ -5958,10 +6018,15 @@ export type Database = {
       get_or_create_pam_conversation: {
         Args:
           | Record<PropertyKey, never>
+          | { p_user_id: string; p_assistant_id: string }
           | { p_user_id: string; p_session_id: string; p_context?: Json }
           | { param1: string; param2: number }
           | { user_id: string }
-        Returns: string
+        Returns: {
+          id: string
+          created_at: string
+          updated_at: string
+        }[]
       }
       get_user_id_from_auth: {
         Args: Record<PropertyKey, never>
@@ -6024,6 +6089,7 @@ export type Database = {
       store_user_context: {
         Args:
           | Record<PropertyKey, never>
+          | { data: Json }
           | { p_user_id: string; p_context: Json }
           | {
               p_user_id: string
