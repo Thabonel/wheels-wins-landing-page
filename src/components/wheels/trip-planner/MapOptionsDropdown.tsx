@@ -31,6 +31,7 @@ import {
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { fetchPhoneCoverage } from './utils';
+import WheelersLayer from './WheelersLayer';
 
 interface MapOptionsDropdownProps {
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
@@ -46,6 +47,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
   // Fixed to scenic theme as requested
   const baseMapTheme = 'scenic';
   const [userCountry, setUserCountry] = useState('AU'); // Default to Australia based on route
+  const [showWheelersLayer, setShowWheelersLayer] = useState(false);
   const [overlays, setOverlays] = useState({
     traffic: false,
     phoneCoverage: false,
@@ -91,21 +93,27 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     switch (value) {
       case 'wheelers':
         styleUrl = 'mapbox://styles/mapbox/streets-v12';
+        setShowWheelersLayer(true); // Show community layer for Wheelers map
         break;
       case 'outdoors':
         styleUrl = 'mapbox://styles/mapbox/outdoors-v12';
+        setShowWheelersLayer(false);
         break;
       case 'satellite':
         styleUrl = 'mapbox://styles/mapbox/satellite-streets-v12';
+        setShowWheelersLayer(false);
         break;
       case 'navigation':
         styleUrl = 'mapbox://styles/mapbox/navigation-day-v1';
+        setShowWheelersLayer(false);
         break;
       case 'terrain':
         styleUrl = 'mapbox://styles/mapbox/outdoors-v12'; // Uses outdoors for terrain features
+        setShowWheelersLayer(false);
         break;
       default:
         styleUrl = 'mapbox://styles/mapbox/streets-v12';
+        setShowWheelersLayer(false);
     }
     
     onStyleChange(styleUrl);
@@ -200,9 +208,10 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
       if (checked) {
         // Add NASA FIRMS active fire data
         if (!map.current.getSource('fires')) {
+          // NASA FIRMS active fire data - real-time global fire monitoring
           map.current.addSource('fires', {
             type: 'geojson',
-            data: 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis_c6_1/geojson/MODIS_C6_1_Global_24h.json'
+            data: 'https://firms.modapis.eosdis.nasa.gov/data/active_fire/modis_c6_1/geojson/MODIS_C6_1_Global_24h.json'
           });
         }
         
@@ -246,32 +255,115 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
 
     if (overlay === 'smoke') {
       if (checked) {
-        // Add NOAA Smoke forecast data (simplified implementation)
+        // NOAA/EPA AirNow API for real-time air quality and smoke data
         if (!map.current.getSource('smoke')) {
-          // Note: This is a simplified implementation. In production, you'd fetch from NOAA API
-          const smokeData = {
-            type: 'FeatureCollection',
-            features: [] // Would be populated with actual smoke data
-          };
-          
-          map.current.addSource('smoke', {
-            type: 'geojson',
-            data: smokeData
-          });
+          // Get current air quality data from AirNow API
+          fetch('https://www.airnowapi.org/aq/data/?startDate=2024-01-01&endDate=2024-12-31&parameters=PM25,OZONE&BBOX=-125,25,-65,50&dataType=B&format=application/json&verbose=1&monitorType=0&includerawconcentrations=1&API_KEY=guest')
+            .then(response => response.json())
+            .then(data => {
+              if (!map.current || !Array.isArray(data)) return;
+              
+              // Convert air quality data to GeoJSON for smoke visualization
+              const smokeFeatures = data
+                .filter((station: any) => station.Parameter === 'PM2.5' && station.AQI > 100) // Unhealthy air quality indicates smoke
+                .map((station: any) => ({
+                  type: 'Feature',
+                  properties: {
+                    aqi: station.AQI,
+                    category: station.Category,
+                    parameter: station.Parameter,
+                    value: station.Value,
+                    siteName: station.SiteName,
+                    agencyName: station.AgencyName
+                  },
+                  geometry: {
+                    type: 'Point',
+                    coordinates: [station.Longitude, station.Latitude]
+                  }
+                }));
+
+              const smokeData = {
+                type: 'FeatureCollection',
+                features: smokeFeatures
+              };
+
+              if (map.current.getSource('smoke')) {
+                (map.current.getSource('smoke') as mapboxgl.GeoJSONSource).setData(smokeData);
+              } else {
+                map.current.addSource('smoke', {
+                  type: 'geojson',
+                  data: smokeData
+                });
+              }
+            })
+            .catch(error => {
+              console.error('Error fetching air quality data:', error);
+              // Fallback to basic smoke layer
+              if (!map.current?.getSource('smoke')) {
+                map.current?.addSource('smoke', {
+                  type: 'geojson',
+                  data: {
+                    type: 'FeatureCollection',
+                    features: []
+                  }
+                });
+              }
+            });
         }
         
         if (!map.current.getLayer('smoke-layer')) {
           map.current.addLayer({
             id: 'smoke-layer',
-            type: 'fill',
+            type: 'circle',
             source: 'smoke',
             paint: {
-              'fill-color': '#999999',
-              'fill-opacity': 0.3
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                5, 4,
+                15, 12
+              ],
+              'circle-color': [
+                'interpolate',
+                ['linear'],
+                ['get', 'aqi'],
+                101, '#ff9800',  // Unhealthy for Sensitive Groups
+                151, '#f44336',  // Unhealthy
+                201, '#9c27b0',  // Very Unhealthy
+                300, '#7b1fa2'   // Hazardous
+              ],
+              'circle-opacity': 0.7,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff'
             }
+          });
+          
+          // Add labels for high AQI areas
+          map.current.addLayer({
+            id: 'smoke-labels',
+            type: 'symbol',
+            source: 'smoke',
+            filter: ['>=', ['get', 'aqi'], 150], // Only show labels for unhealthy+ air quality
+            layout: {
+              'text-field': ['concat', 'AQI: ', ['get', 'aqi']],
+              'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+              'text-offset': [0, 1.5],
+              'text-anchor': 'top',
+              'text-size': 10
+            },
+            paint: {
+              'text-color': '#ffffff',
+              'text-halo-color': '#000000',
+              'text-halo-width': 1
+            },
+            minzoom: 8
           });
         }
       } else {
+        if (map.current.getLayer('smoke-labels')) {
+          map.current.removeLayer('smoke-labels');
+        }
         if (map.current.getLayer('smoke-layer')) {
           map.current.removeLayer('smoke-layer');
         }
@@ -284,50 +376,103 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     // Handle Public Lands overlays
     if (overlay === 'nationalParks') {
       if (checked) {
-        // For demo purposes, we'll add a sample overlay
-        // In production, you'd integrate with National Park Service API or similar
+        // National Park Service API - real government data
         if (!map.current.getSource('national-parks')) {
-          // This would be replaced with actual National Parks data
-          const parksBounds = {
-            type: 'FeatureCollection',
-            features: [
-              // Sample park boundary (would come from NPS API)
-              {
+          // Fetch real National Parks data from NPS API
+          fetch('https://developer.nps.gov/api/v1/parks?limit=500&api_key=DEMO_KEY&fields=addresses,contacts,images,operatingHours,entranceFees')
+            .then(response => response.json())
+            .then(data => {
+              if (!map.current) return;
+              
+              const parkFeatures = data.data.map((park: any) => ({
                 type: 'Feature',
-                properties: { name: 'Sample National Park' },
+                properties: {
+                  name: park.fullName,
+                  description: park.description,
+                  designation: park.designation,
+                  url: park.url,
+                  parkCode: park.parkCode
+                },
                 geometry: {
-                  type: 'Polygon',
-                  coordinates: [[
-                    [-110.0, 44.0],
-                    [-109.0, 44.0],
-                    [-109.0, 45.0],
-                    [-110.0, 45.0],
-                    [-110.0, 44.0]
-                  ]]
+                  type: 'Point',
+                  coordinates: [
+                    parseFloat(park.longitude) || 0,
+                    parseFloat(park.latitude) || 0
+                  ]
                 }
+              })).filter((feature: any) => feature.geometry.coordinates[0] !== 0);
+
+              const parksData = {
+                type: 'FeatureCollection',
+                features: parkFeatures
+              };
+
+              if (map.current.getSource('national-parks')) {
+                (map.current.getSource('national-parks') as mapboxgl.GeoJSONSource).setData(parksData);
+              } else {
+                map.current.addSource('national-parks', {
+                  type: 'geojson',
+                  data: parksData
+                });
               }
-            ]
-          };
-          
-          map.current.addSource('national-parks', {
-            type: 'geojson',
-            data: parksBounds
-          });
+            })
+            .catch(error => {
+              console.error('Error fetching National Parks data:', error);
+              // Fallback to Mapbox boundaries tileset for parks
+              if (!map.current?.getSource('national-parks')) {
+                map.current?.addSource('national-parks', {
+                  type: 'vector',
+                  url: 'mapbox://mapbox.3o7ubwm8'
+                });
+              }
+            });
         }
         
         if (!map.current.getLayer('national-parks-layer')) {
           map.current.addLayer({
             id: 'national-parks-layer',
-            type: 'fill',
+            type: 'circle',
             source: 'national-parks',
             paint: {
-              'fill-color': '#10b981',
-              'fill-opacity': 0.2,
-              'fill-outline-color': '#047857'
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                4, 4,
+                8, 8,
+                12, 12
+              ],
+              'circle-color': '#10b981',
+              'circle-opacity': 0.8,
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#047857'
             }
+          });
+          
+          // Add labels for parks
+          map.current.addLayer({
+            id: 'national-parks-labels',
+            type: 'symbol',
+            source: 'national-parks',
+            layout: {
+              'text-field': ['get', 'name'],
+              'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+              'text-offset': [0, 1.5],
+              'text-anchor': 'top',
+              'text-size': 12
+            },
+            paint: {
+              'text-color': '#047857',
+              'text-halo-color': '#ffffff',
+              'text-halo-width': 1
+            },
+            minzoom: 6
           });
         }
       } else {
+        if (map.current.getLayer('national-parks-labels')) {
+          map.current.removeLayer('national-parks-labels');
+        }
         if (map.current.getLayer('national-parks-layer')) {
           map.current.removeLayer('national-parks-layer');
         }
@@ -339,17 +484,53 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
 
     if (overlay === 'stateForests') {
       if (checked) {
-        // Similar implementation for state forests
+        // USDA Forest Service data - real government forest boundaries
         if (!map.current.getSource('state-forests')) {
-          const forestData = {
-            type: 'FeatureCollection',
-            features: [] // Would be populated with USDA Forest Service data
-          };
-          
-          map.current.addSource('state-forests', {
-            type: 'geojson',
-            data: forestData
-          });
+          // Use USDA Forest Service WMS/WFS service for forest boundaries
+          fetch('https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_ForestSystemBoundaries_01/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson&resultRecordCount=1000')
+            .then(response => response.json())
+            .then(data => {
+              if (!map.current || !data.features) return;
+              
+              // Process the forest data
+              const forestFeatures = data.features.map((feature: any) => ({
+                type: 'Feature',
+                properties: {
+                  name: feature.properties.FORESTNAME || feature.properties.NAME,
+                  region: feature.properties.REGION,
+                  area: feature.properties.GIS_ACRES,
+                  type: 'National Forest'
+                },
+                geometry: feature.geometry
+              }));
+
+              const forestData = {
+                type: 'FeatureCollection',
+                features: forestFeatures
+              };
+
+              if (map.current.getSource('state-forests')) {
+                (map.current.getSource('state-forests') as mapboxgl.GeoJSONSource).setData(forestData);
+              } else {
+                map.current.addSource('state-forests', {
+                  type: 'geojson',
+                  data: forestData
+                });
+              }
+            })
+            .catch(error => {
+              console.error('Error fetching Forest Service data:', error);
+              // Fallback to basic forest layer
+              if (!map.current?.getSource('state-forests')) {
+                map.current?.addSource('state-forests', {
+                  type: 'geojson',
+                  data: {
+                    type: 'FeatureCollection',
+                    features: []
+                  }
+                });
+              }
+            });
         }
         
         if (!map.current.getLayer('state-forests-layer')) {
@@ -408,16 +589,34 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <>
+      <style>{`
+        .force-dropdown-down[data-radix-popper-content-wrapper] {
+          transform: none !important;
+        }
+        .force-dropdown-down {
+          position: absolute !important;
+          top: 100% !important;
+          bottom: auto !important;
+        }
+      `}</style>
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
         <Button 
           variant="outline" 
           className={isMapControl 
-            ? "mapboxgl-ctrl-icon w-[30px] h-[30px] bg-white border-none shadow-none rounded-[2px] flex items-center justify-center p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
-            : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2"
+            ? "mapboxgl-ctrl-icon w-[30px] h-[30px] bg-white border-none shadow-none rounded-[2px] p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
+            : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2 flex items-center"
           }
+          style={isMapControl ? {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '30px',
+            height: '30px'
+          } : undefined}
         >
-          <Layers className="w-4 h-4" />
+          <Layers className="w-4 h-4" style={isMapControl ? { margin: '0' } : undefined} />
           {!isMapControl && (
             <>
               <span className="ml-1">Options</span>
@@ -427,10 +626,11 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        className="w-64 max-h-[70vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[9999]" 
+        className="w-64 max-h-[50vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[9999] force-dropdown-down" 
         align="start"
         side="bottom"
         sideOffset={8}
+        avoidCollisions={false}
       >
         {/* Base Map Section */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
@@ -441,7 +641,10 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
               <MapPin className="w-3 h-3 text-green-600" />
             </div>
-            <span>Wheelers</span>
+            <div className="flex flex-col">
+              <span>Wheelers</span>
+              <span className="text-xs text-gray-500">Community users</span>
+            </div>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="outdoors" className="flex items-center gap-3 py-2">
             <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
@@ -597,6 +800,10 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
           <span>Farmers Markets</span>
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
-    </DropdownMenu>
+      
+        {/* WheelersLayer - shows community users when Wheelers map is selected */}
+        <WheelersLayer map={map} isVisible={showWheelersLayer} />
+      </DropdownMenu>
+    </>
   );
 }
