@@ -106,7 +106,6 @@ const AnimatedDialogHeader = React.forwardRef<
           className
         )}
         {...contentVariant}
-        {...htmlProps}
       >
         {children}
       </motion.div>
@@ -150,7 +149,6 @@ const AnimatedDialogFooter = React.forwardRef<
         )}
         {...contentVariant}
         transition={{ ...contentVariant.transition, delay: 0.1 }}
-        {...htmlProps}
       >
         {children}
       </motion.div>
@@ -231,7 +229,6 @@ const DialogStaggeredContent = React.forwardRef<
       initial="initial"
       animate="animate"
       exit="exit"
-      {...htmlProps}
     >
       {React.Children.map(children, (child, index) => (
         <motion.div key={index} variants={itemVariants}>

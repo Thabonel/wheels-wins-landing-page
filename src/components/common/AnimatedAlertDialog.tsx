@@ -55,18 +55,8 @@ AnimatedAlertDialogOverlay.displayName = "AnimatedAlertDialogOverlay"
 const AnimatedAlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
->(({ className, ...props }, ref) => {
+>(({ className, children, ...props }, ref) => {
   const prefersReducedMotion = ANIMATION_UTILS.prefersReducedMotion()
-  
-  // Alert dialogs get slightly more pronounced animation to draw attention
-  const alertVariant = prefersReducedMotion 
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0 } }
-    : {
-        initial: { opacity: 0, scale: 0.9, y: 20 },
-        animate: { opacity: 1, scale: 1, y: 0 },
-        exit: { opacity: 0, scale: 0.9, y: 20 },
-        transition: { duration: 0.25, ease: [0.4, 0.0, 0.6, 1] }
-      }
   
   return (
     <AlertDialogPortal>
@@ -80,7 +70,14 @@ const AnimatedAlertDialogContent = React.forwardRef<
         )}
         {...props}
       >
-        <motion.div {...alertVariant} />
+        <motion.div
+          initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9, y: 20 }}
+          animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+          exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.25, ease: "easeOut" }}
+        >
+          {children}
+        </motion.div>
       </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )
@@ -108,7 +105,6 @@ const AnimatedAlertDialogHeader = React.forwardRef<
           className
         )}
         {...contentVariant}
-        {...htmlProps}
       >
         {children}
       </motion.div>
@@ -152,7 +148,6 @@ const AnimatedAlertDialogFooter = React.forwardRef<
         )}
         {...contentVariant}
         transition={{ ...contentVariant.transition, delay: 0.1 }}
-        {...htmlProps}
       >
         {children}
       </motion.div>
