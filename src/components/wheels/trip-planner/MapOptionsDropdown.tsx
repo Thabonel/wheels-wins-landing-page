@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { fetchPhoneCoverage } from './utils';
 import WheelersLayer from './WheelersLayer';
+import { AppErrorBoundary } from '@/components/common/ErrorBoundary';
 
 interface MapOptionsDropdownProps {
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
@@ -863,7 +864,13 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
       </DropdownMenuContent>
       
         {/* WheelersLayer - shows community users when Wheelers map is selected */}
-        <WheelersLayer map={map} isVisible={showWheelersLayer} />
+        <AppErrorBoundary fallback={
+          <div style={{ display: 'none' }}>
+            {/* WheelersLayer failed to load - authentication context not available */}
+          </div>
+        }>
+          <WheelersLayer map={map} isVisible={showWheelersLayer} />
+        </AppErrorBoundary>
       </DropdownMenu>
     </>
   );
