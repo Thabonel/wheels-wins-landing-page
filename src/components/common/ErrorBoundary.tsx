@@ -1,5 +1,4 @@
 import React from 'react';
-import { SentryErrorBoundary } from '@/lib/sentry';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -56,45 +55,56 @@ function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   );
 }
 
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
 interface AppErrorBoundaryProps {
   children: React.ReactNode;
 }
 
+class ErrorBoundary extends React.Component<AppErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: AppErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error boundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError && this.state.error) {
+      return (
+        <ErrorFallback
+          error={this.state.error}
+          resetError={() => this.setState({ hasError: false, error: undefined })}
+        />
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export function AppErrorBoundary({ children }: AppErrorBoundaryProps) {
-  return (
-    <SentryErrorBoundary
-      fallback={ErrorFallback}
-      beforeCapture={(scope, error, errorInfo) => {
-        // Add additional context to Sentry reports
-        scope.setTag('errorBoundary', 'AppErrorBoundary');
-        scope.setContext('errorInfo', errorInfo);
-        
-        // Add breadcrumb for error boundary trigger
-        scope.addBreadcrumb({
-          message: 'Error boundary triggered',
-          level: 'error',
-          category: 'error',
-          data: {
-            componentStack: errorInfo.componentStack,
-          },
-        });
-      }}
-    >
-      {children}
-    </SentryErrorBoundary>
-  );
+  return <ErrorBoundary>{children}</ErrorBoundary>;
 }
 
 // Higher-order component for wrapping specific components with error boundaries
 export function withErrorBoundary<P extends object>(
-  Component: React.ComponentType<P>,
-  fallback?: React.ComponentType<ErrorFallbackProps>
+  Component: React.ComponentType<P>
 ) {
   return function WrappedComponent(props: P) {
     return (
-      <SentryErrorBoundary fallback={fallback || ErrorFallback}>
+      <ErrorBoundary>
         <Component {...props} />
-      </SentryErrorBoundary>
+      </ErrorBoundary>
     );
   };
 }

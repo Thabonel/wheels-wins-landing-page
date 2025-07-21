@@ -54,7 +54,20 @@ export default function WheelersLayer({ map, isVisible }: WheelersLayerProps) {
         return;
       }
 
-      setUserLocations(data || []);
+      // Transform and filter the data to match our interface
+      const validData = (data || [])
+        .filter((location: any) => location.user_profiles && !('error' in location.user_profiles))
+        .map((location: any): UserLocation => ({
+          id: location.id,
+          user_id: location.user_id,
+          current_latitude: location.current_latitude,
+          current_longitude: location.current_longitude,
+          status: location.status,
+          updated_at: location.updated_at,
+          user_profiles: location.user_profiles,
+          user_profiles_extended: location.user_profiles_extended,
+        }));
+      setUserLocations(validData);
     } catch (error) {
       console.error('Error fetching user locations:', error);
     }
