@@ -26,7 +26,7 @@ export const TwoFactorAuth = () => {
       
       // Generate QR code
       try {
-        const qrDataUrl = await QRCode.toDataURL(data.qrCodeUrl);
+        const qrDataUrl = await QRCode.toDataURL(data.qrCode);
         setQrCodeDataUrl(qrDataUrl);
       } catch (error) {
         console.error('Error generating QR code:', error);

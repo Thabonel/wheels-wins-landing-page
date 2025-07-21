@@ -693,7 +693,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         hideWhenDetached={false}
         collisionPadding={0}
         arrowPadding={0}
-        container={document.body}
+        
       >
         {/* Base Map Section */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
@@ -865,11 +865,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
       </DropdownMenuContent>
       
         {/* WheelersLayer - shows community users when Wheelers map is selected */}
-        <AppErrorBoundary fallback={
-          <div style={{ display: 'none' }}>
-            {/* WheelersLayer failed to load - authentication context not available */}
-          </div>
-        }>
+        <AppErrorBoundary>
           <WheelersLayer map={map} isVisible={showWheelersLayer} />
         </AppErrorBoundary>
       </DropdownMenu>
