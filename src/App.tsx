@@ -33,7 +33,10 @@ import { PamIntegrationProvider } from './components/pam/PamIntegrationProvider'
 import { StagingBanner } from './components/StagingBanner';
 import { logEnvironmentInfo } from './config/environment';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
-import { SentryTestButton } from './components/common/SentryTestButton';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import CookiePolicy from './pages/CookiePolicy';
+
 
 const queryClient = new QueryClient();
 
@@ -76,9 +79,9 @@ function App() {
                         <Route path="/cancel-trial" element={<CancelTrial />} />
                         <Route path="/reset-password" element={<PasswordResetRequest />} />
                         <Route path="/update-password" element={<UpdatePassword />} />
-                        <Route path="/terms" element={<div className="container p-8"><h1 className="text-2xl font-bold mb-4">Terms of Service</h1><p>Terms of service content will be added here.</p></div>} />
-                        <Route path="/privacy" element={<div className="container p-8"><h1 className="text-2xl font-bold mb-4">Privacy Policy</h1><p>Privacy policy content will be added here.</p></div>} />
-                        <Route path="/cookies" element={<div className="container p-8"><h1 className="text-2xl font-bold mb-4">Cookie Policy</h1><p>Cookie policy content will be added here.</p></div>} />
+                        <Route path="/terms" element={<TermsOfService />} />
+                        <Route path="/privacy" element={<PrivacyPolicy />} />
+                        <Route path="/cookies" element={<CookiePolicy />} />
                         <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                           </Routes>
                         </RouteTransition>
@@ -90,7 +93,7 @@ function App() {
             </RegionProvider>
           </AuthProvider>
         </Router>
-        <SentryTestButton />
+        
       </AppErrorBoundary>
     </QueryClientProvider>
   );
