@@ -591,35 +591,43 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
   return (
     <>
       <style>{`
-        /* Force dropdown to open downward with maximum specificity */
+        /* NUCLEAR OPTION: Force dropdown downward with all possible selectors */
+        [data-radix-popper-content-wrapper],
+        [data-radix-popper-content-wrapper] > div,
+        [data-side="top"],
+        [data-side="top"] > div,
+        .force-dropdown-down,
         .force-dropdown-down[data-radix-popper-content-wrapper],
-        [data-radix-popper-content-wrapper] .force-dropdown-down {
-          transform: translateY(0px) !important;
-          top: 100% !important;
+        [data-radix-popper-content-wrapper] .force-dropdown-down,
+        div[data-radix-dropdown-menu-content],
+        div[data-radix-dropdown-menu-content][data-side="top"] {
+          transform: translateY(10px) !important;
+          top: calc(100% + 10px) !important;
           bottom: auto !important;
-          position: absolute !important;
+          position: fixed !important;
+          z-index: 99999 !important;
         }
         
-        .force-dropdown-down[data-side="top"] {
-          top: 100% !important;
-          bottom: auto !important;
-        }
-        
-        /* Ensure dropdown content is positioned correctly */
-        .force-dropdown-down {
-          position: absolute !important;
-          top: 100% !important;
-          bottom: auto !important;
-          margin-top: 8px !important;
-        }
-        
-        /* Additional Radix UI overrides */
+        /* Override all Radix positioning */
         [data-radix-popper-content-wrapper] {
-          transform: none !important;
+          transform: translateY(10px) !important;
+          top: auto !important;
+          bottom: auto !important;
         }
         
-        /* Force icon centering in map control button */
-        .mapboxgl-ctrl-icon.map-options-button {
+        /* Force ALL dropdown menus to open downward */
+        [role="menu"],
+        [data-radix-dropdown-menu-content] {
+          transform: translateY(10px) !important;
+          top: calc(100% + 10px) !important;
+          bottom: auto !important;
+          margin-top: 0 !important;
+          margin-bottom: 0 !important;
+        }
+        
+        /* ENHANCED: Force perfect icon centering in map control button */
+        .mapboxgl-ctrl-icon.map-options-button,
+        button.mapboxgl-ctrl-icon.map-options-button {
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
@@ -627,11 +635,26 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
           height: 30px !important;
           padding: 0 !important;
           margin: 0 !important;
+          text-align: center !important;
+          line-height: 30px !important;
         }
         
-        .mapboxgl-ctrl-icon.map-options-button svg {
-          margin: 0 !important;
+        .mapboxgl-ctrl-icon.map-options-button svg,
+        button.mapboxgl-ctrl-icon.map-options-button svg {
+          margin: 0 auto !important;
+          display: block !important;
           flex-shrink: 0 !important;
+          position: relative !important;
+          left: 0 !important;
+          right: 0 !important;
+          top: 0 !important;
+          bottom: 0 !important;
+        }
+        
+        /* Additional button content centering */
+        .mapboxgl-ctrl-icon.map-options-button * {
+          margin-left: 0 !important;
+          margin-right: 0 !important;
         }
       `}</style>
       <DropdownMenu modal={false}>
@@ -663,10 +686,12 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         className="w-64 max-h-[50vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[9999] force-dropdown-down" 
         align="start"
         side="bottom"
-        sideOffset={12}
+        sideOffset={15}
         avoidCollisions={false}
         sticky="always"
         hideWhenDetached={false}
+        collisionPadding={0}
+        arrowPadding={0}
       >
         {/* Base Map Section */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
