@@ -27,7 +27,7 @@ export function initializeSentry() {
     sendDefaultPii: false, // Don't send personally identifiable information
     
     // Release tracking
-    release: import.meta.env.VITE_APP_VERSION || 'unknown',
+    release: import.meta.env.VITE_APP_VERSION || `wheels-and-wins@${import.meta.env.MODE}`,
     
     // Enhanced error reporting
     beforeSend(event, hint) {
