@@ -16,6 +16,7 @@ import {
   Activity
 } from 'lucide-react';
 import { useTestMetrics } from '../../hooks/useTestMetrics';
+import { SentryDemo } from './SentryDemo';
 
 export function TestingDashboard() {
   const { metrics, testFiles, isLoading, lastRefresh, refreshMetrics, runTests } = useTestMetrics();
@@ -298,6 +299,12 @@ export function TestingDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Sentry Error Monitoring Demo */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Error Monitoring</h3>
+        <SentryDemo />
+      </div>
 
       {/* Data freshness indicator */}
       <div className="text-center text-sm text-muted-foreground border-t pt-4">
