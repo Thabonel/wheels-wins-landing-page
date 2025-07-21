@@ -5,6 +5,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { TabTransition } from "@/components/common/TabTransition";
 import TripPlannerApp from '@/components/wheels/TripPlannerApp';
 import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
+import { TripPlannerErrorBoundary } from "@/components/common/TripPlannerErrorBoundary";
+import { PAMErrorBoundary } from "@/components/common/PAMErrorBoundary";
 import FuelLog from "@/components/wheels/FuelLog";
 import VehicleMaintenance from "@/components/wheels/VehicleMaintenance";
 import RVStorageOrganizer from "@/components/wheels/RVStorageOrganizer";
@@ -70,9 +72,13 @@ const Wheels = () => {
               
               <div className="min-h-[600px]">
                 <TabTransition activeTab={activeTab} tabId="trip-planner" className="mt-0">
-                  <PAMProvider>
-                    <TripPlannerApp />
-                  </PAMProvider>
+                  <TripPlannerErrorBoundary>
+                    <PAMErrorBoundary>
+                      <PAMProvider>
+                        <TripPlannerApp />
+                      </PAMProvider>
+                    </PAMErrorBoundary>
+                  </TripPlannerErrorBoundary>
                 </TabTransition>
                 
                 <TabTransition activeTab={activeTab} tabId="fuel-log" className="mt-0">

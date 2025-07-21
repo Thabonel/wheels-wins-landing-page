@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,11 +39,7 @@ export default function ContentModeration() {
     description: ''
   });
 
-  useEffect(() => {
-    fetchUserReports();
-  }, []);
-
-  const fetchUserReports = async () => {
+  const fetchUserReports = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -59,7 +55,11 @@ export default function ContentModeration() {
     } catch (error) {
       console.error('Error fetching reports:', error);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchUserReports();
+  }, [fetchUserReports]);
 
   const handleSubmitReport = async () => {
     const success = await reportContent(
