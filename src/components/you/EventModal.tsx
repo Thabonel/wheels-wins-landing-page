@@ -5,7 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/common/AnimatedDialog";
 import EventForm from "./EventForm";
 import { EventFormData } from "./types";
 

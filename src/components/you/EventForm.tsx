@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DialogFooter } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/common/AnimatedDialog";
 import { EventFormData } from "./types";
 
 interface EventFormProps {

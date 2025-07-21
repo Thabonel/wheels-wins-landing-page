@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
 import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css';
+import { getMapboxPublicToken, isMapAvailable, initializeMapbox } from '@/utils/mapboxConfig';
 import TripPlannerControls from './TripPlannerControls';
 import TripPlannerHeader from './TripPlannerHeader';
 import OfflineTripBanner from './OfflineTripBanner';
@@ -33,16 +34,27 @@ export default function IntegratedTripPlanner({
   const { region } = useRegion();
   const { isOffline } = useOffline();
   const effectiveOfflineMode = isOfflineProp ?? isOffline;
-  const hasMapToken = Boolean(import.meta.env.VITE_MAPBOX_TOKEN);
-  const mapUnavailable = !hasMapToken && !effectiveOfflineMode;
+  
+  // Industry standard token management
+  const mapUnavailable = !isMapAvailable(effectiveOfflineMode);
   const map = useRef<mapboxgl.Map>();
   const directionsControl = useRef<MapboxDirections>();
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
+  const [mapboxInitialized, setMapboxInitialized] = useState(false);
 
-  // Set Mapbox access token when available
-  if (!effectiveOfflineMode && hasMapToken) {
-    mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
-  }
+  // Initialize Mapbox with proper token management (async)
+  useEffect(() => {
+    if (!effectiveOfflineMode && !mapboxInitialized) {
+      initializeMapbox().then((success) => {
+        if (success) {
+          setMapboxInitialized(true);
+          console.log('🎯 Mapbox initialization completed successfully');
+        } else {
+          console.error('🎯 Mapbox initialization failed');
+        }
+      });
+    }
+  }, [effectiveOfflineMode, mapboxInitialized]);
 
   // Use integrated state management
   const integratedState = useIntegratedTripState(effectiveOfflineMode);
@@ -138,7 +150,7 @@ export default function IntegratedTripPlanner({
         {/* Map Container - Now using MapControls component */}
         {mapUnavailable ? (
           <MapUnavailable />
-        ) : !effectiveOfflineMode ? (
+        ) : !effectiveOfflineMode && mapboxInitialized ? (
           <MapControls
             region={region}
             waypoints={integratedState.route.waypoints}
@@ -168,6 +180,16 @@ export default function IntegratedTripPlanner({
             onManualWaypointAdd={integratedState.addManualWaypoint}
             onManualWaypointRemove={integratedState.removeManualWaypoint}
           />
+        ) : !effectiveOfflineMode && !mapboxInitialized ? (
+          <div className="h-[60vh] lg:h-[70vh] flex items-center justify-center rounded-lg border bg-blue-50">
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">🔄</div>
+              <h4 className="text-lg font-semibold text-blue-800 mb-2">Initializing Map</h4>
+              <p className="text-blue-600 text-sm">
+                Setting up Mapbox with secure token...
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="h-[60vh] lg:h-[70vh] relative">
             <div className="overflow-hidden rounded-lg border h-full bg-gradient-to-br from-blue-50 to-blue-100">

@@ -1,7 +1,8 @@
 
 import { useState } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { TabTransition } from "@/components/common/TabTransition";
 import WinsOverview from "@/components/wins/WinsOverview";
 import WinsExpenses from "@/components/wins/WinsExpenses";
 import WinsIncome from "@/components/wins/WinsIncome";
@@ -67,24 +68,24 @@ export default function Wins() {
             </TabsList>
             
             <div className="bg-white rounded-lg border p-4 min-h-[600px] mt-2" id="content">
-              <TabsContent value="overview">
+              <TabTransition activeTab={activeTab} tabId="overview">
                 <WinsOverview />
-              </TabsContent>
-              <TabsContent value="expenses">
+              </TabTransition>
+              <TabTransition activeTab={activeTab} tabId="expenses">
                 <WinsExpenses />
-              </TabsContent>
-              <TabsContent value="income">
+              </TabTransition>
+              <TabTransition activeTab={activeTab} tabId="income">
                 <WinsIncome />
-              </TabsContent>
-              <TabsContent value="budgets">
+              </TabTransition>
+              <TabTransition activeTab={activeTab} tabId="budgets">
                 <WinsBudgets />
-              </TabsContent>
-              <TabsContent value="tips">
+              </TabTransition>
+              <TabTransition activeTab={activeTab} tabId="tips">
                 <WinsTips />
-              </TabsContent>
-              <TabsContent value="money-maker">
+              </TabTransition>
+              <TabTransition activeTab={activeTab} tabId="money-maker">
                 <WinsMoneyMaker />
-              </TabsContent>
+              </TabTransition>
             </div>
           </Tabs>
         </div>
