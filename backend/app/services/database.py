@@ -183,15 +183,51 @@ class DatabaseService:
             if not self.client:
                 return {}
             
-            # Get user basic info from profiles table (not users table)
-            # The error shows we're trying to use UUID on integer field, so use profiles table
+            # Try multiple approaches to get user profile safely
+            profile = {"id": user_id}  # Default fallback
+            
+            # Method 1: Try Supabase auth.users (UUID-based, most reliable)
+            try:
+                auth_user = self.client.auth.admin.get_user_by_id(user_id)
+                if auth_user.user:
+                    profile.update({
+                        'id': auth_user.user.id,
+                        'email': auth_user.user.email,
+                        'created_at': auth_user.user.created_at,
+                        'updated_at': auth_user.user.updated_at
+                    })
+                    logger.info(f"✅ User profile loaded from auth.users: {user_id}")
+            except Exception as e:
+                logger.debug(f"Auth users query failed (expected): {e}")
+            
+            # Method 2: Try profiles table with UUID (standard Supabase approach)  
             try:
                 profile_result = self.client.table('profiles').select('*').eq('id', user_id).single().execute()
-                profile = profile_result.data if profile_result.data else {}
+                if profile_result.data:
+                    profile.update(profile_result.data)
+                    logger.info(f"✅ User profile loaded from profiles table: {user_id}")
             except Exception as e:
-                logger.warning(f"Error fetching user profile: {e}")
-                # Fallback to basic profile structure
-                profile = {"id": user_id}
+                logger.debug(f"Profiles table query failed: {e}")
+            
+            # Method 3: Try with user_id column if id column failed
+            if len(profile) == 1:  # Only has default id
+                try:
+                    profile_result = self.client.table('profiles').select('*').eq('user_id', user_id).single().execute()
+                    if profile_result.data:
+                        profile.update(profile_result.data)
+                        logger.info(f"✅ User profile loaded from profiles.user_id: {user_id}")
+                except Exception as e:
+                    logger.debug(f"Profiles.user_id query failed: {e}")
+            
+            # If still no profile data, create basic structure
+            if len(profile) == 1:
+                logger.warning(f"⚠️ No profile found for user {user_id}, using fallback")
+                profile = {
+                    "id": user_id,
+                    "email": None,
+                    "created_at": None,
+                    "display_name": "User"
+                }
             
             # Get user preferences and travel context
             preferences = await self.get_user_preferences(user_id)
@@ -208,14 +244,28 @@ class DatabaseService:
             return {}
     
     async def get_user_trips(self, user_id: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Get user's trips from group_trips table"""
+        """Get user's trips - safely handle RLS policy issues"""
         try:
             if not self.client:
                 return []
             
-            result = self.client.table('group_trips').select('*').eq(
-                'created_by', user_id
-            ).order('created_at', desc=True).limit(limit).execute()
+            # Avoid group_trip_participants table due to RLS recursion issue
+            # Query group_trips directly without joins to prevent policy conflicts
+            try:
+                result = self.client.table('group_trips').select(
+                    'id, trip_name, description, status, created_at, route_data, created_by'
+                ).eq('created_by', user_id).order('created_at', desc=True).limit(limit).execute()
+                
+                if result.data:
+                    logger.info(f"✅ Found {len(result.data)} trips for user {user_id}")
+                else:
+                    logger.info(f"📋 No trips found for user {user_id}")
+                    return []
+                    
+            except Exception as e:
+                logger.warning(f"RLS policy issue in group_trips, using fallback: {e}")
+                # Safe fallback - return empty list rather than crash
+                return []
             
             trips = []
             if result.data:
@@ -447,9 +497,15 @@ class DatabaseService:
             if not self.client:
                 return []
             
-            result = self.client.table('affiliate_sales').select('*').eq(
-                'user_id', user_id
-            ).order('created_at', desc=True).limit(limit).execute()
+            try:
+                result = self.client.table('affiliate_sales').select('*').eq(
+                    'user_id', user_id
+                ).order('created_at', desc=True).limit(limit).execute()
+            except Exception as e:
+                if 'does not exist' in str(e).lower():
+                    logger.info(f"affiliate_sales table doesn't exist yet - returning empty history")
+                    return []
+                raise e
             
             purchases = []
             if result.data:
@@ -476,9 +532,15 @@ class DatabaseService:
             if not self.client:
                 return []
             
-            result = self.client.table('user_wishlists').select('*').eq(
-                'user_id', user_id
-            ).order('created_at', desc=True).execute()
+            try:
+                result = self.client.table('user_wishlists').select('*').eq(
+                    'user_id', user_id
+                ).order('created_at', desc=True).execute()
+            except Exception as e:
+                if 'does not exist' in str(e).lower():
+                    logger.info(f"user_wishlists table doesn't exist yet - returning empty list")
+                    return []
+                raise e
             
             wishlists = []
             if result.data:
@@ -532,24 +594,30 @@ class DatabaseService:
             if not self.client:
                 return False
             
-            # Check if already in wishlist
-            existing = self.client.table('user_wishlists').select('id').eq(
-                'user_id', user_id
-            ).eq('product_id', product_id).execute()
-            
-            if existing.data:
-                return True  # Already in wishlist
-            
-            result = self.client.table('user_wishlists').insert({
-                'user_id': user_id,
-                'product_id': product_id,
-                'product_name': product_name,
-                'price': price,
-                'category': category,
-                'notes': notes
-            }).execute()
-            
-            return bool(result.data)
+            try:
+                # Check if already in wishlist
+                existing = self.client.table('user_wishlists').select('id').eq(
+                    'user_id', user_id
+                ).eq('product_id', product_id).execute()
+                
+                if existing.data:
+                    return True  # Already in wishlist
+                
+                result = self.client.table('user_wishlists').insert({
+                    'user_id': user_id,
+                    'product_id': product_id,
+                    'product_name': product_name,
+                    'price': price,
+                    'category': category,
+                    'notes': notes
+                }).execute()
+                
+                return bool(result.data)
+            except Exception as e:
+                if 'does not exist' in str(e).lower():
+                    logger.info(f"user_wishlists table doesn't exist yet - cannot add to wishlist")
+                    return False
+                raise e
         except Exception as e:
             logger.warning(f"Error adding to wishlist: {e}")
             return False
@@ -570,8 +638,14 @@ class DatabaseService:
                 'category': product_data.get('category', '')
             }
             
-            result = self.client.table('affiliate_sales').insert(purchase_data).execute()
-            return bool(result.data)
+            try:
+                result = self.client.table('affiliate_sales').insert(purchase_data).execute()
+                return bool(result.data)
+            except Exception as e:
+                if 'does not exist' in str(e).lower():
+                    logger.info(f"affiliate_sales table doesn't exist yet - cannot track purchase")
+                    return False
+                raise e
         except Exception as e:
             logger.warning(f"Error tracking purchase: {e}")
             return False
@@ -761,7 +835,7 @@ class DatabaseService:
             # Get calendar events
             calendar_result = self.client.table('calendar_events').select('*').eq(
                 'user_id', user_id
-            ).order('start_date', desc=True).limit(5).execute()
+            ).order('start_time', desc=True).limit(5).execute()
             
             calendar_events = calendar_result.data if calendar_result.data else []
             

@@ -99,9 +99,14 @@ class ContextManager:
             if seq_result.data:
                 next_seq = seq_result.data[0]["message_sequence"] + 1
 
+            # Generate UUID for conversation_id if table schema requires it
+            import uuid
+            conversation_id = session_id if session_id else str(uuid.uuid4())
+            
             record = {
                 "user_id": user_id,
                 "session_id": session_id,
+                "conversation_id": conversation_id,  # Add conversation_id for schema compatibility
                 "message_sequence": next_seq,
                 "user_message": user_message,
                 "pam_response": pam_response,
