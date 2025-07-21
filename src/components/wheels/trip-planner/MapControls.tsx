@@ -3,7 +3,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
-import { getMapboxPublicToken, getMapboxDebugInfo, setMapboxToken } from "@/utils/mapboxConfig";
+// Simple direct token access like the working version
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
@@ -101,26 +101,28 @@ export default function MapControls({
     const center = regionCenters[region] || regionCenters.US;
 
     if (!map.current) {
-      const token = getMapboxPublicToken();
-      const debugInfo = getMapboxDebugInfo();
+      // Simple direct token access like the working version
+      const token = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN || import.meta.env.VITE_MAPBOX_TOKEN;
       
-      console.log('🗺️ MapControls - Initializing map with industry standard token management:', debugInfo);
+      console.log('🗺️ MapControls - Direct token access:', {
+        publicToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ? 'SET' : 'MISSING',
+        legacyToken: import.meta.env.VITE_MAPBOX_TOKEN ? 'SET' : 'MISSING',
+        usingToken: token ? token.substring(0, 20) + '...' : 'NONE'
+      });
       
       if (!token) {
         console.error('❌ Cannot initialize map: No valid Mapbox token available');
         toast({
           title: "Map Configuration Error",
-          description: "Please configure VITE_MAPBOX_PUBLIC_TOKEN environment variable.",
+          description: "Please configure VITE_MAPBOX_TOKEN or VITE_MAPBOX_PUBLIC_TOKEN environment variable.",
           variant: "destructive",
         });
         return;
       }
       
-      // Set token using both methods to ensure it's available
+      // Simple direct token setting
       mapboxgl.accessToken = token;
-      setMapboxToken(); // Backup method for setting token
-      
-      console.log('🎯 Token set in MapControls:', mapboxgl.accessToken ? mapboxgl.accessToken.substring(0, 20) + '...' : 'MISSING!');
+      console.log('✅ Token set successfully:', token.substring(0, 20) + '...');
       
       try {
         map.current = new mapboxgl.Map({
