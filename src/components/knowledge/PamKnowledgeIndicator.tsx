@@ -1,7 +1,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/common/AnimatedDialog";
 import { BookOpen, ExternalLink, FileText } from 'lucide-react';
 import type { KnowledgeSearchResult } from '@/types/knowledgeTypes';
 

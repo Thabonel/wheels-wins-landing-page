@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+} from "@/components/common/AnimatedAlertDialog";
 
 export const AccountDeletion = () => {
   const { user } = useAuth();

@@ -10,7 +10,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/common/AnimatedAlertDialog";
 import { Trash2 } from "lucide-react";
 
 interface DrawerItem {

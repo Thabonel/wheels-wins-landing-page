@@ -3,6 +3,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
+import { getMapboxPublicToken, getMapboxDebugInfo, setMapboxToken } from "@/utils/mapboxConfig";
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
@@ -100,8 +101,26 @@ export default function MapControls({
     const center = regionCenters[region] || regionCenters.US;
 
     if (!map.current) {
-      console.log('🗺️ MapControls - Initializing map with token:', import.meta.env.VITE_MAPBOX_TOKEN ? 'Token present' : 'Token missing');
-      mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      const token = getMapboxPublicToken();
+      const debugInfo = getMapboxDebugInfo();
+      
+      console.log('🗺️ MapControls - Initializing map with industry standard token management:', debugInfo);
+      
+      if (!token) {
+        console.error('❌ Cannot initialize map: No valid Mapbox token available');
+        toast({
+          title: "Map Configuration Error",
+          description: "Please configure VITE_MAPBOX_PUBLIC_TOKEN environment variable.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Set token using both methods to ensure it's available
+      mapboxgl.accessToken = token;
+      setMapboxToken(); // Backup method for setting token
+      
+      console.log('🎯 Token set in MapControls:', mapboxgl.accessToken ? mapboxgl.accessToken.substring(0, 20) + '...' : 'MISSING!');
       
       try {
         map.current = new mapboxgl.Map({

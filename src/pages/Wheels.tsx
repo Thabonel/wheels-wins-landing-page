@@ -1,7 +1,8 @@
 
 import { useState } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { TabTransition } from "@/components/common/TabTransition";
 import TripPlannerApp from '@/components/wheels/TripPlannerApp';
 import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
 import FuelLog from "@/components/wheels/FuelLog";
@@ -68,27 +69,27 @@ const Wheels = () => {
               </TabsList>
               
               <div className="min-h-[600px]">
-                <TabsContent value="trip-planner" className="mt-0">
+                <TabTransition activeTab={activeTab} tabId="trip-planner" className="mt-0">
                   <PAMProvider>
                     <TripPlannerApp />
                   </PAMProvider>
-                </TabsContent>
+                </TabTransition>
                 
-                <TabsContent value="fuel-log" className="mt-0">
+                <TabTransition activeTab={activeTab} tabId="fuel-log" className="mt-0">
                   <FuelLog />
-                </TabsContent>
+                </TabTransition>
                 
-                <TabsContent value="vehicle-maintenance" className="mt-0">
+                <TabTransition activeTab={activeTab} tabId="vehicle-maintenance" className="mt-0">
                   <VehicleMaintenance />
-                </TabsContent>
+                </TabTransition>
                 
-                <TabsContent value="rv-storage" className="mt-0">
+                <TabTransition activeTab={activeTab} tabId="rv-storage" className="mt-0">
                   <RVStorageOrganizer />
-                </TabsContent>
+                </TabTransition>
                 
-                <TabsContent value="caravan-safety" className="mt-0">
+                <TabTransition activeTab={activeTab} tabId="caravan-safety" className="mt-0">
                   <CaravanSafety />
-                </TabsContent>
+                </TabTransition>
               </div>
             </Tabs>
           </div>

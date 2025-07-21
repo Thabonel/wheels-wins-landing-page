@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { RouteTransition } from './components/common/RouteTransition';
 import { AuthProvider } from './context/AuthContext';
 import { RegionProvider } from './context/RegionContext';
 import { OfflineProvider } from './context/OfflineContext';
@@ -53,7 +54,8 @@ function App() {
                     <PamIntegrationProvider>
                       <ScrollToTop />
                       <Layout>
-                      <Routes>
+                        <RouteTransition>
+                          <Routes>
                         <Route path="/" element={<Index />} />
                         <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
                         <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
@@ -75,7 +77,8 @@ function App() {
                         <Route path="/privacy" element={<div className="container p-8"><h1 className="text-2xl font-bold mb-4">Privacy Policy</h1><p>Privacy policy content will be added here.</p></div>} />
                         <Route path="/cookies" element={<div className="container p-8"><h1 className="text-2xl font-bold mb-4">Cookie Policy</h1><p>Cookie policy content will be added here.</p></div>} />
                         <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
-                      </Routes>
+                          </Routes>
+                        </RouteTransition>
                       </Layout>
                     </PamIntegrationProvider>
                   </WheelsProvider>

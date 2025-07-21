@@ -13,11 +13,21 @@ router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
 
-# Get Mapbox token from environment (server-side only)
-MAPBOX_TOKEN = os.getenv("MAPBOX_API_KEY") or os.getenv("MAPBOX_TOKEN")
+# Get Mapbox secret token from environment (server-side only, industry standard)
+MAPBOX_TOKEN = (
+    os.getenv("MAPBOX_SECRET_TOKEN") or  # Primary: Secret token for production
+    os.getenv("MAPBOX_API_KEY") or       # Secondary: Legacy support
+    os.getenv("MAPBOX_TOKEN")            # Tertiary: Fallback
+)
 
 if not MAPBOX_TOKEN:
-    logger.warning("MAPBOX_TOKEN not found in environment variables")
+    logger.warning("No Mapbox token found. Set MAPBOX_SECRET_TOKEN for production.")
+elif MAPBOX_TOKEN.startswith("sk."):
+    logger.info("✅ Using Mapbox secret token (industry standard)")
+elif MAPBOX_TOKEN.startswith("pk."):
+    logger.warning("⚠️ Using public token in backend. Recommend MAPBOX_SECRET_TOKEN for production.")
+else:
+    logger.error("❌ Invalid Mapbox token format")
 
 # Mapbox API base URL
 MAPBOX_BASE_URL = "https://api.mapbox.com"
