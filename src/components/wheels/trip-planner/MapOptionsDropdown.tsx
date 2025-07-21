@@ -15,7 +15,9 @@ import {
   CircleParking,
   Ambulance,
   Carrot,
-  Layers
+  Layers,
+  Navigation,
+  Map
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -96,8 +98,11 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
       case 'satellite':
         styleUrl = 'mapbox://styles/mapbox/satellite-streets-v12';
         break;
-      case 'places':
-        styleUrl = 'mapbox://styles/mapbox/streets-v12';
+      case 'navigation':
+        styleUrl = 'mapbox://styles/mapbox/navigation-day-v1';
+        break;
+      case 'terrain':
+        styleUrl = 'mapbox://styles/mapbox/outdoors-v12'; // Uses outdoors for terrain features
         break;
       default:
         styleUrl = 'mapbox://styles/mapbox/streets-v12';
@@ -190,7 +195,184 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
       }
     }
 
-    // Add logic for other overlays here as needed
+    // Handle Environmental overlays
+    if (overlay === 'fires') {
+      if (checked) {
+        // Add NASA FIRMS active fire data
+        if (!map.current.getSource('fires')) {
+          map.current.addSource('fires', {
+            type: 'geojson',
+            data: 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis_c6_1/geojson/MODIS_C6_1_Global_24h.json'
+          });
+        }
+        
+        if (!map.current.getLayer('fires-layer')) {
+          map.current.addLayer({
+            id: 'fires-layer',
+            type: 'circle',
+            source: 'fires',
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                5, 2,
+                15, 8
+              ],
+              'circle-color': [
+                'interpolate',
+                ['linear'],
+                ['get', 'confidence'],
+                0, '#ffeda0',
+                50, '#feb24c',
+                80, '#f03b20',
+                100, '#bd0026'
+              ],
+              'circle-opacity': 0.8,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff'
+            }
+          });
+        }
+      } else {
+        if (map.current.getLayer('fires-layer')) {
+          map.current.removeLayer('fires-layer');
+        }
+        if (map.current.getSource('fires')) {
+          map.current.removeSource('fires');
+        }
+      }
+    }
+
+    if (overlay === 'smoke') {
+      if (checked) {
+        // Add NOAA Smoke forecast data (simplified implementation)
+        if (!map.current.getSource('smoke')) {
+          // Note: This is a simplified implementation. In production, you'd fetch from NOAA API
+          const smokeData = {
+            type: 'FeatureCollection',
+            features: [] // Would be populated with actual smoke data
+          };
+          
+          map.current.addSource('smoke', {
+            type: 'geojson',
+            data: smokeData
+          });
+        }
+        
+        if (!map.current.getLayer('smoke-layer')) {
+          map.current.addLayer({
+            id: 'smoke-layer',
+            type: 'fill',
+            source: 'smoke',
+            paint: {
+              'fill-color': '#999999',
+              'fill-opacity': 0.3
+            }
+          });
+        }
+      } else {
+        if (map.current.getLayer('smoke-layer')) {
+          map.current.removeLayer('smoke-layer');
+        }
+        if (map.current.getSource('smoke')) {
+          map.current.removeSource('smoke');
+        }
+      }
+    }
+
+    // Handle Public Lands overlays
+    if (overlay === 'nationalParks') {
+      if (checked) {
+        // For demo purposes, we'll add a sample overlay
+        // In production, you'd integrate with National Park Service API or similar
+        if (!map.current.getSource('national-parks')) {
+          // This would be replaced with actual National Parks data
+          const parksBounds = {
+            type: 'FeatureCollection',
+            features: [
+              // Sample park boundary (would come from NPS API)
+              {
+                type: 'Feature',
+                properties: { name: 'Sample National Park' },
+                geometry: {
+                  type: 'Polygon',
+                  coordinates: [[
+                    [-110.0, 44.0],
+                    [-109.0, 44.0],
+                    [-109.0, 45.0],
+                    [-110.0, 45.0],
+                    [-110.0, 44.0]
+                  ]]
+                }
+              }
+            ]
+          };
+          
+          map.current.addSource('national-parks', {
+            type: 'geojson',
+            data: parksBounds
+          });
+        }
+        
+        if (!map.current.getLayer('national-parks-layer')) {
+          map.current.addLayer({
+            id: 'national-parks-layer',
+            type: 'fill',
+            source: 'national-parks',
+            paint: {
+              'fill-color': '#10b981',
+              'fill-opacity': 0.2,
+              'fill-outline-color': '#047857'
+            }
+          });
+        }
+      } else {
+        if (map.current.getLayer('national-parks-layer')) {
+          map.current.removeLayer('national-parks-layer');
+        }
+        if (map.current.getSource('national-parks')) {
+          map.current.removeSource('national-parks');
+        }
+      }
+    }
+
+    if (overlay === 'stateForests') {
+      if (checked) {
+        // Similar implementation for state forests
+        if (!map.current.getSource('state-forests')) {
+          const forestData = {
+            type: 'FeatureCollection',
+            features: [] // Would be populated with USDA Forest Service data
+          };
+          
+          map.current.addSource('state-forests', {
+            type: 'geojson',
+            data: forestData
+          });
+        }
+        
+        if (!map.current.getLayer('state-forests-layer')) {
+          map.current.addLayer({
+            id: 'state-forests-layer',
+            type: 'fill',
+            source: 'state-forests',
+            paint: {
+              'fill-color': '#22c55e',
+              'fill-opacity': 0.15,
+              'fill-outline-color': '#15803d'
+            }
+          });
+        }
+      } else {
+        if (map.current.getLayer('state-forests-layer')) {
+          map.current.removeLayer('state-forests-layer');
+        }
+        if (map.current.getSource('state-forests')) {
+          map.current.removeSource('state-forests');
+        }
+      }
+    }
   };
 
   const handlePOIToggle = (key: string, checked: boolean) => {
@@ -273,11 +455,17 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             </div>
             <span>Satellite</span>
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="places" className="flex items-center gap-3 py-2">
-            <div className="w-6 h-6 bg-purple-100 rounded flex items-center justify-center">
-              <MapPin className="w-3 h-3 text-purple-600" />
+          <DropdownMenuRadioItem value="navigation" className="flex items-center gap-3 py-2">
+            <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+              <Navigation className="w-3 h-3 text-blue-600" />
             </div>
-            <span>Places</span>
+            <span>Navigation</span>
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="terrain" className="flex items-center gap-3 py-2">
+            <div className="w-6 h-6 bg-amber-100 rounded flex items-center justify-center">
+              <Map className="w-3 h-3 text-amber-600" />
+            </div>
+            <span>Terrain</span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
 
