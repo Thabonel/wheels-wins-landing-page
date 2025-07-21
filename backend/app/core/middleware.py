@@ -168,7 +168,8 @@ class CompressionMiddleware(BaseHTTPMiddleware):
         # Update headers
         headers = dict(response.headers)
         headers["Content-Encoding"] = "gzip"
-        headers["Content-Length"] = str(len(compressed_body))
+        # Remove manual Content-Length setting - let FastAPI/Starlette handle it automatically
+        # headers["Content-Length"] = str(len(compressed_body))  # This causes Content-Length mismatches
         headers["Vary"] = "Accept-Encoding"
         
         logger.debug(f"Response compressed: {len(response_body)} -> {len(compressed_body)} bytes "

@@ -374,7 +374,7 @@ async def pam_voice(audio: UploadFile = File(...)):
                         media_type="audio/mpeg",
                         headers={
                             "Content-Disposition": "inline; filename=pam_response.mp3",
-                            "Content-Length": str(len(tts_result.audio_data)),
+                            # "Content-Length": str(len(tts_result.audio_data)),  # Remove manual Content-Length
                             "X-Transcription": text,
                             "X-Response-Text": response_text,
                             "X-Pipeline": f"STT-{stt_engine}→LLM→TTS-Local"
@@ -439,7 +439,7 @@ async def pam_voice(audio: UploadFile = File(...)):
                     media_type="audio/wav",
                     headers={
                         "Content-Disposition": "inline; filename=pam_response.wav",
-                        "Content-Length": str(len(audio_bytes)),
+                        # "Content-Length": str(len(audio_bytes)),  # Remove manual Content-Length
                         "X-Transcription": text,
                         "X-Response-Text": response_text,
                         "X-Pipeline": f"STT-{stt_engine}→LLM→TTS-Supabase",

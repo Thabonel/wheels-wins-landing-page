@@ -6,9 +6,41 @@ import { Network } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const IntegrationSettings = () => {
-  const { settings, updateSettings, updating } = useUserSettings();
+  const { settings, updateSettings, updating, loading } = useUserSettings();
 
-  if (!settings) return null;
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Network className="h-5 w-5" />
+            Integrations
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">Loading integration settings...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!settings) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Network className="h-5 w-5" />
+            Integrations
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-gray-600">
+            Unable to load integration settings. Please try refreshing the page.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleToggle = (key: keyof NonNullable<typeof settings.integration_preferences>) => {
     updateSettings({

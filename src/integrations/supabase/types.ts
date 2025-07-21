@@ -5426,6 +5426,7 @@ export type Database = {
           created_at: string | null
           display_preferences: Json | null
           id: string
+          integration_preferences: Json | null
           notification_preferences: Json | null
           pam_preferences: Json | null
           privacy_preferences: Json | null
@@ -5437,6 +5438,7 @@ export type Database = {
           created_at?: string | null
           display_preferences?: Json | null
           id?: string
+          integration_preferences?: Json | null
           notification_preferences?: Json | null
           pam_preferences?: Json | null
           privacy_preferences?: Json | null
@@ -5448,6 +5450,7 @@ export type Database = {
           created_at?: string | null
           display_preferences?: Json | null
           id?: string
+          integration_preferences?: Json | null
           notification_preferences?: Json | null
           pam_preferences?: Json | null
           privacy_preferences?: Json | null

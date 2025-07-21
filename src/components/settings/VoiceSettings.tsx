@@ -11,10 +11,42 @@ import { useState } from 'react';
 import PamVoice from '@/components/voice/PamVoice';
 
 export const VoiceSettings = () => {
-  const { settings, updateSettings, updating } = useUserSettings();
+  const { settings, updateSettings, updating, loading } = useUserSettings();
   const [testText] = useState("Hi! I'm Pam, your travel assistant. This is how I sound when helping you plan amazing adventures!");
 
-  if (!settings) return null;
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Volume2 className="h-5 w-5" />
+            Pam's Voice Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">Loading voice settings...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!settings) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Volume2 className="h-5 w-5" />
+            Pam's Voice Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-gray-600">
+            Unable to load voice settings. Please try refreshing the page.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleToggle = (key: keyof typeof settings.pam_preferences) => {
     updateSettings({
