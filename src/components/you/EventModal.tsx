@@ -19,6 +19,7 @@ interface EventModalProps {
   defaultEndTime: string;
   onSubmit: (data: EventFormData) => void;
   onCancel: () => void;
+  onDelete?: () => void;
   defaultTitle: string; // Add defaultTitle to interface
   defaultType: string; // Add defaultType to interface
 }
@@ -35,6 +36,7 @@ const EventModal: React.FC<EventModalProps> = ({
   defaultType, // Destructure defaultType
   onSubmit,
   onCancel,
+  onDelete,
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -47,6 +49,7 @@ const EventModal: React.FC<EventModalProps> = ({
           defaultHour={defaultHour}
           onSubmit={onSubmit}
           onCancel={onCancel}
+          onDelete={onDelete}
           isEditing={isEditing}
           defaultStartTime={defaultStartTime}
           defaultEndTime={defaultEndTime}
