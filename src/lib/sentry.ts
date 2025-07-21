@@ -80,8 +80,7 @@ export function initializeSentry() {
   console.log(`Sentry initialized for environment: ${environment}`);
 }
 
-// Create a Sentry-wrapped error boundary for React components
-export const SentryErrorBoundary = Sentry.withErrorBoundary;
+// Sentry error boundary is not used - using custom error boundary instead
 
 // Manual error reporting utilities
 export const captureException = Sentry.captureException;
