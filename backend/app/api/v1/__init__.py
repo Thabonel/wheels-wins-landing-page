@@ -17,6 +17,7 @@ from . import (
     maintenance,
     custom_routes,
     mapbox,
+    user_settings,
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     'maintenance',
     'custom_routes',
     'mapbox',
+    'user_settings',
 ]

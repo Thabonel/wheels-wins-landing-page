@@ -1,8 +1,8 @@
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { apiFetch } from '@/services/api';
 
 interface UserSettings {
   notification_preferences: {
@@ -63,42 +63,46 @@ export const useUserSettings = () => {
     console.log('User found, fetching settings for user ID:', user.id);
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          const { data: created, error: insertError } = await supabase
-            .from('user_settings')
-            .insert({ user_id: user.id })
-            .select()
-            .single();
-          if (insertError) throw insertError;
-          setSettings(created as unknown as UserSettings);
+      // Use backend API instead of direct Supabase
+      const response = await apiFetch(`/api/v1/users/${user.id}/settings`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Settings don't exist, create defaults
+          const createResponse = await apiFetch(`/api/v1/users/${user.id}/settings`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (!createResponse.ok) {
+            throw new Error('Failed to create default settings');
+          }
+          
+          const defaultSettings = await createResponse.json();
+          setSettings(defaultSettings as UserSettings);
         } else {
-          throw error;
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
       } else {
-        setSettings(data as unknown as UserSettings);
+        const data = await response.json();
+        setSettings(data as UserSettings);
       }
     } catch (err: any) {
       console.error('Error loading settings:', err);
       console.error('Error details:', {
         message: err?.message,
-        code: err?.code,
-        details: err?.details,
-        hint: err?.hint,
         userId: user?.id
       });
       
       // More specific error messages
-      if (err?.message?.includes('relation "user_settings" does not exist')) {
-        toast.error('Settings table not found. Please contact support.');
-      } else if (err?.message?.includes('permission denied')) {
+      if (err?.message?.includes('404')) {
+        toast.error('Settings not found. Creating default settings...');
+      } else if (err?.message?.includes('403')) {
         toast.error('Permission denied. Please try logging out and back in.');
+      } else if (err?.message?.includes('401')) {
+        toast.error('Authentication failed. Please log in again.');
       } else {
         toast.error(`Failed to load settings: ${err?.message || 'Unknown error'}`);
       }
@@ -111,19 +115,35 @@ export const useUserSettings = () => {
     if (!user) return;
     setUpdating(true);
     try {
-      const { data, error } = await supabase
-        .from('user_settings')
-        .update(newSettings)
-        .eq('user_id', user.id)
-        .select()
-        .single();
+      // Use backend API for settings update
+      const response = await apiFetch(`/api/v1/users/${user.id}/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newSettings),
+      });
 
-      if (error) throw error;
-      if (data) setSettings(data as unknown as UserSettings);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const updatedSettings = await response.json();
+      setSettings(updatedSettings as UserSettings);
       toast.success('Settings updated');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating settings:', err);
-      toast.error('Failed to update settings');
+      
+      // Provide user-friendly error messages
+      if (err.message.includes('404')) {
+        toast.error('Settings not found. Please refresh the page.');
+      } else if (err.message.includes('403')) {
+        toast.error('Permission denied. Please check your account status.');
+      } else if (err.message.includes('401')) {
+        toast.error('Authentication failed. Please log in again.');
+      } else {
+        toast.error(`Failed to update settings: ${err.message || 'Unknown error'}`);
+      }
     } finally {
       setUpdating(false);
     }

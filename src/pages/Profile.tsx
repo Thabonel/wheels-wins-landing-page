@@ -14,8 +14,8 @@ import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { TravelPreferences } from "@/components/profile/TravelPreferences";
 import { VehicleSetup } from "@/components/profile/VehicleSetup";
 import { UserKnowledgeManager } from "@/components/knowledge/UserKnowledgeManager";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { apiFetch } from "@/services/api";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { PrivacySettings } from "@/components/settings/PrivacySettings";
 import { PamSettings } from "@/components/settings/PamSettings";
@@ -79,28 +79,30 @@ const Profile = () => {
     setUploading(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('profiles')
-        .upload(fileName, file, { upsert: true });
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('user_id', user.id);
+      formData.append('field_type', isPartner ? 'partner_profile_image' : 'profile_image');
 
-      if (uploadError) throw uploadError;
+      // Use backend API for file upload
+      const response = await apiFetch(`/api/v1/users/${user.id}/profile/upload`, {
+        method: 'POST',
+        body: formData,
+      });
 
-      const { data } = supabase.storage
-        .from('profiles')
-        .getPublicUrl(fileName);
+      if (!response.ok) {
+        throw new Error('Failed to upload photo');
+      }
 
-      const updateField = isPartner ? 'partner_profile_image_url' : 'profile_image_url';
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ [updateField]: data.publicUrl })
-        .eq('user_id', user.id);
-
-      if (updateError) throw updateError;
-
+      const result = await response.json();
       toast.success(`${isPartner ? 'Partner' : 'Profile'} photo updated successfully`);
+      
+      // Refresh profile data to show new image
+      if (profile) {
+        const { refreshProfile } = useProfile();
+        await refreshProfile();
+      }
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload photo');
@@ -109,7 +111,7 @@ const Profile = () => {
     }
   };
 
-  // Save profile data to database
+  // Save profile data to database using backend API
   const handleSaveProfile = async () => {
     if (!user) {
       toast.error('User not authenticated');
@@ -132,48 +134,41 @@ const Profile = () => {
         camp_types: formData.campTypes,
         accessibility: formData.accessibility,
         pets: formData.pets,
-        user_id: user.id // Ensure user_id is set
-        // Note: updated_at is automatically handled by database trigger
       };
 
-      // First try to update existing profile
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('user_id', user.id)
-        .select();
+      // Use backend API for profile update
+      const response = await apiFetch(`/api/v1/users/${user.id}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
 
-      // If no rows were updated, try to insert a new profile
-      if (error || !data || data.length === 0) {
-        console.log('No existing profile found, creating new one...');
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email,
-            ...updateData
-          });
-        
-        if (insertError) {
-          throw insertError;
-        }
-      } else if (error) {
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update profile');
       }
-      
+
+      const updatedProfile = await response.json();
       toast.success('Profile updated successfully');
+      
+      // Refresh profile data to reflect changes
+      const { refreshProfile } = useProfile();
+      await refreshProfile();
+      
     } catch (error: any) {
       console.error('Error updating profile:', error);
       
-      // Provide more specific error messages
-      if (error?.code === 'PGRST116') {
-        toast.error('Profile not found. Please refresh the page and try again.');
-      } else if (error?.code === '23503') {
-        toast.error('Invalid user reference. Please contact support.');
-      } else if (error?.message?.includes('permission')) {
+      // Provide user-friendly error messages
+      if (error.message.includes('404')) {
+        toast.error('Profile not found. Creating new profile...');
+      } else if (error.message.includes('403')) {
         toast.error('Permission denied. Please check your account status.');
+      } else if (error.message.includes('401')) {
+        toast.error('Authentication failed. Please log in again.');
       } else {
-        toast.error(`Failed to update profile: ${error?.message || 'Unknown error'}`);
+        toast.error(`Failed to update profile: ${error.message || 'Unknown error'}`);
       }
     }
   };

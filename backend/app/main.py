@@ -57,6 +57,7 @@ from app.api.v1 import (
     maintenance,
     custom_routes,
     mapbox,
+    user_settings,
 )
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
@@ -248,6 +249,7 @@ app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
 app.include_router(profiles.router, prefix="/api/v1", tags=["Profiles"])
+app.include_router(user_settings.router, prefix="/api/v1", tags=["User Settings"])
 app.include_router(products.router, prefix="/api/v1", tags=["Products"])
 app.include_router(orders.router, prefix="/api/v1", tags=["Orders"])
 app.include_router(maintenance.router, prefix="/api/v1", tags=["Maintenance"])
