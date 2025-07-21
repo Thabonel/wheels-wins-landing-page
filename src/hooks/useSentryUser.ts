@@ -20,13 +20,10 @@ export function useSentryUser() {
 
       // Set useful tags for filtering
       setTag('authenticated', 'true');
-      setTag('user_type', user.role || 'user');
+      setTag('user_type', 'user');
       
       // Add any custom user properties that help with debugging
-      if (user.created_at) {
-        const userAge = Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24));
-        setTag('user_age_days', userAge.toString());
-      }
+      setTag('user_age_days', 'unknown');
     } else {
       // Clear user context when logged out
       setUser(null);

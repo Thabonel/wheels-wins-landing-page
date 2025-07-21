@@ -267,7 +267,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
               const smokeFeatures = data
                 .filter((station: any) => station.Parameter === 'PM2.5' && station.AQI > 100) // Unhealthy air quality indicates smoke
                 .map((station: any) => ({
-                  type: 'Feature',
+                  type: 'Feature' as const,
                   properties: {
                     aqi: station.AQI,
                     category: station.Category,
@@ -277,13 +277,13 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
                     agencyName: station.AgencyName
                   },
                   geometry: {
-                    type: 'Point',
+                    type: 'Point' as const,
                     coordinates: [station.Longitude, station.Latitude]
                   }
                 }));
 
               const smokeData = {
-                type: 'FeatureCollection',
+                type: 'FeatureCollection' as const,
                 features: smokeFeatures
               };
 
@@ -385,7 +385,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
               if (!map.current) return;
               
               const parkFeatures = data.data.map((park: any) => ({
-                type: 'Feature',
+                type: 'Feature' as const,
                 properties: {
                   name: park.fullName,
                   description: park.description,
@@ -394,7 +394,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
                   parkCode: park.parkCode
                 },
                 geometry: {
-                  type: 'Point',
+                  type: 'Point' as const,
                   coordinates: [
                     parseFloat(park.longitude) || 0,
                     parseFloat(park.latitude) || 0
@@ -403,7 +403,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
               })).filter((feature: any) => feature.geometry.coordinates[0] !== 0);
 
               const parksData = {
-                type: 'FeatureCollection',
+                type: 'FeatureCollection' as const,
                 features: parkFeatures
               };
 
@@ -494,7 +494,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
               
               // Process the forest data
               const forestFeatures = data.features.map((feature: any) => ({
-                type: 'Feature',
+                type: 'Feature' as const,
                 properties: {
                   name: feature.properties.FORESTNAME || feature.properties.NAME,
                   region: feature.properties.REGION,
@@ -505,7 +505,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
               }));
 
               const forestData = {
-                type: 'FeatureCollection',
+                type: 'FeatureCollection' as const,
                 features: forestFeatures
               };
 
