@@ -50,8 +50,8 @@ export default function SocialMarketplace() {
     
     try {
       const { data, error } = await supabase
-        .from('user_wishlists')
-        .select('listing_id')
+        .from('social_interactions')
+        .select('content_id')
         .eq('user_id', user.id);
       
       if (error) {
@@ -59,7 +59,7 @@ export default function SocialMarketplace() {
         return;
       }
       
-      setFavorites(new Set(data?.map(f => f.listing_id) || []));
+      setFavorites(new Set(data?.map(f => f.content_id) || []));
     } catch (err) {
       console.error('Error in fetchFavorites:', err);
     }
@@ -159,10 +159,10 @@ export default function SocialMarketplace() {
       if (isFavorited) {
         // Remove from favorites
         const { error } = await supabase
-          .from('user_wishlists')
+          .from('social_interactions')
           .delete()
           .eq('user_id', user.id)
-          .eq('listing_id', listingId);
+          .eq('content_id', listingId);
         
         if (error) {
           console.error('Error removing favorite:', error);
@@ -179,10 +179,12 @@ export default function SocialMarketplace() {
       } else {
         // Add to favorites
         const { error } = await supabase
-          .from('user_wishlists')
+          .from('social_interactions')
           .insert({
             user_id: user.id,
-            listing_id: listingId
+            content_id: listingId,
+            content_type: 'listing',
+            interaction_type: 'favorite'
           });
         
         if (error) {

@@ -101,7 +101,7 @@ export default defineConfig(({ mode }) => {
           'supabase-vendor': ['@supabase/supabase-js', '@supabase/auth-helpers-react'],
           
           // Development and testing tools (excluded in production)
-          ...(mode === 'development' && {
+          ...(mode !== 'production' && {
             'dev-vendor': ['lovable-tagger']
           })
         } : undefined,

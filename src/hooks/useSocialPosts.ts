@@ -66,8 +66,8 @@ export function useSocialPosts() {
         .from('social_interactions')
         .select('id, interaction_type')
         .eq('user_id', user.id)
-        .eq('target_type', 'post')
-        .eq('target_id', postId)
+        .eq('content_type', 'post')
+        .eq('content_id', postId)
         .eq('interaction_type', isUpvote ? 'like' : 'dislike')
         .single();
 
@@ -93,8 +93,8 @@ export function useSocialPosts() {
           .from('social_interactions')
           .insert({
             user_id: user.id,
-            target_type: 'post',
-            target_id: postId,
+            content_type: 'post',
+            content_id: postId,
             interaction_type: isUpvote ? 'like' : 'dislike'
           });
 
@@ -124,10 +124,9 @@ export function useSocialPosts() {
         .from('social_interactions')
         .insert({
           user_id: user.id,
-          target_type: 'post',
-          target_id: postId,
-          interaction_type: 'share',
-          content: content
+          content_type: 'post',
+          content_id: postId,
+          interaction_type: 'share'
         });
 
       if (error) {
@@ -155,7 +154,7 @@ export function useSocialPosts() {
       const { error } = await supabase
         .from('social_posts')
         .update({
-          visibility: approve ? 'public' : 'private'
+          status: approve ? 'approved' : 'rejected'
         })
         .eq('id', postId);
 

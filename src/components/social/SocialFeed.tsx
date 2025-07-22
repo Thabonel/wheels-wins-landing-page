@@ -71,9 +71,9 @@ export default function SocialFeed() {
       const { data, error } = await supabase
         .from("social_posts")
         .select(
-          `id, content, media_urls, created_at, visibility, like_count, comment_count, user_id, trip_id`
+          `id, content, image_url, created_at, status, upvotes, comment_count, user_id, group_id`
         )
-        .eq("visibility", "public")
+        .eq("status", "approved")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -117,12 +117,12 @@ export default function SocialFeed() {
         authorAvatar: supabase.storage.from("public-assets").getPublicUrl("avatar-placeholder.png").data.publicUrl,
         date: new Date(post.created_at).toLocaleDateString(),
         content: post.content,
-        image: post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : undefined,
-        likes: post.like_count ?? 0,
+        image: post.image_url || undefined,
+        likes: post.upvotes ?? 0,
         comments: post.comment_count ?? 0,
-        status: post.visibility,
+        status: post.status,
         location: "feed",
-        groupId: post.trip_id,
+        groupId: post.group_id,
         isOwnPost: user?.id === post.user_id,
       })) || [];
 
@@ -141,9 +141,9 @@ export default function SocialFeed() {
     try {
       const { data, error } = await supabase
         .from("social_interactions")
-        .select("target_id, interaction_type")
+        .select("content_id, interaction_type")
         .eq("user_id", user.id)
-        .eq("target_type", "post")
+        .eq("content_type", "post")
         .in("interaction_type", ["like", "dislike"]);
 
       if (error) {
@@ -156,7 +156,7 @@ export default function SocialFeed() {
 
       const votes: Record<string, boolean> = {};
       data?.forEach((v) => {
-        votes[v.target_id] = v.interaction_type === "like";
+        votes[v.content_id] = v.interaction_type === "like";
       });
       setUserVotes(votes);
     } catch (err) {
