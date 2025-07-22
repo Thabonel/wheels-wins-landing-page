@@ -1,5 +1,6 @@
+# Force fresh deployment - cache fix
 [build]
-  publish = "dist"
+  publish = "dist" 
   command = "npm run build"
 
 [build.environment]
