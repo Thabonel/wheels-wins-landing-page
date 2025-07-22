@@ -36,6 +36,51 @@
   transform-style: preserve-3d;
 }
 
+/* Enhanced route transition container styles */
+.route-transition-container {
+  /* Ensure the container takes full space */
+  width: 100%;
+  min-height: 100vh;
+  
+  /* Prevent content from overflowing during animations */
+  overflow-x: hidden;
+  
+  /* Improve performance during animations */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Route content styles */
+.route-content {
+  /* Ensure content fills the container */
+  width: 100%;
+  min-height: inherit;
+  
+  /* Prevent horizontal scrolling issues */
+  overflow-x: hidden;
+  
+  /* Ensure proper text rendering during animations */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimize for animations on mobile devices */
+@media (max-width: 768px) {
+  .route-transition-container {
+    /* Reduce complexity on mobile for better performance */
+    contain: layout;
+  }
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .route-transition-container * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @layer base {
   :root {
     /* Reduce header height variable to give elegant spacing below logo */
