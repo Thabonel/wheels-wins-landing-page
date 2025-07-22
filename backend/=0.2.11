@@ -1,0 +1,12 @@
+Collecting PyAudio
+  Downloading PyAudio-0.2.14.tar.gz (47 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: PyAudio
+  Building wheel for PyAudio (pyproject.toml): started
+  Building wheel for PyAudio (pyproject.toml): finished with status 'error'
+Failed to build PyAudio

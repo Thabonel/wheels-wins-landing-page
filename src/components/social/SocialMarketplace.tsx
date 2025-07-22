@@ -50,7 +50,7 @@ export default function SocialMarketplace() {
     
     try {
       const { data, error } = await supabase
-        .from('marketplace_favorites')
+        .from('user_wishlists')
         .select('listing_id')
         .eq('user_id', user.id);
       
@@ -159,7 +159,7 @@ export default function SocialMarketplace() {
       if (isFavorited) {
         // Remove from favorites
         const { error } = await supabase
-          .from('marketplace_favorites')
+          .from('user_wishlists')
           .delete()
           .eq('user_id', user.id)
           .eq('listing_id', listingId);
@@ -179,7 +179,7 @@ export default function SocialMarketplace() {
       } else {
         // Add to favorites
         const { error } = await supabase
-          .from('marketplace_favorites')
+          .from('user_wishlists')
           .insert({
             user_id: user.id,
             listing_id: listingId

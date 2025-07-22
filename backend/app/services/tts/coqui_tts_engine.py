@@ -12,21 +12,25 @@ from .base_tts import (
     BaseTTSEngine, TTSEngine, VoiceProfile, VoiceSettings, AudioFormat,
     TTSRequest, TTSResponse, AudioChunk, VoiceStyle
 )
+
+# Initialize logger first
+logger = logging.getLogger(__name__)
+
 # Try to import Coqui TTS, fallback to pyttsx3 if not available
 try:
     from app.voice.tts_coqui import get_coqui_tts
     COQUI_AVAILABLE = True
+    logger.info("Coqui TTS engine available")
 except (ImportError, ModuleNotFoundError) as e:
     logger.info(f"Coqui TTS not available ({e}), will use pyttsx3 fallback")
     COQUI_AVAILABLE = False
     try:
         import pyttsx3
         PYTTSX3_AVAILABLE = True
+        logger.info("pyttsx3 fallback available")
     except ImportError:
         logger.warning("Neither Coqui TTS nor pyttsx3 available")
         PYTTSX3_AVAILABLE = False
-
-logger = logging.getLogger(__name__)
 
 class CoquiTTSEngine(BaseTTSEngine):
     """Coqui TTS engine implementation using existing open-source system"""

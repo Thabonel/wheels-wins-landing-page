@@ -16,13 +16,72 @@ from app.services.database import get_database_service
 
 logger = get_logger("simple_pam")
 
+class PAMServiceError(Exception):
+    """Exception raised when PAM service encounters errors"""
+    pass
+
 class SimplePamService:
-    """Simplified PAM service with direct OpenAI integration"""
+    """Simplified PAM service with direct OpenAI integration and robust error handling"""
     
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        # Validate configuration before initializing
+        if not settings.OPENAI_API_KEY:
+            logger.error("OPENAI_API_KEY environment variable is missing")
+            raise PAMServiceError(
+                "OpenAI API key is required for PAM service. "
+                "Please set OPENAI_API_KEY environment variable."
+            )
+        
+        if not settings.OPENAI_API_KEY.startswith('sk-'):
+            logger.error("OPENAI_API_KEY appears to be invalid format")
+            raise PAMServiceError(
+                "OpenAI API key appears to be invalid. "
+                "API keys should start with 'sk-'."
+            )
+        
+        try:
+            self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            logger.info("SimplePamService initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+            raise PAMServiceError(f"Failed to initialize OpenAI client: {str(e)}")
+        
         self.max_retries = 3
         self.retry_delay = 1  # seconds
+        self._service_healthy = True
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Perform health check on PAM service"""
+        try:
+            # Simple test call to verify OpenAI connectivity
+            response = await self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": "test"}],
+                max_tokens=1,
+                timeout=10.0
+            )
+            
+            self._service_healthy = True
+            return {
+                "status": "healthy",
+                "openai_api": "connected",
+                "model": "gpt-3.5-turbo",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            self._service_healthy = False
+            logger.error(f"PAM health check failed: {str(e)}")
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "openai_api": "disconnected",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
+    def is_healthy(self) -> bool:
+        """Check if service is healthy"""
+        return self._service_healthy
     
     async def get_response(
         self, 

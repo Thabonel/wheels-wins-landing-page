@@ -29,10 +29,12 @@ from app.voice.stt_whisper import whisper_stt
 # from app.voice.tts_coqui import coqui_tts  # Temporarily disabled due to TTS dependency issues
 from app.core.config import settings
 from app.core.logging import setup_logging, get_logger
+from app.core.environment_validator import validate_environment
 
 # Import monitoring services
 from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
+from app.monitoring.production_monitor import production_monitor, MonitoringMiddleware
 
 # Import API routers
 from app.api.v1 import (
@@ -68,6 +70,14 @@ from app.webhooks import stripe_webhooks
 setup_logging()
 logger = get_logger(__name__)
 
+# Environment validation at startup
+try:
+    validate_environment()
+    logger.info("✅ Environment validation passed - All required variables present")
+except Exception as env_error:
+    logger.error(f"❌ Environment validation failed: {env_error}")
+    raise SystemExit(f"Environment validation failed: {env_error}")
+
 # Debug CORS configuration
 logger.info(f"CORS_ORIGINS from settings: {settings.CORS_ORIGINS}")
 logger.info(f"ALLOWED_ORIGINS env var: {os.getenv('ALLOWED_ORIGINS')}")
@@ -92,6 +102,10 @@ async def lifespan(app: FastAPI):
 
         await cache_service.initialize()
         logger.info("✅ Redis cache service initialized")
+
+        # Initialize production monitoring
+        await production_monitor.start_monitoring()
+        logger.info("✅ Production monitoring system initialized")
 
         # Initialize Knowledge Tool for PAM
         try:
@@ -138,6 +152,10 @@ async def lifespan(app: FastAPI):
     try:
         # await db_pool.close()  # Database pool disabled
         await cache_service.close()
+        
+        # Shutdown production monitoring
+        await production_monitor.stop_monitoring()
+        logger.info("✅ Production monitoring system shutdown")
 
         # Shutdown Knowledge Tool
         try:
@@ -189,35 +207,92 @@ except Exception as trace_error:
     logger.warning(f"OpenTelemetry instrumentation failed: {trace_error}")
 
 # Setup middleware
-app.add_middleware(MonitoringMiddleware)
+app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
 setup_security_middleware(app)
 setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
 # CORS middleware MUST be added LAST so it executes FIRST
-# Override CORS origins to include current Lovable domain
-cors_origins = [
-    "*",  # Temporarily allow all origins for debugging
-    "http://localhost:3000",
-    "http://localhost:8080",
-    "http://localhost:5173",
+# Secure CORS configuration - NO WILDCARDS for production security
+
+# Build environment-specific CORS origins
+cors_origins = []
+
+# Development origins (localhost)
+if settings.DEBUG or "localhost" in str(settings.SITE_URL):
+    cors_origins.extend([
+        "http://localhost:3000",
+        "http://localhost:8080", 
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:5173",
+    ])
+
+# Production origins (your actual domains)
+cors_origins.extend([
     "https://wheelsandwins.com",
     "https://www.wheelsandwins.com",
+])
+
+# Lovable.app development platform origins (secure development only)
+cors_origins.extend([
     "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",
     "https://preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     "https://main--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-]
+])
 
-logger.info(f"🌐 Using CORS origins: {cors_origins}")
+# Add any additional origins from environment variable
+if os.getenv("ADDITIONAL_CORS_ORIGINS"):
+    additional_origins = os.getenv("ADDITIONAL_CORS_ORIGINS").split(",")
+    cors_origins.extend([origin.strip() for origin in additional_origins if origin.strip()])
+
+# Remove duplicates and ensure HTTPS in production
+cors_origins = list(set(cors_origins))
+
+# Security logging
+logger.info(f"🔒 SECURE CORS - Using {len(cors_origins)} allowed origins")
+logger.info(f"🌐 CORS origins: {cors_origins}")
+
+# Validate no wildcard origins in production
+if "*" in cors_origins:
+    if not settings.DEBUG:
+        logger.error("🚨 SECURITY ALERT: Wildcard CORS origin detected in production!")
+        raise ValueError("Wildcard CORS origins are not allowed in production")
+    else:
+        logger.warning("⚠️  Wildcard CORS detected in development mode")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=False,  # Disable credentials to allow wildcard
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=True,  # Enable credentials for authenticated requests
+    allow_methods=[
+        "GET", 
+        "POST", 
+        "PUT", 
+        "DELETE", 
+        "OPTIONS", 
+        "PATCH"
+    ],  # Specific methods only
+    allow_headers=[
+        "Accept",
+        "Accept-Language", 
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+        "X-CSRF-Token",
+    ],  # Specific headers only
+    expose_headers=[
+        "Content-Range",
+        "X-Content-Range"
+    ],
+    max_age=86400,  # Cache preflight requests for 24 hours
 )
 
 # CORS middleware handles OPTIONS requests automatically

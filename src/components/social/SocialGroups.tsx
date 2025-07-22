@@ -133,15 +133,14 @@ export default function SocialGroups() {
         .select(`
           id,
           content,
-          image_url,
+          media_urls,
           created_at,
-          status,
-          upvotes,
-          downvotes,
-          comments_count,
+          visibility,
+          like_count,
+          comment_count,
           user_id
         `)
-        .eq('group_id', groupId)
+        .eq('trip_id', groupId)
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -158,16 +157,16 @@ export default function SocialGroups() {
           authorAvatar: getPublicAssetUrl('avatar-placeholder.png'),
           date: new Date(post.created_at).toLocaleDateString(),
           content: post.content,
-          image: post.image_url || undefined,
-          likes: post.upvotes || 0,
-          comments: post.comments_count || 0,
-          status: post.status,
+          image: post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : undefined,
+          likes: post.like_count || 0,
+          comments: post.comment_count || 0,
+          status: post.visibility,
           location: 'group',
           isOwnPost: user && post.user_id === user.id
         }));
         
-        const approved = formattedPosts.filter(post => post.status === 'approved');
-        const pending = formattedPosts.filter(post => post.status === 'pending');
+        const approved = formattedPosts.filter(post => post.status === 'public');
+        const pending = formattedPosts.filter(post => post.status === 'private');
         
         setGroupPosts(approved);
         setPendingPosts(pending);

@@ -558,40 +558,56 @@ async def record_thumb_feedback(
 
 # Health check for PAM services
 @router.get("/health")
-async def pam_health_check(
-    orchestrator = Depends(get_pam_orchestrator)
-):
-    """Check PAM service health"""
+async def pam_health_check():
+    """Check PAM service health - using SimplePamService for reliability"""
+    from app.core.simple_pam_service import SimplePamService, PAMServiceError
+    from app.core.pam_config_validator import validate_pam_config
+    
     try:
-        # Check if orchestrator and database service are available
-        if not orchestrator:
+        # Validate PAM configuration
+        config_valid, config_info = await validate_pam_config()
+        
+        if not config_valid:
             return {
                 "status": "unhealthy",
                 "timestamp": datetime.utcnow().isoformat(),
-                "error": "PAM orchestrator not available"
+                "error": "PAM configuration invalid",
+                "details": config_info
             }
         
-        if not orchestrator.database_service:
+        # Test SimplePamService
+        try:
+            pam_service = SimplePamService()
+            health_result = await pam_service.health_check()
+            
+            if health_result["status"] == "healthy":
+                return {
+                    "status": "healthy",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "service": "SimplePamService",
+                    "openai_api": "connected",
+                    "configuration": "valid"
+                }
+            else:
+                return {
+                    "status": "unhealthy", 
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "service": "SimplePamService",
+                    "error": health_result.get("error", "Unknown health check failure")
+                }
+                
+        except PAMServiceError as e:
             return {
-                "status": "unhealthy", 
+                "status": "unhealthy",
                 "timestamp": datetime.utcnow().isoformat(),
-                "error": "Database service not initialized"
+                "error": f"PAM service initialization failed: {str(e)}",
+                "service": "SimplePamService"
             }
-        
-        db_status = await orchestrator.database_service.health_check()
-        return {
-            "status": "healthy" if db_status.get("status") == "healthy" else "degraded",
-            "timestamp": datetime.utcnow().isoformat(),
-            "services": {
-                "orchestrator": "available",
-                "database": db_status.get("status")
-            }
-        }
         
     except Exception as e:
-        logger.error(f"Health check error: {str(e)}")
+        logger.error(f"PAM health check error: {str(e)}")
         return {
             "status": "unhealthy",
             "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e)
+            "error": f"Health check failed: {str(e)}"
         }

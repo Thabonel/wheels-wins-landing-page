@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
-import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
+// Mapbox CSS imported globally in index.css
 // Simple direct token access like the working version
 import { regionCenters } from "./constants";
 import { reverseGeocode } from "./utils";
