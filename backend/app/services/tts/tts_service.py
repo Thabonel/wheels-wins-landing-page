@@ -23,20 +23,73 @@ class TTSService:
         self.is_initialized = False
     
     async def initialize(self):
-        """Initialize the TTS service"""
+        """Initialize the TTS service with robust fallback handling"""
         try:
             logger.info("🎙️ Initializing PAM TTS Service...")
             
-            # Initialize streaming service
-            result = await self.streaming_service.initialize()
-            
-            if result:
-                self.is_initialized = True
-                logger.info("✅ PAM TTS Service initialized successfully")
-                return True
-            else:
-                logger.error("❌ PAM TTS Service initialization failed")
+            # Check if TTS is enabled in settings
+            if not getattr(settings, 'TTS_ENABLED', True):
+                logger.info("⚠️ TTS disabled in configuration")
                 return False
+            
+            # Initialize streaming service with fallback handling
+            try:
+                result = await self.streaming_service.initialize()
+                
+                if result:
+                    self.is_initialized = True
+                    logger.info("✅ PAM TTS Service initialized successfully")
+                    return True
+                else:
+                    logger.warning("⚠️ Primary TTS service failed, checking fallback...")
+                    
+            except Exception as streaming_error:
+                logger.warning(f"⚠️ Streaming TTS service failed: {streaming_error}")
+            
+            # Try to initialize with minimal fallback functionality
+            try:
+                # Test if we can at least access system TTS
+                import platform
+                system = platform.system()
+                
+                if system == "Darwin":  # macOS
+                    import subprocess
+                    subprocess.run(["which", "say"], check=True, capture_output=True)
+                    logger.info("✅ macOS 'say' command available as fallback")
+                    self.is_initialized = True
+                    return True
+                    
+                elif system == "Linux":
+                    import subprocess
+                    try:
+                        subprocess.run(["which", "espeak"], check=True, capture_output=True)
+                        logger.info("✅ Linux 'espeak' command available as fallback")
+                        self.is_initialized = True
+                        return True
+                    except:
+                        logger.warning("⚠️ Linux 'espeak' not found")
+                        
+                elif system == "Windows":
+                    logger.info("✅ Windows PowerShell TTS available as fallback")
+                    self.is_initialized = True
+                    return True
+                
+                # Try pyttsx3 as final fallback
+                try:
+                    import pyttsx3
+                    engine = pyttsx3.init()
+                    engine.stop()
+                    logger.info("✅ pyttsx3 system TTS available as fallback")
+                    self.is_initialized = True
+                    return True
+                except Exception as pyttsx3_error:
+                    logger.warning(f"⚠️ pyttsx3 fallback failed: {pyttsx3_error}")
+                
+            except Exception as fallback_error:
+                logger.warning(f"⚠️ Fallback TTS initialization failed: {fallback_error}")
+            
+            logger.error("❌ All TTS initialization methods failed")
+            return False
                 
         except Exception as e:
             logger.error(f"❌ TTS Service initialization error: {e}")

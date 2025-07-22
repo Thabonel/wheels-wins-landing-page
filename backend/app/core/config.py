@@ -99,6 +99,17 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
 
+    # TTS Configuration
+    TTS_ENABLED: bool = True
+    TTS_PRIMARY_ENGINE: str = "fallback"  # Options: coqui, edge, fallback
+    TTS_FALLBACK_ENABLED: bool = True
+    TTS_CACHE_ENABLED: bool = True
+    TTS_CACHE_TTL: int = 86400  # 24 hours
+    TTS_VOICE_DEFAULT: str = "en-US-AriaNeural"  # Default Edge TTS voice
+    TTS_QUALITY_THRESHOLD: float = 0.7  # Minimum quality score
+    TTS_MAX_TEXT_LENGTH: int = 5000  # Maximum text length for TTS
+    TTS_RATE_LIMIT: int = 10  # Requests per minute per user
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,

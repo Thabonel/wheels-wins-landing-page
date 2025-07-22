@@ -43,7 +43,7 @@ export default function SocialFeed() {
     fetchPosts();
     if (user) fetchUserVotes();
 
-    // Realtime subscription: only for feed posts
+    // Realtime subscription: only for public posts
     const channel = supabase
       .channel("public:social_posts")
       .on(
@@ -52,7 +52,7 @@ export default function SocialFeed() {
           event: "*",
           schema: "public",
           table: "social_posts",
-          filter: "location=eq.feed"
+          filter: "visibility=eq.public"
         },
         () => {
           fetchPosts();
@@ -71,9 +71,9 @@ export default function SocialFeed() {
       const { data, error } = await supabase
         .from("social_posts")
         .select(
-          `id, content, image_url, created_at, status, location, group_id, upvotes, downvotes, comments_count, user_id`
+          `id, content, media_urls, created_at, visibility, like_count, comment_count, user_id, trip_id`
         )
-        .eq("location", "feed")
+        .eq("visibility", "public")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -117,12 +117,12 @@ export default function SocialFeed() {
         authorAvatar: supabase.storage.from("public-assets").getPublicUrl("avatar-placeholder.png").data.publicUrl,
         date: new Date(post.created_at).toLocaleDateString(),
         content: post.content,
-        image: post.image_url || undefined,
-        likes: post.upvotes ?? 0,
-        comments: post.comments_count ?? 0,
-        status: post.status,
-        location: post.location,
-        groupId: post.group_id,
+        image: post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : undefined,
+        likes: post.like_count ?? 0,
+        comments: post.comment_count ?? 0,
+        status: post.visibility,
+        location: "feed",
+        groupId: post.trip_id,
         isOwnPost: user?.id === post.user_id,
       })) || [];
 
@@ -140,9 +140,11 @@ export default function SocialFeed() {
     if (!user) return;
     try {
       const { data, error } = await supabase
-        .from("post_votes")
-        .select("post_id, vote_type")
-        .eq("user_id", user.id);
+        .from("social_interactions")
+        .select("target_id, interaction_type")
+        .eq("user_id", user.id)
+        .eq("target_type", "post")
+        .in("interaction_type", ["like", "dislike"]);
 
       if (error) {
         console.error("Error fetching votes:", error);
@@ -154,7 +156,7 @@ export default function SocialFeed() {
 
       const votes: Record<string, boolean> = {};
       data?.forEach((v) => {
-        votes[v.post_id] = v.vote_type;
+        votes[v.target_id] = v.interaction_type === "like";
       });
       setUserVotes(votes);
     } catch (err) {
