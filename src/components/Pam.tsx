@@ -6,6 +6,7 @@ import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
+import { pamFeedbackService } from "@/services/pamFeedbackService";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -1226,6 +1227,30 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
+  // Process PAM responses for feedback and issue reporting
+  const processFeedbackActions = async (content: string, userMessage: string) => {
+    try {
+      console.log('🔧 Checking for feedback intent in message:', userMessage);
+      
+      // Check if this is feedback-related using the service
+      if (pamFeedbackService.detectFeedbackIntent(userMessage)) {
+        console.log('📝 Feedback intent detected, processing...');
+        
+        // Process feedback through the service
+        const result = await pamFeedbackService.processFeedbackFromConversation(userMessage, content);
+        
+        if (result.feedbackProcessed && result.response) {
+          // Replace PAM's response with our feedback-aware response
+          setTimeout(() => {
+            addMessage(result.response!, "pam");
+          }, 1000);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Feedback processing error:', error);
+    }
+  };
+
   const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string): PamMessage => {
     const newMessage: PamMessage = {
       id: Date.now().toString(),
@@ -1239,6 +1264,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Process calendar actions if this is a PAM response and we have the triggering user message
       if (sender === "pam" && triggeredByUserMessage) {
         processCalendarActions(content, triggeredByUserMessage);
+      }
+      
+      // Process feedback actions for user messages
+      if (sender === "user") {
+        processFeedbackActions("", content); // content is the user message for user sender
       }
       
       // ROBUST MEMORY: Save to localStorage on every message

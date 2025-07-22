@@ -10,6 +10,7 @@ import ObservabilityDashboard from './observability/ObservabilityDashboard';
 import { TestingDashboard } from './TestingDashboard';
 import ShopManagement from './ShopManagement';
 import SupportTickets from './SupportTickets';
+import UserFeedback from './UserFeedback';
 import Settings from './Settings';
 
 interface AdminContentProps {
@@ -29,6 +30,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <ReportsAnalytics />;
       case 'Chat Logs':
         return <PAMAnalyticsDashboard />;
+      case 'User Feedback':
+        return <UserFeedback />;
       case 'Learning Dashboard':
         return <LearningDashboard />;
       case 'AI Observability':
