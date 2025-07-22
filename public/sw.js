@@ -5,9 +5,22 @@ const API_CACHE_NAME = 'pam-api-v1';
 // Core resources to cache for offline functionality
 const CORE_RESOURCES = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json'
+  '/manifest.json',
+  '/assets/index-production.BOMhE3K8.css',
+  '/assets/index-production.DUOJ7d3A.js',
+  '/assets/react-vendor-production.Dw-i0UxX.js',
+  '/assets/query-vendor-production.DUShopZZ.js',
+  '/assets/supabase-vendor-production.DtNh2-uR.js',
+  '/assets/animation-vendor-production.VlTTk7BW.js',
+  '/assets/utils-vendor-production.Dsz6bsf7.js',
+  '/assets/icons-vendor-production.jaqoHtnI.js',
+  '/assets/radix-vendor-production.OKrApP1u.js',
+  '/assets/mapbox-vendor-production.XtrPRdYm.js',
+  '/assets/calendar-vendor-production.D40RSJ3w.js',
+  '/assets/form-vendor-production.D3ozfAne.js',
+  '/assets/chart-vendor-production.NInlEZcl.js',
+  '/assets/AdminDashboard-production.WB2tRpGr.js',
+  '/assets/VideoEditor-production.Ben4KQVw.js'
 ];
 
 // API endpoints to cache
