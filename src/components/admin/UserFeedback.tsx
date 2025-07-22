@@ -46,32 +46,32 @@ const UserFeedback = () => {
   const fetchFeedback = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('user_feedback')
         .select('*')
         .order('created_at', { ascending: false });
-
-      // Apply filters
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
-      }
-      if (typeFilter !== 'all') {
-        query = query.eq('type', typeFilter);
-      }
-      if (categoryFilter !== 'all') {
-        query = query.eq('category', categoryFilter);
-      }
-      if (severityFilter !== 'all') {
-        query = query.eq('severity', severityFilter);
-      }
-
-      const { data, error } = await query;
 
       if (error) {
         throw error;
       }
 
-      setFeedback((data || []) as UserFeedbackItem[]);
+      // Filter the data client-side to avoid TypeScript issues
+      let filteredData = data || [];
+      
+      if (statusFilter !== 'all') {
+        filteredData = filteredData.filter((item: any) => item.status === statusFilter);
+      }
+      if (typeFilter !== 'all') {
+        filteredData = filteredData.filter((item: any) => item.type === typeFilter);
+      }
+      if (categoryFilter !== 'all') {
+        filteredData = filteredData.filter((item: any) => item.category === categoryFilter);
+      }
+      if (severityFilter !== 'all') {
+        filteredData = filteredData.filter((item: any) => item.severity === severityFilter);
+      }
+
+      setFeedback(filteredData as unknown as UserFeedbackItem[]);
     } catch (error) {
       console.error('Error fetching feedback:', error);
       toast.error('Failed to fetch feedback data');
@@ -84,7 +84,7 @@ const UserFeedback = () => {
     try {
       const { error } = await supabase
         .from('user_feedback')
-        .update({ status })
+        .update({ status } as any)
         .eq('id', id);
 
       if (error) throw error;
@@ -106,11 +106,11 @@ const UserFeedback = () => {
     try {
       const { error } = await supabase
         .from('user_feedback')
-        .update({ 
+        .update({
           admin_response: responseText,
           admin_notes: notesText,
           status: 'in_progress' // Automatically set to in_progress when admin responds
-        })
+        } as any)
         .eq('id', id);
 
       if (error) throw error;

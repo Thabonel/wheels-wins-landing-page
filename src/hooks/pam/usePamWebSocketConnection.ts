@@ -67,12 +67,17 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
         updateConnectionStatus(true);
         reconnectAttempts.current = 0;
         
-        // Send initial authentication message
-        ws.current?.send(JSON.stringify({
-          type: 'auth',
-          userId,
-          timestamp: Date.now()
-        }));
+        // Add a small delay to ensure connection is fully established
+        setTimeout(() => {
+          if (ws.current?.readyState === WebSocket.OPEN) {
+            // Send initial authentication message
+            ws.current.send(JSON.stringify({
+              type: 'auth',
+              userId,
+              timestamp: Date.now()
+            }));
+          }
+        }, 100);
         
         onMessage({
           type: 'connection',
