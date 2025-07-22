@@ -169,7 +169,7 @@ export default function MapControls({
         unit: units
       }), 'bottom-left');
 
-      // Add native Map Options Control (reverted to original)
+      // Add native Map Options Control
       const optionsControl = new MapOptionsControl({
         onStyleChange: setCurrentStyle,
         currentStyle,
@@ -249,36 +249,20 @@ export default function MapControls({
       map.current.jumpTo({ center });
     }
 
-    // Cleanup function - handle ALL controls
+    // Cleanup function
     return () => {
-      if (map.current) {
+      if (map.current && directionsControl.current) {
         try {
           const mapInstance = map.current;
+          const dirControl = directionsControl.current;
           
-          // Clean up directions control
-          if (directionsControl.current) {
-            try {
-              mapInstance.removeControl(directionsControl.current);
-              directionsControl.current = undefined;
-              console.log('🗂️ MapControls: Directions control cleaned up');
-            } catch (error) {
-              console.warn('🗂️ MapControls: Directions control already removed:', error);
-            }
+          if (mapInstance.hasControl && mapInstance.hasControl(dirControl)) {
+            mapInstance.removeControl(dirControl);
           }
           
-          // Clean up options control
-          if (optionsControlRef.current) {
-            try {
-              console.log('🗂️ MapControls: Cleaning up options control');
-              mapInstance.removeControl(optionsControlRef.current);
-              optionsControlRef.current = undefined;
-              console.log('🗂️ MapControls: Options control cleaned up');
-            } catch (error) {
-              console.warn('🗂️ MapControls: Options control already removed:', error);
-            }
-          }
+          directionsControl.current = undefined;
         } catch (error) {
-          console.warn('Error cleaning up map controls:', error);
+          console.warn('Error cleaning up directions control:', error);
         }
       }
     };

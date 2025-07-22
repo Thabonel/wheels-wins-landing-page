@@ -44,17 +44,6 @@ interface MapOptionsDropdownProps {
 }
 
 export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, isMapControl = false, poiFilters, onPOIFilterChange }: MapOptionsDropdownProps) {
-  
-  // Debug logging for map control
-  React.useEffect(() => {
-    if (isMapControl) {
-      console.log('🗺️ MapOptionsDropdown: Rendering as map control', { 
-        isMapControl, 
-        currentStyle, 
-        hasMap: !!map?.current 
-      });
-    }
-  }, [isMapControl, currentStyle, map]);
   const [baseMapStyle, setBaseMapStyle] = useState('satellite');
   // Fixed to scenic theme as requested
   const baseMapTheme = 'scenic';
@@ -668,19 +657,6 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
           margin-left: 0 !important;
           margin-right: 0 !important;
         }
-        
-        /* Ensure map control dropdowns appear above map with very high z-index */
-        .mapboxgl-ctrl .map-options-dropdown-content,
-        .mapboxgl-ctrl [data-radix-dropdown-menu-content] {
-          z-index: 999999 !important;
-          position: fixed !important;
-        }
-        
-        /* Ensure proper positioning for map control dropdowns */
-        .mapboxgl-ctrl-group .map-options-button + [data-radix-dropdown-menu-content] {
-          z-index: 999999 !important;
-          position: fixed !important;
-        }
       `}</style>
       <DropdownMenu modal={false} dir="ltr">
         <DropdownMenuTrigger asChild>
@@ -697,17 +673,6 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             width: '30px',
             height: '30px'
           } : undefined}
-          onMouseDown={isMapControl ? (e) => {
-            e.stopPropagation();
-            console.log('🗺️ Map Options Button: Mouse down event');
-          } : undefined}
-          onTouchStart={isMapControl ? (e) => {
-            e.stopPropagation();
-            console.log('🗺️ Map Options Button: Touch start event');
-          } : undefined}
-          onClick={isMapControl ? (e) => {
-            console.log('🗺️ Map Options Button: Click event', e);
-          } : undefined}
         >
           <Layers className="w-4 h-4" style={isMapControl ? { margin: '0' } : undefined} />
           {!isMapControl && (
@@ -719,30 +684,16 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        className={isMapControl 
-          ? "map-options-dropdown-content w-64 max-h-[50vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl force-dropdown-down" 
-          : "w-64 max-h-[50vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[9999] force-dropdown-down"
-        }
-        style={isMapControl ? {
-          zIndex: 999999,
-          position: 'fixed'
-        } : undefined}
-        align={isMapControl ? "end" : "start"}
+        className="w-64 max-h-[50vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[9999] force-dropdown-down" 
+        align="start"
         side="bottom"
-        sideOffset={isMapControl ? 5 : 15}
-        avoidCollisions={true}
+        sideOffset={15}
+        avoidCollisions={false}
         sticky="always"
         hideWhenDetached={false}
-        collisionPadding={isMapControl ? 10 : 0}
+        collisionPadding={0}
         arrowPadding={0}
-        onPointerDownOutside={isMapControl ? (e) => {
-          // Allow clicking on map to close dropdown
-          e.preventDefault();
-        } : undefined}
-        onInteractOutside={isMapControl ? (e) => {
-          // Allow map interactions to close dropdown
-          e.preventDefault();
-        } : undefined}
+        
       >
         {/* Base Map Section */}
         <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
