@@ -94,14 +94,27 @@ class PamCalendarService {
     // Handle AM/PM format
     if (lowerTime.includes("am") || lowerTime.includes("pm")) {
       try {
-        const parsed = parse(lowerTime, "h:mm a", new Date()) || parse(lowerTime, "h a", new Date());
-        if (parsed) {
+        // Try different parsing formats
+        let parsed: Date | null = null;
+        
+        // Try "12:00 PM" format
+        if (lowerTime.includes(":")) {
+          parsed = parse(lowerTime, "h:mm a", new Date());
+        } else {
+          // Try "12 PM" format
+          parsed = parse(lowerTime, "h a", new Date());
+        }
+        
+        if (parsed && !isNaN(parsed.getTime())) {
           const startTime = format(parsed, "HH:mm");
-          const endTime = format(addDays(parsed, 0).setHours(parsed.getHours() + 1), "HH:mm");
+          const endHour = parsed.getHours() + 1;
+          const endDate = new Date(parsed);
+          endDate.setHours(endHour > 23 ? 0 : endHour);
+          const endTime = format(endDate, "HH:mm");
           return { startTime, endTime };
         }
-      } catch {
-        // Fall through to default
+      } catch (error) {
+        console.warn('Time parsing error:', error);
       }
     }
 
@@ -174,15 +187,20 @@ class PamCalendarService {
    * Create a calendar event in the database
    */
   public async createCalendarEvent(pamEvent: PamCalendarEvent): Promise<{ success: boolean; message: string; eventId?: string }> {
+    console.log('🔧 PAM Calendar Service: Creating event:', pamEvent);
+    
     try {
       // Check authentication
       const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log('🔧 Auth check:', { user: !!user, error: userError });
+      
       if (userError || !user) {
         return { success: false, message: "User not authenticated" };
       }
 
       // Parse the event
       const parsedEvent = this.parseCalendarEvent(pamEvent);
+      console.log('🔧 Parsed event:', parsedEvent);
 
       // Prepare database payload
       const payload = {
@@ -197,6 +215,8 @@ class PamCalendarService {
         user_id: user.id,
         location: parsedEvent.location || "",
       };
+      
+      console.log('🔧 Database payload:', payload);
 
       // Insert into database
       const { data: insertedEvent, error } = await supabase
@@ -205,21 +225,24 @@ class PamCalendarService {
         .select()
         .single();
 
+      console.log('🔧 Database insert result:', { data: insertedEvent, error });
+
       if (error) {
-        console.error("Database insert error:", error);
+        console.error("❌ Database insert error:", error);
         return { success: false, message: `Failed to create calendar event: ${error.message}` };
       }
 
       // Show success notification
       const eventDate = format(parsedEvent.date, "MMMM d");
       const eventTime = `${parsedEvent.startTime} - ${parsedEvent.endTime}`;
-      toast.success(`Calendar event created: "${parsedEvent.title}" on ${eventDate} at ${eventTime}`);
+      toast.success(`📅 Calendar event created: "${parsedEvent.title}" on ${eventDate} at ${eventTime}`);
 
       // Set reminder if specified
       if (pamEvent.reminderMinutes) {
         this.scheduleReminder(parsedEvent, pamEvent.reminderMinutes);
       }
 
+      console.log('✅ Calendar event created successfully:', insertedEvent);
       return { 
         success: true, 
         message: `Successfully created calendar event "${parsedEvent.title}" for ${eventDate} at ${eventTime}`,
@@ -227,7 +250,7 @@ class PamCalendarService {
       };
 
     } catch (error) {
-      console.error("Error creating calendar event:", error);
+      console.error("❌ Error creating calendar event:", error);
       return { success: false, message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
   }
