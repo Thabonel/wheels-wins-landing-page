@@ -76,6 +76,7 @@ Wheels & Wins is a comprehensive travel planning and RV community platform that 
 
 ### Prerequisites
 - **Node.js** 18+ ([install with nvm](https://github.com/nvm-sh/nvm))
+  - The repository includes an `.nvmrc` file so `nvm use` will automatically select Node 18.
 - **Python** 3.11+ (required for TTS dependencies)
 - **Git** for version control
 
