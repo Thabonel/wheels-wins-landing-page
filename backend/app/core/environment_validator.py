@@ -30,7 +30,6 @@ class EnvironmentValidator:
     PRODUCTION_REQUIRED = [
         "OPENAI_API_KEY",
         "SUPABASE_SERVICE_ROLE_KEY",
-        "REDIS_URL",
     ]
     
     # Required for development environments
@@ -40,6 +39,7 @@ class EnvironmentValidator:
     
     # Optional but recommended variables
     RECOMMENDED = [
+        "REDIS_URL",  # For caching and session management
         "SENTRY_DSN",
         "MAPBOX_SECRET_TOKEN",
         "YOUTUBE_API_KEY",
