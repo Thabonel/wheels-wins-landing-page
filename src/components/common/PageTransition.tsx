@@ -62,15 +62,22 @@ export function PageTransition({
   };
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={transitionKey}
-        className={className}
-        {...transitionConfig}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <div style={{ position: "relative", overflow: "hidden", width: "100%" }}>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={transitionKey}
+          className={className}
+          style={{
+            position: "relative",
+            width: "100%",
+            willChange: "transform, opacity"
+          }}
+          {...transitionConfig}
+        >
+          {children}
+        </motion.div>
+      </AnimatePresence>
+    </div>
   );
 }
 

@@ -8,6 +8,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fix for smooth page transitions - prevent layout jumps */
+.page-transition-fix {
+  position: relative;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Ensure smooth scrolling during transitions */
+.page-transition-fix * {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Route transition container */
+.route-container {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - var(--header-height));
+  overflow: hidden;
+}
+
+/* Page content wrapper */
+.page-content {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+}
+
 @layer base {
   :root {
     /* Reduce header height variable to give elegant spacing below logo */
