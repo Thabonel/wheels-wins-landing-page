@@ -18,6 +18,9 @@ opentelemetry-instrumentation-fastapi>=0.41b0
 langfuse>=2.0.0
 agentops>=0.4.15,<0.5.0
 
+# Graph Database (Optional - for Graph RAG)
+neo4j>=5.14.0,<6.0.0
+
 # OPTIONAL DEPENDENCIES - These will be gracefully handled if missing
 # The application code has try/catch blocks for all of these
 
