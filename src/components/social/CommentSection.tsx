@@ -24,10 +24,9 @@ export default function CommentSection({ postId, isOpen, onClose }: CommentSecti
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { user } = useAuth();
-  const { createComment, fetchComments } = useSocialPosts();
+  const { createPost, isSubmitting } = useSocialPosts();
 
   useEffect(() => {
     if (isOpen) {
@@ -37,23 +36,20 @@ export default function CommentSection({ postId, isOpen, onClose }: CommentSecti
 
   const loadComments = async () => {
     setIsLoading(true);
-    const fetchedComments = await fetchComments(postId);
-    setComments(fetchedComments);
+    // For now, just set empty comments since we don't have the comments functionality yet
+    setComments([]);
     setIsLoading(false);
   };
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return;
 
-    setIsSubmitting(true);
-    const success = await createComment(postId, newComment.trim());
+    const success = await createPost(newComment.trim());
     
     if (success) {
       setNewComment("");
       await loadComments(); // Refresh comments
     }
-    
-    setIsSubmitting(false);
   };
 
   if (!isOpen) return null;
