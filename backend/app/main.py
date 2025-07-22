@@ -53,6 +53,7 @@ from app.api.v1 import (
     search,
     vision,
     voice,
+    voice_conversation,
     profiles,
     products,
     orders,
@@ -131,6 +132,15 @@ async def lifespan(app: FastAPI):
                 logger.info("✅ Fallback TTS Service initialized")
             except Exception as fallback_error:
                 logger.warning(f"⚠️ Fallback TTS Service initialization failed: {fallback_error}")
+
+        # Initialize Voice Conversation Manager
+        try:
+            from app.services.voice.conversation_manager import conversation_manager
+
+            await conversation_manager.initialize()
+            logger.info("✅ Voice Conversation Manager initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Voice Conversation Manager initialization failed: {e}")
 
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
@@ -341,6 +351,7 @@ app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 # Mundi integration removed
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
 app.include_router(voice.router, prefix="/api/v1", tags=["Voice"])
+app.include_router(voice_conversation.router, prefix="/api/v1", tags=["Voice Conversation"])
 app.include_router(
     voice_streaming.router, prefix="/api/v1/voice", tags=["Voice Streaming"]
 )

@@ -22,6 +22,7 @@ import { useRegion } from '@/context/RegionContext';
 import { useOffline } from '@/context/OfflineContext';
 import TripPlannerLayout from './TripPlannerLayout';
 import MapUnavailable from './MapUnavailable';
+import PamVoiceCompanion from '@/components/voice/PamVoiceCompanion';
 
 interface IntegratedTripPlannerProps {
   isOffline?: boolean;
@@ -251,6 +252,9 @@ export default function IntegratedTripPlanner({
         )}
 
         <TripStats directionsControl={directionsControl} />
+
+        {/* PAM Voice Companion */}
+        <PamVoiceCompanion />
 
         {/* Waypoints List */}
         {integratedState.route.waypoints.length > 0 && (
