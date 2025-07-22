@@ -24,6 +24,10 @@ from .social import (
     PostCreateRequest, GroupCreateRequest, ListingCreateRequest,
     PostResponse, GroupResponse, SocialFeedResponse
 )
+from .user import (
+    User, CreateUserRequest, UpdateUserRequest, UserResponse,
+    UserStatsResponse, VoiceUserSession, VoiceUserContext
+)
 
 __all__ = [
     # Common
@@ -37,5 +41,7 @@ __all__ = [
     # Wins
     "BudgetCreateRequest", "ExpenseCreateRequest", "BudgetResponse",
     # Social
-    "PostCreateRequest", "GroupCreateRequest", "PostResponse"
+    "PostCreateRequest", "GroupCreateRequest", "PostResponse",
+    # User
+    "User", "CreateUserRequest", "UpdateUserRequest", "VoiceUserSession"
 ]
