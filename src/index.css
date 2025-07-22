@@ -72,6 +72,19 @@
   }
 }
 
+/* Animation error boundary fallback styles */
+.animation-error-fallback {
+  /* Ensure fallback content renders properly */
+  width: 100%;
+  min-height: inherit;
+  
+  /* Prevent layout issues */
+  overflow-x: hidden;
+  
+  /* Add subtle indication that fallback is active */
+  opacity: 0.98;
+}
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .route-transition-container * {
