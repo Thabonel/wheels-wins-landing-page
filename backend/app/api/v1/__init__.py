@@ -9,7 +9,7 @@ from . import (
     wins,
     subscription,
     voice,
-    # voice_conversation,  # Temporarily disabled due to import issues
+    voice_conversation,  # Re-enabled after fixing user schema import
     admin,
     observability,
     profiles,
@@ -32,7 +32,7 @@ __all__ = [
     'wins',
     'subscription',
     'voice',
-    # 'voice_conversation',  # Temporarily disabled
+    'voice_conversation',  # Re-enabled after fixing user schema import
     'admin',
     'observability',
     'profiles',
