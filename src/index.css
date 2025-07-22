@@ -8,90 +8,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fix for smooth page transitions - prevent layout jumps */
-.page-transition-fix {
-  position: relative;
-  overflow-x: hidden;
-  min-height: 100vh;
-}
-
-/* Ensure smooth scrolling during transitions */
-.page-transition-fix * {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-/* Route transition container */
+/* Route container - simplified without animations */
 .route-container {
   position: relative;
   width: 100%;
   min-height: calc(100vh - var(--header-height));
-  overflow: hidden;
-}
-
-/* Page content wrapper */
-.page-content {
-  position: relative;
-  width: 100%;
-  transform-style: preserve-3d;
-}
-
-/* Enhanced route transition container styles */
-.route-transition-container {
-  /* Ensure the container takes full space */
-  width: 100%;
-  min-height: 100vh;
-  
-  /* Prevent content from overflowing during animations */
-  overflow-x: hidden;
-  
-  /* Improve performance during animations */
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
-/* Route content styles */
-.route-content {
-  /* Ensure content fills the container */
-  width: 100%;
-  min-height: inherit;
-  
-  /* Prevent horizontal scrolling issues */
-  overflow-x: hidden;
-  
-  /* Ensure proper text rendering during animations */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Optimize for animations on mobile devices */
-@media (max-width: 768px) {
-  .route-transition-container {
-    /* Reduce complexity on mobile for better performance */
-    contain: layout;
-  }
-}
-
-/* Animation error boundary fallback styles */
-.animation-error-fallback {
-  /* Ensure fallback content renders properly */
-  width: 100%;
-  min-height: inherit;
-  
-  /* Prevent layout issues */
-  overflow-x: hidden;
-  
-  /* Add subtle indication that fallback is active */
-  opacity: 0.98;
-}
-
-/* Respect user's motion preferences */
-@media (prefers-reduced-motion: reduce) {
-  .route-transition-container * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
 }
 
 @layer base {

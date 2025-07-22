@@ -36,7 +36,6 @@ import { StagingBanner } from './components/StagingBanner';
 import { logEnvironmentInfo } from './config/environment';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
-import { AnimationErrorBoundary } from './components/common/AnimationErrorBoundary';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import CookiePolicy from './pages/CookiePolicy';
@@ -66,49 +65,6 @@ function App() {
                       <ScrollToTop />
                       <Layout>
                         <div className="route-container">
-                          <AnimationErrorBoundary
-                            fallback={
-                              <div className="min-h-screen">
-                                {/* Fallback content without animations */}
-                                <Routes>
-                                  <Route path="/" element={<Index />} />
-                                  <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
-                                  <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
-                                  <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
-                                  <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
-                                  <Route path="/shop" element={<Shop />} />
-                                  <Route path="/video-editor" element={
-                                    <ProtectedRoute>
-                                      <Suspense fallback={<div className="flex items-center justify-center h-64">Loading Video Editor...</div>}>
-                                        <VideoEditor />
-                                      </Suspense>
-                                    </ProtectedRoute>
-                                  } />
-                                  <Route path="/admin" element={
-                                    <AdminProtection>
-                                      <Suspense fallback={<div className="flex items-center justify-center h-64">Loading Admin Dashboard...</div>}>
-                                        <AdminDashboard />
-                                      </Suspense>
-                                    </AdminProtection>
-                                  } />
-                                  <Route path="/profile" element={<Profile />} />
-                                  <Route path="/login" element={<Login />} />
-                                  <Route path="/signup" element={<Signup />} />
-                                  <Route path="/onboarding" element={<Onboarding />} />
-                                  <Route path="/payment-success" element={<PaymentSuccess />} />
-                                  <Route path="/payment-canceled" element={<PaymentCanceled />} />
-                                  <Route path="/cancel-trial" element={<CancelTrial />} />
-                                  <Route path="/reset-password" element={<PasswordResetRequest />} />
-                                  <Route path="/update-password" element={<UpdatePassword />} />
-                                  <Route path="/terms" element={<TermsOfService />} />
-                                  <Route path="/privacy" element={<PrivacyPolicy />} />
-                                  <Route path="/cookies" element={<CookiePolicy />} />
-                                  <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
-                                </Routes>
-                              </div>
-                            }
-                          >
-                            <RouteTransition>
                               <Routes>
                                 <Route path="/" element={<Index />} />
                                 <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
@@ -144,8 +100,6 @@ function App() {
                                 <Route path="/cookies" element={<CookiePolicy />} />
                                 <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                               </Routes>
-                            </RouteTransition>
-                          </AnimationErrorBoundary>
                         </div>
                       </Layout>
                       </PamIntegrationProvider>
