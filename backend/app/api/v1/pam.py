@@ -109,7 +109,8 @@ async def websocket_endpoint(
 async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, orchestrator):
     """Handle chat messages over WebSocket using SimplePamService"""
     try:
-        message = data.get("content", "")
+        # Support both 'message' and 'content' fields for backwards compatibility
+        message = data.get("message") or data.get("content", "")
         context = data.get("context", {})
         context["user_id"] = user_id
         context["connection_type"] = "websocket"
@@ -137,29 +138,34 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             "content": response_message
         }]
         
-        # Send response
-        await websocket.send_json({
-            "type": "chat_response",
-            "message": response_message,
-            "content": response_message,  # Add content field for frontend compatibility
-            "actions": actions,
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        
-        # Send UI actions if any (currently none from SimplePamService)
-        ui_actions = [a for a in actions if a.get("type") in ["navigate", "fill_form", "click", "alert"]]
-        if ui_actions:
+        # Check if WebSocket is still open before sending
+        if websocket.client_state.value == 1:  # WebSocketState.CONNECTED
+            # Send response
             await websocket.send_json({
-                "type": "ui_actions",
-                "actions": ui_actions
+                "type": "chat_response",
+                "message": response_message,
+                "content": response_message,  # Add content field for frontend compatibility
+                "actions": actions,
+                "timestamp": datetime.utcnow().isoformat()
             })
+            
+            # Send UI actions if any (currently none from SimplePamService)
+            ui_actions = [a for a in actions if a.get("type") in ["navigate", "fill_form", "click", "alert"]]
+            if ui_actions and websocket.client_state.value == 1:
+                await websocket.send_json({
+                    "type": "ui_actions",
+                    "actions": ui_actions
+                })
+        else:
+            logger.warning(f"WebSocket closed for user {user_id}, skipping response")
             
     except Exception as e:
         logger.error(f"Chat handling error: {str(e)}")
-        await websocket.send_json({
-            "type": "error",
-            "message": f"Sorry, I encountered an error: {str(e)}"
-        })
+        if websocket.client_state.value == 1:  # Only send if connected
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Sorry, I encountered an error: {str(e)}"
+            })
 
 async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, db):
     """Handle context updates over WebSocket"""
