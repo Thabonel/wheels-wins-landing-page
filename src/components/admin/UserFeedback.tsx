@@ -10,12 +10,12 @@ import { toast } from 'sonner';
 import { supabase } from "@/integrations/supabase/client";
 import { format } from 'date-fns';
 
-interface UserFeedback {
+interface UserFeedbackItem {
   id: string;
-  type: 'bug' | 'suggestion' | 'issue' | 'complaint' | 'feature_request';
-  category: 'voice' | 'calendar' | 'maps' | 'ui' | 'performance' | 'general';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  status: 'new' | 'in_progress' | 'resolved' | 'closed' | 'duplicate';
+  type: string;
+  category: string;
+  severity: string;
+  status: string;
   title: string;
   description: string;
   user_message: string;
@@ -32,7 +32,7 @@ interface UserFeedback {
 }
 
 const UserFeedback = () => {
-  const [feedback, setFeedback] = useState<UserFeedback[]>([]);
+  const [feedback, setFeedback] = useState<UserFeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -71,7 +71,7 @@ const UserFeedback = () => {
         throw error;
       }
 
-      setFeedback(data || []);
+      setFeedback((data || []) as UserFeedbackItem[]);
     } catch (error) {
       console.error('Error fetching feedback:', error);
       toast.error('Failed to fetch feedback data');
@@ -91,7 +91,7 @@ const UserFeedback = () => {
 
       setFeedback(prev => 
         prev.map(item => 
-          item.id === id ? { ...item, status } as UserFeedback : item
+          item.id === id ? { ...item, status } as UserFeedbackItem : item
         )
       );
 
@@ -164,7 +164,7 @@ const UserFeedback = () => {
     }
   };
 
-  const startEditing = (item: UserFeedback) => {
+  const startEditing = (item: UserFeedbackItem) => {
     setEditingResponse(item.id);
     setResponseText(item.admin_response || '');
     setNotesText(item.admin_notes || '');

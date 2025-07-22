@@ -3689,6 +3689,7 @@ export type Database = {
           travel_style: string | null
           trial_end_date: string | null
           trial_notification_sent: boolean | null
+          updated_at: string | null
           user_id: string
           vehicle_make_model: string | null
           vehicle_type: string | null
@@ -3729,6 +3730,7 @@ export type Database = {
           travel_style?: string | null
           trial_end_date?: string | null
           trial_notification_sent?: boolean | null
+          updated_at?: string | null
           user_id: string
           vehicle_make_model?: string | null
           vehicle_type?: string | null
@@ -3769,6 +3771,7 @@ export type Database = {
           travel_style?: string | null
           trial_end_date?: string | null
           trial_notification_sent?: boolean | null
+          updated_at?: string | null
           user_id?: string
           vehicle_make_model?: string | null
           vehicle_type?: string | null
@@ -5426,7 +5429,6 @@ export type Database = {
           created_at: string | null
           display_preferences: Json | null
           id: string
-          integration_preferences: Json | null
           notification_preferences: Json | null
           pam_preferences: Json | null
           privacy_preferences: Json | null
@@ -5438,7 +5440,6 @@ export type Database = {
           created_at?: string | null
           display_preferences?: Json | null
           id?: string
-          integration_preferences?: Json | null
           notification_preferences?: Json | null
           pam_preferences?: Json | null
           privacy_preferences?: Json | null
@@ -5450,7 +5451,6 @@ export type Database = {
           created_at?: string | null
           display_preferences?: Json | null
           id?: string
-          integration_preferences?: Json | null
           notification_preferences?: Json | null
           pam_preferences?: Json | null
           privacy_preferences?: Json | null
