@@ -32,9 +32,56 @@
   padding: 0.5rem;
 }
 
-/* Today highlight */
+/* Today highlight - Make it prominent and clear */
 .fullcalendar-container .fc .fc-day-today {
-  background-color: rgba(59, 130, 246, 0.05) !important;
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  border: 2px solid rgb(59, 130, 246) !important;
+  position: relative;
+}
+
+/* Add a "TODAY" label for extra clarity */
+.fullcalendar-container .fc .fc-day-today .fc-daygrid-day-top::after {
+  content: "TODAY";
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.6rem;
+  font-weight: bold;
+  color: rgb(59, 130, 246);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1px 3px;
+  border-radius: 2px;
+  z-index: 1;
+}
+
+/* Today's date number should be prominent */
+.fullcalendar-container .fc .fc-day-today .fc-daygrid-day-number {
+  background: rgb(59, 130, 246);
+  color: white !important;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  margin: 2px;
+}
+
+/* Week view today highlight */
+.fullcalendar-container .fc .fc-timegrid-col.fc-day-today {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+}
+
+/* Week view today header */
+.fullcalendar-container .fc .fc-col-header-cell.fc-day-today {
+  background-color: rgb(59, 130, 246) !important;
+  color: white !important;
+}
+
+.fullcalendar-container .fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+  color: white !important;
+  font-weight: bold;
 }
 
 /* Event styling */

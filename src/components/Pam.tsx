@@ -1153,31 +1153,72 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   // Process PAM responses for calendar actions
   const processCalendarActions = async (content: string, userMessage: string) => {
     try {
-      // Extract potential calendar event from user's message
-      const eventData = pamCalendarService.extractEventFromText(userMessage);
+      // Look for calendar-related keywords in user message
+      const lowerUserMessage = userMessage.toLowerCase();
+      const lowerContent = content.toLowerCase();
       
-      if (eventData && (
-        content.toLowerCase().includes("appointment") || 
-        content.toLowerCase().includes("calendar") ||
-        content.toLowerCase().includes("scheduled") ||
-        content.toLowerCase().includes("added") ||
-        content.toLowerCase().includes("remind")
-      )) {
-        console.log('📅 Processing calendar action:', eventData);
+      const hasCalendarKeywords = 
+        lowerUserMessage.includes("add") ||
+        lowerUserMessage.includes("appointment") ||
+        lowerUserMessage.includes("calendar") ||
+        lowerUserMessage.includes("schedule") ||
+        lowerUserMessage.includes("remind");
+      
+      const pamConfirmsCalendar = 
+        lowerContent.includes("appointment") ||
+        lowerContent.includes("calendar") ||
+        lowerContent.includes("scheduled") ||
+        lowerContent.includes("reminder") ||
+        lowerContent.includes("added");
+        
+      if (hasCalendarKeywords && pamConfirmsCalendar) {
+        console.log('📅 Processing calendar request:', { userMessage, pamResponse: content });
+        
+        // Simple extraction: get appointment title and basic details
+        let title = "New Appointment";
+        let date = "tomorrow";
+        let time = "12:00 PM";
+        
+        // Extract appointment with someone
+        const withMatch = lowerUserMessage.match(/(?:appointment|meeting)\s+with\s+(\w+)/);
+        if (withMatch) {
+          title = `Appointment with ${withMatch[1]}`;
+        }
+        
+        // Extract time
+        const timeMatch = lowerUserMessage.match(/(?:at|@)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i);
+        if (timeMatch) {
+          time = timeMatch[1];
+        }
+        
+        // Extract date
+        if (lowerUserMessage.includes("tomorrow")) {
+          date = "tomorrow";
+        } else if (lowerUserMessage.includes("today")) {
+          date = "today";
+        }
+        
+        const eventData = {
+          title,
+          date,
+          time,
+          type: "reminder" as const
+        };
+        
+        console.log('📅 Creating calendar event:', eventData);
         
         const result = await pamCalendarService.createCalendarEvent(eventData);
         
         if (result.success) {
           console.log('✅ Calendar event created successfully:', result);
-          // Add a follow-up message confirming the event was actually created
           setTimeout(() => {
-            addMessage(`✅ **Calendar event created!** I've successfully added "${eventData.title}" to your calendar. You can view it on the Calendar page.`, "pam");
-          }, 500);
+            addMessage(`✅ **Done!** I've created "${title}" in your calendar for ${date} at ${time}. Check the Calendar tab to see it!`, "pam");
+          }, 1000);
         } else {
           console.error('❌ Calendar event creation failed:', result);
           setTimeout(() => {
-            addMessage(`⚠️ I tried to create the calendar event but encountered an error: ${result.message}. Please try adding it manually on the Calendar page.`, "pam");
-          }, 500);
+            addMessage(`⚠️ I had trouble creating the calendar event: ${result.message}`, "pam");
+          }, 1000);
         }
       }
     } catch (error) {
