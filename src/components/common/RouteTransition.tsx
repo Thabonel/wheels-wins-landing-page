@@ -1,18 +1,18 @@
 /**
  * RouteTransition - Animated transitions for React Router route changes
- * 
+ *
  * Wraps route content with the standard slide transition effect
  * Automatically detects route changes via useLocation hook
  */
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Outlet } from 'react-router-dom';
 import { ReactNode } from 'react';
 import { PageTransitionVariants } from './PageTransition';
 
 interface RouteTransitionProps {
   /** Route content to animate */
-  children: ReactNode;
+  children?: ReactNode;
   /** Custom transition variant (default: 'route') */
   variant?: keyof typeof PageTransitionVariants;
   /** Additional CSS classes */
@@ -25,14 +25,15 @@ export function RouteTransition({
   className = '',
 }: RouteTransitionProps) {
   const location = useLocation();
-  
+
   // Respect user's motion preferences
-  const prefersReducedMotion = typeof window !== 'undefined' 
-    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches 
+  const prefersReducedMotion = typeof window !== 'undefined'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false;
 
   if (prefersReducedMotion) {
-    return <div className={className}>{children}</div>;
+    // Render children directly or use Outlet if no children are passed
+    return <div className={className}>{children || <Outlet />}</div>;
   }
 
   const transitionConfig = PageTransitionVariants[variant];
@@ -42,9 +43,15 @@ export function RouteTransition({
       <motion.div
         key={location.pathname}
         className={className}
-        {...transitionConfig}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={transitionConfig}
+        transition={{ duration: 0.4, ease: "easeInOut" }}
+        style={{ position: "relative", width: "100%" }}
       >
-        {children}
+        {/* Render children if provided, otherwise use Outlet for route rendering */}
+        {children || <Outlet />}
       </motion.div>
     </AnimatePresence>
   );
