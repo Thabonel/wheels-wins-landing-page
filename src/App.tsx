@@ -64,8 +64,9 @@ function App() {
                       <PamIntegrationProvider>
                       <ScrollToTop />
                       <Layout>
-                        <RouteTransition>
-                          <Routes>
+                        <div className="route-container">
+                          <RouteTransition>
+                            <Routes>
                         <Route path="/" element={<Index />} />
                         <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
                         <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
@@ -99,8 +100,9 @@ function App() {
                         <Route path="/privacy" element={<PrivacyPolicy />} />
                         <Route path="/cookies" element={<CookiePolicy />} />
                         <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
-                          </Routes>
-                        </RouteTransition>
+                            </Routes>
+                          </RouteTransition>
+                        </div>
                       </Layout>
                       </PamIntegrationProvider>
                     </PAMErrorBoundary>

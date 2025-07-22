@@ -39,21 +39,30 @@ export function RouteTransition({
   const transitionConfig = PageTransitionVariants[variant];
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        className={className}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        variants={transitionConfig}
-        transition={{ duration: 0.4, ease: "easeInOut" }}
-        style={{ position: "relative", width: "100%" }}
-      >
-        {/* Render children if provided, otherwise use Outlet for route rendering */}
-        {children || <Outlet />}
-      </motion.div>
-    </AnimatePresence>
+    <div style={{ position: "relative", overflow: "hidden", width: "100%", height: "100%" }}>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={location.pathname}
+          className={className}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          variants={transitionConfig}
+          transition={{ duration: 0.4, ease: "easeInOut" }}
+          style={{ 
+            position: "absolute", 
+            top: 0,
+            left: 0,
+            width: "100%", 
+            height: "100%",
+            willChange: "transform, opacity"
+          }}
+        >
+          {/* Render children if provided, otherwise use Outlet for route rendering */}
+          {children || <Outlet />}
+        </motion.div>
+      </AnimatePresence>
+    </div>
   );
 }
 
