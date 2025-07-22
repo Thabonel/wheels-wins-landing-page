@@ -53,7 +53,7 @@ from app.api.v1 import (
     search,
     vision,
     voice,
-    voice_conversation,
+    # voice_conversation,  # Temporarily disabled due to import issues
     profiles,
     products,
     orders,
@@ -351,7 +351,7 @@ app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 # Mundi integration removed
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
 app.include_router(voice.router, prefix="/api/v1", tags=["Voice"])
-app.include_router(voice_conversation.router, prefix="/api/v1", tags=["Voice Conversation"])
+# app.include_router(voice_conversation.router, prefix="/api/v1", tags=["Voice Conversation"])  # Temporarily disabled
 app.include_router(
     voice_streaming.router, prefix="/api/v1/voice", tags=["Voice Streaming"]
 )
