@@ -9,7 +9,7 @@ from . import (
     wins,
     subscription,
     voice,
-    # voice_conversation,  # Temporarily disabled - causing route registration failure
+    voice_conversation,  # Re-enabled - import issues resolved
     admin,
     observability,
     profiles,
@@ -32,7 +32,7 @@ __all__ = [
     'wins',
     'subscription',
     'voice',
-    # 'voice_conversation',  # Temporarily disabled - causing route registration failure
+    'voice_conversation',  # Re-enabled - import issues resolved
     'admin',
     'observability',
     'profiles',
