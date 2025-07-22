@@ -8,6 +8,7 @@ import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
 import { useUserUnits } from "./hooks/useUserUnits";
 import { MapOptionsControl } from "./MapOptionsControl";
+import { SimpleMapOptionsControl } from "./SimpleMapOptionsControl";
 import POILayer from "./POILayer";
 import { toast } from "@/hooks/use-toast";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
@@ -169,15 +170,32 @@ export default function MapControls({
         unit: units
       }), 'bottom-left');
 
-      // Add native Map Options Control
-      const optionsControl = new MapOptionsControl({
-        onStyleChange: setCurrentStyle,
-        currentStyle,
-        poiFilters,
-        onPOIFilterChange: setPOIFilters
-      });
-      optionsControlRef.current = optionsControl;
-      map.current.addControl(optionsControl, 'top-right');
+      // Add native Map Options Control with error handling
+      try {
+        console.log('🗂️ MapControls: About to create SimpleMapOptionsControl');
+        const optionsControl = new SimpleMapOptionsControl({
+          onStyleChange: setCurrentStyle
+        });
+        console.log('🗂️ MapControls: SimpleMapOptionsControl created', optionsControl);
+        
+        // Store reference before adding to map
+        optionsControlRef.current = optionsControl;
+        
+        console.log('🗂️ MapControls: About to add control to map');
+        map.current.addControl(optionsControl, 'top-right');
+        console.log('🗂️ MapControls: Control added to map successfully');
+        
+        // Verify control was added
+        setTimeout(() => {
+          const controlElements = document.querySelectorAll('.mapboxgl-ctrl-group');
+          console.log('🗂️ MapControls: Control groups found:', controlElements.length);
+          const buttons = document.querySelectorAll('.mapboxgl-ctrl-icon');
+          console.log('🗂️ MapControls: Control buttons found:', buttons.length);
+        }, 1000);
+        
+      } catch (error) {
+        console.error('❌ MapControls: Failed to create/add options control:', error);
+      }
 
       // Wait for map to load before creating directions control
       map.current.on('load', () => {
@@ -249,20 +267,36 @@ export default function MapControls({
       map.current.jumpTo({ center });
     }
 
-    // Cleanup function
+    // Cleanup function - handle ALL controls
     return () => {
-      if (map.current && directionsControl.current) {
+      if (map.current) {
         try {
           const mapInstance = map.current;
-          const dirControl = directionsControl.current;
           
-          if (mapInstance.hasControl && mapInstance.hasControl(dirControl)) {
-            mapInstance.removeControl(dirControl);
+          // Clean up directions control
+          if (directionsControl.current) {
+            try {
+              mapInstance.removeControl(directionsControl.current);
+              directionsControl.current = undefined;
+              console.log('🗂️ MapControls: Directions control cleaned up');
+            } catch (error) {
+              console.warn('🗂️ MapControls: Directions control already removed:', error);
+            }
           }
           
-          directionsControl.current = undefined;
+          // Clean up options control
+          if (optionsControlRef.current) {
+            try {
+              console.log('🗂️ MapControls: Cleaning up options control');
+              mapInstance.removeControl(optionsControlRef.current);
+              optionsControlRef.current = undefined;
+              console.log('🗂️ MapControls: Options control cleaned up');
+            } catch (error) {
+              console.warn('🗂️ MapControls: Options control already removed:', error);
+            }
+          }
         } catch (error) {
-          console.warn('Error cleaning up directions control:', error);
+          console.warn('Error cleaning up map controls:', error);
         }
       }
     };
