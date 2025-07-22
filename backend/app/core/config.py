@@ -110,6 +110,17 @@ class Settings(BaseSettings):
     TTS_MAX_TEXT_LENGTH: int = 5000  # Maximum text length for TTS
     TTS_RATE_LIMIT: int = 10  # Requests per minute per user
 
+    # Neo4j Graph Database Configuration (Optional)
+    NEO4J_URI: Optional[str] = "bolt://localhost:7687"
+    NEO4J_USER: Optional[str] = "neo4j"
+    NEO4J_PASSWORD: Optional[str] = None
+    NEO4J_DATABASE: Optional[str] = "neo4j"
+    
+    # Graph RAG Configuration
+    GRAPH_ENABLED: bool = False  # Enable when Neo4j is available
+    GRAPH_CONTEXT_DEPTH: int = 2  # Maximum relationship hops for context
+    GRAPH_SYNC_ON_STARTUP: bool = False  # Sync existing data to graph on startup
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
