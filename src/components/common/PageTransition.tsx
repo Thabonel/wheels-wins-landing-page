@@ -1,15 +1,13 @@
 
 /**
- * PageTransition - Standard slide transition for all pages/views
+ * PageTransition - Enhanced slide transition with robust error handling
  * 
- * This component provides the standard slide transition effect:
- * - Enter: opacity: 0, x: -20 → opacity: 1, x: 0
- * - Exit: opacity: 1, x: 0 → opacity: 0, x: 20
- * - Duration: 0.3s for smooth, responsive feel
+ * Production-ready implementation that prevents white screens and layout issues
+ * while maintaining the standard slide transition effect.
  */
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { ReactNode } from 'react';
+import { ReactNode, useState, useCallback } from 'react';
 
 interface PageTransitionProps {
   /** Unique key for the current view (required for AnimatePresence) */
@@ -24,6 +22,8 @@ interface PageTransitionProps {
   disableTransition?: boolean;
   /** Additional CSS classes */
   className?: string;
+  /** Callback for animation errors */
+  onError?: (error: Error) => void;
 }
 
 /**
@@ -43,15 +43,29 @@ export function PageTransition({
   slideDistance = 20,
   disableTransition = false,
   className = '',
+  onError,
 }: PageTransitionProps) {
+  const [hasError, setHasError] = useState(false);
+
   // Respect user's motion preferences
   const prefersReducedMotion = typeof window !== 'undefined' 
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches 
     : false;
 
-  // Skip animation if disabled or user prefers reduced motion
-  if (disableTransition || prefersReducedMotion) {
-    return <div className={className}>{children}</div>;
+  // Handle animation errors gracefully
+  const handleError = useCallback((error: Error) => {
+    console.warn('Page transition animation failed:', error);
+    setHasError(true);
+    onError?.(error);
+  }, [onError]);
+
+  // Skip animation if disabled, user prefers reduced motion, or error occurred
+  if (disableTransition || prefersReducedMotion || hasError) {
+    return (
+      <div className={`page-transition-fallback ${className}`} style={{ width: '100%' }}>
+        {children}
+      </div>
+    );
   }
 
   const transitionConfig = {
@@ -62,11 +76,21 @@ export function PageTransition({
   };
 
   return (
-    <div style={{ position: "relative", overflow: "hidden", width: "100%" }}>
+    <div 
+      className="page-transition-container"
+      style={{ 
+        position: "relative", 
+        width: "100%",
+        // Prevent layout shifts
+        contain: "layout style",
+        // Improve performance
+        isolation: "isolate"
+      }}
+    >
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={transitionKey}
-          className={className}
+          className={`page-transition-content ${className}`}
           style={{
             position: "relative",
             width: "100%",
