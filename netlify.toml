@@ -4,8 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  # Temporarily disable secrets scanning until all keys are properly configured
-  SECRETS_SCAN_ENABLED = "false"
+  # Configure secrets scanning to allow safe public keys
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_MAPBOX_PUBLIC_TOKEN,VITE_MAPBOX_TOKEN"
+  SECRETS_SCAN_OMIT_PATHS = ".env.production"
 
 [[redirects]]
   from = "/*"
