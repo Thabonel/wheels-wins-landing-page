@@ -5,6 +5,9 @@
  * Logs environment variables during build process to diagnose Netlify issues
  */
 
+import fs from 'fs';
+import path from 'path';
+
 console.log('🔍 Build Environment Debug Information');
 console.log('=====================================');
 console.log('Build Time:', new Date().toISOString());
@@ -31,7 +34,8 @@ if (viteEnvVars.length === 0) {
         new URL(value);
         console.log(`  ${key}: ${value} ✅`);
       } catch (error) {
-        console.log(`  ${key}: ${value} ❌ (Invalid URL)`);
+        console.log(`  ${key}: ${value} ❌ (Invalid URL - ${error.message})`);
+        console.log(`    Length: ${value?.length || 0}, Type: ${typeof value}`);
       }
     } else {
       console.log(`  ${key}: ${value || '[NOT SET]'}`);
@@ -64,8 +68,6 @@ netlifyVars.forEach(key => {
 console.log('');
 
 // Check if .env file exists (shouldn't on Netlify)
-const fs = require('fs');
-const path = require('path');
 
 const envFiles = ['.env', '.env.production', '.env.local'];
 console.log('📄 Environment Files:');

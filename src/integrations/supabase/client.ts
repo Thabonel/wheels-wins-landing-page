@@ -5,12 +5,6 @@ import type { Database } from './types';
 let SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 let SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Debug logging to trace environment variable loading
-console.log('🔍 Environment Variable Debug:');
-console.log('Raw VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...');
-console.log('Raw VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 30) + '...');
-console.log('URL starts with https:', import.meta.env.VITE_SUPABASE_URL?.startsWith('https'));
-console.log('KEY starts with eyJ:', import.meta.env.VITE_SUPABASE_ANON_KEY?.startsWith('eyJ'));
 
 // Auto-detect and fix swapped environment variables (common Netlify configuration issue)
 const isJWTToken = (value: string) => value.startsWith('eyJ') && value.includes('.');
