@@ -9,7 +9,7 @@ from . import (
     wins,
     subscription,
     voice,
-    voice_conversation,
+    # voice_conversation,  # Temporarily disabled due to import issues
     admin,
     observability,
     profiles,
@@ -32,7 +32,7 @@ __all__ = [
     'wins',
     'subscription',
     'voice',
-    'voice_conversation',
+    # 'voice_conversation',  # Temporarily disabled
     'admin',
     'observability',
     'profiles',
