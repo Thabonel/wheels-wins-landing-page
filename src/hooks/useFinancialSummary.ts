@@ -28,14 +28,17 @@ export function useFinancialSummary(days: number = 30) {
     if (!user) return;
     setLoading(true);
     try {
-      const response = await apiFetch(`/api/v1/wins/financial-summary/${user.id}?days=${days}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch summary');
-      const data = await response.json();
-      setSummary(data);
+      // For now, return mock data since the backend endpoint is not available
+      const mockData: FinancialSummary = {
+        user_id: user.id,
+        period_days: days,
+        total_income: 0,
+        total_expenses: 0,
+        net_income: 0,
+        expense_categories: [],
+        generated_at: new Date().toISOString()
+      };
+      setSummary(mockData);
       setError(null);
     } catch (err) {
       console.error('Error fetching financial summary:', err);

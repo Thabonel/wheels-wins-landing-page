@@ -67,9 +67,9 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
         updateConnectionStatus(true);
         reconnectAttempts.current = 0;
         
-        // Send initial connection message
+        // Send initial authentication message
         ws.current?.send(JSON.stringify({
-          type: 'connection',
+          type: 'auth',
           userId,
           timestamp: Date.now()
         }));
