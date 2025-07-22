@@ -2,8 +2,27 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 // Load Supabase configuration from environment variables - NO HARDCODED FALLBACKS
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+let SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+let SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Auto-detect and fix swapped environment variables (common Netlify configuration issue)
+const isJWTToken = (value: string) => value.startsWith('eyJ') && value.includes('.');
+const isValidURL = (value: string) => {
+  try {
+    new URL(value);
+    return value.includes('supabase.co');
+  } catch {
+    return false;
+  }
+};
+
+// Check if variables are swapped and auto-correct
+if (isJWTToken(SUPABASE_URL) && isValidURL(SUPABASE_ANON_KEY)) {
+  console.warn('🔄 Detected swapped Supabase environment variables - auto-correcting...');
+  const temp = SUPABASE_URL;
+  SUPABASE_URL = SUPABASE_ANON_KEY;
+  SUPABASE_ANON_KEY = temp;
+}
 
 // Enhanced validation with better error messaging for Netlify deployment debugging
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -26,11 +45,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 // Additional URL validation to catch invalid URLs before Supabase client creation
-try {
-  new URL(SUPABASE_URL);
-} catch (error) {
+if (!isValidURL(SUPABASE_URL)) {
   console.error('Invalid VITE_SUPABASE_URL:', SUPABASE_URL);
-  throw new Error(`Invalid VITE_SUPABASE_URL: "${SUPABASE_URL}". Please provide a valid URL.`);
+  throw new Error(`Invalid VITE_SUPABASE_URL: "${SUPABASE_URL}". Please provide a valid Supabase URL.`);
 }
 
 // Create the supabase client optimized for minimal JWT size (SaaS best practice)
