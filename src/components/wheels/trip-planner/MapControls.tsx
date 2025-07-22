@@ -8,7 +8,6 @@ import { reverseGeocode } from "./utils";
 import { Waypoint } from "./types";
 import { useUserUnits } from "./hooks/useUserUnits";
 import { MapOptionsControl } from "./MapOptionsControl";
-import { SimpleMapOptionsControl } from "./SimpleMapOptionsControl";
 import POILayer from "./POILayer";
 import { toast } from "@/hooks/use-toast";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
@@ -170,32 +169,15 @@ export default function MapControls({
         unit: units
       }), 'bottom-left');
 
-      // Add native Map Options Control with error handling
-      try {
-        console.log('🗂️ MapControls: About to create SimpleMapOptionsControl');
-        const optionsControl = new SimpleMapOptionsControl({
-          onStyleChange: setCurrentStyle
-        });
-        console.log('🗂️ MapControls: SimpleMapOptionsControl created', optionsControl);
-        
-        // Store reference before adding to map
-        optionsControlRef.current = optionsControl;
-        
-        console.log('🗂️ MapControls: About to add control to map');
-        map.current.addControl(optionsControl, 'top-right');
-        console.log('🗂️ MapControls: Control added to map successfully');
-        
-        // Verify control was added
-        setTimeout(() => {
-          const controlElements = document.querySelectorAll('.mapboxgl-ctrl-group');
-          console.log('🗂️ MapControls: Control groups found:', controlElements.length);
-          const buttons = document.querySelectorAll('.mapboxgl-ctrl-icon');
-          console.log('🗂️ MapControls: Control buttons found:', buttons.length);
-        }, 1000);
-        
-      } catch (error) {
-        console.error('❌ MapControls: Failed to create/add options control:', error);
-      }
+      // Add native Map Options Control (reverted to original)
+      const optionsControl = new MapOptionsControl({
+        onStyleChange: setCurrentStyle,
+        currentStyle,
+        poiFilters,
+        onPOIFilterChange: setPOIFilters
+      });
+      optionsControlRef.current = optionsControl;
+      map.current.addControl(optionsControl, 'top-right');
 
       // Wait for map to load before creating directions control
       map.current.on('load', () => {
