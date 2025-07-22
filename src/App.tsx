@@ -34,8 +34,10 @@ import AdminProtection from './components/admin/AdminProtection';
 import { PamIntegrationProvider } from './components/pam/PamIntegrationProvider';
 import { StagingBanner } from './components/StagingBanner';
 import { logEnvironmentInfo } from './config/environment';
+import { logEnvironmentStatus } from './config/env-validator';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
+import EnvDebugger from './components/debug/EnvDebugger';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import CookiePolicy from './pages/CookiePolicy';
@@ -47,11 +49,13 @@ function App() {
   // Log environment info in development/staging
   React.useEffect(() => {
     logEnvironmentInfo();
+    logEnvironmentStatus();
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <AppErrorBoundary>
+        <EnvDebugger />
         <Toaster />
         <StagingBanner />
         <Router>

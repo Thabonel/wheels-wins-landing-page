@@ -5,11 +5,32 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Validate required environment variables
+// Enhanced validation with better error messaging for Netlify deployment debugging
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  const envVars = {
+    VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || 'undefined',
+    VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? '[REDACTED]' : 'undefined',
+    MODE: import.meta.env.MODE,
+    PROD: import.meta.env.PROD,
+    DEV: import.meta.env.DEV
+  };
+  
+  console.error('Supabase Environment Variables Check:', envVars);
+  
   throw new Error(
-    'Missing required Supabase environment variables. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.'
+    `Missing required Supabase environment variables for ${import.meta.env.MODE} mode. ` +
+    `VITE_SUPABASE_URL: ${SUPABASE_URL ? 'SET' : 'MISSING'}, ` +
+    `VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY ? 'SET' : 'MISSING'}. ` +
+    'Please configure these in your Netlify site environment variables.'
   );
+}
+
+// Additional URL validation to catch invalid URLs before Supabase client creation
+try {
+  new URL(SUPABASE_URL);
+} catch (error) {
+  console.error('Invalid VITE_SUPABASE_URL:', SUPABASE_URL);
+  throw new Error(`Invalid VITE_SUPABASE_URL: "${SUPABASE_URL}". Please provide a valid URL.`);
 }
 
 // Create the supabase client optimized for minimal JWT size (SaaS best practice)
