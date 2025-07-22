@@ -5,6 +5,7 @@ import { pamUIController } from "@/lib/PamUIController";
 import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
+import { pamCalendarService } from "@/services/pamCalendarService";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -769,7 +770,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         });
         if (response.ok) {
           const data = await response.json();
-          addMessage(data.response, "pam");
+          addMessage(data.response, "pam", message);
         }
       } catch (error) {
         console.error('Failed to send message via REST:', error);
@@ -1149,7 +1150,42 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     );
   };
 
-  const addMessage = (content: string, sender: "user" | "pam"): PamMessage => {
+  // Process PAM responses for calendar actions
+  const processCalendarActions = async (content: string, userMessage: string) => {
+    try {
+      // Extract potential calendar event from user's message
+      const eventData = pamCalendarService.extractEventFromText(userMessage);
+      
+      if (eventData && (
+        content.toLowerCase().includes("appointment") || 
+        content.toLowerCase().includes("calendar") ||
+        content.toLowerCase().includes("scheduled") ||
+        content.toLowerCase().includes("added") ||
+        content.toLowerCase().includes("remind")
+      )) {
+        console.log('📅 Processing calendar action:', eventData);
+        
+        const result = await pamCalendarService.createCalendarEvent(eventData);
+        
+        if (result.success) {
+          console.log('✅ Calendar event created successfully:', result);
+          // Add a follow-up message confirming the event was actually created
+          setTimeout(() => {
+            addMessage(`✅ **Calendar event created!** I've successfully added "${eventData.title}" to your calendar. You can view it on the Calendar page.`, "pam");
+          }, 500);
+        } else {
+          console.error('❌ Calendar event creation failed:', result);
+          setTimeout(() => {
+            addMessage(`⚠️ I tried to create the calendar event but encountered an error: ${result.message}. Please try adding it manually on the Calendar page.`, "pam");
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Calendar processing error:', error);
+    }
+  };
+
+  const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string): PamMessage => {
     const newMessage: PamMessage = {
       id: Date.now().toString(),
       content,
@@ -1158,6 +1194,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     };
     setMessages(prev => {
       const updatedMessages = [...prev, newMessage];
+      
+      // Process calendar actions if this is a PAM response and we have the triggering user message
+      if (sender === "pam" && triggeredByUserMessage) {
+        processCalendarActions(content, triggeredByUserMessage);
+      }
       
       // ROBUST MEMORY: Save to localStorage on every message
       try {
@@ -1224,7 +1265,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       if (response.ok) {
         const data = await response.json();
         const pamResponse = data.response || data.message || data.content || "I'm sorry, I couldn't process that request.";
-        addMessage(pamResponse, "pam");
+        addMessage(pamResponse, "pam", message);
         // Note: PAM backend automatically saves all conversation history
         
         // Handle any UI actions from the response
