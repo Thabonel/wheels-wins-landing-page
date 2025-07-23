@@ -685,7 +685,6 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             width: '30px',
             height: '30px'
           } : undefined}
-          onClick={() => console.log('Map options button clicked!')}
         >
           <Layers className="w-4 h-4" style={isMapControl ? { margin: '0' } : undefined} />
           {!isMapControl && (
