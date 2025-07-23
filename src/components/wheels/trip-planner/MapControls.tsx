@@ -184,7 +184,60 @@ export default function MapControls({
         if (!directionsControl.current && map.current) {
           console.log('Creating directions control after map load');
           
-          // Create directions control with dynamic units based on user's region
+          // Map route types to Mapbox Directions API optimization
+          const getOptimization = (routeType: string) => {
+            switch (routeType) {
+              case 'fastest':
+                return 'time';
+              case 'shortest':
+                return 'distance';
+              case 'scenic':
+                return 'time'; // Use time but prefer scenic routes
+              case 'off_grid':
+                return 'distance'; // Use distance and avoid highways
+              case 'luxury':
+                return 'time'; // Use time but prefer premium routes
+              case 'manual':
+                return 'time'; // Use time for manual waypoints
+              default:
+                return 'time';
+            }
+          };
+
+          // Configure route-specific exclusions
+          const getRouteExclusions = (routeType: string, baseExclude: string[]) => {
+            const exclusions = [...baseExclude];
+            
+            switch (routeType) {
+              case 'scenic':
+                // Scenic routes avoid highways when possible
+                if (!exclusions.includes('motorway')) {
+                  exclusions.push('motorway');
+                }
+                break;
+              case 'off_grid':
+                // Off-grid routes avoid major highways and prefer rural roads
+                if (!exclusions.includes('motorway')) {
+                  exclusions.push('motorway');
+                }
+                if (!exclusions.includes('trunk')) {
+                  exclusions.push('trunk');
+                }
+                break;
+              case 'luxury':
+                // Luxury routes avoid unpaved roads
+                if (!exclusions.includes('unpaved')) {
+                  exclusions.push('unpaved');
+                }
+                break;
+            }
+            
+            return exclusions;
+          };
+
+          const routeExclusions = getRouteExclusions(routeType, exclude);
+          
+          // Create directions control with dynamic units and route type optimization
           const dir = new MapboxDirections({
             accessToken: mapboxgl.accessToken,
             unit: units, // Dynamic units based on user's address/region
@@ -197,13 +250,15 @@ export default function MapControls({
             },
             alternatives: true, // Show alternative routes like Roadtrippers
             congestion: annotations.includes('congestion'), // Show traffic congestion if selected
-            exclude: exclude.length ? exclude.join(',') : undefined,
+            exclude: routeExclusions.length ? routeExclusions.join(',') : undefined,
             annotations: annotations.length ? annotations.join(',') : undefined,
             vehicle,
             flyTo: true, // Smooth camera transitions
             placeholderOrigin: 'Choose starting point',
             placeholderDestination: 'Choose destination',
-            zoom: 15 // Higher zoom for detailed route viewing
+            zoom: 15, // Higher zoom for detailed route viewing
+            // Apply route type optimization
+            optimization: getOptimization(routeType)
           });
           
           directionsControl.current = dir;
@@ -266,7 +321,7 @@ export default function MapControls({
         }
       }
     };
-  }, [region, isOffline, units, unitsLoading]); // Add units and loading dependencies
+  }, [region, isOffline, units, unitsLoading, routeType]); // Add units, loading, and routeType dependencies
 
   // Handle travel mode changes
   useEffect(() => {
@@ -289,7 +344,86 @@ export default function MapControls({
     }
   }, [poiFilters]);
 
-  // Update routing options when exclude, annotations or vehicle change
+  // Handle route type changes dynamically
+  useEffect(() => {
+    if (directionsControl.current && !isOffline) {
+      // Route type change requires recreating the route with new optimization
+      const getOptimization = (routeType: string) => {
+        switch (routeType) {
+          case 'fastest':
+            return 'time';
+          case 'shortest':
+            return 'distance';
+          case 'scenic':
+            return 'time'; // Use time but prefer scenic routes
+          case 'off_grid':
+            return 'distance'; // Use distance and avoid highways
+          case 'luxury':
+            return 'time'; // Use time but prefer premium routes
+          case 'manual':
+            return 'time'; // Use time for manual waypoints
+          default:
+            return 'time';
+        }
+      };
+
+      // Configure route-specific exclusions
+      const getRouteExclusions = (routeType: string, baseExclude: string[]) => {
+        const exclusions = [...baseExclude];
+        
+        switch (routeType) {
+          case 'scenic':
+            // Scenic routes avoid highways when possible
+            if (!exclusions.includes('motorway')) {
+              exclusions.push('motorway');
+            }
+            break;
+          case 'off_grid':
+            // Off-grid routes avoid major highways and prefer rural roads
+            if (!exclusions.includes('motorway')) {
+              exclusions.push('motorway');
+            }
+            if (!exclusions.includes('trunk')) {
+              exclusions.push('trunk');
+            }
+            break;
+          case 'luxury':
+            // Luxury routes avoid unpaved roads
+            if (!exclusions.includes('unpaved')) {
+              exclusions.push('unpaved');
+            }
+            break;
+        }
+        
+        return exclusions;
+      };
+
+      const routeExclusions = getRouteExclusions(routeType, exclude);
+      
+      try {
+        // Update options with new route type configuration
+        directionsControl.current.actions.setOptions({
+          exclude: routeExclusions.length ? routeExclusions.join(',') : undefined,
+          annotations: annotations.length ? annotations.join(',') : undefined,
+          vehicle,
+          optimization: getOptimization(routeType)
+        });
+        
+        // Force route recalculation if we have origin and destination
+        const origin = directionsControl.current.getOrigin();
+        const destination = directionsControl.current.getDestination();
+        if (origin && destination) {
+          console.log(`🔄 Recalculating route with ${routeType} optimization`);
+          // Trigger route recalculation by setting the destination again
+          directionsControl.current.setDestination(destination.geometry.coordinates);
+        }
+      } catch (error) {
+        console.warn('Error updating route type options:', error);
+      }
+    }
+  }, [routeType, isOffline, exclude, annotations, vehicle]);
+
+  // Update routing options when exclude, annotations or vehicle change (without route type)
   useEffect(() => {
     if (directionsControl.current && !isOffline) {
       try {
