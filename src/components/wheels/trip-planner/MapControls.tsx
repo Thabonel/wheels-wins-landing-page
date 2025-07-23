@@ -235,13 +235,62 @@ export default function MapControls({
             return exclusions;
           };
 
+          // Configure vehicle-specific routing parameters
+          const getVehicleConfig = (vehicle: string, baseExclude: string[]) => {
+            const config = {
+              profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
+              exclude: [...baseExclude],
+              annotations: [...annotations]
+            };
+
+            switch (vehicle) {
+              case 'truck':
+                // Trucks need to avoid weight/height restrictions
+                config.exclude = [...config.exclude, 'restricted'];
+                // Add truck-specific annotations for weight limits
+                if (!config.annotations.includes('maxweight')) {
+                  config.annotations.push('maxweight');
+                }
+                if (!config.annotations.includes('maxheight')) {
+                  config.annotations.push('maxheight');
+                }
+                break;
+              
+              case 'bus':
+                // Buses avoid narrow roads and have passenger considerations
+                config.exclude = [...config.exclude, 'restricted'];
+                // Buses prefer main roads for passenger comfort
+                if (config.exclude.includes('motorway')) {
+                  config.exclude = config.exclude.filter(e => e !== 'motorway');
+                }
+                break;
+              
+              case 'motorcycle':
+                // Motorcycles can use more road types but avoid highways in bad weather
+                // They prefer scenic routes when possible
+                if (!config.exclude.includes('ferry')) {
+                  // Motorcycles generally avoid ferries due to boarding complexity
+                  config.exclude.push('ferry');
+                }
+                break;
+              
+              case 'car':
+              default:
+                // Cars use standard routing - no special restrictions
+                break;
+            }
+
+            return config;
+          };
+
           const routeExclusions = getRouteExclusions(routeType, exclude);
+          const vehicleConfig = getVehicleConfig(vehicle, routeExclusions);
           
-          // Create directions control with dynamic units and route type optimization
+          // Create directions control with dynamic units, route type, and vehicle optimization
           const dir = new MapboxDirections({
             accessToken: mapboxgl.accessToken,
             unit: units, // Dynamic units based on user's address/region
-            profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
+            profile: vehicleConfig.profile,
             interactive: !isOffline,
             controls: {
               instructions: true, // Enable turn-by-turn instructions like Roadtrippers
@@ -250,9 +299,8 @@ export default function MapControls({
             },
             alternatives: true, // Show alternative routes like Roadtrippers
             congestion: annotations.includes('congestion'), // Show traffic congestion if selected
-            exclude: routeExclusions.length ? routeExclusions.join(',') : undefined,
-            annotations: annotations.length ? annotations.join(',') : undefined,
-            vehicle,
+            exclude: vehicleConfig.exclude.length ? vehicleConfig.exclude.join(',') : undefined,
+            annotations: vehicleConfig.annotations.length ? vehicleConfig.annotations.join(',') : undefined,
             flyTo: true, // Smooth camera transitions
             placeholderOrigin: 'Choose starting point',
             placeholderDestination: 'Choose destination',
@@ -398,14 +446,54 @@ export default function MapControls({
         return exclusions;
       };
 
+      // Configure vehicle-specific routing parameters (same logic as initialization)
+      const getVehicleConfig = (vehicle: string, baseExclude: string[]) => {
+        const config = {
+          profile: `mapbox/${travelMode === 'traffic' ? 'driving-traffic' : travelMode}`,
+          exclude: [...baseExclude],
+          annotations: [...annotations]
+        };
+
+        switch (vehicle) {
+          case 'truck':
+            config.exclude = [...config.exclude, 'restricted'];
+            if (!config.annotations.includes('maxweight')) {
+              config.annotations.push('maxweight');
+            }
+            if (!config.annotations.includes('maxheight')) {
+              config.annotations.push('maxheight');
+            }
+            break;
+          
+          case 'bus':
+            config.exclude = [...config.exclude, 'restricted'];
+            if (config.exclude.includes('motorway')) {
+              config.exclude = config.exclude.filter(e => e !== 'motorway');
+            }
+            break;
+          
+          case 'motorcycle':
+            if (!config.exclude.includes('ferry')) {
+              config.exclude.push('ferry');
+            }
+            break;
+          
+          case 'car':
+          default:
+            break;
+        }
+
+        return config;
+      };
+
       const routeExclusions = getRouteExclusions(routeType, exclude);
+      const vehicleConfig = getVehicleConfig(vehicle, routeExclusions);
       
       try {
-        // Update options with new route type configuration
+        // Update options with new route type and vehicle configuration
         directionsControl.current.actions.setOptions({
-          exclude: routeExclusions.length ? routeExclusions.join(',') : undefined,
-          annotations: annotations.length ? annotations.join(',') : undefined,
-          vehicle,
+          exclude: vehicleConfig.exclude.length ? vehicleConfig.exclude.join(',') : undefined,
+          annotations: vehicleConfig.annotations.length ? vehicleConfig.annotations.join(',') : undefined,
           optimization: getOptimization(routeType)
         });
         
@@ -413,7 +501,7 @@ export default function MapControls({
         const origin = directionsControl.current.getOrigin();
         const destination = directionsControl.current.getDestination();
         if (origin && destination) {
-          console.log(`🔄 Recalculating route with ${routeType} optimization`);
+          console.log(`🔄 Recalculating route with ${routeType} optimization for ${vehicle}`);
           // Trigger route recalculation by setting the destination again
           directionsControl.current.setDestination(destination.geometry.coordinates);
         }
@@ -423,20 +511,8 @@ export default function MapControls({
     }
   }, [routeType, isOffline, exclude, annotations, vehicle]);
 
-  // Update routing options when exclude, annotations or vehicle change (without route type)
-  useEffect(() => {
-    if (directionsControl.current && !isOffline) {
-      try {
-        directionsControl.current.actions.setOptions({
-          exclude: exclude.length ? exclude.join(',') : undefined,
-          annotations: annotations.length ? annotations.join(',') : undefined,
-          vehicle
-        });
-      } catch (error) {
-        console.warn('Error updating directions options:', error);
-      }
-    }
-  }, [exclude, annotations, vehicle, isOffline]);
+  // This useEffect is now redundant since vehicle changes are handled above with route type
+  // Keeping for any future basic parameter updates not related to vehicle/route type
 
   // Pin-drop mode for waypoints only (never replace origin/destination)
   useEffect(() => {
