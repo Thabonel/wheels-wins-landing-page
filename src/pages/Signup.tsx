@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,11 +14,12 @@ const Signup = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
-  // If already authenticated, redirect to the main page
-  if (isAuthenticated) {
-    navigate("/you");
-    return null;
-  }
+  // Redirect authenticated users to their dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/you");
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleOAuthSignup = async (provider: 'google' | 'facebook') => {
     try {
