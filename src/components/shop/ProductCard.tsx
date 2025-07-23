@@ -4,6 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, ShoppingCart, Star } from "lucide-react";
 import { ShopProduct, isDigitalProduct, isAffiliateProduct } from "./types";
+import { useRegion } from "@/context/RegionContext";
 
 interface ProductCardProps {
   product: ShopProduct;
@@ -12,6 +13,8 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onExternalLinkClick, onBuyProduct }: ProductCardProps) {
+  const { regionConfig } = useRegion();
+  
   const handleClick = () => {
     if (isAffiliateProduct(product)) {
       onExternalLinkClick(product.externalLink);
@@ -61,7 +64,10 @@ export default function ProductCard({ product, onExternalLinkClick, onBuyProduct
         {isDigitalProduct(product) && (
           <div className="mt-2">
             <span className="text-lg font-bold text-green-600">
-              ${product.price} {product.currency}
+              {regionConfig.currencySymbol}{product.price.toFixed(2)}
+            </span>
+            <span className="text-sm text-gray-500 ml-1">
+              {product.currency}
             </span>
           </div>
         )}
