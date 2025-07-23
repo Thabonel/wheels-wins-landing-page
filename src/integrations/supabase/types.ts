@@ -4720,6 +4720,48 @@ export type Database = {
           },
         ]
       }
+      trip_templates: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          tags: string[] | null
+          template_data: Json
+          updated_at: string
+          usage_count: number
+          user_id: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          tags?: string[] | null
+          template_data?: Json
+          updated_at?: string
+          usage_count?: number
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          tags?: string[] | null
+          template_data?: Json
+          updated_at?: string
+          usage_count?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       trips: {
         Row: {
           best_time: string | null
@@ -6042,6 +6084,10 @@ export type Database = {
       get_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      increment_template_usage: {
+        Args: { template_id: string }
+        Returns: undefined
       }
       log_security_event: {
         Args: {
