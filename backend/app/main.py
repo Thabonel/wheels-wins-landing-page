@@ -61,6 +61,7 @@ from app.api.v1 import (
     custom_routes,
     mapbox,
     user_settings,
+    onboarding,
 )
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
@@ -339,6 +340,7 @@ app.include_router(products.router, prefix="/api/v1", tags=["Products"])
 app.include_router(orders.router, prefix="/api/v1", tags=["Orders"])
 app.include_router(maintenance.router, prefix="/api/v1", tags=["Maintenance"])
 app.include_router(custom_routes.router, prefix="/api/v1", tags=["Routes"])
+app.include_router(onboarding.router, prefix="/api/v1", tags=["Onboarding"])
 # Removed generic websocket router to avoid conflicts with PAM WebSocket
 # app.include_router(websocket.router, prefix="/api", tags=["WebSocket"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
