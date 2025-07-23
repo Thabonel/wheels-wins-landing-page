@@ -34,4 +34,4 @@ pytest-json-report==1.5.0
 locust==2.20.0
 
 # Include main dependencies for test environment
--r requirements.txtpytest-asyncio==0.21.1
+-r requirements.txt
