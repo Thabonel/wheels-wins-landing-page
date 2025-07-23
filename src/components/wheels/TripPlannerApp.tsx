@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   Route, 
   Users, 
@@ -17,17 +18,18 @@ import {
   Sparkles,
   Play,
   Pause,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 // Import existing components
-import TripPlannerLayout from './trip-planner/TripPlannerLayout';
 import IntegratedTripPlanner from './trip-planner/IntegratedTripPlanner';
-import PAMTripChat from './trip-planner/PAMTripChat';
+import BudgetSidebar from './trip-planner/BudgetSidebar';
+import SocialSidebar from './trip-planner/SocialSidebar';
 import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
-import PAMTripSuggestions from './trip-planner/PAMTripSuggestions';
+import NavigationExportHub from './trip-planner/NavigationExportHub';
 import { useIntegratedTripState } from './trip-planner/hooks/useIntegratedTripState';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -83,7 +85,7 @@ const TRIP_TEMPLATES: TripTemplate[] = [
 export default function TripPlannerApp() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'planner' | 'templates'>('dashboard');
+  const [activeTab, setActiveTab] = useState('plan-trip');
   const [isPlannerInitialized, setIsPlannerInitialized] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
   const [showWelcome, setShowWelcome] = useState(!user);
@@ -96,11 +98,6 @@ export default function TripPlannerApp() {
       setShowWelcome(false);
     }
   }, [user, showWelcome]);
-
-  const handleStartPlanning = () => {
-    setCurrentView('planner');
-    setIsPlannerInitialized(true);
-  };
 
   const handleUseTemplate = (template: TripTemplate) => {
     setSelectedTemplate(template);
@@ -116,181 +113,17 @@ export default function TripPlannerApp() {
       description: `${template.name} has been loaded. Customize it to your needs!`
     });
     
-    setCurrentView('planner');
+    setActiveTab('plan-trip');
     setIsPlannerInitialized(true);
   };
 
-  const TripDashboard = () => (
-    <div className="space-y-6">
-      {/* Trip Progress Overview */}
-      <Card className="border-l-4 border-l-primary">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Trip Planning Progress
-            </CardTitle>
-            <Badge variant="secondary">
-              {integratedState.route.originName && integratedState.route.destName ? 'Route Set' : 'Getting Started'}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold text-primary">
-                {integratedState.route.waypoints.length}
-              </div>
-              <div className="text-sm text-muted-foreground">Waypoints</div>
-            </div>
-            <div className="text-center p-3 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold text-success">
-                ${integratedState.budget.totalBudget}
-              </div>
-              <div className="text-sm text-muted-foreground">Budget</div>
-            </div>
-            <div className="text-center p-3 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold text-warning">
-                {integratedState.social.friends.length}
-              </div>
-              <div className="text-sm text-muted-foreground">Friends</div>
-            </div>
-            <div className="text-center p-3 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold text-info">
-                {integratedState.pam.suggestions.length}
-              </div>
-              <div className="text-sm text-muted-foreground">AI Tips</div>
-            </div>
-          </div>
-          
-          {/* Quick Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Trip Planning Progress</span>
-              <span>{Math.round(calculateCompletionPercentage())}%</span>
-            </div>
-            <Progress value={calculateCompletionPercentage()} className="h-2" />
-          </div>
-          
-          <div className="flex gap-2">
-            <Button onClick={handleStartPlanning} className="flex-1">
-              <Route className="w-4 h-4 mr-2" />
-              {integratedState.route.originName ? 'Continue Planning' : 'Start Planning'}
-            </Button>
-            <Button variant="outline" onClick={() => setCurrentView('templates')}>
-              <Sparkles className="w-4 h-4 mr-2" />
-              Templates
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Current Trip Summary */}
-      {(integratedState.route.originName || integratedState.route.destName) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Route className="w-5 h-5" />
-              Current Trip
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="w-4 h-4 text-muted-foreground" />
-                <span>
-                  {integratedState.route.originName || 'Set origin'} → {integratedState.route.destName || 'Set destination'}
-                </span>
-              </div>
-              
-              {integratedState.route.totalDistance && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span>
-                    {integratedState.route.totalDistance} miles • {integratedState.route.estimatedTime} hours
-                  </span>
-                </div>
-              )}
-              
-              <div className="flex gap-2 pt-2">
-                <Button size="sm" onClick={handleStartPlanning}>
-                  <Settings className="w-4 h-4 mr-1" />
-                  Modify
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => integratedState.toggleFeature('social')}>
-                  <Users className="w-4 h-4 mr-1" />
-                  Share
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => integratedState.toggleFeature('export')}>
-                  <Download className="w-4 h-4 mr-1" />
-                  Export
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* PAM Suggestions Preview */}
-      {integratedState.pam.suggestions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              PAM Recommendations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PAMTripSuggestions maxSuggestions={2} />
-            <div className="pt-3">
-              <Button variant="outline" size="sm" onClick={() => integratedState.toggleFeature('pam')}>
-                <MessageSquare className="w-4 h-4 mr-1" />
-                Chat with PAM
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-2 h-2 bg-primary rounded-full"></div>
-              <span>Trip planner opened</span>
-            </div>
-            {integratedState.route.originName && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <div className="w-2 h-2 bg-success rounded-full"></div>
-                <span>Origin set to {integratedState.route.originName}</span>
-              </div>
-            )}
-            {integratedState.budget.totalBudget > 0 && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <div className="w-2 h-2 bg-warning rounded-full"></div>
-                <span>Budget set to ${integratedState.budget.totalBudget}</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const TemplateGallery = () => (
+  const TripTemplatesContent = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Trip Templates</h2>
           <p className="text-muted-foreground">Start with proven RV routes and customize to your needs</p>
         </div>
-        <Button variant="outline" onClick={() => setCurrentView('dashboard')}>
-          Back to Dashboard
-        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -372,18 +205,95 @@ export default function TripPlannerApp() {
     </div>
   );
 
-  const calculateCompletionPercentage = () => {
-    let completed = 0;
-    let total = 5;
-    
-    if (integratedState.route.originName) completed++;
-    if (integratedState.route.destName) completed++;
-    if (integratedState.budget.totalBudget > 0) completed++;
-    if (integratedState.route.waypoints.length > 0) completed++;
-    if (integratedState.pam.context.chatHistory.length > 0) completed++;
-    
-    return (completed / total) * 100;
-  };
+  const TripDetailsContent = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Trip Details</h2>
+          <p className="text-muted-foreground">Review and finalize your trip information</p>
+        </div>
+      </div>
+
+      {/* Trip Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Route className="w-5 h-5" />
+            Current Trip Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className="text-2xl font-bold text-primary">
+                  {integratedState.route.waypoints.length}
+                </div>
+                <div className="text-sm text-muted-foreground">Waypoints</div>
+              </div>
+              <div className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className="text-2xl font-bold text-success">
+                  ${integratedState.budget.totalBudget}
+                </div>
+                <div className="text-sm text-muted-foreground">Budget</div>
+              </div>
+              <div className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className="text-2xl font-bold text-warning">
+                  {integratedState.social.friends.length}
+                </div>
+                <div className="text-sm text-muted-foreground">Friends</div>
+              </div>
+              <div className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className="text-2xl font-bold text-info">
+                  {integratedState.pam.suggestions.length}
+                </div>
+                <div className="text-sm text-muted-foreground">AI Tips</div>
+              </div>
+            </div>
+            
+            {(integratedState.route.originName || integratedState.route.destName) && (
+              <div className="space-y-3 pt-4 border-t">
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
+                  <span>
+                    {integratedState.route.originName || 'Set origin'} → {integratedState.route.destName || 'Set destination'}
+                  </span>
+                </div>
+                
+                {integratedState.route.totalDistance && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span>
+                      {integratedState.route.totalDistance} miles • {integratedState.route.estimatedTime} hours
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Export Options */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Export & Share</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Button onClick={() => integratedState.toggleFeature('export')}>
+              <Download className="w-4 h-4 mr-2" />
+              Export Trip
+            </Button>
+            <Button variant="outline" onClick={() => integratedState.toggleFeature('meetup')}>
+              <Users className="w-4 h-4 mr-2" />
+              Plan My Meetup
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   // Welcome screen for non-authenticated users
   if (showWelcome) {
@@ -439,7 +349,7 @@ export default function TripPlannerApp() {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="space-y-4"
             >
-              <Button size="lg" className="text-lg px-8 py-3" onClick={handleStartPlanning}>
+              <Button size="lg" className="text-lg px-8 py-3" onClick={() => setShowWelcome(false)}>
                 <Play className="w-5 h-5 mr-2" />
                 Try Free Demo
               </Button>
@@ -455,63 +365,172 @@ export default function TripPlannerApp() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AnimatePresence mode="wait">
-        {currentView === 'dashboard' && (
-          <motion.div
-            key="dashboard"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="container mx-auto px-4 py-6"
-          >
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="text-3xl font-bold">Trip Planner</h1>
-                <p className="text-muted-foreground">
-                  {user ? `Welcome back, ${user.email}` : 'Plan your next RV adventure'}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setCurrentView('templates')}>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Templates
-                </Button>
-                <Button onClick={handleStartPlanning}>
-                  <Route className="w-4 h-4 mr-2" />
-                  Plan Trip
-                </Button>
+      <div className="container mx-auto px-4 py-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <TabsList className="grid grid-cols-3 w-full sm:w-auto">
+              <TabsTrigger value="trip-templates" className="flex items-center gap-2 text-xs sm:text-sm">
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Trip Templates</span>
+                <span className="sm:hidden">Templates</span>
+              </TabsTrigger>
+              <TabsTrigger value="plan-trip" className="flex items-center gap-2 text-xs sm:text-sm">
+                <Route className="w-4 h-4" />
+                <span className="hidden sm:inline">Plan Trip</span>
+                <span className="sm:hidden">Plan</span>
+              </TabsTrigger>
+              <TabsTrigger value="trip-details" className="flex items-center gap-2 text-xs sm:text-sm">
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Trip Details</span>
+                <span className="sm:hidden">Details</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Budget and Social Buttons - Clean state management */}
+            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:gap-2">
+              <Button
+                size="sm"
+                variant={integratedState.ui.showBudgetSidebar ? "default" : "outline"}
+                onClick={() => {
+                  // Close social if open, then toggle budget
+                  if (integratedState.ui.showSocialSidebar) {
+                    integratedState.toggleFeature('social');
+                  }
+                  integratedState.toggleFeature('budget');
+                }}
+                className="flex-1 sm:flex-initial"
+              >
+                <DollarSign className="w-4 h-4 mr-1" />
+                Budget
+              </Button>
+              <Button
+                size="sm"
+                variant={integratedState.ui.showSocialSidebar ? "default" : "outline"}
+                onClick={() => {
+                  // Close budget if open, then toggle social
+                  if (integratedState.ui.showBudgetSidebar) {
+                    integratedState.toggleFeature('budget');
+                  }
+                  integratedState.toggleFeature('social');
+                }}
+                className="flex-1 sm:flex-initial"
+              >
+                <Users className="w-4 h-4 mr-1" />
+                Social
+              </Button>
+            </div>
+          </div>
+
+          <TabsContent value="trip-templates" className="mt-0">
+            <TripTemplatesContent />
+          </TabsContent>
+
+          <TabsContent value="plan-trip" className="mt-0">
+            <IntegratedTripPlanner />
+          </TabsContent>
+
+          <TabsContent value="trip-details" className="mt-0">
+            <TripDetailsContent />
+          </TabsContent>
+        </Tabs>
+
+        {/* Sidebar Rendering - ONLY here, nowhere else */}
+        {(integratedState.ui.showBudgetSidebar || integratedState.ui.showSocialSidebar) && (
+          <>
+            {/* Mobile Overlay */}
+            <div 
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              onClick={() => {
+                if (integratedState.ui.showBudgetSidebar) {
+                  integratedState.toggleFeature('budget');
+                }
+                if (integratedState.ui.showSocialSidebar) {
+                  integratedState.toggleFeature('social');
+                }
+              }}
+            />
+            
+            {/* Responsive Sidebar */}
+            <div className={`
+              fixed inset-y-0 right-0 z-50 w-full sm:w-80 md:w-96 
+              bg-background border-l shadow-lg overflow-y-auto
+              transform transition-transform duration-300 ease-in-out
+              ${(integratedState.ui.showBudgetSidebar || integratedState.ui.showSocialSidebar) 
+                ? 'translate-x-0' 
+                : 'translate-x-full'
+              }
+            `}>
+              <div className="p-4 space-y-4">
+                {/* Budget Sidebar */}
+                {integratedState.ui.showBudgetSidebar && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">Trip Budget Tracker</h3>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => integratedState.toggleFeature('budget')}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <BudgetSidebar 
+                      isVisible={true} 
+                      onClose={() => integratedState.toggleFeature('budget')} 
+                    />
+                  </div>
+                )}
+
+                {/* Social Sidebar */}
+                {integratedState.ui.showSocialSidebar && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">Social Trip Coordination</h3>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => integratedState.toggleFeature('social')}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <SocialSidebar
+                      friends={integratedState.social.friends}
+                      groupTrips={integratedState.social.groupTrips}
+                      onOpenMeetupPlanner={() => {
+                        if (integratedState.ui.showSocialSidebar) {
+                          integratedState.toggleFeature('social');
+                        }
+                        if (!integratedState.ui.showMeetupPlanner) {
+                          integratedState.toggleFeature('meetup');
+                        }
+                      }}
+                      isOpen={true}
+                      onClose={() => integratedState.toggleFeature('social')}
+                      calendarEvents={[]}
+                    />
+                  </div>
+                )}
               </div>
             </div>
-            <TripDashboard />
-          </motion.div>
+          </>
         )}
 
-        {currentView === 'templates' && (
-          <motion.div
-            key="templates"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="container mx-auto px-4 py-6"
-          >
-            <TemplateGallery />
-          </motion.div>
-        )}
+        {/* Plan My Meetup Modal */}
+        <SocialTripCoordinator
+          isOpen={integratedState.ui.showMeetupPlanner}
+          onClose={() => integratedState.toggleFeature('meetup')}
+          currentRoute={integratedState.route}
+          currentBudget={integratedState.budget}
+        />
 
-        {currentView === 'planner' && isPlannerInitialized && (
-          <motion.div
-            key="planner"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <IntegratedTripPlanner />
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <NavigationExportHub
+          isOpen={integratedState.ui.showExportModal}
+          onClose={() => integratedState.toggleFeature('export')}
+          currentRoute={integratedState.route}
+          currentBudget={integratedState.budget}
+        />
+      </div>
     </div>
   );
 }
