@@ -39,7 +39,7 @@ export async function fetchTripTemplatesForRegion(region: Region): Promise<TripT
   try {
     console.log(`Fetching trip templates for region: ${region}`);
     
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('trip_templates')
       .select('*')
       .or(`template_data->>'region'.eq.${region},is_public.eq.true`)
@@ -115,7 +115,7 @@ export async function saveTripTemplate(templateData: ScrapedTripData, userId?: s
       usage_count: 0
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('trip_templates')
       .insert([template])
       .select();
@@ -342,7 +342,7 @@ export async function getLocationBasedTripTemplates(region: Region): Promise<Tri
  */
 export async function incrementTemplateUsage(templateId: string): Promise<void> {
   try {
-    const { error } = await supabase.rpc('increment_template_usage', {
+    const { error } = await (supabase as any).rpc('increment_template_usage', {
       template_id: templateId
     });
     
