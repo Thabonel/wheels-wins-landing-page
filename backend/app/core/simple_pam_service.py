@@ -41,7 +41,7 @@ class SimplePamService:
         
         try:
             self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-            logger.info("SimplePamService initialized successfully")
+            logger.info("SimplePamService initialized successfully with OpenAI")
         except Exception as e:
             logger.error(f"Failed to initialize OpenAI client: {str(e)}")
             raise PAMServiceError(f"Failed to initialize OpenAI client: {str(e)}")

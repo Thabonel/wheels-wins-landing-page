@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from app.agents.pam.onboarding import handle_onboarding
+from agents.pam.onboarding import handle_onboarding
 
 router = APIRouter()
 
