@@ -162,15 +162,45 @@ export default function TravelModeButtons({
 
       <div className="flex items-center gap-2">
         <Label className="text-sm">Vehicle</Label>
-        <Select value={vehicle} onValueChange={onVehicleChange}>
+        <Select value={vehicle} onValueChange={(value) => {
+          console.log(`🚗 Vehicle changed to: ${value}`);
+          const vehicleFeatures = {
+            car: 'Standard routing with all road types',
+            truck: 'Avoids restricted roads, includes weight/height limits',
+            bus: 'Prefers main roads, avoids restrictions',
+            motorcycle: 'Avoids ferries, optimized for scenic routes'
+          };
+          console.log(`📋 ${vehicleFeatures[value as keyof typeof vehicleFeatures]}`);
+          onVehicleChange(value);
+        }}>
           <SelectTrigger className="w-32">
             <SelectValue placeholder="car" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="car">Car</SelectItem>
-            <SelectItem value="truck">Truck</SelectItem>
-            <SelectItem value="bus">Bus</SelectItem>
-            <SelectItem value="motorcycle">Motorcycle</SelectItem>
+            <SelectItem value="car">
+              <div className="flex items-center gap-2">
+                <span>🚗</span>
+                <span>Car</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="truck">
+              <div className="flex items-center gap-2">
+                <span>🚛</span>
+                <span>Truck</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="bus">
+              <div className="flex items-center gap-2">
+                <span>🚌</span>
+                <span>Bus</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="motorcycle">
+              <div className="flex items-center gap-2">
+                <span>🏍️</span>
+                <span>Motorcycle</span>
+              </div>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
