@@ -17,7 +17,8 @@ import {
   Carrot,
   Layers,
   Navigation,
-  Map
+  Map,
+  Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +33,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { fetchPhoneCoverage } from './utils';
 import WheelersLayer from './WheelersLayer';
+import FriendsLayer from './FriendsLayer';
 import { AppErrorBoundary } from '@/components/common/ErrorBoundary';
 
 interface MapOptionsDropdownProps {
@@ -49,6 +51,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
   const baseMapTheme = 'scenic';
   const [userCountry, setUserCountry] = useState('AU'); // Default to Australia based on route
   const [showWheelersLayer, setShowWheelersLayer] = useState(false);
+  const [showFriendsLayer, setShowFriendsLayer] = useState(false);
   const [overlays, setOverlays] = useState({
     traffic: false,
     phoneCoverage: false,
@@ -766,6 +769,23 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
 
         <DropdownMenuSeparator />
 
+        {/* Social */}
+        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
+          Social
+        </DropdownMenuLabel>
+        <DropdownMenuCheckboxItem
+          checked={showFriendsLayer}
+          onCheckedChange={(checked) => setShowFriendsLayer(checked)}
+          className="flex items-center gap-3 py-2"
+        >
+          <div className="w-6 h-6 bg-purple-100 rounded flex items-center justify-center">
+            <Users className="w-3 h-3 text-purple-600" />
+          </div>
+          <span>Friends</span>
+        </DropdownMenuCheckboxItem>
+
+        <DropdownMenuSeparator />
+
         {/* Phone Coverage */}
         <DropdownMenuCheckboxItem
           checked={overlays.phoneCoverage}
@@ -877,6 +897,11 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         {/* WheelersLayer - shows community users when Wheelers map is selected */}
         <AppErrorBoundary>
           <WheelersLayer map={map} isVisible={showWheelersLayer} />
+        </AppErrorBoundary>
+        
+        {/* FriendsLayer - shows friend locations when enabled */}
+        <AppErrorBoundary>
+          <FriendsLayer map={map} isVisible={showFriendsLayer} />
         </AppErrorBoundary>
       </DropdownMenu>
     </>
