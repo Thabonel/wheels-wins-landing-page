@@ -1,7 +1,8 @@
 
-import { Region } from "@/context/RegionContext";
+import { Region, REGION_CONFIG } from "@/context/RegionContext";
 import { AffiliateProduct, DigitalProduct } from "./types";
 import { supabase } from "@/integrations/supabase/client";
+import { convertPrice } from "@/services/currencyService";
 
 // New database functions
 export async function getDigitalProductsFromDB(region: Region): Promise<DigitalProduct[]> {
@@ -18,18 +19,23 @@ export async function getDigitalProductsFromDB(region: Region): Promise<DigitalP
     }
 
     console.log('Shop: Using database digital products data');
-    return (data || []).map(product => ({
-      id: product.id,
-      title: product.name,
-      description: product.description,
-      image: product.image_url || "/placeholder-product.jpg",
-      price: product.price || 0,
-      currency: "USD",
-      type: product.category || "software",
-      availableRegions: (product.available_regions || []) as Region[],
-      isNew: false,
-      hasBonus: false
-    })).filter(product => 
+    return (data || []).map(product => {
+      const usdPrice = product.price || 0;
+      const convertedPrice = convertPrice(usdPrice, region);
+      
+      return {
+        id: product.id,
+        title: product.name,
+        description: product.description,
+        image: product.image_url || "/placeholder-product.jpg",
+        price: convertedPrice.amount,
+        currency: convertedPrice.currency,
+        type: product.category || "software",
+        availableRegions: (product.available_regions || []) as Region[],
+        isNew: false,
+        hasBonus: false
+      };
+    }).filter(product => 
       product.availableRegions.includes(region) || product.availableRegions.length === 0
     );
   } catch (error) {
@@ -75,14 +81,14 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
   }
   
   console.log('Shop: Using static digital products data');
-  return [
+  
+  const staticProducts = [
     {
       id: "trip-planner-pro",
       title: "Advanced Trip Planner Pro",
       description: "Premium trip planning tools with offline maps, weather integration, and route optimization for RV travelers.",
       image: "/placeholder-product.jpg",
-      price: 29.99,
-      currency: "USD",
+      basePrice: 29.99, // USD base price
       type: "software",
       availableRegions: ["United States", "Canada", "Australia"] as Region[],
       isNew: true
@@ -92,8 +98,7 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
       title: "RV Budget Tracker & Analytics",
       description: "Comprehensive financial tracking designed specifically for nomadic lifestyles with expense categorization.",
       image: "/placeholder-product.jpg",
-      price: 19.99,
-      currency: "USD",
+      basePrice: 19.99, // USD base price
       type: "software",
       availableRegions: ["United States", "Canada", "Australia"] as Region[]
     },
@@ -102,13 +107,30 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
       title: "Complete RV Maintenance Guide",
       description: "Digital handbook covering all aspects of RV maintenance with step-by-step tutorials and checklists.",
       image: "/placeholder-product.jpg",
-      price: 24.99,
-      currency: "USD",
+      basePrice: 24.99, // USD base price
       type: "ebook",
       availableRegions: ["United States", "Canada", "Australia"] as Region[],
       hasBonus: true
     }
   ];
+
+  // Convert prices to user's regional currency
+  return staticProducts.map(product => {
+    const convertedPrice = convertPrice(product.basePrice, region);
+    
+    return {
+      id: product.id,
+      title: product.title,
+      description: product.description,
+      image: product.image,
+      price: convertedPrice.amount,
+      currency: convertedPrice.currency,
+      type: product.type,
+      availableRegions: product.availableRegions,
+      isNew: product.isNew,
+      hasBonus: product.hasBonus
+    };
+  });
 }
 
 export async function getAffiliateProducts(): Promise<AffiliateProduct[]> {

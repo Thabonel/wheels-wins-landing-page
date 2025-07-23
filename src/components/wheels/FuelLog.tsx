@@ -14,7 +14,8 @@ const getTodayDate = () => new Date().toISOString().split("T")[0];
 export default function FuelLog() {
   const { region } = useRegion();
   const { user } = useAuth();
-  const isImperial = (region as string) === "US";
+  const { regionConfig } = useRegion();
+  const isImperial = regionConfig.units === "imperial";
   const volumeLabel = isImperial ? "gal" : "L";
   const priceLabel = isImperial ? "Price/Gal" : "Price/L";
   const consumptionLabel = isImperial ? "MPG" : "L/100km";
@@ -123,7 +124,7 @@ export default function FuelLog() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card><CardContent className="p-4">
           <p className="text-gray-500 text-sm">Average Price</p>
-          <p className="text-2xl font-bold">${avgPrice.toFixed(2)}/{volumeLabel}</p>
+          <p className="text-2xl font-bold">{regionConfig.currencySymbol}{avgPrice.toFixed(2)}/{volumeLabel}</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
           <p className="text-gray-500 text-sm">Average Fill-up</p>
@@ -131,7 +132,7 @@ export default function FuelLog() {
         </CardContent></Card>
         <Card><CardContent className="p-4">
           <p className="text-gray-500 text-sm">Last 30 Days</p>
-          <p className="text-2xl font-bold">${last30.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{regionConfig.currencySymbol}{last30.toFixed(2)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
           <p className="text-gray-500 text-sm">Fuel Efficiency</p>
@@ -171,8 +172,8 @@ export default function FuelLog() {
             <TableCell>{entry.date}</TableCell>
             <TableCell>{entry.location}</TableCell>
             <TableCell>{entry.volume.toFixed(1)}</TableCell>
-            <TableCell>${entry.price.toFixed(2)}</TableCell>
-            <TableCell>${entry.total.toFixed(2)}</TableCell>
+            <TableCell>{regionConfig.currencySymbol}{entry.price.toFixed(2)}</TableCell>
+            <TableCell>{regionConfig.currencySymbol}{entry.total.toFixed(2)}</TableCell>
             <TableCell>{entry.consumption != null ? entry.consumption.toFixed(2) : '-'} {consumptionLabel}</TableCell>
             <TableCell>{entry.odometer ?? '-'}</TableCell>
           </TableRow>

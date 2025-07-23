@@ -33,62 +33,25 @@ import NavigationExportHub from './trip-planner/NavigationExportHub';
 import { useIntegratedTripState } from './trip-planner/hooks/useIntegratedTripState';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useRegion } from '@/context/RegionContext';
+import { getLocationBasedTripTemplates, incrementTemplateUsage, TripTemplate as ServiceTripTemplate } from '@/services/tripTemplateService';
 
-interface TripTemplate {
-  id: string;
-  name: string;
-  description: string;
-  estimatedDays: number;
-  estimatedMiles: number;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  highlights: string[];
-  suggestedBudget: number;
-  route: any;
-}
+// Use the service interface
+type TripTemplate = ServiceTripTemplate;
 
-const TRIP_TEMPLATES: TripTemplate[] = [
-  {
-    id: 'southwest-loop',
-    name: 'Southwest National Parks Loop',
-    description: 'Classic tour of the Big 5 national parks in Utah and Arizona',
-    estimatedDays: 14,
-    estimatedMiles: 1850,
-    difficulty: 'intermediate',
-    highlights: ['Zion', 'Bryce Canyon', 'Capitol Reef', 'Arches', 'Canyonlands'],
-    suggestedBudget: 2200,
-    route: null
-  },
-  {
-    id: 'pacific-coast',
-    name: 'Pacific Coast Highway',
-    description: 'Stunning coastal drive from San Francisco to San Diego',
-    estimatedDays: 10,
-    estimatedMiles: 1200,
-    difficulty: 'beginner',
-    highlights: ['Big Sur', 'Monterey', 'Santa Barbara', 'Malibu'],
-    suggestedBudget: 1800,
-    route: null
-  },
-  {
-    id: 'great-lakes',
-    name: 'Great Lakes Circle Tour',
-    description: 'Complete loop around all five Great Lakes',
-    estimatedDays: 21,
-    estimatedMiles: 2800,
-    difficulty: 'advanced',
-    highlights: ['Mackinac Island', 'Apostle Islands', 'Sleeping Bear Dunes'],
-    suggestedBudget: 3200,
-    route: null
-  }
-];
+// Remove static templates - will be loaded dynamically based on user's region
 
 export default function TripPlannerApp() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('plan-trip');
+  const { region } = useRegion();
+  const [activeTab, setActiveTab] = useState('trip-templates');
   const [isPlannerInitialized, setIsPlannerInitialized] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
   const [showWelcome, setShowWelcome] = useState(!user);
+  const [tripTemplates, setTripTemplates] = useState<TripTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
   
   // Initialize integrated state
   const integratedState = useIntegratedTripState(false);
@@ -99,8 +62,12 @@ export default function TripPlannerApp() {
     }
   }, [user, showWelcome]);
 
-  const handleUseTemplate = (template: TripTemplate) => {
+  const handleUseTemplate = async (template: TripTemplate) => {
     setSelectedTemplate(template);
+    
+    // Increment usage count
+    await incrementTemplateUsage(template.id);
+    
     // Pre-populate the trip planner with template data
     integratedState.setBudget(prev => ({
       ...prev,
@@ -117,6 +84,32 @@ export default function TripPlannerApp() {
     setIsPlannerInitialized(true);
   };
 
+  // Load trip templates based on user's region
+  useEffect(() => {
+    async function loadTripTemplates() {
+      try {
+        setTemplatesLoading(true);
+        setTemplatesError(null);
+        
+        console.log(`Loading trip templates for region: ${region}`);
+        const templates = await getLocationBasedTripTemplates(region);
+        
+        setTripTemplates(templates);
+        
+        if (templates.length === 0) {
+          setTemplatesError('No trip templates available for your region. Our scraper is working to find some!');
+        }
+      } catch (error) {
+        console.error('Error loading trip templates:', error);
+        setTemplatesError('Failed to load trip templates. Please try refreshing the page.');
+      } finally {
+        setTemplatesLoading(false);
+      }
+    }
+
+    loadTripTemplates();
+  }, [region]);
+
   const TripTemplatesContent = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -126,8 +119,38 @@ export default function TripPlannerApp() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {TRIP_TEMPLATES.map((template) => (
+      {templatesLoading && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading trip templates for {region}...</p>
+        </div>
+      )}
+
+      {templatesError && (
+        <div className="text-center py-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800">{templatesError}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-2 text-yellow-600 underline hover:text-yellow-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!templatesLoading && !templatesError && tripTemplates.length > 0 && (
+        <>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>📍 {region} Templates:</strong> Showing {tripTemplates.length} trip templates for your region.
+              {tripTemplates.some(t => t.createdBy === 'auto-scraper') && ' Some templates were automatically discovered and curated for you!'}
+            </p>
+          </div>
+          
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {tripTemplates.map((template) => (
           <Card key={template.id} className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -191,17 +214,27 @@ export default function TripPlannerApp() {
                 </div>
               </div>
               
-              <Button 
-                className="w-full" 
-                onClick={() => handleUseTemplate(template)}
-              >
-                Use This Template
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  className="flex-1" 
+                  onClick={() => handleUseTemplate(template)}
+                >
+                  Use This Template
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+                {template.createdBy === 'auto-scraper' && (
+                  <Badge variant="outline" className="text-xs px-2">
+                    Auto
+                  </Badge>
+                )}
+              </div>
+              </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+          </div>
+        </>
+      )}
     </div>
   );
 
