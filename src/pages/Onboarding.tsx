@@ -130,7 +130,7 @@ const Onboarding: React.FC = () => {
         console.error('❌ Webhook submission failed:', response.statusText, errorText);
         toast({
           title: "Submission Failed",
-          description: `Failed to submit: ${response.statusText}`,
+          description: "We couldn't submit your details. Please try again in a few minutes.",
           variant: "destructive"
         });
       }
