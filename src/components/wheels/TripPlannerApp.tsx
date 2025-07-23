@@ -228,7 +228,6 @@ export default function TripPlannerApp() {
                   </Badge>
                 )}
               </div>
-              </div>
             </CardContent>
           </Card>
           ))}
