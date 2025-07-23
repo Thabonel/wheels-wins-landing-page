@@ -17,6 +17,7 @@ from . import (
     orders,
     maintenance,
     custom_routes,
+    onboarding,
     mapbox,
     user_settings,
 )
@@ -40,6 +41,7 @@ __all__ = [
     'orders',
     'maintenance',
     'custom_routes',
+    'onboarding',
     'mapbox',
     'user_settings',
 ]
