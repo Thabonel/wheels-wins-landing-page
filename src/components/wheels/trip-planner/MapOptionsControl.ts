@@ -49,9 +49,7 @@ export class MapOptionsControl implements mapboxgl.IControl {
     
     // Create a wrapper div to ensure proper event handling
     const wrapper = React.createElement('div', {
-      style: { position: 'relative' },
-      onMouseDown: (e: React.MouseEvent) => e.stopPropagation(),
-      onTouchStart: (e: React.TouchEvent) => e.stopPropagation()
+      style: { position: 'relative' }
     }, 
       React.createElement(MapOptionsDropdown, {
         map: mapRef,

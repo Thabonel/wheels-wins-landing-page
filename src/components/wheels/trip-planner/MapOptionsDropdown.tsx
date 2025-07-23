@@ -57,6 +57,11 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     smoke: false,
     fires: false,
   });
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('MapOptionsDropdown mounted, map:', map, 'isMapControl:', isMapControl);
+  }, []);
   const [poiState, setPoiState] = useState<Record<string, boolean>>(
     poiFilters || {
       pet_stop: true,
@@ -126,9 +131,13 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
   // Theme is now fixed to scenic - removed theme change handler
 
   const handleOverlayToggle = (overlay: string, checked: boolean) => {
+    console.log('handleOverlayToggle called:', overlay, checked, 'map:', map);
     setOverlays(prev => ({ ...prev, [overlay]: checked }));
     
-    if (!map.current) return;
+    if (!map.current) {
+      console.error('No map.current available!');
+      return;
+    }
 
     // Handle traffic overlay
     if (overlay === 'traffic') {
@@ -673,6 +682,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             width: '30px',
             height: '30px'
           } : undefined}
+          onClick={() => console.log('Map options button clicked!')}
         >
           <Layers className="w-4 h-4" style={isMapControl ? { margin: '0' } : undefined} />
           {!isMapControl && (
