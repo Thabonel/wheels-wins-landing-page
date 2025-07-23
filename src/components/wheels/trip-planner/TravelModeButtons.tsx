@@ -97,10 +97,14 @@ export default function TravelModeButtons({
   ];
 
   const handleRouteTypeChange = (value: string) => {
+    console.log(`🛣️ Route type changed to: ${value}`);
+    
     if (value === "manual") {
       onManualModeChange(true);
+      console.log('🎯 Manual mode activated - click on map to add waypoints');
     } else {
       onManualModeChange(false);
+      console.log(`⚡ ${value} route optimization applied`);
     }
     onRouteTypeChange(value);
   };
@@ -112,9 +116,7 @@ export default function TravelModeButtons({
         <Label className="text-sm font-medium">Route Type</Label>
         <Select value={routeType} onValueChange={handleRouteTypeChange}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select route type">
-              {routeTypes.find(type => type.id === routeType)?.label || "Select route type"}
-            </SelectValue>
+            <SelectValue placeholder="Select route type" />
           </SelectTrigger>
           <SelectContent>
             {routeTypes.map((type) => (
