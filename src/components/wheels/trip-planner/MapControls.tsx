@@ -525,7 +525,6 @@ export default function MapControls({
       <div className="overflow-hidden rounded-lg border h-full">
         <div ref={mapContainer} className="h-full w-full relative" />
         <POILayer map={map} filters={poiFilters} />
-{/* MundiLayer removed - functionality deleted */}
         {/* Map Options Control is now a native map control added in useEffect */}
         
         {isOffline && (

@@ -352,14 +352,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               handleAutonomousActions(message.autonomous_actions);
             }
             
-            // Handle Mundi geospatial data if present
-            if (message.mundi_data) {
-              console.log('🗺️ Received Mundi data:', message.mundi_data);
-              // Dispatch event for MundiLayer to display results
-              window.dispatchEvent(new CustomEvent('mundi-data-available', {
-                detail: message.mundi_data
-              }));
-            }
           }
           
           // Handle UI action commands
