@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 const Hero = () => {
-  return <section className="w-full h-screen flex items-center justify-center overflow-hidden">
+  return <section className="w-full h-screen flex items-start justify-center overflow-hidden pt-32">
       <div className="absolute inset-0 bg-cover bg-center" style={{
       backgroundImage: `url('${getPublicAssetUrl('WheelsnadwinsHero.jpg')}')`
     }}>
