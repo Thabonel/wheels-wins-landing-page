@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
@@ -9,9 +8,16 @@ interface GeocodeSearchProps {
   disabled?: boolean;
   originLocked?: boolean;
   destinationLocked?: boolean;
+  onWaypointAdded?: () => void; // Callback when waypoint is successfully added
 }
 
-export default function GeocodeSearch({ directionsControl, disabled = false, originLocked = false, destinationLocked = false }: GeocodeSearchProps) {
+export default function GeocodeSearch({ 
+  directionsControl, 
+  disabled = false, 
+  originLocked = false, 
+  destinationLocked = false,
+  onWaypointAdded
+}: GeocodeSearchProps) {
   const geocoderContainer = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,20 +45,37 @@ export default function GeocodeSearch({ directionsControl, disabled = false, ori
         if (!origin && !originLocked) {
           // Set as origin if no origin exists and origin is not locked
           directionsControl.current.setOrigin(coordinates);
+          console.log('🅰️ Set origin via search:', placeName);
         } else if (!destination && !destinationLocked) {
           // Set as destination if no destination exists and destination is not locked
           directionsControl.current.setDestination(coordinates);
+          console.log('🅱️ Set destination via search:', placeName);
         } else {
           // Add as waypoint between origin and destination
           // This happens when:
           // 1. Both origin and destination exist, OR
           // 2. Origin/destination is locked, OR
           // 3. User is adding intermediate stops
-          const waypoints = directionsControl.current.getWaypoints();
-          const insertIndex = waypoints.length;
-          directionsControl.current.addWaypoint(insertIndex, coordinates);
+          try {
+            const waypoints = directionsControl.current.getWaypoints();
+            const insertIndex = waypoints.length;
+            console.log('📍 Adding waypoint via search:', placeName, 'at index:', insertIndex);
+            directionsControl.current.addWaypoint(insertIndex, coordinates);
+            
+            // Call callback to close search interface
+            if (onWaypointAdded) {
+              setTimeout(() => {
+                onWaypointAdded();
+              }, 500); // Small delay to ensure waypoint is added
+            }
+          } catch (error) {
+            console.error('Error adding waypoint via search:', error);
+          }
         }
       }
+      
+      // Clear the search input after selection
+      geocoder.clear();
     });
 
     const geocoderElement = geocoder.onAdd();
@@ -66,6 +89,14 @@ export default function GeocodeSearch({ directionsControl, disabled = false, ori
         input.style.backgroundColor = '#f3f4f6';
         input.style.color = '#9ca3af';
       }
+    } else {
+      // Auto-focus the search input when enabled
+      const input = geocoderElement.querySelector('input');
+      if (input) {
+        setTimeout(() => {
+          input.focus();
+        }, 100);
+      }
     }
 
     return () => {
@@ -73,7 +104,7 @@ export default function GeocodeSearch({ directionsControl, disabled = false, ori
         geocoderContainer.current.removeChild(geocoderElement);
       }
     };
-  }, [directionsControl, disabled, originLocked, destinationLocked]);
+  }, [directionsControl, disabled, originLocked, destinationLocked, onWaypointAdded]);
 
   return (
     <div className="w-full">

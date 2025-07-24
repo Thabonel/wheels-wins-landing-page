@@ -132,6 +132,18 @@ export default function TravelModeButtons({
           pointer-events: auto !important;
           cursor: pointer !important;
         }
+        
+        /* Specific fix for Vehicle selector dropdown */
+        [data-radix-select-content][data-state="open"] {
+          z-index: 999999 !important;
+          pointer-events: auto !important;
+          position: fixed !important;
+        }
+        
+        /* Fix for Select viewport positioning */
+        [data-radix-select-viewport] {
+          pointer-events: auto !important;
+        }
       `}</style>
       <div className="space-y-3">
         
@@ -197,10 +209,10 @@ export default function TravelModeButtons({
             console.log(`📋 ${vehicleFeatures[value as keyof typeof vehicleFeatures]}`);
             onVehicleChange(value);
           }}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-32 pointer-events-auto cursor-pointer">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="z-[999999]">
+            <SelectContent className="z-[999999] pointer-events-auto" side="bottom" align="start" sideOffset={4}>
               <SelectItem value="car">
                 <div className="flex items-center gap-2">
                   <span>🚗</span>
