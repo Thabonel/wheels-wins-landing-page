@@ -8,6 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, Users, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Safe auth hook that doesn't crash if AuthProvider is missing
+function useSafeAuth() {
+  try {
+    return useAuth();
+  } catch (error) {
+    console.warn('FriendsLayer: AuthProvider not available, proceeding without authentication');
+    return { user: null };
+  }
+}
+
 interface FriendLocation {
   id: string;
   user_id: string;
@@ -29,7 +39,7 @@ interface FriendsLayerProps {
 }
 
 export default function FriendsLayer({ map, isVisible }: FriendsLayerProps) {
-  const { user } = useAuth();
+  const { user } = useSafeAuth();
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<FriendLocation | null>(null);
   const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
