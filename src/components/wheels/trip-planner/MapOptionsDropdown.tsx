@@ -892,17 +892,17 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
           <span>Farmers Markets</span>
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
-      
-        {/* WheelersLayer - shows community users when Wheelers map is selected */}
-        <AppErrorBoundary>
-          <WheelersLayer map={map} isVisible={showWheelersLayer} />
-        </AppErrorBoundary>
-        
-        {/* FriendsLayer - shows friend locations when enabled */}
-        <AppErrorBoundary>
-          <FriendsLayer map={map} isVisible={showFriendsLayer} />
-        </AppErrorBoundary>
       </DropdownMenu>
+      
+      {/* WheelersLayer - shows community users when Wheelers map is selected */}
+      <AppErrorBoundary>
+        <WheelersLayer map={map} isVisible={showWheelersLayer} />
+      </AppErrorBoundary>
+      
+      {/* FriendsLayer - shows friend locations when enabled */}
+      <AppErrorBoundary>
+        <FriendsLayer map={map} isVisible={showFriendsLayer} />
+      </AppErrorBoundary>
     </>
   );
 }
