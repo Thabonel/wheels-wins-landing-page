@@ -15,7 +15,7 @@ import { TravelPreferences } from "@/components/profile/TravelPreferences";
 import { VehicleSetup } from "@/components/profile/VehicleSetup";
 import { UserKnowledgeManager } from "@/components/knowledge/UserKnowledgeManager";
 import { toast } from "sonner";
-import { apiFetch } from "@/services/api";
+import { supabase } from "@/integrations/supabase/client";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { PrivacySettings } from "@/components/settings/PrivacySettings";
 import { PamSettings } from "@/components/settings/PamSettings";
@@ -79,23 +79,34 @@ const Profile = () => {
     setUploading(true);
 
     try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('user_id', user.id);
-      formData.append('field_type', isPartner ? 'partner_profile_image' : 'profile_image');
-
-      // Use backend API for file upload
-      const response = await apiFetch(`/api/v1/users/${user.id}/profile/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload photo');
+      // Use Supabase storage for file upload
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
+      
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('profile-images')
+        .upload(fileName, file, { upsert: true });
+        
+      if (uploadError) {
+        throw new Error(uploadError.message || 'Failed to upload photo');
       }
-
-      const result = await response.json();
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('profile-images')
+        .getPublicUrl(fileName);
+        
+      // Update profile with new image URL
+      const updateField = isPartner ? 'partner_profile_image_url' : 'profile_image_url';
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ [updateField]: urlData.publicUrl })
+        .eq('user_id', user.id);
+        
+      if (updateError) {
+        throw new Error(updateError.message || 'Failed to update profile with new image');
+      }
       toast.success(`${isPartner ? 'Partner' : 'Profile'} photo updated successfully`);
       
       // Refresh profile data to show new image
@@ -135,21 +146,15 @@ const Profile = () => {
         pets: formData.pets,
       };
 
-      // Use backend API for profile update
-      const response = await apiFetch(`/api/v1/users/${user.id}/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to update profile');
+      // Use Supabase directly for profile update
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('user_id', user.id);
+        
+      if (error) {
+        throw new Error(error.message || 'Failed to update profile');
       }
-
-      const updatedProfile = await response.json();
       toast.success('Profile updated successfully');
       
       // Refresh profile data to reflect changes

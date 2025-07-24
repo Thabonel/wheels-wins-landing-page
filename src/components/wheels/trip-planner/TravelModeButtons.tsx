@@ -116,7 +116,7 @@ export default function TravelModeButtons({
         <Label className="text-sm font-medium">Route Type</Label>
         <Select value={routeType} onValueChange={handleRouteTypeChange}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select route type" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {routeTypes.map((type) => (
@@ -174,7 +174,7 @@ export default function TravelModeButtons({
           onVehicleChange(value);
         }}>
           <SelectTrigger className="w-32">
-            <SelectValue placeholder="car" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="car">

@@ -9,12 +9,20 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { TrialConfirmationDialog } from "@/components/TrialConfirmationDialog";
 import { useSubscriptionFlow } from "@/hooks/useSubscriptionFlow";
+import { useRegion } from "@/context/RegionContext";
+import { convertPrice } from "@/services/currencyService";
 
 const PricingPlans = () => {
   const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const navigate = useNavigate();
   const { showConfirmation, setShowConfirmation, selectedPlan, setSelectedPlan } = useSubscriptionFlow();
+  const { region, regionConfig } = useRegion();
+
+  // Convert prices based on region
+  const monthlyPrice = convertPrice(18, region);
+  const annualPrice = convertPrice(216, region);
+  const videoCourseValue = convertPrice(97, region);
 
   const handleSubscription = async (priceId: string, planName: string) => {
     // If user is not authenticated, store the plan and redirect to signup
@@ -71,6 +79,7 @@ const PricingPlans = () => {
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Choose Your Plan</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
               Select the perfect plan for your journey. Start with a free trial on any plan.
+              <span className="block text-sm mt-2">Prices shown in {regionConfig.currency}</span>
             </p>
           </div>
 
@@ -86,7 +95,7 @@ const PricingPlans = () => {
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">$0</span>
+                  <span className="text-4xl font-bold">{regionConfig.currencySymbol}0</span>
                   <span className="text-muted-foreground ml-1">for 30 days</span>
                 </div>
                 <ul className="space-y-2 text-left">
@@ -124,7 +133,7 @@ const PricingPlans = () => {
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">$18</span>
+                  <span className="text-4xl font-bold">{monthlyPrice.formatted}</span>
                   <span className="text-muted-foreground ml-1">/month</span>
                 </div>
                 <ul className="space-y-2 text-left">
@@ -161,7 +170,7 @@ const PricingPlans = () => {
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">$216</span>
+                  <span className="text-4xl font-bold">{annualPrice.formatted}</span>
                   <span className="text-muted-foreground ml-1">/year</span>
                 </div>
                 <ul className="space-y-2 text-left">
@@ -171,7 +180,7 @@ const PricingPlans = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Includes Video Course ($97 value)</span>
+                    <span>Includes Video Course ({videoCourseValue.formatted} value)</span>
                   </li>
                 </ul>
               </CardContent>
