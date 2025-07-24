@@ -95,6 +95,96 @@ export default function IntegratedTripPlanner({
   // Use the proven working submit handler from handlers
   const handleSubmitTrip = handlers.handleSubmitTrip;
 
+  // Reverse geocode coordinates to get readable address
+  const reverseGeocode = async (coordinates: [number, number]): Promise<string> => {
+    try {
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+      if (!mapboxToken) {
+        return 'Current Location';
+      }
+
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${coordinates[0]},${coordinates[1]}.json?access_token=${mapboxToken}&limit=1`
+      );
+      
+      if (!response.ok) {
+        return 'Current Location';
+      }
+      
+      const data = await response.json();
+      
+      if (data.features && data.features.length > 0) {
+        return data.features[0].place_name;
+      }
+      
+      return 'Current Location';
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      return 'Current Location';
+    }
+  };
+
+  // Auto-prefill origin with user's current location on initial mount
+  useEffect(() => {
+    // Only run on initial mount, when origin is empty, not offline, and not from template
+    if (integratedState.route.originName || effectiveOfflineMode || templateData) {
+      return;
+    }
+
+    // Check if geolocation is available
+    if (!navigator.geolocation) {
+      console.log('📍 Geolocation is not supported by this browser');
+      return;
+    }
+
+    console.log('📍 Requesting user location for origin prefill...');
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const coordinates: [number, number] = [longitude, latitude];
+          
+          console.log('📍 Got user location:', coordinates);
+          
+          // Reverse geocode to get readable address
+          const locationName = await reverseGeocode(coordinates);
+          
+          console.log('📍 Setting auto-prefilled origin:', locationName);
+          
+          // Set the origin name in state
+          integratedState.setOriginName(locationName);
+          
+          // Set origin in directions control if available
+          if (directionsControl.current) {
+            directionsControl.current.setOrigin(coordinates);
+          }
+          
+          // Lock the origin by default when auto-prefilled
+          integratedState.lockOrigin();
+          
+          toast({
+            title: "Location Set",
+            description: `Origin set to your current location: ${locationName}`,
+            duration: 3000,
+          });
+          
+        } catch (error) {
+          console.error('Error processing user location:', error);
+        }
+      },
+      (error) => {
+        console.log('📍 Geolocation request denied or failed:', error.message);
+        // Silently fail - user will use manual input as before
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000, // 5 minutes
+      }
+    );
+  }, []); // Empty dependency array - only run on initial mount
+
   // Initialize map with template data when available
   useEffect(() => {
     if (templateData && templateData.route && directionsControl.current) {
