@@ -1,5 +1,6 @@
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getUserRegion } from '@/services/locationDetectionService';
 
 export type Region = 'Australia' | 'New Zealand' | 'United States' | 'Canada' | 'United Kingdom' | 'Rest of the World';
 
@@ -59,7 +60,25 @@ interface RegionContextType {
 const RegionContext = createContext<RegionContextType | undefined>(undefined);
 
 export const RegionProvider = ({ children }: { children: React.ReactNode }) => {
-  const [region, setRegion] = useState<Region>('Australia');
+  const [region, setRegion] = useState<Region>('Rest of the World');
+  const [isDetecting, setIsDetecting] = useState(true);
+  
+  // Auto-detect user's region on mount
+  useEffect(() => {
+    async function detectRegion() {
+      try {
+        const detectedRegion = await getUserRegion();
+        setRegion(detectedRegion);
+      } catch (error) {
+        console.error('Failed to detect region:', error);
+        // Keep default region
+      } finally {
+        setIsDetecting(false);
+      }
+    }
+    
+    detectRegion();
+  }, []);
   
   const regionConfig = REGION_CONFIG[region];
   

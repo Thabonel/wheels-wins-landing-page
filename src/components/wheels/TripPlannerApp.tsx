@@ -42,13 +42,16 @@ type TripTemplate = ServiceTripTemplate;
 // Remove static templates - will be loaded dynamically based on user's region
 
 export default function TripPlannerApp() {
-  const { user } = useAuth();
+  const auth = useAuth();
   const { toast } = useToast();
   const { region } = useRegion();
+  
+  // Handle case where auth context might not be available
+  const user = auth?.user || null;
   const [activeTab, setActiveTab] = useState('trip-templates');
   const [isPlannerInitialized, setIsPlannerInitialized] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
-  const [showWelcome, setShowWelcome] = useState(!user);
+  const [showWelcome, setShowWelcome] = useState(!auth?.user);
   const [tripTemplates, setTripTemplates] = useState<TripTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [templatesError, setTemplatesError] = useState<string | null>(null);

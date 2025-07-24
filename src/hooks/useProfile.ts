@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { apiFetch } from '@/services/api';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Profile {
   id: number;
@@ -42,14 +42,17 @@ export const useProfile = () => {
       }
 
       try {
-        // Call your backend API instead of direct Supabase
-        const response = await apiFetch(`/api/v1/users/${user.id}/profile`);
+        // Use Supabase directly to fetch profile
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch profile');
+        if (error) {
+          throw new Error(error.message || 'Failed to fetch profile');
         }
         
-        const data = await response.json();
         setProfile(data);
         setError(null);
       } catch (err) {
@@ -69,13 +72,17 @@ export const useProfile = () => {
     
     setLoading(true);
     try {
-      const response = await apiFetch(`/api/v1/users/${user.id}/profile`);
+      // Use Supabase directly to refresh profile
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
       
-      if (!response.ok) {
-        throw new Error('Failed to refresh profile');
+      if (error) {
+        throw new Error(error.message || 'Failed to refresh profile');
       }
       
-      const data = await response.json();
       setProfile(data);
       setError(null);
     } catch (err) {

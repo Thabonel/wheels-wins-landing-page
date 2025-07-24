@@ -686,7 +686,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             height: '30px'
           } : undefined}
         >
-          <Layers className="w-4 h-4" style={isMapControl ? { margin: '0' } : undefined} />
+          <Layers className={isMapControl ? "w-[18px] h-[18px]" : "w-4 h-4"} style={isMapControl ? { margin: '0' } : undefined} />
           {!isMapControl && (
             <>
               <span className="ml-1">Options</span>
