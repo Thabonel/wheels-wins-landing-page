@@ -671,30 +671,39 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         }
       `}</style>
       <DropdownMenu modal={false} dir="ltr">
-        <DropdownMenuTrigger asChild>
-        <Button 
-          variant="outline" 
-          className={isMapControl 
-            ? "mapboxgl-ctrl-icon map-options-button w-[29px] h-[29px] bg-white border-none shadow-none rounded-[2px] p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
-            : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2 flex items-center"
-          }
-          style={isMapControl ? {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '29px',
-            height: '29px'
-          } : undefined}
-        >
-          <Layers className={isMapControl ? "w-[15px] h-[15px]" : "w-4 h-4"} style={isMapControl ? { margin: '0' } : undefined} />
-          {!isMapControl && (
-            <>
+        <DropdownMenuTrigger asChild={!isMapControl}>
+          {isMapControl ? (
+            <button
+              className="mapboxgl-ctrl-icon map-options-button"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '29px',
+                height: '29px',
+                border: 'none',
+                background: 'white',
+                cursor: 'pointer',
+                borderRadius: '2px',
+                padding: '0',
+                margin: '0'
+              }}
+              type="button"
+              aria-label="Map Options"
+            >
+              <Layers className="w-[15px] h-[15px]" style={{ margin: '0' }} />
+            </button>
+          ) : (
+            <Button 
+              variant="outline" 
+              className="bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2 flex items-center"
+            >
+              <Layers className="w-4 h-4" />
               <span className="ml-1">Options</span>
               <ChevronDown className="w-3 h-3 ml-1" />
-            </>
+            </Button>
           )}
-        </Button>
-      </DropdownMenuTrigger>
+        </DropdownMenuTrigger>
       <DropdownMenuContent 
         className="w-64 max-h-[50vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[9999] force-dropdown-down" 
         align="start"
