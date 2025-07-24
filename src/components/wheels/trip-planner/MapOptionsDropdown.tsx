@@ -43,9 +43,11 @@ interface MapOptionsDropdownProps {
   isMapControl?: boolean; // New prop to indicate if this is a native map control
   poiFilters?: Record<string, boolean>;
   onPOIFilterChange?: (filters: Record<string, boolean>) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, isMapControl = false, poiFilters, onPOIFilterChange }: MapOptionsDropdownProps) {
+export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, isMapControl = false, poiFilters, onPOIFilterChange, open, onOpenChange }: MapOptionsDropdownProps) {
   const [baseMapStyle, setBaseMapStyle] = useState('satellite');
   // Fixed to scenic theme as requested
   const baseMapTheme = 'scenic';
@@ -670,7 +672,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
           margin-right: 0 !important;
         }
       `}</style>
-      <DropdownMenu modal={false} dir="ltr">
+      <DropdownMenu modal={false} dir="ltr" open={open} onOpenChange={onOpenChange}>
         <DropdownMenuTrigger asChild={!isMapControl}>
           {isMapControl ? (
             <button
@@ -690,6 +692,13 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
               }}
               type="button"
               aria-label="Map Options"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onOpenChange) {
+                  onOpenChange(!open);
+                }
+              }}
             >
               <Layers className="w-[15px] h-[15px]" style={{ margin: '0' }} />
             </button>

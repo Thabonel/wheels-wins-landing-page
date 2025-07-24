@@ -15,6 +15,7 @@ export class MapOptionsControl implements mapboxgl.IControl {
   private container?: HTMLElement;
   private root?: any;
   private options: MapOptionsControlOptions;
+  private isOpen: boolean = false;
 
   constructor(options: MapOptionsControlOptions) {
     this.options = options;
@@ -57,7 +58,12 @@ export class MapOptionsControl implements mapboxgl.IControl {
         currentStyle: this.options.currentStyle,
         isMapControl: true,
         poiFilters: this.options.poiFilters,
-        onPOIFilterChange: this.options.onPOIFilterChange
+        onPOIFilterChange: this.options.onPOIFilterChange,
+        open: this.isOpen,
+        onOpenChange: (open: boolean) => {
+          this.isOpen = open;
+          this.renderDropdown();
+        }
       })
     );
     
