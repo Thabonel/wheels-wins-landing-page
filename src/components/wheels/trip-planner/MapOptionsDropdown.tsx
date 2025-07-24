@@ -675,18 +675,18 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         <Button 
           variant="outline" 
           className={isMapControl 
-            ? "mapboxgl-ctrl-icon map-options-button w-[30px] h-[30px] bg-white border-none shadow-none rounded-[2px] p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
+            ? "mapboxgl-ctrl-icon map-options-button w-[29px] h-[29px] bg-white border-none shadow-none rounded-[2px] p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
             : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2 flex items-center"
           }
           style={isMapControl ? {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '30px',
-            height: '30px'
+            width: '29px',
+            height: '29px'
           } : undefined}
         >
-          <Layers className={isMapControl ? "w-[18px] h-[18px]" : "w-4 h-4"} style={isMapControl ? { margin: '0' } : undefined} />
+          <Layers className={isMapControl ? "w-[15px] h-[15px]" : "w-4 h-4"} style={isMapControl ? { margin: '0' } : undefined} />
           {!isMapControl && (
             <>
               <span className="ml-1">Options</span>
