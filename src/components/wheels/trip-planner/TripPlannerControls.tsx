@@ -34,6 +34,8 @@ interface TripPlannerControlsProps {
   setRouteType?: (routeType: string) => void;
   manualMode?: boolean;
   setManualMode?: (enabled: boolean) => void;
+  // Waypoints for PAM integration
+  waypoints?: Array<{ name: string; coords: [number, number] }>;
 }
 export default function TripPlannerControls({
   directionsControl,
@@ -64,7 +66,8 @@ export default function TripPlannerControls({
   routeType = "fastest",
   setRouteType = () => {},
   manualMode = false,
-  setManualMode = () => {}
+  setManualMode = () => {},
+  waypoints = []
 }: TripPlannerControlsProps) {
   return <div className="bg-white rounded-lg border p-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -106,7 +109,26 @@ export default function TripPlannerControls({
         {/* Trip Controls */}
         <div className="lg:col-span-1">
           
-          <TripControls mode={mode} setMode={setMode} adding={adding} setAdding={setAdding} onSubmitTrip={onSubmitTrip} map={map} isOffline={isOffline} tripId={tripId} />
+          <TripControls 
+            mode={mode} 
+            setMode={setMode} 
+            adding={adding} 
+            setAdding={setAdding} 
+            onSubmitTrip={onSubmitTrip} 
+            map={map} 
+            isOffline={isOffline} 
+            tripId={tripId}
+            // Pass route data for PAM integration
+            originName={originName}
+            destName={destName}
+            waypoints={waypoints}
+            routeType={routeType}
+            vehicle={vehicle}
+            // Pass directions control for GeocodeSearch integration
+            directionsControl={directionsControl}
+            originLocked={originLocked}
+            destinationLocked={destinationLocked}
+          />
         </div>
       </div>
     </div>;

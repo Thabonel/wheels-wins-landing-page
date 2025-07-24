@@ -26,10 +26,12 @@ import PamVoiceCompanion from '@/components/voice/PamVoiceCompanion';
 
 interface IntegratedTripPlannerProps {
   isOffline?: boolean;
+  templateData?: any; // Template data to initialize the planner with
 }
 
 export default function IntegratedTripPlanner({
   isOffline: isOfflineProp,
+  templateData,
 }: IntegratedTripPlannerProps) {
   const { toast } = useToast();
   const { region } = useRegion();
@@ -92,6 +94,45 @@ export default function IntegratedTripPlanner({
 
   // Use the proven working submit handler from handlers
   const handleSubmitTrip = handlers.handleSubmitTrip;
+
+  // Initialize map with template data when available
+  useEffect(() => {
+    if (templateData && templateData.route && directionsControl.current) {
+      console.log('🗺️ Initializing map with template data:', templateData);
+      
+      try {
+        const { origin, destination, waypoints } = templateData.route;
+        
+        // Set origin and destination on the map
+        if (origin && origin.coords) {
+          console.log('🅰️ Setting map origin:', origin.name);
+          directionsControl.current.setOrigin(origin.coords);
+        }
+        
+        if (destination && destination.coords) {
+          console.log('🅱️ Setting map destination:', destination.name);
+          directionsControl.current.setDestination(destination.coords);
+        }
+        
+        // Add waypoints
+        if (waypoints && waypoints.length > 0) {
+          console.log('📍 Adding template waypoints to map:', waypoints.length);
+          waypoints.forEach((waypoint: any, index: number) => {
+            if (waypoint.coords) {
+              setTimeout(() => {
+                if (directionsControl.current) {
+                  directionsControl.current.addWaypoint(index, waypoint.coords);
+                }
+              }, 1000 + (index * 500)); // Stagger waypoint additions
+            }
+          });
+        }
+        
+      } catch (error) {
+        console.error('Error initializing map with template data:', error);
+      }
+    }
+  }, [templateData, directionsControl.current]);
 
   // Convert waypoints to manual waypoints for compatibility
   const convertToManualWaypoints = (waypoints: typeof integratedState.route.waypoints) => {
@@ -162,6 +203,7 @@ export default function IntegratedTripPlanner({
           setRouteType={integratedState.setRouteType}
           manualMode={integratedState.manualMode}
           setManualMode={integratedState.setManualMode}
+          waypoints={integratedState.route.waypoints}
         />
 
         {/* Locked Point Controls */}

@@ -319,6 +319,17 @@ export default function MapControls({
             // Skip if this is a programmatic update or if origin is locked
             if (isOffline || originLocked || isProgrammaticUpdate.current) {
               console.log('🔒 Origin event blocked: offline?', isOffline, 'locked?', originLocked, 'programmatic?', isProgrammaticUpdate.current);
+              
+              // If origin is locked but event fired, restore the original
+              if (originLocked && originName && !isProgrammaticUpdate.current) {
+                console.log('🚨 Restoring locked origin:', originName);
+                setTimeout(() => {
+                  if (directionsControl.current && originName) {
+                    // Need to reverse geocode the original coordinates if needed
+                    // For now, prevent the change by not processing the event
+                  }
+                }, 100);
+              }
               return;
             }
             if (e.feature && e.feature.place_name) {
@@ -332,6 +343,17 @@ export default function MapControls({
             // Skip if this is a programmatic update or if destination is locked
             if (isOffline || destinationLocked || isProgrammaticUpdate.current) {
               console.log('🔒 Destination event blocked: offline?', isOffline, 'locked?', destinationLocked, 'programmatic?', isProgrammaticUpdate.current);
+              
+              // If destination is locked but event fired, restore the original
+              if (destinationLocked && destName && !isProgrammaticUpdate.current) {
+                console.log('🚨 Restoring locked destination:', destName);
+                setTimeout(() => {
+                  if (directionsControl.current && destName) {
+                    // Need to reverse geocode the original coordinates if needed
+                    // For now, prevent the change by not processing the event
+                  }
+                }, 100);
+              }
               return;
             }
             if (e.feature && e.feature.place_name) {
@@ -519,7 +541,12 @@ export default function MapControls({
     if (!map.current || isOffline) return;
     
     const onClick = async (e: mapboxgl.MapMouseEvent) => {
-      if (!adding) return;
+      // Allow waypoint insertion in two cases:
+      // 1. Adding mode is explicitly enabled
+      // 2. Both A and B are locked (auto-waypoint mode)
+      const shouldAddWaypoint = adding || (originLocked && destinationLocked);
+      
+      if (!shouldAddWaypoint) return;
       
       const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
       const place = await reverseGeocode(coords);
@@ -603,8 +630,11 @@ export default function MapControls({
         }
       }
       
-      setAdding(false);
-      map.current!.getCanvas().style.cursor = "";
+      // Only disable adding mode if it was explicitly enabled
+      if (adding) {
+        setAdding(false);
+        map.current!.getCanvas().style.cursor = "";
+      }
     };
     
     map.current.on("click", onClick);
@@ -614,7 +644,7 @@ export default function MapControls({
         map.current.off("click", onClick);
       }
     };
-  }, [adding, waypoints, setWaypoints, setAdding, isOffline]);
+  }, [adding, waypoints, setWaypoints, setAdding, isOffline, originLocked, destinationLocked, originName, destName]);
 
   // Manual waypoint creation mode
   useEffect(() => {

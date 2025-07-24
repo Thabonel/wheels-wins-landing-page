@@ -77,10 +77,73 @@ export default function TripPlannerApp() {
       totalBudget: template.suggestedBudget,
       dailyBudget: Math.round(template.suggestedBudget / template.estimatedDays)
     }));
+
+    // If template has route data, populate the map
+    if (template.route) {
+      try {
+        console.log('🗺️ Loading template route:', template.route);
+
+        // Extract route data from template
+        const { origin, destination, waypoints } = template.route;
+
+        if (origin) {
+          console.log('🅰️ Setting template origin:', origin.name);
+          integratedState.setOriginName(origin.name);
+          
+          // Store coordinates for later use by map
+          integratedState.setRoute(prev => ({
+            ...prev,
+            originCoords: origin.coords,
+            originName: origin.name
+          }));
+        }
+
+        if (destination) {
+          console.log('🅱️ Setting template destination:', destination.name);
+          integratedState.setDestName(destination.name);
+          
+          // Store coordinates for later use by map
+          integratedState.setRoute(prev => ({
+            ...prev,
+            destCoords: destination.coords,
+            destName: destination.name
+          }));
+        }
+
+        if (waypoints && waypoints.length > 0) {
+          console.log('📍 Setting template waypoints:', waypoints.length);
+          
+          // Convert template waypoints to the expected format
+          const formattedWaypoints = waypoints.map((wp: any, index: number) => ({
+            coords: wp.coords as [number, number],
+            name: wp.name || `Stop ${index + 1}`
+          }));
+          
+          integratedState.setWaypoints(formattedWaypoints);
+        }
+
+        // Set template metadata
+        integratedState.setRoute(prev => ({
+          ...prev,
+          templateId: template.id,
+          templateName: template.name,
+          estimatedDistance: template.estimatedMiles,
+          estimatedDuration: template.estimatedDays
+        }));
+
+      } catch (error) {
+        console.error('Error loading template route:', error);
+        toast({
+          title: "Template Loaded",
+          description: `${template.name} has been loaded, but route data couldn't be applied. You can manually set your route.`,
+          variant: "destructive"  
+        });
+      }
+    }
     
     toast({
       title: "Template Applied",
-      description: `${template.name} has been loaded. Customize it to your needs!`
+      description: `${template.name} has been loaded. ${template.route ? 'Route and waypoints have been set on the map.' : 'Customize it to your needs!'}`
     });
     
     setActiveTab('plan-trip');
@@ -461,7 +524,7 @@ export default function TripPlannerApp() {
           </TabsContent>
 
           <TabsContent value="plan-trip" className="mt-0">
-            <IntegratedTripPlanner />
+            <IntegratedTripPlanner templateData={selectedTemplate} />
           </TabsContent>
 
           <TabsContent value="trip-details" className="mt-0">
