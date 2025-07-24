@@ -40,18 +40,22 @@ interface MapOptionsDropdownProps {
   map: React.MutableRefObject<mapboxgl.Map | undefined>;
   onStyleChange: (style: string) => void;
   currentStyle: string;
-  isMapControl?: boolean; // New prop to indicate if this is a native map control
+  isMapControl?: boolean;
   poiFilters?: Record<string, boolean>;
   onPOIFilterChange?: (filters: Record<string, boolean>) => void;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
 }
 
-export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, isMapControl = false, poiFilters, onPOIFilterChange, open, onOpenChange }: MapOptionsDropdownProps) {
+export default function MapOptionsDropdown({ 
+  map, 
+  onStyleChange, 
+  currentStyle, 
+  isMapControl = false, 
+  poiFilters, 
+  onPOIFilterChange 
+}: MapOptionsDropdownProps) {
   const [baseMapStyle, setBaseMapStyle] = useState('satellite');
-  // Fixed to scenic theme as requested
   const baseMapTheme = 'scenic';
-  const [userCountry, setUserCountry] = useState('AU'); // Default to Australia based on route
+  const [userCountry, setUserCountry] = useState('AU');
   const [showWheelersLayer, setShowWheelersLayer] = useState(false);
   const [showFriendsLayer, setShowFriendsLayer] = useState(false);
   const [overlays, setOverlays] = useState({
@@ -63,10 +67,6 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     fires: false,
   });
   
-  // Debug logging
-  useEffect(() => {
-    console.log('MapOptionsDropdown mounted, map:', map, 'isMapControl:', isMapControl);
-  }, []);
   const [poiState, setPoiState] = useState<Record<string, boolean>>(
     poiFilters || {
       pet_stop: true,
@@ -86,13 +86,12 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
   useEffect(() => {
     if (map.current) {
       const center = map.current.getCenter();
-      // Simple country detection based on coordinates
       if (center.lng >= 113 && center.lng <= 154 && center.lat >= -44 && center.lat <= -10) {
-        setUserCountry('AU'); // Australia
+        setUserCountry('AU');
       } else if (center.lng >= -125 && center.lng <= -66 && center.lat >= 20 && center.lat <= 49) {
-        setUserCountry('US'); // United States
+        setUserCountry('US');
       } else if (center.lng >= -10 && center.lng <= 32 && center.lat >= 35 && center.lat <= 71) {
-        setUserCountry('EU'); // Europe
+        setUserCountry('EU');
       }
     }
   }, [map]);
@@ -104,7 +103,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     switch (value) {
       case 'wheelers':
         styleUrl = 'mapbox://styles/mapbox/streets-v12';
-        setShowWheelersLayer(true); // Show community layer for Wheelers map
+        setShowWheelersLayer(true);
         break;
       case 'outdoors':
         styleUrl = 'mapbox://styles/mapbox/outdoors-v12';
@@ -119,7 +118,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
         setShowWheelersLayer(false);
         break;
       case 'terrain':
-        styleUrl = 'mapbox://styles/mapbox/outdoors-v12'; // Uses outdoors for terrain features
+        styleUrl = 'mapbox://styles/mapbox/outdoors-v12';
         setShowWheelersLayer(false);
         break;
       default:
@@ -133,16 +132,10 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     }
   };
 
-  // Theme is now fixed to scenic - removed theme change handler
-
   const handleOverlayToggle = (overlay: string, checked: boolean) => {
-    console.log('handleOverlayToggle called:', overlay, checked, 'map:', map);
     setOverlays(prev => ({ ...prev, [overlay]: checked }));
     
-    if (!map.current) {
-      console.error('No map.current available!');
-      return;
-    }
+    if (!map.current) return;
 
     // Handle traffic overlay
     if (overlay === 'traffic') {
@@ -221,9 +214,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     // Handle Environmental overlays
     if (overlay === 'fires') {
       if (checked) {
-        // Add NASA FIRMS active fire data
         if (!map.current.getSource('fires')) {
-          // NASA FIRMS active fire data - real-time global fire monitoring
           map.current.addSource('fires', {
             type: 'geojson',
             data: 'https://firms.modapis.eosdis.nasa.gov/data/active_fire/modis_c6_1/geojson/MODIS_C6_1_Global_24h.json'
@@ -270,17 +261,14 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
 
     if (overlay === 'smoke') {
       if (checked) {
-        // NOAA/EPA AirNow API for real-time air quality and smoke data
         if (!map.current.getSource('smoke')) {
-          // Get current air quality data from AirNow API
           fetch('https://www.airnowapi.org/aq/data/?startDate=2024-01-01&endDate=2024-12-31&parameters=PM25,OZONE&BBOX=-125,25,-65,50&dataType=B&format=application/json&verbose=1&monitorType=0&includerawconcentrations=1&API_KEY=guest')
             .then(response => response.json())
             .then(data => {
               if (!map.current || !Array.isArray(data)) return;
               
-              // Convert air quality data to GeoJSON for smoke visualization
               const smokeFeatures = data
-                .filter((station: any) => station.Parameter === 'PM2.5' && station.AQI > 100) // Unhealthy air quality indicates smoke
+                .filter((station: any) => station.Parameter === 'PM2.5' && station.AQI > 100)
                 .map((station: any) => ({
                   type: 'Feature' as const,
                   properties: {
@@ -313,7 +301,6 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             })
             .catch(error => {
               console.error('Error fetching air quality data:', error);
-              // Fallback to basic smoke layer
               if (!map.current?.getSource('smoke')) {
                 map.current?.addSource('smoke', {
                   type: 'geojson',
@@ -343,10 +330,10 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
                 'interpolate',
                 ['linear'],
                 ['get', 'aqi'],
-                101, '#ff9800',  // Unhealthy for Sensitive Groups
-                151, '#f44336',  // Unhealthy
-                201, '#9c27b0',  // Very Unhealthy
-                300, '#7b1fa2'   // Hazardous
+                101, '#ff9800',
+                151, '#f44336',
+                201, '#9c27b0',
+                300, '#7b1fa2'
               ],
               'circle-opacity': 0.7,
               'circle-stroke-width': 1,
@@ -354,12 +341,11 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             }
           });
           
-          // Add labels for high AQI areas
           map.current.addLayer({
             id: 'smoke-labels',
             type: 'symbol',
             source: 'smoke',
-            filter: ['>=', ['get', 'aqi'], 150], // Only show labels for unhealthy+ air quality
+            filter: ['>=', ['get', 'aqi'], 150],
             layout: {
               'text-field': ['concat', 'AQI: ', ['get', 'aqi']],
               'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
@@ -391,9 +377,7 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
     // Handle Public Lands overlays
     if (overlay === 'nationalParks') {
       if (checked) {
-        // National Park Service API - real government data
         if (!map.current.getSource('national-parks')) {
-          // Fetch real National Parks data from NPS API
           fetch('https://developer.nps.gov/api/v1/parks?limit=500&api_key=DEMO_KEY&fields=addresses,contacts,images,operatingHours,entranceFees')
             .then(response => response.json())
             .then(data => {
@@ -433,7 +417,6 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             })
             .catch(error => {
               console.error('Error fetching National Parks data:', error);
-              // Fallback to Mapbox boundaries tileset for parks
               if (!map.current?.getSource('national-parks')) {
                 map.current?.addSource('national-parks', {
                   type: 'vector',
@@ -464,7 +447,6 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             }
           });
           
-          // Add labels for parks
           map.current.addLayer({
             id: 'national-parks-labels',
             type: 'symbol',
@@ -499,15 +481,12 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
 
     if (overlay === 'stateForests') {
       if (checked) {
-        // USDA Forest Service data - real government forest boundaries
         if (!map.current.getSource('state-forests')) {
-          // Use USDA Forest Service WMS/WFS service for forest boundaries
           fetch('https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_ForestSystemBoundaries_01/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson&resultRecordCount=1000')
             .then(response => response.json())
             .then(data => {
               if (!map.current || !data.features) return;
               
-              // Process the forest data
               const forestFeatures = data.features.map((feature: any) => ({
                 type: 'Feature' as const,
                 properties: {
@@ -535,7 +514,6 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
             })
             .catch(error => {
               console.error('Error fetching Forest Service data:', error);
-              // Fallback to basic forest layer
               if (!map.current?.getSource('state-forests')) {
                 map.current?.addSource('state-forests', {
                   type: 'geojson',
@@ -606,310 +584,230 @@ export default function MapOptionsDropdown({ map, onStyleChange, currentStyle, i
   return (
     <>
       <style>{`
-        /* NUCLEAR OPTION: Force dropdown downward with all possible selectors */
-        [data-radix-popper-content-wrapper],
-        [data-radix-popper-content-wrapper] > div,
-        [data-side="top"],
-        [data-side="top"] > div,
-        .force-dropdown-down,
-        .force-dropdown-down[data-radix-popper-content-wrapper],
-        [data-radix-popper-content-wrapper] .force-dropdown-down,
-        div[data-radix-dropdown-menu-content],
-        div[data-radix-dropdown-menu-content][data-side="top"] {
-          transform: translateY(10px) !important;
-          top: calc(100% + 10px) !important;
-          bottom: auto !important;
-          position: fixed !important;
-          z-index: 99999 !important;
+        /* Ensure dropdown works in map control context */
+        .mapboxgl-ctrl-group .mapboxgl-ctrl-icon {
+          pointer-events: auto !important;
+          cursor: pointer !important;
         }
         
-        /* Override all Radix positioning */
+        /* High z-index for dropdown content */
         [data-radix-popper-content-wrapper] {
-          transform: translateY(10px) !important;
-          top: auto !important;
-          bottom: auto !important;
+          z-index: 999999 !important;
         }
         
-        /* Force ALL dropdown menus to open downward */
-        [role="menu"],
-        [data-radix-dropdown-menu-content] {
-          transform: translateY(10px) !important;
-          top: calc(100% + 10px) !important;
-          bottom: auto !important;
-          margin-top: 0 !important;
-          margin-bottom: 0 !important;
-        }
-        
-        /* ENHANCED: Force perfect icon centering in map control button */
-        .mapboxgl-ctrl-icon.map-options-button,
-        button.mapboxgl-ctrl-icon.map-options-button {
+        /* Ensure proper icon centering */
+        .map-options-button {
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
-          width: 30px !important;
-          height: 30px !important;
-          padding: 0 !important;
-          margin: 0 !important;
-          text-align: center !important;
-          line-height: 30px !important;
-        }
-        
-        .mapboxgl-ctrl-icon.map-options-button svg,
-        button.mapboxgl-ctrl-icon.map-options-button svg {
-          margin: 0 auto !important;
-          display: block !important;
-          flex-shrink: 0 !important;
-          position: relative !important;
-          left: 0 !important;
-          right: 0 !important;
-          top: 0 !important;
-          bottom: 0 !important;
-        }
-        
-        /* Additional button content centering */
-        .mapboxgl-ctrl-icon.map-options-button * {
-          margin-left: 0 !important;
-          margin-right: 0 !important;
         }
       `}</style>
-      <DropdownMenu modal={false} dir="ltr" open={open} onOpenChange={onOpenChange}>
-        <DropdownMenuTrigger asChild={!isMapControl}>
-          {isMapControl ? (
-            <button
-              className="mapboxgl-ctrl-icon map-options-button"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '29px',
-                height: '29px',
-                border: 'none',
-                background: 'white',
-                cursor: 'pointer',
-                borderRadius: '2px',
-                padding: '0',
-                margin: '0'
-              }}
-              type="button"
-              aria-label="Map Options"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (onOpenChange) {
-                  onOpenChange(!open);
-                }
-              }}
-            >
-              <Layers className="w-[15px] h-[15px]" style={{ margin: '0' }} />
-            </button>
-          ) : (
-            <Button 
-              variant="outline" 
-              className="bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2 flex items-center"
-            >
-              <Layers className="w-4 h-4" />
-              <span className="ml-1">Options</span>
-              <ChevronDown className="w-3 h-3 ml-1" />
-            </Button>
-          )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="outline" 
+            className={isMapControl 
+              ? "mapboxgl-ctrl-icon map-options-button w-[30px] h-[30px] bg-white border-none shadow-none rounded-[2px] p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
+              : "bg-white/95 backdrop-blur-sm border shadow-lg hover:bg-white z-[9999] text-sm px-3 py-2 flex items-center"
+            }
+          >
+            <Layers className={isMapControl ? "w-[15px] h-[15px]" : "w-4 h-4"} />
+            {!isMapControl && (
+              <>
+                <span className="ml-1">Options</span>
+                <ChevronDown className="w-3 h-3 ml-1" />
+              </>
+            )}
+          </Button>
         </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        className="w-64 max-h-[50vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[9999] force-dropdown-down" 
-        align="start"
-        side="bottom"
-        sideOffset={15}
-        avoidCollisions={false}
-        sticky="always"
-        hideWhenDetached={false}
-        collisionPadding={0}
-        arrowPadding={0}
-        
-      >
-        {/* Base Map Section */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
-          Base Map
-        </DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={baseMapStyle} onValueChange={handleBaseMapChange}>
-          <DropdownMenuRadioItem value="wheelers" className="flex items-center gap-3 py-2">
-            <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
-              <MapPin className="w-3 h-3 text-green-600" />
-            </div>
-            <div className="flex flex-col">
-              <span>Wheelers</span>
-              <span className="text-xs text-gray-500">Community users</span>
-            </div>
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="outdoors" className="flex items-center gap-3 py-2">
-            <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
-              <Mountain className="w-3 h-3 text-green-600" />
-            </div>
-            <span>Outdoors</span>
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="satellite" className="flex items-center gap-3 py-2">
-            <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-              <Satellite className="w-3 h-3 text-blue-600" />
-            </div>
-            <span>Satellite</span>
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="navigation" className="flex items-center gap-3 py-2">
-            <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-              <Navigation className="w-3 h-3 text-blue-600" />
-            </div>
-            <span>Navigation</span>
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="terrain" className="flex items-center gap-3 py-2">
-            <div className="w-6 h-6 bg-amber-100 rounded flex items-center justify-center">
-              <Map className="w-3 h-3 text-amber-600" />
-            </div>
-            <span>Terrain</span>
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-
-        {/* Base Map Theme section removed - fixed to Scenic theme */}
-
-        <DropdownMenuSeparator />
-
-        {/* Map Overlays */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
-          Map Overlays
-        </DropdownMenuLabel>
-        <DropdownMenuCheckboxItem
-          checked={overlays.traffic}
-          onCheckedChange={(checked) => handleOverlayToggle('traffic', checked)}
-          className="flex items-center gap-3 py-2"
+        <DropdownMenuContent 
+          className="w-64 max-h-[70vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[999999]" 
+          align="start"
+          side="bottom"
+          sideOffset={8}
         >
-          <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
-            <Zap className="w-3 h-3 text-red-600" />
-          </div>
-          <span>Traffic</span>
-        </DropdownMenuCheckboxItem>
+          {/* Base Map Section */}
+          <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
+            Base Map
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={baseMapStyle} onValueChange={handleBaseMapChange}>
+            <DropdownMenuRadioItem value="wheelers" className="flex items-center gap-3 py-2">
+              <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
+                <MapPin className="w-3 h-3 text-green-600" />
+              </div>
+              <div className="flex flex-col">
+                <span>Wheelers</span>
+                <span className="text-xs text-gray-500">Community users</span>
+              </div>
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="outdoors" className="flex items-center gap-3 py-2">
+              <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
+                <Mountain className="w-3 h-3 text-green-600" />
+              </div>
+              <span>Outdoors</span>
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="satellite" className="flex items-center gap-3 py-2">
+              <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+                <Satellite className="w-3 h-3 text-blue-600" />
+              </div>
+              <span>Satellite</span>
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="navigation" className="flex items-center gap-3 py-2">
+              <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+                <Navigation className="w-3 h-3 text-blue-600" />
+              </div>
+              <span>Navigation</span>
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="terrain" className="flex items-center gap-3 py-2">
+              <div className="w-6 h-6 bg-amber-100 rounded flex items-center justify-center">
+                <Map className="w-3 h-3 text-amber-600" />
+              </div>
+              <span>Terrain</span>
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        {/* Social */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
-          Social
-        </DropdownMenuLabel>
-        <DropdownMenuCheckboxItem
-          checked={showFriendsLayer}
-          onCheckedChange={(checked) => setShowFriendsLayer(checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-6 h-6 bg-purple-100 rounded flex items-center justify-center">
-            <Users className="w-3 h-3 text-purple-600" />
-          </div>
-          <span>Friends</span>
-        </DropdownMenuCheckboxItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Phone Coverage */}
-        <DropdownMenuCheckboxItem
-          checked={overlays.phoneCoverage}
-          onCheckedChange={(checked) => handleOverlayToggle('phoneCoverage', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-            <Phone className="w-3 h-3 text-blue-600" />
-          </div>
-          <span>Phone Coverage</span>
-        </DropdownMenuCheckboxItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Public Lands */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
-          Public Lands
-        </DropdownMenuLabel>
-        {getPublicLandsForCountry().map(({ key, label, icon: Icon, color }) => (
+          {/* Map Overlays */}
+          <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
+            Map Overlays
+          </DropdownMenuLabel>
           <DropdownMenuCheckboxItem
-            key={key}
-            checked={overlays[key as keyof typeof overlays] || false}
-            onCheckedChange={(checked) => handleOverlayToggle(key, checked)}
+            checked={overlays.traffic}
+            onCheckedChange={(checked) => handleOverlayToggle('traffic', checked)}
             className="flex items-center gap-3 py-2"
           >
-            <div className={`w-6 h-6 bg-${color}-100 rounded flex items-center justify-center`}>
-              <Icon className={`w-3 h-3 text-${color}-600`} />
+            <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
+              <Zap className="w-3 h-3 text-red-600" />
             </div>
-            <span>{label}</span>
+            <span>Traffic</span>
           </DropdownMenuCheckboxItem>
-        ))}
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        {/* Environmental */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
-          Environmental
-        </DropdownMenuLabel>
-        <DropdownMenuCheckboxItem
-          checked={overlays.smoke}
-          onCheckedChange={(checked) => handleOverlayToggle('smoke', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center">
-            <Cloud className="w-3 h-3 text-gray-600" />
-          </div>
-          <span>Smoke</span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={overlays.fires}
-          onCheckedChange={(checked) => handleOverlayToggle('fires', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-6 h-6 bg-orange-100 rounded flex items-center justify-center">
-            <Flame className="w-3 h-3 text-orange-600" />
-          </div>
-          <span>Fires</span>
-        </DropdownMenuCheckboxItem>
+          {/* Social */}
+          <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
+            Social
+          </DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={showFriendsLayer}
+            onCheckedChange={(checked) => setShowFriendsLayer(checked)}
+            className="flex items-center gap-3 py-2"
+          >
+            <div className="w-6 h-6 bg-purple-100 rounded flex items-center justify-center">
+              <Users className="w-3 h-3 text-purple-600" />
+            </div>
+            <span>Friends</span>
+          </DropdownMenuCheckboxItem>
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
+          {/* Phone Coverage */}
+          <DropdownMenuCheckboxItem
+            checked={overlays.phoneCoverage}
+            onCheckedChange={(checked) => handleOverlayToggle('phoneCoverage', checked)}
+            className="flex items-center gap-3 py-2"
+          >
+            <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+              <Phone className="w-3 h-3 text-blue-600" />
+            </div>
+            <span>Phone Coverage</span>
+          </DropdownMenuCheckboxItem>
 
-        {/* Points of Interest */}
-        <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
-          Points of Interest
-        </DropdownMenuLabel>
-        <DropdownMenuCheckboxItem
-          checked={poiState.pet_stop}
-          onCheckedChange={(checked) => handlePOIToggle('pet_stop', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-6 h-6 bg-yellow-100 rounded flex items-center justify-center">
-            <Bone className="w-3 h-3 text-yellow-600" />
-          </div>
-          <span>Pet Stops</span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={poiState.wide_parking}
-          onCheckedChange={(checked) => handlePOIToggle('wide_parking', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-            <CircleParking className="w-3 h-3 text-blue-600" />
-          </div>
-          <span>Wide Parking</span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={poiState.medical}
-          onCheckedChange={(checked) => handlePOIToggle('medical', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
-            <Ambulance className="w-3 h-3 text-red-600" />
-          </div>
-          <span>Medical</span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={poiState.farmers_market}
-          onCheckedChange={(checked) => handlePOIToggle('farmers_market', checked)}
-          className="flex items-center gap-3 py-2"
-        >
-          <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
-            <Carrot className="w-3 h-3 text-green-600" />
-          </div>
-          <span>Farmers Markets</span>
-        </DropdownMenuCheckboxItem>
-      </DropdownMenuContent>
+          <DropdownMenuSeparator />
+
+          {/* Public Lands */}
+          <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
+            Public Lands
+          </DropdownMenuLabel>
+          {getPublicLandsForCountry().map(({ key, label, icon: Icon, color }) => (
+            <DropdownMenuCheckboxItem
+              key={key}
+              checked={overlays[key as keyof typeof overlays] || false}
+              onCheckedChange={(checked) => handleOverlayToggle(key, checked)}
+              className="flex items-center gap-3 py-2"
+            >
+              <div className={`w-6 h-6 bg-${color}-100 rounded flex items-center justify-center`}>
+                <Icon className={`w-3 h-3 text-${color}-600`} />
+              </div>
+              <span>{label}</span>
+            </DropdownMenuCheckboxItem>
+          ))}
+
+          <DropdownMenuSeparator />
+
+          {/* Environmental */}
+          <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
+            Environmental
+          </DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={overlays.smoke}
+            onCheckedChange={(checked) => handleOverlayToggle('smoke', checked)}
+            className="flex items-center gap-3 py-2"
+          >
+            <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center">
+              <Cloud className="w-3 h-3 text-gray-600" />
+            </div>
+            <span>Smoke</span>
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={overlays.fires}
+            onCheckedChange={(checked) => handleOverlayToggle('fires', checked)}
+            className="flex items-center gap-3 py-2"
+          >
+            <div className="w-6 h-6 bg-orange-100 rounded flex items-center justify-center">
+              <Flame className="w-3 h-3 text-orange-600" />
+            </div>
+            <span>Fires</span>
+          </DropdownMenuCheckboxItem>
+
+          <DropdownMenuSeparator />
+
+          {/* Points of Interest */}
+          <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
+            Points of Interest
+          </DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={poiState.pet_stop}
+            onCheckedChange={(checked) => handlePOIToggle('pet_stop', checked)}
+            className="flex items-center gap-3 py-2"
+          >
+            <div className="w-6 h-6 bg-yellow-100 rounded flex items-center justify-center">
+              <Bone className="w-3 h-3 text-yellow-600" />
+            </div>
+            <span>Pet Stops</span>
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={poiState.wide_parking}
+            onCheckedChange={(checked) => handlePOIToggle('wide_parking', checked)}
+            className="flex items-center gap-3 py-2"
+          >
+            <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+              <CircleParking className="w-3 h-3 text-blue-600" />
+            </div>
+            <span>Wide Parking</span>
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={poiState.medical}
+            onCheckedChange={(checked) => handlePOIToggle('medical', checked)}
+            className="flex items-center gap-3 py-2"
+          >
+            <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
+              <Ambulance className="w-3 h-3 text-red-600" />
+            </div>
+            <span>Medical</span>
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={poiState.farmers_market}
+            onCheckedChange={(checked) => handlePOIToggle('farmers_market', checked)}
+            className="flex items-center gap-3 py-2"
+          >
+            <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
+              <Carrot className="w-3 h-3 text-green-600" />
+            </div>
+            <span>Farmers Markets</span>
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuContent>
       </DropdownMenu>
       
       {/* WheelersLayer - shows community users when Wheelers map is selected */}
