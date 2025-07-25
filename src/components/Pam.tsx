@@ -7,6 +7,8 @@ import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
 import { pamFeedbackService } from "@/services/pamFeedbackService";
+import { pamVoiceService } from "@/lib/voiceService";
+import { useUserSettings } from "@/hooks/useUserSettings";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -30,6 +32,7 @@ interface PamProps {
 
 const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const { user, session } = useAuth();
+  const { settings } = useUserSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -1243,6 +1246,47 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
+  // Function to speak PAM's messages using TTS
+  const speakMessage = async (content: string) => {
+    // Check if voice is enabled in user settings
+    const isVoiceEnabled = settings?.pam_preferences?.voice_enabled;
+    if (!isVoiceEnabled) {
+      return; // Voice is disabled, don't speak
+    }
+
+    try {
+      // Clean the content for TTS (remove emojis and markdown)
+      const cleanContent = content
+        .replace(/[🤖🎤🚫🔇🎙️✅❌⚠️🔊💡🔧👂🌐🟢]/g, '') // Remove emojis
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
+        .replace(/\*(.*?)\*/g, '$1') // Remove italic markdown
+        .replace(/`(.*?)`/g, '$1') // Remove code blocks
+        .trim();
+
+      if (cleanContent.length === 0) {
+        return; // Nothing to speak
+      }
+
+      // Generate voice using pamVoiceService
+      const voiceResponse = await pamVoiceService.generateVoice({
+        text: cleanContent,
+        emotion: 'helpful',
+        context: 'general',
+        priority: 'normal'
+      });
+
+      // Play the generated audio
+      const audio = new Audio(voiceResponse.audioUrl);
+      audio.play().catch(error => {
+        console.warn('🔊 Voice playback failed:', error);
+      });
+
+    } catch (error) {
+      console.warn('🔊 Voice synthesis failed:', error);
+      // Don't show error to user - just fail silently for voice
+    }
+  };
+
   const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string): PamMessage => {
     const newMessage: PamMessage = {
       id: Date.now().toString(),
@@ -1261,6 +1305,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Process feedback actions for user messages
       if (sender === "user") {
         processFeedbackActions("", content); // content is the user message for user sender
+      }
+
+      // 🔊 VOICE OUTPUT: Speak PAM's responses if voice is enabled
+      if (sender === "pam") {
+        speakMessage(content);
       }
       
       // ROBUST MEMORY: Save to localStorage on every message
