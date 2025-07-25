@@ -81,15 +81,23 @@ export default function TripControls({
         totalStops: waypoints.length + 2 // origin + destination + waypoints
       };
 
-      // Create the trip description
-      const tripDescription = `Here's my planned trip:
-• From: ${originName}
-• To: ${destName}
-${waypoints.length > 0 ? `• Stops: ${waypoints.map(wp => wp.name).join(', ')}` : ''}
-• Route type: ${routeType}
-• Vehicle: ${vehicle}
+      // Create the trip description with route improvement focus
+      const tripDescription = `I've planned this route and would like you to help improve it:
 
-Can you make this trip more interesting for me?`;
+📍 From: ${originName}
+🎯 To: ${destName}
+${waypoints.length > 0 ? `🛑 Stops: ${waypoints.map(wp => wp.name).join(', ')}` : ''}
+🚗 Vehicle: ${vehicle}
+⚡ Route preference: ${routeType}
+
+Please analyze this route and suggest improvements such as:
+- More scenic or interesting alternative paths
+- Notable attractions or points of interest along the way
+- Better rest stops or dining options
+- Optimal timing recommendations
+- Any potential road conditions or traffic considerations
+
+Help me make this journey more enjoyable and efficient!`;
 
       // Send to PAM chat
       await sendMessage(tripDescription);
@@ -170,16 +178,25 @@ Can you make this trip more interesting for me?`;
         </Card>}
 
       {/* Action Buttons */}
-      <div className="flex flex-col gap-2">
-        
-        
-        <Button onClick={handleSendToPam} className={`w-full text-white ${isOffline ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'}`} size="sm" disabled={!originName || !destName}>
-          {isOffline ? "Queue for Pam" : "Send to Pam"}
+      <div className="flex flex-col gap-3">
+        <Button 
+          onClick={handleSendToPam} 
+          className={`w-full text-white ${isOffline ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'}`} 
+          size="sm" 
+          disabled={!originName || !destName}
+        >
+          {isOffline ? "Queue for Pam" : "Ask Pam to Improve Route"}
         </Button>
         
-        <Button variant="outline" onClick={handleSendTo} className="w-full" size="sm" disabled={!originName || !destName || isOffline}>
+        <Button 
+          variant="outline" 
+          onClick={handleSendTo} 
+          className="w-full" 
+          size="sm" 
+          disabled={!originName || !destName || isOffline}
+        >
           <ExternalLink className="w-4 h-4 mr-2" />
-          Send To
+          Export to Navigation Apps
         </Button>
         {tripId && <Button variant="outline" size="sm" onClick={() => {
         const url = `${window.location.origin}/share/trip/${tripId}`;
