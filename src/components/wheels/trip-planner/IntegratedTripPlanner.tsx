@@ -8,7 +8,6 @@ import TripPlannerHeader from './TripPlannerHeader';
 import OfflineTripBanner from './OfflineTripBanner';
 import WaypointsList from './WaypointsList';
 import SuggestionsGrid from './SuggestionsGrid';
-import LockedPointControls from './LockedPointControls';
 import MapControls from './MapControls';
 import TripStats from './TripStats';
 import { Itinerary } from './types';
@@ -204,18 +203,6 @@ export default function IntegratedTripPlanner({
           setManualMode={integratedState.setManualMode}
           waypoints={integratedState.route.waypoints}
         />
-
-        {/* Locked Point Controls - RESTORED: Renders below TripControls, not above map */}
-        {(integratedState.originLocked || integratedState.destinationLocked) && (
-          <LockedPointControls
-            originLocked={integratedState.originLocked}
-            destinationLocked={integratedState.destinationLocked}
-            originName={integratedState.route.originName}
-            destName={integratedState.route.destName}
-            onUnlockOrigin={integratedState.unlockOrigin}
-            onUnlockDestination={integratedState.unlockDestination}
-          />
-        )}
 
         {/* Map Container - Now using MapControls component */}
         {mapUnavailable ? (
