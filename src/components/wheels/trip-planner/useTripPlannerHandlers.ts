@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useOffline } from "@/context/OfflineContext";
-import { TripService } from "../TripService";
-import { TripPayload, Waypoint, Suggestion } from "../types";
+import { TripService } from "./TripService";
+import { TripPayload, Waypoint, Suggestion } from "./types";
 import { toast } from "@/hooks/use-toast";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 

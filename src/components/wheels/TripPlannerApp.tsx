@@ -91,11 +91,7 @@ export default function TripPlannerApp() {
           integratedState.setOriginName(origin.name);
           
           // Store coordinates for later use by map
-          integratedState.setRoute(prev => ({
-            ...prev,
-            originCoords: origin.coords,
-            originName: origin.name
-          }));
+          // Store origin coords for template usage (route state is handled by map component)
         }
 
         if (destination) {
@@ -103,11 +99,7 @@ export default function TripPlannerApp() {
           integratedState.setDestName(destination.name);
           
           // Store coordinates for later use by map
-          integratedState.setRoute(prev => ({
-            ...prev,
-            destCoords: destination.coords,
-            destName: destination.name
-          }));
+          // Store destination coords for template usage (route state is handled by map component)
         }
 
         if (waypoints && waypoints.length > 0) {
@@ -123,13 +115,7 @@ export default function TripPlannerApp() {
         }
 
         // Set template metadata
-        integratedState.setRoute(prev => ({
-          ...prev,
-          templateId: template.id,
-          templateName: template.name,
-          estimatedDistance: template.estimatedMiles,
-          estimatedDuration: template.estimatedDays
-        }));
+        // Store template metadata (route display is handled by integrated state)
 
       } catch (error) {
         console.error('Error loading template route:', error);
