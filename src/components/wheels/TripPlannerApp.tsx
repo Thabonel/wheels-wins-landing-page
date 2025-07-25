@@ -19,7 +19,9 @@ import {
   Play,
   Pause,
   ChevronRight,
-  X
+  X,
+  Share,
+  Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -289,95 +291,264 @@ export default function TripPlannerApp() {
     </div>
   );
 
-  const TripDetailsContent = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Trip Details</h2>
-          <p className="text-muted-foreground">Review and finalize your trip information</p>
-        </div>
-      </div>
+  const TripDetailsContent = () => {
+    const [pastTrips, setPastTrips] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-      {/* Trip Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Route className="w-5 h-5" />
-            Current Trip Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-3 bg-muted/30 rounded-lg">
-                <div className="text-2xl font-bold text-primary">
-                  {integratedState.route.waypoints.length}
+    // Mock past trips data - in real app this would come from database
+    const mockPastTrips = [
+      {
+        id: '1',
+        name: 'Coast to Coast Adventure',
+        dates: { start: '2024-08-15', end: '2024-08-28' },
+        destinations: ['Sydney', 'Melbourne', 'Adelaide', 'Perth'],
+        duration: 14,
+        thumbnail: '/placeholder.svg',
+        highlights: ['Great Ocean Road', 'Nullarbor Plain', 'Uluru']
+      },
+      {
+        id: '2', 
+        name: 'Queensland Explorer',
+        dates: { start: '2024-06-10', end: '2024-06-17' },
+        destinations: ['Brisbane', 'Gold Coast', 'Cairns'],
+        duration: 7,
+        thumbnail: '/placeholder.svg',
+        highlights: ['Great Barrier Reef', 'Daintree Rainforest']
+      }
+    ];
+
+    const handleShareTrip = async (trip) => {
+      setLoading(true);
+      try {
+        // In real app, this would create a social post
+        const shareData = {
+          title: `Check out my ${trip.name} trip!`,
+          text: `Just completed an amazing ${trip.duration}-day journey through ${trip.destinations.join(', ')}. Highlights included ${trip.highlights.join(', ')}.`,
+          url: `${window.location.origin}/trip/${trip.id}`
+        };
+        
+        if (navigator.share) {
+          await navigator.share(shareData);
+        } else {
+          await navigator.clipboard.writeText(shareData.url);
+          // Show toast notification here
+        }
+      } catch (error) {
+        console.error('Error sharing trip:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Trip Details</h2>
+            <p className="text-muted-foreground">Review and manage your travel experiences</p>
+          </div>
+        </div>
+
+        {/* Current Trip Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Route className="w-5 h-5" />
+              Current Trip Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <div className="text-2xl font-bold text-primary">
+                    {integratedState.route.waypoints.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Waypoints</div>
                 </div>
-                <div className="text-sm text-muted-foreground">Waypoints</div>
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <div className="text-2xl font-bold text-success">
+                    ${integratedState.budget.totalBudget}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Budget</div>
+                </div>
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <div className="text-2xl font-bold text-warning">
+                    {integratedState.social.friends.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Friends</div>
+                </div>
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <div className="text-2xl font-bold text-info">
+                    {integratedState.pam.suggestions.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">AI Tips</div>
+                </div>
               </div>
-              <div className="text-center p-3 bg-muted/30 rounded-lg">
-                <div className="text-2xl font-bold text-success">
-                  ${integratedState.budget.totalBudget}
-                </div>
-                <div className="text-sm text-muted-foreground">Budget</div>
-              </div>
-              <div className="text-center p-3 bg-muted/30 rounded-lg">
-                <div className="text-2xl font-bold text-warning">
-                  {integratedState.social.friends.length}
-                </div>
-                <div className="text-sm text-muted-foreground">Friends</div>
-              </div>
-              <div className="text-center p-3 bg-muted/30 rounded-lg">
-                <div className="text-2xl font-bold text-info">
-                  {integratedState.pam.suggestions.length}
-                </div>
-                <div className="text-sm text-muted-foreground">AI Tips</div>
-              </div>
-            </div>
-            
-            {(integratedState.route.originName || integratedState.route.destName) && (
-              <div className="space-y-3 pt-4 border-t">
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span>
-                    {integratedState.route.originName || 'Set origin'} → {integratedState.route.destName || 'Set destination'}
-                  </span>
-                </div>
-                
-                {integratedState.route.totalDistance && (
+              
+              {/* Detailed Route Information */}
+              {(integratedState.route.originName || integratedState.route.destName) && (
+                <div className="space-y-3 pt-4 border-t">
+                  <h4 className="font-semibold">Route Details</h4>
                   <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
                     <span>
-                      {integratedState.route.totalDistance} miles • {integratedState.route.estimatedTime} hours
+                      {integratedState.route.originName || 'Set origin'} → {integratedState.route.destName || 'Set destination'}
                     </span>
                   </div>
-                )}
+                  
+                  {integratedState.route.totalDistance && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      <span>
+                        {integratedState.route.totalDistance} miles • {integratedState.route.estimatedTime} hours
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Waypoints List */}
+                  {integratedState.route.waypoints.length > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium">Planned Stops:</h5>
+                      <div className="grid gap-2">
+                        {integratedState.route.waypoints.map((waypoint, index) => (
+                          <div key={index} className="flex items-center gap-2 text-sm bg-muted/20 p-2 rounded">
+                            <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs">
+                              {index + 1}
+                            </div>
+                            <span>{waypoint.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Travel Preferences */}
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Travel Mode:</span>
+                      <div className="font-medium capitalize">{integratedState.travelMode}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Vehicle:</span>
+                      <div className="font-medium capitalize">{integratedState.vehicle}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Past Trips Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Past Trips
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {mockPastTrips.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No past trips yet. Complete your first trip to see it here!</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {mockPastTrips.map((trip) => (
+                  <Card key={trip.id} className="overflow-hidden">
+                    <div className="aspect-video bg-muted relative">
+                      <img 
+                        src={trip.thumbnail} 
+                        alt={trip.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="secondary">
+                          {trip.duration} days
+                        </Badge>
+                      </div>
+                    </div>
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div>
+                          <h4 className="font-semibold">{trip.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(trip.dates.start).toLocaleDateString()} - {new Date(trip.dates.end).toLocaleDateString()}
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <p className="text-sm font-medium mb-1">Destinations:</p>
+                          <p className="text-sm text-muted-foreground">
+                            {trip.destinations.join(' → ')}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-medium mb-1">Highlights:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {trip.highlights.map((highlight, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {highlight}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => handleShareTrip(trip)}
+                            disabled={loading}
+                          >
+                            <Share className="w-3 h-3 mr-1" />
+                            Share
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              // Navigate to full trip details
+                              console.log('View details for trip:', trip.id);
+                            }}
+                          >
+                            View Details
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Export Options */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Export & Share</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Button onClick={() => integratedState.toggleFeature('export')}>
-              <Download className="w-4 h-4 mr-2" />
-              Export Trip
-            </Button>
-            <Button variant="outline" onClick={() => integratedState.toggleFeature('meetup')}>
-              <Users className="w-4 h-4 mr-2" />
-              Plan My Meetup
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+        {/* Export Options */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Export & Share Current Trip</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <Button onClick={() => integratedState.toggleFeature('export')}>
+                <Download className="w-4 h-4 mr-2" />
+                Export Trip
+              </Button>
+              <Button variant="outline" onClick={() => integratedState.toggleFeature('meetup')}>
+                <Users className="w-4 h-4 mr-2" />
+                Plan My Meetup
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
 
   // Welcome screen for non-authenticated users
   if (showWelcome) {

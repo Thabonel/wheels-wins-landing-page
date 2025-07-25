@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, ExternalLink } from "lucide-react";
 import { usePAMContext } from "./PAMContext";
 import GeocodeSearch from "./GeocodeSearch";
-import NavigationExportHub from "./NavigationExportHub";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
 interface TripControlsProps {
@@ -53,7 +52,6 @@ export default function TripControls({
     updateContext
   } = usePAMContext();
   const [showSearch, setShowSearch] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
   const handleSendToPam = async () => {
     try {
       // Update PAM context with current trip data
@@ -127,35 +125,6 @@ Help me make this journey more enjoyable and efficient!`;
   const handleSearchClose = () => {
     setShowSearch(false);
   };
-  const handleSendTo = () => {
-    if (!originName || !destName) return;
-    setShowExportModal(true);
-  };
-  const handleExportClose = () => {
-    setShowExportModal(false);
-  };
-
-  // Format current route data for NavigationExportHub
-  const currentRoute = {
-    origin: {
-      name: originName,
-      lat: 0,
-      // Coordinates will be handled by the export component
-      lng: 0
-    },
-    destination: {
-      name: destName,
-      lat: 0,
-      lng: 0
-    },
-    waypoints: waypoints.map(wp => ({
-      name: wp.name,
-      lat: wp.coords[1] || 0,
-      lng: wp.coords[0] || 0
-    })),
-    originName,
-    destName
-  };
   return <div className="space-y-3">
       {/* Add Stop Search Interface */}
       {showSearch && <Card className="w-full">
@@ -188,16 +157,6 @@ Help me make this journey more enjoyable and efficient!`;
           {isOffline ? "Queue for Pam" : "Ask Pam to Improve Route"}
         </Button>
         
-        <Button 
-          variant="outline" 
-          onClick={handleSendTo} 
-          className="w-full" 
-          size="sm" 
-          disabled={!originName || !destName || isOffline}
-        >
-          <ExternalLink className="w-4 h-4 mr-2" />
-          Export to Navigation Apps
-        </Button>
         {tripId && <Button variant="outline" size="sm" onClick={() => {
         const url = `${window.location.origin}/share/trip/${tripId}`;
         navigator.clipboard.writeText(url).catch(console.error);
@@ -206,7 +165,5 @@ Help me make this journey more enjoyable and efficient!`;
           </Button>}
       </div>
 
-      {/* Navigation Export Modal */}
-      <NavigationExportHub isOpen={showExportModal} onClose={handleExportClose} currentRoute={currentRoute} />
     </div>;
 }

@@ -1,5 +1,5 @@
 Collecting PyAudio
-  Downloading PyAudio-0.2.14.tar.gz (47 kB)
+  Using cached PyAudio-0.2.14.tar.gz (47 kB)
   Installing build dependencies: started
   Installing build dependencies: finished with status 'done'
   Getting requirements to build wheel: started
