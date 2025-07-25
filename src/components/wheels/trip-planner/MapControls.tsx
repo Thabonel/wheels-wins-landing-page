@@ -48,6 +48,7 @@ interface MapControlsProps {
   manualWaypoints: ManualWaypoint[];
   onManualWaypointAdd: (waypoint: ManualWaypoint) => void;
   onManualWaypointRemove: (id: string) => void;
+  templateData?: any;
 }
 
 export default function MapControls({
@@ -78,6 +79,7 @@ export default function MapControls({
   manualWaypoints,
   onManualWaypointAdd,
   onManualWaypointRemove,
+  templateData,
 }: MapControlsProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const { units, loading: unitsLoading } = useUserUnits();
@@ -368,6 +370,54 @@ export default function MapControls({
             if (isOffline) return;
             onRouteChange();
           });
+
+          // Auto-prefill origin with user's current location on initial load
+          if (!originName && !templateData && !isOffline) {
+            console.log('📍 Requesting user location for origin auto-prefill...');
+            
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                  try {
+                    const { latitude, longitude } = position.coords;
+                    const coordinates: [number, number] = [longitude, latitude];
+                    
+                    console.log('📍 Got user location:', coordinates);
+                    
+                    // Reverse geocode to get readable address
+                    const locationName = await reverseGeocode(coordinates);
+                    
+                    console.log('📍 Setting auto-prefilled origin in DirectionsControl:', locationName);
+                    
+                    // Set origin in directions control
+                    dir.setOrigin(coordinates);
+                    
+                    // Update state
+                    setOriginName(locationName);
+                    lockOrigin();
+                    
+                    toast({
+                      title: "Location Set",
+                      description: `Origin set to your current location: ${locationName}`,
+                      duration: 3000,
+                    });
+                    
+                  } catch (error) {
+                    console.error('Error processing user location:', error);
+                  }
+                },
+                (error) => {
+                  console.log('📍 Geolocation request denied or failed:', error.message);
+                  // Silently fail - user will use manual input as before
+                },
+                {
+                  enableHighAccuracy: false,
+                  timeout: 10000,
+                  maximumAge: 300000, // 5 minutes
+                }
+              );
+            }
+          }
         }
       });
     } else {
