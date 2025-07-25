@@ -10,6 +10,8 @@ import WaypointsList from './WaypointsList';
 import SuggestionsGrid from './SuggestionsGrid';
 import MapControls from './MapControls';
 import TripStats from './TripStats';
+import EnhancedTripStats from './EnhancedTripStats';
+import PastTripsSection from './PastTripsSection';
 import { Itinerary } from './types';
 import { ItineraryService } from './services/ItineraryService';
 import { useIntegratedTripState } from './hooks/useIntegratedTripState';
@@ -20,7 +22,6 @@ import { useRegion } from '@/context/RegionContext';
 import { useOffline } from '@/context/OfflineContext';
 import TripPlannerLayout from './TripPlannerLayout';
 import MapUnavailable from './MapUnavailable';
-import PamVoiceCompanion from '@/components/voice/PamVoiceCompanion';
 
 interface IntegratedTripPlannerProps {
   isOffline?: boolean;
@@ -280,10 +281,8 @@ export default function IntegratedTripPlanner({
           </div>
         )}
 
-        <TripStats directionsControl={directionsControl} />
-
-        {/* PAM Voice Companion */}
-        <PamVoiceCompanion />
+        {/* Enhanced Trip Stats - Replaces old TripStats */}
+        <EnhancedTripStats directionsControl={directionsControl} className="mb-4" />
 
         {/* Waypoints List */}
         {integratedState.route.waypoints.length > 0 && (
@@ -300,7 +299,7 @@ export default function IntegratedTripPlanner({
         )}
 
         {itinerary && (
-          <div className="space-y-4">
+          <div className="space-y-4 mb-4">
             {itinerary.days.map(day => (
               <div key={day.day} className="border p-2 rounded-md">
                 <h4 className="font-semibold">Day {day.day}</h4>
@@ -313,6 +312,9 @@ export default function IntegratedTripPlanner({
             ))}
           </div>
         )}
+
+        {/* Past Trips Section */}
+        <PastTripsSection className="mb-4" />
       </TripPlannerLayout>
     </PAMProvider>
   );

@@ -11,6 +11,7 @@ import { MapOptionsControl } from "./MapOptionsControl";
 import POILayer from "./POILayer";
 import { toast } from "@/hooks/use-toast";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
+import SimplePamVoiceButton from "./SimplePamVoiceButton";
 
 interface ManualWaypoint {
   id: string;
@@ -315,9 +316,48 @@ export default function MapControls({
           
           // Add the directions control to the map
           map.current.addControl(dir, 'top-left');
+          
+          // Periodic check to ensure no coordinates are shown in the input fields
+          const checkAndFixCoordinates = setInterval(async () => {
+            if (!dir || isOffline) return;
+            
+            const inputs = document.querySelectorAll('.mapboxgl-ctrl-geocoder input');
+            const coordPattern = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/;
+            
+            // Check origin input
+            if (inputs[0]) {
+              const originValue = (inputs[0] as HTMLInputElement).value;
+              if (coordPattern.test(originValue.trim())) {
+                console.log('🔄 Found coordinates in origin input, fixing...');
+                const coords = originValue.split(',').map(c => parseFloat(c.trim()));
+                if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                  const placeName = await reverseGeocode([coords[1], coords[0]]); // Note: might be lat,lng format
+                  (inputs[0] as HTMLInputElement).value = placeName;
+                  setOriginName(placeName);
+                }
+              }
+            }
+            
+            // Check destination input
+            if (inputs[1]) {
+              const destValue = (inputs[1] as HTMLInputElement).value;
+              if (coordPattern.test(destValue.trim())) {
+                console.log('🔄 Found coordinates in destination input, fixing...');
+                const coords = destValue.split(',').map(c => parseFloat(c.trim()));
+                if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                  const placeName = await reverseGeocode([coords[1], coords[0]]); // Note: might be lat,lng format
+                  (inputs[1] as HTMLInputElement).value = placeName;
+                  setDestName(placeName);
+                }
+              }
+            }
+          }, 2000); // Check every 2 seconds
+          
+          // Clear interval on cleanup
+          map.current.on('remove', () => clearInterval(checkAndFixCoordinates));
 
           // Set up event listeners for origin/destination changes
-          dir.on("origin", (e) => {
+          dir.on("origin", async (e) => {
             // Skip if this is a programmatic update or if origin is locked
             if (isOffline || originLocked || isProgrammaticUpdate.current) {
               console.log('🔒 Origin event blocked: offline?', isOffline, 'locked?', originLocked, 'programmatic?', isProgrammaticUpdate.current);
@@ -334,14 +374,35 @@ export default function MapControls({
               }
               return;
             }
-            if (e.feature && e.feature.place_name) {
-              console.log('🅰️ Setting origin:', e.feature.place_name);
-              setOriginName(e.feature.place_name);
+            if (e.feature) {
+              let placeName = e.feature.place_name;
+              
+              // Check if the place name looks like coordinates
+              const coordPattern = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/;
+              if (coordPattern.test(placeName) && e.feature.geometry && e.feature.geometry.coordinates) {
+                console.log('🔄 Origin appears to be coordinates, reverse geocoding...');
+                // If it's just coordinates, try to reverse geocode
+                const [lng, lat] = e.feature.geometry.coordinates;
+                placeName = await reverseGeocode([lng, lat]);
+                
+                // Update the input field with the human-readable name
+                setTimeout(() => {
+                  if (dir) {
+                    const inputs = document.querySelectorAll('.mapboxgl-ctrl-geocoder input');
+                    if (inputs[0]) {
+                      (inputs[0] as HTMLInputElement).value = placeName;
+                    }
+                  }
+                }, 50);
+              }
+              
+              console.log('🅰️ Setting origin:', placeName);
+              setOriginName(placeName);
               lockOrigin();
             }
           });
 
-          dir.on("destination", (e) => {
+          dir.on("destination", async (e) => {
             // Skip if this is a programmatic update or if destination is locked
             if (isOffline || destinationLocked || isProgrammaticUpdate.current) {
               console.log('🔒 Destination event blocked: offline?', isOffline, 'locked?', destinationLocked, 'programmatic?', isProgrammaticUpdate.current);
@@ -358,9 +419,30 @@ export default function MapControls({
               }
               return;
             }
-            if (e.feature && e.feature.place_name) {
-              console.log('🅱️ Setting destination:', e.feature.place_name);
-              setDestName(e.feature.place_name);
+            if (e.feature) {
+              let placeName = e.feature.place_name;
+              
+              // Check if the place name looks like coordinates
+              const coordPattern = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/;
+              if (coordPattern.test(placeName) && e.feature.geometry && e.feature.geometry.coordinates) {
+                console.log('🔄 Destination appears to be coordinates, reverse geocoding...');
+                // If it's just coordinates, try to reverse geocode
+                const [lng, lat] = e.feature.geometry.coordinates;
+                placeName = await reverseGeocode([lng, lat]);
+                
+                // Update the input field with the human-readable name
+                setTimeout(() => {
+                  if (dir) {
+                    const inputs = document.querySelectorAll('.mapboxgl-ctrl-geocoder input');
+                    if (inputs[1]) {
+                      (inputs[1] as HTMLInputElement).value = placeName;
+                    }
+                  }
+                }, 50);
+              }
+              
+              console.log('🅱️ Setting destination:', placeName);
+              setDestName(placeName);
               lockDestination();
             }
           });
@@ -389,12 +471,26 @@ export default function MapControls({
                     
                     console.log('📍 Setting auto-prefilled origin in DirectionsControl:', locationName);
                     
-                    // Set origin in directions control
-                    dir.setOrigin(coordinates);
-                    
-                    // Update state
+                    // Update state first with the human-readable name
                     setOriginName(locationName);
                     lockOrigin();
+                    
+                    // Set origin in directions control
+                    // Use a small delay to ensure state is updated first
+                    setTimeout(() => {
+                      if (dir && !isOffline) {
+                        // Try to set by name first, fall back to coordinates
+                        try {
+                          // Attempt to use the place name directly
+                          dir.query(locationName);
+                          dir.setOrigin(locationName);
+                        } catch (e) {
+                          // If that fails, use coordinates
+                          console.log('Setting origin by coordinates as fallback');
+                          dir.setOrigin(coordinates);
+                        }
+                      }
+                    }, 100);
                     
                     toast({
                       title: "Location Set",
@@ -825,22 +921,10 @@ export default function MapControls({
           </div>
         )}
         
-        {/* Visual indicators for locked points, manual mode, and location tracking */}
-        {(originLocked || destinationLocked || manualMode || locationTracking.isTracking) && (
+        {/* Visual indicators for manual mode and location tracking only */}
+        {(manualMode || locationTracking.isTracking) && (
           <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2">
             <div className="flex gap-2 text-xs">
-              {originLocked && (
-                <div className="flex items-center gap-1 text-blue-600">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                  <span>A Locked</span>
-                </div>
-              )}
-              {destinationLocked && (
-                <div className="flex items-center gap-1 text-purple-600">
-                  <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                  <span>B Locked</span>
-                </div>
-              )}
               {manualMode && (
                 <div className="flex items-center gap-1 text-red-600">
                   <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
@@ -856,6 +940,15 @@ export default function MapControls({
             </div>
           </div>
         )}
+        
+        {/* PAM Voice Button - Always visible in bottom right */}
+        <SimplePamVoiceButton 
+          className="absolute bottom-4 right-4 z-10"
+          onDirectionsToggle={(enabled) => {
+            console.log('PAM voice directions:', enabled ? 'enabled' : 'disabled');
+            // TODO: Connect to actual PAM voice service
+          }}
+        />
       </div>
     </div>
   );
