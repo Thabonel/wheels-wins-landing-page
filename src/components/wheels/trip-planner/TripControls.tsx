@@ -7,7 +7,6 @@ import GeocodeSearch from "./GeocodeSearch";
 import NavigationExportHub from "./NavigationExportHub";
 import mapboxgl from "mapbox-gl";
 import MapboxDirections from "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions";
-
 interface TripControlsProps {
   mode: string;
   setMode: (mode: string) => void;
@@ -20,7 +19,10 @@ interface TripControlsProps {
   // Route data for PAM integration
   originName?: string;
   destName?: string;
-  waypoints?: Array<{ name: string; coords: [number, number] }>;
+  waypoints?: Array<{
+    name: string;
+    coords: [number, number];
+  }>;
   routeType?: string;
   vehicle?: string;
   // Directions control for GeocodeSearch
@@ -28,7 +30,6 @@ interface TripControlsProps {
   originLocked?: boolean;
   destinationLocked?: boolean;
 }
-
 export default function TripControls({
   mode,
   setMode,
@@ -45,12 +46,14 @@ export default function TripControls({
   vehicle = "car",
   directionsControl,
   originLocked = false,
-  destinationLocked = false,
+  destinationLocked = false
 }: TripControlsProps) {
-  const { sendMessage, updateContext } = usePAMContext();
+  const {
+    sendMessage,
+    updateContext
+  } = usePAMContext();
   const [showSearch, setShowSearch] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-
   const handleSendToPam = async () => {
     try {
       // Update PAM context with current trip data
@@ -59,8 +62,12 @@ export default function TripControls({
           origin: originName,
           destination: destName,
           waypoints: waypoints.map(wp => wp.name),
-          budget: 1500, // Default budget, should come from props in real implementation
-          dates: { start: "", end: "" }, // Should come from trip planner state
+          budget: 1500,
+          // Default budget, should come from props in real implementation
+          dates: {
+            start: "",
+            end: ""
+          } // Should come from trip planner state
         }
       });
 
@@ -71,7 +78,7 @@ export default function TripControls({
         waypoints: waypoints,
         routeType: routeType,
         vehicle: vehicle,
-        totalStops: waypoints.length + 2, // origin + destination + waypoints
+        totalStops: waypoints.length + 2 // origin + destination + waypoints
       };
 
       // Create the trip description
@@ -91,17 +98,15 @@ Can you make this trip more interesting for me?`;
       if (!isOffline) {
         onSubmitTrip();
       }
-
     } catch (error) {
       console.error('Failed to send trip to PAM:', error);
       // Fallback to original submit handler
       onSubmitTrip();
     }
   };
-
   const handleAddStop = () => {
     if (isOffline) return;
-    
+
     // If we have both origin and destination, show search interface
     if (originName && destName) {
       setShowSearch(true);
@@ -111,16 +116,13 @@ Can you make this trip more interesting for me?`;
       if (map.current) map.current.getCanvas().style.cursor = "crosshair";
     }
   };
-
   const handleSearchClose = () => {
     setShowSearch(false);
   };
-
   const handleSendTo = () => {
     if (!originName || !destName) return;
     setShowExportModal(true);
   };
-
   const handleExportClose = () => {
     setShowExportModal(false);
   };
@@ -129,7 +131,8 @@ Can you make this trip more interesting for me?`;
   const currentRoute = {
     origin: {
       name: originName,
-      lat: 0, // Coordinates will be handled by the export component
+      lat: 0,
+      // Coordinates will be handled by the export component
       lng: 0
     },
     destination: {
@@ -145,21 +148,13 @@ Can you make this trip more interesting for me?`;
     originName,
     destName
   };
-
-  return (
-    <div className="space-y-3">
+  return <div className="space-y-3">
       {/* Add Stop Search Interface */}
-      {showSearch && (
-        <Card className="w-full">
+      {showSearch && <Card className="w-full">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm">Add Stop to Route</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSearchClose}
-                className="h-6 w-6 p-0"
-              >
+              <Button variant="ghost" size="sm" onClick={handleSearchClose} className="h-6 w-6 p-0">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -169,75 +164,32 @@ Can you make this trip more interesting for me?`;
               <p className="text-xs text-gray-600">
                 Search for a place to add between {originName} and {destName}
               </p>
-              {directionsControl && (
-                <GeocodeSearch
-                  directionsControl={directionsControl}
-                  disabled={isOffline}
-                  originLocked={originLocked}
-                  destinationLocked={destinationLocked}
-                  onWaypointAdded={handleSearchClose}
-                />
-              )}
+              {directionsControl && <GeocodeSearch directionsControl={directionsControl} disabled={isOffline} originLocked={originLocked} destinationLocked={destinationLocked} onWaypointAdded={handleSearchClose} />}
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Action Buttons */}
       <div className="flex flex-col gap-2">
-        <Button
-          variant="outline"
-          onClick={handleAddStop}
-          className={`w-full ${adding ? "bg-gray-100" : ""}`}
-          disabled={adding || isOffline}
-          size="sm"
-        >
-          {adding ? "Click map…" : "Add Stop"}
-        </Button>
         
-        <Button
-          onClick={handleSendToPam}
-          className={`w-full text-white ${
-            isOffline 
-              ? 'bg-yellow-600 hover:bg-yellow-700' 
-              : 'bg-green-600 hover:bg-green-700'
-          }`}
-          size="sm"
-          disabled={!originName || !destName}
-        >
+        
+        <Button onClick={handleSendToPam} className={`w-full text-white ${isOffline ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'}`} size="sm" disabled={!originName || !destName}>
           {isOffline ? "Queue for Pam" : "Send to Pam"}
         </Button>
         
-        <Button
-          variant="outline"
-          onClick={handleSendTo}
-          className="w-full"
-          size="sm"
-          disabled={!originName || !destName || isOffline}
-        >
+        <Button variant="outline" onClick={handleSendTo} className="w-full" size="sm" disabled={!originName || !destName || isOffline}>
           <ExternalLink className="w-4 h-4 mr-2" />
           Send To
         </Button>
-        {tripId && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const url = `${window.location.origin}/share/trip/${tripId}`;
-              navigator.clipboard.writeText(url).catch(console.error);
-            }}
-          >
+        {tripId && <Button variant="outline" size="sm" onClick={() => {
+        const url = `${window.location.origin}/share/trip/${tripId}`;
+        navigator.clipboard.writeText(url).catch(console.error);
+      }}>
             Share Trip
-          </Button>
-        )}
+          </Button>}
       </div>
 
       {/* Navigation Export Modal */}
-      <NavigationExportHub
-        isOpen={showExportModal}
-        onClose={handleExportClose}
-        currentRoute={currentRoute}
-      />
-    </div>
-  );
+      <NavigationExportHub isOpen={showExportModal} onClose={handleExportClose} currentRoute={currentRoute} />
+    </div>;
 }
