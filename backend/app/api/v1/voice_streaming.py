@@ -16,7 +16,8 @@ from fastapi.responses import Response
 
 from app.core.logging import setup_logging, get_logger
 from app.core.auth import verify_token_websocket
-from app.voice.stt_whisper import whisper_stt
+from app.services.stt.multi_engine_stt import multi_engine_stt
+from app.services.voice.audio_processor import AudioStreamProcessor, AudioChunk, AudioFormat, ProcessingStage
 from app.services.pam.orchestrator import get_orchestrator
 from app.api.v1.voice import router as voice_router
 
@@ -25,10 +26,11 @@ setup_logging()
 logger = get_logger(__name__)
 
 class VoiceStreamingManager:
-    """Manages real-time voice streaming sessions"""
+    """Manages real-time voice streaming sessions with enhanced audio processing"""
     
     def __init__(self):
         self.active_sessions: Dict[str, Dict[str, Any]] = {}
+        self.audio_processors: Dict[str, AudioStreamProcessor] = {}
         self.processing_queue = asyncio.Queue()
         self.response_queue = asyncio.Queue()
         
@@ -56,7 +58,18 @@ class VoiceStreamingManager:
         }
         
         self.active_sessions[session_id] = session_data
-        logger.info(f"🎙️ Created voice streaming session {session_id} for user {user_id}")
+        
+        # Create audio processor for this session
+        processor = AudioStreamProcessor()
+        await processor.initialize({
+            "sample_rate": session_data['config']['sampleRate'],
+            "channels": session_data['config']['channels'],
+            "parallel_processing": True,
+            "max_latency_ms": 1500
+        })
+        
+        self.audio_processors[session_id] = processor
+        logger.info(f"🎙️ Created voice streaming session {session_id} for user {user_id} with audio processor")
         
         return session_id
     
@@ -65,127 +78,192 @@ class VoiceStreamingManager:
         if session_id in self.active_sessions:
             session = self.active_sessions[session_id]
             logger.info(f"🛑 Removing voice streaming session {session_id} for user {session['user_id']}")
+            
+            # Stop and cleanup audio processor
+            if session_id in self.audio_processors:
+                await self.audio_processors[session_id].stop()
+                del self.audio_processors[session_id]
+            
             del self.active_sessions[session_id]
     
     async def process_audio_chunk(self, session_id: str, chunk_data: Dict[str, Any], audio_data: bytes):
-        """Process incoming audio chunk"""
-        if session_id not in self.active_sessions:
+        """Process incoming audio chunk using enhanced audio processor"""
+        if session_id not in self.active_sessions or session_id not in self.audio_processors:
             return
             
         session = self.active_sessions[session_id]
+        processor = self.audio_processors[session_id]
         session['last_activity'] = datetime.utcnow()
         
-        # Update session state based on VAD
-        if chunk_data.get('is_speech', False):
-            if not session['is_speaking']:
-                session['is_speaking'] = True
-                session['current_utterance'] = chunk_data.get('utterance_id')
-                session['audio_buffer'] = BytesIO()
-                logger.info(f"🗣️ Speech started for session {session_id}")
+        try:
+            # Create audio chunk object
+            chunk = AudioChunk(
+                id=chunk_data.get('id', str(uuid.uuid4())),
+                timestamp=time.time(),
+                data=audio_data,
+                format=AudioFormat.WEBM,  # Assuming WebM from frontend
+                sample_rate=session['config']['sampleRate'],
+                channels=session['config']['channels'],
+                duration_ms=chunk_data.get('duration', 50),
+                is_speech=chunk_data.get('is_speech', False),
+                is_final=chunk_data.get('is_end_of_utterance', False),
+                metadata=chunk_data
+            )
             
-            # Accumulate audio data
-            session['audio_buffer'].write(audio_data)
+            # Process through enhanced audio processor
+            await processor.process_audio_chunk(chunk)
             
-        elif chunk_data.get('is_end_of_utterance', False):
-            await self.process_complete_utterance(session_id)
+            # Update session state
+            if chunk.is_speech:
+                if not session['is_speaking']:
+                    session['is_speaking'] = True
+                    session['current_utterance'] = chunk_data.get('utterance_id')
+                    logger.info(f"🗣️ Speech started for session {session_id}")
+            elif chunk.is_final:
+                session['is_speaking'] = False
+                logger.info(f"🤐 Speech ended for session {session_id}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error processing audio chunk for session {session_id}: {e}")
     
     async def process_complete_utterance(self, session_id: str):
-        """Process a complete user utterance"""
+        """Process a complete user utterance (legacy method - now handled by AudioStreamProcessor)"""
         if session_id not in self.active_sessions:
             return
             
         session = self.active_sessions[session_id]
         
-        if not session['is_speaking'] or session['audio_buffer'].tell() == 0:
-            return
+        # The AudioStreamProcessor now handles the complete pipeline
+        # This method is kept for backward compatibility
+        logger.info(f"🎤 Legacy utterance processing called for session {session_id}")
         
-        logger.info(f"🎤 Processing complete utterance for session {session_id}")
+        # Start processing pipeline if not already started
+        if session_id in self.audio_processors:
+            processor = self.audio_processors[session_id]
+            
+            # Register callbacks to handle results
+            await self._setup_processor_callbacks(session_id, processor)
+            
+            # Start processing pipeline
+            try:
+                async for result in processor.start_processing():
+                    await self._handle_processing_result(session_id, result)
+            except Exception as e:
+                logger.error(f"❌ Audio processing pipeline error for session {session_id}: {e}")
+                await self.send_message(session_id, {
+                    'type': 'error',
+                    'error': str(e),
+                    'utterance_id': session.get('current_utterance')
+                })
+    
+    async def _setup_processor_callbacks(self, session_id: str, processor: AudioStreamProcessor):
+        """Setup callbacks for audio processor results"""
         
+        async def on_stt_result(result):
+            if result.success and result.data:
+                await self.send_message(session_id, {
+                    'type': 'transcription',
+                    'text': result.data['text'],
+                    'confidence': result.data['confidence'],
+                    'engine': result.data['engine'],
+                    'is_final': True,
+                    'latency_ms': result.latency_ms
+                })
+        
+        async def on_ai_result(result):
+            if result.success and result.data:
+                await self.send_message(session_id, {
+                    'type': 'response',
+                    'text': result.data['response'],
+                    'input_text': result.data['input_text'],
+                    'latency_ms': result.latency_ms
+                })
+        
+        async def on_tts_result(result):
+            if result.success and result.data:
+                # Stream TTS audio to client
+                await self._stream_tts_audio(session_id, result.data)
+        
+        # Register callbacks
+        processor.register_callback('on_stt_processing', on_stt_result)
+        processor.register_callback('on_ai_processing', on_ai_result)
+        processor.register_callback('on_tts_synthesis', on_tts_result)
+    
+    async def _handle_processing_result(self, session_id: str, result):
+        """Handle processing results from audio processor"""
         try:
-            # Get audio data
-            audio_data = session['audio_buffer'].getvalue()
-            session['audio_buffer'] = BytesIO()
-            session['is_speaking'] = False
-            session['latency_start'] = time.time()
-            
-            # STT - Speech to Text
-            logger.info("📝 Transcribing audio...")
-            text = await whisper_stt.transcribe(audio_data)
-            
-            if not text or text.strip() == "":
-                logger.warning("⚠️ No speech detected in audio")
-                return
-            
-            logger.info(f"📝 Transcribed: {text}")
-            
-            # Send interim transcription
-            await self.send_message(session_id, {
-                'type': 'transcription',
-                'text': text,
-                'is_final': True,
-                'utterance_id': session['current_utterance']
-            })
-            
-            # Change turn state to AI
-            session['turn_state'] = 'ai'
-            
-            # LLM Processing through PAM
-            logger.info("🧠 Processing through PAM...")
-            orchestrator = await get_orchestrator()
-            
-            # Create context for voice interaction
-            voice_context = {
-                'input_type': 'voice_streaming',
-                'user_id': session['user_id'],
-                'session_id': session_id,
-                'utterance_id': session['current_utterance'],
-                'turn_state': session['turn_state'],
-                'timestamp': datetime.utcnow().isoformat()
-            }
-            
-            # Process through PAM
-            pam_response = await orchestrator.process_message(
-                user_id=session['user_id'],
-                message=text,
-                session_id=session_id,
-                context=voice_context
-            )
-            
-            response_text = pam_response.content or "I understand."
-            logger.info(f"🤖 PAM Response: {response_text}")
-            
-            # Calculate processing latency
-            processing_latency = int((time.time() - session['latency_start']) * 1000)
-            
-            # Send response
-            await self.send_message(session_id, {
-                'type': 'response',
-                'text': response_text,
-                'actions': pam_response.actions,
-                'confidence': pam_response.confidence,
-                'processing_latency': processing_latency,
-                'utterance_id': session['current_utterance']
-            })
-            
-            # Send latency metrics
-            await self.send_message(session_id, {
-                'type': 'latency',
-                'latency': processing_latency,
-                'timestamp': datetime.utcnow().isoformat()
-            })
-            
-            # Generate TTS audio (placeholder - implement actual TTS)
-            await self.generate_tts_response(session_id, response_text)
-            
-            # Change turn state back to user
-            session['turn_state'] = 'user'
-            
+            if result.stage == ProcessingStage.STT_PROCESSING and result.success:
+                # Send transcription result
+                await self.send_message(session_id, {
+                    'type': 'transcription',
+                    'text': result.data['text'],
+                    'confidence': result.data['confidence'],
+                    'engine': result.data['engine'],
+                    'is_final': True,
+                    'latency_ms': result.latency_ms
+                })
+                
+            elif result.stage == ProcessingStage.AI_PROCESSING and result.success:
+                # Send AI response
+                await self.send_message(session_id, {
+                    'type': 'response',
+                    'text': result.data['response'],
+                    'input_text': result.data['input_text'],
+                    'latency_ms': result.latency_ms
+                })
+                
+            elif result.stage == ProcessingStage.TTS_SYNTHESIS and result.success:
+                # Stream TTS audio
+                await self._stream_tts_audio(session_id, result.data)
+                
+            elif not result.success:
+                # Handle errors
+                await self.send_message(session_id, {
+                    'type': 'error',
+                    'stage': result.stage.value,
+                    'error': result.error or "Processing failed",
+                    'latency_ms': result.latency_ms
+                })
+        
         except Exception as e:
-            logger.error(f"❌ Error processing utterance for session {session_id}: {e}")
+            logger.error(f"❌ Error handling processing result for session {session_id}: {e}")
+    
+    async def _stream_tts_audio(self, session_id: str, tts_data: Dict[str, Any]):
+        """Stream TTS audio to client"""
+        try:
+            audio_data = tts_data.get('audio_data')
+            text = tts_data.get('text', '')
+            
+            if audio_data:
+                # Send TTS start message
+                await self.send_message(session_id, {
+                    'type': 'tts_start',
+                    'text': text,
+                    'format': 'mp3'
+                })
+                
+                # Stream audio data
+                session = self.active_sessions.get(session_id)
+                if session:
+                    websocket = session['websocket']
+                    
+                    # Use existing streaming function
+                    from app.voice import stream_wav_over_websocket
+                    await stream_wav_over_websocket(websocket, audio_data)
+                    
+                    # Send completion
+                    await self.send_message(session_id, {
+                        'type': 'tts_complete',
+                        'text': text,
+                        'audio_size_bytes': len(audio_data) if isinstance(audio_data, bytes) else 0
+                    })
+        
+        except Exception as e:
+            logger.error(f"❌ TTS streaming error for session {session_id}: {e}")
             await self.send_message(session_id, {
-                'type': 'error',
+                'type': 'tts_error',
                 'error': str(e),
-                'utterance_id': session['current_utterance']
+                'text': tts_data.get('text', '')
             })
     
     async def generate_tts_response(self, session_id: str, text: str):

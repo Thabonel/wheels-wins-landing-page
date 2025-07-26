@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any
 import json
 import uuid
 import logging
+import time
 from datetime import datetime
 
 from app.api.deps import (
@@ -22,6 +23,7 @@ from app.core.websocket_manager import manager
 from app.core.logging import setup_logging, get_logger
 from app.core.exceptions import PAMError
 from app.observability.monitor import global_monitor
+from app.services.voice.edge_processing_service import edge_processing_service
 
 router = APIRouter()
 setup_logging()
@@ -107,7 +109,7 @@ async def websocket_endpoint(
             pass
 
 async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, orchestrator):
-    """Handle chat messages over WebSocket using SimplePamService"""
+    """Handle chat messages over WebSocket with edge processing integration"""
     try:
         # Support both 'message' and 'content' fields for backwards compatibility
         message = data.get("message") or data.get("content", "")
@@ -116,6 +118,28 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         context["connection_type"] = "websocket"
         
         logger.info(f"Processing chat message: '{message}' for user: {user_id}")
+        
+        # Try edge processing first for ultra-fast responses
+        start_time = time.time()
+        edge_result = await edge_processing_service.process_query(message, context)
+        
+        if edge_result.handled and edge_result.response:
+            # Edge processing succeeded - send immediate response
+            processing_time = (time.time() - start_time) * 1000
+            logger.info(f"⚡ Edge processed in {processing_time:.1f}ms: '{edge_result.response}'")
+            
+            await websocket.send_json({
+                "type": "response",
+                "content": edge_result.response,
+                "source": "edge",
+                "processing_time_ms": processing_time,
+                "confidence": edge_result.confidence,
+                "metadata": edge_result.metadata
+            })
+            return
+        
+        # Fallback to full PAM processing
+        logger.info(f"🔄 Falling back to cloud processing (edge confidence: {edge_result.confidence:.2f})")
         
         # Use SimplePamService instead of orchestrator
         from app.core.simple_pam_service import simple_pam_service
@@ -138,6 +162,9 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             "content": response_message
         }]
         
+        # Calculate total processing time
+        total_processing_time = (time.time() - start_time) * 1000
+        
         # Check if WebSocket is still open before sending
         if websocket.client_state.value == 1:  # WebSocketState.CONNECTED
             # Send response
@@ -146,6 +173,8 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 "message": response_message,
                 "content": response_message,  # Add content field for frontend compatibility
                 "actions": actions,
+                "source": "cloud",
+                "processing_time_ms": total_processing_time,
                 "timestamp": datetime.utcnow().isoformat()
             })
             
