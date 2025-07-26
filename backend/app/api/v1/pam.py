@@ -18,6 +18,7 @@ from app.models.schemas.pam import (
     ConversationListResponse, MessageHistoryResponse,
     ContextUpdateRequest, PamFeedbackRequest, PamThumbFeedbackRequest
 )
+from pydantic import BaseModel
 from app.models.schemas.common import SuccessResponse, PaginationParams
 from app.core.websocket_manager import manager
 from app.core.logging import setup_logging, get_logger
@@ -646,3 +647,120 @@ async def pam_health_check():
             "timestamp": datetime.utcnow().isoformat(),
             "error": f"Health check failed: {str(e)}"
         }
+
+# TTS endpoint for voice generation
+class VoiceRequest(BaseModel):
+    text: str
+    temperature: float = 1.1
+    cfg_scale: float = 3.0
+    speed_factor: float = 0.96
+    max_new_tokens: int = 2048
+
+@router.post("/voice")
+async def generate_pam_voice(
+    request: VoiceRequest,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    """Generate PAM voice audio from text"""
+    try:
+        logger.info(f"🎙️ TTS request for text: {request.text[:100]}...")
+        
+        # First, try the comprehensive TTS service
+        try:
+            from app.services.tts.tts_service import tts_service
+            
+            # Initialize TTS service if not already done
+            if not tts_service.is_initialized:
+                logger.info("🔄 Initializing TTS service...")
+                await tts_service.initialize()
+            
+            if tts_service.is_initialized:
+                # Use the TTS service for high-quality synthesis
+                tts_result = await tts_service.synthesize_for_pam(
+                    text=request.text,
+                    context="voice_generation",
+                    stream=False
+                )
+                
+                if tts_result and hasattr(tts_result, 'audio_data') and tts_result.audio_data:
+                    logger.info(f"✅ TTS service synthesis successful: {len(tts_result.audio_data)} bytes")
+                    
+                    # Convert audio data to array format expected by frontend
+                    import struct
+                    # Assuming MP3 data, convert to int16 array format
+                    # For compatibility, we'll return the raw bytes as integers
+                    audio_array = list(tts_result.audio_data)
+                    
+                    return {
+                        "audio": audio_array,
+                        "duration": getattr(tts_result, 'duration_ms', len(request.text) * 100) // 1000,  # rough estimate
+                        "cached": getattr(tts_result, 'cache_hit', False)
+                    }
+                else:
+                    logger.warning("⚠️ TTS service returned no audio data")
+            else:
+                logger.warning("⚠️ TTS service not available")
+                
+        except Exception as tts_error:
+            logger.error(f"❌ TTS service failed: {tts_error}")
+        
+        # Fallback to Supabase TTS function
+        logger.info("🔄 Falling back to Supabase TTS function...")
+        from app.api.v1.voice import generate_voice, VoiceRequest as VoiceReq
+        
+        voice_request = VoiceReq(text=request.text)
+        voice_response = await generate_voice(voice_request)
+        
+        if voice_response and voice_response.audio:
+            logger.info(f"✅ Supabase TTS successful: {len(voice_response.audio)} audio samples")
+            return {
+                "audio": voice_response.audio,
+                "duration": voice_response.duration,
+                "cached": voice_response.cached
+            }
+        else:
+            logger.warning("⚠️ Supabase TTS returned no audio data")
+        
+        # Final fallback: Edge TTS
+        logger.info("🔄 Trying Edge TTS as final fallback...")
+        try:
+            import edge_tts
+            import asyncio
+            import io
+            
+            # Use a common English voice
+            voice = "en-US-AriaNeural"  
+            communicate = edge_tts.Communicate(request.text, voice)
+            
+            # Generate audio
+            audio_data = b""
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_data += chunk["data"]
+            
+            if audio_data:
+                # Convert to array format that frontend expects
+                # Edge TTS generates MP3 data, which the frontend can handle
+                audio_array = list(audio_data)
+                logger.info(f"✅ Edge TTS successful: {len(audio_array)} bytes")
+                
+                return {
+                    "audio": audio_array,
+                    "duration": len(request.text) // 10,  # rough estimate: 10 chars per second
+                    "cached": False
+                }
+            else:
+                logger.warning("⚠️ Edge TTS returned no audio data")
+                
+        except Exception as edge_error:
+            logger.error(f"❌ Edge TTS failed: {edge_error}")
+        
+        # If all methods fail, return an error
+        raise HTTPException(
+            status_code=500, 
+            detail="TTS generation failed: All voice synthesis methods unavailable"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Voice generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Voice generation failed: {str(e)}")

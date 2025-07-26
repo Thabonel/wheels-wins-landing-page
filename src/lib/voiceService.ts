@@ -67,7 +67,9 @@ class PamVoiceService {
       }
 
       const data = await response.json();
-      const audioBlob = new Blob([new Uint8Array(data.audio)], { type: 'audio/wav' });
+      // Determine audio type based on the first few bytes or assume MP3 for Edge TTS
+      const audioType = data.audio.length > 0 && data.audio[0] === 255 && data.audio[1] === 251 ? 'audio/mpeg' : 'audio/wav';
+      const audioBlob = new Blob([new Uint8Array(data.audio)], { type: audioType });
       const audioUrl = URL.createObjectURL(audioBlob);
 
       // Cache the result
