@@ -431,5 +431,36 @@ class VectorKnowledgeBase:
                 "initialized": self._initialized
             }
 
+    async def close(self):
+        """Close the vector knowledge base and cleanup resources"""
+        try:
+            logger.info("🛑 Closing vector knowledge base...")
+            
+            if self._fallback_mode:
+                logger.info("✅ Fallback mode - no resources to cleanup")
+                return
+            
+            # Reset ChromaDB client to close connections
+            if self.client:
+                try:
+                    # ChromaDB doesn't have explicit close method, but we can reset
+                    # Clear our references
+                    self.collections.clear()
+                    self.client = None
+                    logger.info("✅ ChromaDB client closed")
+                except Exception as e:
+                    logger.warning(f"⚠️ ChromaDB cleanup warning: {e}")
+            
+            # Clear encoder reference
+            if self.encoder:
+                self.encoder = None
+                logger.info("✅ Sentence transformer encoder cleared")
+            
+            self._initialized = False
+            logger.info("✅ Vector knowledge base closed successfully")
+            
+        except Exception as e:
+            logger.error(f"❌ Error closing vector knowledge base: {e}")
+
 # Global instance
 vector_kb = VectorKnowledgeBase()

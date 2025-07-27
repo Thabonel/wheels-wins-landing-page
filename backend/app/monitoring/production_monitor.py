@@ -346,7 +346,7 @@ class ProductionMonitor:
                     logger.warning(alert_message, extra={"alerts": alerts, "system_health": asdict(health)})
                     
                     # Send to Sentry as warning
-                    sentry_service.capture_message(alert_message, level="warning", extra={"system_health": asdict(health)})
+                    sentry_service.capture_message(alert_message, level="warning", extra_data={"system_health": asdict(health)})
                 
                 await asyncio.sleep(300)  # 5 minutes
                 
