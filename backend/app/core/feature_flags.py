@@ -89,8 +89,8 @@ class FeatureFlags(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
-        extra="allow",
-        env_prefix="FEATURE_"
+        extra="allow"
+        # No env_prefix for backward compatibility with existing deployments
     )
     
     def is_feature_enabled(self, feature_name: str, user_id: Optional[str] = None) -> bool:
