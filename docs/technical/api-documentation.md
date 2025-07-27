@@ -14,13 +14,23 @@ Complete reference for the PAM Backend API endpoints, authentication, and integr
 ### Modules Overview
 The API is organized into the following modules:
 
-| Module | Key Endpoints |
-| ------ | ------------- |
-| Authentication | `/auth/login`, `/auth/refresh`, `/auth/logout` |
-| Budgets | `/budgets`, `/budgets/{id}` |
-| Expenses | `/expenses`, `/expenses/{id}` |
-| Vehicles | `/vehicles`, `/vehicles/{id}` |
-| Trips | `/trips`, `/trips/{id}` |
+| Module | Key Endpoints | Description |
+| ------ | ------------- | ----------- |
+| Authentication | `/auth/login`, `/auth/refresh`, `/auth/logout` | User authentication and session management |
+| PAM Chat | `/pam/chat`, `/pam/websocket` | AI assistant interactions |
+| Configuration | `/config/user`, `/config/features` | User settings and feature flags |
+| Budgets | `/budgets`, `/budgets/{id}` | Financial budget management |
+| Expenses | `/expenses`, `/expenses/{id}` | Expense tracking and categorization |
+| Vehicles | `/vehicles`, `/vehicles/{id}` | Vehicle and maintenance tracking |
+| Trips | `/trips`, `/trips/{id}` | Trip planning and logging |
+| Health | `/health`, `/health/detailed` | System health and monitoring |
+
+### New Backend Architecture (2025)
+The backend has been strategically simplified with:
+- **Modular Configuration**: Separate user, infrastructure, and feature flag settings
+- **Shared Utilities**: Centralized entity extraction and context management
+- **Intelligent PAM Router**: Persona-aware orchestrator selection
+- **Feature Flags**: Sophisticated rollout controls and A/B testing
 
 ## Authentication
 

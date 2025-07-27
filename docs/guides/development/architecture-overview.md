@@ -108,10 +108,21 @@ app/
 │   ├── you.py      # Personal organization
 │   └── demo.py     # Demo scenarios
 ├── core/           # Core functionality
-│   ├── config.py   # Configuration
+│   ├── config.py   # Unified configuration manager
+│   ├── user_config.py   # User-adjustable settings
+│   ├── infra_config.py  # Infrastructure settings
+│   ├── feature_flags.py # Feature toggles & rollouts
 │   ├── security.py # Auth & security
-│   ├── orchestrator.py # PAM routing
+│   ├── pam_service_router.py # Intelligent PAM routing
 │   └── websocket_manager.py # Real-time communication
+├── shared/         # Shared utilities (new)
+│   ├── entity_extraction.py    # Unified entity extraction
+│   ├── context_store.py        # Centralized context management
+│   └── conversation_memory.py  # Advanced conversation handling
+├── orchestrators/  # PAM orchestrator variants
+│   ├── simple_orchestrator.py   # Basic routing logic
+│   ├── enhanced_orchestrator.py # Advanced routing
+│   └── agentic_orchestrator.py  # AI-powered routing
 ├── nodes/          # AI specialist nodes
 │   ├── wheels_node.py   # Travel AI
 │   ├── wins_node.py     # Financial AI
@@ -306,6 +317,93 @@ Browser Cache → Service Worker → Application State → Supabase Cache → Da
 - Audit logging of all interactions
 - Secure WebSocket connections
 
+## Configuration Architecture (New)
+
+### Modular Configuration System
+```
+┌─────────────────────────────────────────────────────┐
+│                  config.py                          │
+│           (Unified settings manager)                │
+└────────────────────┬────────────────────────────────┘
+                     │
+        ┌────────────┴────────────┬─────────────────┐
+        │                         │                  │
+┌───────▼────────┐   ┌───────────▼──────┐  ┌───────▼────────┐
+│ user_config.py │   │ infra_config.py  │  │feature_flags.py│
+│                │   │                  │  │                │
+│ • TTS settings │   │ • Database URLs  │  │ • Feature ON/  │
+│ • Debug flags  │   │ • API keys       │  │   OFF toggles  │
+│ • User prefs   │   │ • CORS origins   │  │ • A/B testing  │
+│ • Cache TTL    │   │ • Security keys  │  │ • Rollout %    │
+└────────────────┘   └──────────────────┘  └────────────────┘
+```
+
+### Configuration Benefits
+- **Separation of Concerns**: User settings vs infrastructure vs features
+- **Environment Flexibility**: Different prefixes for different config types
+- **Feature Management**: Sophisticated rollout controls
+- **Backward Compatibility**: Existing code continues working
+
+## Shared Utilities Architecture (New)
+
+### Centralized Components
+```
+shared/
+├── entity_extraction.py
+│   └── EntityExtractor
+│       ├── extract_entities(text) → List[ExtractedEntity]
+│       ├── extract_by_type(text, entity_type) → List[ExtractedEntity]
+│       └── Supports: locations, budgets, dates, vehicles, activities
+│
+├── context_store.py
+│   └── ContextStore
+│       ├── set_context(user_id, key, value, scope)
+│       ├── get_context(user_id, key, scope)
+│       └── Scopes: SESSION, USER, GLOBAL, TEMPORARY
+│
+└── conversation_memory.py
+    └── ConversationMemory
+        ├── add_message(session_id, user_id, role, content)
+        ├── get_conversation_history(session_id, user_id)
+        └── learn_user_patterns(user_id) → patterns
+```
+
+## PAM Service Router Architecture (New)
+
+### Intelligent Routing System
+```python
+# PamServiceRouter - Central request broker
+class PamServiceRouter:
+    async def route_request(
+        self, 
+        user_context: UserContext, 
+        message: str
+    ) -> RoutingDecision:
+        # Analyzes user persona (Snowbird, Digital Nomad, etc.)
+        # Evaluates complexity and required capabilities
+        # Routes to appropriate orchestrator variant
+        # Handles graceful fallback
+```
+
+### Routing Flow
+```
+    User Message
+         │
+         ▼
+┌─────────────────┐
+│ PamServiceRouter│
+└────────┬────────┘
+         │
+    Analyze Persona,
+    Context & Intent
+         │
+    ┌────┴────┬──────────┬─────────────┐
+    │         │          │             │
+    ▼         ▼          ▼             ▼
+ Simple   Enhanced   Agentic    Specialized
+Orchest.  Orchest.  Orchest.    Workflows
+```
+
 ## Deployment & Scalability
 
 ### Current Architecture
@@ -313,6 +411,10 @@ Browser Cache → Service Worker → Application State → Supabase Cache → Da
 Frontend (Vercel) ←→ Backend (Render.com) ←→ Database (Supabase)
                 ↕
         WebSocket Connection
+                ↕
+         PAM Service Router
+                ↕
+        Orchestrator Variants
                 ↕
          PAM AI Nodes
 ```
@@ -323,6 +425,7 @@ Frontend (Vercel) ←→ Backend (Render.com) ←→ Database (Supabase)
 - Database read replicas for analytics
 - CDN for static assets and maps
 - Background job processing for heavy AI tasks
+- Feature flag based rollouts for gradual deployment
 
 ## Development Guidelines
 

@@ -125,10 +125,23 @@ backend/
 │   │   ├── chat.py         # Chat/AI routes
 │   │   └── users.py        # User management routes
 │   ├── core/               # Core functionality
-│   │   ├── config.py       # Configuration settings
+│   │   ├── config.py       # Unified configuration manager
+│   │   ├── user_config.py  # User-adjustable settings
+│   │   ├── infra_config.py # Infrastructure settings
+│   │   ├── feature_flags.py # Feature toggles & rollouts
+│   │   ├── pam_service_router.py # Intelligent PAM routing
 │   │   ├── security.py     # Security utilities
 │   │   ├── logging.py      # Logging configuration
 │   │   └── database.py     # Database utilities
+│   ├── shared/             # Shared utilities (NEW)
+│   │   ├── __init__.py
+│   │   ├── entity_extraction.py    # Unified entity extraction
+│   │   ├── context_store.py        # Centralized context management
+│   │   └── conversation_memory.py  # Advanced conversation handling
+│   ├── orchestrators/      # PAM orchestrator variants
+│   │   ├── simple_orchestrator.py   # Basic routing
+│   │   ├── enhanced_orchestrator.py # Advanced routing
+│   │   └── agentic_orchestrator.py  # AI-powered routing
 │   ├── models/             # Data models
 │   │   ├── __init__.py
 │   │   ├── user.py         # User model
@@ -215,22 +228,65 @@ export default defineConfig({
 });
 ```
 
-### Backend Configuration
+### Backend Configuration (Updated)
 ```python
-# app/core/config.py
-from pydantic_settings import BaseSettings
+# app/core/config.py - Unified configuration manager
+from .user_config import UserSettings, user_settings
+from .infra_config import InfrastructureSettings, infra_settings
+from .feature_flags import FeatureFlags, feature_flags
 
-class Settings(BaseSettings):
-    # Environment variables
-    ENVIRONMENT: str = "development"
-    SECRET_KEY: str
-    DATABASE_URL: str
+class UnifiedSettings:
+    """Maintains backward compatibility while organizing settings"""
+    def __init__(self):
+        self.user = user_settings      # User preferences
+        self.infra = infra_settings    # Infrastructure settings
+        self.features = feature_flags  # Feature toggles
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    # Backward compatibility properties
+    @property
+    def ENVIRONMENT(self) -> str:
+        return self.infra.ENVIRONMENT
+    
+    @property
+    def TTS_ENABLED(self) -> bool:
+        return self.user.TTS_ENABLED
+    
+    # Feature checking
+    def is_feature_enabled(self, feature_name: str, user_id: str = None) -> bool:
+        return self.features.is_feature_enabled(feature_name, user_id)
 
-settings = Settings()
+settings = UnifiedSettings()
+
+# app/core/user_config.py - User-adjustable settings
+class UserSettings(BaseSettings):
+    TTS_ENABLED: bool = True
+    TTS_PRIMARY_ENGINE: str = "fallback"
+    TTS_VOICE_DEFAULT: str = "en-US-AriaNeural"
+    LOG_LEVEL: str = "INFO"
+    CACHE_TTL: int = 300
+    # ... other user preferences
+
+# app/core/infra_config.py - Infrastructure settings
+class InfrastructureSettings(BaseSettings):
+    ENVIRONMENT: str = "production"
+    SECRET_KEY: SecretStr
+    DATABASE_URL: Optional[str]
+    SUPABASE_URL: str
+    OPENAI_API_KEY: Optional[str]
+    # ... other infrastructure settings
+
+# app/core/feature_flags.py - Feature toggles
+class FeatureFlags(BaseSettings):
+    ENABLE_PAM_VOICE: bool = True
+    ENABLE_PAM_AGENTIC: bool = False  # Beta feature
+    PAM_AGENTIC_ROLLOUT_PERCENT: int = 10
+    
+    def is_feature_enabled(self, feature_name: str, user_id: str = None) -> bool:
+        # Smart rollout logic based on user ID
+        if hasattr(self, f"{feature_name}_ROLLOUT_PERCENT"):
+            # Percentage-based rollout
+            return hash(user_id) % 100 < getattr(self, f"{feature_name}_ROLLOUT_PERCENT")
+        return getattr(self, feature_name, False)
 ```
 
 ## Import Organization
