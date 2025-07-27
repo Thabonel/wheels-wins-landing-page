@@ -5,14 +5,14 @@ Provides backend API for user settings management
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from app.services.user_settings_service import user_settings_service
-from app.api.deps import verify_supabase_jwt_flexible
+from app.api.deps import verify_supabase_jwt_token
 
 router = APIRouter()
 
 @router.get("/users/{user_id}/settings")
 async def get_user_settings(
     user_id: str,
-    current_user: dict = Depends(verify_supabase_jwt_flexible)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """Get user settings - matches frontend useUserSettings.ts expectation"""
     # Verify user can only access their own settings
@@ -27,7 +27,7 @@ async def get_user_settings(
 async def update_user_settings(
     user_id: str, 
     settings_data: Dict[str, Any],
-    current_user: dict = Depends(verify_supabase_jwt_flexible)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """Update user settings - matches frontend useUserSettings.ts expectation"""
     # Verify user can only update their own settings
@@ -41,7 +41,7 @@ async def update_user_settings(
 @router.post("/users/{user_id}/settings")
 async def create_user_settings(
     user_id: str,
-    current_user: dict = Depends(verify_supabase_jwt_flexible)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """Create default settings for user"""
     # Verify user can only create their own settings

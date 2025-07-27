@@ -68,7 +68,7 @@ from app.api import websocket, actions
 from app.api.v1 import voice_streaming
 from app.api import editing_hub
 from app.webhooks import stripe_webhooks
-from app.api.deps import verify_supabase_jwt_flexible
+from app.api.deps import verify_supabase_jwt_token
 
 setup_logging()
 logger = get_logger(__name__)
@@ -433,7 +433,7 @@ async def voice_health_check():
 
 @app.post("/api/v1/pam/voice/test")
 async def voice_test_endpoint(
-    current_user: dict = Depends(verify_supabase_jwt_flexible)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """Simple TTS test endpoint"""
     test_text = "Hello! This is PAM testing the voice synthesis system. If you can hear this, the TTS pipeline is working correctly."
@@ -494,7 +494,7 @@ async def voice_test_endpoint(
 @app.post("/api/v1/pam/voice")
 async def pam_voice(
     audio: UploadFile = File(...),
-    current_user: dict = Depends(verify_supabase_jwt_flexible)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """Complete STT→LLM→TTS pipeline for voice conversations - returns synthesized audio"""
     try:
