@@ -93,8 +93,8 @@ class InfrastructureSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
-        extra="allow",
-        env_prefix="INFRA_"
+        extra="allow"
+        # No env_prefix for backward compatibility with existing deployments
     )
 
     @classmethod

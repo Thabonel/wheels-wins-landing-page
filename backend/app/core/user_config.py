@@ -53,8 +53,8 @@ class UserSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
-        extra="allow",
-        env_prefix="USER_"
+        extra="allow"
+        # No env_prefix for backward compatibility with existing deployments
     )
 
 
