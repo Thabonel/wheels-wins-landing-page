@@ -61,7 +61,7 @@ class UserSettingsService:
                 'date_format': 'MM/DD/YYYY'
             },
             'pam_preferences': {
-                'voice_enabled': False,
+                'voice_enabled': True,
                 'proactive_suggestions': True,
                 'response_style': 'balanced',
                 'expertise_level': 'intermediate',
