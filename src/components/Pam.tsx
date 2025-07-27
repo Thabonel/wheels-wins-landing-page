@@ -1248,13 +1248,24 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   // Function to speak PAM's messages using TTS
   const speakMessage = async (content: string) => {
-    // Check if voice is enabled in user settings
-    const isVoiceEnabled = settings?.pam_preferences?.voice_enabled;
+    // Check if voice is enabled in user settings (default to true if not set)
+    const isVoiceEnabled = settings?.pam_preferences?.voice_enabled ?? true;
+    console.log('🔊 Voice enabled status:', isVoiceEnabled, 'Settings:', settings?.pam_preferences);
+    
     if (!isVoiceEnabled) {
+      console.log('🔇 Voice is disabled in settings');
       return; // Voice is disabled, don't speak
     }
 
+    // Additional check: Only speak in continuous mode or if explicitly enabled
+    if (!isContinuousMode && !isWakeWordListening) {
+      console.log('🔇 Voice only active in continuous or wake word mode');
+      return;
+    }
+
     try {
+      console.log('🎵 Speaking PAM response:', content.substring(0, 50) + '...');
+      
       // Clean the content for TTS (remove emojis and markdown)
       const cleanContent = content
         .replace(/[🤖🎤🚫🔇🎙️✅❌⚠️🔊💡🔧👂🌐🟢]/g, '') // Remove emojis
@@ -1264,9 +1275,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         .trim();
 
       if (cleanContent.length === 0) {
+        console.log('🔇 No content to speak after cleaning');
         return; // Nothing to speak
       }
 
+      console.log('🔊 Generating voice for:', cleanContent);
+      
       // Generate voice using pamVoiceService
       const voiceResponse = await pamVoiceService.generateVoice({
         text: cleanContent,
@@ -1275,11 +1289,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         priority: 'normal'
       });
 
+      console.log('🎵 Voice response received:', voiceResponse);
+
       // Play the generated audio
       const audio = new Audio(voiceResponse.audioUrl);
-      audio.play().catch(error => {
-        console.warn('🔊 Voice playback failed:', error);
-      });
+      audio.play()
+        .then(() => console.log('✅ Voice playback started'))
+        .catch(error => {
+          console.warn('🔊 Voice playback failed:', error);
+        });
 
     } catch (error) {
       console.warn('🔊 Voice synthesis failed:', error);
