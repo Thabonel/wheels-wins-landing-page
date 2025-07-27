@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { apiFetch } from '@/services/api';
+import { authenticatedFetch } from '@/services/api';
 
 interface UserSettings {
   notification_preferences: {
@@ -63,13 +63,13 @@ export const useUserSettings = () => {
     console.log('User found, fetching settings for user ID:', user.id);
     setLoading(true);
     try {
-      // Use backend API instead of direct Supabase
-      const response = await apiFetch(`/api/v1/users/${user.id}/settings`);
+      // Use backend API with authentication
+      const response = await authenticatedFetch(`/api/v1/users/${user.id}/settings`);
       
       if (!response.ok) {
         if (response.status === 404) {
           // Settings don't exist, create defaults
-          const createResponse = await apiFetch(`/api/v1/users/${user.id}/settings`, {
+          const createResponse = await authenticatedFetch(`/api/v1/users/${user.id}/settings`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -115,8 +115,8 @@ export const useUserSettings = () => {
     if (!user) return;
     setUpdating(true);
     try {
-      // Use backend API for settings update
-      const response = await apiFetch(`/api/v1/users/${user.id}/settings`, {
+      // Use backend API for settings update with authentication
+      const response = await authenticatedFetch(`/api/v1/users/${user.id}/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

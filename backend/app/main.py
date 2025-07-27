@@ -7,7 +7,7 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, Request, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -68,6 +68,7 @@ from app.api import websocket, actions
 from app.api.v1 import voice_streaming
 from app.api import editing_hub
 from app.webhooks import stripe_webhooks
+from app.api.deps import verify_supabase_jwt_flexible
 
 setup_logging()
 logger = get_logger(__name__)
@@ -366,9 +367,135 @@ app.include_router(editing_hub.router, prefix="/hubs", tags=["Editing"])
 # pauter_router = PauterRouter()
 # add_routes(app, pauter_router, path="/api/v1/pam/chat")
 
+@app.get("/api/v1/pam/voice/health")
+async def voice_health_check():
+    """Check if TTS services are working properly"""
+    health_status = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "services": {},
+        "overall_status": "unknown"
+    }
+    
+    try:
+        # Test Edge TTS
+        try:
+            import edge_tts
+            health_status["services"]["edge_tts"] = {
+                "available": True,
+                "version": edge_tts.__version__ if hasattr(edge_tts, '__version__') else "unknown",
+                "status": "healthy"
+            }
+        except ImportError:
+            health_status["services"]["edge_tts"] = {
+                "available": False,
+                "error": "edge-tts package not installed",
+                "status": "unavailable"
+            }
+        
+        # Test fallback TTS
+        try:
+            from app.services.tts.fallback_tts import FallbackTTSService
+            fallback_service = FallbackTTSService()
+            await fallback_service.initialize()
+            
+            health_status["services"]["fallback_tts"] = {
+                "available": True,
+                "engines": fallback_service.available_engines,
+                "status": "healthy" if fallback_service.is_initialized else "failed"
+            }
+        except Exception as e:
+            health_status["services"]["fallback_tts"] = {
+                "available": False,
+                "error": str(e),
+                "status": "failed"
+            }
+        
+        # Determine overall status
+        edge_healthy = health_status["services"].get("edge_tts", {}).get("available", False)
+        fallback_healthy = health_status["services"].get("fallback_tts", {}).get("available", False)
+        
+        if edge_healthy:
+            health_status["overall_status"] = "healthy"
+            health_status["primary_service"] = "edge_tts"
+        elif fallback_healthy:
+            health_status["overall_status"] = "degraded"
+            health_status["primary_service"] = "fallback_tts"
+        else:
+            health_status["overall_status"] = "failed"
+            health_status["primary_service"] = "none"
+        
+        return health_status
+        
+    except Exception as e:
+        health_status["overall_status"] = "error"
+        health_status["error"] = str(e)
+        return health_status
+
+@app.post("/api/v1/pam/voice/test")
+async def voice_test_endpoint(
+    current_user: dict = Depends(verify_supabase_jwt_flexible)
+):
+    """Simple TTS test endpoint"""
+    test_text = "Hello! This is PAM testing the voice synthesis system. If you can hear this, the TTS pipeline is working correctly."
+    
+    try:
+        # Try Edge TTS directly
+        try:
+            import edge_tts
+            import tempfile
+            
+            voice = "en-US-AriaNeural"
+            communicate = edge_tts.Communicate(test_text, voice)
+            
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:
+                temp_path = temp_file.name
+            
+            await communicate.save(temp_path)
+            
+            with open(temp_path, 'rb') as audio_file:
+                audio_data = audio_file.read()
+            
+            os.unlink(temp_path)
+            
+            if audio_data and len(audio_data) > 0:
+                return Response(
+                    content=audio_data,
+                    media_type="audio/mpeg",
+                    headers={
+                        "Content-Disposition": "inline; filename=pam_test.mp3",
+                        "X-Test-Status": "success",
+                        "X-TTS-Engine": "edge-tts",
+                        "X-Audio-Size": str(len(audio_data))
+                    }
+                )
+            else:
+                return JSONResponse(content={
+                    "error": "TTS test failed - no audio generated",
+                    "test_text": test_text,
+                    "status": "failed"
+                })
+                
+        except Exception as edge_error:
+            return JSONResponse(content={
+                "error": f"Edge TTS test failed: {str(edge_error)}",
+                "test_text": test_text,
+                "status": "failed",
+                "suggestion": "Check if edge-tts is properly installed in production"
+            })
+            
+    except Exception as e:
+        return JSONResponse(content={
+            "error": f"TTS test endpoint failed: {str(e)}",
+            "test_text": test_text,
+            "status": "error"
+        })
+
 
 @app.post("/api/v1/pam/voice")
-async def pam_voice(audio: UploadFile = File(...)):
+async def pam_voice(
+    audio: UploadFile = File(...),
+    current_user: dict = Depends(verify_supabase_jwt_flexible)
+):
     """Complete STT→LLM→TTS pipeline for voice conversations - returns synthesized audio"""
     try:
         # Step 1: Speech-to-Text (STT)
@@ -416,11 +543,12 @@ async def pam_voice(audio: UploadFile = File(...)):
         logger.info("🧠 Processing through PAM...")
         from app.core.simple_pam_service import simple_pam_service
 
-        # Create a simple context for voice input
+        # Create a simple context for voice input with authenticated user
+        user_id = current_user.get('sub', 'unknown-user')
         voice_context = {
             "input_type": "voice",
-            "user_id": "voice-user",  # In production, extract from auth
-            "session_id": "voice-session",
+            "user_id": user_id,
+            "session_id": f"voice-session-{user_id}",
             "timestamp": str(datetime.utcnow()),
         }
 
@@ -432,61 +560,87 @@ async def pam_voice(audio: UploadFile = File(...)):
 
         logger.info(f"🤖 PAM Response: {response_text}")
 
-        # Step 3: Text-to-Speech (TTS) - Try multiple approaches
+        # Step 3: Text-to-Speech (TTS) - Use simplified approach for production
         logger.info("🔊 Attempting audio synthesis...")
         
-        # First, try local TTS service
+        # Try Edge TTS directly (most reliable in production)
         try:
-            # Import TTS service
-            from app.services.tts.tts_service import TTSService
+            # Try Edge TTS first - it's free and reliable
+            logger.info("🔊 Trying Edge TTS...")
             
-            tts_service = TTSService()
+            try:
+                import edge_tts
+                EDGE_TTS_AVAILABLE = True
+            except ImportError:
+                EDGE_TTS_AVAILABLE = False
+                logger.warning("⚠️ edge-tts package not available")
             
-            # Initialize TTS service if not already done
-            if not tts_service.is_initialized:
-                await tts_service.initialize()
-            
-            if tts_service.is_initialized:
-                # Synthesize audio using TTS service
-                tts_result = await tts_service.synthesize_for_pam(
-                    text=response_text,
-                    user_id="voice-user",
-                    context="voice_conversation",
-                    stream=False
-                )
+            if EDGE_TTS_AVAILABLE:
+                import tempfile
+                import asyncio
                 
-                if tts_result and hasattr(tts_result, 'audio_data') and tts_result.audio_data:
-                    logger.info(f"✅ Local TTS synthesis successful: {len(tts_result.audio_data)} bytes")
+                # Use Edge TTS directly for reliability
+                voice = "en-US-AriaNeural"  # Default voice
+                
+                # Create TTS communicate object
+                communicate = edge_tts.Communicate(response_text, voice)
+                
+                # Create temporary file
+                with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:
+                    temp_path = temp_file.name
+                
+                try:
+                    # Save to temporary file
+                    await communicate.save(temp_path)
                     
-                    # Return audio as binary response
-                    return Response(
-                        content=tts_result.audio_data,
-                        media_type="audio/mpeg",
-                        headers={
-                            "Content-Disposition": "inline; filename=pam_response.mp3",
-                            # "Content-Length": str(len(tts_result.audio_data)),  # Remove manual Content-Length
-                            "X-Transcription": text,
-                            "X-Response-Text": response_text,
-                            "X-Pipeline": f"STT-{stt_engine}→LLM→TTS-Local"
-                        }
-                    )
-                else:
-                    logger.warning("⚠️ Local TTS synthesis returned no audio data")
+                    # Read the audio data
+                    with open(temp_path, 'rb') as audio_file:
+                        audio_data = audio_file.read()
+                    
+                    # Clean up temp file
+                    os.unlink(temp_path)
+                    
+                    if audio_data and len(audio_data) > 0:
+                        logger.info(f"✅ Edge TTS synthesis successful: {len(audio_data)} bytes")
+                        
+                        # Return audio as binary response
+                        return Response(
+                            content=audio_data,
+                            media_type="audio/mpeg",
+                            headers={
+                                "Content-Disposition": "inline; filename=pam_response.mp3",
+                                "X-Transcription": text,
+                                "X-Response-Text": response_text,
+                                "X-Pipeline": f"STT-{stt_engine}→LLM→TTS-EdgeDirect"
+                            }
+                        )
+                    else:
+                        logger.warning("⚠️ Edge TTS returned empty audio data")
+                        
+                except Exception as edge_error:
+                    logger.error(f"❌ Edge TTS synthesis failed: {edge_error}")
+                    # Clean up temp file if it exists
+                    if 'temp_path' in locals() and os.path.exists(temp_path):
+                        os.unlink(temp_path)
             else:
-                logger.warning("⚠️ Local TTS service not available")
+                logger.warning("⚠️ Edge TTS not available")
                 
         except Exception as tts_error:
-            logger.error(f"❌ Local TTS synthesis failed: {tts_error}")
+            logger.error(f"❌ TTS synthesis failed: {tts_error}")
         
-        # Try fallback TTS if main TTS failed
+        # Try system fallback TTS
         try:
-            from app.services.tts.fallback_tts import fallback_tts_service
+            from app.services.tts.fallback_tts import FallbackTTSService
             
-            if fallback_tts_service.is_initialized:
+            fallback_service = FallbackTTSService()
+            if not fallback_service.is_initialized:
+                await fallback_service.initialize()
+            
+            if fallback_service.is_initialized:
                 logger.info("🔄 Trying fallback TTS service...")
-                fallback_result = await fallback_tts_service.synthesize_speech(
+                fallback_result = await fallback_service.synthesize_speech(
                     text=response_text,
-                    user_id="voice-user"
+                    user_id=user_id
                 )
                 
                 if fallback_result and fallback_result.get('success') and fallback_result.get('audio_data'):
