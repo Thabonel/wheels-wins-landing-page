@@ -81,7 +81,18 @@ class KnowledgeTool:
                 await self.ingestion_pipeline.stop_ingestion()
             
             if self.vector_store:
-                await self.vector_store.close()
+                # Check if close method exists before calling it
+                if hasattr(self.vector_store, 'close'):
+                    await self.vector_store.close()
+                else:
+                    logger.warning("⚠️ VectorKnowledgeBase instance doesn't have close method - cleaning up manually")
+                    # Manual cleanup for older instances
+                    if hasattr(self.vector_store, 'client'):
+                        self.vector_store.client = None
+                    if hasattr(self.vector_store, 'encoder'):
+                        self.vector_store.encoder = None
+                    if hasattr(self.vector_store, '_initialized'):
+                        self.vector_store._initialized = False
             
             self.is_initialized = False
             logger.info("🛑 Knowledge Tool shutdown completed")

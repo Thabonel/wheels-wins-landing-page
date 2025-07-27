@@ -218,66 +218,7 @@ async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, 
             "message": "Failed to update context"
         })
 
-# Add OPTIONS support for CORS preflight
-@router.options("/chat")
-async def chat_options():
-    """Handle CORS preflight requests for chat endpoint"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        }
-    )
-
-@router.options("/history")
-async def history_options():
-    """Handle CORS preflight requests for history endpoint"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        }
-    )
-
-@router.options("/context")
-async def context_options():
-    """Handle CORS preflight requests for context endpoint"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        }
-    )
-
-@router.options("/feedback")
-async def feedback_options():
-    """Handle CORS preflight requests for feedback endpoint"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        }
-    )
-
-@router.options("/health")
-async def health_options():
-    """Handle CORS preflight requests for health endpoint"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        }
-    )
+# OPTIONS handlers removed - using global OPTIONS handler in main.py
 
 # REST Chat endpoint
 @router.post("/chat", response_model=ChatResponse)

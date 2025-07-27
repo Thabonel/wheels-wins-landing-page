@@ -2,12 +2,14 @@
 User Settings API Endpoints
 Provides backend API for user settings management
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Response
 from typing import Dict, Any
 from app.services.user_settings_service import user_settings_service
 from app.api.deps import verify_supabase_jwt_token
 
 router = APIRouter()
+
+# OPTIONS handlers removed - using global OPTIONS handler in main.py
 
 @router.get("/users/{user_id}/settings")
 async def get_user_settings(

@@ -104,22 +104,22 @@ class KnowledgeIngestionPipeline:
             priority=2
         )
         
-        # Real-time data sync (every 15 minutes)
+        # Real-time data sync (every 2 hours) - Reduced from 15 minutes to save CPU
         self.add_job(
             name="realtime_data_sync",
             function=self._ingest_realtime_data,
             trigger="interval",
-            trigger_params={"minutes": 15},
-            priority=1
+            trigger_params={"hours": 2},
+            priority=2
         )
         
-        # Location-based data sync (every 30 minutes)
+        # Location-based data sync (every 4 hours) - Reduced from 30 minutes to save CPU
         self.add_job(
             name="location_data_sync",
             function=self._ingest_location_data,
             trigger="interval",
-            trigger_params={"minutes": 30},
-            priority=1
+            trigger_params={"hours": 4},
+            priority=2
         )
         
         # Cleanup old data (daily)
@@ -131,13 +131,13 @@ class KnowledgeIngestionPipeline:
             priority=3
         )
         
-        # Health check (every hour)
+        # Health check (every 4 hours) - Reduced from 1 hour to save CPU
         self.add_job(
             name="system_health_check",
             function=self._system_health_check,
             trigger="interval",
-            trigger_params={"hours": 1},
-            priority=2
+            trigger_params={"hours": 4},
+            priority=3
         )
     
     def add_job(
