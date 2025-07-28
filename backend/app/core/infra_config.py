@@ -78,6 +78,7 @@ class InfrastructureSettings(BaseSettings):
 
     # Monitoring Infrastructure
     SENTRY_DSN: Optional[str] = None
+    OBSERVABILITY_ENABLED: bool = False
 
     # Performance Infrastructure
     DATABASE_POOL_SIZE: int = 20
