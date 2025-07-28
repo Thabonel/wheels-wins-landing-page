@@ -75,8 +75,25 @@ try:
 except Exception as import_error:
     # Fallback application shown when the backend fails to import
     logger.error("Backend import failed: %s", import_error)
+
+    # Minimal fallback FastAPI application
     app = FastAPI(title="Wheels & Wins Backend - Error")
-    
+
+    # Apply CORS settings using the same environment variable as the main app
+    cors_origins_env = os.getenv("CORS_ORIGINS", "")
+    allowed_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+
+    if allowed_origins:
+        from fastapi.middleware.cors import CORSMiddleware
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"]
+        )
+
     # Store error details for the fallback handler
     error_details = str(import_error)
 
@@ -86,6 +103,11 @@ except Exception as import_error:
             "error": "Backend application failed to load",
             "details": error_details,
         }
+
+    @app.get("/health")
+    async def health_check() -> dict[str, str]:
+        """Lightweight health endpoint for deployment checks."""
+        return {"status": "error", "details": error_details}
     
     # Ensure fallback app is available at module level
     globals()['app'] = app

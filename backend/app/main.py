@@ -326,6 +326,16 @@ async def root():
         "updated": "2025-07-10T06:45:00Z",
     }
 
+
+# The CORSMiddleware added above automatically handles all CORS preflight
+# requests.  A custom global OPTIONS handler previously overrode this
+# behaviour and returned wildcard CORS headers.  This caused the frontend to
+# receive responses without the appropriate `Access-Control-Allow-Origin`
+# header, breaking cross-origin requests.  Removing the route allows
+# CORSMiddleware to apply the configured `cors_origins` list and return the
+# correct headers for `https://wheelsandwins.com` and other allowed origins.
+
+
 # Include API routers
 app.include_router(
     health.router, prefix="", tags=["Health"]
