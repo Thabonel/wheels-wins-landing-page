@@ -100,6 +100,10 @@ class UnifiedSettings:
     @property
     def SUPABASE_URL(self) -> str:
         return self.infra.SUPABASE_URL
+
+    @property
+    def OPENAI_API_KEY(self) -> str | None:
+        return self.infra.OPENAI_API_KEY
 ```
 
 ## Phase 2: Shared Utilities Extraction
