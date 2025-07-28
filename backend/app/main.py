@@ -78,11 +78,11 @@ def validate_configuration():
     """Validate critical configuration settings"""
     validation_errors = []
     
-    # Validate required settings
+    # Validate required settings with defensive access
     required_settings = [
-        ("SUPABASE_URL", settings.SUPABASE_URL),
-        ("SUPABASE_KEY", settings.SUPABASE_KEY),
-        ("SECRET_KEY", settings.SECRET_KEY),
+        ("SUPABASE_URL", getattr(settings, 'SUPABASE_URL', None)),
+        ("SUPABASE_KEY", getattr(settings, 'SUPABASE_KEY', None)),
+        ("SECRET_KEY", getattr(settings, 'SECRET_KEY', None)),
     ]
     
     for setting_name, setting_value in required_settings:
@@ -99,12 +99,19 @@ def validate_configuration():
         site_url = "http://localhost:3000"
     
     # Validate environment-specific requirements
-    if settings.ENVIRONMENT == "production":
-        if not settings.OPENAI_API_KEY:
-            logger.warning("⚠️ OPENAI_API_KEY not set in production - PAM features may be limited")
+    try:
+        environment = getattr(settings, 'ENVIRONMENT', 'production')
+        debug_mode = getattr(settings, 'DEBUG', False)
+        openai_key = getattr(settings, 'OPENAI_API_KEY', None)
         
-        if settings.DEBUG:
-            validation_errors.append("DEBUG mode should not be enabled in production")
+        if environment == "production":
+            if not openai_key:
+                logger.warning("⚠️ OPENAI_API_KEY not set in production - PAM features may be limited")
+            
+            if debug_mode:
+                validation_errors.append("DEBUG mode should not be enabled in production")
+    except AttributeError:
+        logger.warning("⚠️ Could not access environment configuration - using defaults")
     
     # Log validation results
     if validation_errors:
@@ -114,12 +121,12 @@ def validate_configuration():
         raise SystemExit(f"Configuration validation failed: {', '.join(validation_errors)}")
     else:
         logger.info("✅ Configuration validation passed")
-        logger.info(f"   Environment: {settings.ENVIRONMENT}")
-        logger.info(f"   Debug mode: {settings.DEBUG}")
         try:
+            logger.info(f"   Environment: {getattr(settings, 'ENVIRONMENT', 'unknown')}")
+            logger.info(f"   Debug mode: {getattr(settings, 'DEBUG', 'unknown')}")
             logger.info(f"   Site URL: {getattr(settings, 'SITE_URL', 'fallback')}")
         except AttributeError:
-            logger.info("   Site URL: using fallback (property not available)")
+            logger.info("   Configuration: using fallback values (properties not available)")
 
 try:
     validate_configuration()
@@ -130,7 +137,10 @@ except Exception as env_error:
     # raise SystemExit(f"Configuration validation failed: {env_error}")
 
 # Debug CORS configuration
-logger.info(f"CORS_ORIGINS from settings: {settings.CORS_ORIGINS}")
+try:
+    logger.info(f"CORS_ORIGINS from settings: {getattr(settings, 'CORS_ORIGINS', 'not available')}")
+except AttributeError:
+    logger.info("CORS_ORIGINS from settings: not available (using fallback)")
 logger.info(f"ALLOWED_ORIGINS env var: {os.getenv('ALLOWED_ORIGINS')}")
 logger.info(f"CORS_ORIGINS env var: {os.getenv('CORS_ORIGINS')}")
 
@@ -279,7 +289,16 @@ app.add_middleware(GuardrailsMiddleware)
 cors_origins = []
 
 # Development origins (localhost) - only in development environment
-if settings.ENVIRONMENT == "development" or settings.DEBUG:
+# Use defensive access to handle potential configuration issues
+try:
+    is_development = getattr(settings, 'ENVIRONMENT', 'production') == "development"
+    is_debug = getattr(settings, 'DEBUG', False)
+except AttributeError:
+    logger.warning("⚠️ Using fallback environment detection")
+    is_development = True  # Fallback to development for safety
+    is_debug = True
+
+if is_development or is_debug:
     cors_origins.extend([
         "http://localhost:3000",
         "http://localhost:8080", 
@@ -300,7 +319,7 @@ cors_origins.extend([
 
 # Lovable.app development platform origins (secure development only)
 # Only add these in development or when explicitly enabled
-if settings.ENVIRONMENT == "development" or os.getenv("ENABLE_LOVABLE_ORIGINS", "false").lower() == "true":
+if is_development or os.getenv("ENABLE_LOVABLE_ORIGINS", "false").lower() == "true":
     cors_origins.extend([
         "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
         "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
@@ -328,12 +347,20 @@ if "*" in cors_origins:
 
 # Log final CORS configuration
 logger.info(f"🔒 SECURE CORS Configuration:")
-logger.info(f"   Environment: {settings.ENVIRONMENT}")
+try:
+    logger.info(f"   Environment: {getattr(settings, 'ENVIRONMENT', 'unknown')}")
+except AttributeError:
+    logger.info("   Environment: fallback detection")
 logger.info(f"   Total origins: {len(cors_origins)}")
 logger.info(f"   Origins: {cors_origins}")
 
 # Additional security validation for production
-if settings.ENVIRONMENT == "production":
+try:
+    environment = getattr(settings, 'ENVIRONMENT', 'production')
+except AttributeError:
+    environment = 'production'  # Default to production for security
+
+if environment == "production":
     # Ensure only HTTPS origins in production (except localhost for local testing)
     insecure_origins = [origin for origin in cors_origins if origin.startswith("http://") and "localhost" not in origin and "127.0.0.1" not in origin]
     if insecure_origins:
