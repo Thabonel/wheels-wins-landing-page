@@ -61,6 +61,10 @@ class UnifiedSettings:
     @property
     def SUPABASE_KEY(self) -> str:
         return self.infra.SUPABASE_KEY
+    
+    @property
+    def SITE_URL(self) -> str:
+        return self.infra.SITE_URL
 
     @property
     def OPENAI_API_KEY(self) -> str | None:
