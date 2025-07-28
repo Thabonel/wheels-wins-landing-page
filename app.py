@@ -109,6 +109,26 @@ except Exception as import_error:
         """Lightweight health endpoint for deployment checks."""
         return {"status": "error", "details": error_details}
     
+    @app.get("/debug-config")
+    async def debug_config():
+        """Debug endpoint to understand configuration issues"""
+        import os
+        return {
+            "error": error_details,
+            "environment_vars": {
+                "ENVIRONMENT": os.getenv("ENVIRONMENT"),
+                "DEBUG": os.getenv("DEBUG"),
+                "SUPABASE_URL": "***" if os.getenv("SUPABASE_URL") else None,
+                "SUPABASE_KEY": "***" if os.getenv("SUPABASE_KEY") else None,
+                "SECRET_KEY": "***" if os.getenv("SECRET_KEY") else None,
+                "SITE_URL": os.getenv("SITE_URL"),
+                "OPENAI_API_KEY": "***" if os.getenv("OPENAI_API_KEY") else None,
+            },
+            "python_path": sys.path[:3],
+            "working_directory": os.getcwd(),
+            "backend_path_exists": os.path.exists("backend/app/main.py"),
+        }
+    
     # Ensure fallback app is available at module level
     globals()['app'] = app
 
