@@ -250,6 +250,10 @@ class UnifiedSettings:
     @property
     def TTS_ENABLED(self) -> bool:
         return self.user.TTS_ENABLED
+
+    @property
+    def OPENAI_API_KEY(self) -> str | None:
+        return self.infra.OPENAI_API_KEY
     
     # Feature checking
     def is_feature_enabled(self, feature_name: str, user_id: str = None) -> bool:
