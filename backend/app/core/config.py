@@ -61,6 +61,10 @@ class UnifiedSettings:
     @property
     def SUPABASE_KEY(self) -> str:
         return self.infra.SUPABASE_KEY
+
+    @property
+    def OPENAI_API_KEY(self) -> str | None:
+        return self.infra.OPENAI_API_KEY
     
     # TTS settings (from user)
     @property
