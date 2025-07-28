@@ -245,6 +245,8 @@ if settings.DEBUG or "localhost" in str(settings.SITE_URL):
 cors_origins.extend([
     "https://wheelsandwins.com",
     "https://www.wheelsandwins.com",
+    "https://wheelz-wins.com",
+    "https://www.wheelz-wins.com",
 ])
 
 # Lovable.app development platform origins (secure development only)
@@ -323,20 +325,6 @@ async def root():
         "health": "/health",
         "updated": "2025-07-10T06:45:00Z",
     }
-
-# Global CORS OPTIONS handler - catches all OPTIONS requests
-@app.options("/{full_path:path}")
-async def options_handler(full_path: str):
-    """Global OPTIONS handler for CORS preflight requests"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
-            "Access-Control-Max-Age": "86400"
-        }
-    )
 
 # Include API routers
 app.include_router(
