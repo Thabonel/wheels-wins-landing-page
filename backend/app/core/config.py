@@ -105,6 +105,29 @@ class UnifiedSettings:
     def get_enabled_features(self):
         """Get all enabled features"""
         return self.features.get_enabled_features()
+    
+    def __getattr__(self, name: str):
+        """
+        Dynamic property delegation to underlying config modules.
+        
+        This allows access to any property from the underlying config modules
+        without requiring explicit property definitions. Properties are searched
+        in order: infra -> user -> features.
+        """
+        # Search in infrastructure settings first (most common)
+        if hasattr(self.infra, name):
+            return getattr(self.infra, name)
+        
+        # Then user settings
+        if hasattr(self.user, name):
+            return getattr(self.user, name)
+        
+        # Finally feature flags
+        if hasattr(self.features, name):
+            return getattr(self.features, name)
+        
+        # If not found in any module, raise AttributeError
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
 
 # Global unified settings instance for backward compatibility
