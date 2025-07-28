@@ -73,13 +73,52 @@ from app.api.deps import verify_supabase_jwt_token
 setup_logging()
 logger = get_logger(__name__)
 
-# Environment validation at startup - temporarily disabled for development
+# Configuration validation at startup
+def validate_configuration():
+    """Validate critical configuration settings"""
+    validation_errors = []
+    
+    # Validate required settings
+    required_settings = [
+        ("SUPABASE_URL", settings.SUPABASE_URL),
+        ("SUPABASE_KEY", settings.SUPABASE_KEY),
+        ("SECRET_KEY", settings.SECRET_KEY),
+        ("SITE_URL", settings.SITE_URL),
+    ]
+    
+    for setting_name, setting_value in required_settings:
+        if not setting_value:
+            validation_errors.append(f"Missing required setting: {setting_name}")
+    
+    # Validate SITE_URL format
+    if settings.SITE_URL and not (settings.SITE_URL.startswith("http://") or settings.SITE_URL.startswith("https://")):
+        validation_errors.append(f"SITE_URL must start with http:// or https://, got: {settings.SITE_URL}")
+    
+    # Validate environment-specific requirements
+    if settings.ENVIRONMENT == "production":
+        if not settings.OPENAI_API_KEY:
+            logger.warning("⚠️ OPENAI_API_KEY not set in production - PAM features may be limited")
+        
+        if settings.DEBUG:
+            validation_errors.append("DEBUG mode should not be enabled in production")
+    
+    # Log validation results
+    if validation_errors:
+        logger.error("❌ Configuration validation failed:")
+        for error in validation_errors:
+            logger.error(f"   - {error}")
+        raise SystemExit(f"Configuration validation failed: {', '.join(validation_errors)}")
+    else:
+        logger.info("✅ Configuration validation passed")
+        logger.info(f"   Environment: {settings.ENVIRONMENT}")
+        logger.info(f"   Debug mode: {settings.DEBUG}")
+        logger.info(f"   Site URL: {settings.SITE_URL}")
+
 try:
-    # validate_environment()  # Disabled for development
-    logger.info("⚠️ Environment validation skipped for development mode")
+    validate_configuration()
 except Exception as env_error:
-    logger.error(f"❌ Environment validation failed: {env_error}")
-    raise SystemExit(f"Environment validation failed: {env_error}")
+    logger.error(f"❌ Configuration validation failed: {env_error}")
+    raise SystemExit(f"Configuration validation failed: {env_error}")
 
 # Debug CORS configuration
 logger.info(f"CORS_ORIGINS from settings: {settings.CORS_ORIGINS}")
@@ -227,11 +266,11 @@ app.add_middleware(GuardrailsMiddleware)
 # CORS middleware MUST be added LAST so it executes FIRST
 # Secure CORS configuration - NO WILDCARDS for production security
 
-# Build environment-specific CORS origins
+# Build environment-specific CORS origins with security-first approach
 cors_origins = []
 
-# Development origins (localhost)
-if settings.DEBUG or "localhost" in str(settings.SITE_URL):
+# Development origins (localhost) - only in development environment
+if settings.ENVIRONMENT == "development" or settings.DEBUG:
     cors_origins.extend([
         "http://localhost:3000",
         "http://localhost:8080", 
@@ -240,8 +279,9 @@ if settings.DEBUG or "localhost" in str(settings.SITE_URL):
         "http://127.0.0.1:8080",
         "http://127.0.0.1:5173",
     ])
+    logger.info("🔧 Development mode: Added localhost origins")
 
-# Production origins (your actual domains)
+# Production origins (your actual domains) - always included
 cors_origins.extend([
     "https://wheelsandwins.com",
     "https://www.wheelsandwins.com",
@@ -250,33 +290,46 @@ cors_origins.extend([
 ])
 
 # Lovable.app development platform origins (secure development only)
-cors_origins.extend([
-    "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-    "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-    "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",
-    "https://preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-    "https://main--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-])
+# Only add these in development or when explicitly enabled
+if settings.ENVIRONMENT == "development" or os.getenv("ENABLE_LOVABLE_ORIGINS", "false").lower() == "true":
+    cors_origins.extend([
+        "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+        "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+        "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",
+        "https://preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+        "https://main--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
+    ])
+    logger.info("🔧 Development mode: Added Lovable platform origins")
 
-# Add any additional origins from environment variable
+# Add any additional origins from environment variable (for staging/testing environments)
 if os.getenv("ADDITIONAL_CORS_ORIGINS"):
     additional_origins = os.getenv("ADDITIONAL_CORS_ORIGINS").split(",")
-    cors_origins.extend([origin.strip() for origin in additional_origins if origin.strip()])
+    additional_clean = [origin.strip() for origin in additional_origins if origin.strip()]
+    cors_origins.extend(additional_clean)
+    logger.info(f"🔧 Added {len(additional_clean)} additional origins from environment")
 
-# Remove duplicates and ensure HTTPS in production
-cors_origins = list(set(cors_origins))
+# Remove duplicates while preserving order
+cors_origins = list(dict.fromkeys(cors_origins))
 
-# Security logging
-logger.info(f"🔒 SECURE CORS - Using {len(cors_origins)} allowed origins")
-logger.info(f"🌐 CORS origins: {cors_origins}")
-
-# Validate no wildcard origins in production
+# Security validation - NO wildcards allowed in any environment
 if "*" in cors_origins:
-    if not settings.DEBUG:
-        logger.error("🚨 SECURITY ALERT: Wildcard CORS origin detected in production!")
-        raise ValueError("Wildcard CORS origins are not allowed in production")
-    else:
-        logger.warning("⚠️  Wildcard CORS detected in development mode")
+    logger.error("🚨 SECURITY ALERT: Wildcard CORS origin detected!")
+    logger.error("Wildcard origins are never allowed for security reasons")
+    raise ValueError("Wildcard CORS origins are prohibited in all environments")
+
+# Log final CORS configuration
+logger.info(f"🔒 SECURE CORS Configuration:")
+logger.info(f"   Environment: {settings.ENVIRONMENT}")
+logger.info(f"   Total origins: {len(cors_origins)}")
+logger.info(f"   Origins: {cors_origins}")
+
+# Additional security validation for production
+if settings.ENVIRONMENT == "production":
+    # Ensure only HTTPS origins in production (except localhost for local testing)
+    insecure_origins = [origin for origin in cors_origins if origin.startswith("http://") and "localhost" not in origin and "127.0.0.1" not in origin]
+    if insecure_origins:
+        logger.error(f"🚨 SECURITY ALERT: HTTP origins detected in production: {insecure_origins}")
+        raise ValueError("HTTP origins are not allowed in production environment")
 
 app.add_middleware(
     CORSMiddleware,
