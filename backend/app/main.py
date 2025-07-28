@@ -168,30 +168,63 @@ async def lifespan(app: FastAPI):
         await production_monitor.start_monitoring()
         logger.info("✅ Production monitoring system initialized")
 
-        # Initialize Knowledge Tool for PAM
+        # Initialize Knowledge Tool for PAM (ChromaDB-dependent)
+        knowledge_tool_initialized = False
         try:
             from app.core.orchestrator import orchestrator
-
             await orchestrator.initialize_knowledge_tool()
             logger.info("✅ PAM Knowledge Tool initialized")
+            knowledge_tool_initialized = True
+        except ImportError as import_error:
+            if "chromadb" in str(import_error).lower():
+                logger.warning("⚠️ ChromaDB not available - Knowledge Tool disabled")
+                logger.info("💡 PAM will operate without vector database capabilities")
+            else:
+                logger.warning(f"⚠️ Knowledge Tool import failed: {import_error}")
         except Exception as e:
             logger.warning(f"⚠️ Knowledge Tool initialization failed: {e}")
+            logger.info("💡 PAM will continue without advanced knowledge retrieval")
+        
+        if not knowledge_tool_initialized:
+            logger.info("🔍 Knowledge Tool disabled - using basic PAM functionality")
 
-        # Initialize TTS Service for PAM
+        # Initialize TTS Service for PAM with enhanced fallback chain
+        tts_initialized = False
         try:
             from app.services.tts.tts_service import tts_service
-
             await tts_service.initialize()
-            logger.info("✅ PAM TTS Service initialized")
+            logger.info("✅ PAM TTS Service (primary) initialized")
+            tts_initialized = True
+        except ImportError as import_error:
+            logger.warning(f"⚠️ Primary TTS Service unavailable: {import_error}")
         except Exception as e:
-            logger.warning(f"⚠️ TTS Service initialization failed: {e}")
-            # Initialize fallback TTS service
+            logger.warning(f"⚠️ Primary TTS Service initialization failed: {e}")
+        
+        # Try fallback TTS services if primary failed
+        if not tts_initialized:
             try:
                 from app.services.tts.fallback_tts import fallback_tts_service
                 await fallback_tts_service.initialize()
                 logger.info("✅ Fallback TTS Service initialized")
+                tts_initialized = True
+            except ImportError:
+                logger.warning("⚠️ Fallback TTS Service not available")
             except Exception as fallback_error:
                 logger.warning(f"⚠️ Fallback TTS Service initialization failed: {fallback_error}")
+        
+        # Final fallback: System TTS
+        if not tts_initialized:
+            try:
+                # Check if pyttsx3 is available for system TTS
+                import pyttsx3
+                logger.info("✅ System TTS (pyttsx3) available as final fallback")
+                tts_initialized = True
+            except ImportError:
+                logger.warning("⚠️ System TTS (pyttsx3) not available")
+        
+        if not tts_initialized:
+            logger.warning("⚠️ No TTS engines available - voice features will be limited")
+            logger.info("💡 Voice responses will fallback to text-only mode")
 
         # Initialize Voice Conversation Manager
         try:
@@ -227,23 +260,35 @@ async def lifespan(app: FastAPI):
         await production_monitor.stop_monitoring()
         logger.info("✅ Production monitoring system shutdown")
 
-        # Shutdown Knowledge Tool
+        # Shutdown Knowledge Tool (if initialized)
         try:
             from app.tools.knowledge_tool import knowledge_tool
-
             await knowledge_tool.shutdown()
             logger.info("✅ Knowledge Tool shutdown completed")
+        except ImportError:
+            logger.info("📝 Knowledge Tool was not available - skipping shutdown")
         except Exception as e:
             logger.warning(f"⚠️ Knowledge Tool shutdown warning: {e}")
 
-        # Shutdown TTS Service
+        # Shutdown TTS Services (if initialized)
         try:
             from app.services.tts.tts_service import tts_service
-
             await tts_service.shutdown()
-            logger.info("✅ TTS Service shutdown completed")
+            logger.info("✅ Primary TTS Service shutdown completed")
+        except ImportError:
+            logger.info("🔊 Primary TTS Service was not available - skipping shutdown")
         except Exception as e:
-            logger.warning(f"⚠️ TTS Service shutdown warning: {e}")
+            logger.warning(f"⚠️ Primary TTS Service shutdown warning: {e}")
+        
+        # Shutdown fallback TTS if available
+        try:
+            from app.services.tts.fallback_tts import fallback_tts_service
+            await fallback_tts_service.shutdown()
+            logger.info("✅ Fallback TTS Service shutdown completed")
+        except ImportError:
+            logger.info("🔊 Fallback TTS Service was not available - skipping shutdown")
+        except Exception as e:
+            logger.warning(f"⚠️ Fallback TTS Service shutdown warning: {e}")
 
         logger.info("✅ Cleanup completed")
     except Exception as e:
@@ -263,18 +308,25 @@ app = FastAPI(
 
 # Enable distributed tracing with OpenTelemetry if available
 try:
-    from app.observability.config import observability, OPENTELEMETRY_AVAILABLE
-    from opentelemetry import trace
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    observability_enabled = getattr(settings, 'OBSERVABILITY_ENABLED', False)
+    if observability_enabled:
+        from app.observability.config import observability, OPENTELEMETRY_AVAILABLE
+        from opentelemetry import trace
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-    if OPENTELEMETRY_AVAILABLE and observability.is_enabled():
-        observability.initialize_tracing()
-        FastAPIInstrumentor().instrument_app(
-            app, tracer_provider=trace.get_tracer_provider()
-        )
-        logger.info("✅ OpenTelemetry FastAPI instrumentation enabled")
+        if OPENTELEMETRY_AVAILABLE and observability.is_enabled():
+            observability.initialize_tracing()
+            FastAPIInstrumentor().instrument_app(
+                app, tracer_provider=trace.get_tracer_provider()
+            )
+            logger.info("✅ OpenTelemetry FastAPI instrumentation enabled")
+        else:
+            logger.info("📊 OpenTelemetry not available or disabled")
+    else:
+        logger.info("📊 Observability disabled - skipping OpenTelemetry instrumentation")
 except Exception as trace_error:
-    logger.warning(f"OpenTelemetry instrumentation failed: {trace_error}")
+    logger.warning(f"⚠️ OpenTelemetry instrumentation failed (non-critical): {trace_error}")
+    logger.info("📊 Application will continue without OpenTelemetry tracing")
 
 # Setup middleware
 app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
