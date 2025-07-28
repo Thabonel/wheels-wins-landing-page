@@ -83,16 +83,20 @@ def validate_configuration():
         ("SUPABASE_URL", settings.SUPABASE_URL),
         ("SUPABASE_KEY", settings.SUPABASE_KEY),
         ("SECRET_KEY", settings.SECRET_KEY),
-        ("SITE_URL", settings.SITE_URL),
     ]
     
     for setting_name, setting_value in required_settings:
         if not setting_value:
             validation_errors.append(f"Missing required setting: {setting_name}")
     
-    # Validate SITE_URL format
-    if settings.SITE_URL and not (settings.SITE_URL.startswith("http://") or settings.SITE_URL.startswith("https://")):
-        validation_errors.append(f"SITE_URL must start with http:// or https://, got: {settings.SITE_URL}")
+    # Validate SITE_URL (optional but validate format if present)
+    try:
+        site_url = getattr(settings, 'SITE_URL', None)
+        if site_url and not (site_url.startswith("http://") or site_url.startswith("https://")):
+            validation_errors.append(f"SITE_URL must start with http:// or https://, got: {site_url}")
+    except AttributeError:
+        logger.warning("⚠️ SITE_URL property not available in settings (using fallback)")
+        site_url = "http://localhost:3000"
     
     # Validate environment-specific requirements
     if settings.ENVIRONMENT == "production":
@@ -112,7 +116,10 @@ def validate_configuration():
         logger.info("✅ Configuration validation passed")
         logger.info(f"   Environment: {settings.ENVIRONMENT}")
         logger.info(f"   Debug mode: {settings.DEBUG}")
-        logger.info(f"   Site URL: {settings.SITE_URL}")
+        try:
+            logger.info(f"   Site URL: {getattr(settings, 'SITE_URL', 'fallback')}")
+        except AttributeError:
+            logger.info("   Site URL: using fallback (property not available)")
 
 try:
     validate_configuration()
