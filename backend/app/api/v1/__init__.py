@@ -20,6 +20,8 @@ from . import (
     onboarding,
     mapbox,
     user_settings,
+    performance,
+    tts,
 )
 
 __all__ = [
@@ -44,4 +46,6 @@ __all__ = [
     'onboarding',
     'mapbox',
     'user_settings',
+    'performance',
+    'tts',
 ]
