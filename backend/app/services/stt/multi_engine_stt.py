@@ -200,12 +200,16 @@ class OpenAIWhisperEngine(STTEngineBase):
             return STTQuality.LOW
 
 class LocalWhisperEngine(STTEngineBase):
-    """Local Whisper engine for offline processing"""
+    """Local Whisper engine for offline processing with memory optimization"""
     
     def __init__(self):
         super().__init__(STTEngine.LOCAL_WHISPER)
         self.model = None
-        self.model_name = "base"  # Faster for real-time
+        # Use memory-optimized model size for production deployments
+        # Options: tiny (~39MB), base (~74MB), small (~244MB), medium (~769MB), large (~1550MB)
+        from app.core.config import get_settings
+        settings = get_settings()
+        self.model_name = getattr(settings, 'LOCAL_WHISPER_MODEL', 'tiny')  # Default to tiny for memory constraints
     
     async def initialize(self) -> bool:
         """Initialize local Whisper model"""

@@ -76,6 +76,9 @@ class InfrastructureSettings(BaseSettings):
         "https://main--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     ]
 
+    # Voice Processing Configuration
+    LOCAL_WHISPER_MODEL: str = "tiny"  # tiny, base, small, medium, large
+    
     # Monitoring Infrastructure
     SENTRY_DSN: Optional[str] = None
     OBSERVABILITY_ENABLED: bool = False
