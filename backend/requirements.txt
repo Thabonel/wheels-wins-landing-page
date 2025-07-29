@@ -34,6 +34,9 @@ neo4j>=5.14.0,<6.0.0
 textstat==0.7.7
 pyttsx3==2.99
 
+# Audio processing for enhanced voice features
+openai-whisper==20231117
+
 # Advanced TTS (optional - edge-tts provides basic functionality)
 # TTS>=0.22.0
 
@@ -43,8 +46,7 @@ pyttsx3==2.99
 # Search APIs (optional)
 # googlemaps==4.10.0
 
-# Audio processing (optional)
-# openai-whisper==20231117
+# Additional audio processing (optional)
 # transformers==4.36.0
 
 # NOTE: All commented dependencies above are handled gracefully by the application
