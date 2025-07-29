@@ -13,7 +13,12 @@ router = APIRouter()
 @router.options("/users/{user_id}/settings")
 async def user_settings_options(user_id: str):
     """Handle CORS preflight for user settings endpoints"""
-    return {"message": "CORS preflight handled"}
+    response = Response(content='{"message": "CORS preflight handled"}', media_type="application/json")
+    # Add cache-busting headers to force browser refresh
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 @router.get("/users/{user_id}/settings")
 async def get_user_settings(
