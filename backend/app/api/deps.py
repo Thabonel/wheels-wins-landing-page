@@ -130,8 +130,8 @@ def verify_supabase_jwt_token(
     """
     # Handle CORS preflight requests (OPTIONS) - these don't need authentication
     if request.method == "OPTIONS":
-        logger.debug("🔍 Skipping authentication for OPTIONS preflight request")
-        return {"user_id": "anonymous", "method": "OPTIONS"}
+        logger.info(f"🔍 OPTIONS request to {request.url.path} - skipping authentication")
+        return {"user_id": "anonymous", "method": "OPTIONS", "sub": "anonymous"}
     
     try:
         if not credentials or not credentials.credentials:
