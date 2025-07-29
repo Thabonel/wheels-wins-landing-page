@@ -229,13 +229,8 @@ async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, 
 @router.options("/chat")
 async def chat_options():
     """Handle CORS preflight for chat endpoint"""
-    from fastapi import Response
-    response = Response(content='{"message": "CORS preflight handled"}', media_type="application/json")
-    # Add cache-busting headers to force browser refresh
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+    from app.core.cors_config import cors_config
+    return cors_config.create_options_response(cache_bust=True)
 
 # REST Chat endpoint
 @router.post("/chat", response_model=ChatResponse)
@@ -599,6 +594,13 @@ async def pam_health_check():
             "timestamp": datetime.utcnow().isoformat(),
             "error": f"Health check failed: {str(e)}"
         }
+
+# OPTIONS handler for voice endpoint
+@router.options("/voice")
+async def voice_options():
+    """Handle CORS preflight for voice endpoint"""
+    from app.core.cors_config import cors_config
+    return cors_config.create_options_response(cache_bust=True)
 
 # TTS endpoint for voice generation
 class VoiceRequest(BaseModel):

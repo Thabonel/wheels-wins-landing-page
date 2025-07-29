@@ -20,6 +20,8 @@ from app.core.middleware import setup_middleware
 from app.core.security_middleware import setup_security_middleware
 from app.core.monitoring_middleware import MonitoringMiddleware
 from app.guardrails.guardrails_middleware import GuardrailsMiddleware
+from app.core.cors_config import cors_config
+from app.core.cors_middleware import EnhancedCORSMiddleware, CORSDebugMiddleware
 
 # Temporarily disabled due to WebSocket route conflicts
 # from langserve import add_routes
@@ -341,140 +343,30 @@ setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
 # CORS middleware MUST be added LAST so it executes FIRST
-# Secure CORS configuration - NO WILDCARDS for production security
+# Using centralized CORS configuration for better maintainability
 
-# Build environment-specific CORS origins with security-first approach
-cors_origins = []
+# Add our enhanced CORS middleware for fallback OPTIONS handling
+app.add_middleware(EnhancedCORSMiddleware)
 
-# Development origins (localhost) - only in development environment
-# Use defensive access to handle potential configuration issues
+# Add CORS debugging middleware in development
 try:
-    is_development = getattr(settings, 'ENVIRONMENT', 'production') == "development"
-    is_debug = getattr(settings, 'DEBUG', False)
+    if getattr(settings, 'ENVIRONMENT', 'production') == "development" or getattr(settings, 'DEBUG', False):
+        app.add_middleware(CORSDebugMiddleware)
+        logger.info("🔧 CORS debugging middleware enabled")
 except AttributeError:
-    logger.warning("⚠️ Using fallback environment detection")
-    is_development = True  # Fallback to development for safety
-    is_debug = True
+    logger.info("🔧 CORS debugging middleware enabled (fallback detection)")
+    app.add_middleware(CORSDebugMiddleware)
 
-if is_development or is_debug:
-    cors_origins.extend([
-        "http://localhost:3000",
-        "http://localhost:8080", 
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8080",
-        "http://127.0.0.1:5173",
-    ])
-    logger.info("🔧 Development mode: Added localhost origins")
+# Add the standard FastAPI CORS middleware with our centralized configuration
+cors_config_dict = cors_config.get_cors_config_dict()
+app.add_middleware(CORSMiddleware, **cors_config_dict)
 
-# Production origins (your actual domains) - always included
-cors_origins.extend([
-    "https://wheelsandwins.com",
-    "https://www.wheelsandwins.com",
-    "https://wheelz-wins.com",
-    "https://www.wheelz-wins.com",
-    # Current Netlify deployment
-    "https://wheels-wins-landing-page.netlify.app",
-    "https://65a8f6b6c9f5d2092be8bfc2--wheels-wins-landing-page.netlify.app",
-])
-
-# Lovable.app development platform origins 
-# Enable in development OR when explicitly enabled for production testing
-try:
-    environment = getattr(settings, 'ENVIRONMENT', 'production')
-except AttributeError:
-    environment = 'production'
-
-enable_lovable = (
-    is_development or 
-    os.getenv("ENABLE_LOVABLE_ORIGINS", "false").lower() == "true" or
-    # Temporarily enable for production while frontend is on Lovable.app
-    (environment == "production" and not os.getenv("DISABLE_LOVABLE_ORIGINS"))
-)
-
-if enable_lovable:
-    cors_origins.extend([
-        "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-        "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-        "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",
-        "https://preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-        "https://main--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
-    ])
-    env_reason = "development" if is_development else "production testing"
-    logger.info(f"🔧 {env_reason.title()} mode: Added Lovable platform origins")
-
-# Add any additional origins from environment variable (for staging/testing environments)
-if os.getenv("ADDITIONAL_CORS_ORIGINS"):
-    additional_origins = os.getenv("ADDITIONAL_CORS_ORIGINS").split(",")
-    additional_clean = [origin.strip() for origin in additional_origins if origin.strip()]
-    cors_origins.extend(additional_clean)
-    logger.info(f"🔧 Added {len(additional_clean)} additional origins from environment")
-
-# Remove duplicates while preserving order
-cors_origins = list(dict.fromkeys(cors_origins))
-
-# Security validation - NO wildcards allowed in any environment
-if "*" in cors_origins:
-    logger.error("🚨 SECURITY ALERT: Wildcard CORS origin detected!")
-    logger.error("Wildcard origins are never allowed for security reasons")
-    raise ValueError("Wildcard CORS origins are prohibited in all environments")
-
-# Log final CORS configuration
-logger.info(f"🔒 SECURE CORS Configuration:")
-try:
-    logger.info(f"   Environment: {getattr(settings, 'ENVIRONMENT', 'unknown')}")
-except AttributeError:
-    logger.info("   Environment: fallback detection")
-logger.info(f"   Total origins: {len(cors_origins)}")
-logger.info(f"   Origins: {cors_origins}")
-
-# Additional security validation for production
-try:
-    environment = getattr(settings, 'ENVIRONMENT', 'production')
-except AttributeError:
-    environment = 'production'  # Default to production for security
-
-if environment == "production":
-    # Ensure only HTTPS origins in production (except localhost for local testing)
-    insecure_origins = [origin for origin in cors_origins if origin.startswith("http://") and "localhost" not in origin and "127.0.0.1" not in origin]
-    if insecure_origins:
-        logger.error(f"🚨 SECURITY ALERT: HTTP origins detected in production: {insecure_origins}")
-        raise ValueError("HTTP origins are not allowed in production environment")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,  # Enable credentials for authenticated requests
-    allow_methods=[
-        "GET", 
-        "POST", 
-        "PUT", 
-        "DELETE", 
-        "OPTIONS", 
-        "PATCH"
-    ],  # Specific methods only
-    allow_headers=[
-        "Accept",
-        "Accept-Language", 
-        "Content-Language",
-        "Content-Type",
-        "Authorization",
-        "X-Requested-With",
-        "Origin",
-        "Access-Control-Request-Method",
-        "Access-Control-Request-Headers",
-        "Cache-Control",
-        "Pragma",
-        "X-Supabase-Auth",
-        "apikey",
-        "X-CSRF-Token",
-    ],  # Specific headers only
-    expose_headers=[
-        "Content-Range",
-        "X-Content-Range"
-    ],
-    max_age=86400,  # Cache preflight requests for 24 hours
-)
+# Log the final CORS configuration
+logger.info(f"🔒 CORS Configuration Applied:")
+logger.info(f"   Total origins: {len(cors_config.origins)}")
+logger.info(f"   Origins: {cors_config.origins}")
+logger.info(f"   Methods: {cors_config.allowed_methods}")
+logger.info(f"   Headers: {len(cors_config.allowed_headers)} headers configured")
 
 # CORS middleware handles OPTIONS requests automatically
 # No custom OPTIONS handler needed
@@ -503,51 +395,53 @@ async def cors_debug_info(request: Request):
     return {
         "timestamp": datetime.utcnow().isoformat(),
         "request_origin": origin,
-        "configured_cors_origins": cors_origins,
-        "origin_allowed": origin in cors_origins if origin != "No origin header" else False,
+        "configured_cors_origins": cors_config.origins,
+        "origin_allowed": cors_config.is_origin_allowed(origin) if origin != "No origin header" else False,
         "environment": getattr(settings, 'ENVIRONMENT', 'unknown'),
-        "lovable_enabled": enable_lovable,
-        "total_origins": len(cors_origins),
+        "total_origins": len(cors_config.origins),
+        "cors_config": {
+            "allowed_methods": cors_config.allowed_methods,
+            "allowed_headers": cors_config.allowed_headers[:10],  # First 10 for brevity
+            "expose_headers": cors_config.expose_headers,
+        },
         "help": "Use this endpoint to verify if your frontend origin is in the CORS allow list"
     }
 
-# Enhanced CORS debugging for OPTIONS requests
-@app.middleware("http")
-async def cors_debug_middleware(request: Request, call_next):
-    """Debug middleware to log CORS issues"""
-    if request.method == "OPTIONS":
-        origin = request.headers.get("origin", "No origin")
-        path = request.url.path
-        logger.info(f"🔍 OPTIONS request: {path} from origin: {origin}")
-        logger.info(f"🔍 Headers: {dict(request.headers)}")
-        
-        # Check if origin is in our CORS list
-        if origin != "No origin":
-            is_allowed = origin in cors_origins
-            logger.info(f"🔍 Origin allowed: {is_allowed}")
-            if not is_allowed:
-                logger.warning(f"⚠️ Origin {origin} not in CORS origins list")
-                logger.info(f"🔍 Configured origins: {cors_origins}")
-    
-    response = await call_next(request)
-    
-    # Log response for OPTIONS requests
-    if request.method == "OPTIONS":
-        logger.info(f"🔍 OPTIONS response status: {response.status_code}")
-        if hasattr(response, 'headers'):
-            cors_headers = {k: v for k, v in response.headers.items() if 'access-control' in k.lower()}
-            logger.info(f"🔍 CORS headers in response: {cors_headers}")
-    
-    return response
+# Enhanced CORS statistics endpoint  
+@app.get("/api/cors/stats")
+async def cors_stats():
+    """Get CORS middleware statistics and configuration"""
+    try:
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "cors_configuration": {
+                "total_origins": len(cors_config.origins),
+                "origins_sample": cors_config.origins[:5],
+                "methods_count": len(cors_config.allowed_methods),
+                "headers_count": len(cors_config.allowed_headers),
+                "expose_headers_count": len(cors_config.expose_headers),
+            },
+            "system_info": {
+                "environment": getattr(settings, 'ENVIRONMENT', 'unknown'),
+                "cors_debugging_enabled": True,
+                "enhanced_middleware_active": True,
+            },
+            "status": "CORS system operational"
+        }
+    except Exception as e:
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": f"Failed to get CORS stats: {str(e)}",
+            "cors_basic_info": {
+                "total_origins": len(cors_config.origins),
+                "status": "CORS config loaded"
+            }
+        }
 
 
-# The CORSMiddleware added above automatically handles all CORS preflight
-# requests.  A custom global OPTIONS handler previously overrode this
-# behaviour and returned wildcard CORS headers.  This caused the frontend to
-# receive responses without the appropriate `Access-Control-Allow-Origin`
-# header, breaking cross-origin requests.  Removing the route allows
-# CORSMiddleware to apply the configured `cors_origins` list and return the
-# correct headers for `https://wheelsandwins.com` and other allowed origins.
+# Enhanced CORS middleware handles all CORS preflight requests automatically
+# with comprehensive debugging, fallback OPTIONS handling, and proper origin validation.
+# The centralized configuration ensures consistency across all endpoints.
 
 
 # Include API routers
