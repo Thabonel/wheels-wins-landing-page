@@ -19,6 +19,7 @@ import psutil
 
 from app.core.logging import get_logger
 from app.services.sentry_service import sentry_service
+from app.monitoring.metrics_cache import metrics_cache
 
 logger = get_logger(__name__)
 
@@ -98,6 +99,9 @@ class ProductionMonitor:
         self.is_monitoring = True
         logger.info("🔍 Starting production monitoring system...")
         
+        # Start metrics cache
+        await metrics_cache.start()
+        
         # Start background tasks
         asyncio.create_task(self._system_health_monitor())
         asyncio.create_task(self._buffer_cleanup_task())
@@ -108,6 +112,10 @@ class ProductionMonitor:
     async def stop_monitoring(self):
         """Stop monitoring system."""
         self.is_monitoring = False
+        
+        # Stop metrics cache
+        await metrics_cache.stop()
+        
         logger.info("🛑 Production monitoring system stopped")
     
     def log_error(self, error: Exception, request: Optional[Request] = None, 
@@ -211,12 +219,25 @@ class ProductionMonitor:
             logger.error(f"❌ Error in performance monitoring: {monitor_error}")
     
     async def get_system_health(self) -> SystemHealth:
-        """Get current system health metrics."""
+        """Get current system health metrics - uses cached values for speed."""
         try:
-            # System metrics
-            cpu_percent = psutil.cpu_percent(interval=1)
-            memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
+            # Get cached metrics (non-blocking)
+            cached = await metrics_cache.get_metrics()
+            
+            # Use cached values if available, fallback to direct collection
+            if "error" not in cached:
+                cpu_percent = cached["cpu_percent"]
+                memory_usage_mb = cached["memory_usage_mb"]
+                memory_percent = cached["memory_percent"]
+                disk_usage_percent = cached["disk_usage_percent"]
+            else:
+                # Fallback to direct collection (non-blocking)
+                cpu_percent = psutil.cpu_percent(interval=None)
+                memory = psutil.virtual_memory()
+                memory_usage_mb = memory.used / 1024 / 1024
+                memory_percent = memory.percent
+                disk = psutil.disk_usage('/')
+                disk_usage_percent = disk.percent
             
             # Application metrics
             uptime = time.time() - self.start_time
@@ -244,9 +265,9 @@ class ProductionMonitor:
             health = SystemHealth(
                 timestamp=now.isoformat(),
                 cpu_percent=cpu_percent,
-                memory_usage_mb=memory.used / 1024 / 1024,
-                memory_percent=memory.percent,
-                disk_usage_percent=disk.percent,
+                memory_usage_mb=memory_usage_mb,
+                memory_percent=memory_percent,
+                disk_usage_percent=disk_usage_percent,
                 active_connections=len(recent_performance),
                 database_pool_size=0,  # TODO: Get from database pool
                 redis_memory_mb=0,  # TODO: Get from Redis

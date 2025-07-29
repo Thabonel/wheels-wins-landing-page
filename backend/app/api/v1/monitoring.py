@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
+import time
 
 from app.services.monitoring_service import get_monitoring_service, MonitoringService
 from app.services.sentry_service import get_sentry_service, SentryService
@@ -17,6 +18,13 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+# Simple in-memory cache for health responses
+_health_cache = {
+    "response": None,
+    "timestamp": 0,
+    "ttl": 5  # Cache for 5 seconds
+}
 
 
 class HealthResponse(BaseModel):
@@ -67,11 +75,32 @@ async def get_health_metrics(monitoring: MonitoringService = Depends(get_monitor
         raise HTTPException(status_code=500, detail=f"Failed to get health metrics: {str(e)}")
 
 
+# Fast health check endpoint for load balancers
+@router.get("/health/fast")
+async def get_fast_health_status():
+    """Ultra-fast health check endpoint without system metrics for load balancers."""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "pam-backend",
+        "version": "2.0.0"
+    }
+
+
 # Enhanced production monitoring endpoints
 @router.get("/health", response_model=HealthResponse)
 async def get_health_status(monitor: ProductionMonitor = Depends(get_production_monitor)):
-    """Get comprehensive system health status for production debugging."""
+    """Get comprehensive system health status with caching for performance."""
+    # Check cache first
+    now = time.time()
+    if _health_cache["response"] and (now - _health_cache["timestamp"]) < _health_cache["ttl"]:
+        logger.debug("📦 Returning cached health response")
+        return _health_cache["response"]
+    
     try:
+        # Measure health check time
+        start_time = time.time()
+        
         health = await monitor.get_system_health()
         
         # Determine overall status
@@ -81,7 +110,7 @@ async def get_health_status(monitor: ProductionMonitor = Depends(get_production_
         if health.error_rate_5min > 20 or health.memory_percent > 90 or health.cpu_percent > 90:
             status = "unhealthy"
         
-        return HealthResponse(
+        response = HealthResponse(
             status=status,
             timestamp=datetime.utcnow().isoformat(),
             uptime_seconds=health.uptime_seconds,
@@ -97,6 +126,16 @@ async def get_health_status(monitor: ProductionMonitor = Depends(get_production_
                 "avg_response_time_5min": health.avg_response_time_5min
             }
         )
+        
+        # Cache the response
+        _health_cache["response"] = response
+        _health_cache["timestamp"] = now
+        
+        # Log health check duration
+        duration_ms = (time.time() - start_time) * 1000
+        logger.debug(f"⏱️ Health check completed in {duration_ms:.2f}ms")
+        
+        return response
         
     except Exception as e:
         logger.error(f"Error getting health status: {e}")
