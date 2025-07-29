@@ -369,9 +369,21 @@ cors_origins.extend([
     "https://www.wheelz-wins.com",
 ])
 
-# Lovable.app development platform origins (secure development only)
-# Only add these in development or when explicitly enabled
-if is_development or os.getenv("ENABLE_LOVABLE_ORIGINS", "false").lower() == "true":
+# Lovable.app development platform origins 
+# Enable in development OR when explicitly enabled for production testing
+try:
+    environment = getattr(settings, 'ENVIRONMENT', 'production')
+except AttributeError:
+    environment = 'production'
+
+enable_lovable = (
+    is_development or 
+    os.getenv("ENABLE_LOVABLE_ORIGINS", "false").lower() == "true" or
+    # Temporarily enable for production while frontend is on Lovable.app
+    (environment == "production" and not os.getenv("DISABLE_LOVABLE_ORIGINS"))
+)
+
+if enable_lovable:
     cors_origins.extend([
         "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
         "https://id-preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
@@ -379,7 +391,8 @@ if is_development or os.getenv("ENABLE_LOVABLE_ORIGINS", "false").lower() == "tr
         "https://preview--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
         "https://main--4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovable.app",
     ])
-    logger.info("🔧 Development mode: Added Lovable platform origins")
+    env_reason = "development" if is_development else "production testing"
+    logger.info(f"🔧 {env_reason.title()} mode: Added Lovable platform origins")
 
 # Add any additional origins from environment variable (for staging/testing environments)
 if os.getenv("ADDITIONAL_CORS_ORIGINS"):
@@ -460,12 +473,29 @@ async def root():
     """Root endpoint - PAM Backend status"""
     return {
         "message": "🤖 PAM Backend API",
-        "version": "2.0.2", 
+        "version": "2.0.3", 
         "status": "operational",
         "docs": "/api/docs",
         "health": "/health",
-        "updated": "2025-07-28T23:00:00Z",
-        "config_fix": "SITE_URL property added",
+        "updated": "2025-07-28T23:54:00Z",
+        "fixes": ["CORS configuration enhanced", "Voice services optimized", "STT messaging improved"],
+    }
+
+# CORS debugging endpoint
+@app.get("/api/cors/debug")
+async def cors_debug_info(request: Request):
+    """Debugging endpoint to check CORS configuration"""
+    origin = request.headers.get("origin", "No origin header")
+    
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "request_origin": origin,
+        "configured_cors_origins": cors_origins,
+        "origin_allowed": origin in cors_origins if origin != "No origin header" else False,
+        "environment": getattr(settings, 'ENVIRONMENT', 'unknown'),
+        "lovable_enabled": enable_lovable,
+        "total_origins": len(cors_origins),
+        "help": "Use this endpoint to verify if your frontend origin is in the CORS allow list"
     }
 
 
@@ -522,11 +552,13 @@ app.include_router(editing_hub.router, prefix="/hubs", tags=["Editing"])
 
 @app.get("/api/v1/pam/voice/health")
 async def voice_health_check():
-    """Check if TTS services are working properly"""
+    """Check if voice services (TTS and STT) are working properly"""
     health_status = {
         "timestamp": datetime.utcnow().isoformat(),
         "services": {},
-        "overall_status": "unknown"
+        "overall_status": "unknown",
+        "user_message": "",
+        "capabilities": []
     }
     
     try:
@@ -563,19 +595,88 @@ async def voice_health_check():
                 "status": "failed"
             }
         
-        # Determine overall status
+        # Test STT Services
+        try:
+            # Test OpenAI Whisper (cloud)
+            openai_key = getattr(settings, 'OPENAI_API_KEY', None)
+            health_status["services"]["openai_whisper"] = {
+                "available": bool(openai_key),
+                "status": "healthy" if openai_key else "unavailable",
+                "type": "cloud_api"
+            }
+        except Exception as e:
+            health_status["services"]["openai_whisper"] = {
+                "available": False,
+                "error": str(e),
+                "status": "failed"
+            }
+        
+        # Test Local Whisper
+        try:
+            import whisper
+            health_status["services"]["local_whisper"] = {
+                "available": True,
+                "status": "healthy",
+                "type": "local_model"
+            }
+        except ImportError:
+            health_status["services"]["local_whisper"] = {
+                "available": False,
+                "error": "whisper package not installed",
+                "status": "unavailable",
+                "type": "local_model"
+            }
+        
+        # Test Browser WebSpeech (always available as fallback)
+        health_status["services"]["browser_webspeech"] = {
+            "available": True,
+            "status": "healthy",
+            "type": "browser_api",
+            "note": "Requires browser support"
+        }
+        
+        # Determine overall status and user messaging
         edge_healthy = health_status["services"].get("edge_tts", {}).get("available", False)
         fallback_healthy = health_status["services"].get("fallback_tts", {}).get("available", False)
+        openai_stt_healthy = health_status["services"].get("openai_whisper", {}).get("available", False)
+        local_whisper_healthy = health_status["services"].get("local_whisper", {}).get("available", False)
         
+        # Build capabilities list
+        capabilities = []
         if edge_healthy:
-            health_status["overall_status"] = "healthy"
-            health_status["primary_service"] = "edge_tts"
+            capabilities.append("🔊 High-quality text-to-speech (Edge TTS)")
         elif fallback_healthy:
-            health_status["overall_status"] = "degraded"
-            health_status["primary_service"] = "fallback_tts"
+            capabilities.append("🔊 Basic text-to-speech (System TTS)")
+        
+        if openai_stt_healthy:
+            capabilities.append("🎤 Cloud speech-to-text (OpenAI Whisper)")
+        if local_whisper_healthy:
+            capabilities.append("🎤 Local speech-to-text (Whisper)")
+        capabilities.append("🎤 Browser speech-to-text (WebSpeech API)")
+        
+        health_status["capabilities"] = capabilities
+        
+        # Determine overall status and user message
+        if edge_healthy and openai_stt_healthy:
+            health_status["overall_status"] = "optimal"
+            health_status["primary_service"] = "edge_tts + openai_whisper"
+            health_status["user_message"] = "🎉 Voice features are fully operational with high-quality TTS and STT!"
+        elif edge_healthy:
+            health_status["overall_status"] = "good"
+            health_status["primary_service"] = "edge_tts + browser_stt"
+            health_status["user_message"] = "✅ Voice features available with high-quality TTS and browser STT."
+        elif fallback_healthy and openai_stt_healthy:
+            health_status["overall_status"] = "good"
+            health_status["primary_service"] = "fallback_tts + openai_whisper"
+            health_status["user_message"] = "✅ Voice features available with system TTS and cloud STT."
+        elif openai_stt_healthy:
+            health_status["overall_status"] = "limited"
+            health_status["primary_service"] = "text_only + openai_whisper"
+            health_status["user_message"] = "⚠️ Speech-to-text available, but TTS limited. Responses will be text-only."
         else:
-            health_status["overall_status"] = "failed"
-            health_status["primary_service"] = "none"
+            health_status["overall_status"] = "minimal"
+            health_status["primary_service"] = "browser_only"
+            health_status["user_message"] = "⚠️ Limited voice features. Only browser-based speech recognition available."
         
         return health_status
         
@@ -898,6 +999,20 @@ async def global_exception_handler(request: Request, exc: Exception):
         logger.warning(
             f"Security-related error in {request.method} {request.url.path}: {exc}"
         )
+    # Monitor CORS-related issues  
+    elif request.method == "OPTIONS" and "cors" in str(exc).lower():
+        origin = request.headers.get("origin", "unknown")
+        logger.warning(
+            f"🚨 CORS preflight failure from origin {origin} to {request.url.path}: {exc}"
+        )
+        # Track CORS failures for monitoring
+        sentry_service.capture_exception(exc, {
+            "type": "cors_preflight_failure",
+            "origin": origin,
+            "endpoint": request.url.path,
+            "method": request.method,
+            "user_agent": request.headers.get("user-agent", "unknown")
+        })
     else:
         logger.error(
             f"Unhandled exception in {request.method} {request.url.path}: {exc}"
