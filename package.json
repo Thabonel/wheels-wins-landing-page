@@ -74,9 +74,9 @@
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
     "@rollup/rollup-linux-x64-gnu": "^4.45.1",
-    "@sentry/react": "^9.41.0",
+    "@sentry/react": "^9.40.0",
     "@supabase/auth-helpers-react": "^0.5.0",
-    "@supabase/supabase-js": "^2.51.0",
+    "@supabase/supabase-js": "^2.50.3",
     "@swc/core-linux-x64-gnu": "^1.13.1",
     "@tanstack/react-query": "^5.80.10",
     "@turf/turf": "^6.5.0",
@@ -144,14 +144,14 @@
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vite": "^5.4.21",
+    "vite": "^5.4.19",
     "vite-plugin-node-polyfills": "^0.23.0",
     "vitest": "^3.2.4"
   },
   "overrides": {
     "lodash.template": "^4.5.0",
     "esbuild": "^0.25.8",
-    "vite": "^5.4.21",
+    "vite": "^5.4.19",
     "@mapbox/mapbox-gl-directions": {
       "lodash.template": "^4.5.0"
     }
