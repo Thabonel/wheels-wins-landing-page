@@ -28,7 +28,10 @@
     "quality:check:full": "npm run type-check && npm run lint && npm run format:check && npm run test:coverage && npm run e2e:ci",
     "quality:fix": "npm run lint:fix && npm run format",
     "security:audit": "npm audit --audit-level high",
+    "security:audit:json": "npm audit --audit-level high --json",
     "security:fix": "npm audit fix",
+    "security:fix:force": "npm audit fix --force",
+    "security:check:full": "npm run security:audit && npm run type-check",
     "ci:full": "npm run quality:check && npm run build && npm run e2e",
     "test:staging": "node scripts/test-staging.js",
     "prepare": "husky install",
@@ -71,9 +74,9 @@
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
     "@rollup/rollup-linux-x64-gnu": "^4.45.1",
-    "@sentry/react": "^9.40.0",
+    "@sentry/react": "^9.41.0",
     "@supabase/auth-helpers-react": "^0.5.0",
-    "@supabase/supabase-js": "^2.50.3",
+    "@supabase/supabase-js": "^2.51.0",
     "@swc/core-linux-x64-gnu": "^1.13.1",
     "@tanstack/react-query": "^5.80.10",
     "@turf/turf": "^6.5.0",
@@ -128,7 +131,7 @@
     "audit-ci": "^7.1.0",
     "autoprefixer": "^10.4.20",
     "dotenv": "^17.2.0",
-    "esbuild": "^0.23.1",
+    "esbuild": "^0.25.8",
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
@@ -141,13 +144,17 @@
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vite": "^5.4.19",
+    "vite": "^5.4.21",
     "vite-plugin-node-polyfills": "^0.23.0",
     "vitest": "^3.2.4"
   },
   "overrides": {
     "lodash.template": "^4.5.0",
-    "esbuild": "^0.23.1"
+    "esbuild": "^0.25.8",
+    "vite": "^5.4.21",
+    "@mapbox/mapbox-gl-directions": {
+      "lodash.template": "^4.5.0"
+    }
   },
   "engines": {
     "node": ">=18 <20"

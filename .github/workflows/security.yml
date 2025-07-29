@@ -1,0 +1,152 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [ main, staging, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security audit daily at 6 AM UTC
+    - cron: '0 6 * * *'
+
+jobs:
+  frontend-security:
+    name: Frontend Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level high || exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "🚨 High severity vulnerabilities found in frontend dependencies"
+            npm audit --audit-level high --json > security-audit-frontend.json
+            exit $exit_code
+          fi
+          
+      - name: Upload security audit results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-security-audit
+          path: security-audit-frontend.json
+          retention-days: 30
+
+  backend-security:
+    name: Backend Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install security scanning tools
+        run: |
+          pip install --upgrade pip
+          pip install safety bandit pip-audit
+          
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install -r requirements-core.txt
+          
+      - name: Run Safety scan
+        run: |
+          cd backend
+          safety scan --file requirements-core.txt --json > ../security-safety-backend.json || exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "🚨 Security vulnerabilities found by Safety scan"
+            exit $exit_code
+          fi
+          
+      - name: Run pip-audit
+        run: |
+          cd backend
+          pip-audit -r requirements-core.txt --format=json --output=../security-pip-audit-backend.json || exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "🚨 Security vulnerabilities found by pip-audit"
+            exit $exit_code
+          fi
+          
+      - name: Run Bandit security linter
+        run: |
+          cd backend
+          bandit -r app/ -f json -o ../security-bandit-backend.json || exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "🚨 Security issues found by Bandit"
+            exit $exit_code
+          fi
+          
+      - name: Upload security audit results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-security-audit
+          path: |
+            security-safety-backend.json
+            security-pip-audit-backend.json
+            security-bandit-backend.json
+          retention-days: 30
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-dependencies-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [frontend-security, backend-security]
+    if: always()
+    
+    steps:
+      - name: Generate Security Report
+        run: |
+          echo "# 🔒 Security Audit Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.frontend-security.result }}" == "success" ]; then
+            echo "✅ **Frontend Security**: No high-severity vulnerabilities detected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Frontend Security**: High-severity vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.backend-security.result }}" == "success" ]; then
+            echo "✅ **Backend Security**: No vulnerabilities detected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Backend Security**: Vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Review security audit artifacts for detailed vulnerability information" >> $GITHUB_STEP_SUMMARY
+          echo "- Run \`npm run security:fix\` for frontend fixes" >> $GITHUB_STEP_SUMMARY
+          echo "- Update backend dependencies in requirements-core.txt" >> $GITHUB_STEP_SUMMARY
+          echo "- Consider using security overrides in package.json for unfixable vulnerabilities" >> $GITHUB_STEP_SUMMARY

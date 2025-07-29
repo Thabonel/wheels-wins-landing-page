@@ -2,22 +2,22 @@
 # This file contains only essential dependencies that are stable across Python versions
 
 # Core FastAPI and ASGI server
-fastapi==0.116.1
+fastapi==0.117.1
 uvicorn[standard]==0.35.0
 
 # Data validation and settings
-pydantic==2.11.7
-pydantic-settings==2.3.4
+pydantic==2.12.0
+pydantic-settings==2.4.0
 
 # Authentication and security
 PyJWT[crypto]==2.10.1
-cryptography==45.0.5
+cryptography==46.0.1
 email-validator==2.2.0
 passlib[bcrypt]==1.7.4
 
 # Core APIs and HTTP
 openai>=1.50.0,<2.0.0
-supabase==2.17.0
+supabase==2.18.0
 httpx==0.28.1
 requests==2.32.4
 urllib3==2.5.0
@@ -39,7 +39,7 @@ edge-tts==6.1.9
 # Essential monitoring
 structlog==25.4.0
 python-json-logger==3.3.0
-sentry-sdk[fastapi]==2.33.0
+sentry-sdk[fastapi]==2.34.0
 
 # CORS handling
 fastapi-cors==0.0.6
