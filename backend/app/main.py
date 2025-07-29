@@ -62,6 +62,7 @@ from app.api.v1 import (
     mapbox,
     user_settings,
     onboarding,
+    performance,
 )
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
@@ -167,6 +168,11 @@ async def lifespan(app: FastAPI):
         # Initialize production monitoring
         await production_monitor.start_monitoring()
         logger.info("✅ Production monitoring system initialized")
+        
+        # Initialize performance monitoring  
+        from app.services.performance_monitor import performance_monitor
+        await performance_monitor.start_monitoring(interval_seconds=300)  # 5-minute intervals
+        logger.info("✅ Performance monitoring service initialized")
 
         # Initialize Knowledge Tool for PAM (ChromaDB-dependent)
         knowledge_tool_initialized = False
@@ -569,6 +575,7 @@ app.include_router(support.router, prefix="/api", tags=["Support"])
 app.include_router(stripe_webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(observability_api.router, prefix="/api/v1", tags=["Admin Observability"])
+app.include_router(performance.router, prefix="/api/v1", tags=["Performance Monitoring"])
 app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 # Mundi integration removed
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
