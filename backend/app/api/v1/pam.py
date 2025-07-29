@@ -86,6 +86,10 @@ async def websocket_endpoint(
             if data.get("type") == "ping":
                 await websocket.send_json({"type": "pong"})
                 
+            elif data.get("type") == "pong":
+                # Handle pong response for heartbeat monitoring
+                await manager.handle_pong(connection_id)
+                
             elif data.get("type") == "chat":
                 await handle_websocket_chat(websocket, data, user_id, orchestrator)
                 
