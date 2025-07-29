@@ -552,137 +552,127 @@ app.include_router(editing_hub.router, prefix="/hubs", tags=["Editing"])
 
 @app.get("/api/v1/pam/voice/health")
 async def voice_health_check():
-    """Check if voice services (TTS and STT) are working properly"""
+    """Enhanced voice services health check with comprehensive performance monitoring"""
     health_status = {
         "timestamp": datetime.utcnow().isoformat(),
         "services": {},
         "overall_status": "unknown",
         "user_message": "",
-        "capabilities": []
+        "capabilities": [],
+        "performance_metrics": {},
+        "offline_readiness": {},
+        "cost_efficiency": {}
     }
     
     try:
-        # Test Edge TTS
+        # Check comprehensive TTS service status
         try:
-            import edge_tts
-            health_status["services"]["edge_tts"] = {
-                "available": True,
-                "version": edge_tts.__version__ if hasattr(edge_tts, '__version__') else "unknown",
-                "status": "healthy"
-            }
-        except ImportError:
-            health_status["services"]["edge_tts"] = {
-                "available": False,
-                "error": "edge-tts package not installed",
-                "status": "unavailable"
-            }
-        
-        # Test fallback TTS
-        try:
-            from app.services.tts.fallback_tts import FallbackTTSService
-            fallback_service = FallbackTTSService()
-            await fallback_service.initialize()
+            from app.services.tts.tts_service import tts_service
+            tts_status = await tts_service.get_service_status()
             
-            health_status["services"]["fallback_tts"] = {
-                "available": True,
-                "engines": fallback_service.available_engines,
-                "status": "healthy" if fallback_service.is_initialized else "failed"
+            health_status["services"]["tts"] = {
+                "available": tts_status.get("is_initialized", False),
+                "engines": list(tts_status.get("engines", {}).keys()),
+                "status": "healthy" if tts_status.get("is_initialized") else "failed",
+                "details": tts_status
             }
         except Exception as e:
-            health_status["services"]["fallback_tts"] = {
+            health_status["services"]["tts"] = {
                 "available": False,
                 "error": str(e),
                 "status": "failed"
             }
         
-        # Test STT Services
+        # Check comprehensive STT service status with performance metrics
         try:
-            # Test OpenAI Whisper (cloud)
-            openai_key = getattr(settings, 'OPENAI_API_KEY', None)
-            health_status["services"]["openai_whisper"] = {
-                "available": bool(openai_key),
-                "status": "healthy" if openai_key else "unavailable",
-                "type": "cloud_api"
+            from app.services.voice.speech_to_text import speech_to_text_service
+            stt_status = await speech_to_text_service.get_service_status()
+            
+            health_status["services"]["stt"] = {
+                "available": stt_status.get("status") == "initialized",
+                "providers": list(stt_status.get("providers", {}).keys()),
+                "primary_provider": stt_status.get("primary_provider"),
+                "status": "healthy" if stt_status.get("status") == "initialized" else "failed",
+                "details": stt_status
             }
+            
+            # Extract performance insights
+            performance_insights = stt_status.get("performance_insights", {})
+            health_status["performance_metrics"] = stt_status.get("performance_metrics", {})
+            health_status["offline_readiness"] = performance_insights.get("offline_readiness", {})
+            health_status["cost_efficiency"] = performance_insights.get("cost_efficiency", {})
+            
         except Exception as e:
-            health_status["services"]["openai_whisper"] = {
+            health_status["services"]["stt"] = {
                 "available": False,
                 "error": str(e),
                 "status": "failed"
             }
         
-        # Test Local Whisper
-        try:
-            import whisper
-            health_status["services"]["local_whisper"] = {
-                "available": True,
-                "status": "healthy",
-                "type": "local_model"
-            }
-        except ImportError:
-            health_status["services"]["local_whisper"] = {
-                "available": False,
-                "error": "whisper package not installed",
-                "status": "unavailable",
-                "type": "local_model"
-            }
+        # Determine capabilities and overall status
+        tts_available = health_status["services"].get("tts", {}).get("available", False)
+        stt_available = health_status["services"].get("stt", {}).get("available", False)
+        offline_capable = health_status["offline_readiness"].get("offline_capable", False)
         
-        # Test Browser WebSpeech (always available as fallback)
-        health_status["services"]["browser_webspeech"] = {
-            "available": True,
-            "status": "healthy",
-            "type": "browser_api",
-            "note": "Requires browser support"
-        }
-        
-        # Determine overall status and user messaging
-        edge_healthy = health_status["services"].get("edge_tts", {}).get("available", False)
-        fallback_healthy = health_status["services"].get("fallback_tts", {}).get("available", False)
-        openai_stt_healthy = health_status["services"].get("openai_whisper", {}).get("available", False)
-        local_whisper_healthy = health_status["services"].get("local_whisper", {}).get("available", False)
-        
-        # Build capabilities list
+        # Build capabilities list with enhanced messaging
         capabilities = []
-        if edge_healthy:
-            capabilities.append("🔊 High-quality text-to-speech (Edge TTS)")
-        elif fallback_healthy:
-            capabilities.append("🔊 Basic text-to-speech (System TTS)")
+        if tts_available:
+            tts_engines = health_status["services"]["tts"].get("engines", [])
+            if "edge" in str(tts_engines).lower():
+                capabilities.append("🔊 High-quality text-to-speech (Edge TTS)")
+            else:
+                capabilities.append("🔊 Text-to-speech available")
         
-        if openai_stt_healthy:
-            capabilities.append("🎤 Cloud speech-to-text (OpenAI Whisper)")
-        if local_whisper_healthy:
-            capabilities.append("🎤 Local speech-to-text (Whisper)")
-        capabilities.append("🎤 Browser speech-to-text (WebSpeech API)")
+        if stt_available:
+            stt_providers = health_status["services"]["stt"].get("providers", [])
+            if "openaiwhisper" in stt_providers:
+                capabilities.append("🎤 Cloud speech-to-text (OpenAI Whisper)")
+            if "localwhisper" in stt_providers:
+                capabilities.append("🎤 Local speech-to-text (Whisper)")
+            if "browserwebspeech" in stt_providers:
+                capabilities.append("🎤 Browser speech-to-text (WebSpeech API)")
         
         health_status["capabilities"] = capabilities
         
-        # Determine overall status and user message
-        if edge_healthy and openai_stt_healthy:
+        # Enhanced status determination with offline consideration
+        if tts_available and stt_available and offline_capable:
             health_status["overall_status"] = "optimal"
-            health_status["primary_service"] = "edge_tts + openai_whisper"
-            health_status["user_message"] = "🎉 Voice features are fully operational with high-quality TTS and STT!"
-        elif edge_healthy:
+            health_status["primary_service"] = "full_voice_with_offline"
+            health_status["user_message"] = "🎉 Voice services fully operational with offline capability - Perfect for remote RV travel!"
+        elif tts_available and stt_available:
             health_status["overall_status"] = "good"
-            health_status["primary_service"] = "edge_tts + browser_stt"
-            health_status["user_message"] = "✅ Voice features available with high-quality TTS and browser STT."
-        elif fallback_healthy and openai_stt_healthy:
-            health_status["overall_status"] = "good"
-            health_status["primary_service"] = "fallback_tts + openai_whisper"
-            health_status["user_message"] = "✅ Voice features available with system TTS and cloud STT."
-        elif openai_stt_healthy:
+            health_status["primary_service"] = "full_voice_online_only"
+            health_status["user_message"] = "✅ Voice services operational - Internet connectivity recommended for best experience"
+        elif tts_available or stt_available:
             health_status["overall_status"] = "limited"
-            health_status["primary_service"] = "text_only + openai_whisper"
-            health_status["user_message"] = "⚠️ Speech-to-text available, but TTS limited. Responses will be text-only."
+            health_status["primary_service"] = "partial_voice"
+            health_status["user_message"] = "⚠️ Voice services partially available - Check service configuration"
         else:
             health_status["overall_status"] = "minimal"
-            health_status["primary_service"] = "browser_only"
-            health_status["user_message"] = "⚠️ Limited voice features. Only browser-based speech recognition available."
+            health_status["primary_service"] = "text_only"
+            health_status["user_message"] = "❌ Voice services not available - Text-only mode"
+        
+        # Add specific recommendations for RV travelers
+        recommendations = []
+        if offline_capable:
+            recommendations.append("✅ Ready for remote areas without internet")
+        elif stt_available:
+            recommendations.append("📶 Internet connection recommended for voice features")
+        
+        cost_efficiency = health_status["cost_efficiency"]
+        if cost_efficiency.get("offline_savings", 0) > 0:
+            monthly_savings = cost_efficiency.get("monthly_savings_estimate", 0)
+            recommendations.append(f"💰 Local STT saving ~${monthly_savings:.2f}/month in API costs")
+        
+        health_status["recommendations"] = recommendations
         
         return health_status
         
     except Exception as e:
+        logger.error(f"Voice health check failed: {e}")
         health_status["overall_status"] = "error"
         health_status["error"] = str(e)
+        health_status["user_message"] = f"❌ Voice services error: {str(e)}"
         return health_status
 
 @app.post("/api/v1/pam/voice/test")
