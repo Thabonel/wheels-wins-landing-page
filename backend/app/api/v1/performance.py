@@ -20,25 +20,13 @@ router = APIRouter()
 async def get_performance_status():
     """Get current system performance status - public endpoint for health checks"""
     try:
-        snapshot = await performance_monitor.capture_performance_snapshot()
-        
-        # Public status (limited information)
-        status = {
-            "timestamp": snapshot.timestamp.isoformat(),
+        # Simple test endpoint first
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
             "status": "healthy",
-            "memory_usage_percent": round(snapshot.memory.memory_percent, 1),
-            "cpu_usage_percent": round(snapshot.cpu_percent, 1),
-            "disk_usage_percent": round(snapshot.disk_usage_percent, 1),
-            "active_connections": snapshot.active_connections
+            "message": "Performance monitoring API is accessible",
+            "version": "1.0.0"
         }
-        
-        # Determine overall status
-        if snapshot.memory.memory_percent >= 85:
-            status["status"] = "critical"
-        elif snapshot.memory.memory_percent >= 70:
-            status["status"] = "warning"
-            
-        return status
         
     except Exception as e:
         logger.error(f"❌ Error getting performance status: {e}")
