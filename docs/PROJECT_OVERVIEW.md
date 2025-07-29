@@ -4,53 +4,92 @@
 
 Wheels & Wins is a comprehensive travel planning and RV community platform that revolutionizes how travelers plan, manage, and share their adventures. Built with modern web technologies and AI integration, the platform combines intelligent trip planning, financial management, social networking, and voice-enabled AI assistance into a unified, mobile-optimized progressive web application.
 
+**Key Statistics:**
+- 50+ specialized components across 15 major feature areas
+- Multi-engine voice processing with 3-tier fallback system
+- Real-time WebSocket communication with PAM AI assistant
+- Progressive Web App with offline capabilities
+- Multi-service deployment architecture on Render + Netlify
+
 ### 🎯 Mission Statement
 To empower travelers and RV enthusiasts with intelligent tools, community connections, and AI-powered assistance that make every journey safer, more affordable, and more enjoyable.
 
 ## 🏗️ Architecture Overview
 
-### System Architecture
+### Comprehensive System Architecture
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │    Backend      │    │   External      │
-│   (React/TS)    │◄──►│   (FastAPI)     │◄──►│   Services      │
-│                 │    │                 │    │                 │
-│ • React 18      │    │ • Python 3.11   │    │ • Supabase      │
-│ • TypeScript    │    │ • FastAPI       │    │ • Mapbox        │
-│ • Vite          │    │ • PostgreSQL    │    │ • OpenAI        │
-│ • Tailwind      │    │ • Redis         │    │ • Edge TTS      │
-│ • PWA           │    │ • WebSocket     │    │ • AWS/Netlify   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
+│     Frontend        │    │      Backend        │    │   External Services │
+│   (React/TS/PWA)    │◄──►│   Multi-Service     │◄──►│   & Integrations    │
+│                     │    │   (FastAPI/Redis)   │    │                     │
+│ • React 18.3.1      │    │ • FastAPI Python    │    │ • Supabase DB       │
+│ • TypeScript (Dev)  │    │ • Redis Caching     │    │ • Mapbox GL JS      │
+│ • Vite 5.4.19       │    │ • PostgreSQL        │    │ • OpenAI GPT-4      │
+│ • Tailwind 3.4.11   │    │ • WebSocket         │    │ • Edge/Coqui TTS    │
+│ • Radix UI          │    │ • Celery Workers    │    │ • Whisper STT       │
+│ • PWA Manifest      │    │ • Background Tasks  │    │ • Sentry Monitoring │
+│ • Service Worker    │    │ • Scheduled Jobs    │    │ • YouTube API       │
+│ • Voice Processing  │    │ • Multi-TTS Engine  │    │ • NASA FIRMS        │
+│ • Offline Support   │    │ • Voice Pipeline    │    │ • NOAA Weather      │
+└─────────────────────┘    └─────────────────────┘    └─────────────────────┘
+│                                                                             │
+│                        🌐 Deployment Architecture                          │
+│                                                                             │
+┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
+│   Netlify CDN       │    │   Render Services   │    │   Supabase Cloud    │
+│                     │    │                     │    │                     │
+│ • Global CDN        │    │ • pam-backend       │    │ • PostgreSQL       │
+│ • Auto Deploy      │    │ • pam-redis         │    │ • Auth System       │
+│ • Edge Functions    │    │ • celery-worker     │    │ • Real-time         │
+│ • Build Pipeline    │    │ • celery-beat       │    │ • Row Level Sec     │
+│ • Environment Vars  │    │ • Health Monitoring │    │ • Edge Functions    │
+└─────────────────────┘    └─────────────────────┘    └─────────────────────┘
 ```
 
 ### Technology Stack
 
 #### Frontend Technologies
-- **React 18** + **TypeScript** - Modern React with strict typing
-- **Vite** - Lightning-fast build tool with optimized bundling
-- **Tailwind CSS** - Utility-first styling with responsive design
-- **Radix UI** - Accessible, unstyled component primitives
-- **Tanstack Query** - Powerful server state management
-- **Mapbox GL JS** - Interactive mapping and geospatial visualization
+- **React 18.3.1** + **TypeScript (Development Mode)** - Modern React with pragmatic typing
+  - `"strict": false` for rapid development iterations
+  - Type safety balanced with development velocity
+- **Vite 5.4.19** - Lightning-fast build tool with 12-chunk optimization strategy
+- **Tailwind CSS 3.4.11** - Utility-first styling with responsive design
+- **Radix UI Components** - 25+ accessible, unstyled component primitives
+- **Tanstack Query 5.80.10** - Powerful server state management
+- **Mapbox GL JS 3.11.1** - Interactive mapping and geospatial visualization
+- **Framer Motion** - Advanced animations and transitions
+- **PWA Capabilities** - Service worker, offline support, app manifest
 
 #### Backend Technologies
-- **FastAPI** - High-performance async Python web framework
-- **PostgreSQL** - Robust relational database via Supabase
-- **Redis** - In-memory caching and session management
-- **WebSocket** - Real-time bidirectional communication
-- **Celery** - Distributed task queue for background processing
+- **FastAPI (Python 3.11)** - High-performance async web framework
+- **PostgreSQL via Supabase** - Robust relational database with real-time features
+- **Redis** - In-memory caching, session management, and task queuing
+- **WebSocket** - Real-time bidirectional communication for PAM
+- **Celery** - Distributed task queue with worker and beat scheduler
+- **Multi-Engine Architecture** - Fallback systems for reliability
 
 #### AI & Voice Technologies
 - **OpenAI GPT-4** - Advanced language model for PAM conversations
-- **Edge TTS** - Microsoft's cloud-based text-to-speech
-- **Coqui TTS** - Open-source neural text-to-speech
-- **Web Speech API** - Browser-native speech recognition
+- **Multi-TTS Engine Stack**:
+  - **Edge TTS** (Primary) - Microsoft's cloud-based text-to-speech
+  - **Coqui TTS** (Secondary) - Open-source neural text-to-speech
+  - **System TTS** (Fallback) - pyttsx3 for offline capability
+- **Multi-STT Engine Stack**:
+  - **OpenAI Whisper** (Cloud) - High-accuracy transcription
+  - **Local Whisper** (Offline) - On-device processing
+  - **Web Speech API** (Browser) - Native browser speech recognition
+- **Voice Processing Pipeline** - Complete STT→LLM→TTS workflow
 
 #### Infrastructure & DevOps
-- **Netlify** - Frontend hosting with global CDN
-- **Render** - Containerized backend deployment
-- **Supabase** - Database, authentication, and real-time features
-- **GitHub Actions** - CI/CD pipeline with automated testing
+- **Netlify** - Frontend hosting with global CDN and edge functions
+- **Render Multi-Service**:
+  - Main backend service (pam-backend)
+  - Redis service (pam-redis)
+  - Celery worker (background processing)
+  - Celery beat (scheduled tasks)
+- **Supabase Cloud** - Database, authentication, and real-time features
+- **GitHub Actions** - CI/CD pipeline with automated testing and deployment
+- **Sentry** - Error monitoring and performance tracking
 
 ## 🚀 Core Features
 
@@ -182,35 +221,162 @@ To empower travelers and RV enthusiasts with intelligent tools, community connec
 
 ## 🔧 Development
 
-### 📁 Project Structure
+### 📁 Comprehensive Project Structure
+
+The project has evolved into a sophisticated multi-domain application with 15 major feature areas:
+
 ```
 wheels-wins-landing-page/
-├── src/                          # Frontend source code
-│   ├── components/              # React components
-│   │   ├── wheels/             # Trip planning features
-│   │   ├── wins/               # Financial management
-│   │   ├── social/             # Community features
-│   │   ├── pam/                # AI assistant
-│   │   └── ui/                 # Base UI components
-│   ├── pages/                  # Route components
-│   ├── hooks/                  # Custom React hooks
-│   ├── context/                # React context providers
-│   ├── services/               # API client services
-│   ├── utils/                  # Utility functions
-│   └── __tests__/              # Test suites
-├── backend/                     # Python backend
-│   ├── app/                    # FastAPI application
-│   │   ├── api/                # API route handlers
-│   │   ├── core/               # Configuration
-│   │   ├── models/             # Database models
-│   │   ├── services/           # Business logic
-│   │   └── workers/            # Background tasks
-│   ├── tests/                  # Backend tests
-│   └── requirements.txt        # Python dependencies
-├── docs/                       # Documentation
-├── e2e/                        # End-to-end tests
-└── public/                     # Static assets
+├── src/                                    # Frontend source code (50+ components)
+│   ├── components/                        # React components by feature domain
+│   │   ├── admin/                         # Admin dashboard & management
+│   │   │   ├── observability/            # Monitoring & diagnostics
+│   │   │   └── pam-analytics/            # PAM AI analytics
+│   │   ├── auth/                          # Authentication & security
+│   │   ├── common/                        # Shared components & error boundaries
+│   │   ├── community/                     # Community features
+│   │   ├── debug/                         # Development & debugging tools
+│   │   ├── editing/                       # Content editing workflows
+│   │   ├── header/                        # Navigation & user interface
+│   │   ├── knowledge/                     # Document management & PAM knowledge
+│   │   ├── news/                          # News aggregation & display
+│   │   ├── pam/                          # PAM AI integration provider
+│   │   ├── profile/                       # User profile management
+│   │   ├── safety/                        # Safety resources & information
+│   │   ├── settings/                      # User settings & preferences
+│   │   ├── shop/                          # E-commerce & marketplace
+│   │   ├── social/                        # Social networking & groups
+│   │   │   ├── groups/                   # Group management
+│   │   │   ├── hustle-board/             # Income idea sharing
+│   │   │   └── marketplace/              # User marketplace
+│   │   ├── subscription/                  # Billing & subscription management
+│   │   ├── ui/                           # Radix UI base components (25+ components)
+│   │   ├── voice/                        # Voice processing & AI integration
+│   │   ├── wheels/                       # Travel & trip planning
+│   │   │   ├── drawer-selector/          # RV storage management
+│   │   │   ├── storage/                  # Storage organization
+│   │   │   └── trip-planner/             # Advanced trip planning system
+│   │   ├── wins/                         # Financial management
+│   │   │   ├── budgets/                  # Budget tracking & management
+│   │   │   ├── expenses/                 # Expense tracking & categorization
+│   │   │   ├── income/                   # Income tracking & analytics
+│   │   │   ├── moneymaker/               # Income idea generation
+│   │   │   └── tips/                     # Financial tips & community sharing
+│   │   └── you/                          # Personal calendar & organization
+│   ├── pages/                            # Route components (20+ pages)
+│   ├── hooks/                            # Custom React hooks
+│   │   └── pam/                          # PAM-specific hooks
+│   ├── context/                          # React context providers
+│   ├── services/                         # API client services
+│   │   └── auth/                         # Authentication services
+│   ├── integrations/                     # External service integrations
+│   │   └── supabase/                     # Supabase client & types
+│   ├── lib/                              # Utility libraries
+│   │   └── pam/                          # PAM utility functions
+│   ├── types/                            # TypeScript type definitions
+│   ├── utils/                            # Utility functions
+│   ├── config/                           # Configuration files
+│   ├── __tests__/                        # Test suites
+│   │   ├── components/                   # Component tests
+│   │   │   ├── wheels/                   # Trip planner tests
+│   │   │   └── wins/                     # Financial management tests
+│   │   └── voice/                        # Voice system tests
+│   └── test/                             # Test utilities & setup
+├── backend/                              # Python FastAPI backend
+│   ├── app/                              # FastAPI application
+│   │   ├── main.py                       # Application entry point
+│   │   ├── api/                          # API route handlers
+│   │   │   ├── v1/                       # Versioned API endpoints (15+ routers)
+│   │   │   │   ├── pam.py                # PAM AI WebSocket & REST API
+│   │   │   │   ├── auth.py               # Authentication endpoints
+│   │   │   │   ├── voice.py              # Voice processing pipeline
+│   │   │   │   ├── tts.py                # Text-to-speech services
+│   │   │   │   ├── wheels.py             # Trip planning API
+│   │   │   │   ├── wins.py               # Financial management API
+│   │   │   │   ├── social.py             # Social features API
+│   │   │   │   ├── admin.py              # Admin management API
+│   │   │   │   └── ...                   # Additional API modules
+│   │   │   ├── websocket.py              # WebSocket handlers
+│   │   │   └── ...                       # Additional API modules
+│   │   ├── core/                         # Core configuration & infrastructure
+│   │   │   ├── config.py                 # Application configuration
+│   │   │   ├── database.py               # Database connections
+│   │   │   ├── websocket_manager.py      # WebSocket connection management
+│   │   │   ├── orchestrator.py           # PAM AI orchestration
+│   │   │   ├── middleware.py             # HTTP middleware
+│   │   │   ├── security.py               # Security & authentication
+│   │   │   └── ...                       # Additional core modules
+│   │   ├── models/                       # Data models & schemas
+│   │   │   ├── domain/                   # Business domain models
+│   │   │   └── schemas/                  # Pydantic schemas
+│   │   ├── services/                     # Business logic services
+│   │   │   ├── pam/                      # PAM AI service architecture
+│   │   │   │   ├── orchestrator.py       # AI orchestration logic
+│   │   │   │   ├── nodes/                # Domain-specific AI nodes
+│   │   │   │   ├── tools/                # PAM AI tools
+│   │   │   │   ├── mcp/                  # Model Context Protocol
+│   │   │   │   └── prompts/              # AI prompts & templates
+│   │   │   ├── tts/                      # Text-to-speech services
+│   │   │   │   ├── tts_service.py        # Multi-engine TTS coordinator
+│   │   │   │   ├── edge_tts.py           # Microsoft Edge TTS
+│   │   │   │   ├── coqui_tts_engine.py   # Coqui TTS integration
+│   │   │   │   └── fallback_tts.py       # System TTS fallback
+│   │   │   ├── voice/                    # Voice processing pipeline
+│   │   │   ├── analytics/                # Analytics & insights
+│   │   │   ├── knowledge/                # Knowledge management
+│   │   │   └── ...                       # Additional service modules
+│   │   ├── workers/                      # Background task workers
+│   │   │   ├── celery.py                 # Celery configuration
+│   │   │   └── tasks/                    # Background task definitions
+│   │   ├── tasks/                        # Scheduled tasks
+│   │   ├── monitoring/                   # Performance monitoring
+│   │   ├── observability/                # OpenTelemetry & tracing
+│   │   ├── guardrails/                   # AI safety & content moderation
+│   │   └── webhooks/                     # External service webhooks
+│   ├── tests/                            # Backend test suites
+│   │   ├── api/                          # API endpoint tests
+│   │   ├── unit/                         # Unit tests
+│   │   └── integration/                  # Integration tests
+│   ├── scripts/                          # Utility scripts
+│   ├── docs/                             # Backend-specific documentation
+│   ├── monitoring/                       # Monitoring configuration
+│   │   ├── grafana/                      # Grafana dashboards
+│   │   └── prometheus/                   # Prometheus configuration
+│   ├── requirements.txt                  # Python dependencies
+│   ├── requirements-core.txt             # Core stable dependencies
+│   ├── requirements-optional.txt         # Optional feature dependencies
+│   ├── Dockerfile                        # Container configuration
+│   ├── render.backend.yaml               # Render deployment config
+│   └── setup_tts.py                      # TTS system initialization
+├── docs/                                 # Comprehensive documentation
+│   ├── features/                         # Feature-specific documentation
+│   ├── guides/                           # Development & user guides
+│   │   ├── development/                  # Development workflows
+│   │   ├── setup/                        # Setup & installation
+│   │   ├── troubleshooting/              # Common issues & solutions
+│   │   └── user-guides/                  # End-user documentation
+│   ├── deployment/                       # Deployment & infrastructure
+│   └── technical/                        # Technical architecture docs
+├── e2e/                                  # Playwright end-to-end tests
+├── public/                               # Static assets & PWA manifest
+├── scripts/                              # Build & development scripts
+├── .github/                              # GitHub Actions workflows
+├── netlify.toml                          # Netlify deployment configuration
+├── vite.config.ts                        # Vite build configuration
+├── vitest.config.ts                      # Test configuration
+├── playwright.config.ts                  # E2E test configuration
+└── package.json                          # Frontend dependencies & scripts
 ```
+
+### Key Architecture Insights
+
+1. **Domain-Driven Design**: Components organized by business domain (wheels, wins, social, pam, etc.)
+2. **Feature Completeness**: Each domain has full CRUD operations, UI components, and API integration
+3. **Voice Integration**: Sophisticated voice processing with fallback systems across multiple components
+4. **Admin Capabilities**: Complete admin dashboard with analytics, user management, and system monitoring
+5. **Testing Coverage**: Comprehensive test structure covering unit, integration, and E2E testing
+6. **Multi-Service Backend**: Complex backend with specialized services for different domains
+7. **Real-time Features**: WebSocket-based real-time communication throughout the application
 
 ### 🧪 Testing Strategy
 - **Unit Tests**: 80%+ coverage with Vitest
