@@ -23,7 +23,7 @@ from app.core.logging import get_logger
 logger = get_logger("api.deps")
 
 # Security scheme
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)  # Don't auto-error for missing auth
 
 
 # Models
@@ -114,7 +114,8 @@ def verify_jwt_token(
 
 
 def verify_supabase_jwt_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Dict[str, Any]:
     """
     Verify Supabase JWT token and return payload
@@ -124,7 +125,14 @@ def verify_supabase_jwt_token(
     - Refresh tokens are long-lived (stored securely)
     - Frontend handles automatic token refresh
     - We just need to validate the current access token
+    
+    CORS Support: Skips authentication for OPTIONS preflight requests
     """
+    # Handle CORS preflight requests (OPTIONS) - these don't need authentication
+    if request.method == "OPTIONS":
+        logger.debug("🔍 Skipping authentication for OPTIONS preflight request")
+        return {"user_id": "anonymous", "method": "OPTIONS"}
+    
     try:
         if not credentials or not credentials.credentials:
             logger.error("🔐 No credentials provided")

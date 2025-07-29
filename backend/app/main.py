@@ -367,6 +367,9 @@ cors_origins.extend([
     "https://www.wheelsandwins.com",
     "https://wheelz-wins.com",
     "https://www.wheelz-wins.com",
+    # Current Netlify deployment
+    "https://wheels-wins-landing-page.netlify.app",
+    "https://65a8f6b6c9f5d2092be8bfc2--wheels-wins-landing-page.netlify.app",
 ])
 
 # Lovable.app development platform origins 
@@ -454,6 +457,10 @@ app.add_middleware(
         "Origin",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers",
+        "Cache-Control",
+        "Pragma",
+        "X-Supabase-Auth",
+        "apikey",
         "X-CSRF-Token",
     ],  # Specific headers only
     expose_headers=[
@@ -497,6 +504,35 @@ async def cors_debug_info(request: Request):
         "total_origins": len(cors_origins),
         "help": "Use this endpoint to verify if your frontend origin is in the CORS allow list"
     }
+
+# Enhanced CORS debugging for OPTIONS requests
+@app.middleware("http")
+async def cors_debug_middleware(request: Request, call_next):
+    """Debug middleware to log CORS issues"""
+    if request.method == "OPTIONS":
+        origin = request.headers.get("origin", "No origin")
+        path = request.url.path
+        logger.info(f"🔍 OPTIONS request: {path} from origin: {origin}")
+        logger.info(f"🔍 Headers: {dict(request.headers)}")
+        
+        # Check if origin is in our CORS list
+        if origin != "No origin":
+            is_allowed = origin in cors_origins
+            logger.info(f"🔍 Origin allowed: {is_allowed}")
+            if not is_allowed:
+                logger.warning(f"⚠️ Origin {origin} not in CORS origins list")
+                logger.info(f"🔍 Configured origins: {cors_origins}")
+    
+    response = await call_next(request)
+    
+    # Log response for OPTIONS requests
+    if request.method == "OPTIONS":
+        logger.info(f"🔍 OPTIONS response status: {response.status_code}")
+        if hasattr(response, 'headers'):
+            cors_headers = {k: v for k, v in response.headers.items() if 'access-control' in k.lower()}
+            logger.info(f"🔍 CORS headers in response: {cors_headers}")
+    
+    return response
 
 
 # The CORSMiddleware added above automatically handles all CORS preflight
