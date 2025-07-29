@@ -229,25 +229,19 @@ async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, 
 async def chat_endpoint(
     request: ChatRequest,
     orchestrator = Depends(get_pam_orchestrator),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    current_user: dict = Depends(verify_supabase_jwt_token),
     # _rate_limit = Depends(apply_rate_limit("chat", 30, 60))  # Disabled for now
 ):
-    """Process a chat message via REST API - supports both header and body-based JWT auth"""
+    """Process a chat message via REST API - uses standard JWT auth with OPTIONS support"""
     try:
         start_time = datetime.utcnow()
         
-        # WORKAROUND: Handle both Authorization header and body-based JWT token
-        # This allows us to bypass Render.com's header size limits
-        from app.api.deps import verify_token_from_request_or_header
+        # Handle OPTIONS preflight - should not reach here but add safety check
+        if current_user.get("method") == "OPTIONS":
+            return {"message": "OPTIONS handled"}
         
-        # Convert request to dict for token verification
-        request_dict = request.dict()
-        
-        # Verify authentication using flexible method
-        token_payload = verify_token_from_request_or_header(request_dict, credentials)
-        
-        # Get user_id from token payload
-        user_id = token_payload.get("sub")
+        # Get user_id from validated token payload
+        user_id = current_user.get("sub")
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
         

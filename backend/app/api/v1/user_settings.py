@@ -17,6 +17,10 @@ async def get_user_settings(
     current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """Get user settings - matches frontend useUserSettings.ts expectation"""
+    # Handle OPTIONS preflight - should not reach here but add safety check
+    if current_user.get("method") == "OPTIONS":
+        return {"message": "OPTIONS handled"}
+    
     # Verify user can only access their own settings
     if current_user.get('sub') != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -32,6 +36,10 @@ async def update_user_settings(
     current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """Update user settings - matches frontend useUserSettings.ts expectation"""
+    # Handle OPTIONS preflight - should not reach here but add safety check
+    if current_user.get("method") == "OPTIONS":
+        return {"message": "OPTIONS handled"}
+    
     # Verify user can only update their own settings
     if current_user.get('sub') != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -46,6 +54,10 @@ async def create_user_settings(
     current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """Create default settings for user"""
+    # Handle OPTIONS preflight - should not reach here but add safety check
+    if current_user.get("method") == "OPTIONS":
+        return {"message": "OPTIONS handled"}
+    
     # Verify user can only create their own settings
     if current_user.get('sub') != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
