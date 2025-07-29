@@ -143,7 +143,11 @@ class ConnectionManager:
                     time_since_ping = current_time - metadata["last_ping"]
                     if time_since_ping >= self.heartbeat_interval:
                         try:
-                            await websocket.ping()
+                            # FastAPI WebSocket doesn't have ping(), use JSON message instead
+                            await websocket.send_json({
+                                "type": "ping",
+                                "timestamp": current_time
+                            })
                             metadata["last_ping"] = current_time
                             logger.debug(f"💓 Sent ping to {connection_id}")
                         except Exception as e:

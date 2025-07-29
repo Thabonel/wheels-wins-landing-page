@@ -20,6 +20,7 @@ import psutil
 from app.core.logging import get_logger
 from app.services.sentry_service import sentry_service
 from app.monitoring.metrics_cache import metrics_cache
+from app.monitoring.memory_optimizer import memory_optimizer
 
 logger = get_logger(__name__)
 
@@ -81,7 +82,7 @@ class ProductionMonitor:
         self.start_time = time.time()
         self.error_buffer: List[ErrorContext] = []
         self.performance_buffer: List[PerformanceMetrics] = []
-        self.max_buffer_size = 1000
+        self.max_buffer_size = 500  # Reduced from 1000 to save memory
         self.alert_thresholds = {
             "error_rate_5min": 10,  # errors per 5 minutes
             "avg_response_time_ms": 2000,  # 2 seconds
@@ -102,6 +103,9 @@ class ProductionMonitor:
         # Start metrics cache
         await metrics_cache.start()
         
+        # Start memory optimizer
+        await memory_optimizer.start()
+        
         # Start background tasks
         asyncio.create_task(self._system_health_monitor())
         asyncio.create_task(self._buffer_cleanup_task())
@@ -115,6 +119,9 @@ class ProductionMonitor:
         
         # Stop metrics cache
         await metrics_cache.stop()
+        
+        # Stop memory optimizer
+        await memory_optimizer.stop()
         
         logger.info("🛑 Production monitoring system stopped")
     

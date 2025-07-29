@@ -14,6 +14,7 @@ import time
 from app.services.monitoring_service import get_monitoring_service, MonitoringService
 from app.services.sentry_service import get_sentry_service, SentryService
 from app.monitoring.production_monitor import get_production_monitor, ProductionMonitor
+from app.monitoring.memory_optimizer import get_memory_optimizer, MemoryOptimizer
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -466,3 +467,29 @@ async def get_alert_status(monitor: ProductionMonitor = Depends(get_production_m
             "last_check": datetime.utcnow().isoformat(),
             "error": "Unable to retrieve alert status"
         }
+
+
+@router.get("/memory")
+async def get_memory_statistics(optimizer: MemoryOptimizer = Depends(get_memory_optimizer)):
+    """Get detailed memory usage statistics and optimization status."""
+    try:
+        return await optimizer.get_memory_stats()
+    except Exception as e:
+        logger.error(f"Error getting memory statistics: {e}")
+        raise HTTPException(status_code=500, detail="Unable to retrieve memory statistics")
+
+
+@router.post("/memory/optimize")
+async def trigger_memory_optimization(optimizer: MemoryOptimizer = Depends(get_memory_optimizer)):
+    """Manually trigger memory optimization."""
+    try:
+        await optimizer._optimize_memory()
+        stats = await optimizer.get_memory_stats()
+        return {
+            "message": "Memory optimization completed",
+            "timestamp": datetime.utcnow().isoformat(),
+            "memory_stats": stats
+        }
+    except Exception as e:
+        logger.error(f"Error during memory optimization: {e}")
+        raise HTTPException(status_code=500, detail="Memory optimization failed")

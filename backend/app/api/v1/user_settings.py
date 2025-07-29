@@ -9,7 +9,11 @@ from app.api.deps import verify_supabase_jwt_token
 
 router = APIRouter()
 
-# OPTIONS handlers removed - using global OPTIONS handler in main.py
+# Handle OPTIONS for user settings endpoints explicitly
+@router.options("/users/{user_id}/settings")
+async def user_settings_options(user_id: str):
+    """Handle CORS preflight for user settings endpoints"""
+    return {"message": "CORS preflight handled"}
 
 @router.get("/users/{user_id}/settings")
 async def get_user_settings(

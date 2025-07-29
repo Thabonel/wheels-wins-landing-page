@@ -89,6 +89,7 @@ async def websocket_endpoint(
             elif data.get("type") == "pong":
                 # Handle pong response for heartbeat monitoring
                 await manager.handle_pong(connection_id)
+                logger.debug(f"💓 Received pong from {connection_id}")
                 
             elif data.get("type") == "chat":
                 await handle_websocket_chat(websocket, data, user_id, orchestrator)
@@ -223,6 +224,12 @@ async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, 
         })
 
 # OPTIONS handlers removed - using global OPTIONS handler in main.py
+
+# Handle OPTIONS for chat endpoint explicitly
+@router.options("/chat")
+async def chat_options():
+    """Handle CORS preflight for chat endpoint"""
+    return {"message": "CORS preflight handled"}
 
 # REST Chat endpoint
 @router.post("/chat", response_model=ChatResponse)
