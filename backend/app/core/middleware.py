@@ -92,7 +92,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
             
             # Cache successful responses
             if response.status_code == 200:
-                # Read response content
+                # Read response content safely
                 response_body = b""
                 async for chunk in response.body_iterator:
                     response_body += chunk
@@ -106,11 +106,16 @@ class CacheMiddleware(BaseHTTPMiddleware):
                 
                 await cache.set(cache_key, cache_data, ttl=self.cache_ttl)
                 
-                # Return response with cache header
+                # Create new response with proper headers (let FastAPI set Content-Length)
+                new_headers = dict(response.headers)
+                new_headers["X-Cache"] = "MISS"
+                # Remove Content-Length to let FastAPI calculate it correctly
+                new_headers.pop("content-length", None)
+                
                 response = Response(
                     content=response_body,
                     status_code=response.status_code,
-                    headers=dict(response.headers, **{"X-Cache": "MISS"})
+                    headers=new_headers
                 )
                 
                 logger.debug(f"Response cached for {request.url.path}")
@@ -149,28 +154,31 @@ class CompressionMiddleware(BaseHTTPMiddleware):
             # Don't compress streaming responses
             return response
         
-        # Read response body
+        # Read response body safely
         response_body = b""
         async for chunk in response.body_iterator:
             response_body += chunk
         
         # Check minimum size
         if len(response_body) < self.minimum_size:
+            # Remove Content-Length to let FastAPI calculate it correctly
+            new_headers = dict(response.headers)
+            new_headers.pop("content-length", None)
             return Response(
                 content=response_body,
                 status_code=response.status_code,
-                headers=response.headers
+                headers=new_headers
             )
         
         # Compress content
         compressed_body = gzip.compress(response_body)
         
-        # Update headers
+        # Update headers - remove original Content-Length to prevent mismatches
         headers = dict(response.headers)
         headers["Content-Encoding"] = "gzip"
-        # Remove manual Content-Length setting - let FastAPI/Starlette handle it automatically
-        # headers["Content-Length"] = str(len(compressed_body))  # This causes Content-Length mismatches
         headers["Vary"] = "Accept-Encoding"
+        # Remove Content-Length to let FastAPI/Starlette calculate it automatically
+        headers.pop("content-length", None)
         
         logger.debug(f"Response compressed: {len(response_body)} -> {len(compressed_body)} bytes "
                     f"({(1 - len(compressed_body) / len(response_body)) * 100:.1f}% reduction)")
