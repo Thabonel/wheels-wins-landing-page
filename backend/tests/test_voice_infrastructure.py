@@ -16,7 +16,7 @@ import io
 from app.services.stt.multi_engine_stt import (
     MultiEngineSTTService, 
     OpenAIWhisperEngine, 
-    LocalWhisperEngine,
+    # LocalWhisperEngine removed for memory optimization
     STTResult,
     STTEngine,
     STTQuality
@@ -53,13 +53,12 @@ class TestMultiEngineSTTService:
             mock_openai.is_available = True
             mock_openai.is_initialized = True
             
-            mock_local = Mock(spec=LocalWhisperEngine)
-            mock_local.is_available = True
-            mock_local.is_initialized = True
+            # Local Whisper removed for memory optimization
+            # Using simplified 2-tier system: OpenAI Whisper + Browser WebSpeech
             
             service.engines = {
                 STTEngine.OPENAI_WHISPER: mock_openai,
-                STTEngine.LOCAL_WHISPER: mock_local
+                # STTEngine.LOCAL_WHISPER removed
             }
             
             return service
@@ -69,9 +68,8 @@ class TestMultiEngineSTTService:
         """Test STT service initializes correctly"""
         service = MultiEngineSTTService()
         
-        # Mock successful initialization
-        with patch.object(OpenAIWhisperEngine, 'initialize', return_value=True), \
-             patch.object(LocalWhisperEngine, 'initialize', return_value=True):
+        # Mock successful initialization (Local Whisper removed for memory optimization)
+        with patch.object(OpenAIWhisperEngine, 'initialize', return_value=True):
             
             result = await service.initialize()
             

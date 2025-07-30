@@ -105,72 +105,9 @@ class BrowserWebSpeechSTT(BaseSpeechToText):
         """Browser Web Speech API availability"""
         return True
 
-class LocalWhisperSTT(BaseSpeechToText):
-    """Local Whisper model for offline usage"""
-    
-    def __init__(self):
-        self.model = None
-        self.is_initialized = False
-    
-    async def initialize(self):
-        """Initialize local Whisper model with memory-optimized settings"""
-        try:
-            # Check if local Whisper is disabled for memory conservation
-            if os.getenv('DISABLE_LOCAL_WHISPER', 'false').lower() == 'true':
-                logger.info("🚫 Local Whisper disabled via environment variable (memory conservation)")
-                return False
-                
-            import whisper
-            
-            # Use tiny model for production deployments with memory constraints
-            # Options: tiny (~39MB), base (~74MB), small (~244MB), medium (~769MB), large (~1550MB)
-            model_size = getattr(settings, 'LOCAL_WHISPER_MODEL', 'tiny')
-            
-            logger.info(f"🔄 Loading local Whisper model '{model_size}' for memory-optimized deployment...")
-            
-            # Load model asynchronously to avoid blocking startup
-            import asyncio
-            loop = asyncio.get_event_loop()
-            
-            self.model = await loop.run_in_executor(
-                None, 
-                whisper.load_model, 
-                model_size
-            )
-            
-            self.is_initialized = True
-            logger.info(f"✅ Local Whisper STT initialized with {model_size} model")
-            return True
-            
-        except ImportError:
-            logger.warning("⚠️ Whisper library not installed for local STT")
-            return False
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize local Whisper: {e}")
-            return False
-    
-    async def transcribe(self, audio_data: bytes) -> Optional[str]:
-        """Transcribe audio using local Whisper model"""
-        if not self.is_initialized or not self.model:
-            return None
-        
-        try:
-            # Create temporary audio file
-            with tempfile.NamedTemporaryFile(suffix=".wav") as temp_file:
-                temp_file.write(audio_data)
-                temp_file.flush()
-                
-                # Transcribe using local Whisper
-                result = self.model.transcribe(temp_file.name)
-                return result["text"].strip() if result.get("text") else None
-                
-        except Exception as e:
-            logger.error(f"❌ Local Whisper transcription failed: {e}")
-            return None
-    
-    async def is_available(self) -> bool:
-        """Check if local Whisper is available"""
-        return self.is_initialized and self.model is not None
+# Local Whisper completely removed for memory optimization
+# Using 2-tier STT system: OpenAI Whisper (cloud) + Browser WebSpeech (fallback)
+# This eliminates 72MB+ memory usage and simplifies the architecture
 
 class SpeechToTextService:
     """Manages multiple STT providers with fallback support"""
@@ -199,22 +136,16 @@ class SpeechToTextService:
         try:
             logger.info("🎤 Initializing Speech-to-Text Service...")
             
-            # Initialize providers in order of preference
+            # Initialize providers in order of preference (2-tier system)
+            # Local Whisper removed for memory optimization (eliminates 72MB+ usage)
             providers_to_init = [
                 ("openai_whisper", OpenAIWhisperSTT()),
-                ("local_whisper", LocalWhisperSTT()),
                 ("browser_webspeech", BrowserWebSpeechSTT())
             ]
             
             available_providers = []
             
             for name, provider in providers_to_init:
-                if name == "local_whisper":
-                    # Initialize local whisper in background to avoid blocking startup
-                    asyncio.create_task(self._initialize_local_whisper_background(name, provider))
-                    logger.info("🔄 Local Whisper STT initialization started in background")
-                    continue
-                
                 if hasattr(provider, 'initialize'):
                     success = await provider.initialize()
                 else:
@@ -225,17 +156,16 @@ class SpeechToTextService:
                     available_providers.append(name)
                     logger.info(f"✅ STT Provider {name} initialized")
             
-            # Set primary provider (prefer OpenAI Whisper)
+            # Set primary provider (OpenAI Whisper with Browser WebSpeech fallback)
             if "openai_whisper" in self.providers:
                 self.primary_provider = self.providers["openai_whisper"]
                 self.fallback_providers = [p for name, p in self.providers.items() if name != "openai_whisper"]
-            elif "local_whisper" in self.providers:
-                self.primary_provider = self.providers["local_whisper"]
-                self.fallback_providers = [p for name, p in self.providers.items() if name != "local_whisper"]
+                logger.info("🎤 Primary STT: OpenAI Whisper (cloud) → Browser WebSpeech (fallback)")
             elif self.providers:
                 provider_name = list(self.providers.keys())[0]
                 self.primary_provider = self.providers[provider_name]
                 self.fallback_providers = []
+                logger.info(f"🎤 Primary STT: {provider_name} (fallback mode)")
             
             if self.primary_provider:
                 self.is_initialized = True
@@ -249,47 +179,9 @@ class SpeechToTextService:
             logger.error(f"❌ Failed to initialize STT Service: {e}")
             return False
     
-    async def _initialize_local_whisper_background(self, name: str, provider: LocalWhisperSTT):
-        """Initialize local whisper in background to avoid blocking startup"""
-        try:
-            logger.info("🔄 Starting background initialization of Local Whisper...")
-            
-            # Wait a bit to let the main app finish startup
-            await asyncio.sleep(2)
-            
-            success = await provider.initialize()
-            
-            if success:
-                self.providers[name] = provider
-                logger.info("✅ Local Whisper STT initialized successfully in background")
-                
-                # Update primary provider if we don't have one or if this is preferred
-                if not self.primary_provider or name == "local_whisper":
-                    # Re-evaluate provider priority
-                    await self._update_provider_priority()
-            else:
-                logger.warning("⚠️ Local Whisper STT background initialization failed")
-                
-        except Exception as e:
-            logger.error(f"❌ Local Whisper background initialization error: {e}")
+    # Local Whisper background initialization removed (memory optimization)
     
-    async def _update_provider_priority(self):
-        """Update provider priority after background initialization"""
-        try:
-            # Re-set primary provider with updated providers
-            if "openai_whisper" in self.providers:
-                self.primary_provider = self.providers["openai_whisper"]
-                self.fallback_providers = [p for name, p in self.providers.items() if name != "openai_whisper"]
-                logger.info("🎤 Primary STT: OpenAI Whisper (cloud)")
-            elif "local_whisper" in self.providers:
-                self.primary_provider = self.providers["local_whisper"]
-                self.fallback_providers = [p for name, p in self.providers.items() if name != "local_whisper"]
-                logger.info("🎤 Primary STT: Local Whisper (offline)")
-            
-            self.is_initialized = True
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to update STT provider priority: {e}")
+    # Provider priority update removed (simplified 2-tier system)
     
     async def transcribe(self, audio_data: bytes, provider: Optional[str] = None) -> Optional[str]:
         """Transcribe audio data to text with performance monitoring"""

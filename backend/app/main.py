@@ -407,14 +407,16 @@ async def root():
         "updated": "2025-07-30T11:15:00Z",
         "optimizations": [
             "Memory optimizer removed (was causing 877MB → expect 400-500MB)",
-            "Local Whisper downloads disabled" if os.getenv('DISABLE_LOCAL_WHISPER', 'false').lower() == 'true' else "Local Whisper enabled",
+            "Local Whisper completely removed (eliminates 72MB+ model downloads)",
+            "Simplified 2-tier STT: OpenAI Whisper (cloud) + Browser WebSpeech (fallback)",
             "Python's built-in garbage collection active",
             "Lightweight monitoring enabled"
         ],
         "memory_conservation": {
-            "local_whisper_disabled": os.getenv('DISABLE_LOCAL_WHISPER', 'false').lower() == 'true',
-            "memory_optimizer_status": "removed",
-            "expected_memory_reduction": "45-65%"
+            "local_whisper_status": "completely_removed",
+            "memory_optimizer_status": "removed", 
+            "stt_architecture": "2-tier (cloud + browser fallback)",
+            "expected_memory_reduction": "60-70% (from 885MB to 400-500MB)"
         }
     }
 
