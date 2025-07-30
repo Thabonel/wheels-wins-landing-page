@@ -2,16 +2,16 @@
 # Updated versions to resolve cryptography and PyTorch deprecation warnings
 
 # Core FastAPI and ASGI server
-fastapi==0.118.0
+fastapi==0.116.1
 uvicorn[standard]==0.37.0
 
 # Data validation and settings
-pydantic==2.13.0
-pydantic-settings==2.5.0
+pydantic==2.10.3
+pydantic-settings==2.7.0
 
 # Authentication and security - UPDATED TO ADDRESS CRYPTOGRAPHY WARNINGS
 PyJWT[crypto]==2.11.0
-cryptography==46.0.1  # Updated to address ARC4, Blowfish, CAST5, IDEA, SEED, TripleDES warnings
+cryptography==43.0.3  # Updated to address deprecation warnings
 email-validator==2.4.0
 passlib[bcrypt]==1.7.4
 
@@ -37,9 +37,9 @@ click==8.2.1
 edge-tts==6.2.1
 
 # Essential monitoring
-structlog==25.4.0
-python-json-logger==3.4.0
-sentry-sdk[fastapi]==2.40.0
+structlog==24.5.0
+python-json-logger==2.0.7
+sentry-sdk[fastapi]==2.20.0
 
 # CORS handling
 fastapi-cors==0.0.8
@@ -81,7 +81,7 @@ neo4j>=5.26.0,<6.0.0
 textstat==0.7.7
 
 # Audio processing - UPDATED TO RESOLVE TORCH DEPRECATION
-openai-whisper>=20241226
+openai-whisper>=20231117
 
 # Optional TTS with updated dependencies
 # TTS>=0.24.0  # Commented until PyTorch compatibility is resolved
