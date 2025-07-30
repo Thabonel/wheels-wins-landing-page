@@ -501,3 +501,233 @@ This project represents a mature, production-ready application with comprehensiv
 4. **Code Quality**: Maintain high standards with automated semantic analysis
 
 All systems are now stable and optimized for rapid, AI-assisted development using the Serena MCP server integration.
+
+---
+
+## MCP Server Configuration
+
+### Overview
+The Wheels & Wins project uses Model Context Protocol (MCP) servers to provide Claude Code with direct access to development tools and services. Three MCP servers are configured for enhanced development capabilities:
+
+1. **Supabase MCP Server** - Direct database operations and SQL execution
+2. **Serena MCP Server** - Semantic code analysis and intelligent editing
+3. **Render.com MCP Server** - Deployment management and monitoring
+
+### Configuration Files
+
+#### Claude Desktop Configuration
+**File**: `~/.config/claude-desktop/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena-mcp-server",
+        "--project",
+        "/Users/thabonel/Documents/Wheels and Wins/wheels-wins-landing-page",
+        "--context",
+        "desktop-app",
+        "--mode",
+        "interactive,editing",
+        "--log-level",
+        "INFO"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/Users/thabonel/.cache/uv"
+      }
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "@supabase/mcp-server-supabase"
+      ],
+      "env": {
+        "SUPABASE_URL": "https://kycoklimpzkyrecbjecn.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "YOUR_SERVICE_ROLE_KEY"
+      }
+    },
+    "render": {
+      "command": "npx",
+      "args": [
+        "@render/mcp-server"
+      ],
+      "env": {
+        "RENDER_API_KEY": "YOUR_RENDER_API_KEY"
+      }
+    }
+  },
+  "globalShortcut": "Cmd+Shift+Enter"
+}
+```
+
+#### Claude Code CLI Configuration
+**File**: `~/.config/claude-code/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "@supabase/mcp-server-supabase"
+      ],
+      "env": {
+        "SUPABASE_URL": "https://kycoklimpzkyrecbjecn.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "YOUR_SERVICE_ROLE_KEY"
+      }
+    }
+  }
+}
+```
+
+### MCP Server Capabilities
+
+#### 🗄️ Supabase MCP Server
+**Purpose**: Direct database operations and SQL execution
+**Key Features**:
+- Execute SQL queries directly against the Supabase database
+- Create and modify database tables, indexes, and constraints
+- Manage Row Level Security (RLS) policies
+- Handle database migrations and schema changes
+- Monitor database performance and usage
+
+**Common Use Cases**:
+- Fixing database issues and RLS policies
+- Creating missing tables and columns
+- Running database migrations
+- Debugging SQL queries and performance issues
+- Managing user settings and permissions
+
+**Setup Requirements**:
+- Supabase project URL
+- Service role key with database admin permissions
+- `@supabase/mcp-server-supabase` package
+
+#### 🧠 Serena MCP Server  
+**Purpose**: Semantic code analysis and intelligent editing
+**Key Features**:
+- Semantic understanding of TypeScript/React codebase
+- Intelligent code refactoring and modifications
+- Symbol search and reference finding
+- Context-aware code generation
+- Memory system for development context
+
+**Available Tools (30+)**:
+- 🔍 **Semantic Search**: `find_symbol`, `find_referencing_symbols`, `get_symbols_overview`
+- 📝 **Intelligent Editing**: `replace_symbol_body`, `insert_after_symbol`, `insert_before_symbol`
+- 📁 **File Operations**: `read_file`, `create_text_file`, `list_dir`, `find_file`
+- 🧠 **Memory System**: `write_memory`, `read_memory`, `list_memories`
+- ⚙️ **Execution**: `execute_shell_command`, `restart_language_server`
+- 📊 **Analysis**: `search_for_pattern`, `replace_regex`
+
+**Configuration Files**:
+- `~/.serena/serena_config.yml` - Serena settings and project registration
+- `./test-serena.sh` - Test script for manual server startup
+
+**Web Dashboard**: Available at `http://localhost:24282/dashboard/`
+
+#### ☁️ Render.com MCP Server
+**Purpose**: Deployment management and monitoring
+**Key Features**:
+- Monitor deployment status and health
+- Access deployment logs and metrics
+- Manage environment variables
+- Trigger deployments and rollbacks
+- Monitor service performance
+
+**Common Use Cases**:
+- Checking backend deployment status
+- Accessing production logs for debugging
+- Managing environment variables
+- Monitoring service health and performance
+- Triggering deployments and rollbacks
+
+**Setup Requirements**:
+- Render.com API key
+- `@render/mcp-server` package
+- Configured services in Render.com dashboard
+
+### Setup Instructions
+
+#### Initial Setup
+1. **Install MCP Server Packages**:
+   ```bash
+   # Supabase MCP Server
+   npm install -g @supabase/mcp-server-supabase
+   
+   # Serena MCP Server (via uvx)
+   uvx --from git+https://github.com/oraios/serena serena-mcp-server --help
+   
+   # Render MCP Server
+   npm install -g @render/mcp-server
+   ```
+
+2. **Configure Environment Variables**:
+   - Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for Supabase
+   - Set `RENDER_API_KEY` for Render.com
+   - Configure project paths for Serena
+
+3. **Update Configuration Files**:
+   - Add MCP server configurations to Claude Desktop and Claude Code configs
+   - Ensure correct paths and environment variables
+
+#### Restart Required
+After making configuration changes, restart Claude Desktop or Claude Code CLI:
+```bash
+# For Claude Desktop - quit and relaunch the application
+# For Claude Code CLI - restart the session
+```
+
+### Development Workflow Integration
+
+#### Database Operations
+Use Supabase MCP server for:
+- Fixing "Failed to load settings" errors
+- Creating missing database tables
+- Updating RLS policies
+- Running database migrations
+- Performance monitoring
+
+#### Code Development  
+Use Serena MCP server for:
+- Semantic code search and navigation
+- Intelligent refactoring across components
+- Type-safe code modifications
+- Understanding component relationships
+- Context-aware code generation
+
+#### Deployment Management
+Use Render MCP server for:
+- Monitoring production deployments
+- Accessing backend service logs
+- Managing environment configurations
+- Performance monitoring
+- Deployment troubleshooting
+
+### Troubleshooting
+
+#### MCP Server Not Working
+1. **Check Configuration**: Verify JSON syntax in config files
+2. **Environment Variables**: Ensure all required env vars are set
+3. **Package Installation**: Verify MCP packages are installed globally
+4. **Restart Required**: Restart Claude Desktop/CLI after config changes
+5. **Log Inspection**: Check MCP server logs for error messages
+
+#### Common Issues
+- **Permission Denied**: Check API keys and service role permissions
+- **Connection Timeout**: Verify network connectivity and API endpoints
+- **Invalid Configuration**: Validate JSON syntax and required fields
+- **Package Not Found**: Reinstall MCP server packages
+
+### Setup Complete! ✅
+
+All three MCP servers are now configured and ready for use:
+- 🗄️ **Supabase**: Direct database access and SQL execution
+- 🧠 **Serena**: Semantic code analysis and intelligent editing  
+- ☁️ **Render**: Deployment monitoring and management
+
+This powerful combination enables rapid, AI-assisted development with direct access to database operations, intelligent code analysis, and deployment management capabilities.
