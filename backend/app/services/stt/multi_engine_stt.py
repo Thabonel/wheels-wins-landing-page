@@ -199,122 +199,9 @@ class OpenAIWhisperEngine(STTEngineBase):
         else:
             return STTQuality.LOW
 
-class LocalWhisperEngine(STTEngineBase):
-    """Local Whisper engine for offline processing with memory optimization"""
-    
-    def __init__(self):
-        super().__init__(STTEngine.LOCAL_WHISPER)
-        self.model = None
-        # Use memory-optimized model size for production deployments
-        # Options: tiny (~39MB), base (~74MB), small (~244MB), medium (~769MB), large (~1550MB)
-        from app.core.config import get_settings
-        settings = get_settings()
-        self.model_name = getattr(settings, 'LOCAL_WHISPER_MODEL', 'tiny')  # Default to tiny for memory constraints
-    
-    async def initialize(self) -> bool:
-        """Initialize local Whisper model"""
-        try:
-            import whisper
-            
-            logger.info(f"🔄 Loading local Whisper model '{self.model_name}'...")
-            # Run in thread pool to avoid blocking
-            import asyncio
-            loop = asyncio.get_event_loop()
-            
-            self.model = await loop.run_in_executor(
-                None, 
-                whisper.load_model, 
-                self.model_name
-            )
-            
-            self.is_initialized = True
-            self.is_available = True
-            
-            logger.info("✅ Local Whisper engine initialized")
-            return True
-            
-        except ImportError:
-            logger.warning("❌ Whisper package not installed for local processing")
-            return False
-        except Exception as e:
-            logger.error(f"❌ Local Whisper initialization failed: {e}")
-            return False
-    
-    async def transcribe(self, audio_data: bytes, language: str = "en") -> Optional[STTResult]:
-        """Transcribe using local Whisper model"""
-        if not self.is_initialized or not self.model:
-            return None
-        
-        start_time = time.time()
-        
-        try:
-            # Save audio to temporary file
-            import tempfile
-            import os
-            
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-                temp_file.write(audio_data)
-                temp_path = temp_file.name
-            
-            try:
-                # Run transcription in thread pool
-                import asyncio
-                loop = asyncio.get_event_loop()
-                
-                result = await loop.run_in_executor(
-                    None,
-                    self.model.transcribe,
-                    temp_path,
-                    {"language": language}
-                )
-                
-                latency_ms = int((time.time() - start_time) * 1000)
-                
-                text = result["text"].strip()
-                confidence = 0.85  # Local Whisper doesn't provide confidence scores
-                
-                quality = self._assess_quality(text, confidence)
-                
-                stt_result = STTResult(
-                    text=text,
-                    confidence=confidence,
-                    engine=self.engine_type,
-                    latency_ms=latency_ms,
-                    quality=quality,
-                    language=result.get("language", language),
-                    metadata={
-                        "model": self.model_name,
-                        "segments": result.get("segments", [])
-                    }
-                )
-                
-                self.update_metrics(True, latency_ms)
-                logger.info(f"✅ Local Whisper transcription: '{text}' ({latency_ms}ms)")
-                
-                return stt_result
-                
-            finally:
-                # Clean up temp file
-                os.unlink(temp_path)
-                
-        except Exception as e:
-            latency_ms = int((time.time() - start_time) * 1000)
-            self.update_metrics(False, latency_ms)
-            logger.error(f"❌ Local Whisper transcription failed: {e}")
-            return None
-    
-    async def health_check(self) -> bool:
-        """Check if local model is loaded"""
-        return self.model is not None
-    
-    def _assess_quality(self, text: str, confidence: float) -> STTQuality:
-        """Assess transcription quality"""
-        if not text or len(text.strip()) < 2:
-            return STTQuality.FAILED
-        elif len(text.strip()) > 5:
-            return STTQuality.HIGH
-        else:
-            return STTQuality.MEDIUM
+# LocalWhisperEngine completely removed for memory optimization
+# This eliminates 72MB+ memory usage from local Whisper model downloads
+# Using simplified 2-tier STT: OpenAI Whisper (cloud) + Browser WebSpeech (fallback)
 
 class GoogleSpeechEngine(STTEngineBase):
     """Google Speech-to-Text engine for backup"""
@@ -443,10 +330,12 @@ class MultiEngineSTTService:
     
     def __init__(self):
         self.engines: Dict[STTEngine, STTEngineBase] = {}
+        # Local Whisper removed for memory optimization (eliminates 72MB+ usage)
+        # Using 2-tier system: Cloud STT (OpenAI/Google) + Browser fallback
         self.engine_priority = [
             STTEngine.OPENAI_WHISPER,   # Best quality
             STTEngine.GOOGLE_SPEECH,    # Good quality, reliable
-            STTEngine.LOCAL_WHISPER,    # Offline backup
+            STTEngine.BROWSER_SPEECH,   # Browser fallback
         ]
         self.is_initialized = False
         self.stats = {
@@ -461,10 +350,10 @@ class MultiEngineSTTService:
         """Initialize all available STT engines"""
         logger.info("🎙️ Initializing Multi-Engine STT Service...")
         
-        # Initialize engines in priority order
+        # Initialize engines in priority order (Local Whisper removed for memory optimization)
         self.engines[STTEngine.OPENAI_WHISPER] = OpenAIWhisperEngine()
         self.engines[STTEngine.GOOGLE_SPEECH] = GoogleSpeechEngine()
-        self.engines[STTEngine.LOCAL_WHISPER] = LocalWhisperEngine()
+        # Local Whisper intentionally removed to save 72MB+ memory
         
         # Try to initialize each engine
         initialized_engines = []
