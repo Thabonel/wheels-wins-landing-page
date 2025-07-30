@@ -9,31 +9,54 @@ import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { z } from 'zod';
 import winston from 'winston';
 
-// Zod schemas for API validation
+// Zod schemas for API validation based on actual Render API response
 export const ServiceSchema = z.object({
+  autoDeploy: z.enum(['yes', 'no']),
+  autoDeployTrigger: z.string().optional(),
+  branch: z.string().optional(),
+  createdAt: z.string(),
+  dashboardUrl: z.string().optional(),
   id: z.string(),
   name: z.string(),
-  type: z.enum(['web_service', 'private_service', 'background_worker', 'cron_job']),
+  notifyOnFail: z.string().optional(),
+  ownerId: z.string(),
   repo: z.string().optional(),
-  branch: z.string().optional(),
   rootDir: z.string().optional(),
-  buildCommand: z.string().optional(),
-  startCommand: z.string().optional(),
-  plan: z.string(),
-  region: z.string(),
-  env: z.enum(['docker', 'elixir', 'go', 'node', 'python', 'ruby', 'rust', 'static']),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  serviceDetails: z.object({
+    buildPlan: z.string().optional(),
+    env: z.enum(['docker', 'elixir', 'go', 'node', 'python', 'ruby', 'rust', 'static']),
+    envSpecificDetails: z.object({
+      buildCommand: z.string().optional(),
+      startCommand: z.string().optional(),
+      dockerCommand: z.string().optional(),
+      dockerContext: z.string().optional(),
+      dockerfilePath: z.string().optional(),
+    }).optional(),
+    healthCheckPath: z.string().optional(),
+    maintenanceMode: z.object({
+      enabled: z.boolean(),
+      uri: z.string().optional(),
+    }).optional(),
+    numInstances: z.number().optional(),
+    openPorts: z.array(z.object({
+      port: z.number(),
+      protocol: z.string(),
+    })).optional(),
+    plan: z.string(),
+    previews: z.object({
+      generation: z.string(),
+    }).optional(),
+    pullRequestPreviewsEnabled: z.enum(['yes', 'no']).optional(),
+    region: z.string(),
+    runtime: z.string().optional(),
+    sshAddress: z.string().optional(),
+    url: z.string().optional(),
+  }),
+  slug: z.string(),
   suspended: z.enum(['suspended', 'not_suspended']),
   suspenders: z.array(z.string()),
-  autoDeploy: z.enum(['yes', 'no']),
-  serviceDetails: z.object({
-    buildCommand: z.string().optional(),
-    startCommand: z.string().optional(),
-    publishPath: z.string().optional(),
-    pullRequestPreviewsEnabled: z.enum(['yes', 'no']).optional(),
-    url: z.string().optional(),
-  }).optional(),
+  type: z.enum(['web_service', 'private_service', 'background_worker', 'cron_job']),
+  updatedAt: z.string(),
 });
 
 export const DeploymentSchema = z.object({
@@ -129,7 +152,9 @@ export class RenderClient {
   async getServices(): Promise<Service[]> {
     try {
       const response = await this.client.get('/services');
-      return response.data.map((service: any) => ServiceSchema.parse(service));
+      // The Render API returns an array of objects with cursor and service properties
+      const services = response.data.map((item: any) => item.service || item);
+      return services.map((service: any) => ServiceSchema.parse(service));
     } catch (error) {
       this.logger.error('Failed to fetch services:', error);
       throw error;
