@@ -173,23 +173,24 @@ async def lifespan(app: FastAPI):
         await cache_service.initialize()
         logger.info("✅ Redis cache service initialized")
 
-        # Initialize production monitoring
-        await production_monitor.start_monitoring()
-        logger.info("✅ Production monitoring system initialized")
+        # Initialize production monitoring (DISABLED - high memory usage)
+        # await production_monitor.start_monitoring()
+        logger.info("⚠️ Production monitoring DISABLED to reduce memory usage")
         
-        # Initialize optimized performance components
-        try:
-            integration_manager = await get_integration_manager()
-            await integration_manager.initialize()
-            logger.info("✅ Optimized performance components initialized")
-        except Exception as perf_error:
-            logger.warning(f"⚠️ Optimized performance components failed to initialize: {perf_error}")
-            logger.info("💡 Continuing with standard monitoring")
+        # Initialize optimized performance components (DISABLED - high memory usage)
+        # try:
+        #     integration_manager = await get_integration_manager()
+        #     await integration_manager.initialize()
+        #     logger.info("✅ Optimized performance components initialized")
+        # except Exception as perf_error:
+        #     logger.warning(f"⚠️ Optimized performance components failed to initialize: {perf_error}")
+        #     logger.info("💡 Continuing with standard monitoring")
+        logger.info("⚠️ Optimized performance components DISABLED to reduce memory usage")
         
-        # Initialize performance monitoring  
-        from app.services.performance_monitor import performance_monitor
-        await performance_monitor.start_monitoring(interval_seconds=300)  # 5-minute intervals
-        logger.info("✅ Performance monitoring service initialized")
+        # Initialize performance monitoring (DISABLED - high memory usage)
+        # from app.services.performance_monitor import performance_monitor
+        # await performance_monitor.start_monitoring(interval_seconds=300)  # 5-minute intervals
+        logger.info("⚠️ Performance monitoring service DISABLED to reduce memory usage")
 
         # Initialize Knowledge Tool for PAM (ChromaDB-dependent)
         knowledge_tool_initialized = False
@@ -294,17 +295,18 @@ async def lifespan(app: FastAPI):
         # await db_pool.close()  # Database pool disabled
         await cache_service.close()
         
-        # Shutdown production monitoring
-        await production_monitor.stop_monitoring()
-        logger.info("✅ Production monitoring system shutdown")
+        # Shutdown production monitoring (DISABLED)
+        # await production_monitor.stop_monitoring()
+        logger.info("ℹ️ Production monitoring was disabled - no shutdown needed")
         
-        # Shutdown optimized performance components
-        try:
-            integration_manager = await get_integration_manager()
-            await integration_manager.shutdown()
-            logger.info("✅ Optimized performance components shutdown")
-        except Exception as perf_shutdown_error:
-            logger.warning(f"⚠️ Optimized performance components shutdown warning: {perf_shutdown_error}")
+        # Shutdown optimized performance components (DISABLED)
+        # try:
+        #     integration_manager = await get_integration_manager()
+        #     await integration_manager.shutdown()
+        #     logger.info("✅ Optimized performance components shutdown")
+        # except Exception as perf_shutdown_error:
+        #     logger.warning(f"⚠️ Optimized performance components shutdown warning: {perf_shutdown_error}")
+        logger.info("ℹ️ Optimized performance components were disabled - no shutdown needed")
 
         # Shutdown Knowledge Tool (if initialized)
         try:
@@ -379,10 +381,10 @@ logger.info("🛡️ Initializing enhanced security system...")
 security_config = setup_enhanced_security(app)
 logger.info("✅ Enhanced security system fully operational")
 
-# Setup other middleware
-app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
+# Setup other middleware (minimal for memory conservation)
+# app.add_middleware(MonitoringMiddleware, monitor=production_monitor)  # DISABLED - high memory usage
 setup_middleware(app)
-app.add_middleware(GuardrailsMiddleware)
+# app.add_middleware(GuardrailsMiddleware)  # DISABLED - high memory usage
 
 # CORS middleware MUST be added LAST so it executes FIRST
 # Using centralized CORS configuration for better maintainability
