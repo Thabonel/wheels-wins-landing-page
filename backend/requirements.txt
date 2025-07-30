@@ -1,30 +1,30 @@
-# UPDATED CORE PRODUCTION DEPENDENCIES - ADDRESSING DEPRECATION WARNINGS
-# Updated versions to resolve cryptography and PyTorch deprecation warnings
+# RESTORED PRODUCTION DEPENDENCIES - FROM LAST KNOWN WORKING STATE
+# These versions were confirmed working before the breaking changes
 
 # Core FastAPI and ASGI server
 fastapi==0.116.1
 uvicorn[standard]==0.35.0
 
 # Data validation and settings
-pydantic==2.10.1
-pydantic-settings==2.6.1
+pydantic==2.11.7
+pydantic-settings==2.3.4
 
-# Authentication and security - UPDATED TO ADDRESS CRYPTOGRAPHY WARNINGS
+# Authentication and security
 PyJWT[crypto]==2.10.1
-cryptography==43.0.3  # Updated to address deprecation warnings
+cryptography==45.0.5
 email-validator==2.2.0
 passlib[bcrypt]==1.7.4
 
 # Core APIs and HTTP
-openai>=1.52.0,<2.0.0
+openai>=1.50.0,<2.0.0
 supabase==2.17.0
 httpx==0.28.1
-requests==2.32.3
-urllib3==2.2.3
+requests==2.32.4
+urllib3==2.5.0
 
 # Database essentials
-redis==5.2.1
-sqlalchemy[asyncio]==2.0.36
+redis==6.2.0
+sqlalchemy[asyncio]==2.0.41
 asyncpg==0.30.0
 
 # Basic utilities
@@ -33,67 +33,57 @@ python-dateutil==2.8.2
 python-multipart>=0.0.10
 click==8.1.7
 
-# TTS without deprecated dependencies
-edge-tts==6.1.14
+# Lightweight TTS that actually works
+edge-tts==6.1.9
 
 # Essential monitoring
-structlog==24.4.0
-python-json-logger==2.0.7
-sentry-sdk[fastapi]==2.19.2
+structlog==25.4.0
+python-json-logger==3.3.0
+sentry-sdk[fastapi]==2.33.0
 
 # CORS handling
 fastapi-cors==0.0.6
 
-# Updated LangChain (core only)
+# Basic LangChain (core only - no extras that break)
 langchain-core>=0.3.0
 langchain-text-splitters>=0.3.0
 
-# Task scheduling
-APScheduler==3.10.4
+# Basic task scheduling
+APScheduler==3.11.0
 
-# Essential processing - UPDATED TO ADDRESS TORCH WARNINGS
+# Essential processing
 numpy==1.26.4
-Pillow==11.0.0
+Pillow==11.3.0
 
-# System monitoring
-psutil==6.1.1
-prometheus-client==0.21.1
+# System monitoring (from stable version)
+psutil==7.0.0
+prometheus-client==0.22.1
 
 # Additional stable dependencies
-stripe==11.3.0
-beautifulsoup4==4.12.3
+stripe==12.3.0
+beautifulsoup4==4.13.4
 tiktoken>=0.8.0
-assemblyai==0.36.1
+assemblyai==0.42.0
 
-# OpenTelemetry for observability - UPDATED VERSIONS
-opentelemetry-api==1.28.0
-opentelemetry-sdk==1.28.0
-opentelemetry-instrumentation-fastapi==0.49b0
+# OpenTelemetry for observability (stable versions)
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-instrumentation-fastapi>=0.41b0
 
-# AI Agent Observability - UPDATED VERSIONS
+# AI Agent Observability (stable versions)
 langfuse>=2.0.0
-agentops>=0.3.7,<0.4.0
+agentops>=0.4.15,<0.5.0
 
-# Graph Database - UPDATED
+# Graph Database (Optional - for Graph RAG)
 neo4j>=5.14.0,<6.0.0
 
-# Text analysis
+# Text analysis and TTS
 textstat==0.7.7
+pyttsx3==2.99
 
-# Audio processing - UPDATED TO RESOLVE TORCH DEPRECATION
-openai-whisper>=20231117
-
-# Optional TTS with updated dependencies
-# TTS>=0.24.0  # Commented until PyTorch compatibility is resolved
+# Audio processing for enhanced voice features
+openai-whisper>=20240930
 
 # Search and web processing
 googlemaps==4.10.0
-lxml==5.1.1
-
-# DEVELOPMENT AND TESTING DEPENDENCIES (for development only)
-# pytest==8.3.0
-# pytest-asyncio==0.25.0
-# pytest-cov==6.0.0
-# black==25.1.0
-# isort==5.14.2
-# mypy==1.14.0
+lxml==4.9.3
