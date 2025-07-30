@@ -7,11 +7,18 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/services/api";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useRegion } from "@/context/RegionContext";
+import { convertPrice } from "@/services/currencyService";
 
 const PricingPlansUpdated = () => {
   const { isAuthenticated } = useAuth();
+  const { region } = useRegion();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // AUD base prices
+  const basicPrice = convertPrice(9, region);
+  const premiumPrice = convertPrice(18, region);
 
   const handleSubscription = async (priceId: string, planName: string) => {
     if (!isAuthenticated) {
@@ -64,7 +71,7 @@ const PricingPlansUpdated = () => {
             </CardHeader>
             <CardContent className="text-center pb-4 flex-grow">
               <div className="mb-6">
-                <span className="text-4xl font-bold">$9</span>
+                <span className="text-4xl font-bold">{basicPrice.formatted}</span>
                 <span className="text-muted-foreground ml-1">/month</span>
               </div>
               <ul className="space-y-2 text-left">
@@ -101,7 +108,7 @@ const PricingPlansUpdated = () => {
             </CardHeader>
             <CardContent className="text-center pb-4 flex-grow">
               <div className="mb-6">
-                <span className="text-4xl font-bold">$19</span>
+                <span className="text-4xl font-bold">{premiumPrice.formatted}</span>
                 <span className="text-muted-foreground ml-1">/month</span>
               </div>
               <ul className="space-y-2 text-left">
