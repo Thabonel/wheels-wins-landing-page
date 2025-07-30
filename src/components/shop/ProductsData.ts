@@ -20,8 +20,8 @@ export async function getDigitalProductsFromDB(region: Region): Promise<DigitalP
 
     console.log('Shop: Using database digital products data');
     return (data || []).map(product => {
-      const usdPrice = product.price || 0;
-      const convertedPrice = convertPrice(usdPrice, region);
+      const audPrice = product.price || 0;
+      const convertedPrice = convertPrice(audPrice, region);
       
       return {
         id: product.id,
@@ -88,7 +88,7 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
       title: "Advanced Trip Planner Pro",
       description: "Premium trip planning tools with offline maps, weather integration, and route optimization for RV travelers.",
       image: "/placeholder-product.jpg",
-      basePrice: 29.99, // USD base price
+      basePrice: 47.00, // AUD base price
       type: "software",
       availableRegions: ["United States", "Canada", "Australia"] as Region[],
       isNew: true
@@ -98,7 +98,7 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
       title: "RV Budget Tracker & Analytics",
       description: "Comprehensive financial tracking designed specifically for nomadic lifestyles with expense categorization.",
       image: "/placeholder-product.jpg",
-      basePrice: 19.99, // USD base price
+      basePrice: 31.00, // AUD base price
       type: "software",
       availableRegions: ["United States", "Canada", "Australia"] as Region[]
     },
@@ -107,7 +107,7 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
       title: "Complete RV Maintenance Guide",
       description: "Digital handbook covering all aspects of RV maintenance with step-by-step tutorials and checklists.",
       image: "/placeholder-product.jpg",
-      basePrice: 24.99, // USD base price
+      basePrice: 39.00, // AUD base price
       type: "ebook",
       availableRegions: ["United States", "Canada", "Australia"] as Region[],
       hasBonus: true

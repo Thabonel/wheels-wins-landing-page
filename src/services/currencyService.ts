@@ -1,13 +1,13 @@
 import { RegionConfig, REGION_CONFIG } from '@/context/RegionContext';
 
-// Exchange rates relative to USD (base currency)
+// Exchange rates relative to AUD (base currency)
 // In production, this should be fetched from a real API like exchangerate-api.com
 const EXCHANGE_RATES: Record<string, number> = {
-  'USD': 1.0,      // Base currency
-  'AUD': 1.57,     // Australian Dollar  
-  'NZD': 1.67,     // New Zealand Dollar
-  'CAD': 1.43,     // Canadian Dollar
-  'GBP': 0.79,     // British Pound
+  'AUD': 1.0,      // Base currency (Australian Dollar)
+  'USD': 0.637,    // US Dollar (1 AUD = 0.637 USD)
+  'NZD': 1.064,    // New Zealand Dollar
+  'CAD': 0.911,    // Canadian Dollar
+  'GBP': 0.503,    // British Pound
 };
 
 export interface ConvertedPrice {
@@ -18,13 +18,13 @@ export interface ConvertedPrice {
 }
 
 /**
- * Convert USD price to target region currency
+ * Convert AUD price to target region currency
  */
-export function convertPrice(usdPrice: number, targetRegion: keyof typeof REGION_CONFIG): ConvertedPrice {
+export function convertPrice(audPrice: number, targetRegion: keyof typeof REGION_CONFIG): ConvertedPrice {
   const regionConfig = REGION_CONFIG[targetRegion];
   const exchangeRate = EXCHANGE_RATES[regionConfig.currency] || 1.0;
   
-  const convertedAmount = usdPrice * exchangeRate;
+  const convertedAmount = audPrice * exchangeRate;
   const roundedAmount = Math.round(convertedAmount * 100) / 100; // Round to 2 decimal places
   
   return {

@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Star, Crown } from 'lucide-react';
+import { useRegion } from "@/context/RegionContext";
+import { convertPrice } from "@/services/currencyService";
 
 interface UpgradeModalProps {
   open: boolean;
@@ -19,6 +21,13 @@ interface UpgradeModalProps {
 }
 
 export default function UpgradeModal({ open, onOpenChange, isExpired = false }: UpgradeModalProps) {
+  const { region } = useRegion();
+  
+  // AUD base prices
+  const monthlyPrice = convertPrice(18, region);
+  const annualPrice = convertPrice(216, region);
+  const courseSavings = convertPrice(97, region);
+
   const handleSubscribe = async (plan: 'monthly' | 'annual') => {
     // This will be connected to Stripe checkout
     console.log(`Subscribing to ${plan} plan`);
@@ -52,7 +61,7 @@ export default function UpgradeModal({ open, onOpenChange, isExpired = false }: 
             </CardHeader>
             <CardContent className="text-center">
               <div className="mb-6">
-                <span className="text-4xl font-bold">$18</span>
+                <span className="text-4xl font-bold">{monthlyPrice.formatted}</span>
                 <span className="text-muted-foreground ml-1">/month</span>
               </div>
               <ul className="space-y-3 text-left">
@@ -95,10 +104,10 @@ export default function UpgradeModal({ open, onOpenChange, isExpired = false }: 
             </CardHeader>
             <CardContent className="text-center">
               <div className="mb-6">
-                <span className="text-4xl font-bold">$216</span>
+                <span className="text-4xl font-bold">{annualPrice.formatted}</span>
                 <span className="text-muted-foreground ml-1">/year</span>
                 <div className="text-sm text-green-600 font-medium">
-                  Save $97 vs Monthly!
+                  Save {courseSavings.formatted} vs Monthly!
                 </div>
               </div>
               <ul className="space-y-3 text-left">
