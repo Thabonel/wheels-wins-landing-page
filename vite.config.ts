@@ -27,8 +27,8 @@ export default defineConfig(({ mode }) => {
     'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : mode),
   },
   plugins: [
-    // Use standard React plugin on Netlify (CI/CD), SWC locally for speed
-    process.env.NETLIFY || process.env.CI ? reactFallback() : react(),
+    // Use standard React plugin to avoid SWC native binding issues
+    reactFallback(),
     mode === "development" && componentTagger(),
   ].filter(Boolean),
   resolve: {
