@@ -8,7 +8,6 @@ import { Volume2, Play, RotateCcw } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { pamVoiceService } from '@/lib/voiceService';
 import { useState } from 'react';
-import PamVoice from '@/components/voice/PamVoice';
 
 export const VoiceSettings = () => {
   const { settings, updateSettings, updating, loading } = useUserSettings();
@@ -118,13 +117,7 @@ export const VoiceSettings = () => {
             <div className="p-4 bg-purple-50 rounded-lg">
               <Label className="text-sm font-medium mb-2 block">Test Pam's Voice</Label>
               <p className="text-sm text-gray-600 mb-3">{testText}</p>
-              <PamVoice
-                text={testText}
-                emotion="excited"
-                context="general"
-                autoPlay={false}
-                className="justify-start"
-              />
+              <p className="text-sm text-gray-500">Voice test temporarily unavailable</p>
             </div>
 
             {/* Cache Management */}
