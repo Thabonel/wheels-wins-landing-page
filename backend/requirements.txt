@@ -10,7 +10,7 @@ pydantic==2.10.3
 pydantic-settings==2.7.0
 
 # Authentication and security - UPDATED TO ADDRESS CRYPTOGRAPHY WARNINGS
-PyJWT[crypto]==2.11.0
+PyJWT[crypto]==2.10.1
 cryptography==43.0.3  # Updated to address deprecation warnings
 email-validator==2.4.0
 passlib[bcrypt]==1.7.4
