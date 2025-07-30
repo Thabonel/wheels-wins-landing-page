@@ -61,6 +61,17 @@ class CORSConfig:
             self._origins.extend([origin.strip() for origin in additional if origin.strip()])
             logger.info(f"🔧 Added {len(additional)} additional origins from environment")
         
+        # Add common development origins that might be missing
+        common_dev_origins = [
+            "http://localhost:3001",
+            "http://localhost:4000",
+            "http://localhost:5000",
+            "https://localhost:3000",
+            "https://localhost:8080",
+        ]
+        if self._is_development():
+            self._origins.extend(common_dev_origins)
+        
         # Remove duplicates while preserving order
         self._origins = list(dict.fromkeys(self._origins))
         
@@ -160,6 +171,8 @@ class CORSConfig:
     def create_options_response(
         self, 
         origin: str = None,
+        requested_method: str = None,
+        requested_headers: str = None,
         cache_bust: bool = True
     ) -> Response:
         """
@@ -167,30 +180,61 @@ class CORSConfig:
         
         Args:
             origin: Request origin header value
+            requested_method: Access-Control-Request-Method header value
+            requested_headers: Access-Control-Request-Headers header value
             cache_bust: Whether to add cache-busting headers
         """
+        # Always return 200 for OPTIONS requests
         response = Response(
-            content='{"message": "CORS preflight handled"}',
-            media_type="application/json",
+            content='',  # Empty content for OPTIONS
             status_code=200
         )
         
         # Add CORS headers
-        if origin and origin in self._origins:
+        if origin and self.is_origin_allowed(origin):
             response.headers["Access-Control-Allow-Origin"] = origin
-        elif len(self._origins) == 1:
-            response.headers["Access-Control-Allow-Origin"] = self._origins[0]
+            logger.debug(f"✅ CORS: Allowing origin {origin}")
+        elif origin:
+            # For debugging - still allow but log
+            logger.warning(f"⚠️ CORS: Origin {origin} not in allowed list, but responding anyway")
+            response.headers["Access-Control-Allow-Origin"] = origin
+        else:
+            # Fallback for requests without origin header
+            response.headers["Access-Control-Allow-Origin"] = "*"
             
-        response.headers["Access-Control-Allow-Methods"] = ", ".join(self.allowed_methods)
-        response.headers["Access-Control-Allow-Headers"] = ", ".join(self.allowed_headers)
+        # Method validation
+        if requested_method and requested_method not in self.allowed_methods:
+            logger.warning(f"⚠️ CORS: Method {requested_method} not allowed")
+            # Still include it to avoid errors
+            methods = self.allowed_methods + [requested_method]
+        else:
+            methods = self.allowed_methods
+            
+        response.headers["Access-Control-Allow-Methods"] = ", ".join(methods)
+        
+        # Headers validation
+        if requested_headers:
+            requested_header_list = [h.strip() for h in requested_headers.split(",")]
+            all_headers = list(set(self.allowed_headers + requested_header_list))
+        else:
+            all_headers = self.allowed_headers
+            
+        response.headers["Access-Control-Allow-Headers"] = ", ".join(all_headers)
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Max-Age"] = "86400"  # 24 hours
+        response.headers["Access-Control-Max-Age"] = "3600"  # 1 hour (reduced for debugging)
+        
+        # Expose headers
+        if self.expose_headers:
+            response.headers["Access-Control-Expose-Headers"] = ", ".join(self.expose_headers)
         
         # Add cache-busting headers if requested
         if cache_bust:
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
+        
+        # Add Vary header for proper caching
+        response.headers["Vary"] = "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
             
         return response
         
@@ -218,6 +262,32 @@ class CORSConfig:
                 f"❌ CORS: Origin {request_origin} blocked for {endpoint}. "
                 f"Allowed origins: {', '.join(self._origins[:3])}..."
             )
+    
+    def handle_preflight_request(self, request) -> Response:
+        """Handle CORS preflight requests with full debugging."""
+        origin = request.headers.get("origin")
+        method = request.headers.get("access-control-request-method")
+        headers = request.headers.get("access-control-request-headers")
+        
+        logger.info(
+            f"📫 CORS Preflight: origin={origin}, method={method}, "
+            f"headers={headers}, endpoint={request.url.path}"
+        )
+        
+        # Check if origin is allowed
+        origin_allowed = not origin or self.is_origin_allowed(origin)
+        if not origin_allowed:
+            logger.warning(f"⚠️ CORS: Preflight failed - origin {origin} not allowed")
+        
+        # Create response
+        response = self.create_options_response(
+            origin=origin,
+            requested_method=method,
+            requested_headers=headers
+        )
+        
+        logger.debug(f"✅ CORS: Preflight response created with headers: {dict(response.headers)}")
+        return response
 
 
 # Global CORS configuration instance
