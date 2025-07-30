@@ -19,6 +19,12 @@ try {
     '@esbuild/linux-x64'
   ];
   
+  // Install SWC core with platform-specific binary
+  const swcDeps = [
+    '@swc/core-linux-x64-gnu',
+    '@swc/core-linux-x64-musl'
+  ];
+  
   for (const dep of nativeDeps) {
     try {
       console.log(`Installing ${dep}...`);
@@ -30,6 +36,34 @@ try {
     } catch (error) {
       console.warn(`⚠️ Failed to install ${dep}, continuing anyway...`);
     }
+  }
+  
+  // Try to install SWC native binaries
+  console.log('📦 Installing SWC native binaries...');
+  for (const swcDep of swcDeps) {
+    try {
+      console.log(`Installing ${swcDep}...`);
+      execSync(`npm install ${swcDep} --no-save --legacy-peer-deps`, { 
+        stdio: 'inherit',
+        timeout: 60000 
+      });
+      console.log(`✅ ${swcDep} installed successfully`);
+      break; // If one works, we don't need the others
+    } catch (error) {
+      console.warn(`⚠️ Failed to install ${swcDep}, trying next...`);
+    }
+  }
+  
+  // Alternative: Try to rebuild @swc/core
+  try {
+    console.log('🔧 Attempting to rebuild @swc/core...');
+    execSync('npm rebuild @swc/core', { 
+      stdio: 'inherit',
+      timeout: 30000 
+    });
+    console.log('✅ @swc/core rebuilt successfully');
+  } catch (error) {
+    console.warn('⚠️ Failed to rebuild @swc/core, continuing...');
   }
 
   // 2. Run debug script
