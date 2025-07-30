@@ -45,8 +45,8 @@ sentry-sdk[fastapi]==2.19.2
 fastapi-cors==0.0.6
 
 # Updated LangChain (core only)
-langchain-core>=0.3.15
-langchain-text-splitters>=0.3.15
+langchain-core>=0.3.0
+langchain-text-splitters>=0.3.0
 
 # Task scheduling
 APScheduler==3.10.4
