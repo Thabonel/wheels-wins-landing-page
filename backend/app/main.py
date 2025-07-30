@@ -262,9 +262,9 @@ async def lifespan(app: FastAPI):
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
 
-        logger.info("🎯 All performance optimizations active")
+        logger.info("🎯 Minimal performance mode active")
         logger.info("🔒 Enhanced security system active")
-        logger.info("📊 Monitoring and alerting active")
+        logger.info("📊 Essential monitoring only")
         
         # Log security configuration
         try:
@@ -384,7 +384,7 @@ logger.info("✅ Enhanced security system fully operational")
 # Setup other middleware (minimal for memory conservation)
 # app.add_middleware(MonitoringMiddleware, monitor=production_monitor)  # DISABLED - high memory usage
 setup_middleware(app)
-# app.add_middleware(GuardrailsMiddleware)  # DISABLED - high memory usage
+app.add_middleware(GuardrailsMiddleware)  # RE-ENABLED - may be essential for security
 
 # CORS middleware MUST be added LAST so it executes FIRST
 # Using centralized CORS configuration for better maintainability
@@ -422,12 +422,13 @@ async def root():
     """Root endpoint - PAM Backend status"""
     return {
         "message": "🤖 PAM Backend API",
-        "version": "2.0.3", 
-        "status": "operational",
-        "docs": "/api/docs",
+        "version": "2.0.4", 
+        "status": "operational-minimal",
+        "docs": "/docs",
         "health": "/health",
-        "updated": "2025-07-28T23:54:00Z",
-        "fixes": ["CORS configuration enhanced", "Voice services optimized", "STT messaging improved"],
+        "updated": "2025-07-30T17:30:00Z",
+        "fixes": ["Memory usage optimized", "Monitoring disabled", "Core functionality preserved"],
+        "note": "Running in minimal mode for memory conservation"
     }
 
 # CORS debugging endpoint
