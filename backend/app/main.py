@@ -40,6 +40,9 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 from app.monitoring.production_monitor import production_monitor, MonitoringMiddleware
 
+# Import optimized performance components
+from app.monitoring.integration_manager import get_integration_manager
+
 # Import API routers
 from app.api.v1 import (
     health,
@@ -68,6 +71,7 @@ from app.api.v1 import (
     onboarding,
     performance,
 )
+from app.api.v1 import performance_health
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
@@ -172,6 +176,15 @@ async def lifespan(app: FastAPI):
         # Initialize production monitoring
         await production_monitor.start_monitoring()
         logger.info("✅ Production monitoring system initialized")
+        
+        # Initialize optimized performance components
+        try:
+            integration_manager = await get_integration_manager()
+            await integration_manager.initialize()
+            logger.info("✅ Optimized performance components initialized")
+        except Exception as perf_error:
+            logger.warning(f"⚠️ Optimized performance components failed to initialize: {perf_error}")
+            logger.info("💡 Continuing with standard monitoring")
         
         # Initialize performance monitoring  
         from app.services.performance_monitor import performance_monitor
@@ -284,6 +297,14 @@ async def lifespan(app: FastAPI):
         # Shutdown production monitoring
         await production_monitor.stop_monitoring()
         logger.info("✅ Production monitoring system shutdown")
+        
+        # Shutdown optimized performance components
+        try:
+            integration_manager = await get_integration_manager()
+            await integration_manager.shutdown()
+            logger.info("✅ Optimized performance components shutdown")
+        except Exception as perf_shutdown_error:
+            logger.warning(f"⚠️ Optimized performance components shutdown warning: {perf_shutdown_error}")
 
         # Shutdown Knowledge Tool (if initialized)
         try:
@@ -491,6 +512,7 @@ app.include_router(stripe_webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(observability_api.router, prefix="/api/v1", tags=["Admin Observability"])
 app.include_router(performance.router, prefix="/api/v1", tags=["Performance Monitoring"])
+app.include_router(performance_health.router, prefix="/api/v1", tags=["Performance Health"])
 app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 # Mundi integration removed
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
