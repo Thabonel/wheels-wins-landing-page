@@ -30,19 +30,10 @@ class MemoryOptimizer:
         self.last_emergency_cleanup = 0
         
     async def start(self):
-        """Start background memory optimization."""
-        if self.is_running:
-            return
-            
-        self.is_running = True
-        logger.info("🧹 Starting memory optimization service...")
-        
-        # Configure garbage collection for optimal performance
-        self._configure_gc()
-        
-        # Start optimization loop
-        self._optimization_task = asyncio.create_task(self._optimization_loop())
-        logger.info("✅ Memory optimization service started")
+        """Start background memory optimization - DISABLED FOR MEMORY CONSERVATION."""
+        logger.info("⚠️ Memory optimization service DISABLED to prevent memory exhaustion")
+        logger.info("💡 Service was consuming more resources than it saved")
+        return  # DISABLED - causes more memory usage than it prevents
         
     async def stop(self):
         """Stop memory optimization."""
@@ -70,17 +61,9 @@ class MemoryOptimizer:
         logger.info(f"🗑️ Garbage collection configured: thresholds={gc.get_threshold()}")
         
     async def _optimization_loop(self):
-        """Background memory optimization loop."""
-        while self.is_running:
-            try:
-                await asyncio.sleep(self.optimization_interval)
-                await self._optimize_memory()
-                
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"❌ Memory optimization error: {e}")
-                await asyncio.sleep(60)  # Wait before retry
+        """Background memory optimization loop - DISABLED."""
+        logger.info("🚫 Memory optimization loop disabled - preventing resource exhaustion")
+        return  # DISABLED completely
                 
     async def _optimize_memory(self):
         """Enhanced memory optimization with emergency handling."""
