@@ -277,8 +277,15 @@ class CSRFProtector:
         # Safe HTTP methods that don't require CSRF protection
         self.safe_methods = {"GET", "HEAD", "OPTIONS", "TRACE"}
         
-        # Origins that are always allowed (same-origin)
-        self.allowed_origins: Set[str] = set()
+        # Origins that are always allowed (same-origin + development platforms)
+        self.allowed_origins: Set[str] = {
+            "https://wheelsandwins.com",
+            "https://www.wheelsandwins.com", 
+            "https://wheels-wins-landing-page.netlify.app",
+            "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",  # Lovable platform
+            "http://localhost:8080",  # Local development
+            "http://localhost:3000",  # Alternative local dev
+        }
     
     def generate_csrf_token(self, session_id: str) -> str:
         """Generate CSRF token for session"""
@@ -423,7 +430,9 @@ class XSSCSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/openapi.json",
             "/favicon.ico",
             "/metrics",
-            "/api/auth/csrf-token"  # Endpoint to get CSRF tokens
+            "/api/auth/csrf-token",  # Endpoint to get CSRF tokens
+            "/api/v1/pam/voice",  # PAM voice endpoint
+            "/api/v1/pam/chat"  # PAM chat endpoint
         ]
         
         # Content types to check for XSS
