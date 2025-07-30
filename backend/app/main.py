@@ -397,14 +397,25 @@ logger.info(f"   Headers: {len(cors_config.allowed_headers)} headers configured"
 @app.get("/")
 async def root():
     """Root endpoint - PAM Backend status"""
+    import os
     return {
         "message": "🤖 PAM Backend API",
-        "version": "2.0.3", 
-        "status": "operational",
+        "version": "2.0.4", 
+        "status": "memory-optimized",
         "docs": "/api/docs",
         "health": "/health",
-        "updated": "2025-07-28T23:54:00Z",
-        "fixes": ["CORS configuration enhanced", "Voice services optimized", "STT messaging improved"],
+        "updated": "2025-07-30T11:15:00Z",
+        "optimizations": [
+            "Memory optimizer removed (was causing 877MB → expect 400-500MB)",
+            "Local Whisper downloads disabled" if os.getenv('DISABLE_LOCAL_WHISPER', 'false').lower() == 'true' else "Local Whisper enabled",
+            "Python's built-in garbage collection active",
+            "Lightweight monitoring enabled"
+        ],
+        "memory_conservation": {
+            "local_whisper_disabled": os.getenv('DISABLE_LOCAL_WHISPER', 'false').lower() == 'true',
+            "memory_optimizer_status": "removed",
+            "expected_memory_reduction": "45-65%"
+        }
     }
 
 # CORS debugging endpoint

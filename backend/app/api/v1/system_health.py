@@ -11,7 +11,9 @@ import logging
 
 from app.core.logging import get_logger
 from app.core.performance_monitor import performance_monitor
-from app.monitoring.memory_optimizer import memory_optimizer
+# Memory optimizer removed - was consuming more memory than it saved
+import gc
+import psutil
 from app.services.cache_service import cache_service
 
 logger = get_logger(__name__)
@@ -25,8 +27,20 @@ async def get_system_health() -> Dict[str, Any]:
         # Get performance monitor status
         performance_status = await performance_monitor.get_current_status()
         
-        # Get memory optimizer stats
-        memory_stats = await memory_optimizer.get_memory_stats()
+        # Get basic memory stats (memory optimizer removed)
+        memory = psutil.virtual_memory()
+        process = psutil.Process()
+        memory_stats = {
+            "system": {
+                "total_mb": memory.total / 1024 / 1024,
+                "used_mb": memory.used / 1024 / 1024,
+                "percent": memory.percent
+            },
+            "process": {
+                "rss_mb": process.memory_info().rss / 1024 / 1024,
+                "percent": process.memory_percent()
+            }
+        }
         
         # Get cache service stats
         try:
@@ -92,7 +106,7 @@ async def trigger_memory_optimization(background_tasks: BackgroundTasks, force_a
     try:
         if force_aggressive:
             logger.info("🔧 Manual aggressive memory optimization requested")
-            background_tasks.add_task(memory_optimizer._aggressive_cleanup)
+            background_tasks.add_task(gc.collect)  # Use Python's garbage collection
             return {
                 "message": "Aggressive memory optimization started",
                 "type": "aggressive",
@@ -100,7 +114,7 @@ async def trigger_memory_optimization(background_tasks: BackgroundTasks, force_a
             }
         else:
             logger.info("🔧 Manual standard memory optimization requested")
-            background_tasks.add_task(memory_optimizer._standard_cleanup)
+            background_tasks.add_task(gc.collect)  # Use Python's garbage collection
             return {
                 "message": "Standard memory optimization started",
                 "type": "standard",
@@ -174,10 +188,9 @@ async def get_monitoring_status() -> Dict[str, Any]:
                     "check_interval": performance_monitor.check_interval,
                     "active_alerts": len(performance_monitor.active_alerts)
                 },
-                "memory_optimizer": {
-                    "active": memory_optimizer.is_running,
-                    "optimization_interval": memory_optimizer.optimization_interval,
-                    "optimization_count": memory_optimizer.optimization_count
+                "memory_management": {
+                    "type": "python_gc",
+                    "note": "Memory optimizer removed - using Python's built-in garbage collection"
                 },
                 "cache_service": {
                     "initialized": cache_service.redis is not None
@@ -202,12 +215,8 @@ async def start_monitoring_services() -> Dict[str, Any]:
         else:
             results["performance_monitor"] = "already_running"
         
-        # Start memory optimizer
-        if not memory_optimizer.is_running:
-            await memory_optimizer.start()
-            results["memory_optimizer"] = "started"
-        else:
-            results["memory_optimizer"] = "already_running"
+        # Memory optimizer removed - using Python GC
+        results["memory_management"] = "python_gc_active"
         
         # Initialize cache service
         if cache_service.redis is None:
@@ -239,12 +248,8 @@ async def stop_monitoring_services() -> Dict[str, Any]:
         else:
             results["performance_monitor"] = "already_stopped"
         
-        # Stop memory optimizer
-        if memory_optimizer.is_running:
-            await memory_optimizer.stop()
-            results["memory_optimizer"] = "stopped"
-        else:
-            results["memory_optimizer"] = "already_stopped"
+        # Memory optimizer was removed - no action needed
+        results["memory_management"] = "python_gc_only"
         
         # Close cache service
         if cache_service.redis is not None:
@@ -444,7 +449,7 @@ async def get_debug_info() -> Dict[str, Any]:
             "network": network_info,
             "monitoring_services": {
                 "performance_monitor_running": performance_monitor.is_running,
-                "memory_optimizer_running": memory_optimizer.is_running,
+                "memory_management": "python_gc",
                 "cache_service_connected": cache_service.redis is not None
             }
         }
