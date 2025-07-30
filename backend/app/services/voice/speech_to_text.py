@@ -6,6 +6,7 @@ Handles speech recognition for voice conversations using multiple providers
 import asyncio
 import io
 import logging
+import os
 import tempfile
 from typing import Optional, Dict, Any
 from abc import ABC, abstractmethod
@@ -114,6 +115,11 @@ class LocalWhisperSTT(BaseSpeechToText):
     async def initialize(self):
         """Initialize local Whisper model with memory-optimized settings"""
         try:
+            # Check if local Whisper is disabled for memory conservation
+            if os.getenv('DISABLE_LOCAL_WHISPER', 'false').lower() == 'true':
+                logger.info("🚫 Local Whisper disabled via environment variable (memory conservation)")
+                return False
+                
             import whisper
             
             # Use tiny model for production deployments with memory constraints

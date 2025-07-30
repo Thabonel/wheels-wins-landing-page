@@ -14,7 +14,9 @@ import time
 from app.services.monitoring_service import get_monitoring_service, MonitoringService
 from app.services.sentry_service import get_sentry_service, SentryService
 from app.monitoring.production_monitor import get_production_monitor, ProductionMonitor
-from app.monitoring.memory_optimizer import get_memory_optimizer, MemoryOptimizer
+# Memory optimizer removed - was consuming more memory than it saved
+import gc
+import psutil
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -470,26 +472,52 @@ async def get_alert_status(monitor: ProductionMonitor = Depends(get_production_m
 
 
 @router.get("/memory")
-async def get_memory_statistics(optimizer: MemoryOptimizer = Depends(get_memory_optimizer)):
-    """Get detailed memory usage statistics and optimization status."""
+async def get_memory_statistics():
+    """Get basic memory usage statistics (memory optimizer removed)."""
     try:
-        return await optimizer.get_memory_stats()
+        memory = psutil.virtual_memory()
+        process = psutil.Process()
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "system": {
+                "total_mb": memory.total / 1024 / 1024,
+                "used_mb": memory.used / 1024 / 1024,
+                "available_mb": memory.available / 1024 / 1024,
+                "percent": memory.percent
+            },
+            "process": {
+                "rss_mb": process.memory_info().rss / 1024 / 1024,
+                "percent": process.memory_percent()
+            },
+            "note": "Memory optimizer removed - using Python's built-in garbage collection"
+        }
     except Exception as e:
         logger.error(f"Error getting memory statistics: {e}")
         raise HTTPException(status_code=500, detail="Unable to retrieve memory statistics")
 
 
 @router.post("/memory/optimize")
-async def trigger_memory_optimization(optimizer: MemoryOptimizer = Depends(get_memory_optimizer)):
-    """Manually trigger memory optimization."""
+async def trigger_memory_optimization():
+    """Trigger Python's garbage collection (memory optimizer removed)."""
     try:
-        await optimizer._optimize_memory()
-        stats = await optimizer.get_memory_stats()
+        # Use Python's built-in garbage collection
+        collected = gc.collect()
+        
+        # Get updated memory stats
+        memory = psutil.virtual_memory()
+        process = psutil.Process()
+        
         return {
-            "message": "Memory optimization completed",
+            "message": "Python garbage collection completed",
             "timestamp": datetime.utcnow().isoformat(),
-            "memory_stats": stats
+            "objects_collected": collected,
+            "memory_stats": {
+                "system_percent": memory.percent,
+                "process_mb": process.memory_info().rss / 1024 / 1024
+            },
+            "note": "Memory optimizer removed - using lightweight Python GC instead"
         }
     except Exception as e:
-        logger.error(f"Error during memory optimization: {e}")
-        raise HTTPException(status_code=500, detail="Memory optimization failed")
+        logger.error(f"Error triggering garbage collection: {e}")
+        raise HTTPException(status_code=500, detail="Unable to trigger garbage collection")

@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from app.core.logging import get_logger
-from app.monitoring.memory_optimizer import memory_optimizer
+# Memory optimizer removed - was consuming more memory than it saved
+import gc  # Use Python's built-in garbage collection instead
 
 logger = get_logger(__name__)
 
@@ -224,18 +225,18 @@ class PerformanceMonitor:
             if metric_name == 'memory_percent':
                 logger.info(f"🔧 Auto-remediation: Triggering memory optimization for {alert.metric.value:.1f}% usage")
                 if alert.level == AlertLevel.CRITICAL:
-                    # Force aggressive cleanup
-                    await memory_optimizer._aggressive_cleanup()
-                    alert.remediation_result = "Aggressive memory cleanup triggered"
+                    # Use Python's built-in garbage collection
+                    gc.collect()
+                    alert.remediation_result = "Python garbage collection triggered"
                 else:
-                    # Standard cleanup
-                    await memory_optimizer._standard_cleanup()
-                    alert.remediation_result = "Standard memory cleanup triggered"
+                    # Standard cleanup with gc
+                    gc.collect()
+                    alert.remediation_result = "Python garbage collection triggered"
                     
             elif metric_name == 'disk_percent':
-                logger.info(f"🔧 Auto-remediation: Triggering disk cleanup for {alert.metric.value:.1f}% usage")
-                await memory_optimizer._cleanup_disk_space()
-                alert.remediation_result = "Disk cleanup triggered"
+                logger.info(f"🔧 Auto-remediation: High disk usage detected {alert.metric.value:.1f}%")
+                # Disk cleanup disabled - was part of memory optimizer
+                alert.remediation_result = "Disk cleanup disabled - memory optimizer removed"
                 
             elif metric_name == 'cpu_percent':
                 logger.info(f"🔧 Auto-remediation: CPU optimization for {alert.metric.value:.1f}% usage")
@@ -245,8 +246,8 @@ class PerformanceMonitor:
                 
             elif metric_name == 'process_memory_mb':
                 logger.info(f"🔧 Auto-remediation: Process memory optimization for {alert.metric.value:.1f}MB usage")
-                await memory_optimizer._aggressive_cleanup()
-                alert.remediation_result = "Process memory cleanup triggered"
+                gc.collect()  # Use Python's garbage collection
+                alert.remediation_result = "Python garbage collection triggered"
             
             logger.info(f"✅ Auto-remediation completed: {alert.remediation_result}")
             

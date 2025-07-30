@@ -20,7 +20,7 @@ import psutil
 from app.core.logging import get_logger
 from app.services.sentry_service import sentry_service
 from app.monitoring.metrics_cache import metrics_cache
-from app.monitoring.memory_optimizer import memory_optimizer
+# Memory optimizer removed - was consuming more memory than it saved
 
 logger = get_logger(__name__)
 
@@ -103,8 +103,8 @@ class ProductionMonitor:
         # Start metrics cache
         await metrics_cache.start()
         
-        # Start memory optimizer
-        await memory_optimizer.start()
+        # Memory optimizer removed - was causing memory thrashing
+        logger.info("💡 Memory optimizer disabled - using Python's built-in garbage collection")
         
         # Start background tasks
         asyncio.create_task(self._system_health_monitor())
@@ -120,8 +120,8 @@ class ProductionMonitor:
         # Stop metrics cache
         await metrics_cache.stop()
         
-        # Stop memory optimizer
-        await memory_optimizer.stop()
+        # Memory optimizer was already removed
+        logger.info("💡 Memory optimizer was disabled - no cleanup needed")
         
         logger.info("🛑 Production monitoring system stopped")
     
