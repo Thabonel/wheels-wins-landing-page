@@ -615,106 +615,136 @@ async def generate_pam_voice(
     request: VoiceRequest,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    """Generate PAM voice audio from text"""
+    """Generate PAM voice audio from text using enhanced TTS service"""
     try:
-        logger.info(f"🎙️ TTS request for text: {request.text[:100]}...")
+        logger.info(f"🎙️ Enhanced TTS request for text: {request.text[:100]}...")
         
-        # First, try the comprehensive TTS service
+        # Use the enhanced TTS service with 3-tier fallback
         try:
-            from app.services.tts.tts_service import tts_service
+            from app.services.tts.enhanced_tts_service import enhanced_tts_service
             
-            # Initialize TTS service if not already done
-            if not tts_service.is_initialized:
-                logger.info("🔄 Initializing TTS service...")
-                await tts_service.initialize()
+            # Initialize service if not already done
+            if not enhanced_tts_service.is_initialized:
+                logger.info("🔄 Initializing Enhanced TTS service...")
+                await enhanced_tts_service.initialize()
             
-            if tts_service.is_initialized:
-                # Use the TTS service for high-quality synthesis
-                tts_result = await tts_service.synthesize_for_pam(
+            if enhanced_tts_service.is_initialized:
+                # Use enhanced TTS service with automatic fallback
+                result = await enhanced_tts_service.synthesize(
                     text=request.text,
-                    context="voice_generation",
-                    stream=False
+                    voice_id="en-US-AriaNeural",  # Default to Aria voice
+                    max_retries=3
                 )
                 
-                if tts_result and hasattr(tts_result, 'audio_data') and tts_result.audio_data:
-                    logger.info(f"✅ TTS service synthesis successful: {len(tts_result.audio_data)} bytes")
+                if result.audio_data:
+                    logger.info(f"✅ Enhanced TTS successful with {result.engine.value}: {len(result.audio_data)} bytes")
                     
                     # Convert audio data to array format expected by frontend
-                    import struct
-                    # Assuming MP3 data, convert to int16 array format
-                    # For compatibility, we'll return the raw bytes as integers
-                    audio_array = list(tts_result.audio_data)
+                    audio_array = list(result.audio_data)
                     
                     return {
                         "audio": audio_array,
-                        "duration": getattr(tts_result, 'duration_ms', len(request.text) * 100) // 1000,  # rough estimate
-                        "cached": getattr(tts_result, 'cache_hit', False)
+                        "duration": result.duration_ms // 1000 if result.duration_ms else len(request.text) // 10,
+                        "cached": result.cache_hit,
+                        "engine": result.engine.value,
+                        "quality": result.quality.value,
+                        "fallback_used": result.fallback_used,
+                        "processing_time_ms": result.processing_time_ms
                     }
+                elif result.error:
+                    logger.error(f"❌ Enhanced TTS failed: {result.error}")
+                    raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {result.error}")
                 else:
-                    logger.warning("⚠️ TTS service returned no audio data")
+                    logger.warning("⚠️ Enhanced TTS returned no audio data")
+                    
             else:
-                logger.warning("⚠️ TTS service not available")
+                logger.error("❌ Enhanced TTS service could not be initialized")
                 
-        except Exception as tts_error:
-            logger.error(f"❌ TTS service failed: {tts_error}")
+        except Exception as enhanced_error:
+            logger.error(f"❌ Enhanced TTS service failed: {enhanced_error}")
         
-        # Fallback to Supabase TTS function
-        logger.info("🔄 Falling back to Supabase TTS function...")
-        from app.api.v1.voice import generate_voice, VoiceRequest as VoiceReq
+        # Legacy fallback chain (kept for compatibility)
+        logger.info("🔄 Falling back to legacy TTS methods...")
         
-        voice_request = VoiceReq(text=request.text)
-        voice_response = await generate_voice(voice_request)
-        
-        if voice_response and voice_response.audio:
-            logger.info(f"✅ Supabase TTS successful: {len(voice_response.audio)} audio samples")
-            return {
-                "audio": voice_response.audio,
-                "duration": voice_response.duration,
-                "cached": voice_response.cached
-            }
-        else:
-            logger.warning("⚠️ Supabase TTS returned no audio data")
-        
-        # Final fallback: Edge TTS
-        logger.info("🔄 Trying Edge TTS as final fallback...")
+        # Try direct Edge TTS
         try:
             import edge_tts
-            import asyncio
-            import io
             
-            # Use a common English voice
             voice = "en-US-AriaNeural"  
             communicate = edge_tts.Communicate(request.text, voice)
             
-            # Generate audio
             audio_data = b""
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
                     audio_data += chunk["data"]
             
             if audio_data:
-                # Convert to array format that frontend expects
-                # Edge TTS generates MP3 data, which the frontend can handle
                 audio_array = list(audio_data)
-                logger.info(f"✅ Edge TTS successful: {len(audio_array)} bytes")
+                logger.info(f"✅ Direct Edge TTS successful: {len(audio_array)} bytes")
                 
                 return {
                     "audio": audio_array,
-                    "duration": len(request.text) // 10,  # rough estimate: 10 chars per second
-                    "cached": False
+                    "duration": len(request.text) // 10,
+                    "cached": False,
+                    "engine": "edge",
+                    "quality": "high",
+                    "fallback_used": True
                 }
-            else:
-                logger.warning("⚠️ Edge TTS returned no audio data")
                 
         except Exception as edge_error:
-            logger.error(f"❌ Edge TTS failed: {edge_error}")
+            logger.error(f"❌ Direct Edge TTS failed: {edge_error}")
         
-        # If all methods fail, return an error
-        raise HTTPException(
-            status_code=500, 
-            detail="TTS generation failed: All voice synthesis methods unavailable"
+        # Try pyttsx3 as final fallback
+        try:
+            import pyttsx3
+            import tempfile
+            import os
+            
+            engine = pyttsx3.init()
+            
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+                tmp_path = tmp_file.name
+            
+            engine.save_to_file(request.text, tmp_path)
+            engine.runAndWait()
+            
+            if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+                with open(tmp_path, 'rb') as f:
+                    audio_data = f.read()
+                os.unlink(tmp_path)
+                
+                if audio_data:
+                    audio_array = list(audio_data)
+                    logger.info(f"✅ pyttsx3 fallback successful: {len(audio_array)} bytes")
+                    
+                    return {
+                        "audio": audio_array,
+                        "duration": len(request.text) // 8,
+                        "cached": False,
+                        "engine": "pyttsx3",
+                        "quality": "medium",
+                        "fallback_used": True
+                    }
+            else:
+                os.unlink(tmp_path)
+                
+        except Exception as pyttsx3_error:
+            logger.error(f"❌ pyttsx3 fallback failed: {pyttsx3_error}")
+        
+        # If all methods fail, return detailed error
+        error_msg = (
+            "All TTS engines failed. Please check: "
+            "1) edge-tts package installed, "
+            "2) Internet connection for Edge TTS, "
+            "3) System TTS configuration"
         )
         
+        logger.error(f"❌ Complete TTS failure: {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        logger.error(f"❌ Voice generation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Voice generation failed: {str(e)}")
+        logger.error(f"❌ Voice generation critical error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Voice generation system error: {str(e)}")
