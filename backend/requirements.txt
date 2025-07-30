@@ -86,4 +86,4 @@ openai-whisper>=20240930
 
 # Search and web processing
 googlemaps==4.10.0
-lxml==4.9.3
+lxml==5.2.1
