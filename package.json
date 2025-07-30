@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/build-debug.js && vite build",
+    "build:netlify": "node scripts/netlify-build.js",
     "build:dev": "vite build --mode development",
     "build:staging": "vite build --mode staging",
     "build:production": "vite build --mode production",
@@ -35,7 +36,7 @@
     "ci:full": "npm run quality:check && npm run build && npm run e2e",
     "test:staging": "node scripts/test-staging.js",
     "prepare": "husky install",
-    "postinstall": "husky install && node -e \"try{require.resolve('@esbuild/linux-x64')}catch(e){require('child_process').execSync('npm install @esbuild/linux-x64 --no-save',{stdio:'inherit'})}\""
+    "postinstall": "husky install && node -e \"try{require.resolve('@esbuild/linux-x64')}catch(e){require('child_process').execSync('npm install @esbuild/linux-x64 --no-save',{stdio:'inherit'})}\" && node -e \"try{require.resolve('@rollup/rollup-linux-x64-gnu')}catch(e){require('child_process').execSync('npm install @rollup/rollup-linux-x64-gnu --no-save',{stdio:'inherit'})}\""
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.10",
@@ -157,5 +158,9 @@
   },
   "engines": {
     "node": ">=18 <=21"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.24.0",
+    "@esbuild/linux-x64": "^0.25.8"
   }
 }

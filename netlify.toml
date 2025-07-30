@@ -1,7 +1,7 @@
 # Force fresh deployment - cache fix
 [build]
   publish = "dist" 
-  command = "npm run build"
+  command = "npm run build:netlify"
 
 [build.environment]
   NODE_VERSION = "18"
