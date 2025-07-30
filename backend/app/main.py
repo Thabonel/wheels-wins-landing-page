@@ -173,9 +173,12 @@ async def lifespan(app: FastAPI):
         await cache_service.initialize()
         logger.info("✅ Redis cache service initialized")
 
-        # Initialize production monitoring (DISABLED - high memory usage)
-        # await production_monitor.start_monitoring()
-        logger.info("⚠️ Production monitoring DISABLED to reduce memory usage")
+        # Initialize production monitoring (Environment controlled)
+        if os.getenv('DISABLE_MONITORING', 'false').lower() == 'true':
+            logger.info("🚫 Production monitoring DISABLED via environment variable")
+        else:
+            # await production_monitor.start_monitoring()  # Still disabled for now
+            logger.info("⚠️ Production monitoring DISABLED to reduce memory usage")
         
         # Initialize optimized performance components (DISABLED - high memory usage)
         # try:
