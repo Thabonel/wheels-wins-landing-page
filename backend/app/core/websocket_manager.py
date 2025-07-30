@@ -15,9 +15,10 @@ class ConnectionManager:
         self.user_connections: Dict[str, Dict[str, WebSocket]] = {}
         # Connection metadata for heartbeat tracking
         self.connection_metadata: Dict[str, Dict] = {}
-        # Heartbeat configuration
-        self.heartbeat_interval = 30  # Send ping every 30 seconds
-        self.connection_timeout = 120  # Consider connection dead after 2 minutes
+        # Heartbeat configuration - more aggressive for production
+        self.heartbeat_interval = 20  # Send ping every 20 seconds (was 30)
+        self.connection_timeout = 60  # Consider connection dead after 1 minute (was 2)
+        self.max_missed_pings = 3  # Maximum missed pings before disconnection
         self.heartbeat_task: Optional[asyncio.Task] = None
     
     async def connect(self, websocket: WebSocket, user_id: str, connection_id: str) -> None:
@@ -35,7 +36,10 @@ class ConnectionManager:
             "connected_at": time.time(),
             "last_ping": time.time(),
             "last_pong": time.time(),
-            "is_alive": True
+            "is_alive": True,
+            "missed_pings": 0,
+            "total_pings_sent": 0,
+            "total_pongs_received": 0
         }
         
         logger.info(f"🔗 WebSocket connected: {connection_id} for user {user_id}")
@@ -135,21 +139,38 @@ class ConnectionManager:
                     # Check if connection has timed out
                     time_since_pong = current_time - metadata["last_pong"]
                     if time_since_pong > self.connection_timeout:
-                        logger.warning(f"💔 Connection timeout: {connection_id} (no pong for {time_since_pong:.1f}s)")
-                        dead_connections.append(connection_id)
-                        continue
+                        metadata["missed_pings"] += 1
+                        if metadata["missed_pings"] >= self.max_missed_pings:
+                            logger.warning(f"💔 Connection timeout: {connection_id} (no pong for {time_since_pong:.1f}s, missed {metadata['missed_pings']} pings)")
+                            dead_connections.append(connection_id)
+                            continue
+                        else:
+                            logger.debug(f"⚠️ Missed ping {metadata['missed_pings']}/{self.max_missed_pings} for {connection_id}")
                     
                     # Send ping if interval has passed
                     time_since_ping = current_time - metadata["last_ping"]
                     if time_since_ping >= self.heartbeat_interval:
                         try:
-                            # FastAPI WebSocket doesn't have ping(), use JSON message instead
-                            await websocket.send_json({
-                                "type": "ping",
-                                "timestamp": current_time
-                            })
-                            metadata["last_ping"] = current_time
-                            logger.debug(f"💓 Sent ping to {connection_id}")
+                            # Check WebSocket state before sending
+                            if websocket.client_state == WebSocketState.CONNECTED:
+                                # FastAPI WebSocket doesn't have ping(), use JSON message instead
+                                await asyncio.wait_for(
+                                    websocket.send_json({
+                                        "type": "ping",
+                                        "timestamp": current_time,
+                                        "connection_id": connection_id
+                                    }),
+                                    timeout=5.0  # 5 second timeout for ping
+                                )
+                                metadata["last_ping"] = current_time
+                                metadata["total_pings_sent"] += 1
+                                logger.debug(f"💓 Sent ping {metadata['total_pings_sent']} to {connection_id}")
+                            else:
+                                logger.warning(f"💔 WebSocket not connected for {connection_id}, state: {websocket.client_state}")
+                                dead_connections.append(connection_id)
+                        except asyncio.TimeoutError:
+                            logger.warning(f"💔 Ping timeout for {connection_id}")
+                            dead_connections.append(connection_id)
                         except Exception as e:
                             logger.warning(f"💔 Failed to ping {connection_id}: {e}")
                             dead_connections.append(connection_id)
@@ -174,11 +195,25 @@ class ConnectionManager:
         except Exception as e:
             logger.error(f"❌ Heartbeat monitor error: {e}")
     
-    async def handle_pong(self, connection_id: str):
+    async def handle_pong(self, connection_id: str, pong_data: dict = None):
         """Handle pong response from client."""
         if connection_id in self.connection_metadata:
-            self.connection_metadata[connection_id]["last_pong"] = time.time()
-            logger.debug(f"💓 Received pong from {connection_id}")
+            metadata = self.connection_metadata[connection_id]
+            metadata["last_pong"] = time.time()
+            metadata["missed_pings"] = 0  # Reset missed ping counter
+            metadata["total_pongs_received"] += 1
+            
+            # Calculate ping latency if timestamp provided
+            if pong_data and "timestamp" in pong_data:
+                try:
+                    ping_timestamp = float(pong_data["timestamp"])
+                    latency = (time.time() - ping_timestamp) * 1000  # Convert to ms
+                    metadata["last_latency_ms"] = round(latency, 2)
+                    logger.debug(f"💓 Pong from {connection_id} (latency: {latency:.2f}ms)")
+                except (ValueError, TypeError):
+                    logger.debug(f"💓 Pong from {connection_id} (no latency calc)")
+            else:
+                logger.debug(f"💓 Pong from {connection_id}")
     
     async def get_connection_stats(self) -> Dict:
         """Get WebSocket connection statistics."""
@@ -201,7 +236,11 @@ class ConnectionManager:
                 "age_seconds": round(connection_age, 1),
                 "time_since_ping": round(time_since_ping, 1),
                 "time_since_pong": round(time_since_pong, 1),
-                "is_alive": metadata["is_alive"]
+                "is_alive": metadata["is_alive"],
+                "missed_pings": metadata.get("missed_pings", 0),
+                "total_pings_sent": metadata.get("total_pings_sent", 0),
+                "total_pongs_received": metadata.get("total_pongs_received", 0),
+                "last_latency_ms": metadata.get("last_latency_ms", 0)
             })
         
         return stats

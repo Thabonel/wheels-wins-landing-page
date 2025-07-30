@@ -140,11 +140,65 @@ class CacheService:
         except Exception as e:
             logger.warning(f"Cache batch_set error: {e}")
     
+    async def clear_expired(self) -> int:
+        """Clear expired keys from cache (manual cleanup)."""
+        if not self.redis:
+            await self.initialize()
+        
+        try:
+            # Get all keys
+            keys = await self.redis.keys("*")
+            expired_count = 0
+            
+            # Check each key's TTL
+            for key in keys:
+                ttl = await self.redis.ttl(key)
+                if ttl == -2:  # Key doesn't exist (already expired)
+                    expired_count += 1
+                elif ttl == -1:  # Key exists but has no expiration
+                    # Optionally set expiration for keys without TTL
+                    await self.redis.expire(key, self.default_ttl)
+            
+            logger.info(f"🧹 Cache cleanup: {expired_count} expired keys found")
+            return expired_count
+            
+        except Exception as e:
+            logger.warning(f"Cache clear_expired error: {e}")
+            return 0
+    
+    async def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics."""
+        if not self.redis:
+            await self.initialize()
+        
+        try:
+            info = await self.redis.info()
+            keys_count = await self.redis.dbsize()
+            
+            return {
+                "connected": True,
+                "total_keys": keys_count,
+                "used_memory": info.get("used_memory_human", "unknown"),
+                "connected_clients": info.get("connected_clients", 0),
+                "uptime_seconds": info.get("uptime_in_seconds", 0),
+                "redis_version": info.get("redis_version", "unknown")
+            }
+        except Exception as e:
+            logger.warning(f"Cache stats error: {e}")
+            return {
+                "connected": False,
+                "error": str(e)
+            }
+    
     async def close(self):
         """Close Redis connection"""
         if self.redis:
-            await self.redis.close()
-            self.redis = None
+            try:
+                await self.redis.close()
+            except Exception as e:
+                logger.warning(f"Error closing Redis connection: {e}")
+            finally:
+                self.redis = None
 
 # Global cache instance
 cache_service = CacheService()

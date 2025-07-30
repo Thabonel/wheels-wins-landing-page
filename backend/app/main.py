@@ -17,11 +17,13 @@ from app.core.database_pool import db_pool
 from app.services.cache_service import cache_service
 from app.core.websocket_manager import manager as websocket_manager
 from app.core.middleware import setup_middleware
-from app.core.security_middleware import setup_security_middleware
 from app.core.monitoring_middleware import MonitoringMiddleware
 from app.guardrails.guardrails_middleware import GuardrailsMiddleware
 from app.core.cors_config import cors_config
 from app.core.cors_middleware import EnhancedCORSMiddleware, CORSDebugMiddleware
+
+# Import enhanced security setup
+from app.core.enhanced_security_setup import setup_enhanced_security, SecurityConfiguration
 
 # Temporarily disabled due to WebSocket route conflicts
 # from langserve import add_routes
@@ -247,8 +249,23 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Monitoring service ready")
 
         logger.info("🎯 All performance optimizations active")
-        logger.info("🔒 Security hardening measures active")
+        logger.info("🔒 Enhanced security system active")
         logger.info("📊 Monitoring and alerting active")
+        
+        # Log security configuration
+        try:
+            from app.core.enhanced_security_setup import get_security_recommendations
+            security_recommendations = get_security_recommendations()
+            security_score = security_recommendations.get("security_score", 0)
+            logger.info(f"🛡️ Security score: {security_score}/100")
+            
+            warning_count = len([r for r in security_recommendations.get("recommendations", []) if r.get("type") == "warning"])
+            if warning_count == 0:
+                logger.info("✅ All security checks passed")
+            else:
+                logger.warning(f"⚠️ {warning_count} security recommendations available")
+        except Exception as sec_log_error:
+            logger.warning(f"Could not retrieve security status: {sec_log_error}")
 
     except Exception as e:
         logger.error(f"❌ Failed to initialize components: {e}")
@@ -336,9 +353,13 @@ except Exception as trace_error:
     logger.warning(f"⚠️ OpenTelemetry instrumentation failed (non-critical): {trace_error}")
     logger.info("📊 Application will continue without OpenTelemetry tracing")
 
-# Setup middleware
+# Setup enhanced security middleware (replaces legacy security setup)
+logger.info("🛡️ Initializing enhanced security system...")
+security_config = setup_enhanced_security(app)
+logger.info("✅ Enhanced security system fully operational")
+
+# Setup other middleware
 app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
-setup_security_middleware(app)
 setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
@@ -492,6 +513,24 @@ app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
 app.include_router(editing_hub.router, prefix="/hubs", tags=["Editing"])
+
+# Security status endpoint is automatically added by enhanced_security_setup
+# Additional security endpoints can be accessed at /api/security/status and /api/security/recommendations
+
+# Add security recommendations endpoint
+@app.get("/api/security/recommendations")
+async def security_recommendations():
+    """Get security recommendations and configuration analysis"""
+    try:
+        from app.core.enhanced_security_setup import get_security_recommendations
+        return get_security_recommendations()
+    except Exception as e:
+        logger.error(f"Error getting security recommendations: {e}")
+        return {
+            "error": "Could not retrieve security recommendations",
+            "message": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 # LangServe router for PauterRouter - TEMPORARILY DISABLED due to WebSocket route conflicts
 # pauter_router = PauterRouter()
