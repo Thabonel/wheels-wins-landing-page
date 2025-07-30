@@ -81,5 +81,32 @@ envFiles.forEach(file => {
 });
 
 console.log('');
+
+// Check for Rollup dependencies
+console.log('🔧 Rollup Dependencies Check:');
+const rollupDeps = [
+  '@rollup/rollup-linux-x64-gnu',
+  '@rollup/rollup-darwin-x64',
+  '@rollup/rollup-win32-x64-msvc'
+];
+
+rollupDeps.forEach(dep => {
+  try {
+    require.resolve(dep);
+    console.log(`  ${dep}: ✅ AVAILABLE`);
+  } catch (error) {
+    console.log(`  ${dep}: ❌ NOT FOUND`);
+  }
+});
+
+console.log('');
+
+// Platform info
+console.log('🖥️ Platform Information:');
+console.log(`  Platform: ${process.platform}`);
+console.log(`  Architecture: ${process.arch}`);
+console.log(`  Node.js: ${process.version}`);
+
+console.log('');
 console.log('=====================================');
 console.log('');

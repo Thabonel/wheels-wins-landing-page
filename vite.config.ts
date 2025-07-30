@@ -47,6 +47,11 @@ export default defineConfig(({ mode }) => {
     minify: isProduction ? 'esbuild' : false,
     target: 'esnext',
     rollupOptions: {
+      // Handle native dependencies issue on Netlify
+      external: (id) => {
+        if (id.includes('@rollup/rollup-linux-x64-gnu')) return false;
+        return false;
+      },
       output: {
         // Add environment to chunk names for better debugging
         chunkFileNames: `assets/[name]-${mode}.[hash].js`,
