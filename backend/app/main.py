@@ -40,9 +40,6 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 from app.monitoring.production_monitor import production_monitor, MonitoringMiddleware
 
-# Import optimized performance components
-from app.monitoring.integration_manager import get_integration_manager
-
 # Import API routers
 from app.api.v1 import (
     health,
@@ -71,7 +68,6 @@ from app.api.v1 import (
     onboarding,
     performance,
 )
-from app.api.v1 import performance_health
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
@@ -173,27 +169,14 @@ async def lifespan(app: FastAPI):
         await cache_service.initialize()
         logger.info("✅ Redis cache service initialized")
 
-        # Initialize production monitoring (Environment controlled)
-        if os.getenv('DISABLE_MONITORING', 'false').lower() == 'true':
-            logger.info("🚫 Production monitoring DISABLED via environment variable")
-        else:
-            # await production_monitor.start_monitoring()  # Still disabled for now
-            logger.info("⚠️ Production monitoring DISABLED to reduce memory usage")
+        # Initialize production monitoring
+        await production_monitor.start_monitoring()
+        logger.info("✅ Production monitoring system initialized")
         
-        # Initialize optimized performance components (DISABLED - high memory usage)
-        # try:
-        #     integration_manager = await get_integration_manager()
-        #     await integration_manager.initialize()
-        #     logger.info("✅ Optimized performance components initialized")
-        # except Exception as perf_error:
-        #     logger.warning(f"⚠️ Optimized performance components failed to initialize: {perf_error}")
-        #     logger.info("💡 Continuing with standard monitoring")
-        logger.info("⚠️ Optimized performance components DISABLED to reduce memory usage")
-        
-        # Initialize performance monitoring (DISABLED - high memory usage)
-        # from app.services.performance_monitor import performance_monitor
-        # await performance_monitor.start_monitoring(interval_seconds=300)  # 5-minute intervals
-        logger.info("⚠️ Performance monitoring service DISABLED to reduce memory usage")
+        # Initialize performance monitoring  
+        from app.services.performance_monitor import performance_monitor
+        await performance_monitor.start_monitoring(interval_seconds=300)  # 5-minute intervals
+        logger.info("✅ Performance monitoring service initialized")
 
         # Initialize Knowledge Tool for PAM (ChromaDB-dependent)
         knowledge_tool_initialized = False
@@ -265,9 +248,9 @@ async def lifespan(app: FastAPI):
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
 
-        logger.info("🎯 Minimal performance mode active")
+        logger.info("🎯 All performance optimizations active")
         logger.info("🔒 Enhanced security system active")
-        logger.info("📊 Essential monitoring only")
+        logger.info("📊 Monitoring and alerting active")
         
         # Log security configuration
         try:
@@ -298,18 +281,9 @@ async def lifespan(app: FastAPI):
         # await db_pool.close()  # Database pool disabled
         await cache_service.close()
         
-        # Shutdown production monitoring (DISABLED)
-        # await production_monitor.stop_monitoring()
-        logger.info("ℹ️ Production monitoring was disabled - no shutdown needed")
-        
-        # Shutdown optimized performance components (DISABLED)
-        # try:
-        #     integration_manager = await get_integration_manager()
-        #     await integration_manager.shutdown()
-        #     logger.info("✅ Optimized performance components shutdown")
-        # except Exception as perf_shutdown_error:
-        #     logger.warning(f"⚠️ Optimized performance components shutdown warning: {perf_shutdown_error}")
-        logger.info("ℹ️ Optimized performance components were disabled - no shutdown needed")
+        # Shutdown production monitoring
+        await production_monitor.stop_monitoring()
+        logger.info("✅ Production monitoring system shutdown")
 
         # Shutdown Knowledge Tool (if initialized)
         try:
@@ -353,8 +327,8 @@ app = FastAPI(
     description="High-performance Personal Assistant Manager Backend with Monitoring",
     version="2.0.0",
     lifespan=lifespan,
-    docs_url="/docs",  # Always enable docs for API debugging
-    redoc_url="/redoc",  # Always enable redoc
+    docs_url="/api/docs" if settings.ENVIRONMENT != "production" else None,
+    redoc_url="/api/redoc" if settings.ENVIRONMENT != "production" else None,
 )
 
 # Enable distributed tracing with OpenTelemetry if available
@@ -384,10 +358,10 @@ logger.info("🛡️ Initializing enhanced security system...")
 security_config = setup_enhanced_security(app)
 logger.info("✅ Enhanced security system fully operational")
 
-# Setup other middleware (minimal for memory conservation)
-# app.add_middleware(MonitoringMiddleware, monitor=production_monitor)  # DISABLED - high memory usage
+# Setup other middleware
+app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
 setup_middleware(app)
-app.add_middleware(GuardrailsMiddleware)  # RE-ENABLED - may be essential for security
+app.add_middleware(GuardrailsMiddleware)
 
 # CORS middleware MUST be added LAST so it executes FIRST
 # Using centralized CORS configuration for better maintainability
@@ -425,13 +399,12 @@ async def root():
     """Root endpoint - PAM Backend status"""
     return {
         "message": "🤖 PAM Backend API",
-        "version": "2.0.4", 
-        "status": "operational-minimal",
-        "docs": "/docs",
+        "version": "2.0.3", 
+        "status": "operational",
+        "docs": "/api/docs",
         "health": "/health",
-        "updated": "2025-07-30T17:30:00Z",
-        "fixes": ["Memory usage optimized", "Monitoring disabled", "Core functionality preserved"],
-        "note": "Running in minimal mode for memory conservation"
+        "updated": "2025-07-28T23:54:00Z",
+        "fixes": ["CORS configuration enhanced", "Voice services optimized", "STT messaging improved"],
     }
 
 # CORS debugging endpoint
@@ -496,9 +469,6 @@ async def cors_stats():
 app.include_router(
     health.router, prefix="", tags=["Health"]
 )  # No prefix for /health endpoint
-app.include_router(
-    health.router, prefix="/api/v1", tags=["Health API"]
-)  # Add v1 prefix for API consistency
 app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(wins.router, prefix="/api", tags=["Wins"])
@@ -521,7 +491,6 @@ app.include_router(stripe_webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(observability_api.router, prefix="/api/v1", tags=["Admin Observability"])
 app.include_router(performance.router, prefix="/api/v1", tags=["Performance Monitoring"])
-app.include_router(performance_health.router, prefix="/api/v1", tags=["Performance Health"])
 app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 # Mundi integration removed
 app.include_router(actions.router, prefix="/api", tags=["Actions"])
