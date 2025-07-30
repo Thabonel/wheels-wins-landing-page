@@ -348,8 +348,8 @@ app = FastAPI(
     description="High-performance Personal Assistant Manager Backend with Monitoring",
     version="2.0.0",
     lifespan=lifespan,
-    docs_url="/api/docs" if settings.ENVIRONMENT != "production" else None,
-    redoc_url="/api/redoc" if settings.ENVIRONMENT != "production" else None,
+    docs_url="/docs",  # Always enable docs for API debugging
+    redoc_url="/redoc",  # Always enable redoc
 )
 
 # Enable distributed tracing with OpenTelemetry if available
@@ -490,6 +490,9 @@ async def cors_stats():
 app.include_router(
     health.router, prefix="", tags=["Health"]
 )  # No prefix for /health endpoint
+app.include_router(
+    health.router, prefix="/api/v1", tags=["Health API"]
+)  # Add v1 prefix for API consistency
 app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(wins.router, prefix="/api", tags=["Wins"])
