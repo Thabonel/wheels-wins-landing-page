@@ -64,13 +64,27 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
   console.log('🔐 Header size:', headerSize, 'characters');
   console.log('🔐 Status:', headerSize > 500 ? '⚠️ LARGE (consider reference tokens)' : '✅ Optimal size');
   
-  // Standard Authorization header approach
+  // Generate a CSRF token from the JWT token
+  let csrfToken = 'xhr-token';
+  try {
+    // Create a simple CSRF token using JWT hash and timestamp
+    const tokenHash = btoa(session.access_token.substring(0, 20)).replace(/[^a-zA-Z0-9]/g, '');
+    csrfToken = `${tokenHash}-${Date.now()}`;
+  } catch (error) {
+    console.warn('Could not generate CSRF token, using fallback');
+  }
+
+  // Standard Authorization header approach with CSRF protection
   const authenticatedOptions: RequestInit = {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
       'X-Auth-Type': 'jwt', // Signal authentication method
+      'X-Requested-With': 'XMLHttpRequest', // CSRF protection
+      'X-CSRF-Token': csrfToken, // CSRF token
+      'Origin': window.location.origin, // CORS origin
+      'Referer': window.location.href, // Additional security
       ...options.headers,
     },
   };
@@ -93,12 +107,26 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
       throw new Error('Session expired and refresh failed. Please log in again.');
     }
     
+    // Generate CSRF token for retry
+    let retryCsrfToken = 'xhr-retry-token';
+    try {
+      const tokenHash = btoa(refreshedSession.access_token.substring(0, 20)).replace(/[^a-zA-Z0-9]/g, '');
+      retryCsrfToken = `${tokenHash}-${Date.now()}`;
+    } catch (error) {
+      console.warn('Could not generate retry CSRF token, using fallback');
+    }
+
     // Retry with new token
     const retryOptions: RequestInit = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${refreshedSession.access_token}`,
+        'X-Auth-Type': 'jwt', // Signal authentication method
+        'X-Requested-With': 'XMLHttpRequest', // CSRF protection
+        'X-CSRF-Token': retryCsrfToken, // CSRF token
+        'Origin': window.location.origin, // CORS origin
+        'Referer': window.location.href, // Additional security
         ...options.headers,
       },
     };

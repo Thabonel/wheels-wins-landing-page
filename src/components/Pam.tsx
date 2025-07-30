@@ -249,6 +249,57 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
+  const testRestApiConnection = async () => {
+    try {
+      console.log('🔄 Testing REST API connection...');
+      
+      // First try the health endpoint (no auth required)
+      const healthResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}/health`);
+      if (!healthResponse.ok) {
+        throw new Error('Backend health check failed');
+      }
+      
+      console.log('✅ Backend health check passed');
+      
+      // Try PAM chat endpoint with authentication
+      const response = await authenticatedFetch('/api/v1/pam/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          message: 'Hello PAM, connection test',
+          context: {
+            user_id: user?.id,
+            request_type: 'connection_test'
+          }
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ REST API connection successful:', data);
+        const pamResponse = data.response || data.message || data.content || "Hello! I'm PAM and I'm working properly now!";
+        addMessage(pamResponse, "pam");
+        setConnectionStatus("Connected");
+      } else {
+        const errorText = await response.text();
+        console.error('❌ REST API connection failed:', response.status, response.statusText, errorText);
+        
+        // Try to parse error details
+        let errorDetail = 'Unknown error';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorDetail = errorData.message || errorData.detail || errorData.error || 'API error';
+        } catch {
+          errorDetail = response.statusText || 'Connection failed';
+        }
+        
+        addMessage(`❌ Connection issue: ${errorDetail}. I'm working on reconnecting...`, "pam");
+      }
+    } catch (error) {
+      console.error('❌ REST API test failed:', error);
+      addMessage("❌ Backend services are currently unavailable. Please try again later. In the meantime, I can help you with general travel advice!", "pam");
+    }
+  };
+
   const connectToBackend = useCallback(async () => {
     console.log('🔌 PAM connectToBackend called with:', { userId: user?.id, hasToken: !!sessionToken });
     if (!user?.id) {
@@ -266,7 +317,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       if (!healthResponse.ok) {
         console.warn('⚠️ PAM backend health check failed, using fallback mode');
         setConnectionStatus("Disconnected");
-        addMessage("🤖 Hi! I'm PAM. The live backend is currently unavailable, but I can still help you using the REST API. How can I assist you today?", "pam");
+        addMessage("🤖 Hi! I'm PAM. I'm having trouble connecting to the backend services right now. Let me try to establish a connection...", "pam");
+        // Try REST API fallback
+        await testRestApiConnection();
         return;
       }
     } catch (error) {
@@ -284,16 +337,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Get a short reference token instead of the full JWT
       let tokenForWs = sessionToken;
       try {
-        // Check if we should use reference tokens
-        const useReferenceTokens = localStorage.getItem('use_reference_tokens') !== 'false';
-        if (useReferenceTokens && sessionToken) {
-          // For WebSocket, use the user ID instead of the full token to avoid URL length limits
-          tokenForWs = user?.id || 'demo-token';
-          console.log('🎫 Using user ID for WebSocket authentication to avoid URL limits');
+        // For WebSocket, always use a short token to avoid URL length limits
+        if (sessionToken && user?.id) {
+          // Use first 50 characters of token + user ID for WebSocket authentication
+          const shortToken = sessionToken.substring(0, 50) + '_' + user.id;
+          tokenForWs = shortToken;
+          console.log('🎫 Using shortened token for WebSocket authentication');
+        } else {
+          tokenForWs = user?.id || 'anonymous';
+          console.log('🎫 Using user ID for WebSocket authentication');
         }
       } catch (error) {
-        console.warn('Could not determine reference token preference, using fallback');
-        tokenForWs = user?.id || 'demo-token';
+        console.warn('Could not create WebSocket token, using fallback');
+        tokenForWs = user?.id || 'anonymous';
       }
       
       const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(tokenForWs)}`;
@@ -324,7 +380,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         
         // ROBUST MEMORY: Only show greeting if no previous conversation
         if (messages.length === 0) {
-          addMessage("🤖 Hi! I'm PAM, your autonomous agentic AI travel companion! I can autonomously plan complex multi-step journeys, reason through complex logistics like Sydney→Hobart ferry crossings, learn from our conversations, and proactively identify potential issues. I use advanced tools for deep thinking, user profiling, and intelligent decision-making. How can I demonstrate my agentic capabilities for you today?", "pam");
+          addMessage("🤖 Hi! I'm PAM, your AI travel companion! I'm connecting to the backend to provide you with intelligent assistance. How can I help you today?", "pam");
         } else {
           console.log('📚 PAM: Session restored with existing conversation history');
         }
@@ -1529,15 +1585,54 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 </button>
                 <button 
                   onClick={async () => {
+                    console.log('🧪 PAM DIAGNOSTIC: Starting full diagnostic...');
+                    
+                    // Check authentication
                     const { data: { session } } = await supabase.auth.getSession();
-                    console.log('🧪 PAM MAIN: Session token:', session?.access_token?.substring(0, 30));
-                    console.log('🧪 PAM MAIN: Token parts:', session?.access_token?.split('.').length);
-                    console.log('🧪 PAM MAIN: Is mock token?', session?.access_token === 'mock-token');
-                    console.log('🧪 PAM MAIN: User:', user?.email);
+                    console.log('🧪 Session details:');
+                    console.log('  - Has session:', !!session);
+                    console.log('  - Has access_token:', !!session?.access_token);
+                    console.log('  - Token preview:', session?.access_token?.substring(0, 30));
+                    console.log('  - Token parts:', session?.access_token?.split('.').length);
+                    console.log('  - User email:', user?.email);
+                    console.log('  - User ID:', user?.id);
+                    
+                    // Test backend health
+                    try {
+                      const healthResponse = await fetch('https://pam-backend.onrender.com/health');
+                      console.log('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
+                    } catch (error) {
+                      console.log('🧪 Backend health: ERROR', error);
+                    }
+                    
+                    // Test PAM connection
+                    if (session?.access_token) {
+                      try {
+                        const testResponse = await authenticatedFetch('/api/v1/pam/chat', {
+                          method: 'POST',
+                          body: JSON.stringify({
+                            message: 'Debug test message',
+                            context: { user_id: user?.id, debug: true }
+                          })
+                        });
+                        console.log('🧪 PAM API test:', testResponse.ok ? 'SUCCESS' : 'FAILED');
+                        if (!testResponse.ok) {
+                          const errorText = await testResponse.text();
+                          console.log('🧪 PAM API error:', errorText);
+                        } else {
+                          const data = await testResponse.json();
+                          console.log('🧪 PAM API response:', data);
+                        }
+                      } catch (apiError) {
+                        console.log('🧪 PAM API exception:', apiError);
+                      }
+                    }
+                    
+                    addMessage("🧪 Diagnostic completed - check browser console for details", "pam");
                   }}
-                  className="flex items-center gap-2 w-full p-2 text-left text-xs bg-red-100 rounded-lg hover:bg-red-200"
+                  className="flex items-center gap-2 w-full p-2 text-left text-xs bg-blue-100 rounded-lg hover:bg-blue-200"
                 >
-                  🔍 Debug Session Token
+                  🧪 Run Full Diagnostic
                 </button>
               </div>
             </div>
@@ -1725,15 +1820,54 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   </button>
                   <button 
                     onClick={async () => {
+                      console.log('🧪 PAM DIAGNOSTIC: Starting full diagnostic...');
+                      
+                      // Check authentication  
                       const { data: { session } } = await supabase.auth.getSession();
-                      console.log('🧪 PAM MAIN: Session token:', session?.access_token?.substring(0, 30));
-                      console.log('🧪 PAM MAIN: Token parts:', session?.access_token?.split('.').length);
-                      console.log('🧪 PAM MAIN: Is mock token?', session?.access_token === 'mock-token');
-                      console.log('🧪 PAM MAIN: User:', user?.email);
+                      console.log('🧪 Session details:');
+                      console.log('  - Has session:', !!session);
+                      console.log('  - Has access_token:', !!session?.access_token);
+                      console.log('  - Token preview:', session?.access_token?.substring(0, 30));
+                      console.log('  - Token parts:', session?.access_token?.split('.').length);
+                      console.log('  - User email:', user?.email);
+                      console.log('  - User ID:', user?.id);
+                      
+                      // Test backend health
+                      try {
+                        const healthResponse = await fetch('https://pam-backend.onrender.com/health');
+                        console.log('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
+                      } catch (error) {
+                        console.log('🧪 Backend health: ERROR', error);
+                      }
+                      
+                      // Test PAM connection
+                      if (session?.access_token) {
+                        try {
+                          const testResponse = await authenticatedFetch('/api/v1/pam/chat', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              message: 'Debug test message',
+                              context: { user_id: user?.id, debug: true }
+                            })
+                          });
+                          console.log('🧪 PAM API test:', testResponse.ok ? 'SUCCESS' : 'FAILED');
+                          if (!testResponse.ok) {
+                            const errorText = await testResponse.text();
+                            console.log('🧪 PAM API error:', errorText);
+                          } else {
+                            const data = await testResponse.json();
+                            console.log('🧪 PAM API response:', data);
+                          }
+                        } catch (apiError) {
+                          console.log('🧪 PAM API exception:', apiError);
+                        }
+                      }
+                      
+                      addMessage("🧪 Diagnostic completed - check browser console for details", "pam");
                     }}
-                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-red-100 rounded-lg hover:bg-red-200"
+                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-blue-100 rounded-lg hover:bg-blue-200"
                   >
-                    🔍 Debug Session Token
+                    🧪 Run Full Diagnostic
                   </button>
                 </div>
               </div>
