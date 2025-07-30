@@ -156,7 +156,7 @@ class MemoryOptimizer:
         logger.warning(f"🗑️ Aggressive cleanup: collected {total_collected} objects")
         
         # Clear module-level caches if available
-        await self._clear_module_caches()
+        await self._clear_all_caches()
         
         # Get updated memory stats
         memory = psutil.virtual_memory()
