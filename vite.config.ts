@@ -1,6 +1,7 @@
 // vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import reactFallback from "@vitejs/plugin-react";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
@@ -26,7 +27,8 @@ export default defineConfig(({ mode }) => {
     'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : mode),
   },
   plugins: [
-    react(),
+    // Use standard React plugin on Netlify (CI/CD), SWC locally for speed
+    process.env.NETLIFY || process.env.CI ? reactFallback() : react(),
     mode === "development" && componentTagger(),
   ].filter(Boolean),
   resolve: {
