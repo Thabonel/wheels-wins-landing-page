@@ -378,14 +378,18 @@ class RequestValidator:
         
         # Check headers for dangerous patterns
         for header, value in request.headers.items():
-            if header.lower() not in ['authorization', 'cookie']:  # Skip auth headers
-                header_check = self._check_security_patterns(value)
-                if header_check:
-                    return {
-                        "error": "Security Violation",
-                        "message": f"Header '{header}' contains potentially dangerous content",
-                        "location": "headers"
-                    }
+            # Skip common headers that might contain legitimate patterns that resemble dangerous ones
+            # e.g., 'baggage' for Sentry tracing, 'user-agent' for complex strings
+            if header.lower() in ['authorization', 'cookie', 'baggage', 'user-agent']:  
+                continue
+
+            header_check = self._check_security_patterns(value)
+            if header_check:
+                return {
+                    "error": "Security Violation",
+                    "message": f"Header '{header}' contains potentially dangerous content",
+                    "location": "headers"
+                }
         
         # Check body for dangerous patterns
         if body:
