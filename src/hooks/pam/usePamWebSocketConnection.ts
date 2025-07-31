@@ -92,15 +92,15 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
       
       ws.current = new WebSocket(wsUrl);
 
-      // Increased timeout for Render.com cold starts (30 seconds)
+      // Connection timeout for premium Render.com plan (fast response expected)
       const connectionTimeout = setTimeout(() => {
         if (ws.current?.readyState !== WebSocket.OPEN) {
-          console.warn('⏰ PAM WebSocket connection timeout after 30 seconds');
+          console.warn('⏰ PAM WebSocket connection timeout after 10 seconds');
           ws.current?.close();
           updateConnectionStatus(false);
           scheduleReconnect();
         }
-      }, 30000); // 30 second timeout for Render.com
+      }, 10000); // 10 second timeout - premium plan with guaranteed uptime
 
       ws.current.onopen = () => {
         clearTimeout(connectionTimeout);
