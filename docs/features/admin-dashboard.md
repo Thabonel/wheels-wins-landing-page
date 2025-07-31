@@ -1,29 +1,19 @@
 # Admin Dashboard
 
 ## Overview
-The Admin Dashboard provides administrators with a centralized interface to manage users, monitor platform activity, and configure system settings.
+The Admin Dashboard provides administrators with a centralized interface to manage the platform.
 
 ## Features
-
-### User Management
-- **User List:** View all registered users.
-- **User Details:** View individual user profiles.
-- **Edit User:** Modify user information.
-- **Delete User:** Remove users from the platform.
-
-### Platform Monitoring
-- **Activity Feed:** Monitor real-time platform activity.
-- **Analytics:** View platform usage statistics.
-- **Error Logs:** View system error logs.
-
-### System Configuration
-- **Settings:** Configure system-wide settings.
-- **Feature Flags:** Enable or disable features.
-- **Content Management:** Manage platform content.
+- **Admin Protection:** The dashboard is protected and only accessible to administrators.
+- **Header:** A header with a button to toggle the sidebar.
+- **Sidebar:** A sidebar with links to different sections of the dashboard.
+- **Content Area:** The main content area, which displays the active section.
+- **PAM Chat:** A chat interface for administrators to interact with the PAM AI assistant.
 
 ## Components
-- `AdminDashboard.tsx`: Main dashboard component.
-- `UserList.tsx`: Component for displaying a list of users.
-- `UserDetails.tsx`: Component for displaying user details.
-- `ActivityFeed.tsx`: Component for displaying the platform activity feed.
-- `AnalyticsDashboard.tsx`: Component for displaying platform analytics.
+- `AdminDashboard.tsx`: Main component for the Admin Dashboard.
+- `AdminProtection.tsx`: Component that protects the dashboard from unauthorized access.
+- `AdminHeader.tsx`: Component for the dashboard header.
+- `AdminSidebar.tsx`: Component for the dashboard sidebar.
+- `AdminContent.tsx`: Component for the main content area.
+- `AdminPamChat.tsx`: Component for the PAM chat interface.
