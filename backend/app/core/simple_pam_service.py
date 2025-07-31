@@ -134,6 +134,8 @@ class SimplePamService:
         """
         user_id = context.get("user_id", "anonymous")
         session_id = context.get("session_id", "default")
+        input_type = context.get("input_type", "text")
+        start_time = datetime.utcnow()
         
         logger.info(f"🤖 SimplePamService processing message for user {user_id}: '{message}'")
         
@@ -168,26 +170,56 @@ class SimplePamService:
                 comprehensive_data = {"has_data": False, "error": "Could not load user data"}
         
         # Check if message requires tool usage
+        tools_used = []
         tool_result = await self._process_with_tools(message, context, user_id)
+        if tool_result:
+            tools_used = tool_result.get('tools_used', [])
         
         # Build the conversation messages for OpenAI (include tool results if any)
         messages = self._build_conversation_messages(message, context, conversation_history, comprehensive_data, tool_result)
         
         # Try to get response with retries
+        response_text = None
+        error_message = None
+        intent = self._extract_intent(message)
+        confidence_score = self._calculate_confidence(message, tool_result)
+        
         for attempt in range(self.max_retries):
             try:
-                response = await self._call_openai(messages)
+                response_text = await self._call_openai(messages)
                 logger.info(f"✅ OpenAI response received on attempt {attempt + 1}")
-                return response
+                break
                 
             except Exception as e:
                 logger.error(f"❌ OpenAI call failed (attempt {attempt + 1}/{self.max_retries}): {str(e)}")
+                error_message = str(e)
                 
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(self.retry_delay * (attempt + 1))
                 else:
                     # All retries failed, return a helpful error response
-                    return self._get_error_response(message, str(e))
+                    response_text = self._get_error_response(message, str(e))
+        
+        # Calculate response time
+        end_time = datetime.utcnow()
+        response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+        
+        # Log the interaction to database for analytics
+        await self._log_interaction(
+            user_id=user_id,
+            session_id=session_id,
+            message=message,
+            response=response_text,
+            intent=intent,
+            confidence_score=confidence_score,
+            response_time_ms=response_time_ms,
+            input_type=input_type,
+            tools_used=tools_used,
+            error_message=error_message,
+            metadata=context
+        )
+        
+        return response_text
     
     async def _call_openai(self, messages: List[Dict[str, str]]) -> str:
         """Make the actual OpenAI API call"""
@@ -1188,6 +1220,111 @@ User context: {context}""".format(
             
         except Exception as e:
             logger.error(f"❌ Error during PAM service cleanup: {e}")
+
+    def _extract_intent(self, message: str) -> str:
+        """Extract intent from user message for analytics"""
+        message_lower = message.lower()
+        
+        # Travel planning intent
+        if any(word in message_lower for word in ['trip', 'travel', 'route', 'destination', 'campground', 'park']):
+            return 'travel_planning'
+        
+        # Financial intent
+        elif any(word in message_lower for word in ['budget', 'money', 'expense', 'cost', 'price', 'fuel', 'gas']):
+            return 'financial_planning'
+        
+        # Location/places intent
+        elif any(word in message_lower for word in ['near', 'restaurant', 'food', 'attraction', 'hotel', 'accommodation']):
+            return 'location_search'
+        
+        # Weather intent
+        elif any(word in message_lower for word in ['weather', 'temperature', 'rain', 'forecast', 'climate']):
+            return 'weather_inquiry'
+        
+        # Vehicle/maintenance intent
+        elif any(word in message_lower for word in ['vehicle', 'rv', 'maintenance', 'repair', 'tire', 'engine']):
+            return 'vehicle_maintenance'
+        
+        # Social intent
+        elif any(word in message_lower for word in ['friend', 'group', 'community', 'meet', 'social']):
+            return 'social_interaction'
+        
+        # Information/web search intent
+        elif any(word in message_lower for word in ['search', 'find', 'information', 'look up', 'what is']):
+            return 'information_search'
+        
+        # General chat/greeting intent
+        elif any(word in message_lower for word in ['hello', 'hi', 'hey', 'thanks', 'thank you', 'help']):
+            return 'general_chat'
+        
+        else:
+            return 'unknown'
+
+    def _calculate_confidence(self, message: str, tool_result: Optional[Dict] = None) -> float:
+        """Calculate confidence score for the response"""
+        base_confidence = 0.75  # Base confidence for all responses
+        
+        # Increase confidence if tools were successfully used
+        if tool_result and tool_result.get('success', False):
+            base_confidence += 0.15
+        
+        # Increase confidence for specific keywords
+        message_lower = message.lower()
+        if any(word in message_lower for word in ['campground', 'restaurant', 'park', 'weather']):
+            base_confidence += 0.1
+        
+        # Cap at 0.95 to account for uncertainty
+        return min(base_confidence, 0.95)
+
+    async def _log_interaction(
+        self,
+        user_id: str,
+        session_id: str,
+        message: str,
+        response: str,
+        intent: str,
+        confidence_score: float,
+        response_time_ms: int,
+        input_type: str,
+        tools_used: List[str],
+        error_message: Optional[str] = None,
+        metadata: Optional[Dict] = None
+    ):
+        """Log the interaction to the database for analytics"""
+        try:
+            # Only log for authenticated users
+            if user_id == "anonymous":
+                return
+                
+            from app.database.supabase_client import get_supabase
+            
+            # Prepare log data
+            log_data = {
+                'user_id': user_id,
+                'session_id': session_id,
+                'message': message[:1000],  # Truncate long messages
+                'response': response[:2000] if response else '',  # Truncate long responses
+                'intent': intent,
+                'confidence_score': confidence_score,
+                'response_time_ms': response_time_ms,
+                'input_type': input_type,
+                'tools_used': tools_used,
+                'error_message': error_message,
+                'metadata': metadata or {}
+            }
+            
+            # Get Supabase client and insert into agent_logs table
+            supabase = get_supabase()
+            result = supabase.table('agent_logs').insert(log_data).execute()
+            
+            if result.data:
+                logger.info(f"📊 Logged interaction for user {user_id} with intent '{intent}'")
+            else:
+                logger.warning(f"⚠️ Failed to log interaction for user {user_id}")
+                
+        except Exception as e:
+            # Don't let logging errors break the main functionality
+            logger.warning(f"⚠️ Error logging interaction: {e}")
 
 
 # Create a singleton instance
