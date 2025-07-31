@@ -224,3 +224,70 @@ async def test_platform_connection(
     except Exception as e:
         logger.error(f"Failed to test {platform} connection: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/performance")
+async def get_performance_status(
+    _: Dict[str, Any] = Depends(verify_admin_access)
+) -> Dict[str, Any]:
+    """Get comprehensive performance status and optimization results"""
+    try:
+        from app.core.performance_optimizer import performance_optimizer
+        
+        # Generate comprehensive performance report
+        performance_report = await performance_optimizer.generate_performance_report()
+        
+        return {
+            "status": "success",
+            "data": performance_report,
+            "message": f"Performance status: {performance_report.get('overall_status', 'unknown')}"
+        }
+    except Exception as e:
+        logger.error(f"Failed to get performance status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/performance/optimize")
+async def trigger_performance_optimization(
+    _: Dict[str, Any] = Depends(verify_admin_access)
+) -> Dict[str, Any]:
+    """Trigger immediate performance optimization"""
+    try:
+        from app.core.performance_optimizer import performance_optimizer
+        
+        # Run memory optimization
+        memory_result = await performance_optimizer.optimize_memory_usage()
+        
+        # Run service optimization
+        service_result = await performance_optimizer.optimize_service_initialization()
+        
+        return {
+            "status": "success",
+            "data": {
+                "memory_optimization": memory_result,
+                "service_optimization": service_result,
+                "timestamp": memory_result.get("timestamp")
+            },
+            "message": "Performance optimization completed"
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger performance optimization: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/performance/memory")
+async def get_memory_status(
+    _: Dict[str, Any] = Depends(verify_admin_access)
+) -> Dict[str, Any]:
+    """Get current memory usage and optimization status"""
+    try:
+        from app.core.performance_optimizer import performance_optimizer
+        
+        # Get memory optimization results
+        memory_result = await performance_optimizer.optimize_memory_usage()
+        
+        return {
+            "status": "success",
+            "data": memory_result,
+            "message": f"Memory usage: {memory_result.get('memory_after_mb', 'unknown')}MB"
+        }
+    except Exception as e:
+        logger.error(f"Failed to get memory status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

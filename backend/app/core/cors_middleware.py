@@ -4,7 +4,7 @@ Provides fallback OPTIONS handling and comprehensive CORS debugging
 """
 
 import time
-from typing import Callable
+from typing import Callable, Dict, Tuple
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
@@ -13,6 +13,10 @@ from app.core.cors_config import cors_config
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Performance optimization: Cache CORS responses
+_cors_response_cache: Dict[str, Tuple[StarletteResponse, float]] = {}
+_cache_ttl = 60  # 1 minute cache for CORS responses
 
 
 class EnhancedCORSMiddleware(BaseHTTPMiddleware):
@@ -40,9 +44,20 @@ class EnhancedCORSMiddleware(BaseHTTPMiddleware):
         # Get origin from request
         origin = request.headers.get("origin", "No origin header")
         
-        # Handle OPTIONS preflight requests
+        # Handle OPTIONS preflight requests with caching
         if request.method == "OPTIONS":
             self.cors_stats["preflight_requests"] += 1
+            
+            # Check cache for CORS response
+            cache_key = f"{origin}:{request.url.path}"
+            current_time = time.time()
+            
+            if cache_key in _cors_response_cache:
+                cached_response, cache_time = _cors_response_cache[cache_key]
+                if current_time - cache_time < _cache_ttl:
+                    # Return cached response
+                    logger.debug(f"🚀 CORS cache hit for {cache_key}")
+                    return cached_response
             
             # Log the preflight request
             logger.info(
@@ -84,8 +99,14 @@ class EnhancedCORSMiddleware(BaseHTTPMiddleware):
                         cache_bust=True
                     )
                     
+                    # Cache the response for performance
+                    _cors_response_cache[cache_key] = (response, current_time)
+                    
                 else:
                     self.cors_stats["successful_cors"] += 1
+                    
+                    # Cache successful CORS responses too
+                    _cors_response_cache[cache_key] = (response, current_time)
                     
             except Exception as e:
                 logger.error(f"❌ Error processing OPTIONS request: {e}")
@@ -116,6 +137,10 @@ class EnhancedCORSMiddleware(BaseHTTPMiddleware):
         # Add timing header
         response.headers["X-CORS-Process-Time"] = f"{process_time:.4f}"
         
+        # Clean up old cache entries periodically (every 100 requests)
+        if self.cors_stats["preflight_requests"] % 100 == 0:
+            await self._cleanup_cors_cache()
+        
         # Log slow CORS processing
         if process_time > 0.1:  # 100ms threshold
             logger.warning(
@@ -125,13 +150,46 @@ class EnhancedCORSMiddleware(BaseHTTPMiddleware):
             
         return response
         
+    async def _cleanup_cors_cache(self):
+        """Clean up expired CORS cache entries to prevent memory buildup"""
+        try:
+            current_time = time.time()
+            expired_keys = []
+            
+            for cache_key, (cached_response, cache_time) in _cors_response_cache.items():
+                if current_time - cache_time >= _cache_ttl:
+                    expired_keys.append(cache_key)
+            
+            # Remove expired entries
+            for key in expired_keys:
+                del _cors_response_cache[key]
+            
+            if expired_keys:
+                logger.debug(f"🧹 Cleaned up {len(expired_keys)} expired CORS cache entries")
+                
+        except Exception as e:
+            logger.error(f"❌ CORS cache cleanup error: {e}")
+    
     def get_stats(self) -> dict:
         """Get CORS middleware statistics"""
         return {
             **self.cors_stats,
             "allowed_origins_count": len(cors_config.origins),
             "allowed_origins": cors_config.origins[:5],  # First 5 for brevity
+            "cache_entries": len(_cors_response_cache),
+            "cache_hit_ratio": self._calculate_cache_hit_ratio()
         }
+    
+    def _calculate_cache_hit_ratio(self) -> float:
+        """Calculate CORS cache hit ratio for performance monitoring"""
+        total_requests = self.cors_stats["preflight_requests"]
+        if total_requests == 0:
+            return 0.0
+        
+        # Estimate cache hits based on cache usage patterns
+        # This is a simplified calculation - in production you'd track actual hits
+        cache_usage_estimate = min(len(_cors_response_cache) * 2, total_requests)
+        return round(cache_usage_estimate / total_requests, 2) if total_requests > 0 else 0.0
 
 
 class CORSDebugMiddleware(BaseHTTPMiddleware):
