@@ -17,6 +17,10 @@ router = APIRouter(prefix="/observability", tags=["observability"])
 
 def verify_admin_access(jwt_payload: Dict[str, Any] = Depends(verify_supabase_jwt_token)):
     """Verify admin access using JWT token"""
+    # Handle OPTIONS requests - allow them to pass through for CORS
+    if jwt_payload.get('method') == 'OPTIONS':
+        return jwt_payload
+    
     user_role = jwt_payload.get('role', '')
     app_metadata = jwt_payload.get('app_metadata', {})
     
