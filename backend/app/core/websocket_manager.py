@@ -16,9 +16,9 @@ class ConnectionManager:
         # Connection metadata for heartbeat tracking
         self.connection_metadata: Dict[str, Dict] = {}
         # Heartbeat configuration - more aggressive for production
-        self.heartbeat_interval = 20  # Send ping every 20 seconds (was 30)
-        self.connection_timeout = 60  # Consider connection dead after 1 minute (was 2)
-        self.max_missed_pings = 3  # Maximum missed pings before disconnection
+        self.heartbeat_interval = 20  # Send ping every 20 seconds
+        self.connection_timeout = 120  # Consider connection dead after 2 minutes
+        self.max_missed_pings = 5  # Maximum missed pings before disconnection
         self.heartbeat_task: Optional[asyncio.Task] = None
     
     async def connect(self, websocket: WebSocket, user_id: str, connection_id: str) -> None:
