@@ -86,6 +86,7 @@
     "embla-carousel-react": "^8.3.0",
     "framer-motion": "^12.19.2",
     "input-otp": "^1.2.4",
+    "jwt-decode": "^4.0.0",
     "lovable-tagger": "^1.1.8",
     "lucide-react": "^0.462.0",
     "mapbox-gl": "^3.11.1",
@@ -161,7 +162,7 @@
     "node": ">=18 <=21"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.24.0",
-    "@esbuild/linux-x64": "^0.25.8"
+    "@esbuild/linux-x64": "^0.25.8",
+    "@rollup/rollup-linux-x64-gnu": "^4.24.0"
   }
 }

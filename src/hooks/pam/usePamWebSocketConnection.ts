@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { getWebSocketUrl } from '@/services/api';
+import { jwtDecode } from 'jwt-decode';
 
 interface WebSocketConnectionConfig {
   userId: string;
@@ -12,6 +13,7 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
   const ws = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
+  const pingInterval = useRef<NodeJS.Timeout>();
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 3;
 
@@ -38,6 +40,34 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
     }
   }, [onMessage]);
 
+  const validateToken = useCallback((tokenToValidate: string): boolean => {
+    if (!tokenToValidate || tokenToValidate === 'demo-token') return true; // Allow demo mode
+    
+    try {
+      const decoded = jwtDecode(tokenToValidate) as any;
+      const currentTime = Math.floor(Date.now() / 1000);
+      
+      if (decoded.exp && decoded.exp < currentTime) {
+        console.error('🔐 PAM Token expired:', {
+          exp: decoded.exp,
+          current: currentTime,
+          expired_ago: currentTime - decoded.exp
+        });
+        return false;
+      }
+      
+      console.log('✅ PAM Token validation passed:', {
+        userId: decoded.sub,
+        exp: decoded.exp,
+        time_to_expiry: decoded.exp - currentTime
+      });
+      return true;
+    } catch (error) {
+      console.error('❌ PAM Token validation failed:', error);
+      return false;
+    }
+  }, []);
+
   const connect = useCallback(() => {
     if (!userId || ws.current?.readyState === WebSocket.OPEN) return;
 
@@ -45,27 +75,51 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
       clearTimeout(reconnectTimeout.current);
     }
 
+    // Validate token before connection attempt
+    const tokenToUse = token || userId || 'demo-token';
+    if (!validateToken(tokenToUse)) {
+      console.error('❌ PAM Connection aborted: Invalid or expired token');
+      onMessage({
+        type: 'error',
+        message: '🔐 Authentication token expired. Please refresh the page to continue.'
+      });
+      return;
+    }
+
     try {
-      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}?token=${encodeURIComponent(token || userId || 'demo-token')}`;
+      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}?token=${encodeURIComponent(tokenToUse)}`;
       console.log('🔌 Attempting PAM WebSocket connection:', wsUrl);
       
       ws.current = new WebSocket(wsUrl);
 
-      // Set connection timeout
+      // Increased timeout for Render.com cold starts (30 seconds)
       const connectionTimeout = setTimeout(() => {
         if (ws.current?.readyState !== WebSocket.OPEN) {
-          console.warn('⏰ PAM WebSocket connection timeout');
+          console.warn('⏰ PAM WebSocket connection timeout after 30 seconds');
           ws.current?.close();
           updateConnectionStatus(false);
           scheduleReconnect();
         }
-      }, 10000); // 10 second timeout
+      }, 30000); // 30 second timeout for Render.com
 
       ws.current.onopen = () => {
         clearTimeout(connectionTimeout);
         console.log('✅ PAM WebSocket connected successfully');
         updateConnectionStatus(true);
         reconnectAttempts.current = 0;
+        
+        // Start ping/pong heartbeat mechanism
+        pingInterval.current = setInterval(() => {
+          if (ws.current?.readyState === WebSocket.OPEN) {
+            console.log('🏓 Sending ping to PAM backend');
+            ws.current.send(JSON.stringify({ type: 'ping' }));
+          } else {
+            console.warn('⚠️ WebSocket not open, clearing ping interval');
+            if (pingInterval.current) {
+              clearInterval(pingInterval.current);
+            }
+          }
+        }, 15000); // Ping every 15 seconds
         
         // Add a small delay to ensure connection is fully established
         setTimeout(() => {
@@ -88,6 +142,13 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
       ws.current.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          
+          // Handle pong responses for heartbeat
+          if (message.type === 'pong') {
+            console.log('🏓 Received pong from PAM backend - connection healthy');
+            return; // Don't pass pong messages to UI
+          }
+          
           console.log('📨 PAM WebSocket message received:', message);
           onMessage(message);
         } catch (error) {
@@ -102,8 +163,22 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
 
       ws.current.onclose = (event) => {
         clearTimeout(connectionTimeout);
+        if (pingInterval.current) {
+          clearInterval(pingInterval.current);
+        }
+        
         console.log('🔌 PAM WebSocket disconnected:', event.code, event.reason);
         updateConnectionStatus(false);
+        
+        // Handle different close codes
+        if (event.code === 4000 || event.code === 401) {
+          // Authentication error - don't reconnect, show error
+          onMessage({
+            type: 'error',
+            message: '🔐 Authentication failed. Please refresh the page to reconnect.'
+          });
+          return;
+        }
         
         // Only reconnect if it wasn't a normal closure and we haven't exceeded attempts
         if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
@@ -138,7 +213,7 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
         });
       }
     }
-  }, [userId, token, onMessage, updateConnectionStatus, scheduleReconnect]);
+  }, [userId, token, onMessage, updateConnectionStatus, scheduleReconnect, validateToken]);
 
   // Auto-connect when userId changes
   useEffect(() => {
@@ -150,6 +225,9 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
     return () => {
       if (reconnectTimeout.current) {
         clearTimeout(reconnectTimeout.current);
+      }
+      if (pingInterval.current) {
+        clearInterval(pingInterval.current);
       }
       if (ws.current) {
         ws.current.close(1000, 'Component unmounting');
@@ -176,6 +254,9 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
   const disconnect = useCallback(() => {
     if (reconnectTimeout.current) {
       clearTimeout(reconnectTimeout.current);
+    }
+    if (pingInterval.current) {
+      clearInterval(pingInterval.current);
     }
     if (ws.current) {
       console.log('🔌 Closing PAM WebSocket connection');
