@@ -19,8 +19,7 @@ const CORE_RESOURCES = [
   '/assets/calendar-vendor-production.D40RSJ3w.js',
   '/assets/form-vendor-production.D3ozfAne.js',
   '/assets/chart-vendor-production.NInlEZcl.js',
-  '/assets/AdminDashboard-production.WB2tRpGr.js',
-  '/assets/VideoEditor-production.Ben4KQVw.js'
+  '/assets/AdminDashboard-production.WB2tRpGr.js'
 ];
 
 // API endpoints to cache

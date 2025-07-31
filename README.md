@@ -179,9 +179,16 @@ npm run e2e:ci        # End-to-end tests
 
 ### User Guides
 - [Getting Started](docs/guides/user-guides/getting-started.md) - First-time user walkthrough
-- [Trip Planning Guide](docs/features/travel-vehicles.md) - Complete trip planning tutorial
+- [Onboarding](docs/features/onboarding.md) - A guide to the onboarding process.
+- [Profile](docs/features/profile.md) - A guide to the user profile.
+- [Wheels](docs/features/travel-vehicles.md) - A guide to the trip planning features.
+- [Wins](docs/features/financial-management.md) - A guide to the financial management features.
+- [Social](docs/features/social.md) - A guide to the social features.
+- [Shop](docs/features/shop.md) - A guide to the shop.
+- [Safety](docs/features/safety.md) - A guide to caravan safety.
+- [Admin Dashboard](docs/features/admin-dashboard.md) - A guide to the admin dashboard.
+- [Settings](docs/features/settings.md) - A guide to the user settings.
 - [PAM Assistant Usage](docs/features/pam-ai-assistant.md) - AI assistant capabilities
-- [Financial Management](docs/features/financial-management.md) - Expense tracking and budgeting
 
 ### Developer Documentation
 - [Architecture Overview](docs/guides/development/architecture-overview.md) - System design and patterns

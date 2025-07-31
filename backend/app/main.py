@@ -71,7 +71,6 @@ from app.api.v1 import (
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
-from app.api import editing_hub
 from app.webhooks import stripe_webhooks
 from app.api.deps import verify_supabase_jwt_token
 
@@ -525,7 +524,6 @@ except Exception as e:
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
-app.include_router(editing_hub.router, prefix="/hubs", tags=["Editing"])
 
 # Security status endpoint is automatically added by enhanced_security_setup
 # Additional security endpoints can be accessed at /api/security/status and /api/security/recommendations
