@@ -49,6 +49,10 @@ class SimplePamService:
         self.max_retries = 3
         self.retry_delay = 1  # seconds
         self._service_healthy = True
+        
+        # Initialize PAM tools
+        self.tools_registry = {}
+        self.tools_initialized = False
     
     async def health_check(self) -> Dict[str, Any]:
         """Perform health check on PAM service"""
@@ -83,6 +87,34 @@ class SimplePamService:
         """Check if service is healthy"""
         return self._service_healthy
     
+    async def initialize_tools(self):
+        """Initialize PAM tools for enhanced functionality"""
+        if self.tools_initialized:
+            return
+            
+        try:
+            # Import and initialize tools
+            from app.services.pam.tools import google_places_tool, webscraper_tool
+            
+            # Initialize tools
+            await google_places_tool.initialize()
+            await webscraper_tool.initialize()
+            
+            # Register tools
+            self.tools_registry = {
+                'google_places': google_places_tool,
+                'webscraper': webscraper_tool
+            }
+            
+            self.tools_initialized = True
+            logger.info("✅ PAM tools initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize PAM tools: {e}")
+            # Continue without tools - don't break the service
+            self.tools_registry = {}
+            self.tools_initialized = False
+    
     async def get_response(
         self, 
         message: str, 
@@ -90,7 +122,7 @@ class SimplePamService:
         conversation_history: Optional[List[Dict]] = None
     ) -> str:
         """
-        Get PAM's response to a user message with robust error handling
+        Get PAM's response to a user message with robust error handling and tool integration
         
         Args:
             message: The user's message
@@ -104,6 +136,10 @@ class SimplePamService:
         session_id = context.get("session_id", "default")
         
         logger.info(f"🤖 SimplePamService processing message for user {user_id}: '{message}'")
+        
+        # Initialize tools if not already done
+        if not self.tools_initialized:
+            await self.initialize_tools()
         
         # Load comprehensive user data across all app sections
         comprehensive_data = {}
@@ -131,8 +167,11 @@ class SimplePamService:
                 logger.warning(f"⚠️ Could not load comprehensive data for user {user_id}: {e}")
                 comprehensive_data = {"has_data": False, "error": "Could not load user data"}
         
-        # Build the conversation messages for OpenAI
-        messages = self._build_conversation_messages(message, context, conversation_history, comprehensive_data)
+        # Check if message requires tool usage
+        tool_result = await self._process_with_tools(message, context, user_id)
+        
+        # Build the conversation messages for OpenAI (include tool results if any)
+        messages = self._build_conversation_messages(message, context, conversation_history, comprehensive_data, tool_result)
         
         # Try to get response with retries
         for attempt in range(self.max_retries):
@@ -162,12 +201,154 @@ class SimplePamService:
         
         return response.choices[0].message.content
     
+    async def _process_with_tools(self, message: str, context: Dict[str, Any], user_id: str) -> Optional[Dict[str, Any]]:
+        """Process message with available tools if applicable"""
+        if not self.tools_initialized or not self.tools_registry:
+            return None
+            
+        message_lower = message.lower()
+        tool_result = None
+        
+        try:
+            # Check for Google Places requests
+            if any(word in message_lower for word in [
+                'restaurants near', 'places near', 'find restaurants', 'food near', 
+                'attractions near', 'things to do', 'places to visit', 'gas stations near',
+                'accommodation near', 'hotels near', 'camping near'
+            ]):
+                location = context.get('user_location')
+                if location:
+                    # Extract search parameters
+                    place_type = self._extract_place_type(message_lower)
+                    keyword = self._extract_search_keyword(message_lower)
+                    
+                    tool_params = {
+                        'action': 'nearby_search',
+                        'location': location,
+                        'place_type': place_type,
+                        'radius': 5000,  # 5km default
+                        'keyword': keyword,
+                        'min_rating': 3.0
+                    }
+                    
+                    logger.info(f"🔍 Using Google Places tool with params: {tool_params}")
+                    tool_result = await self.tools_registry['google_places'].execute(user_id, tool_params)
+                    
+            # Check for web scraping requests  
+            elif any(word in message_lower for word in [
+                'search web', 'look up', 'find information', 'scrape', 'get data from',
+                'what\'s happening', 'current events', 'news about', 'information about'
+            ]):
+                # Extract search query or URL
+                search_query = self._extract_search_query(message)
+                url = self._extract_url(message)
+                
+                if url:
+                    tool_params = {
+                        'action': 'scrape_url',
+                        'url': url,
+                        'content_fields': ['title', 'content', 'links']
+                    }
+                elif search_query:
+                    tool_params = {
+                        'action': 'search_scrape',
+                        'search_query': search_query,
+                        'max_results': 5
+                    }
+                    
+                    # Add location if available for location-based searches
+                    location = context.get('user_location')
+                    if location:
+                        tool_params['location'] = location
+                
+                else:
+                    # Location-based scraping
+                    location = context.get('user_location')
+                    if location:
+                        tool_params = {
+                            'action': 'location_scrape',
+                            'location': location,
+                            'radius_km': 10,
+                            'categories': ['local_businesses', 'travel_info']
+                        }
+                    else:
+                        return None
+                
+                if tool_params:
+                    logger.info(f"🌐 Using webscraper tool with params: {tool_params}")
+                    tool_result = await self.tools_registry['webscraper'].execute(user_id, tool_params)
+                    
+        except Exception as e:
+            logger.error(f"❌ Tool processing error: {e}")
+            # Continue without tool results - don't break the conversation
+            
+        return tool_result
+    
+    def _extract_place_type(self, message: str) -> str:
+        """Extract place type from message"""
+        if 'restaurant' in message or 'food' in message or 'eat' in message:
+            return 'restaurant'
+        elif 'attraction' in message or 'visit' in message or 'see' in message:
+            return 'tourist_attraction'
+        elif 'gas' in message or 'fuel' in message or 'petrol' in message:
+            return 'gas_station'
+        elif 'hotel' in message or 'accommodation' in message or 'stay' in message:
+            return 'lodging'
+        elif 'camp' in message:
+            return 'campground'
+        else:
+            return 'restaurant'  # Default
+    
+    def _extract_search_keyword(self, message: str) -> Optional[str]:
+        """Extract search keyword from message"""
+        # Simple keyword extraction - can be enhanced
+        keywords = []
+        if 'pizza' in message:
+            keywords.append('pizza')
+        elif 'coffee' in message:
+            keywords.append('coffee')
+        elif 'chinese' in message:
+            keywords.append('chinese')
+        elif 'italian' in message:
+            keywords.append('italian')
+        
+        return keywords[0] if keywords else None
+    
+    def _extract_search_query(self, message: str) -> Optional[str]:
+        """Extract search query from message"""
+        import re
+        
+        # Look for patterns like "search for X" or "look up X"
+        patterns = [
+            r'search (?:for |about )(.+)',
+            r'look up (.+)',
+            r'find information (?:about |on )(.+)',
+            r'what.*about (.+)',
+            r'tell me about (.+)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, message.lower())
+            if match:
+                return match.group(1).strip()
+        
+        return None
+    
+    def _extract_url(self, message: str) -> Optional[str]:
+        """Extract URL from message"""
+        import re
+        
+        url_pattern = r'https?://[^\s]+'
+        match = re.search(url_pattern, message)
+        return match.group(0) if match else None
+
     def _build_conversation_messages(
         self, 
         message: str, 
         context: Dict[str, Any],
         conversation_history: Optional[List[Dict]] = None,
-        comprehensive_data: Optional[Dict[str, Any]] = None
+        comprehensive_data: Optional[Dict[str, Any]] = None,
+        tool_result: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
         """Build the messages array for OpenAI"""
         
@@ -262,11 +443,26 @@ Guidelines:
 - Provide proactive suggestions based on user patterns and preferences
 - You can help users manage their entire travel lifestyle - from planning to budgeting to socializing
 
+**ENHANCED CAPABILITIES WITH TOOLS:**
+- 🔍 **Google Places Search**: Can find restaurants, attractions, accommodation, gas stations near any location
+- 🌐 **Web Scraping**: Can search the web and scrape real-time information from websites
+- 📍 **Location-Based Services**: Can provide location-specific recommendations and information
+- 🗺️ **Real-Time Data**: Access to current information about places, weather, and local conditions
+
+TOOL USAGE EXAMPLES:
+- "Find restaurants near me" → Uses Google Places to search for nearby restaurants
+- "What attractions are in Brisbane" → Uses Google Places for tourist attractions  
+- "Search web for camping tips" → Uses webscraper to find relevant information
+- "Get information from this website: [URL]" → Scrapes specific website content
+
 {user_info}
+
+{tool_results}
 
 Current timestamp: {timestamp}
 User context: {context}""".format(
                 user_info=user_info,
+                tool_results=self._format_tool_results(tool_result) if tool_result else "",
                 timestamp=datetime.utcnow().isoformat(),
                 context=json.dumps({
                     "user_id": context.get("user_id"),
@@ -291,6 +487,68 @@ User context: {context}""".format(
         messages.append({"role": "user", "content": message})
         
         return messages
+    
+    def _format_tool_results(self, tool_result: Dict[str, Any]) -> str:
+        """Format tool results for inclusion in the system message"""
+        if not tool_result or not tool_result.get('success'):
+            return ""
+        
+        data = tool_result.get('data', {})
+        
+        # Format Google Places results
+        if 'places' in data:
+            places = data['places'][:5]  # Limit to first 5 results
+            formatted = "**🔍 GOOGLE PLACES SEARCH RESULTS:**\n"
+            
+            for i, place in enumerate(places, 1):
+                formatted += f"\n{i}. **{place.get('name', 'Unknown')}**\n"
+                formatted += f"   • Rating: {place.get('rating', 'N/A')}/5 ⭐\n"
+                formatted += f"   • Address: {place.get('address', 'Not available')}\n"
+                formatted += f"   • Distance: {place.get('distance_km', 'N/A')}km away\n"
+                
+                if place.get('price_level'):
+                    formatted += f"   • Price: {place.get('price_level')}\n"
+                if place.get('phone'):
+                    formatted += f"   • Phone: {place.get('phone')}\n"
+                if place.get('website'):
+                    formatted += f"   • Website: {place.get('website')}\n"
+            
+            return formatted
+            
+        # Format webscraper results
+        elif 'scraped_data' in data:
+            scraped = data['scraped_data']
+            formatted = "**🌐 WEB SCRAPING RESULTS:**\n"
+            
+            if scraped.get('title'):
+                formatted += f"\n**Title:** {scraped['title']}\n"
+            if scraped.get('content'):
+                content = scraped['content'][:500]  # Limit content
+                formatted += f"**Content:** {content}{'...' if len(scraped['content']) > 500 else ''}\n"
+            if scraped.get('links'):
+                formatted += f"**Related Links:** {len(scraped['links'])} links found\n"
+            
+            return formatted
+            
+        # Format location-based scraping results
+        elif 'results' in data:
+            results = data['results']
+            formatted = "**🌍 LOCATION-BASED DATA:**\n"
+            
+            for category, category_data in results.items():
+                if isinstance(category_data, dict) and category_data.get('data'):
+                    items = category_data['data'][:3]  # First 3 items per category
+                    formatted += f"\n**{category.title()}:**\n"
+                    
+                    for item in items:
+                        name = item.get('name', 'Unknown')
+                        rating = item.get('rating', 'N/A')
+                        address = item.get('address', 'Not available')
+                        formatted += f"• {name} (Rating: {rating}) - {address}\n"
+            
+            return formatted
+        
+        return "**🔧 TOOL DATA:** Tool executed successfully with results available for analysis."
     
     def _get_error_response(self, message: str, error: str) -> str:
         """Generate a helpful error response when OpenAI fails"""
@@ -909,6 +1167,27 @@ User context: {context}""".format(
         except Exception as e:
             logger.error(f"❌ Error retrieving trip details via PAM: {e}")
             return {}
+    
+    async def cleanup(self):
+        """Clean up PAM service resources"""
+        try:
+            # Clean up tools
+            if self.tools_initialized and self.tools_registry:
+                for tool_name, tool in self.tools_registry.items():
+                    try:
+                        if hasattr(tool, 'close'):
+                            await tool.close()
+                        logger.info(f"🧹 Cleaned up {tool_name} tool")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error cleaning up {tool_name} tool: {e}")
+                
+                self.tools_registry.clear()
+                self.tools_initialized = False
+            
+            logger.info("🧹 PAM service cleanup completed")
+            
+        except Exception as e:
+            logger.error(f"❌ Error during PAM service cleanup: {e}")
 
 
 # Create a singleton instance
