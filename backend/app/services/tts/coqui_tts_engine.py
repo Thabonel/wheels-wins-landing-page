@@ -22,7 +22,11 @@ try:
     COQUI_AVAILABLE = True
     logger.info("Coqui TTS engine available")
 except (ImportError, ModuleNotFoundError) as e:
-    logger.info(f"Coqui TTS not available ({e}), will use pyttsx3 fallback")
+    import sys
+    if sys.version_info >= (3, 12):
+        logger.info(f"Coqui TTS not available - requires Python <3.12, current: {sys.version_info.major}.{sys.version_info.minor}")
+    else:
+        logger.info(f"Coqui TTS not available ({e}), will use pyttsx3 fallback")
     COQUI_AVAILABLE = False
     try:
         import pyttsx3
