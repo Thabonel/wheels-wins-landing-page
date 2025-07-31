@@ -96,6 +96,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   // Load user context and memory when component mounts
   useEffect(() => {
     console.log('🚀 PAM useEffect triggered with user:', { userId: user?.id, hasUser: !!user, hasSession: !!session });
+    
+    // Expose test function to window for debugging (development only)
+    if (import.meta.env.DEV) {
+      (window as any).testPamConnection = testMinimalConnection;
+      console.log('🧪 PAM DEBUG: Test function exposed as window.testPamConnection()');
+      console.log('🧪 PAM DEBUG: Run in console to test connection: window.testPamConnection()');
+    }
+    
     if (user?.id) {
       console.log('📋 PAM: Loading user context and connecting...');
       
@@ -301,89 +309,160 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const connectToBackend = useCallback(async () => {
-    console.log('🔌 PAM connectToBackend called with:', { userId: user?.id, hasToken: !!sessionToken });
+    console.log('🚀 PAM DEBUG: ==================== CONNECTION START ====================');
+    console.log('🚀 PAM DEBUG: connectToBackend called');
+    console.log('🚀 PAM DEBUG: User context:', { 
+      userId: user?.id, 
+      userEmail: user?.email,
+      hasUser: !!user,
+      hasSession: !!session, 
+      hasToken: !!sessionToken,
+      tokenLength: sessionToken?.length || 0
+    });
+    
     if (!user?.id) {
-      console.log('❌ PAM: No user ID, cannot connect');
+      console.error('❌ PAM DEBUG: No user ID available, cannot connect');
+      console.log('❌ PAM DEBUG: User object:', user);
+      console.log('❌ PAM DEBUG: Session object:', session);
       return;
     }
 
-    // First check if backend is healthy
+    console.log('🏥 PAM DEBUG: ==================== HEALTH CHECK ====================');
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
+    console.log('🏥 PAM DEBUG: Backend URL:', backendUrl);
+    console.log('🏥 PAM DEBUG: Health check URL:', `${backendUrl}/health`);
+    
+    // Health check with enhanced logging
     try {
-      const healthResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}/health`, {
+      const healthStartTime = Date.now();
+      console.log('🏥 PAM DEBUG: Starting health check at:', new Date().toISOString());
+      
+      const healthResponse = await fetch(`${backendUrl}/health`, {
         method: 'GET',
         signal: AbortSignal.timeout(5000)
       });
       
+      const healthTime = Date.now() - healthStartTime;
+      console.log('🏥 PAM DEBUG: Health check completed in:', healthTime + 'ms');
+      console.log('🏥 PAM DEBUG: Health response status:', healthResponse.status);
+      console.log('🏥 PAM DEBUG: Health response ok:', healthResponse.ok);
+      
       if (!healthResponse.ok) {
-        console.warn('⚠️ PAM backend health check failed, using fallback mode');
+        console.warn('⚠️ PAM DEBUG: Backend health check failed');
+        console.warn('⚠️ PAM DEBUG: Response status:', healthResponse.status);
+        console.warn('⚠️ PAM DEBUG: Response statusText:', healthResponse.statusText);
+        
         setConnectionStatus("Disconnected");
-        addMessage("🤖 Hi! I'm PAM. I'm having trouble connecting to the backend services right now. Let me try to establish a connection...", "pam");
-        // Try REST API fallback
+        addMessage("🤖 Hi! I'm PAM. Backend health check failed. Let me try to establish a connection...", "pam");
         await testRestApiConnection();
         return;
       }
+      
+      const healthData = await healthResponse.json();
+      console.log('✅ PAM DEBUG: Health check successful:', healthData);
+      
     } catch (error) {
-      console.error('❌ PAM backend health check error:', error);
+      console.error('❌ PAM DEBUG: Health check error:', error);
+      console.error('❌ PAM DEBUG: Error type:', error.constructor.name);
+      console.error('❌ PAM DEBUG: Error message:', error.message);
+      console.error('❌ PAM DEBUG: Error stack:', error.stack);
+      
       setConnectionStatus("Disconnected");
-      addMessage("🤖 Hi! I'm PAM. I'm having trouble connecting to the backend, but I can still help you using the REST API. How can I assist you today?", "pam");
+      addMessage("🤖 Hi! I'm PAM. Backend health check failed, but I can still help using REST API.", "pam");
       return;
     }
 
+    console.log('🔧 PAM DEBUG: ==================== WEBSOCKET SETUP ====================');
+    
     try {
-      // IMPORTANT: Using correct PAM endpoint /api/v1/pam/ws
-      // Fix: Use reference token for WebSocket to avoid URL length issues
+      // Step 1: Get WebSocket URL
+      console.log('🔧 PAM DEBUG: Calling getWebSocketUrl with path: /api/v1/pam/ws');
       const baseWebSocketUrl = getWebSocketUrl('/api/v1/pam/ws');
+      console.log('🔧 PAM DEBUG: Received base URL:', baseWebSocketUrl);
+      console.log('🔧 PAM DEBUG: URL type:', typeof baseWebSocketUrl);
+      console.log('🔧 PAM DEBUG: URL includes pam-backend:', baseWebSocketUrl.includes('pam-backend'));
+      console.log('🔧 PAM DEBUG: URL includes /api/v1/pam/ws:', baseWebSocketUrl.includes('/api/v1/pam/ws'));
       
-      // Use simple token format that backend supports
+      // Step 2: Prepare token
       let tokenForWs = user?.id || 'anonymous';
-      console.log('🎫 Using user ID for WebSocket authentication:', tokenForWs);
+      console.log('🎫 PAM DEBUG: Token preparation:');
+      console.log('🎫 PAM DEBUG: - Raw user.id:', user?.id);
+      console.log('🎫 PAM DEBUG: - Final token:', tokenForWs);
+      console.log('🎫 PAM DEBUG: - Token type:', typeof tokenForWs);
+      console.log('🎫 PAM DEBUG: - Token length:', tokenForWs.length);
+      console.log('🎫 PAM DEBUG: - Encoded token:', encodeURIComponent(tokenForWs));
       
-      // Backend testing confirmed it works with simple tokens like user IDs
-      // This avoids JWT length issues and complex token parsing on backend
-      
+      // Step 3: Build final URL
       const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(tokenForWs)}`;
-      console.log('🔧 PAM Base WebSocket URL:', baseWebSocketUrl);
-      console.log('🌐 PAM WebSocket URL (using short token):', wsUrl);
-      console.log('✅ Target endpoint: /api/v1/pam/ws');
+      console.log('🌐 PAM DEBUG: Final WebSocket URL construction:');
+      console.log('🌐 PAM DEBUG: - Base URL:', baseWebSocketUrl);
+      console.log('🌐 PAM DEBUG: - Query string:', `?token=${encodeURIComponent(tokenForWs)}`);
+      console.log('🌐 PAM DEBUG: - Complete URL:', wsUrl);
+      console.log('🌐 PAM DEBUG: - Total URL length:', wsUrl.length);
       
-      // Validate that we're actually hitting the right endpoint
+      // Step 4: Validate URL
+      console.log('✅ PAM DEBUG: URL validation:');
+      console.log('✅ PAM DEBUG: - Contains endpoint:', wsUrl.includes('/api/v1/pam/ws'));
+      console.log('✅ PAM DEBUG: - Starts with wss:', wsUrl.startsWith('wss://'));
+      console.log('✅ PAM DEBUG: - Contains backend domain:', wsUrl.includes('pam-backend.onrender.com'));
+      
       if (!wsUrl.includes('/api/v1/pam/ws')) {
-        console.error('❌ WebSocket URL validation failed! Expected /api/v1/pam/ws but got:', wsUrl);
+        console.error('❌ PAM DEBUG: URL validation failed!');
+        console.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
+        console.error('❌ PAM DEBUG: Actual URL:', wsUrl);
         throw new Error('WebSocket endpoint validation failed');
       }
       
+      console.log('🔄 PAM DEBUG: ==================== WEBSOCKET CONNECTION ====================');
       setConnectionStatus("Connecting");
-      console.log('🔄 PAM: Creating WebSocket connection...');
+      console.log('🔄 PAM DEBUG: Status set to Connecting');
+      console.log('🔄 PAM DEBUG: Creating WebSocket with URL:', wsUrl);
+      
+      const connectionStartTime = Date.now();
       wsRef.current = new WebSocket(wsUrl);
+      
+      console.log('🔄 PAM DEBUG: WebSocket created, initial readyState:', wsRef.current.readyState);
+      console.log('🔄 PAM DEBUG: WebSocket URL property:', wsRef.current.url);
+      console.log('🔄 PAM DEBUG: Connection timestamp:', new Date().toISOString());
 
-      wsRef.current.onopen = () => {
-        console.log('✅ PAM WebSocket connected successfully');
-        setConnectionStatus("Connected");
-        setReconnectAttempts(0); // Reset reconnect attempts on successful connection
+      wsRef.current.onopen = (event) => {
+        const connectionTime = Date.now() - connectionStartTime;
+        console.log('✅ PAM DEBUG: ==================== CONNECTION SUCCESS ====================');
+        console.log('✅ PAM DEBUG: WebSocket OPENED successfully!');
+        console.log('✅ PAM DEBUG: Connection time:', connectionTime + 'ms');
+        console.log('✅ PAM DEBUG: Event:', event);
+        console.log('✅ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
+        console.log('✅ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
+        console.log('✅ PAM DEBUG: WebSocket protocol:', wsRef.current?.protocol);
         
-        // Clear any pending reconnection timeout
+        setConnectionStatus("Connected");
+        setReconnectAttempts(0);
+        
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
           reconnectTimeoutRef.current = null;
         }
         
-        // ROBUST MEMORY: Only show greeting if no previous conversation
         if (messages.length === 0) {
-          addMessage("🤖 Hi! I'm PAM, your AI travel companion! I'm connecting to the backend to provide you with intelligent assistance. How can I help you today?", "pam");
+          console.log('💬 PAM DEBUG: Adding greeting message');
+          addMessage("🤖 Hi! I'm PAM, your AI travel companion! Connection established successfully. How can I help you today?", "pam");
         } else {
-          console.log('📚 PAM: Session restored with existing conversation history');
+          console.log('📚 PAM DEBUG: Restoring existing conversation');
         }
       };
 
       wsRef.current.onmessage = async (event) => {
+        console.log('📨 PAM DEBUG: Message received:', event.data);
         try {
           const message = JSON.parse(event.data);
+          console.log('📨 PAM DEBUG: Parsed message:', message);
+          console.log('📨 PAM DEBUG: Message type:', message.type);
           
           // Handle chat responses
           if (message.type === 'chat_response') {
             const content = message.content || message.message || message.response;
+            console.log('💬 PAM DEBUG: Chat response content:', content?.substring(0, 100) + '...');
             addMessage(content, "pam");
-            // Note: PAM backend automatically saves all conversation history
             
             // Display agentic capabilities information
             if (message.agentic_info) {
@@ -399,55 +478,168 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             if (message.autonomous_actions) {
               handleAutonomousActions(message.autonomous_actions);
             }
-            
           }
           
           // Handle UI action commands
           if (message.type === 'ui_action') {
+            console.log('🎛️ PAM DEBUG: UI action received:', message);
             handleUIAction(message);
           }
+          
+          // Handle welcome messages
+          if (message.type === 'welcome') {
+            console.log('👋 PAM DEBUG: Welcome message received:', message.message);
+          }
+          
         } catch (error) {
-          console.error('Error parsing PAM message:', error);
+          console.error('❌ PAM DEBUG: Error parsing message:', error);
+          console.error('❌ PAM DEBUG: Raw message data:', event.data);
         }
       };
 
       wsRef.current.onclose = (event) => {
-        console.log('🔌 PAM WebSocket closed:', event.code, event.reason);
+        console.log('🔌 PAM DEBUG: ==================== CONNECTION CLOSED ====================');
+        console.log('🔌 PAM DEBUG: WebSocket closed');
+        console.log('🔌 PAM DEBUG: Close code:', event.code);
+        console.log('🔌 PAM DEBUG: Close reason:', event.reason);
+        console.log('🔌 PAM DEBUG: Was clean:', event.wasClean);
+        console.log('🔌 PAM DEBUG: Close event:', event);
+        
+        // Common close codes and their meanings
+        const closeCodeMeanings = {
+          1000: 'Normal closure',
+          1001: 'Going away',
+          1002: 'Protocol error',
+          1003: 'Unsupported data',
+          1006: 'Abnormal closure (no close frame)',
+          1007: 'Invalid frame payload data',
+          1008: 'Policy violation',
+          1009: 'Message too big',
+          1010: 'Missing extension',
+          1011: 'Internal server error',
+          1015: 'TLS handshake failure'
+        };
+        
+        console.log('🔌 PAM DEBUG: Close code meaning:', closeCodeMeanings[event.code] || 'Unknown');
+        
         setConnectionStatus("Disconnected");
         
-        // ROBUST MEMORY: Save conversation state on disconnect
+        // Save conversation state
         try {
           localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
-            messages: messages.slice(-10), // Keep last 10 messages
+            messages: messages.slice(-10),
             sessionId: sessionId,
             timestamp: new Date().toISOString()
           }));
-          console.log('💾 PAM: Conversation state saved to localStorage');
+          console.log('💾 PAM DEBUG: Conversation state saved');
         } catch (error) {
-          console.warn('⚠️ Could not save conversation state:', error);
+          console.warn('⚠️ PAM DEBUG: Could not save conversation state:', error);
         }
         
-        // Attempt to reconnect if not manually closed
+        // Reconnection logic
         if (event.code !== 1000 && reconnectAttempts < 5) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // Exponential backoff
-          console.log(`🔄 PAM reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1}/5)`);
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
+          console.log(`🔄 PAM DEBUG: Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/5)`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('🔄 PAM DEBUG: Executing reconnect attempt');
             setReconnectAttempts(prev => prev + 1);
             connectToBackend();
           }, delay);
+        } else {
+          console.log('🔄 PAM DEBUG: Not reconnecting - max attempts reached or normal close');
         }
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('❌ PAM WebSocket error:', error);
+        console.error('❌ PAM DEBUG: ==================== CONNECTION ERROR ====================');
+        console.error('❌ PAM DEBUG: WebSocket error occurred');
+        console.error('❌ PAM DEBUG: Error event:', error);
+        console.error('❌ PAM DEBUG: Error type:', error.type);
+        console.error('❌ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
+        console.error('❌ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
+        
         setConnectionStatus("Disconnected");
       };
     } catch (error) {
-      console.error('❌ PAM WebSocket creation error:', error);
+      console.error('❌ PAM DEBUG: ==================== SETUP ERROR ====================');
+      console.error('❌ PAM DEBUG: WebSocket setup failed');
+      console.error('❌ PAM DEBUG: Error type:', error.constructor.name);
+      console.error('❌ PAM DEBUG: Error message:', error.message);
+      console.error('❌ PAM DEBUG: Error stack:', error.stack);
+      console.error('❌ PAM DEBUG: Full error:', error);
+      
       setConnectionStatus("Disconnected");
+      addMessage("🤖 Hi! I'm PAM. I encountered an error setting up the WebSocket connection. I'll try to help you using the REST API instead.", "pam");
     }
   }, [user?.id, sessionToken]);
+
+  // Minimal test function for debugging WebSocket connection
+  const testMinimalConnection = useCallback(async () => {
+    console.log('🧪 PAM MINIMAL TEST: ==================== STARTING ====================');
+    
+    // Test 1: Basic environment variables
+    console.log('🧪 TEST 1: Environment Variables');
+    console.log('- VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL);
+    console.log('- VITE_PAM_WEBSOCKET_URL:', import.meta.env.VITE_PAM_WEBSOCKET_URL);
+    
+    // Test 2: User context
+    console.log('🧪 TEST 2: User Context');
+    console.log('- User ID:', user?.id);
+    console.log('- Has session:', !!session);
+    
+    // Test 3: URL construction
+    console.log('🧪 TEST 3: URL Construction');
+    const testUrl = getWebSocketUrl('/api/v1/pam/ws');
+    console.log('- getWebSocketUrl result:', testUrl);
+    
+    // Test 4: Token preparation
+    console.log('🧪 TEST 4: Token Preparation');
+    const testToken = user?.id || 'test_user';
+    console.log('- Test token:', testToken);
+    
+    // Test 5: Final URL
+    console.log('🧪 TEST 5: Final URL');
+    const finalUrl = `${testUrl}?token=${encodeURIComponent(testToken)}`;
+    console.log('- Final WebSocket URL:', finalUrl);
+    
+    // Test 6: WebSocket creation (minimal)
+    console.log('🧪 TEST 6: WebSocket Creation');
+    try {
+      const testWs = new WebSocket(finalUrl);
+      console.log('- WebSocket created successfully');
+      console.log('- Initial readyState:', testWs.readyState);
+      console.log('- URL property:', testWs.url);
+      
+      // Set up basic event handlers for testing
+      testWs.onopen = (event) => {
+        console.log('🧪 TEST SUCCESS: WebSocket opened!', event);
+        testWs.close(1000, 'Test completed');
+      };
+      
+      testWs.onerror = (error) => {
+        console.error('🧪 TEST ERROR: WebSocket error:', error);
+      };
+      
+      testWs.onclose = (event) => {
+        console.log('🧪 TEST CLOSE: WebSocket closed:', event.code, event.reason);
+      };
+      
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        if (testWs.readyState !== WebSocket.OPEN) {
+          console.log('🧪 TEST TIMEOUT: Connection did not open within 10 seconds');
+          console.log('🧪 TEST TIMEOUT: Final readyState:', testWs.readyState);
+          testWs.close();
+        }
+      }, 10000);
+      
+    } catch (error) {
+      console.error('🧪 TEST FAILED: Could not create WebSocket:', error);
+    }
+    
+    console.log('🧪 PAM MINIMAL TEST: ==================== COMPLETED ====================');
+  }, [user?.id, session]);
 
   const displayAgenticInfo = (agenticInfo: any) => {
     console.log('🧠 Agentic capabilities displayed:', agenticInfo);
