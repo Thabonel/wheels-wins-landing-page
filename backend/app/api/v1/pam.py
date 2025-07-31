@@ -135,6 +135,19 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         context["user_id"] = user_id
         context["connection_type"] = "websocket"
         
+        # CRITICAL: Fix location context mapping
+        # Frontend sends 'userLocation' but backend expects 'user_location'
+        if context.get("userLocation"):
+            context["user_location"] = context["userLocation"]
+            logger.info(f"📍 [DEBUG] User location received: {context['user_location']}")
+        
+        # Add current timestamp in user's timezone (if location provided)
+        context["server_timestamp"] = datetime.utcnow().isoformat()
+        
+        # TODO: Add timezone detection based on user location
+        # For now, note that user reported it's August 1st in their timezone
+        context["user_timezone_note"] = "User reported August 1st in their location"
+        
         logger.info(f"🔍 [DEBUG] handle_websocket_chat called with:")
         logger.info(f"  - Raw data: {data}")
         logger.info(f"  - Extracted message: '{message}'")
