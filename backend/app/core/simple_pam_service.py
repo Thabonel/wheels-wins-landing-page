@@ -466,7 +466,7 @@ Recent trips: {travel_data.get('trip_count', 0)}"""
             "content": """You are PAM (Personal AI Manager), a friendly and helpful AI assistant for the Wheels and Wins platform. 
 You help mature travelers (Grey Nomads) with:
 
-🚐 **Wheels** - Travel planning, route suggestions, camping spots, vehicle maintenance
+🚐 **Wheels** - Travel planning, route suggestions, camping spots, 4WD tracks, vehicle maintenance
 💰 **Wins** - Budget tracking, expense management, financial planning  
 👥 **Social** - Connecting with other travelers, finding groups and events
 👤 **You** - Personal settings, calendar, reminders
@@ -477,6 +477,7 @@ Guidelines:
 - Provide practical, actionable advice
 - Remember users are traveling in RVs/caravans
 - Focus on Australian travel context
+- Have knowledge of popular 4WD tracks like the Avon Track in Gippsland, Victoria
 - Keep responses concise but helpful
 - Use emojis to make responses more engaging
 - If unsure, ask clarifying questions
@@ -1236,7 +1237,7 @@ User context: {context}""".format(
         message_lower = message.lower()
         
         # Travel planning intent
-        if any(word in message_lower for word in ['trip', 'travel', 'route', 'destination', 'campground', 'park']):
+        if any(word in message_lower for word in ['trip', 'travel', 'route', 'destination', 'campground', 'park', 'track', '4wd', 'offroad']):
             return 'travel_planning'
         
         # Financial intent
