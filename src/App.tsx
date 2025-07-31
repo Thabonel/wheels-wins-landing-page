@@ -20,7 +20,6 @@ import Shop from './pages/Shop';
 
 // Lazy load heavy components
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const VideoEditor = lazy(() => import('./pages/VideoEditor'));
 import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
@@ -74,13 +73,6 @@ function App() {
                                 <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                                 <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
                                 <Route path="/shop" element={<Shop />} />
-                                <Route path="/video-editor" element={
-                                  <ProtectedRoute>
-                                    <Suspense fallback={<div className="flex items-center justify-center h-64">Loading Video Editor...</div>}>
-                                      <VideoEditor />
-                                    </Suspense>
-                                  </ProtectedRoute>
-                                } />
                                 <Route path="/admin" element={
                                   <AdminProtection>
                                     <Suspense fallback={<div className="flex items-center justify-center h-64">Loading Admin Dashboard...</div>}>

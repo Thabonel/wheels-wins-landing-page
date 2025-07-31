@@ -21,14 +21,9 @@ try:
 except Exception:  # pragma: no cover - optional dependency may be missing
     orchestrator = None  # type: ignore
 
-try:
-    from .media_processing import MediaProcessingService  # type: ignore
-except Exception:  # pragma: no cover - optional dependency may be missing
-    MediaProcessingService = None  # type: ignore
 
 __all__ = [
     'DatabaseService',
     'CacheService',
-    'orchestrator',
-    'MediaProcessingService'
+    'orchestrator'
 ]
