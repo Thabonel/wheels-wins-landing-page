@@ -72,17 +72,17 @@ Wheels & Wins is a comprehensive travel planning and RV community platform built
 **Required Environment Variables:**
 ```bash
 # Frontend (.env)
-VITE_SUPABASE_URL=https://kycoklimpzkyrecbjecn.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-VITE_BACKEND_URL=https://pam-backend.onrender.com
-VITE_PAM_WEBSOCKET_URL=wss://pam-backend.onrender.com/api/v1/pam/ws
-VITE_MAPBOX_PUBLIC_TOKEN=pk.eyJ1IjoidGhhYm9uZWwiLCJhIjoiY205Z2pyODhuMDRvbz...
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+VITE_BACKEND_URL=https://your-backend-url.onrender.com
+VITE_PAM_WEBSOCKET_URL=wss://your-backend-url.onrender.com/api/v1/pam/ws
+VITE_MAPBOX_PUBLIC_TOKEN=pk.your_mapbox_public_token_here
 
 # Backend (set in Render.com)
-DATABASE_URL=postgresql://...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-OPENAI_API_KEY=sk-proj-...
-MAPBOX_SECRET_TOKEN=sk.eyJ1IjoidGhhYm9uZWwiLCJhIjoiY...
+DATABASE_URL=postgresql://your_database_url_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+OPENAI_API_KEY=sk-proj-your_openai_api_key_here
+MAPBOX_SECRET_TOKEN=sk.your_mapbox_secret_token_here
 ```
 
 **Key Supabase Tables:**

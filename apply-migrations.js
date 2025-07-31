@@ -14,7 +14,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Initialize Supabase client with service role key
 const supabaseUrl = 'https://kycoklimpzkyrecbjecn.supabase.co';
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5Y29rbGltcHpreXJlY2JqZWNuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjI1NTgwMCwiZXhwIjoyMDYxODMxODAwfQ.W_2a_u4TwRZs9h5cFCrY7Yl7hNJgPXdpRqWt4eaI2jc';
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!serviceRoleKey) {
+  console.error('❌ SUPABASE_SERVICE_ROLE_KEY environment variable is required');
+  console.error('💡 Set it with: export SUPABASE_SERVICE_ROLE_KEY=your_service_role_key');
+  process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false }

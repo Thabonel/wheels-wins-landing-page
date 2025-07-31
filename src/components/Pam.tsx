@@ -334,23 +334,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Fix: Use reference token for WebSocket to avoid URL length issues
       const baseWebSocketUrl = getWebSocketUrl('/api/v1/pam/ws');
       
-      // Get a short reference token instead of the full JWT
-      let tokenForWs = sessionToken;
-      try {
-        // For WebSocket, always use a short token to avoid URL length limits
-        if (sessionToken && user?.id) {
-          // Use first 50 characters of token + user ID for WebSocket authentication
-          const shortToken = sessionToken.substring(0, 50) + '_' + user.id;
-          tokenForWs = shortToken;
-          console.log('🎫 Using shortened token for WebSocket authentication');
-        } else {
-          tokenForWs = user?.id || 'anonymous';
-          console.log('🎫 Using user ID for WebSocket authentication');
-        }
-      } catch (error) {
-        console.warn('Could not create WebSocket token, using fallback');
-        tokenForWs = user?.id || 'anonymous';
-      }
+      // Use simple token format that backend supports
+      let tokenForWs = user?.id || 'anonymous';
+      console.log('🎫 Using user ID for WebSocket authentication:', tokenForWs);
+      
+      // Backend testing confirmed it works with simple tokens like user IDs
+      // This avoids JWT length issues and complex token parsing on backend
       
       const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(tokenForWs)}`;
       console.log('🔧 PAM Base WebSocket URL:', baseWebSocketUrl);
