@@ -20,7 +20,8 @@ export function usePamMessageHandler() {
 
     switch (message.type) {
       case 'chat_response':
-        console.log('💬 Chat response from PAM backend:', message.message);
+      case 'response':
+        console.log('💬 Chat response from PAM backend:', message.message || message.content);
         break;
         
       case 'ui_actions':

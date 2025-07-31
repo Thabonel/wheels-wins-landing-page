@@ -438,6 +438,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         setConnectionStatus("Connected");
         setReconnectAttempts(0);
         
+        console.log('✅ PAM DEBUG: Connection status updated to Connected');
+        console.log('✅ PAM DEBUG: WebSocket ready state:', wsRef.current?.readyState);
+        
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
           reconnectTimeoutRef.current = null;
@@ -457,12 +460,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           const message = JSON.parse(event.data);
           console.log('📨 PAM DEBUG: Parsed message:', message);
           console.log('📨 PAM DEBUG: Message type:', message.type);
+          console.log('📨 PAM DEBUG: Message keys:', Object.keys(message));
+          console.log('📨 PAM DEBUG: Content fields:', {
+            content: message.content,
+            message: message.message,
+            response: message.response,
+            text: message.text
+          });
           
-          // Handle chat responses
-          if (message.type === 'chat_response') {
+          // Handle chat responses (multiple types)
+          if (message.type === 'chat_response' || message.type === 'response') {
             const content = message.content || message.message || message.response;
-            console.log('💬 PAM DEBUG: Chat response content:', content?.substring(0, 100) + '...');
-            addMessage(content, "pam");
+            console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
+            
+            if (content && content.trim()) {
+              addMessage(content, "pam");
+            } else {
+              console.warn('⚠️ Empty content in response:', message);
+              addMessage("I received your message but couldn't generate a proper response.", "pam");
+            }
             
             // Display agentic capabilities information
             if (message.agentic_info) {
@@ -491,9 +507,29 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             console.log('👋 PAM DEBUG: Welcome message received:', message.message);
           }
           
+          // Handle ping/pong for connection health
+          if (message.type === 'ping') {
+            console.log('🏓 PAM DEBUG: Ping received, sending pong');
+            wsRef.current?.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+          }
+          
+          // Fallback: Display any message with content that we haven't handled
+          if (!['chat_response', 'response', 'ui_action', 'welcome', 'ping', 'pong'].includes(message.type)) {
+            const fallbackContent = message.content || message.message || message.response || message.text;
+            if (fallbackContent && typeof fallbackContent === 'string' && fallbackContent.trim()) {
+              console.log('🔄 PAM DEBUG: Displaying fallback message:', { type: message.type, content: fallbackContent });
+              addMessage(fallbackContent, "pam");
+            }
+          }
+          
         } catch (error) {
           console.error('❌ PAM DEBUG: Error parsing message:', error);
           console.error('❌ PAM DEBUG: Raw message data:', event.data);
+          
+          // Try to display raw message if JSON parsing fails
+          if (typeof event.data === 'string' && event.data.trim()) {
+            addMessage(`📨 Received: ${event.data}`, "pam");
+          }
         }
       };
 
@@ -976,7 +1012,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Process text message through PAM (used for continuous voice conversations)
     const messageData = {
       type: "chat",
-      content: message,
+      message: message,  // Backend expects 'message' not 'content'
       context: {
         user_id: user?.id,
         userLocation: userContext?.current_location,
@@ -1585,7 +1621,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage?.trim()) {
+      console.warn('⚠️ PAM DEBUG: Attempted to send empty message');
+      return;
+    }
     
     const message = inputMessage.trim();
     addMessage(message, "user");
@@ -1594,7 +1633,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     const messageData = {
       type: "chat",
-      content: message,
+      message: message,  // Backend expects 'message' not 'content'
       context: {
         user_id: user?.id,  // Move userId into context as expected by backend
         userLocation: userContext?.current_location,
