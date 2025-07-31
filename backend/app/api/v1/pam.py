@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, Response
 from typing import List, Optional, Dict, Any
@@ -227,10 +227,21 @@ async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, 
 
 # Handle OPTIONS for chat endpoint explicitly
 @router.options("/chat")
-async def chat_options():
+async def chat_options(request: Request):
     """Handle CORS preflight for chat endpoint"""
     from app.core.cors_config import cors_config
-    return cors_config.create_options_response(cache_bust=True)
+    
+    # Get the origin from the request
+    origin = request.headers.get("origin")
+    requested_method = request.headers.get("access-control-request-method")
+    requested_headers = request.headers.get("access-control-request-headers")
+    
+    return cors_config.create_options_response(
+        origin=origin,
+        requested_method=requested_method,
+        requested_headers=requested_headers,
+        cache_bust=True
+    )
 
 # REST Chat endpoint
 @router.post("/chat", response_model=ChatResponse)
@@ -597,10 +608,21 @@ async def pam_health_check():
 
 # OPTIONS handler for voice endpoint
 @router.options("/voice")
-async def voice_options():
+async def voice_options(request: Request):
     """Handle CORS preflight for voice endpoint"""
     from app.core.cors_config import cors_config
-    return cors_config.create_options_response(cache_bust=True)
+    
+    # Get the origin from the request
+    origin = request.headers.get("origin")
+    requested_method = request.headers.get("access-control-request-method")
+    requested_headers = request.headers.get("access-control-request-headers")
+    
+    return cors_config.create_options_response(
+        origin=origin,
+        requested_method=requested_method,
+        requested_headers=requested_headers,
+        cache_bust=True
+    )
 
 # TTS endpoint for voice generation
 class VoiceRequest(BaseModel):
