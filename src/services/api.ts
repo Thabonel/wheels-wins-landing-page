@@ -173,7 +173,12 @@ export async function getAuthenticatedWebSocketUrl(path: string): Promise<string
 export function getWebSocketUrl(path: string) {
   // Use explicit WebSocket override if provided
   if (WS_OVERRIDE) {
-    return WS_OVERRIDE;
+    // If override already includes the path, use as-is
+    if (WS_OVERRIDE.includes(path)) {
+      return WS_OVERRIDE;
+    }
+    // Otherwise append the path (shouldn't happen with current config)
+    return WS_OVERRIDE + path;
   }
 
   // Otherwise derive from the HTTP base URL

@@ -72,17 +72,17 @@ Wheels & Wins is a comprehensive travel planning and RV community platform built
 **Required Environment Variables:**
 ```bash
 # Frontend (.env)
-VITE_SUPABASE_URL=https://kycoklimpzkyrecbjecn.supabase.co
+VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
-VITE_BACKEND_URL=https://pam-backend.onrender.com
-VITE_PAM_WEBSOCKET_URL=wss://pam-backend.onrender.com/api/v1/pam/ws
-VITE_MAPBOX_PUBLIC_TOKEN=<MAPBOX_PUBLIC_TOKEN>
+VITE_BACKEND_URL=https://your-backend-url.onrender.com
+VITE_PAM_WEBSOCKET_URL=wss://your-backend-url.onrender.com/api/v1/pam/ws
+VITE_MAPBOX_PUBLIC_TOKEN=pk.your_mapbox_public_token_here
 
 # Backend (set in Render.com)
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://your_database_url_here
 SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
 OPENAI_API_KEY=<OPENAI_API_KEY>
-MAPBOX_SECRET_TOKEN=sk.eyJ1IjoidGhhYm9uZWwiLCJhIjoiY...
+MAPBOX_SECRET_TOKEN=sk.your_mapbox_secret_token_here
 ```
 
 **Key Supabase Tables:**
