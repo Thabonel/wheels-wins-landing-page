@@ -11,6 +11,7 @@ import {
   Sparkles,
   Download,
   UserPlus,
+  PlusCircle,
   Fuel,
   Car
 } from 'lucide-react';
@@ -147,6 +148,22 @@ export default function EnhancedTripStats({ directionsControl, className }: Enha
           >
             <UserPlus className="w-3 h-3 mr-1" />
             Meetup
+          </Button>
+        </div>
+        
+        {/* Add to Templates Section */}
+        <div className="pt-2 border-t mt-2">
+          <Button 
+            size="sm" 
+            variant="secondary"
+            onClick={() => {
+              // TODO: Implement add to trip templates functionality
+              console.log('Add to trip templates clicked');
+            }}
+            className="w-full"
+          >
+            <PlusCircle className="w-3 h-3 mr-1" />
+            Add to Trip Templates
           </Button>
         </div>
       </CardContent>
