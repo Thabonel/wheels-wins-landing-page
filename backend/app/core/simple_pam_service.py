@@ -137,7 +137,17 @@ class SimplePamService:
         input_type = context.get("input_type", "text")
         start_time = datetime.utcnow()
         
-        logger.info(f"🤖 SimplePamService processing message for user {user_id}: '{message}'")
+        logger.info(f"🤖 [DEBUG] SimplePamService.get_response called!")
+        logger.info(f"  - Message: '{message}'")
+        logger.info(f"  - User ID: {user_id}")
+        logger.info(f"  - Session ID: {session_id}")
+        logger.info(f"  - Context keys: {list(context.keys())}")
+        logger.info(f"  - Conversation history length: {len(conversation_history) if conversation_history else 0}")
+        
+        # Validate input
+        if not message or message.strip() == "":
+            logger.warning(f"❌ [DEBUG] Empty message provided to SimplePamService")
+            return "I didn't receive your message. Could you please try again?"
         
         # Initialize tools if not already done
         if not self.tools_initialized:

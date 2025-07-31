@@ -80,24 +80,36 @@ async def websocket_endpoint(
         while True:
             # Receive message from client
             data = await websocket.receive_json()
-            logger.info(f"WebSocket message received: {data}")
+            logger.info(f"📨 [DEBUG] WebSocket message received from user {user_id}")
+            logger.info(f"  - Full message data: {data}")
+            logger.info(f"  - Message type: {data.get('type')}")
+            logger.info(f"  - Message content: {data.get('content', data.get('message', 'N/A'))}")
             
             # Process different message types
             if data.get("type") == "ping":
+                logger.info(f"🏓 [DEBUG] Ping received from {user_id}, sending pong")
                 await websocket.send_json({"type": "pong"})
                 
             elif data.get("type") == "pong":
                 # Handle pong response for heartbeat monitoring
                 await manager.handle_pong(connection_id)
-                logger.debug(f"💓 Received pong from {connection_id}")
+                logger.debug(f"💓 [DEBUG] Received pong from {connection_id}")
                 
             elif data.get("type") == "chat":
+                logger.info(f"💬 [DEBUG] Chat message detected, calling handle_websocket_chat")
                 await handle_websocket_chat(websocket, data, user_id, orchestrator)
+                logger.info(f"✅ [DEBUG] handle_websocket_chat completed for user {user_id}")
                 
             elif data.get("type") == "context_update":
+                logger.info(f"🔄 [DEBUG] Context update received from {user_id}")
                 await handle_context_update(websocket, data, user_id, db)
                 
+            elif data.get("type") == "auth":
+                logger.info(f"🔐 [DEBUG] Auth message received from {user_id} - ignoring (already authenticated)")
+                # Auth messages are just for connection establishment, ignore them
+                
             else:
+                logger.warning(f"❓ [DEBUG] Unknown message type '{data.get('type')}' from user {user_id}")
                 await websocket.send_json({
                     "type": "error",
                     "message": f"Unknown message type: {data.get('type')}"
@@ -123,16 +135,34 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         context["user_id"] = user_id
         context["connection_type"] = "websocket"
         
-        logger.info(f"Processing chat message: '{message}' for user: {user_id}")
+        logger.info(f"🔍 [DEBUG] handle_websocket_chat called with:")
+        logger.info(f"  - Raw data: {data}")
+        logger.info(f"  - Extracted message: '{message}'")
+        logger.info(f"  - User ID: {user_id}")
+        logger.info(f"  - Context: {context}")
+        
+        # Check for empty message
+        if not message or message.strip() == "":
+            logger.warning(f"❌ [DEBUG] Empty message received from user {user_id}")
+            await websocket.send_json({
+                "type": "error",
+                "message": "I didn't receive your message. Could you please try again?"
+            })
+            return
+        
+        logger.info(f"✅ [DEBUG] Processing non-empty message: '{message}' for user: {user_id}")
         
         # Try edge processing first for ultra-fast responses
         start_time = time.time()
+        logger.info(f"⚡ [DEBUG] Starting edge processing for message: '{message[:50]}...'")
+        
         edge_result = await edge_processing_service.process_query(message, context)
+        logger.info(f"⚡ [DEBUG] Edge processing result: handled={edge_result.handled}, confidence={edge_result.confidence:.2f}")
         
         if edge_result.handled and edge_result.response:
             # Edge processing succeeded - send immediate response
             processing_time = (time.time() - start_time) * 1000
-            logger.info(f"⚡ Edge processed in {processing_time:.1f}ms: '{edge_result.response}'")
+            logger.info(f"⚡ [DEBUG] Edge processed in {processing_time:.1f}ms: '{edge_result.response[:100]}...'")
             
             await websocket.send_json({
                 "type": "response",
@@ -142,25 +172,29 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 "confidence": edge_result.confidence,
                 "metadata": edge_result.metadata
             })
+            logger.info(f"📤 [DEBUG] Edge response sent successfully to user {user_id}")
             return
         
         # Fallback to full PAM processing
-        logger.info(f"🔄 Falling back to cloud processing (edge confidence: {edge_result.confidence:.2f})")
+        logger.info(f"🔄 [DEBUG] Falling back to cloud processing (edge confidence: {edge_result.confidence:.2f})")
         
         # Use SimplePamService instead of orchestrator
         from app.core.simple_pam_service import simple_pam_service
+        logger.info(f"📥 [DEBUG] Imported SimplePamService, calling get_response...")
         
         # Get conversation history if available
         conversation_history = context.get("conversation_history", [])
+        logger.info(f"📚 [DEBUG] Conversation history length: {len(conversation_history)}")
         
         # Process through SimplePamService
+        logger.info(f"🤖 [DEBUG] Calling SimplePamService.get_response with message: '{message}'")
         response_message = await simple_pam_service.get_response(
             message=message,
             context=context,
             conversation_history=conversation_history
         )
         
-        logger.info(f"🎯 SimplePamService response received: {response_message}")
+        logger.info(f"🎯 [DEBUG] SimplePamService response received: '{response_message[:100]}...'")
         
         # Create actions array for compatibility
         actions = [{
@@ -170,11 +204,13 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         
         # Calculate total processing time
         total_processing_time = (time.time() - start_time) * 1000
+        logger.info(f"⏱️ [DEBUG] Total processing time: {total_processing_time:.1f}ms")
         
         # Check if WebSocket is still open before sending
         if websocket.client_state.value == 1:  # WebSocketState.CONNECTED
-            # Send response
-            await websocket.send_json({
+            logger.info(f"📡 [DEBUG] WebSocket still connected, sending response...")
+            
+            response_payload = {
                 "type": "chat_response",
                 "message": response_message,
                 "content": response_message,  # Add content field for frontend compatibility
@@ -182,20 +218,27 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 "source": "cloud",
                 "processing_time_ms": total_processing_time,
                 "timestamp": datetime.utcnow().isoformat()
-            })
+            }
+            
+            logger.info(f"📤 [DEBUG] Sending response payload: {response_payload}")
+            
+            # Send response
+            await websocket.send_json(response_payload)
+            logger.info(f"✅ [DEBUG] Response sent successfully to user {user_id}")
             
             # Send UI actions if any (currently none from SimplePamService)
             ui_actions = [a for a in actions if a.get("type") in ["navigate", "fill_form", "click", "alert"]]
             if ui_actions and websocket.client_state.value == 1:
+                logger.info(f"🎬 [DEBUG] Sending UI actions: {ui_actions}")
                 await websocket.send_json({
                     "type": "ui_actions",
                     "actions": ui_actions
                 })
         else:
-            logger.warning(f"WebSocket closed for user {user_id}, skipping response")
+            logger.warning(f"❌ [DEBUG] WebSocket closed for user {user_id}, skipping response")
             
     except Exception as e:
-        logger.error(f"Chat handling error: {str(e)}")
+        logger.error(f"❌ [DEBUG] Chat handling error: {str(e)}", exc_info=True)
         if websocket.client_state.value == 1:  # Only send if connected
             await websocket.send_json({
                 "type": "error",
