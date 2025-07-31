@@ -55,9 +55,9 @@ class PerformanceMonitorService:
         self.optimization_recommendations: List[str] = []
         
         # Performance thresholds
-        self.memory_warning_threshold = 70.0  # 70%
-        self.memory_critical_threshold = 85.0  # 85%
-        self.memory_optimization_threshold = 80.0  # 80%
+        self.memory_warning_threshold = 90.0  # 90% - Adjusted for container-level monitoring
+        self.memory_critical_threshold = 95.0  # 95% - Adjusted for container-level monitoring
+        self.memory_optimization_threshold = 80.0  # 80% - Keep optimization threshold for Python process
         
     async def start_monitoring(self, interval_seconds: int = 60):
         """Start continuous performance monitoring"""
