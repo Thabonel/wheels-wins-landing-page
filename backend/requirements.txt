@@ -89,3 +89,4 @@ googlemaps==4.10.0
 lxml==5.2.1
 
 chromadb==0.4.22
+sentence-transformers==2.7.0
