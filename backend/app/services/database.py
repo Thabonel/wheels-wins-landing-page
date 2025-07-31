@@ -183,6 +183,18 @@ class DatabaseService:
             if not self.client:
                 return {}
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"user_profile:{user_id}"
+
+            cached_profile = await cache.get(cache_key)
+            if cached_profile:
+                logger.info(f"✅ Cache hit for user profile: {user_id}")
+                return cached_profile
+
+            logger.info(f"🚧 Cache miss for user profile: {user_id}, fetching from DB")
+
             # Try multiple approaches to get user profile safely
             profile = {"id": user_id}  # Default fallback
             
@@ -232,13 +244,18 @@ class DatabaseService:
             # Get user preferences and travel context
             preferences = await self.get_user_preferences(user_id)
             
-            return {
+            user_profile = {
                 **profile,
                 'preferences': preferences,
                 'travel_style': preferences.get('travel_style', 'balanced'),
                 'vehicle_info': preferences.get('vehicle_info', {}),
                 'current_location': preferences.get('current_location')
             }
+
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, user_profile, ttl=300)
+
+            return user_profile
         except Exception as e:
             logger.warning(f"Error fetching user profile: {e}")
             return {}
@@ -249,6 +266,18 @@ class DatabaseService:
             if not self.client:
                 return []
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"user_trips:{user_id}:{limit}"
+
+            cached_trips = await cache.get(cache_key)
+            if cached_trips:
+                logger.info(f"✅ Cache hit for user trips: {user_id}")
+                return cached_trips
+
+            logger.info(f"🚧 Cache miss for user trips: {user_id}, fetching from DB")
+
             # Avoid group_trip_participants table due to RLS recursion issue
             # Query group_trips directly without joins to prevent policy conflicts
             try:
@@ -292,6 +321,9 @@ class DatabaseService:
                         'suggestions': route_data.get('suggestions', [])
                     })
             
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, trips, ttl=300)
+
             return trips
         except Exception as e:
             logger.warning(f"Error fetching user trips: {e}")
@@ -303,6 +335,18 @@ class DatabaseService:
             if not self.client:
                 return {}
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"trip_details:{trip_id}"
+
+            cached_trip = await cache.get(cache_key)
+            if cached_trip:
+                logger.info(f"✅ Cache hit for trip details: {trip_id}")
+                return cached_trip
+
+            logger.info(f"🚧 Cache miss for trip details: {trip_id}, fetching from DB")
+
             result = self.client.table('group_trips').select('*').eq('id', trip_id).single().execute()
             
             if result.data:
@@ -315,7 +359,7 @@ class DatabaseService:
                     except:
                         route_data = {}
                 
-                return {
+                trip_details = {
                     'id': trip['id'],
                     'name': trip.get('trip_name', 'Untitled Trip'),
                     'description': trip.get('description', ''),
@@ -329,6 +373,11 @@ class DatabaseService:
                     'waypoints': route_data.get('waypoints', []),
                     'suggestions': route_data.get('suggestions', [])
                 }
+
+                # Store in cache for 5 minutes
+                await cache.set(cache_key, trip_details, ttl=300)
+
+                return trip_details
             
             return {}
         except Exception as e:
@@ -350,6 +399,12 @@ class DatabaseService:
             # Update the trip
             result = self.client.table('group_trips').update(updates).eq('id', trip_id).execute()
             
+            # Invalidate cache
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            await cache.delete(f"trip_details:{trip_id}")
+            await cache.delete(f"user_trips:{user_id}:20") # Invalidate user trips list
+
             return bool(result.data)
         except Exception as e:
             logger.warning(f"Error updating trip: {e}")
@@ -362,6 +417,18 @@ class DatabaseService:
             if not self.client:
                 return []
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"user_social_groups:{user_id}:{limit}"
+
+            cached_groups = await cache.get(cache_key)
+            if cached_groups:
+                logger.info(f"✅ Cache hit for user social groups: {user_id}")
+                return cached_groups
+
+            logger.info(f"🚧 Cache miss for user social groups: {user_id}, fetching from DB")
+
             # Get groups the user is a member of
             result = self.client.table('group_memberships').select(
                 'social_groups(*), role, joined_at'
@@ -381,6 +448,9 @@ class DatabaseService:
                             'joined_at': membership.get('joined_at')
                         })
             
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, groups, ttl=300)
+
             return groups
         except Exception as e:
             logger.warning(f"Error fetching user social groups: {e}")
@@ -392,6 +462,18 @@ class DatabaseService:
             if not self.client:
                 return []
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"user_social_posts:{user_id}:{limit}"
+
+            cached_posts = await cache.get(cache_key)
+            if cached_posts:
+                logger.info(f"✅ Cache hit for user social posts: {user_id}")
+                return cached_posts
+
+            logger.info(f"🚧 Cache miss for user social posts: {user_id}, fetching from DB")
+
             result = self.client.table('social_posts').select('*').eq(
                 'user_id', user_id
             ).order('created_at', desc=True).limit(limit).execute()
@@ -409,6 +491,9 @@ class DatabaseService:
                         'group_id': post.get('group_id')
                     })
             
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, posts, ttl=300)
+
             return posts
         except Exception as e:
             logger.warning(f"Error fetching user social posts: {e}")
@@ -420,6 +505,18 @@ class DatabaseService:
             if not self.client:
                 return []
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"marketplace_listings:{user_id}:{limit}"
+
+            cached_listings = await cache.get(cache_key)
+            if cached_listings:
+                logger.info(f"✅ Cache hit for marketplace listings: {user_id}")
+                return cached_listings
+
+            logger.info(f"🚧 Cache miss for marketplace listings: {user_id}, fetching from DB")
+
             result = self.client.table('marketplace_listings').select('*').eq(
                 'seller_id', user_id
             ).order('created_at', desc=True).limit(limit).execute()
@@ -438,6 +535,9 @@ class DatabaseService:
                         'created_at': listing.get('created_at')
                     })
             
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, listings, ttl=300)
+
             return listings
         except Exception as e:
             logger.warning(f"Error fetching marketplace listings: {e}")
@@ -459,6 +559,12 @@ class DatabaseService:
                 post_data['group_id'] = group_id
             
             result = self.client.table('social_posts').insert(post_data).execute()
+            
+            # Invalidate cache
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            await cache.delete(f"user_social_posts:{user_id}:10")
+
             return bool(result.data)
         except Exception as e:
             logger.warning(f"Error creating social post: {e}")
@@ -485,6 +591,11 @@ class DatabaseService:
                 'role': 'member'
             }).execute()
             
+            # Invalidate cache
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            await cache.delete(f"user_social_groups:{user_id}:20")
+
             return bool(result.data)
         except Exception as e:
             logger.warning(f"Error joining social group: {e}")
@@ -497,6 +608,18 @@ class DatabaseService:
             if not self.client:
                 return []
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"user_purchase_history:{user_id}:{limit}"
+
+            cached_history = await cache.get(cache_key)
+            if cached_history:
+                logger.info(f"✅ Cache hit for user purchase history: {user_id}")
+                return cached_history
+
+            logger.info(f"🚧 Cache miss for user purchase history: {user_id}, fetching from DB")
+
             try:
                 result = self.client.table('affiliate_sales').select('*').eq(
                     'user_id', user_id
@@ -521,6 +644,9 @@ class DatabaseService:
                         'category': purchase.get('category', '')
                     })
             
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, purchases, ttl=300)
+
             return purchases
         except Exception as e:
             logger.warning(f"Error fetching purchase history: {e}")
@@ -532,6 +658,18 @@ class DatabaseService:
             if not self.client:
                 return []
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"user_wishlists:{user_id}"
+
+            cached_wishlists = await cache.get(cache_key)
+            if cached_wishlists:
+                logger.info(f"✅ Cache hit for user wishlists: {user_id}")
+                return cached_wishlists
+
+            logger.info(f"🚧 Cache miss for user wishlists: {user_id}, fetching from DB")
+
             try:
                 result = self.client.table('user_wishlists').select('*').eq(
                     'user_id', user_id
@@ -555,6 +693,9 @@ class DatabaseService:
                         'notes': item.get('notes', '')
                     })
             
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, wishlists, ttl=300)
+
             return wishlists
         except Exception as e:
             logger.warning(f"Error fetching wishlists: {e}")
@@ -566,6 +707,18 @@ class DatabaseService:
             if not self.client:
                 return []
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"personalized_recommendations:{user_id}:{limit}"
+
+            cached_recommendations = await cache.get(cache_key)
+            if cached_recommendations:
+                logger.info(f"✅ Cache hit for personalized recommendations: {user_id}")
+                return cached_recommendations
+
+            logger.info(f"🚧 Cache miss for personalized recommendations: {user_id}, fetching from DB")
+
             result = self.client.table('personalized_recommendations').select('*').eq(
                 'user_id', user_id
             ).order('score', desc=True).limit(limit).execute()
@@ -583,6 +736,9 @@ class DatabaseService:
                         'image_url': rec.get('image_url', '')
                     })
             
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, recommendations, ttl=300)
+
             return recommendations
         except Exception as e:
             logger.warning(f"Error fetching personalized recommendations: {e}")
@@ -612,6 +768,11 @@ class DatabaseService:
                     'notes': notes
                 }).execute()
                 
+                # Invalidate cache
+                from app.services.cache_service import get_cache
+                cache = await get_cache()
+                await cache.delete(f"user_wishlists:{user_id}")
+
                 return bool(result.data)
             except Exception as e:
                 if 'does not exist' in str(e).lower():
@@ -640,6 +801,12 @@ class DatabaseService:
             
             try:
                 result = self.client.table('affiliate_sales').insert(purchase_data).execute()
+                
+                # Invalidate cache
+                from app.services.cache_service import get_cache
+                cache = await get_cache()
+                await cache.delete(f"user_purchase_history:{user_id}:20")
+
                 return bool(result.data)
             except Exception as e:
                 if 'does not exist' in str(e).lower():
@@ -713,6 +880,18 @@ class DatabaseService:
             if not self.client:
                 return {}
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"financial_travel_insights:{user_id}:{months}"
+
+            cached_insights = await cache.get(cache_key)
+            if cached_insights:
+                logger.info(f"✅ Cache hit for financial travel insights: {user_id}")
+                return cached_insights
+
+            logger.info(f"🚧 Cache miss for financial travel insights: {user_id}, fetching from DB")
+
             from datetime import datetime, timedelta
             
             # Calculate date range
@@ -750,7 +929,7 @@ class DatabaseService:
             
             budget_variance = travel_budget - total_travel_expenses if travel_budget > 0 else 0
             
-            return {
+            insights = {
                 'period_months': months,
                 'trips_count': len(trips),
                 'total_travel_expenses': total_travel_expenses,
@@ -762,6 +941,11 @@ class DatabaseService:
                 'trips': trips[:5],  # Latest 5 trips
                 'expense_trends': self._calculate_expense_trends(expenses)
             }
+
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, insights, ttl=300)
+
+            return insights
         except Exception as e:
             logger.warning(f"Error getting financial travel insights: {e}")
             return {}
@@ -772,6 +956,18 @@ class DatabaseService:
             if not self.client:
                 return {}
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"social_travel_connections:{user_id}"
+
+            cached_connections = await cache.get(cache_key)
+            if cached_connections:
+                logger.info(f"✅ Cache hit for social travel connections: {user_id}")
+                return cached_connections
+
+            logger.info(f"🚧 Cache miss for social travel connections: {user_id}, fetching from DB")
+
             # Get user's social groups
             social_groups = await self.get_user_social_groups(user_id)
             
@@ -795,13 +991,18 @@ class DatabaseService:
                     'potential_travel_buddies': 0  # Placeholder - would calculate based on member travel history
                 })
             
-            return {
+            connections = {
                 'social_groups': len(social_groups),
                 'travel_posts': len(travel_posts),
                 'recent_trips': len(trips),
                 'group_connections': group_connections,
                 'travel_social_score': len(travel_posts) + len(social_groups)  # Simple metric
             }
+
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, connections, ttl=300)
+
+            return connections
         except Exception as e:
             logger.warning(f"Error getting social travel connections: {e}")
             return {}
@@ -812,6 +1013,18 @@ class DatabaseService:
             if not self.client:
                 return {}
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"comprehensive_user_context:{user_id}"
+            
+            cached_context = await cache.get(cache_key)
+            if cached_context:
+                logger.info(f"✅ Cache hit for comprehensive user context: {user_id}")
+                return cached_context
+            
+            logger.info(f"🚧 Cache miss for comprehensive user context: {user_id}, fetching from DB")
+
             # Gather data from all sections
             user_profile = await self.get_user_profile(user_id)
             recent_trips = await self.get_user_trips(user_id, limit=5)
@@ -839,7 +1052,7 @@ class DatabaseService:
             
             calendar_events = calendar_result.data if calendar_result.data else []
             
-            return {
+            comprehensive_context = {
                 'user_profile': user_profile,
                 'travel': {
                     'recent_trips': recent_trips,
@@ -871,6 +1084,11 @@ class DatabaseService:
                     'total_purchases': len(purchase_history)
                 }
             }
+
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, comprehensive_context, ttl=300)
+            
+            return comprehensive_context
         except Exception as e:
             logger.warning(f"Error getting comprehensive user context: {e}")
             return {}
@@ -911,6 +1129,18 @@ class DatabaseService:
             if not self.client:
                 return []
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"user_calendar_events:{user_id}:{days_ahead}"
+
+            cached_events = await cache.get(cache_key)
+            if cached_events:
+                logger.info(f"✅ Cache hit for user calendar events: {user_id}")
+                return cached_events
+
+            logger.info(f"🚧 Cache miss for user calendar events: {user_id}, fetching from DB")
+
             from datetime import datetime, timedelta
             
             start_date = datetime.now()
@@ -936,6 +1166,9 @@ class DatabaseService:
                         'reminder_minutes': event.get('reminder_minutes', 0)
                     })
             
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, events, ttl=300)
+
             return events
         except Exception as e:
             logger.warning(f"Error fetching calendar events: {e}")
@@ -963,6 +1196,12 @@ class DatabaseService:
             # Service client should only be used for true admin operations
             
             result = self.client.table('calendar_events').insert(calendar_event).execute()
+            
+            # Invalidate cache
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            await cache.delete(f"user_calendar_events:{user_id}:30")
+
             return bool(result.data)
         except Exception as e:
             logger.warning(f"Error creating calendar event: {e}")
@@ -974,6 +1213,18 @@ class DatabaseService:
             if not self.client:
                 return {}
             
+            # Caching implementation
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"user_settings:{user_id}"
+
+            cached_settings = await cache.get(cache_key)
+            if cached_settings:
+                logger.info(f"✅ Cache hit for user settings: {user_id}")
+                return cached_settings
+
+            logger.info(f"🚧 Cache miss for user settings: {user_id}, fetching from DB")
+
             # Get from user preferences
             preferences = await self.get_user_preferences(user_id)
             
@@ -984,7 +1235,7 @@ class DatabaseService:
             
             profile = profile_result.data if profile_result.data else {}
             
-            return {
+            settings_data = {
                 'notifications': preferences.get('notifications', {}),
                 'privacy': preferences.get('privacy', {}),
                 'display': preferences.get('display', {}),
@@ -999,6 +1250,11 @@ class DatabaseService:
                     'avatar_url': profile.get('avatar_url', '')
                 }
             }
+
+            # Store in cache for 5 minutes
+            await cache.set(cache_key, settings_data, ttl=300)
+
+            return settings_data
         except Exception as e:
             logger.warning(f"Error fetching user settings: {e}")
             return {}
@@ -1024,6 +1280,12 @@ class DatabaseService:
                 if not result.data:
                     return False
             
+            # Invalidate cache
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            await cache.delete(f"user_settings:{user_id}")
+            await cache.delete(f"user_profile:{user_id}")
+
             return True
         except Exception as e:
             logger.warning(f"Error updating user settings: {e}")
