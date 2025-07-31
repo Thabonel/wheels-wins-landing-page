@@ -171,8 +171,16 @@ export async function getAuthenticatedWebSocketUrl(path: string): Promise<string
 }
 
 export function getWebSocketUrl(path: string) {
+  console.log('🔌 WebSocket URL Construction Debug:', {
+    path,
+    WS_OVERRIDE,
+    API_BASE_URL,
+    env_ws_url: import.meta.env.VITE_PAM_WEBSOCKET_URL
+  });
+
   // Use explicit WebSocket override if provided
   if (WS_OVERRIDE) {
+    console.log('✅ Using WebSocket override:', WS_OVERRIDE);
     // If override already includes the path, use as-is
     if (WS_OVERRIDE.includes(path)) {
       return WS_OVERRIDE;
@@ -182,6 +190,9 @@ export function getWebSocketUrl(path: string) {
   }
 
   // Otherwise derive from the HTTP base URL
+  console.log('⚠️ No WebSocket override found, deriving from API_BASE_URL');
   const baseUrl = API_BASE_URL.replace(/^http/, 'ws');
-  return `${baseUrl}${path}`;
+  const finalUrl = `${baseUrl}${path}`;
+  console.log('🔗 Derived WebSocket URL:', finalUrl);
+  return finalUrl;
 }
