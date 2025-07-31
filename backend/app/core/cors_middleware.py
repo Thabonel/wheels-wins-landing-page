@@ -69,16 +69,18 @@ class EnhancedCORSMiddleware(BaseHTTPMiddleware):
             try:
                 response = await call_next(request)
                 
-                # If we get a 404 or 405, it means no OPTIONS handler exists
+                # If we get a 400, 404 or 405, it means no OPTIONS handler exists
                 # Provide fallback OPTIONS response
-                if response.status_code in [404, 405]:
+                if response.status_code in [400, 404, 405]:
                     self.cors_stats["fallback_options"] += 1
                     logger.info(
-                        f"🔧 Providing fallback OPTIONS response for {request.url.path}"
+                        f"🔧 Providing fallback OPTIONS response for {request.url.path} (was {response.status_code})"
                     )
                     
                     response = cors_config.create_options_response(
                         origin=origin if is_allowed else None,
+                        requested_method=request.headers.get("access-control-request-method"),
+                        requested_headers=request.headers.get("access-control-request-headers"),
                         cache_bust=True
                     )
                     
