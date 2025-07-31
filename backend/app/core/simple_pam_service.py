@@ -149,9 +149,14 @@ class SimplePamService:
             logger.warning(f"❌ [DEBUG] Empty message provided to SimplePamService")
             return "I didn't receive your message. Could you please try again?"
         
-        # Initialize tools if not already done
+        # Initialize tools if not already done - CRITICAL FOR LOCATION INTELLIGENCE
         if not self.tools_initialized:
+            logger.info(f"🛠️ [DEBUG] Initializing PAM tools for location intelligence...")
             await self.initialize_tools()
+            if self.tools_initialized:
+                logger.info(f"✅ [DEBUG] PAM tools initialized successfully - Google Places API available")
+            else:
+                logger.warning(f"⚠️ [DEBUG] PAM tools initialization failed - location queries may not work optimally")
         
         # Load comprehensive user data across all app sections
         comprehensive_data = {}
@@ -252,11 +257,16 @@ class SimplePamService:
         tool_result = None
         
         try:
-            # Check for Google Places requests
+            # Check for Google Places requests - EXPANDED FOR LOCATION INTELLIGENCE
             if any(word in message_lower for word in [
                 'restaurants near', 'places near', 'find restaurants', 'food near', 
                 'attractions near', 'things to do', 'places to visit', 'gas stations near',
-                'accommodation near', 'hotels near', 'camping near'
+                'accommodation near', 'hotels near', 'camping near',
+                # NEW: Distance and geographical queries
+                'how far', 'distance to', 'next town', 'nearest town', 'town near',
+                'mountains near', 'mountain near', 'hills near', 'nearby mountain',
+                'what town', 'which town', 'closest town', 'next city',
+                'elevation near', 'geography near', 'terrain near'
             ]):
                 location = context.get('user_location')
                 if location:
@@ -327,8 +337,16 @@ class SimplePamService:
         return tool_result
     
     def _extract_place_type(self, message: str) -> str:
-        """Extract place type from message"""
-        if 'restaurant' in message or 'food' in message or 'eat' in message:
+        """Extract place type from message - ENHANCED FOR GEOGRAPHICAL QUERIES"""
+        # Geographical and distance queries
+        if any(word in message for word in ['town', 'city', 'next town', 'nearest town', 'closest town']):
+            return 'locality'  # Towns and cities
+        elif any(word in message for word in ['mountain', 'hill', 'peak', 'elevation', 'terrain']):
+            return 'natural_feature'  # Mountains, hills, geographical features
+        elif any(word in message for word in ['how far', 'distance', 'miles', 'km']):
+            return 'locality'  # For distance queries, default to towns/cities
+        # Original place types
+        elif 'restaurant' in message or 'food' in message or 'eat' in message:
             return 'restaurant'
         elif 'attraction' in message or 'visit' in message or 'see' in message:
             return 'tourist_attraction'
@@ -342,10 +360,20 @@ class SimplePamService:
             return 'restaurant'  # Default
     
     def _extract_search_keyword(self, message: str) -> Optional[str]:
-        """Extract search keyword from message"""
-        # Simple keyword extraction - can be enhanced
+        """Extract search keyword from message - ENHANCED FOR GEOGRAPHICAL QUERIES"""
         keywords = []
-        if 'pizza' in message:
+        
+        # Geographical keywords
+        if any(word in message for word in ['mountain', 'hill', 'peak']):
+            keywords.append('mountain')
+        elif any(word in message for word in ['town', 'city']):
+            keywords.append('town')
+        elif 'national park' in message:
+            keywords.append('national park')
+        elif 'lookout' in message or 'scenic' in message:
+            keywords.append('scenic lookout')
+        # Food keywords
+        elif 'pizza' in message:
             keywords.append('pizza')
         elif 'coffee' in message:
             keywords.append('coffee')
@@ -463,7 +491,7 @@ Recent trips: {travel_data.get('trip_count', 0)}"""
         # System message defining PAM's personality and capabilities
         system_message = {
             "role": "system",
-            "content": """You are PAM (Personal AI Manager), a friendly and helpful AI assistant for the Wheels and Wins platform. 
+            "content": f"""You are PAM (Personal AI Manager), a friendly and helpful AI assistant for the Wheels and Wins platform. 
 You help mature travelers (Grey Nomads) with:
 
 🚐 **Wheels** - Travel planning, route suggestions, camping spots, 4WD tracks, vehicle maintenance
@@ -471,6 +499,17 @@ You help mature travelers (Grey Nomads) with:
 👥 **Social** - Connecting with other travelers, finding groups and events
 👤 **You** - Personal settings, calendar, reminders
 🛒 **Shop** - Finding deals on travel gear and supplies
+
+**🌍 LOCATION & TIMEZONE CONTEXT:**
+- User location: {context.get('user_location', 'LOCATION NOT PROVIDED - Ask user for their current location')}
+- Server time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC
+- User timezone note: {context.get('user_timezone_note', 'TIMEZONE UNKNOWN - Ask user for their local date/time')}
+
+**CRITICAL LOCATION INTELLIGENCE:**
+- When user asks "how far to next town" - Use their location to provide specific distances and town names
+- When user asks "mountains nearby" - Use location to identify specific mountain ranges and RV-accessible routes
+- When user asks about weather - Reference their specific location and local timezone
+- If location missing, ALWAYS ask: "Could you share your current location so I can provide specific local information?"
 
 Guidelines:
 - Be warm, friendly, and conversational

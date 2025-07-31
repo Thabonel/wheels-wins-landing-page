@@ -128,14 +128,12 @@ class EdgeProcessingService:
             id="current_date",
             patterns=[
                 "what date is it",
-                "what is today",
                 "current date",
-                "today's date",
                 "what day is it"
             ],
             response="dynamic:current_date",
             category=QueryCategory.TIME_DATE,
-            confidence_threshold=0.8,
+            confidence_threshold=0.9,  # Higher threshold - must be exact match
             dynamic_data=True,
             cache_ttl=3600
         ))
@@ -380,6 +378,30 @@ class EdgeProcessingService:
     
     def _find_best_match(self, query: str, context: Dict[str, Any] = None) -> Optional[QueryMatch]:
         """Find the best matching query pattern"""
+        
+        # CRITICAL: Exclude complex queries that need PAM's intelligence
+        query_lower = query.lower()
+        
+        # Location-based queries should always go to PAM's intelligence
+        location_keywords = [
+            'near', 'nearby', 'distance', 'far', 'town', 'city', 'mountain', 'hill',
+            'restaurant', 'food', 'hotel', 'camping', 'gas station', 'fuel',
+            'attraction', 'place', 'where', 'location', 'around here',
+            'next town', 'how far', 'miles', 'km', 'route', 'directions'
+        ]
+        
+        # Weather and complex contextual queries
+        complex_keywords = [
+            'weather', 'temperature', 'rain', 'forecast', 'climate',
+            'like today', 'what is today', 'today like', 'conditions',
+            'plan', 'suggest', 'recommend', 'help me', 'advice',
+            'should i', 'can you', 'will you', 'budget', 'expense'
+        ]
+        
+        # Check if this is a complex query that needs PAM's intelligence
+        if any(keyword in query_lower for keyword in location_keywords + complex_keywords):
+            logger.info(f"🧠 Edge: Excluding complex query for PAM intelligence: '{query[:50]}...'")
+            return None
         
         best_match = None
         highest_confidence = 0
