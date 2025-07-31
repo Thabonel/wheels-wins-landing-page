@@ -79,7 +79,7 @@ neo4j>=5.14.0,<6.0.0
 
 # Text analysis and TTS
 textstat==0.7.7
-pyttsx3==2.99
+
 
 # Local Whisper removed for memory optimization (eliminates 72MB+ model downloads)
 # Using cloud-based OpenAI Whisper API instead (already included in openai package)
