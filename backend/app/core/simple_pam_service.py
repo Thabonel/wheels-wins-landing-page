@@ -576,11 +576,11 @@ TOOL USAGE EXAMPLES:
   • "Search the web for camping tips" → search_web_information
   • "Are there any peaks nearby?" → search_nearby_places with place_type: natural_feature
 
-Current timestamp: {timestamp}
-User context: {context}""".format(
+Current timestamp: {current_time}
+User context: {user_context}""".format(
                 user_info=user_info,
-                timestamp=datetime.utcnow().isoformat(),
-                context=json.dumps({
+                current_time=datetime.utcnow().isoformat(),
+                user_context=json.dumps({
                     "user_id": context.get("user_id"),
                     "session_id": context.get("session_id"),
                     "location": context.get("user_location", "Unknown"),
