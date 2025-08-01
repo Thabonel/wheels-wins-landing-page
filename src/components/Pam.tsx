@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Mic, MicOff, MapPin, Calendar, DollarSign } from "lucide-react";
+import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
 import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
@@ -9,6 +9,7 @@ import { pamCalendarService } from "@/services/pamCalendarService";
 import { pamFeedbackService } from "@/services/pamFeedbackService";
 import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -47,9 +48,21 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [isWakeWordListening, setIsWakeWordListening] = useState(false);
   const [wakeWordRecognition, setWakeWordRecognition] = useState<any | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
   const [isShowingAudioLevel, setIsShowingAudioLevel] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  
+  // VAD and conversation management
+  const [isVADActive, setIsVADActive] = useState(false);
+  const [conversationState, setConversationState] = useState<ConversationState>({
+    userSpeaking: false,
+    pamSpeaking: false,
+    waitingForPause: false,
+    lastSpeechEnd: 0,
+    lastSilenceStart: 0,
+  });
   
   // Audio analysis refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -63,10 +76,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     isWakeWordListeningRef.current = isWakeWordListening;
   }, [isWakeWordListening]);
 
-  // Cleanup audio level monitoring on unmount
+  // Cleanup audio level monitoring and VAD on unmount
   useEffect(() => {
     return () => {
       stopAudioLevelMonitoring();
+      vadService.cleanup();
     };
   }, []);
   
@@ -77,6 +91,44 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     isListeningRef.current = isListening;
   }, [isListening]);
+  
+  // Set up VAD event handlers
+  useEffect(() => {
+    // User speech start - interrupt PAM if speaking
+    vadService.onSpeechStart((result) => {
+      console.log('🎤 VAD detected user speech start:', result);
+      setConversationState(prev => ({ ...prev, userSpeaking: true }));
+      
+      // Interrupt PAM if currently speaking
+      if (isSpeaking && currentAudio && !currentAudio.paused) {
+        console.log('🔇 VAD interrupting PAM speech due to user speaking');
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        setIsSpeaking(false);
+        vadService.setPAMSpeaking(false);
+      }
+    });
+    
+    // User speech end - update conversation state
+    vadService.onSpeechEnd((result) => {
+      console.log('🔇 VAD detected user speech end:', result);
+      setConversationState(prev => ({ 
+        ...prev, 
+        userSpeaking: false,
+        lastSpeechEnd: Date.now(),
+        lastSilenceStart: Date.now(),
+      }));
+    });
+    
+    // General VAD results for debugging
+    vadService.onVADResult((result) => {
+      setConversationState(vadService.getConversationState());
+    });
+    
+    return () => {
+      // Cleanup is handled in the main cleanup useEffect
+    };
+  }, [isSpeaking, currentAudio]);
   
   // Use refs to avoid stale closure problem
   const isWakeWordListeningRef = useRef(false);
@@ -1147,12 +1199,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     setIsContinuousMode(true);
     setVoiceStatus("listening");
     
-    // Setup audio level monitoring for continuous mode
+    // Setup audio level monitoring and VAD for continuous mode
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       await setupAudioLevelMonitoring(stream);
       
-      // Keep the stream open for audio level monitoring
+      // Initialize VAD with the same stream
+      await vadService.initialize(stream);
+      setIsVADActive(true);
+      console.log('✅ VAD initialized for continuous mode');
+      
+      // Keep the stream open for audio level monitoring and VAD
       // Store stream reference for cleanup later
       audioStreamRef.current = stream;
     } catch (error) {
@@ -1174,13 +1231,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     addMessage("🎙️ **Continuous voice mode activated!** \n\n✅ **Just speak naturally**: Say 'PAM tell me a joke' or 'BAM what's the weather'\n✅ **No need to click anything** - I'm always listening\n✅ **Click microphone to stop** when done\n\n**Try saying: 'PAM tell me a joke' right now!**", "pam");
   };
 
-  const stopContinuousVoiceMode = () => {
+  const stopContinuousVoiceMode = async () => {
     console.log('🔇 Stopping continuous voice mode');
     setIsContinuousMode(false);
     setVoiceStatus("idle");
     
     // Stop audio level monitoring and release microphone
     stopAudioLevelMonitoring();
+    
+    // Stop VAD
+    await vadService.cleanup();
+    setIsVADActive(false);
+    console.log('🔇 VAD stopped and cleaned up');
     
     // Stop wake word listening when continuous mode is turned off
     stopWakeWordListening();
@@ -1710,13 +1772,36 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       return; // Voice is disabled, don't speak
     }
 
-    // Additional check: Only speak in continuous mode or if explicitly enabled
-    if (!isContinuousMode && !isWakeWordListening) {
-      console.log('🔇 Voice only active in continuous or wake word mode');
-      return;
-    }
+    // Voice is now available for all PAM responses when enabled in settings
+    // Users can control voice through pam_preferences.voice_enabled setting
+    console.log('🎵 Voice enabled for PAM response (user setting controls voice)');
 
     try {
+      // Stop any currently playing audio to prevent overlap
+      if (currentAudio && !currentAudio.paused) {
+        console.log('🔇 Interrupting current speech for new message');
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        setIsSpeaking(false);
+        vadService.setPAMSpeaking(false);
+      }
+
+      // Sophisticated conversation management - wait for natural pause if VAD is active
+      if (isVADActive) {
+        console.log('🤔 Checking if PAM should wait for natural conversation pause...');
+        
+        if (!vadService.canPAMSpeak()) {
+          console.log('⏳ Waiting for natural conversation pause before PAM speaks...');
+          const pauseDetected = await vadService.waitForPause(3000); // Wait up to 3 seconds
+          
+          if (!pauseDetected) {
+            console.log('⏰ Timeout waiting for pause, PAM will speak anyway');
+          } else {
+            console.log('✅ Natural pause detected, PAM can speak now');
+          }
+        }
+      }
+
       console.log('🎵 Speaking PAM response:', content.substring(0, 50) + '...');
       
       // Clean the content for TTS (remove emojis and markdown)
@@ -1732,6 +1817,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         return; // Nothing to speak
       }
 
+      // Set speaking state for UI feedback and VAD
+      setIsSpeaking(true);
+      vadService.setPAMSpeaking(true);
       console.log('🔊 Generating voice for:', cleanContent);
       
       // Generate voice using pamVoiceService
@@ -1744,17 +1832,52 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       console.log('🎵 Voice response received:', voiceResponse);
 
-      // Play the generated audio
+      // Create and configure audio element
       const audio = new Audio(voiceResponse.audioUrl);
-      audio.play()
-        .then(() => console.log('✅ Voice playback started'))
-        .catch(error => {
-          console.warn('🔊 Voice playback failed:', error);
-        });
+      setCurrentAudio(audio);
+
+      // Set up audio event listeners
+      audio.addEventListener('ended', () => {
+        console.log('✅ Voice playback completed');
+        setIsSpeaking(false);
+        vadService.setPAMSpeaking(false);
+        setCurrentAudio(null);
+        URL.revokeObjectURL(voiceResponse.audioUrl); // Clean up blob URL
+      });
+
+      audio.addEventListener('error', (error) => {
+        console.warn('🔊 Voice playback error:', error);
+        setIsSpeaking(false);
+        vadService.setPAMSpeaking(false);
+        setCurrentAudio(null);
+        URL.revokeObjectURL(voiceResponse.audioUrl); // Clean up blob URL
+      });
+
+      // Play the generated audio
+      await audio.play();
+      console.log('✅ Voice playback started');
 
     } catch (error) {
       console.warn('🔊 Voice synthesis failed:', error);
-      // Don't show error to user - just fail silently for voice
+      setIsSpeaking(false);
+      vadService.setPAMSpeaking(false);
+      setCurrentAudio(null);
+      
+      // Show user-friendly error notification for voice failures
+      if (error instanceof Error && error.message.includes('generate')) {
+        console.log('ℹ️ Voice generation temporarily unavailable - continuing with text response');
+      }
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (currentAudio && !currentAudio.paused) {
+      console.log('🔇 User stopped PAM voice playback');
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setIsSpeaking(false);
+      vadService.setPAMSpeaking(false);
+      setCurrentAudio(null);
     }
   };
 
@@ -1970,10 +2093,20 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             />
             <div>
               <h3 className="font-semibold text-gray-800">PAM</h3>
-              <p className="text-xs text-gray-500">
-                {connectionStatus === "Connected" ? "🟢 Agentic AI Online" : 
-                 connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
-              </p>
+              <div className="text-xs text-gray-500 space-y-0.5">
+                <p>
+                  {connectionStatus === "Connected" ? "🟢 Agentic AI Online" : 
+                   connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
+                </p>
+                {isVADActive && (
+                  <p className="text-xs">
+                    {conversationState.userSpeaking ? "🎤 User Speaking" :
+                     conversationState.pamSpeaking ? "🤖 PAM Speaking" :
+                     conversationState.waitingForPause ? "⏳ Waiting for Pause" :
+                     "👂 Listening for Voice"}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -2133,6 +2266,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
                 voiceStatus === "processing" ? "⏳ Processing voice..." :
                 voiceStatus === "error" ? "❌ Voice error" :
+                isSpeaking ? "🔊 PAM is speaking" :
                 "🎤 Record Voice Message"
               }
             >
@@ -2148,7 +2282,23 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
                      title="Wake word 'Hi PAM' active" />
               )}
+              {isSpeaking && (
+                <div className="absolute -top-1 -left-1 w-3 h-3 bg-purple-500 rounded-full animate-pulse" 
+                     title="PAM is speaking" />
+              )}
             </button>
+            {isSpeaking && (
+              <button
+                onClick={stopSpeaking}
+                className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100"
+                title="🔇 Stop PAM voice"
+              >
+                <div className="flex flex-col items-center gap-0.5">
+                  <VolumeX className="w-4 h-4" />
+                  <span className="text-xs font-medium">Stop</span>
+                </div>
+              </button>
+            )}
             <button
               onClick={handleSendMessage}
               disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
@@ -2197,10 +2347,20 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               />
               <div>
                 <h3 className="font-semibold text-gray-800">PAM</h3>
-                <p className="text-xs text-gray-500">
-                  {connectionStatus === "Connected" ? "🟢 Agentic AI Reasoning" : 
-                   connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
-                </p>
+                <div className="text-xs text-gray-500 space-y-0.5">
+                  <p>
+                    {connectionStatus === "Connected" ? "🟢 Agentic AI Reasoning" : 
+                     connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
+                  </p>
+                  {isVADActive && (
+                    <p className="text-xs">
+                      {conversationState.userSpeaking ? "🎤 User Speaking" :
+                       conversationState.pamSpeaking ? "🤖 PAM Speaking" :
+                       conversationState.waitingForPause ? "⏳ Waiting for Pause" :
+                       "👂 Listening for Voice"}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
             <button
@@ -2369,6 +2529,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
                   voiceStatus === "processing" ? "⏳ Processing voice..." :
                   voiceStatus === "error" ? "❌ Voice error" :
+                  isSpeaking ? "🔊 PAM is speaking" :
                   "🎤 Record Voice Message"
                 }
               >
@@ -2384,7 +2545,23 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
                        title="Wake word 'Hi PAM' active" />
                 )}
+                {isSpeaking && (
+                  <div className="absolute -top-1 -left-1 w-3 h-3 bg-purple-500 rounded-full animate-pulse" 
+                       title="PAM is speaking" />
+                )}
               </button>
+              {isSpeaking && (
+                <button
+                  onClick={stopSpeaking}
+                  className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100"
+                  title="🔇 Stop PAM voice"
+                >
+                  <div className="flex flex-col items-center gap-0.5">
+                    <VolumeX className="w-4 h-4" />
+                    <span className="text-xs font-medium">Stop</span>
+                  </div>
+                </button>
+              )}
               <button
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
