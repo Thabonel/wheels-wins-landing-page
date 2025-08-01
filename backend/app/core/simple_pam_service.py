@@ -374,9 +374,18 @@ class SimplePamService:
                     }
                     
                     user_id = context.get('user_id', 'anonymous')
+                    logger.info(f"🔍 Executing Google Places search for: {query}")
                     result = await self.tools_registry['google_places'].execute(user_id, tool_params)
                     
                     if result and result.get('success'):
+                        places_count = len(result.get('data', {}).get('places', []))
+                        is_mock_data = 'mock' in result.get('data', {}).get('note', '').lower()
+                        
+                        if is_mock_data:
+                            logger.info(f"📍 Providing location guidance for: {query} (API not configured)")
+                        else:
+                            logger.info(f"🌍 Found {places_count} live results for: {query}")
+                        
                         return self._format_places_response(result, function_args.get('query'))
                     else:
                         return f"I searched for {function_args.get('query')} near your location, but couldn't find specific results. This might be a remote area or the location services might be temporarily unavailable."

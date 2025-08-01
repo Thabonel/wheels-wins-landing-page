@@ -70,6 +70,10 @@ class UnifiedSettings:
     def OPENAI_API_KEY(self) -> str | None:
         return self.infra.OPENAI_API_KEY
     
+    @property
+    def GOOGLE_PLACES_API_KEY(self) -> str | None:
+        return self.infra.GOOGLE_PLACES_API_KEY
+    
     # TTS settings (from user)
     @property
     def TTS_ENABLED(self) -> bool:

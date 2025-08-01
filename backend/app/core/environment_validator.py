@@ -44,6 +44,7 @@ class EnvironmentValidator:
         "MAPBOX_SECRET_TOKEN",
         "YOUTUBE_API_KEY",
         "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_PLACES_API_KEY",  # For PAM location intelligence
         "LANGFUSE_SECRET_KEY",
         "AGENTOPS_API_KEY",
     ]
