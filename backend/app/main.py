@@ -685,7 +685,7 @@ async def voice_test_endpoint(
             import edge_tts
             import tempfile
             
-            voice = "en-US-AriaNeural"
+            voice = settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural"
             communicate = edge_tts.Communicate(test_text, voice)
             
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:
@@ -819,7 +819,7 @@ async def pam_voice(
                 # Use enhanced TTS service with automatic 3-tier fallback
                 result = await enhanced_tts_service.synthesize(
                     text=response_text,
-                    voice_id="en-US-AriaNeural",
+                    voice_id=settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural",
                     max_retries=3
                 )
                 
@@ -871,7 +871,7 @@ async def pam_voice(
             if EDGE_TTS_AVAILABLE:
                 import tempfile
                 
-                voice = "en-US-AriaNeural"
+                voice = settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural"
                 communicate = edge_tts.Communicate(response_text, voice)
                 
                 with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:

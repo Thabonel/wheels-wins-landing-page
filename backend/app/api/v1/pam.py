@@ -726,7 +726,7 @@ async def generate_pam_voice(
                 # Use enhanced TTS service with automatic fallback
                 result = await enhanced_tts_service.synthesize(
                     text=request.text,
-                    voice_id="en-US-AriaNeural",  # Default to Aria voice
+                    voice_id=settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural",  # Mature female voice
                     max_retries=3
                 )
                 
@@ -764,7 +764,7 @@ async def generate_pam_voice(
         try:
             import edge_tts
             
-            voice = "en-US-AriaNeural"  
+            voice = settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural"  
             communicate = edge_tts.Communicate(request.text, voice)
             
             audio_data = b""
