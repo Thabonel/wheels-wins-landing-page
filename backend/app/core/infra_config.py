@@ -44,6 +44,7 @@ class InfrastructureSettings(BaseSettings):
     # Search APIs
     GOOGLE_SEARCH_API_KEY: Optional[str] = None
     GOOGLE_SEARCH_ENGINE_ID: Optional[str] = None
+    GOOGLE_PLACES_API_KEY: Optional[str] = None  # Google Places API for location search
     BING_SEARCH_API_KEY: Optional[str] = None
     
     # Map APIs

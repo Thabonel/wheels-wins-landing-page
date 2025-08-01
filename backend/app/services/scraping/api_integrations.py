@@ -65,19 +65,30 @@ class GooglePlacesAPI(RateLimitedAPI):
     def __init__(self):
         super().__init__(rate_limit_per_minute=100)  # Adjust based on your quota
         
+        # Enhanced debugging for environment variable access
         self.api_key = getattr(settings, 'GOOGLE_PLACES_API_KEY', None)
+        logger.info(f"🔍 Google Places API key check: {'✅ Found' if self.api_key else '❌ Not found'}")
+        logger.info(f"🔍 googlemaps library available: {'✅ Yes' if GOOGLEMAPS_AVAILABLE else '❌ No'}")
+        
         if not self.api_key:
-            logger.warning("⚠️ Google Places API key not configured")
+            logger.warning("⚠️ Google Places API key not configured in environment variables")
+            logger.info("💡 Expected environment variable: GOOGLE_PLACES_API_KEY")
             self.client = None
         elif not GOOGLEMAPS_AVAILABLE:
             logger.warning("⚠️ googlemaps library not available")
+            logger.info("💡 Install with: pip install googlemaps")
             self.client = None
         else:
             try:
+                # Mask the API key in logs for security
+                masked_key = self.api_key[:8] + "..." + self.api_key[-4:] if len(self.api_key) > 12 else "***"
+                logger.info(f"🔑 Initializing Google Places client with key: {masked_key}")
+                
                 self.client = googlemaps.Client(key=self.api_key)
-                logger.info("✅ Google Places API client initialized")
+                logger.info("✅ Google Places API client initialized successfully")
             except Exception as e:
                 logger.error(f"❌ Failed to initialize Google Places client: {e}")
+                logger.error(f"❌ API key format check: {len(self.api_key) if self.api_key else 0} characters")
                 self.client = None
         
         self.session = None
