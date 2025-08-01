@@ -1234,11 +1234,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Start wake word listening for continuous mode
     await startWakeWordListening();
     
-    const vadStatusMessage = isVADActive 
-      ? "\n🧠 **Advanced conversation management enabled** - I won't interrupt you while speaking!"
-      : "\n💡 **Basic voice mode** - Advanced conversation management not available";
-    
-    addMessage(`🎙️ **Continuous voice mode activated!** \n\n✅ **Just speak naturally**: Say 'PAM tell me a joke' or 'BAM what's the weather'\n✅ **No need to click anything** - I'm always listening\n✅ **Click microphone to stop** when done${vadStatusMessage}\n\n**Try saying: 'PAM tell me a joke' right now!**`, "pam");
+    addMessage("Hi, how can I help you?", "pam");
   };
 
   const stopContinuousVoiceMode = async () => {
