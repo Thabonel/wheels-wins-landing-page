@@ -1,12 +1,16 @@
 # Dockerfile for Render.com deployment with Python 3.11 for Coqui TTS support
 FROM python:3.11-slim
 
-# Install system dependencies for audio processing and Coqui TTS
+# Install system dependencies for audio processing and TTS engines
 RUN apt-get update && apt-get install -y \
     libsndfile1 \
     libsndfile1-dev \
     espeak-data \
     espeak \
+    espeak-ng \
+    espeak-ng-data \
+    alsa-utils \
+    pulseaudio \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
