@@ -34,9 +34,10 @@ python-multipart>=0.0.10
 click==8.1.7
 
 # TTS Engines for high-quality voice synthesis
-edge-tts==6.1.9                    # Microsoft Edge TTS (fallback - robotic)
-TTS>=0.22.0                        # Coqui TTS (primary - neural voices)
-soundfile>=0.12.1                  # Audio processing for Coqui TTS
+edge-tts==6.1.9                    # Microsoft Edge TTS (primary - natural voices)
+pyttsx3>=2.90                      # System TTS fallback
+soundfile>=0.12.1                  # Audio processing for TTS
+# TTS>=0.22.0                      # Coqui TTS (requires Python 3.11)
 
 # Essential monitoring
 structlog==25.4.0
