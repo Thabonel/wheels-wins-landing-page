@@ -49,6 +49,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [wakeWordRecognition, setWakeWordRecognition] = useState<any | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
   const [isShowingAudioLevel, setIsShowingAudioLevel] = useState(false);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   
   // Audio analysis refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -190,6 +191,127 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
     } catch (error) {
       console.error('Failed to load user context:', error);
+    }
+  };
+
+  const requestUserLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
+    if (isRequestingLocation) {
+      console.log('📍 Location request already in progress');
+      return null;
+    }
+
+    if (!navigator.geolocation) {
+      console.error('❌ Geolocation not supported');
+      addMessage("I'm sorry, but location services are not available in your browser. You can tell me your location manually for better assistance.", "pam");
+      return null;
+    }
+
+    setIsRequestingLocation(true);
+    
+    try {
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log('📍 Successfully got user location:', { latitude, longitude });
+            
+            // Update user context with fresh location
+            const locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            setUserContext(prev => ({
+              ...prev,
+              current_location: locationString
+            }));
+            
+            // Optionally store in locationService
+            try {
+              const { locationService } = await import('@/services/locationService');
+              if (user?.id) {
+                await locationService.updateUserLocation({
+                  user_id: user.id,
+                  current_latitude: latitude,
+                  current_longitude: longitude,
+                  status: 'active'
+                });
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to update location in database:', error);
+            }
+            
+            setIsRequestingLocation(false);
+            resolve({ latitude, longitude });
+          },
+          (error) => {
+            console.error('❌ Failed to get location:', error);
+            setIsRequestingLocation(false);
+            
+            let errorMessage = "I couldn't access your location. ";
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage += "Please enable location access in your browser settings and try again.";
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMessage += "Your location information is unavailable.";
+                break;
+              case error.TIMEOUT:
+                errorMessage += "Location request timed out.";
+                break;
+              default:
+                errorMessage += "You can tell me your location manually.";
+                break;
+            }
+            
+            addMessage(errorMessage, "pam");
+            resolve(null);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000, // 5 minutes
+          }
+        );
+      });
+    } catch (error) {
+      console.error('❌ Location request error:', error);
+      setIsRequestingLocation(false);
+      return null;
+    }
+  };
+
+  const detectFallbackLocation = async (): Promise<string | null> => {
+    try {
+      // Try to get rough location from timezone
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      console.log('🌍 Detected timezone:', timezone);
+      
+      // Map common timezones to general locations
+      const timezoneLocations: { [key: string]: string } = {
+        'America/New_York': 'New York area',
+        'America/Los_Angeles': 'Los Angeles area', 
+        'America/Chicago': 'Chicago area',
+        'America/Denver': 'Denver area',
+        'Europe/London': 'London area',
+        'Europe/Paris': 'Paris area',
+        'Europe/Berlin': 'Berlin area',
+        'Asia/Tokyo': 'Tokyo area',
+        'Asia/Shanghai': 'Shanghai area',
+        'Australia/Sydney': 'Sydney area',
+        'Australia/Melbourne': 'Melbourne area'
+      };
+      
+      const approximateLocation = timezoneLocations[timezone];
+      if (approximateLocation) {
+        console.log('🌍 Approximate location detected:', approximateLocation);
+        return approximateLocation;
+      }
+      
+      // Extract region from timezone as fallback
+      const region = timezone.split('/')[1]?.replace('_', ' ') || timezone;
+      console.log('🌍 Region fallback:', region);
+      return region;
+      
+    } catch (error) {
+      console.warn('⚠️ Failed to detect fallback location:', error);
+      return null;
     }
   };
 
@@ -474,7 +596,65 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
             
             if (content && content.trim()) {
-              addMessage(content, "pam");
+              // Check if PAM is asking for location and offer to get it automatically
+              const locationKeywords = [
+                'current location', 'your location', 'where you are', 'share your location',
+                'tell me your location', 'location manually', 'provide your location'
+              ];
+              
+              const needsLocation = locationKeywords.some(keyword => 
+                content.toLowerCase().includes(keyword)
+              );
+              
+              if (needsLocation && !userContext?.current_location) {
+                console.log('📍 PAM is asking for location, offering automatic request');
+                addMessage(content, "pam");
+                
+                // Add a helpful message with location request button
+                setTimeout(() => {
+                  addMessage(
+                    "I can automatically get your current location if you'd like. Would you like me to request access to your location?",
+                    "pam"
+                  );
+                  
+                  // Auto-request location after a brief delay
+                  setTimeout(async () => {
+                    console.log('📍 Auto-requesting location for better assistance');
+                    const location = await requestUserLocation();
+                    
+                    if (location) {
+                      // Re-send the original user message with updated location context
+                      const lastUserMessage = messages[messages.length - 1];
+                      if (lastUserMessage && lastUserMessage.sender === 'user') {
+                        const messageData = {
+                          type: "chat",
+                          message: lastUserMessage.content,
+                          context: {
+                            user_id: user?.id,
+                            userLocation: `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`,
+                            vehicleInfo: userContext?.vehicle_info,
+                            travelStyle: userContext?.travel_style,
+                            conversation_history: messages.slice(-5).map(msg => ({
+                              role: msg.sender === "user" ? "user" : "assistant",
+                              content: msg.content
+                            })),
+                            timestamp: new Date().toISOString(),
+                            session_id: sessionId,
+                            location_updated: true
+                          }
+                        };
+                        
+                        if (wsRef.current?.readyState === WebSocket.OPEN) {
+                          wsRef.current.send(JSON.stringify(messageData));
+                          addMessage("🔄 Re-processing your request with your current location...", "pam");
+                        }
+                      }
+                    }
+                  }, 2000); // 2 second delay to allow user to read the message
+                }, 500); // Short delay for better UX
+              } else {
+                addMessage(content, "pam");
+              }
             } else {
               console.warn('⚠️ Empty content in response:', message);
               addMessage("I received your message but couldn't generate a proper response.", "pam");
@@ -1631,6 +1811,43 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Note: PAM backend automatically saves all conversation history
     setInputMessage("");
 
+    // Check if user is asking for location-based services and we don't have location
+    const locationQueries = [
+      'near me', 'nearby', 'close to me', 'in my area', 'around here',
+      'pizza', 'restaurant', 'food', 'gas station', 'hotel', 'attraction',
+      'next town', 'distance to', 'how far', 'directions to'
+    ];
+    
+    const isLocationQuery = locationQueries.some(query => 
+      message.toLowerCase().includes(query)
+    );
+    
+    // If it's a location-based query and we don't have location, request it proactively
+    if (isLocationQuery && !userContext?.current_location) {
+      console.log('📍 Location-based query detected, requesting location proactively');
+      const location = await requestUserLocation();
+      
+      if (location) {
+        // Update context with precise location
+        setUserContext(prev => ({
+          ...prev,
+          current_location: `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
+        }));
+      } else {
+        // Fallback to approximate location detection
+        console.log('📍 Precise location failed, trying fallback detection');
+        const fallbackLocation = await detectFallbackLocation();
+        if (fallbackLocation) {
+          setUserContext(prev => ({
+            ...prev,
+            current_location: fallbackLocation,
+            location_type: 'approximate'
+          }));
+          addMessage(`I'll use your approximate location (${fallbackLocation}) based on your timezone. For more accurate results, you can share your precise location.`, "pam");
+        }
+      }
+    }
+
     const messageData = {
       type: "chat",
       message: message,  // Backend expects 'message' not 'content'
@@ -1644,7 +1861,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           content: msg.content
         })),
         timestamp: new Date().toISOString(),
-        session_id: sessionId
+        session_id: sessionId,
+        location_request_attempted: isLocationQuery && !userContext?.current_location
       }
     };
 
