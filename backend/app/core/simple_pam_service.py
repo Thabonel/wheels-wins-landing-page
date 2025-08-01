@@ -88,32 +88,58 @@ class SimplePamService:
         return self._service_healthy
     
     async def initialize_tools(self):
-        """Initialize PAM tools for enhanced functionality"""
+        """Initialize PAM tools for enhanced functionality with robust error handling"""
         if self.tools_initialized:
             return
             
+        logger.info("🛠️ Initializing PAM tools...")
+        self.tools_registry = {}
+        tools_success_count = 0
+        
+        # Initialize Google Places tool
         try:
-            # Import and initialize tools
-            from app.services.pam.tools import google_places_tool, webscraper_tool
-            
-            # Initialize tools
+            from app.services.pam.tools import google_places_tool
+            logger.info("🔍 Initializing Google Places tool...")
             await google_places_tool.initialize()
+            
+            if google_places_tool.initialized:
+                self.tools_registry['google_places'] = google_places_tool
+                tools_success_count += 1
+                logger.info("✅ Google Places tool initialized successfully")
+            else:
+                logger.warning("⚠️ Google Places tool initialized but not fully functional")
+                # Still register it - it can provide mock data
+                self.tools_registry['google_places'] = google_places_tool
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Google Places tool: {e}")
+        
+        # Initialize Web Scraper tool
+        try:
+            from app.services.pam.tools import webscraper_tool
+            logger.info("🌐 Initializing Web Scraper tool...")
             await webscraper_tool.initialize()
             
-            # Register tools
-            self.tools_registry = {
-                'google_places': google_places_tool,
-                'webscraper': webscraper_tool
-            }
-            
-            self.tools_initialized = True
-            logger.info("✅ PAM tools initialized successfully")
-            
+            if webscraper_tool.initialized:
+                self.tools_registry['webscraper'] = webscraper_tool
+                tools_success_count += 1
+                logger.info("✅ Web Scraper tool initialized successfully")
+            else:
+                logger.warning("⚠️ Web Scraper tool initialized but not fully functional")
+                # Still register it for graceful error handling
+                self.tools_registry['webscraper'] = webscraper_tool
+                
         except Exception as e:
-            logger.error(f"❌ Failed to initialize PAM tools: {e}")
-            # Continue without tools - don't break the service
-            self.tools_registry = {}
-            self.tools_initialized = False
+            logger.error(f"❌ Failed to initialize Web Scraper tool: {e}")
+        
+        # Set initialization status
+        self.tools_initialized = len(self.tools_registry) > 0
+        
+        if self.tools_initialized:
+            logger.info(f"✅ PAM tools initialization complete: {tools_success_count} tools active, {len(self.tools_registry)} tools registered")
+        else:
+            logger.warning("⚠️ No PAM tools could be initialized - continuing with base intelligence only")
+            # Don't break the service - PAM can still work with base intelligence
     
     async def get_response(
         self, 
@@ -322,16 +348,20 @@ class SimplePamService:
         return message.content
     
     async def _handle_function_call(self, function_call, context: Dict[str, Any]) -> str:
-        """Handle OpenAI function calls by executing the appropriate PAM tools"""
+        """Handle OpenAI function calls by executing the appropriate PAM tools with progress communication"""
         import json
         
         function_name = function_call.name
         function_args = json.loads(function_call.arguments)
+        query = function_args.get('query', 'information')
         
         logger.info(f"🛠️ Executing function: {function_name} with args: {function_args}")
         
         try:
             if function_name == "search_nearby_places":
+                # Communicate research start
+                logger.info(f"🔍 Starting location search for: {query}")
+                
                 # Use Google Places tool
                 if 'google_places' in self.tools_registry:
                     tool_params = {
@@ -350,9 +380,16 @@ class SimplePamService:
                         return self._format_places_response(result, function_args.get('query'))
                     else:
                         return f"I searched for {function_args.get('query')} near your location, but couldn't find specific results. This might be a remote area or the location services might be temporarily unavailable."
+                else:
+                    return f"🔍 I'm searching for {query} near your location, but my location database is currently initializing. Please give me a moment and try again - I should have access to real-time location data shortly!"
                 
             elif function_name == "search_web_information":
-                # Use web scraper tool
+                # Communicate research start with ETA
+                research_message = f"🔍 Let me research {query} for you. I'm searching the web now - this usually takes 10-30 seconds for comprehensive results. I'll get back to you shortly!"
+                
+                logger.info(f"🌐 Starting web search for: {query}")
+                
+                # Use web scraper tool  
                 if 'webscraper' in self.tools_registry:
                     tool_params = {
                         'action': 'search',
@@ -366,13 +403,15 @@ class SimplePamService:
                     if result and result.get('success'):
                         return self._format_web_response(result, function_args.get('query'))
                     else:
-                        return f"I tried to search for information about {function_args.get('query')}, but couldn't access web results right now."
+                        return f"🔍 I tried to research {query} for you, but my web research tools are currently offline. I can provide general guidance based on my knowledge - would that help, or would you prefer to try again in a few minutes when my research capabilities are back online?"
+                else:
+                    return f"🔍 I'd love to research {query} for you! My web research tools are currently initializing. This should only take a minute - please try asking me again shortly and I'll be able to provide you with up-to-date information from multiple sources."
             
-            return f"I understand you're asking about {function_args.get('query', 'that topic')}, but I'm having trouble accessing my location tools right now. Could you try again in a moment?"
+            return f"I understand you're asking about {query}, but I'm currently setting up my research tools. Please try again in a moment and I'll be able to provide comprehensive information!"
             
         except Exception as e:
             logger.error(f"❌ Function call execution error: {e}")
-            return f"I encountered an issue while searching for {function_args.get('query', 'that information')}. Let me try to help you another way."
+            return f"🔍 I encountered a technical issue while researching {query}. My research tools might be temporarily unavailable - please try again in a few minutes, or I can provide general guidance based on my existing knowledge if that would help!"
     
     def _format_places_response(self, result: Dict[str, Any], query: str) -> str:
         """Format Google Places results into a natural response"""
