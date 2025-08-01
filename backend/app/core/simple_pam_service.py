@@ -517,7 +517,7 @@ Recent trips: {travel_data.get('trip_count', 0)}"""
         # System message defining PAM's personality and capabilities
         system_message = {
             "role": "system",
-            "content": f"""You are PAM (Personal AI Manager), a friendly and helpful AI assistant for the Wheels and Wins platform. 
+            "content": """You are PAM (Personal AI Manager), a friendly and helpful AI assistant for the Wheels and Wins platform. 
 You help mature travelers (Grey Nomads) with:
 
 🚐 **Wheels** - Travel planning, route suggestions, camping spots, 4WD tracks, vehicle maintenance
@@ -527,9 +527,9 @@ You help mature travelers (Grey Nomads) with:
 🛒 **Shop** - Finding deals on travel gear and supplies
 
 **🌍 LOCATION & TIMEZONE CONTEXT:**
-- User location: {context.get('user_location', 'LOCATION NOT PROVIDED - Ask user for their current location')}
-- Server time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC
-- User timezone note: {context.get('user_timezone_note', 'TIMEZONE UNKNOWN - Ask user for their local date/time')}
+- User location: {user_location}
+- Server time: {server_time} UTC
+- User timezone note: {user_timezone_note}
 
 **CRITICAL LOCATION INTELLIGENCE:**
 - When user asks "how far to next town" - Use their location to provide specific distances and town names
@@ -579,6 +579,9 @@ TOOL USAGE EXAMPLES:
 Current timestamp: {current_time}
 User context: {user_context}""".format(
                 user_info=user_info,
+                user_location=context.get('user_location', 'LOCATION NOT PROVIDED - Ask user for their current location'),
+                server_time=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                user_timezone_note=context.get('user_timezone_note', 'TIMEZONE UNKNOWN - Ask user for their local date/time'),
                 current_time=datetime.utcnow().isoformat(),
                 user_context=json.dumps({
                     "user_id": context.get("user_id"),
