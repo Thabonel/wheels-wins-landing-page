@@ -34,12 +34,12 @@ python-multipart>=0.0.10
 click==8.1.7
 
 # TTS Engines for high-quality voice synthesis
-edge-tts==6.1.9                    # Microsoft Edge TTS (fallback)
+edge-tts==6.1.9                    # Microsoft Edge TTS (primary)
 pyttsx3>=2.90                      # System TTS fallback
 soundfile>=0.12.1                  # Audio processing for TTS
-TTS>=0.22.0                        # Coqui TTS (neural voices - Python 3.11 only)
-torch>=2.0.0                       # Required for Coqui TTS
-torchaudio>=2.0.0                  # Audio processing for neural TTS
+# TTS>=0.22.0                      # Coqui TTS (requires Python 3.11, Render uses 3.13)
+# torch>=2.0.0                     # Required for Coqui TTS  
+# torchaudio>=2.0.0               # Audio processing for neural TTS
 
 # Essential monitoring
 structlog==25.4.0
