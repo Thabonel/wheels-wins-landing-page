@@ -184,24 +184,20 @@ class SimplePamService:
                 logger.warning(f"⚠️ Could not load comprehensive data for user {user_id}: {e}")
                 comprehensive_data = {"has_data": False, "error": "Could not load user data"}
         
-        # Check if message requires tool usage
-        tools_used = []
-        tool_result = await self._process_with_tools(message, context, user_id)
-        if tool_result:
-            tools_used = tool_result.get('tools_used', [])
+        # Build the conversation messages for OpenAI - INTELLIGENT TOOL USAGE VIA FUNCTION CALLING
+        messages = self._build_conversation_messages(message, context, conversation_history, comprehensive_data)
         
-        # Build the conversation messages for OpenAI (include tool results if any)
-        messages = self._build_conversation_messages(message, context, conversation_history, comprehensive_data, tool_result)
-        
-        # Try to get response with retries
+        # Try to get response with retries - OpenAI will intelligently decide when to use tools
         response_text = None
         error_message = None
         intent = self._extract_intent(message)
-        confidence_score = self._calculate_confidence(message, tool_result)
+        confidence_score = 0.85  # Higher confidence with function calling
+        tools_used = []  # Will be populated by function calls if any
         
         for attempt in range(self.max_retries):
             try:
-                response_text = await self._call_openai(messages)
+                logger.info(f"🧠 OpenAI call attempt {attempt + 1} with intelligent function calling enabled")
+                response_text = await self._call_openai(messages, context)  # Pass context for function calling
                 logger.info(f"✅ OpenAI response received on attempt {attempt + 1}")
                 break
                 
@@ -236,189 +232,219 @@ class SimplePamService:
         
         return response_text
     
-    async def _call_openai(self, messages: List[Dict[str, str]]) -> str:
-        """Make the actual OpenAI API call"""
-        response = await self.client.chat.completions.create(
-            model="gpt-4",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=500,
-            timeout=30  # 30 second timeout
-        )
+    async def _call_openai(self, messages: List[Dict[str, str]], context: Dict[str, Any] = None) -> str:
+        """Make the actual OpenAI API call with intelligent function calling"""
         
-        return response.choices[0].message.content
-    
-    async def _process_with_tools(self, message: str, context: Dict[str, Any], user_id: str) -> Optional[Dict[str, Any]]:
-        """Process message with available tools if applicable"""
-        if not self.tools_initialized or not self.tools_registry:
-            return None
+        # Define available functions for OpenAI to use intelligently
+        functions = []
+        
+        # Add location-based functions if tools are initialized and user has location context
+        if self.tools_initialized and context and context.get('user_location'):
+            functions.extend([
+                {
+                    "name": "search_nearby_places",
+                    "description": "Search for places, locations, geographical features, businesses, or points of interest near the user's current location. Use this for ANY location-based query, including distances, directions, 'next town', 'mountains nearby', 'restaurants around here', etc. No keyword restrictions - understand natural language.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "Natural language description of what the user is looking for. Examples: 'mountains nearby', 'next town', 'how far to closest city', 'coffee shops', 'scenic lookouts', 'camping near here'"
+                            },
+                            "place_type": {
+                                "type": "string",
+                                "enum": ["restaurant", "lodging", "tourist_attraction", "gas_station", "locality", "natural_feature", "campground", "point_of_interest", "establishment"],
+                                "description": "Type of place: locality=towns/cities, natural_feature=mountains/hills/geographical features, restaurant=food places, tourist_attraction=attractions/sights, point_of_interest=general points of interest"
+                            },
+                            "radius_km": {
+                                "type": "number",
+                                "description": "Search radius in kilometers. Use 10-20 for towns/cities, 5-10 for restaurants/businesses, 20-50 for geographical features",
+                                "default": 10
+                            }
+                        },
+                        "required": ["query", "place_type"]
+                    }
+                }
+            ])
+        
+        # Always add web search function if tools are initialized
+        if self.tools_initialized:
+            functions.append({
+                "name": "search_web_information", 
+                "description": "Search the web for current information, news, weather, or data about any topic. Use when user needs up-to-date information, current events, or wants to 'look up' something.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "What to search for on the web (e.g., 'weather forecast Brisbane', 'camping tips', 'current fuel prices')"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            })
+        
+        # Make OpenAI call with or without functions
+        if functions:
+            logger.info(f"🧠 OpenAI call with {len(functions)} functions available for intelligent tool usage")
+            response = await self.client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                functions=functions,
+                function_call="auto",  # Let OpenAI decide when to use functions
+                temperature=0.7,
+                max_tokens=1000,  # Increased for function calls
+                timeout=30
+            )
+        else:
+            logger.info(f"🧠 OpenAI call without functions (tools not available or no location context)")
+            response = await self.client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=500,
+                timeout=30
+            )
+        
+        # Handle function calls
+        message = response.choices[0].message
+        
+        if message.function_call:
+            logger.info(f"🛠️ OpenAI requested function call: {message.function_call.name}")
+            function_result = await self._handle_function_call(message.function_call, context)
             
-        message_lower = message.lower()
-        tool_result = None
+            # Track tool usage for analytics
+            if hasattr(context, 'tools_used'):
+                context['tools_used'].append(message.function_call.name)
+            
+            return function_result
+        
+        return message.content
+    
+    async def _handle_function_call(self, function_call, context: Dict[str, Any]) -> str:
+        """Handle OpenAI function calls by executing the appropriate PAM tools"""
+        import json
+        
+        function_name = function_call.name
+        function_args = json.loads(function_call.arguments)
+        
+        logger.info(f"🛠️ Executing function: {function_name} with args: {function_args}")
         
         try:
-            # Check for Google Places requests - EXPANDED FOR LOCATION INTELLIGENCE
-            if any(word in message_lower for word in [
-                'restaurants near', 'places near', 'find restaurants', 'food near', 
-                'attractions near', 'things to do', 'places to visit', 'gas stations near',
-                'accommodation near', 'hotels near', 'camping near',
-                # NEW: Distance and geographical queries
-                'how far', 'distance to', 'next town', 'nearest town', 'town near',
-                'mountains near', 'mountain near', 'hills near', 'nearby mountain',
-                'what town', 'which town', 'closest town', 'next city',
-                'elevation near', 'geography near', 'terrain near'
-            ]):
-                location = context.get('user_location')
-                if location:
-                    # Extract search parameters
-                    place_type = self._extract_place_type(message_lower)
-                    keyword = self._extract_search_keyword(message_lower)
-                    
+            if function_name == "search_nearby_places":
+                # Use Google Places tool
+                if 'google_places' in self.tools_registry:
                     tool_params = {
                         'action': 'nearby_search',
-                        'location': location,
-                        'place_type': place_type,
-                        'radius': 5000,  # 5km default
-                        'keyword': keyword,
+                        'location': context.get('user_location'),
+                        'place_type': function_args.get('place_type', 'point_of_interest'),
+                        'radius': function_args.get('radius_km', 5) * 1000,  # Convert to meters
+                        'keyword': function_args.get('query'),
                         'min_rating': 3.0
                     }
                     
-                    logger.info(f"🔍 Using Google Places tool with params: {tool_params}")
-                    tool_result = await self.tools_registry['google_places'].execute(user_id, tool_params)
+                    user_id = context.get('user_id', 'anonymous')
+                    result = await self.tools_registry['google_places'].execute(user_id, tool_params)
                     
-            # Check for web scraping requests  
-            elif any(word in message_lower for word in [
-                'search web', 'look up', 'find information', 'scrape', 'get data from',
-                'what\'s happening', 'current events', 'news about', 'information about'
-            ]):
-                # Extract search query or URL
-                search_query = self._extract_search_query(message)
-                url = self._extract_url(message)
+                    if result and result.get('success'):
+                        return self._format_places_response(result, function_args.get('query'))
+                    else:
+                        return f"I searched for {function_args.get('query')} near your location, but couldn't find specific results. This might be a remote area or the location services might be temporarily unavailable."
                 
-                if url:
+            elif function_name == "search_web_information":
+                # Use web scraper tool
+                if 'webscraper' in self.tools_registry:
                     tool_params = {
-                        'action': 'scrape_url',
-                        'url': url,
-                        'content_fields': ['title', 'content', 'links']
-                    }
-                elif search_query:
-                    tool_params = {
-                        'action': 'search_scrape',
-                        'search_query': search_query,
+                        'action': 'search',
+                        'query': function_args.get('query'),
                         'max_results': 5
                     }
                     
-                    # Add location if available for location-based searches
-                    location = context.get('user_location')
-                    if location:
-                        tool_params['location'] = location
-                
-                else:
-                    # Location-based scraping
-                    location = context.get('user_location')
-                    if location:
-                        tool_params = {
-                            'action': 'location_scrape',
-                            'location': location,
-                            'radius_km': 10,
-                            'categories': ['local_businesses', 'travel_info']
-                        }
-                    else:
-                        return None
-                
-                if tool_params:
-                    logger.info(f"🌐 Using webscraper tool with params: {tool_params}")
-                    tool_result = await self.tools_registry['webscraper'].execute(user_id, tool_params)
+                    user_id = context.get('user_id', 'anonymous') 
+                    result = await self.tools_registry['webscraper'].execute(user_id, tool_params)
                     
-        except Exception as e:
-            logger.error(f"❌ Tool processing error: {e}")
-            # Continue without tool results - don't break the conversation
+                    if result and result.get('success'):
+                        return self._format_web_response(result, function_args.get('query'))
+                    else:
+                        return f"I tried to search for information about {function_args.get('query')}, but couldn't access web results right now."
             
-        return tool_result
+            return f"I understand you're asking about {function_args.get('query', 'that topic')}, but I'm having trouble accessing my location tools right now. Could you try again in a moment?"
+            
+        except Exception as e:
+            logger.error(f"❌ Function call execution error: {e}")
+            return f"I encountered an issue while searching for {function_args.get('query', 'that information')}. Let me try to help you another way."
     
-    def _extract_place_type(self, message: str) -> str:
-        """Extract place type from message - ENHANCED FOR GEOGRAPHICAL QUERIES"""
-        # Geographical and distance queries
-        if any(word in message for word in ['town', 'city', 'next town', 'nearest town', 'closest town']):
-            return 'locality'  # Towns and cities
-        elif any(word in message for word in ['mountain', 'hill', 'peak', 'elevation', 'terrain']):
-            return 'natural_feature'  # Mountains, hills, geographical features
-        elif any(word in message for word in ['how far', 'distance', 'miles', 'km']):
-            return 'locality'  # For distance queries, default to towns/cities
-        # Original place types
-        elif 'restaurant' in message or 'food' in message or 'eat' in message:
-            return 'restaurant'
-        elif 'attraction' in message or 'visit' in message or 'see' in message:
-            return 'tourist_attraction'
-        elif 'gas' in message or 'fuel' in message or 'petrol' in message:
-            return 'gas_station'
-        elif 'hotel' in message or 'accommodation' in message or 'stay' in message:
-            return 'lodging'
-        elif 'camp' in message:
-            return 'campground'
+    def _format_places_response(self, result: Dict[str, Any], query: str) -> str:
+        """Format Google Places results into a natural response"""
+        data = result.get('data', {})
+        places = data.get('places', [])
+        
+        if not places:
+            return f"I searched for {query} near your location but didn't find any specific results. This might be a remote area, or the places might be outside my search radius."
+        
+        # Determine response style based on query type
+        if any(word in query.lower() for word in ['town', 'city', 'next town', 'how far']):
+            response = f"Here are the nearest towns/cities I found:\n\n"
+        elif any(word in query.lower() for word in ['mountain', 'hill', 'peak', 'geographical']):
+            response = f"Here are the geographical features I found nearby:\n\n"
         else:
-            return 'restaurant'  # Default
+            response = f"I found several places matching '{query}' near your location:\n\n"
+        
+        for i, place in enumerate(places[:5], 1):
+            name = place.get('name', 'Unknown')
+            rating = place.get('rating', 0)
+            distance_km = place.get('distance_km', 0)
+            address = place.get('address', '')
+            
+            response += f"{i}. **{name}**"
+            
+            if rating and rating > 0:
+                response += f" ({rating}⭐)"
+            
+            if distance_km and distance_km > 0:
+                response += f" - {distance_km:.1f}km away"
+            
+            if address:
+                response += f"\n   📍 {address}"
+            
+            response += "\n\n"
+        
+        # Add helpful follow-up based on query type
+        if any(word in query.lower() for word in ['town', 'city', 'how far']):
+            response += "Would you like directions to any of these locations, or do you need information about facilities in these towns?"
+        else:
+            response += "Would you like more details about any of these places, such as contact information or reviews?"
+        
+        return response
     
-    def _extract_search_keyword(self, message: str) -> Optional[str]:
-        """Extract search keyword from message - ENHANCED FOR GEOGRAPHICAL QUERIES"""
-        keywords = []
+    def _format_web_response(self, result: Dict[str, Any], query: str) -> str:
+        """Format web search results into a natural response"""
+        data = result.get('data', {})
         
-        # Geographical keywords
-        if any(word in message for word in ['mountain', 'hill', 'peak']):
-            keywords.append('mountain')
-        elif any(word in message for word in ['town', 'city']):
-            keywords.append('town')
-        elif 'national park' in message:
-            keywords.append('national park')
-        elif 'lookout' in message or 'scenic' in message:
-            keywords.append('scenic lookout')
-        # Food keywords
-        elif 'pizza' in message:
-            keywords.append('pizza')
-        elif 'coffee' in message:
-            keywords.append('coffee')
-        elif 'chinese' in message:
-            keywords.append('chinese')
-        elif 'italian' in message:
-            keywords.append('italian')
-        
-        return keywords[0] if keywords else None
+        if 'results' in data and data['results']:
+            response = f"Here's what I found about {query}:\n\n"
+            for item in data['results'][:3]:
+                if isinstance(item, dict) and 'title' in item:
+                    response += f"• {item['title']}\n"
+                    if 'snippet' in item:
+                        response += f"  {item['snippet']}\n"
+            return response
+        else:
+            return f"I searched for information about {query} but couldn't find specific results right now."
     
-    def _extract_search_query(self, message: str) -> Optional[str]:
-        """Extract search query from message"""
-        import re
-        
-        # Look for patterns like "search for X" or "look up X"
-        patterns = [
-            r'search (?:for |about )(.+)',
-            r'look up (.+)',
-            r'find information (?:about |on )(.+)',
-            r'what.*about (.+)',
-            r'tell me about (.+)'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, message.lower())
-            if match:
-                return match.group(1).strip()
-        
-        return None
+    # REMOVED: Old keyword-based tool processing - now using OpenAI function calling
+    # This allows PAM to understand natural language and decide intelligently when to use tools
+    # instead of being restricted to specific trigger words.
     
-    def _extract_url(self, message: str) -> Optional[str]:
-        """Extract URL from message"""
-        import re
-        
-        url_pattern = r'https?://[^\s]+'
-        match = re.search(url_pattern, message)
-        return match.group(0) if match else None
+    # REMOVED: Old keyword/pattern extraction methods - OpenAI function calling handles parameter extraction
+    # OpenAI now intelligently determines what the user is asking for and extracts parameters accordingly
 
     def _build_conversation_messages(
         self, 
         message: str, 
         context: Dict[str, Any],
         conversation_history: Optional[List[Dict]] = None,
-        comprehensive_data: Optional[Dict[str, Any]] = None,
-        tool_result: Optional[Dict[str, Any]] = None
+        comprehensive_data: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
         """Build the messages array for OpenAI"""
         
@@ -539,12 +565,20 @@ TOOL USAGE EXAMPLES:
 
 {user_info}
 
-{tool_results}
+**INTELLIGENT TOOL USAGE:**
+- Use functions when users ask location-based questions (nearby places, distances, geographical features)  
+- Use web search when users need current information or want to look something up
+- Natural language understanding - no keyword restrictions
+- Examples that should trigger tools:
+  • "What towns are near here?" → search_nearby_places with place_type: locality
+  • "Find mountains around me" → search_nearby_places with place_type: natural_feature  
+  • "How far to the next town?" → search_nearby_places with place_type: locality
+  • "Search the web for camping tips" → search_web_information
+  • "Are there any peaks nearby?" → search_nearby_places with place_type: natural_feature
 
 Current timestamp: {timestamp}
 User context: {context}""".format(
                 user_info=user_info,
-                tool_results=self._format_tool_results(tool_result) if tool_result else "",
                 timestamp=datetime.utcnow().isoformat(),
                 context=json.dumps({
                     "user_id": context.get("user_id"),
