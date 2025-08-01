@@ -1171,17 +1171,22 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const handleContinuousConversation = async (transcript: string) => {
-    console.log('🎙️ Processing continuous conversation:', transcript);
+    console.log('🎙️ Processing continuous conversation transcript:', transcript);
     
     // Extract the actual question after "PAM/BAM" and clean it up
     const question = transcript.replace(/^.*?(pam|palm|bam)\s+/i, '').trim();
+    
+    console.log('🎯 Extracted question:', question);
     
     if (question.length > 0) {
       // Add user message immediately (show what they actually asked)
       addMessage(question, "user");
       
       // Process through text chat (faster than voice processing)
+      console.log('🚀 Processing question through text chat...');
       await handleTextMessage(question);
+    } else {
+      console.log('⚠️ No question extracted from transcript after wake word');
     }
   };
 
@@ -1257,6 +1262,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const handleTextMessage = async (message: string) => {
+    console.log('📝 Processing text message from continuous voice:', message);
+    
     // Process text message through PAM (used for continuous voice conversations)
     const messageData = {
       type: "chat",
@@ -1276,21 +1283,37 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
     };
 
+    console.log('🔌 WebSocket state:', wsRef.current?.readyState);
+    console.log('🌐 Connection status:', connectionStatus);
+
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('📤 Sending message via WebSocket:', messageData);
       wsRef.current.send(JSON.stringify(messageData));
     } else {
+      console.log('📤 WebSocket not available, using REST API fallback');
       // Fallback to REST API
       try {
         const response = await authenticatedFetch('/api/v1/pam/chat', {
           method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify(messageData)
         });
+        
+        console.log('📥 REST API response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ REST API response data:', data);
           addMessage(data.response, "pam", message);
+        } else {
+          const errorText = await response.text();
+          console.error('❌ REST API error:', response.status, errorText);
+          addMessage("Sorry, I had trouble processing that message.", "pam");
         }
       } catch (error) {
-        console.error('Failed to send message via REST:', error);
+        console.error('❌ Failed to send message via REST:', error);
         addMessage("Sorry, I had trouble processing that message.", "pam");
       }
     }
@@ -1428,11 +1451,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       const formData = new FormData();
       formData.append('audio', audioBlob, `recording.${audioBlob.type.includes('webm') ? 'webm' : 'mp4'}`);
 
-      console.log('📤 Sending audio to backend...');
+      console.log('📤 Sending audio to backend via /api/v1/pam/voice...');
+      console.log('📦 FormData contains:', formData.get('audio'));
+      
       const response = await authenticatedFetch('/api/v1/pam/voice', {
         method: 'POST',
         body: formData
       });
+      
+      console.log('📥 Voice API response status:', response.status, response.statusText);
 
       if (response.ok) {
         const contentType = response.headers.get('content-type');
@@ -1527,7 +1554,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           }
         }
       } else {
+        const errorText = await response.text();
         console.error('❌ Voice API response error:', response.status, response.statusText);
+        console.error('❌ Voice API error details:', errorText);
+        
         // Remove processing message
         setMessages(prev => prev.filter(msg => msg.id !== processingMessage.id));
         addMessage("Sorry, I had trouble processing your voice message. Please try again.", "pam");
