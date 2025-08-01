@@ -58,8 +58,8 @@ export class VoiceActivityDetectionService {
       // Load VAD worklet
       await this.audioContext.audioWorklet.addModule('/vad-processor-worklet.js');
       
-      // Create VAD worklet node
-      this.vadWorkletNode = new AudioWorkletNode(this.audioContext, 'vad-processor-worklet', {
+      // Create VAD worklet node (registered as 'vad-processor')
+      this.vadWorkletNode = new AudioWorkletNode(this.audioContext, 'vad-processor', {
         processorOptions: {
           frameSize: 1024,
           hopLength: 512,
@@ -83,6 +83,31 @@ export class VoiceActivityDetectionService {
       
     } catch (error) {
       console.error('❌ Failed to initialize VAD:', error);
+      
+      // Provide specific error information
+      if (error instanceof Error) {
+        if (error.message.includes('addModule')) {
+          console.error('🔧 VAD Worklet loading failed - check if /vad-processor-worklet.js is accessible');
+        } else if (error.message.includes('vad-processor')) {
+          console.error('🔧 VAD Processor registration failed - worklet may not be properly registered');
+        } else if (error.message.includes('AudioContext')) {
+          console.error('🔧 AudioContext creation failed - browser may not support Web Audio API');
+        }
+      }
+      
+      // Cleanup on failure
+      if (this.audioContext && this.audioContext.state !== 'closed') {
+        try {
+          await this.audioContext.close();
+        } catch (closeError) {
+          console.warn('⚠️ Failed to close AudioContext during cleanup:', closeError);
+        }
+      }
+      
+      this.audioContext = null;
+      this.vadWorkletNode = null;
+      this.isActive = false;
+      
       throw error;
     }
   }

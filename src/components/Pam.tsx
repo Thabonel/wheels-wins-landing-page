@@ -1199,17 +1199,23 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     setIsContinuousMode(true);
     setVoiceStatus("listening");
     
-    // Setup audio level monitoring and VAD for continuous mode
+    // Setup audio level monitoring for continuous mode
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       await setupAudioLevelMonitoring(stream);
       
-      // Initialize VAD with the same stream
-      await vadService.initialize(stream);
-      setIsVADActive(true);
-      console.log('✅ VAD initialized for continuous mode');
+      // Try to initialize VAD with the same stream (optional - continuous mode works without it)
+      try {
+        await vadService.initialize(stream);
+        setIsVADActive(true);
+        console.log('✅ VAD initialized for continuous mode - advanced conversation management enabled');
+      } catch (vadError) {
+        console.warn('⚠️ VAD initialization failed, continuing without advanced conversation management:', vadError);
+        console.log('ℹ️ Continuous mode will work normally, but without sophisticated turn-taking');
+        setIsVADActive(false);
+      }
       
-      // Keep the stream open for audio level monitoring and VAD
+      // Keep the stream open for audio level monitoring
       // Store stream reference for cleanup later
       audioStreamRef.current = stream;
     } catch (error) {
@@ -1228,7 +1234,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Start wake word listening for continuous mode
     await startWakeWordListening();
     
-    addMessage("🎙️ **Continuous voice mode activated!** \n\n✅ **Just speak naturally**: Say 'PAM tell me a joke' or 'BAM what's the weather'\n✅ **No need to click anything** - I'm always listening\n✅ **Click microphone to stop** when done\n\n**Try saying: 'PAM tell me a joke' right now!**", "pam");
+    const vadStatusMessage = isVADActive 
+      ? "\n🧠 **Advanced conversation management enabled** - I won't interrupt you while speaking!"
+      : "\n💡 **Basic voice mode** - Advanced conversation management not available";
+    
+    addMessage(`🎙️ **Continuous voice mode activated!** \n\n✅ **Just speak naturally**: Say 'PAM tell me a joke' or 'BAM what's the weather'\n✅ **No need to click anything** - I'm always listening\n✅ **Click microphone to stop** when done${vadStatusMessage}\n\n**Try saying: 'PAM tell me a joke' right now!**`, "pam");
   };
 
   const stopContinuousVoiceMode = async () => {
