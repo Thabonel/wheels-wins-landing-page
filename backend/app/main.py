@@ -48,6 +48,7 @@ from app.api.v1 import (
     wheels,
     social,
     monitoring,
+    receipts,
     pam,
     auth,
     subscription,
@@ -485,6 +486,7 @@ app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(wins.router, prefix="/api", tags=["Wins"])
 app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
+app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
 app.include_router(profiles.router, prefix="/api/v1", tags=["Profiles"])

@@ -52,7 +52,8 @@ export function useExpenseActions() {
             amount: Number(expense.amount),
             category: expense.category,
             description: expense.description || '',
-            date: expense.date
+            date: expense.date,
+            receiptUrl: expense.receipt_url || null
           }));
           
           setExpenses(formattedExpenses);
@@ -90,7 +91,8 @@ export function useExpenseActions() {
         category: expense.category,
         date: expense.date,
         description: expense.description,
-        user_id: user.id
+        user_id: user.id,
+        receipt_url: expense.receiptUrl || null
       }).select().single();
 
       if (error) {
@@ -105,7 +107,8 @@ export function useExpenseActions() {
         amount: Number(data.amount),
         category: data.category,
         description: data.description || '',
-        date: data.date
+        date: data.date,
+        receiptUrl: data.receipt_url || null
       };
       
       setExpenses(prev => [newExpense, ...prev]);
