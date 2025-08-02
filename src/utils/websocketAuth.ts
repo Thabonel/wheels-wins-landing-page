@@ -1,308 +1,258 @@
+/**
+ * WebSocket Authentication Utilities
+ * Provides robust JWT token management for WebSocket connections
+ */
+
 import { supabase } from '@/integrations/supabase/client';
-import type { Session } from '@supabase/supabase-js';
 
 export interface TokenValidationResult {
   isValid: boolean;
-  token?: string;
+  token: string | null;
+  expiresAt: number | null;
+  needsRefresh: boolean;
   error?: string;
-  shouldRefresh?: boolean;
 }
 
-export interface WebSocketAuthOptions {
-  maxRetries?: number;
-  retryDelay?: number;
-  refreshThreshold?: number; // Minutes before expiry to trigger refresh
+export interface WebSocketAuthConfig {
+  tokenRefreshThreshold: number; // Minutes before expiry to refresh
+  maxRetries: number;
+  retryDelay: number;
 }
 
-/**
- * Validates and prepares JWT token for WebSocket authentication
- * Ensures we're sending proper JWT access tokens instead of user IDs
- */
-export async function validateAndPrepareToken(
-  options: WebSocketAuthOptions = {}
-): Promise<TokenValidationResult> {
-  const { 
-    maxRetries = 3, 
-    retryDelay = 1000,
-    refreshThreshold = 5 
-  } = options;
-  
-  let attempt = 0;
-  
-  while (attempt < maxRetries) {
-    try {
-      console.log(`🔐 Token validation attempt ${attempt + 1}/${maxRetries}`);
-      
-      // Get current session
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('🔐 Session retrieval error:', error);
-        return {
-          isValid: false,
-          error: `Session error: ${error.message}`,
-          shouldRefresh: true
-        };
-      }
-      
-      if (!session?.access_token) {
-        console.error('🔐 No session or access token available');
-        return {
-          isValid: false,
-          error: 'No valid session found. Please log in.',
-          shouldRefresh: false
-        };
-      }
-      
-      // Validate token format (JWT should have 3 parts separated by dots)
-      const tokenParts = session.access_token.split('.');
-      if (tokenParts.length !== 3) {
-        console.error('🔐 Invalid JWT format - expected 3 parts, got:', tokenParts.length);
-        return {
-          isValid: false,
-          error: 'Invalid JWT token format',
-          shouldRefresh: true
-        };
-      }
-      
-      // Check token expiry
-      try {
-        const payload = JSON.parse(atob(tokenParts[1]));
-        const currentTime = Math.floor(Date.now() / 1000);
-        const expTime = payload.exp;
-        
-        if (!expTime) {
-          console.warn('🔐 Token missing expiration claim');
-          return {
-            isValid: false,
-            error: 'Token missing expiration',
-            shouldRefresh: true
-          };
-        }
-        
-        // Check if token is expired
-        if (currentTime >= expTime) {
-          console.error('🔐 Token is expired');
-          return {
-            isValid: false,
-            error: 'Token expired',
-            shouldRefresh: true
-          };
-        }
-        
-        // Check if token is close to expiry (trigger proactive refresh)
-        const timeUntilExpiry = expTime - currentTime;
-        const minutesUntilExpiry = timeUntilExpiry / 60;
-        
-        if (minutesUntilExpiry <= refreshThreshold) {
-          console.warn(`🔐 Token expires in ${minutesUntilExpiry.toFixed(1)} minutes, should refresh soon`);
-        }
-        
-        // Validate required claims
-        if (!payload.sub) {
-          console.error('🔐 Token missing subject (user ID)');
-          return {
-            isValid: false,
-            error: 'Token missing user ID',
-            shouldRefresh: true
-          };
-        }
-        
-        console.log(`🔐 Token validation successful:`, {
-          userId: payload.sub,
-          expiresIn: `${minutesUntilExpiry.toFixed(1)} minutes`,
-          tokenLength: session.access_token.length,
-          tokenPreview: session.access_token.substring(0, 30) + '...'
-        });
-        
-        return {
-          isValid: true,
-          token: session.access_token,
-          shouldRefresh: minutesUntilExpiry <= refreshThreshold
-        };
-        
-      } catch (decodeError) {
-        console.error('🔐 Failed to decode token payload:', decodeError);
-        return {
-          isValid: false,
-          error: 'Failed to decode token',
-          shouldRefresh: true
-        };
-      }
-      
-    } catch (error) {
-      console.error(`🔐 Token validation attempt ${attempt + 1} failed:`, error);
-      attempt++;
-      
-      if (attempt < maxRetries) {
-        console.log(`🔐 Retrying in ${retryDelay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      }
-    }
-  }
-  
-  return {
-    isValid: false,
-    error: `Token validation failed after ${maxRetries} attempts`,
-    shouldRefresh: true
-  };
-}
+const DEFAULT_CONFIG: WebSocketAuthConfig = {
+  tokenRefreshThreshold: 5, // Refresh 5 minutes before expiry
+  maxRetries: 3,
+  retryDelay: 1000,
+};
 
 /**
- * Refreshes the current session and returns new token
+ * Validates JWT token format and expiration
  */
-export async function refreshToken(): Promise<TokenValidationResult> {
+export function validateJWTToken(token: string): TokenValidationResult {
   try {
-    console.log('🔄 Attempting token refresh...');
-    
-    const { data: { session }, error } = await supabase.auth.refreshSession();
-    
-    if (error) {
-      console.error('🔄 Token refresh failed:', error);
+    // Check basic JWT format (header.payload.signature)
+    const parts = token.split('.');
+    if (parts.length !== 3) {
       return {
         isValid: false,
-        error: `Token refresh failed: ${error.message}`,
-        shouldRefresh: false
+        token: null,
+        expiresAt: null,
+        needsRefresh: false,
+        error: 'Invalid JWT format - expected 3 parts',
       };
     }
+
+    // Decode payload (base64url)
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
     
-    if (!session?.access_token) {
-      console.error('🔄 No token received after refresh');
+    // Check expiration
+    const exp = payload.exp;
+    if (!exp) {
       return {
         isValid: false,
-        error: 'No token received after refresh',
-        shouldRefresh: false
+        token: null,
+        expiresAt: null,
+        needsRefresh: false,
+        error: 'No expiration in token',
       };
     }
-    
-    console.log('🔄 Token refresh successful');
+
+    const expiresAt = exp * 1000; // Convert to milliseconds
+    const now = Date.now();
+    const timeUntilExpiry = expiresAt - now;
+    const refreshThreshold = DEFAULT_CONFIG.tokenRefreshThreshold * 60 * 1000;
+
+    if (timeUntilExpiry <= 0) {
+      return {
+        isValid: false,
+        token,
+        expiresAt,
+        needsRefresh: true,
+        error: 'Token expired',
+      };
+    }
+
     return {
       isValid: true,
-      token: session.access_token
+      token,
+      expiresAt,
+      needsRefresh: timeUntilExpiry < refreshThreshold,
     };
-    
   } catch (error) {
-    console.error('🔄 Token refresh error:', error);
     return {
       isValid: false,
-      error: `Token refresh error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      shouldRefresh: false
+      token: null,
+      expiresAt: null,
+      needsRefresh: false,
+      error: `Token validation error: ${error instanceof Error ? error.message : 'Unknown error'}`,
     };
   }
 }
 
 /**
- * Gets a valid token, refreshing if necessary
+ * Gets a valid access token, refreshing if necessary
  */
-export async function getValidTokenForWebSocket(
-  options: WebSocketAuthOptions = {}
-): Promise<TokenValidationResult> {
-  console.log('🔐 Getting valid token for WebSocket...');
-  
-  // First, try to validate current token
-  let result = await validateAndPrepareToken(options);
-  
-  // If token is invalid or should be refreshed, attempt refresh
-  if (!result.isValid || result.shouldRefresh) {
-    console.log('🔄 Token needs refresh, attempting...');
-    
-    const refreshResult = await refreshToken();
-    
-    if (refreshResult.isValid) {
-      // Refresh successful, validate the new token
-      result = await validateAndPrepareToken(options);
-    } else {
-      // Refresh failed, return the refresh error
-      return refreshResult;
-    }
-  }
-  
-  return result;
-}
-
-/**
- * Creates a properly formatted WebSocket URL with JWT authentication
- */
-export function createAuthenticatedWebSocketUrl(
-  baseUrl: string,
-  token: string,
-  additionalParams: Record<string, string> = {}
-): string {
+export async function getValidAccessToken(): Promise<TokenValidationResult> {
   try {
-    const url = new URL(baseUrl);
+    // Get current session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    // Add token parameter
-    url.searchParams.set('token', token);
+    if (sessionError || !session) {
+      return {
+        isValid: false,
+        token: null,
+        expiresAt: null,
+        needsRefresh: false,
+        error: 'No active session',
+      };
+    }
+
+    // Validate current token
+    const validation = validateJWTToken(session.access_token);
     
-    // Add any additional parameters
-    Object.entries(additionalParams).forEach(([key, value]) => {
-      url.searchParams.set(key, value);
-    });
+    // If token is valid and doesn't need refresh, return it
+    if (validation.isValid && !validation.needsRefresh) {
+      return validation;
+    }
+
+    // Token needs refresh
+    console.log('🔄 Token needs refresh, attempting to refresh session...');
+    const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
     
-    const finalUrl = url.toString();
-    
-    console.log('🔗 WebSocket URL created:', {
-      baseUrl,
-      tokenLength: token.length,
-      tokenPreview: token.substring(0, 30) + '...',
-      finalUrl: finalUrl.substring(0, 100) + '...'
-    });
-    
-    return finalUrl;
-    
+    if (refreshError || !newSession) {
+      return {
+        isValid: false,
+        token: null,
+        expiresAt: null,
+        needsRefresh: false,
+        error: `Failed to refresh token: ${refreshError?.message || 'Unknown error'}`,
+      };
+    }
+
+    // Validate new token
+    return validateJWTToken(newSession.access_token);
   } catch (error) {
-    console.error('🔗 Failed to create WebSocket URL:', error);
-    throw new Error(`Invalid WebSocket URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return {
+      isValid: false,
+      token: null,
+      expiresAt: null,
+      needsRefresh: false,
+      error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
   }
 }
 
 /**
- * WebSocket authentication helper class
+ * Creates authenticated WebSocket URL with JWT token
+ */
+export function createAuthenticatedWebSocketUrl(baseUrl: string, token: string): string {
+  // Ensure token is properly encoded for URL
+  const encodedToken = encodeURIComponent(token);
+  
+  // Ensure base URL doesn't already have query parameters
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  
+  return `${baseUrl}${separator}token=${encodedToken}`;
+}
+
+/**
+ * WebSocket Authentication Manager
+ * Handles token lifecycle for WebSocket connections
  */
 export class WebSocketAuthManager {
-  private refreshInProgress = false;
-  private refreshPromise: Promise<TokenValidationResult> | null = null;
-  
-  constructor(private options: WebSocketAuthOptions = {}) {}
-  
+  private config: WebSocketAuthConfig;
+  private tokenRefreshTimer?: NodeJS.Timeout;
+  private onTokenRefresh?: (token: string) => void;
+
+  constructor(config: Partial<WebSocketAuthConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
   /**
-   * Gets a valid token, ensuring only one refresh happens at a time
+   * Sets callback for token refresh events
    */
-  async getValidToken(): Promise<TokenValidationResult> {
-    // If refresh is already in progress, wait for it
-    if (this.refreshInProgress && this.refreshPromise) {
-      console.log('🔄 Refresh already in progress, waiting...');
-      return this.refreshPromise;
+  onTokenRefreshCallback(callback: (token: string) => void) {
+    this.onTokenRefresh = callback;
+  }
+
+  /**
+   * Starts monitoring token expiration and schedules refresh
+   */
+  async startTokenMonitoring(): Promise<void> {
+    // Clear any existing timer
+    this.stopTokenMonitoring();
+
+    const validation = await getValidAccessToken();
+    if (!validation.isValid || !validation.expiresAt) {
+      console.error('❌ Cannot start token monitoring - invalid token');
+      return;
     }
+
+    // Calculate when to refresh (5 minutes before expiry)
+    const refreshTime = validation.expiresAt - (this.config.tokenRefreshThreshold * 60 * 1000);
+    const delay = Math.max(0, refreshTime - Date.now());
+
+    console.log(`⏰ Scheduling token refresh in ${Math.round(delay / 1000 / 60)} minutes`);
+
+    this.tokenRefreshTimer = setTimeout(async () => {
+      console.log('🔄 Token refresh timer triggered');
+      const newValidation = await getValidAccessToken();
+      
+      if (newValidation.isValid && newValidation.token && this.onTokenRefresh) {
+        this.onTokenRefresh(newValidation.token);
+        // Schedule next refresh
+        this.startTokenMonitoring();
+      }
+    }, delay);
+  }
+
+  /**
+   * Stops token monitoring
+   */
+  stopTokenMonitoring(): void {
+    if (this.tokenRefreshTimer) {
+      clearTimeout(this.tokenRefreshTimer);
+      this.tokenRefreshTimer = undefined;
+    }
+  }
+
+  /**
+   * Gets valid token with retry logic
+   */
+  async getValidTokenWithRetry(): Promise<TokenValidationResult> {
+    let lastError: string | undefined;
     
-    const result = await validateAndPrepareToken(this.options);
-    
-    if (!result.isValid || result.shouldRefresh) {
-      if (!this.refreshInProgress) {
-        this.refreshInProgress = true;
-        this.refreshPromise = this.performRefresh();
-        
-        try {
-          const refreshResult = await this.refreshPromise;
-          return refreshResult;
-        } finally {
-          this.refreshInProgress = false;
-          this.refreshPromise = null;
-        }
+    for (let i = 0; i < this.config.maxRetries; i++) {
+      const result = await getValidAccessToken();
+      
+      if (result.isValid) {
+        return result;
+      }
+      
+      lastError = result.error;
+      console.warn(`⚠️ Token fetch attempt ${i + 1} failed: ${lastError}`);
+      
+      if (i < this.config.maxRetries - 1) {
+        // Exponential backoff
+        const delay = this.config.retryDelay * Math.pow(2, i);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    
-    return result;
+
+    return {
+      isValid: false,
+      token: null,
+      expiresAt: null,
+      needsRefresh: false,
+      error: `Failed after ${this.config.maxRetries} attempts. Last error: ${lastError}`,
+    };
   }
-  
-  private async performRefresh(): Promise<TokenValidationResult> {
-    const refreshResult = await refreshToken();
-    
-    if (refreshResult.isValid) {
-      // Validate the refreshed token
-      return validateAndPrepareToken(this.options);
-    }
-    
-    return refreshResult;
+
+  /**
+   * Cleanup resources
+   */
+  dispose(): void {
+    this.stopTokenMonitoring();
+    this.onTokenRefresh = undefined;
   }
 }
