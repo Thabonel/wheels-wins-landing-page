@@ -9,7 +9,7 @@ import uuid
 import mimetypes
 from datetime import datetime
 
-from app.services.supabase_service import get_supabase_client
+from app.core.database import get_supabase_client
 from app.api.deps import verify_supabase_jwt_token
 from app.core.logging import setup_logging, get_logger
 from app.core.config import settings
