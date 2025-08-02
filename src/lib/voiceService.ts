@@ -34,7 +34,9 @@ class PamVoiceService {
   async generateVoice(options: VoiceGenerationOptions): Promise<VoiceResponse> {
     const cacheKey = this.getCacheKey(options);
     
-    // Check cache first
+    // Skip cache for now due to blob URL expiration issues
+    // TODO: Implement persistent caching with IndexedDB or service worker
+    /*
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
       return {
@@ -43,6 +45,7 @@ class PamVoiceService {
         cached: true
       };
     }
+    */
 
     // Format text for Nari Labs Dia
     const formattedText = this.formatTextForTTS(options.text, options.emotion, options.context);

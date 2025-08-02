@@ -154,6 +154,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasShownWelcomeRef = useRef(false);
   const authManagerRef = useRef<WebSocketAuthManager>(new WebSocketAuthManager({
     maxRetries: 3,
     retryDelay: 1000,
@@ -646,9 +647,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           reconnectTimeoutRef.current = null;
         }
         
-        if (messages.length === 0) {
+        if (messages.length === 0 && !hasShownWelcomeRef.current) {
           console.log('💬 PAM DEBUG: Adding greeting message');
-          addMessage("🤖 Hi! I'm PAM, your AI travel companion! Connection established successfully. How can I help you today?", "pam");
+          addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
+          hasShownWelcomeRef.current = true;
         } else {
           console.log('📚 PAM DEBUG: Restoring existing conversation');
         }
@@ -831,6 +833,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
         
         // Enhanced reconnection logic with comprehensive authentication error handling
+        // Stop reconnecting if we're getting authentication errors repeatedly
+        if (event.code === 1008 && reconnectAttempts >= 2) {
+          console.error('🔐 PAM DEBUG: Authentication failing repeatedly, stopping reconnection');
+          setConnectionStatus("Disconnected");
+          if (!hasShownWelcomeRef.current) {
+            addMessage("🤖 I'm having trouble connecting. Please try refreshing the page.", "pam");
+            hasShownWelcomeRef.current = true;
+          }
+          return;
+        }
+        
         if (event.code !== 1000 && reconnectAttempts < 5) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
           console.log(`🔄 PAM DEBUG: Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/5)`);
