@@ -826,12 +826,57 @@ async def generate_pam_voice(
         except Exception as pyttsx3_error:
             logger.error(f"❌ pyttsx3 fallback failed: {pyttsx3_error}")
         
+        # Final fallback: Try Supabase TTS
+        logger.info("🔄 Trying Supabase TTS as final fallback...")
+        try:
+            import httpx
+            
+            # Check if Supabase is configured
+            if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+                supabase_url = f"{settings.SUPABASE_URL.rstrip('/')}/functions/v1/nari-dia-tts"
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+                    "apikey": settings.SUPABASE_KEY,
+                }
+                
+                async with httpx.AsyncClient(timeout=30) as client:
+                    response = await client.post(
+                        supabase_url,
+                        json={"text": request.text},
+                        headers=headers
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        audio_array = data.get('audio', [])
+                        
+                        if audio_array:
+                            logger.info(f"✅ Supabase TTS successful: {len(audio_array)} bytes")
+                            
+                            return {
+                                "audio": audio_array,
+                                "duration": data.get('duration', len(request.text) // 10),
+                                "cached": data.get('cached', False),
+                                "engine": "supabase",
+                                "quality": "high",
+                                "fallback_used": True
+                            }
+                    else:
+                        logger.error(f"❌ Supabase TTS API error: {response.status_code}")
+            else:
+                logger.warning("⚠️ Supabase not configured for TTS fallback")
+                
+        except Exception as supabase_error:
+            logger.error(f"❌ Supabase TTS fallback failed: {supabase_error}")
+        
         # If all methods fail, return detailed error
         error_msg = (
             "All TTS engines failed. Please check: "
             "1) edge-tts package installed, "
             "2) Internet connection for Edge TTS, "
-            "3) System TTS configuration"
+            "3) System TTS configuration, "
+            "4) Supabase TTS function deployment"
         )
         
         logger.error(f"❌ Complete TTS failure: {error_msg}")
