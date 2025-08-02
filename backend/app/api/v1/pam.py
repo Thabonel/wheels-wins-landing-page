@@ -30,6 +30,65 @@ router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
 
+# Input validation constants
+MAX_MESSAGE_LENGTH = 5000  # Maximum message length to prevent abuse
+MAX_CONTEXT_SIZE = 10000  # Maximum context object size
+FORBIDDEN_PATTERNS = [
+    r'<script.*?>.*?</script>',  # Script tags
+    r'javascript:',  # JavaScript protocol
+    r'on\w+\s*=',  # Event handlers
+    r'<iframe.*?>',  # iframes
+    r'<object.*?>',  # object tags
+]
+
+def sanitize_message(message: str) -> str:
+    """Sanitize user input message for security"""
+    import re
+    import html
+    
+    if not message:
+        return ""
+    
+    # Trim to max length
+    message = message[:MAX_MESSAGE_LENGTH]
+    
+    # HTML escape
+    message = html.escape(message)
+    
+    # Remove any forbidden patterns
+    for pattern in FORBIDDEN_PATTERNS:
+        message = re.sub(pattern, '', message, flags=re.IGNORECASE)
+    
+    # Remove excessive whitespace
+    message = ' '.join(message.split())
+    
+    return message.strip()
+
+def validate_websocket_message(data: dict) -> tuple[bool, str]:
+    """Validate WebSocket message format and content"""
+    # Check message size
+    try:
+        message_size = len(json.dumps(data))
+        if message_size > MAX_CONTEXT_SIZE:
+            return False, f"Message too large: {message_size} bytes (max {MAX_CONTEXT_SIZE})"
+    except:
+        return False, "Invalid message format"
+    
+    # Check required fields
+    message_type = data.get("type")
+    if not message_type:
+        return False, "Missing message type"
+    
+    # Validate message content based on type
+    if message_type == "chat":
+        content = data.get("message") or data.get("content", "")
+        if not content or not content.strip():
+            return False, "Empty message content"
+        if len(content) > MAX_MESSAGE_LENGTH:
+            return False, f"Message too long: {len(content)} chars (max {MAX_MESSAGE_LENGTH})"
+    
+    return True, "Valid"
+
 
 
 
@@ -55,27 +114,17 @@ async def websocket_endpoint(
             return
         
         try:
-            # TEMPORARY: Support both JWT tokens and user IDs during transition
-            # Check if token looks like a UUID (user ID) vs JWT
-            import re
-            uuid_pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', re.IGNORECASE)
+            # SECURITY FIX: Only accept proper JWT tokens - no UUID fallback
+            # Validate JWT token using proper verification
+            from app.api.deps import verify_supabase_jwt_token_sync
             
-            if uuid_pattern.match(token):
-                # TEMPORARY: Accept user ID during frontend deployment transition
-                logger.warning(f"⚠️ Using legacy user ID authentication for WebSocket (user_id: {token})")
-                user_id = token
-                user_data = {"user_id": user_id, "sub": user_id, "email": f"user_{user_id}@temp.com"}
-            else:
-                # Validate JWT token using proper verification
-                from app.api.deps import verify_supabase_jwt_token_sync
-                
-                # Create a mock request object for token verification
-                class MockCredentials:
-                    def __init__(self, token):
-                        self.credentials = token
-                
-                mock_credentials = MockCredentials(token)
-                user_data = verify_supabase_jwt_token_sync(mock_credentials)
+            # Create a mock request object for token verification
+            class MockCredentials:
+                def __init__(self, token):
+                    self.credentials = token
+            
+            mock_credentials = MockCredentials(token)
+            user_data = verify_supabase_jwt_token_sync(mock_credentials)
             user_id = user_data.get('sub')
             
             if not user_id:
@@ -105,9 +154,19 @@ async def websocket_endpoint(
             # Receive message from client
             data = await websocket.receive_json()
             logger.info(f"📨 [DEBUG] WebSocket message received from user {user_id}")
-            logger.info(f"  - Full message data: {data}")
+            
+            # Validate message before processing
+            is_valid, validation_error = validate_websocket_message(data)
+            if not is_valid:
+                logger.warning(f"❌ Invalid WebSocket message from {user_id}: {validation_error}")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"Invalid message: {validation_error}"
+                })
+                continue
+            
             logger.info(f"  - Message type: {data.get('type')}")
-            logger.info(f"  - Message content: {data.get('content', data.get('message', 'N/A'))}")
+            logger.info(f"  - Message content preview: {str(data.get('content', data.get('message', 'N/A')))[:100]}...")
             
             # Process different message types
             if data.get("type") == "ping":
@@ -154,7 +213,14 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
     """Handle chat messages over WebSocket with edge processing integration"""
     try:
         # Support both 'message' and 'content' fields for backwards compatibility
-        message = data.get("message") or data.get("content", "")
+        raw_message = data.get("message") or data.get("content", "")
+        
+        # Sanitize the message for security
+        message = sanitize_message(raw_message)
+        
+        if message != raw_message:
+            logger.warning(f"⚠️ Message was sanitized for user {user_id}")
+        
         context = data.get("context", {})
         context["user_id"] = user_id
         context["connection_type"] = "websocket"
