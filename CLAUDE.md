@@ -772,3 +772,166 @@ All four MCP servers are now configured and ready for use:
 - 🔄 **Code Analyzer**: AI-powered repository analysis and integration
 
 This powerful combination enables rapid, AI-assisted development with direct access to database operations, intelligent code analysis, deployment management, and smart code integration capabilities.
+
+---
+
+## Claude Code Subagents
+
+### Overview
+The Wheels & Wins project utilizes Claude Code Subagents to parallelize development tasks and leverage specialized AI expertise. Each subagent runs in its own 200k-token context window, enabling deep focus on specific domains without overwhelming the main session.
+
+### Configuration
+- **Location**: `.claude/agents/` directory
+- **Settings**: `.claude/settings.json` with `enableSubagents: true`
+- **Format**: Markdown files with YAML frontmatter
+
+### Available Subagents
+
+#### 🧪 **test-writer** - Test Suite Developer
+**Purpose**: Address the critical 0% test coverage gap
+**Specialization**: React Testing Library, Vitest, Playwright E2E
+**Key Tasks**:
+- Create component unit tests
+- Write integration test suites
+- Develop E2E test scenarios
+- Achieve 80%+ coverage target
+
+#### 🔍 **code-analyzer** - Code Quality Specialist  
+**Purpose**: Analyze code quality and identify improvements
+**Specialization**: TypeScript, React patterns, ESLint rules
+**Key Tasks**:
+- Identify technical debt
+- Find performance bottlenecks
+- Detect security vulnerabilities
+- Suggest architectural improvements
+
+#### ⚡ **performance-optimizer** - Performance Engineer
+**Purpose**: Optimize bundle size and runtime performance
+**Specialization**: Vite optimization, lazy loading, caching
+**Key Tasks**:
+- Analyze bundle sizes
+- Implement code splitting
+- Optimize loading performance
+- Enhance mobile experience
+
+#### 🔐 **security-auditor** - Security Specialist
+**Purpose**: Audit security vulnerabilities and compliance
+**Specialization**: Authentication, API security, data protection
+**Key Tasks**:
+- API endpoint security audit
+- Authentication flow review
+- GDPR compliance check
+- Vulnerability assessment
+
+#### 🤖 **pam-enhancer** - PAM AI Specialist
+**Purpose**: Enhance PAM assistant capabilities
+**Specialization**: Voice integration, WebSocket, AI responses
+**Key Tasks**:
+- Improve voice quality
+- Enhance conversation flow
+- Add new PAM features
+- Optimize response times
+
+#### 🎨 **ui-ux-designer** - UI/UX Developer
+**Purpose**: Improve UI components and user experience
+**Specialization**: Radix UI, Tailwind CSS, accessibility
+**Key Tasks**:
+- Create new components
+- Enhance mobile UX
+- Ensure WCAG compliance
+- Maintain design consistency
+
+#### 🗄️ **database-architect** - Database Specialist
+**Purpose**: Optimize database and backend architecture
+**Specialization**: PostgreSQL, Supabase, RLS policies
+**Key Tasks**:
+- Query optimization
+- Schema design
+- RLS policy management
+- Performance tuning
+
+#### 📚 **docs-writer** - Documentation Specialist
+**Purpose**: Create and maintain documentation
+**Specialization**: API docs, user guides, technical writing
+**Key Tasks**:
+- Document new features
+- Update API documentation
+- Create user guides
+- Maintain technical docs
+
+### Usage Examples
+
+#### Parallel Execution with `/auto_run`
+```bash
+# Create comprehensive test suite using multiple agents
+/auto_run Create full test coverage for Wheels & Wins components
+
+# Security and performance audit
+/auto_run --verbose Audit application security and performance using specialized agents
+```
+
+#### Sequential Tasks with `/task`
+```bash
+# Analyze then optimize
+/task code-analyzer "Identify performance bottlenecks in trip planning"
+/task performance-optimizer "Implement optimizations for identified issues"
+
+# Security workflow
+/task security-auditor "Audit authentication endpoints"
+/task test-writer "Create security tests for auth flows"
+```
+
+#### Common Workflows
+
+**1. Feature Development**
+```bash
+/task ui-ux-designer "Design new expense tracking dashboard"
+/task pam-enhancer "Add PAM integration for expense insights"
+/task test-writer "Create tests for new expense features"
+/task docs-writer "Document expense tracking feature"
+```
+
+**2. Performance Optimization**
+```bash
+/task performance-optimizer "Analyze current bundle sizes"
+/task code-analyzer "Find unnecessary dependencies"
+/task ui-ux-designer "Implement lazy loading for heavy components"
+```
+
+**3. Security Hardening**
+```bash
+/task security-auditor "Full security audit of API endpoints"
+/task database-architect "Review and strengthen RLS policies"
+/task test-writer "Create security test suite"
+```
+
+### Best Practices
+
+1. **Use Parallel Execution**: Leverage `/auto_run` for independent tasks
+2. **Chain Related Tasks**: Use `/task` for sequential workflows
+3. **Specific Instructions**: Provide clear, detailed prompts to agents
+4. **Monitor Progress**: Use `/verbose` flag for detailed output
+5. **Combine with MCP**: Agents can use MCP servers for enhanced capabilities
+
+### Integration with MCP Servers
+
+Subagents seamlessly integrate with configured MCP servers:
+- **database-architect** uses Supabase MCP for direct SQL operations
+- **security-auditor** leverages Supabase advisors for security checks
+- **code-analyzer** can utilize Serena for semantic analysis
+- **pam-enhancer** uses WebFetch for API testing
+
+### Troubleshooting
+
+**Agent Not Found**
+- Verify agent file exists in `.claude/agents/`
+- Check YAML frontmatter syntax
+- Ensure `enableSubagents: true` in settings
+
+**Permission Errors**
+- Verify required tools are listed in agent config
+- Check `.claude/settings.json` permissions
+
+**Context Overflow**
+- Break large tasks into smaller chunks
+- Use file-based context sharing between agents

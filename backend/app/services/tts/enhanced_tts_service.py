@@ -262,25 +262,11 @@ class EdgeTTSEngine:
         try:
             import edge_tts
             
-            # Try to load available voices, but don't fail if network is unavailable
-            try:
-                self.voices = await edge_tts.list_voices()
-                logger.info(f"✅ Edge TTS initialized with {len(self.voices)} voices")
-            except Exception as voice_error:
-                error_str = str(voice_error)
-                if "ConnectError" in error_str or "NetworkError" in error_str:
-                    logger.warning(f"⚠️ Edge TTS: No internet connection - {voice_error}")
-                elif "TimeoutError" in error_str:
-                    logger.warning(f"⚠️ Edge TTS: Network timeout loading voices - {voice_error}")
-                elif "ssl" in error_str.lower() or "certificate" in error_str.lower():
-                    logger.warning(f"⚠️ Edge TTS: SSL/Certificate issue - {voice_error}")
-                else:
-                    logger.warning(f"⚠️ Could not load Edge TTS voices: {voice_error}")
-                
-                logger.info("✅ Edge TTS available (import successful) - will use default voices")
-                self.voices = []  # Use default voices
-            
+            # Skip voice list loading to avoid network issues in production
+            # Edge TTS synthesis works with predefined voice names without needing the full list
+            self.voices = []  # Use predefined voice names directly
             self.is_initialized = True
+            logger.info("✅ Edge TTS initialized (using predefined voices, skipping network voice list)")
             return True
             
         except ImportError as e:
@@ -719,16 +705,20 @@ class EnhancedTTSService:
         # Initialize available engines
         initialized_engines = []
         
-        # Tier 1: Edge TTS
+        # Tier 1: Edge TTS (Primary - should always work if package is installed)
         if dependency_status[TTSEngine.EDGE].available:
             try:
                 edge_engine = EdgeTTSEngine()
                 if await edge_engine.initialize():
                     self.engines[TTSEngine.EDGE] = edge_engine
                     initialized_engines.append(TTSEngine.EDGE)
-                    logger.info("✅ Tier 1: Edge TTS initialized")
+                    logger.info("✅ Tier 1: Edge TTS initialized successfully")
+                else:
+                    logger.error("❌ Edge TTS failed to initialize despite being available")
             except Exception as e:
-                logger.warning(f"⚠️ Edge TTS initialization failed: {e}")
+                logger.error(f"❌ Edge TTS initialization failed: {e}")
+        else:
+            logger.warning("⚠️ Edge TTS not available - package not installed")
         
         # Tier 2: Coqui TTS (only if Edge TTS failed or for specific use cases)
         if dependency_status[TTSEngine.COQUI].available:

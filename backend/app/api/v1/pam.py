@@ -715,172 +715,59 @@ async def generate_pam_voice(
         logger.info(f"🎙️ Enhanced TTS request for text: {request.text[:100]}...")
         
         # Use the enhanced TTS service with 4-tier fallback
-        try:
-            from app.services.tts.enhanced_tts_service import enhanced_tts_service
-            
-            # Initialize service if not already done
-            if not enhanced_tts_service.is_initialized:
-                logger.info("🔄 Initializing Enhanced TTS service...")
-                await enhanced_tts_service.initialize()
-            
-            if enhanced_tts_service.is_initialized:
-                # Use enhanced TTS service with automatic fallback
-                result = await enhanced_tts_service.synthesize(
-                    text=request.text,
-                    voice_id=settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural",  # Mature female voice
-                    max_retries=4  # Try all 4 engines
-                )
-                
-                if result.audio_data:
-                    logger.info(f"✅ Enhanced TTS successful with {result.engine.value}: {len(result.audio_data)} bytes")
-                    
-                    # Convert audio data to array format expected by frontend
-                    audio_array = list(result.audio_data)
-                    
-                    return {
-                        "audio": audio_array,
-                        "duration": result.duration_ms // 1000 if result.duration_ms else len(request.text) // 10,
-                        "cached": result.cache_hit,
-                        "engine": result.engine.value,
-                        "quality": result.quality.value,
-                        "fallback_used": result.fallback_used,
-                        "processing_time_ms": result.processing_time_ms
-                    }
-                elif result.error:
-                    logger.error(f"❌ Enhanced TTS failed: {result.error}")
-                    # Don't raise exception, continue to manual fallbacks
-                else:
-                    logger.warning("⚠️ Enhanced TTS returned no audio data")
-                    
-            else:
-                logger.error("❌ Enhanced TTS service could not be initialized")
-                
-        except Exception as enhanced_error:
-            logger.error(f"❌ Enhanced TTS service failed: {enhanced_error}")
+        from app.services.tts.enhanced_tts_service import enhanced_tts_service
         
-        # Manual fallback chain (kept for last resort)
-        logger.info("🔄 Enhanced TTS failed, trying manual fallbacks...")
+        # Initialize service if not already done
+        if not enhanced_tts_service.is_initialized:
+            logger.info("🔄 Initializing Enhanced TTS service...")
+            await enhanced_tts_service.initialize()
         
-        # Try direct Edge TTS
-        try:
-            import edge_tts
-            
-            voice = settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural"  
-            communicate = edge_tts.Communicate(request.text, voice)
-            
-            audio_data = b""
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    audio_data += chunk["data"]
-            
-            if audio_data:
-                audio_array = list(audio_data)
-                logger.info(f"✅ Direct Edge TTS successful: {len(audio_array)} bytes")
-                
-                return {
-                    "audio": audio_array,
-                    "duration": len(request.text) // 10,
-                    "cached": False,
-                    "engine": "edge",
-                    "quality": "high",
-                    "fallback_used": True
+        if not enhanced_tts_service.is_initialized:
+            logger.error("❌ Enhanced TTS service could not be initialized")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "error": "TTS service initialization failed",
+                    "message": "No TTS engines could be initialized. Please check system configuration."
                 }
-                
-        except Exception as edge_error:
-            logger.error(f"❌ Direct Edge TTS failed: {edge_error}")
+            )
         
-        # Try pyttsx3 as final fallback
-        try:
-            import pyttsx3
-            import tempfile
-            import os
-            
-            engine = pyttsx3.init()
-            
-            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
-                tmp_path = tmp_file.name
-            
-            engine.save_to_file(request.text, tmp_path)
-            engine.runAndWait()
-            
-            if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
-                with open(tmp_path, 'rb') as f:
-                    audio_data = f.read()
-                os.unlink(tmp_path)
-                
-                if audio_data:
-                    audio_array = list(audio_data)
-                    logger.info(f"✅ pyttsx3 fallback successful: {len(audio_array)} bytes")
-                    
-                    return {
-                        "audio": audio_array,
-                        "duration": len(request.text) // 8,
-                        "cached": False,
-                        "engine": "pyttsx3",
-                        "quality": "medium",
-                        "fallback_used": True
-                    }
-            else:
-                os.unlink(tmp_path)
-                
-        except Exception as pyttsx3_error:
-            logger.error(f"❌ pyttsx3 fallback failed: {pyttsx3_error}")
-        
-        # Final fallback: Try Supabase TTS
-        logger.info("🔄 Trying Supabase TTS as final fallback...")
-        try:
-            import httpx
-            
-            # Check if Supabase is configured
-            if settings.SUPABASE_URL and settings.SUPABASE_KEY:
-                supabase_url = f"{settings.SUPABASE_URL.rstrip('/')}/functions/v1/nari-dia-tts"
-                headers = {
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {settings.SUPABASE_KEY}",
-                    "apikey": settings.SUPABASE_KEY,
-                }
-                
-                async with httpx.AsyncClient(timeout=30) as client:
-                    response = await client.post(
-                        supabase_url,
-                        json={"text": request.text},
-                        headers=headers
-                    )
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        audio_array = data.get('audio', [])
-                        
-                        if audio_array:
-                            logger.info(f"✅ Supabase TTS successful: {len(audio_array)} bytes")
-                            
-                            return {
-                                "audio": audio_array,
-                                "duration": data.get('duration', len(request.text) // 10),
-                                "cached": data.get('cached', False),
-                                "engine": "supabase",
-                                "quality": "high",
-                                "fallback_used": True
-                            }
-                    else:
-                        logger.error(f"❌ Supabase TTS API error: {response.status_code}")
-            else:
-                logger.warning("⚠️ Supabase not configured for TTS fallback")
-                
-        except Exception as supabase_error:
-            logger.error(f"❌ Supabase TTS fallback failed: {supabase_error}")
-        
-        # If all methods fail, return detailed error
-        error_msg = (
-            "All TTS engines failed. Please check: "
-            "1) edge-tts package installed, "
-            "2) Internet connection for Edge TTS, "
-            "3) System TTS configuration, "
-            "4) Supabase TTS function deployment"
+        # Use enhanced TTS service with automatic fallback
+        result = await enhanced_tts_service.synthesize(
+            text=request.text,
+            voice_id=settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural",  # Mature female voice
+            max_retries=4  # Try all 4 engines in fallback chain
         )
         
-        logger.error(f"❌ Complete TTS failure: {error_msg}")
-        raise HTTPException(status_code=500, detail=error_msg)
+        if result.audio_data:
+            logger.info(f"✅ Enhanced TTS successful with {result.engine.value}: {len(result.audio_data)} bytes")
+            
+            # Convert audio data to array format expected by frontend
+            audio_array = list(result.audio_data)
+            
+            return {
+                "audio": audio_array,
+                "duration": result.duration_ms // 1000 if result.duration_ms else len(request.text) // 10,
+                "cached": result.cache_hit,
+                "engine": result.engine.value,
+                "quality": result.quality.value,
+                "fallback_used": result.fallback_used,
+                "processing_time_ms": result.processing_time_ms
+            }
+        
+        # Enhanced TTS failed completely - return meaningful error
+        error_message = result.error if result.error else "Unknown TTS failure"
+        logger.error(f"❌ All TTS engines failed: {error_message}")
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "TTS service unavailable",
+                "message": f"All text-to-speech engines failed: {error_message}",
+                "fallback_text": request.text,
+                "engines_tried": [engine.value for engine in enhanced_tts_service.fallback_chain]
+            }
+        )
         
     except HTTPException:
         # Re-raise HTTP exceptions
