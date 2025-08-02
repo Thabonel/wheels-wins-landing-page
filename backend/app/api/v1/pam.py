@@ -735,6 +735,8 @@ async def generate_pam_voice(
         
         # Use the enhanced TTS service with 4-tier fallback
         from app.services.tts.enhanced_tts_service import enhanced_tts_service
+        from app.core.config import get_settings
+        settings = get_settings()
         
         # Initialize service if not already done
         if not enhanced_tts_service.is_initialized:
@@ -754,7 +756,7 @@ async def generate_pam_voice(
         # Use enhanced TTS service with automatic fallback
         result = await enhanced_tts_service.synthesize(
             text=request.text,
-            voice_id=settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural",  # Mature female voice
+            voice_id=settings.TTS_VOICE_DEFAULT or "en-US-JennyNeural",  # Mature female voice
             max_retries=4  # Try all 4 engines in fallback chain
         )
         
