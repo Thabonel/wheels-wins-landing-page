@@ -680,34 +680,49 @@ async def pam_health_check():
 
 @router.get("/tts-debug")
 async def tts_debug_status():
-    """Debug endpoint to check TTS initialization status"""
-    try:
-        from app.services.tts.enhanced_tts_service import enhanced_tts_service
-        
-        # Initialize if needed
-        if not enhanced_tts_service.is_initialized:
-            await enhanced_tts_service.initialize()
-        
-        status = {
-            "tts_initialized": enhanced_tts_service.is_initialized,
-            "available_engines": [e.value for e in enhanced_tts_service.engines.keys()],
-            "engine_status": {}
-        }
-        
-        # Get detailed status for each engine
-        for engine_type, engine_status in enhanced_tts_service.engine_status.items():
-            status["engine_status"][engine_type.value] = {
-                "available": engine_status.available,
-                "initialized": engine_status.initialized,
-                "dependencies_met": engine_status.dependencies_met,
-                "error": engine_status.error,
-                "version": engine_status.version
-            }
-        
-        return status
-        
-    except Exception as e:
-        return {"error": str(e), "tts_initialized": False}
+    """Debug endpoint to check TTS package availability"""
+    debug_info = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "environment": "production",
+        "python_version": None,
+        "packages": {},
+        "import_tests": {}
+    }
+    
+    # Python version
+    import sys
+    debug_info["python_version"] = sys.version
+    
+    # Test package imports
+    packages_to_test = ["edge_tts", "pyttsx3", "torch", "TTS"]
+    
+    for package in packages_to_test:
+        try:
+            if package == "TTS":
+                import TTS
+                debug_info["import_tests"][package] = {"success": True, "version": getattr(TTS, "__version__", "unknown")}
+            elif package == "edge_tts":
+                import edge_tts
+                debug_info["import_tests"][package] = {"success": True, "version": getattr(edge_tts, "__version__", "unknown")}
+            else:
+                exec(f"import {package}")
+                debug_info["import_tests"][package] = {"success": True, "version": "imported"}
+        except ImportError as e:
+            debug_info["import_tests"][package] = {"success": False, "error": str(e)}
+        except Exception as e:
+            debug_info["import_tests"][package] = {"success": False, "error": f"Other error: {str(e)}"}
+    
+    # Test basic edge-tts functionality if available
+    if debug_info["import_tests"].get("edge_tts", {}).get("success"):
+        try:
+            import edge_tts
+            # Test voice creation (this should work even without internet)
+            communicate = edge_tts.Communicate("test", "en-US-AriaNeural")
+            debug_info["edge_tts_basic_test"] = {"success": True, "message": "Communication object created"}
+        except Exception as e:
+            debug_info["edge_tts_basic_test"] = {"success": False, "error": str(e)}
+    
+    return debug_info
 
 # OPTIONS handler for voice endpoint
 @router.options("/voice")
