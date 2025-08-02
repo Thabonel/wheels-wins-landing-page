@@ -48,23 +48,36 @@ async def websocket_endpoint(
         # IMPORTANT: Accept the WebSocket connection FIRST
         await websocket.accept()
         
-        # Extract user_id from token - support both Supabase JWT and simple user_id tokens
-        if token == "test-connection":
-            user_id = "test-user"
-            logger.info("🧪 Test connection established")
-        elif not token or token == "":
-            user_id = "anonymous"
-        else:
-            try:
-                # Try to decode as JWT first (for Supabase tokens)
-                import jwt
-                decoded = jwt.decode(token, options={"verify_signature": False})
-                user_id = decoded.get('sub', token)  # 'sub' is the user ID in Supabase JWT
-                logger.info(f"🔐 JWT token decoded for user: {user_id}")
-            except Exception as jwt_error:
-                # Fall back to treating token as plain user_id
-                user_id = token if token else "anonymous"
-                logger.info(f"💡 Using token as plain user_id: {user_id}")
+        # Extract user_id from token - require proper JWT authentication
+        if not token or token in ["", "test-connection", "anonymous"]:
+            logger.warning(f"❌ WebSocket connection rejected: invalid or missing token")
+            await websocket.close(code=1008, reason="Authentication required")
+            return
+        
+        try:
+            # Validate JWT token using proper verification
+            from app.api.deps import verify_supabase_jwt_token_sync
+            
+            # Create a mock request object for token verification
+            class MockCredentials:
+                def __init__(self, token):
+                    self.credentials = token
+            
+            mock_credentials = MockCredentials(token)
+            user_data = verify_supabase_jwt_token_sync(mock_credentials)
+            user_id = user_data.get('sub')
+            
+            if not user_id:
+                logger.warning(f"❌ WebSocket connection rejected: no user ID in token")
+                await websocket.close(code=1008, reason="Invalid token: missing user ID")
+                return
+                
+            logger.info(f"🔐 WebSocket authenticated for user: {user_id}")
+            
+        except Exception as auth_error:
+            logger.warning(f"❌ WebSocket authentication failed: {str(auth_error)}")
+            await websocket.close(code=1008, reason="Authentication failed")
+            return
         
         # Now register the connection with the manager  
         await manager.connect(websocket, user_id, connection_id)

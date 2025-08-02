@@ -1,14 +1,29 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, status
 from typing import Dict, Any
 from app.services.profiles_service import profiles_service
 from app.core.auth import get_current_user
+from app.api.deps import verify_supabase_jwt_token
 
 router = APIRouter()
 
 # Frontend-expected endpoint: GET /api/v1/users/{user_id}/profile
 @router.get("/users/{user_id}/profile")
-async def get_user_profile(user_id: str):
+async def get_user_profile(
+    user_id: str,
+    current_user: dict = Depends(verify_supabase_jwt_token)
+):
     """Get profile for a specific user - matches frontend useProfile.ts expectation"""
+    # Verify user can access this profile (own profile or admin)
+    current_user_id = current_user.get("sub")
+    if current_user_id != user_id:
+        # Check if current user is admin (you can adjust this logic based on your admin role field)
+        user_role = current_user.get("role", "user")
+        if user_role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Access denied: You can only access your own profile"
+            )
+    
     profile = await profiles_service.get_profile(user_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -16,8 +31,20 @@ async def get_user_profile(user_id: str):
 
 # Frontend-expected endpoint: PUT /api/v1/users/{user_id}/profile  
 @router.put("/users/{user_id}/profile")
-async def update_user_profile(user_id: str, payload: Dict[str, Any]):
+async def update_user_profile(
+    user_id: str, 
+    payload: Dict[str, Any],
+    current_user: dict = Depends(verify_supabase_jwt_token)
+):
     """Update profile for a specific user - matches frontend Profile.tsx expectation"""
+    # Verify user can update this profile (own profile only, no admin override for updates)
+    current_user_id = current_user.get("sub")
+    if current_user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Access denied: You can only update your own profile"
+        )
+    
     profile = await profiles_service.update_profile(user_id, payload)
     if not profile:
         # If profile doesn't exist, create it
@@ -27,8 +54,20 @@ async def update_user_profile(user_id: str, payload: Dict[str, Any]):
 
 # Frontend-expected endpoint: POST /api/v1/users/{user_id}/profile/upload
 @router.post("/users/{user_id}/profile/upload")
-async def upload_profile_photo(user_id: str, file: UploadFile = File(...), field_type: str = Form(...)):
+async def upload_profile_photo(
+    user_id: str, 
+    file: UploadFile = File(...), 
+    field_type: str = Form(...),
+    current_user: dict = Depends(verify_supabase_jwt_token)
+):
     """Upload profile or partner profile photo - matches frontend Profile.tsx expectation"""
+    # Verify user can upload to this profile (own profile only)
+    current_user_id = current_user.get("sub")
+    if current_user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Access denied: You can only upload photos to your own profile"
+        )
     from app.services.file_upload_service import upload_profile_photo as upload_service
     
     # Validate field type
