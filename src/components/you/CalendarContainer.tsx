@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import CalendarNavigation from "./CalendarNavigation";
-import FullCalendarWrapper from "./FullCalendarWrapper";
+import { LazyFullCalendarWrapper } from "@/components/lazy/LazyCalendarComponents";
 
 interface CalendarContainerProps {
   currentDate: Date;
@@ -38,7 +38,7 @@ const CalendarContainer: React.FC<CalendarContainerProps> = ({
       </CardHeader>
       <CardContent>
         <div className="fullcalendar-container">
-          <FullCalendarWrapper
+          <LazyFullCalendarWrapper
             currentDate={currentDate}
             events={events}
             viewMode={viewMode}

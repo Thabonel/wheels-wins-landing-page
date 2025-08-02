@@ -1,26 +1,33 @@
-// Service Worker for Offline Capabilities
-const CACHE_NAME = 'pam-mobile-v1';
-const API_CACHE_NAME = 'pam-api-v1';
+// Service Worker for Offline Capabilities with Optimized Bundle Strategy
+const CACHE_NAME = 'pam-mobile-v2-optimized';
+const API_CACHE_NAME = 'pam-api-v2';
+const DYNAMIC_CACHE_NAME = 'pam-dynamic-v2';
 
-// Core resources to cache for offline functionality
+// Essential resources to cache immediately (small core bundle)
 const CORE_RESOURCES = [
   '/',
-  '/manifest.json',
-  '/assets/index-production.BOMhE3K8.css',
-  '/assets/index-production.DUOJ7d3A.js',
-  '/assets/react-vendor-production.Dw-i0UxX.js',
-  '/assets/query-vendor-production.DUShopZZ.js',
-  '/assets/supabase-vendor-production.DtNh2-uR.js',
-  '/assets/animation-vendor-production.VlTTk7BW.js',
-  '/assets/utils-vendor-production.Dsz6bsf7.js',
-  '/assets/icons-vendor-production.jaqoHtnI.js',
-  '/assets/radix-vendor-production.OKrApP1u.js',
-  '/assets/mapbox-vendor-production.XtrPRdYm.js',
-  '/assets/calendar-vendor-production.D40RSJ3w.js',
-  '/assets/form-vendor-production.D3ozfAne.js',
-  '/assets/chart-vendor-production.NInlEZcl.js',
-  '/assets/AdminDashboard-production.WB2tRpGr.js'
+  '/manifest.json'
+  // Note: Dynamic imports are now handled by the fetch event
+  // This approach works better with lazy loading and code splitting
 ];
+
+// Patterns for different types of assets with different caching strategies
+const CACHE_STRATEGIES = {
+  // Core vendor chunks - cache aggressively (rarely change)
+  VENDOR_CHUNKS: /\/assets\/.*-vendor-.*\.js$/,
+  
+  // Page chunks - cache with shorter TTL (change more often)
+  PAGE_CHUNKS: /\/assets\/.*-page-.*\.js$/,
+  
+  // Component chunks - cache dynamically as needed
+  COMPONENT_CHUNKS: /\/assets\/.*-(lazy|chunk)-.*\.js$/,
+  
+  // CSS files - cache aggressively
+  CSS_FILES: /\/assets\/.*\.css$/,
+  
+  // Large dependencies (Mapbox, Charts, Calendar) - cache on demand
+  HEAVY_DEPS: /\/assets\/.*(mapbox|chart|calendar|fullcalendar).*\.js$/
+};
 
 // API endpoints to cache
 const CACHEABLE_API_PATTERNS = [
@@ -41,15 +48,20 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
+        const validCaches = [CACHE_NAME, API_CACHE_NAME, DYNAMIC_CACHE_NAME];
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
+            if (!validCaches.includes(cacheName)) {
+              console.log('Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
-      .then(() => self.clients.claim())
+      .then(() => {
+        console.log('Service Worker v2 activated with optimized caching');
+        return self.clients.claim();
+      })
   );
 });
 
@@ -63,33 +75,77 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle core resources
-  event.respondWith(
-    caches.match(request)
-      .then((response) => {
-        if (response) {
-          return response;
-        }
-
-        return fetch(request)
-          .then((response) => {
-            // Cache successful GET requests
-            if (request.method === 'GET' && response.status === 200) {
-              const responseClone = response.clone();
-              caches.open(CACHE_NAME)
-                .then((cache) => cache.put(request, responseClone));
-            }
-            return response;
-          });
-      })
-      .catch(() => {
-        // Offline fallback
-        if (request.destination === 'document') {
-          return caches.match('/');
-        }
-      })
-  );
+  // Handle different asset types with appropriate caching strategies
+  event.respondWith(handleAssetRequest(request, url));
 });
+
+async function handleAssetRequest(request, url) {
+  const isAsset = url.pathname.startsWith('/assets/');
+  
+  if (!isAsset) {
+    // Handle HTML pages - always try network first for fresh content
+    try {
+      const response = await fetch(request);
+      if (response.ok) {
+        // Cache the page for offline use
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(request, response.clone());
+      }
+      return response;
+    } catch (error) {
+      // Offline fallback
+      const cachedResponse = await caches.match(request);
+      return cachedResponse || caches.match('/');
+    }
+  }
+
+  // Handle JavaScript and CSS assets with smart caching
+  const assetPath = url.pathname;
+  
+  // Check cache first for all assets
+  const cachedResponse = await caches.match(request);
+  
+  // Determine caching strategy based on asset type
+  let cacheName = DYNAMIC_CACHE_NAME;
+  let shouldCacheAggressive = false;
+  
+  if (CACHE_STRATEGIES.VENDOR_CHUNKS.test(assetPath)) {
+    cacheName = CACHE_NAME; // Long-term cache for vendor chunks
+    shouldCacheAggressive = true;
+  } else if (CACHE_STRATEGIES.CSS_FILES.test(assetPath)) {
+    cacheName = CACHE_NAME; // CSS files cache aggressively  
+    shouldCacheAggressive = true;
+  } else if (CACHE_STRATEGIES.HEAVY_DEPS.test(assetPath)) {
+    cacheName = DYNAMIC_CACHE_NAME; // Large deps cached on demand
+  }
+  
+  // For aggressive caching (vendor/CSS), use cache-first strategy
+  if (shouldCacheAggressive && cachedResponse) {
+    return cachedResponse;
+  }
+  
+  // For other assets, try network first, fallback to cache
+  try {
+    const response = await fetch(request);
+    
+    if (response.ok) {
+      // Cache successful responses
+      const cache = await caches.open(cacheName);
+      await cache.put(request, response.clone());
+      
+      // Log for debugging
+      console.log(`Cached asset (${cacheName}):`, assetPath);
+    }
+    
+    return response;
+  } catch (error) {
+    // Network failed, use cached version if available
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    throw error;
+  }
+}
 
 async function handleApiRequest(request) {
   const url = new URL(request.url);
