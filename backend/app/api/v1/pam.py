@@ -715,19 +715,157 @@ async def voice_options(request: Request):
 async def tts_debug_info():
     """Debug endpoint to verify TTS configuration and deployment"""
     from app.services.tts.enhanced_tts_service import enhanced_tts_service
+    from app.services.tts.voice_mapping import voice_mapping_service
+    from app.services.tts.error_handling import get_error_recovery
     from app.core.config import get_settings
     
     settings = get_settings()
+    error_recovery = get_error_recovery()
     
     return {
-        "deployment_timestamp": "2025-08-02T01:52:00Z",
-        "tts_voice_configured": settings.TTS_VOICE_DEFAULT,
-        "enhanced_tts_initialized": enhanced_tts_service.is_initialized,
-        "available_engines": list(enhanced_tts_service.engines.keys()) if enhanced_tts_service.engines else [],
-        "fallback_chain": [engine.value for engine in enhanced_tts_service.fallback_chain],
-        "edge_tts_available": "edge-tts package check",
-        "commit_hash": "62c0ef3"
+        "deployment_timestamp": "2025-08-02T02:30:00Z",
+        "voice_mapping_system": {
+            "enabled": True,
+            "total_voices": len(voice_mapping_service.voice_mappings),
+            "default_voice_configured": settings.TTS_VOICE_DEFAULT,
+            "sample_voice_mappings": {
+                voice_id: {
+                    "edge": voice_mapping_service.get_engine_voice_id(voice_id, "edge"),
+                    "coqui": voice_mapping_service.get_engine_voice_id(voice_id, "coqui")
+                }
+                for voice_id in ["pam_default", "pam_female_professional", "pam_male_calm"]
+            }
+        },
+        "enhanced_tts_service": {
+            "initialized": enhanced_tts_service.is_initialized,
+            "available_engines": list(enhanced_tts_service.engines.keys()) if enhanced_tts_service.engines else [],
+            "fallback_chain": [engine.value for engine in enhanced_tts_service.fallback_chain],
+            "circuit_breakers": {
+                engine: error_recovery.should_use_engine(engine) 
+                for engine in ["edge", "coqui", "system", "supabase"]
+            }
+        },
+        "error_handling": {
+            "total_errors_recorded": len(error_recovery.error_history),
+            "recent_errors": error_recovery.get_error_analytics(hours=1),
+            "engine_health": {
+                engine: health.get("health_score", 1.0)
+                for engine, health in error_recovery.engine_health.items()
+            }
+        },
+        "configuration": {
+            "tts_enabled": settings.TTS_ENABLED,
+            "primary_engine": settings.TTS_PRIMARY_ENGINE,
+            "fallback_enabled": settings.TTS_FALLBACK_ENABLED,
+            "voice_default": settings.TTS_VOICE_DEFAULT
+        },
+        "system_info": {
+            "commit_hash": "voice_mapping_update",
+            "python_packages": {
+                "edge_tts": "available" if enhanced_tts_service.engines.get("edge") else "unavailable",
+                "coqui_tts": "available" if enhanced_tts_service.engines.get("coqui") else "unavailable"
+            }
+        }
     }
+
+# Voice mapping test endpoint
+@router.get("/voice-mapping-test")
+async def test_voice_mapping():
+    """Test endpoint for voice mapping system validation"""
+    from app.services.tts.voice_mapping import voice_mapping_service
+    
+    test_results = {}
+    
+    # Test all available voices
+    for voice_id in voice_mapping_service.voice_mappings.keys():
+        voice_info = voice_mapping_service.get_voice_info(voice_id)
+        
+        # Test engine mappings
+        engine_tests = {}
+        for engine in ["edge", "coqui", "system", "supabase"]:
+            engine_voice_id = voice_mapping_service.get_engine_voice_id(voice_id, engine)
+            is_valid, message = voice_mapping_service.validate_voice_mapping(voice_id, engine)
+            
+            engine_tests[engine] = {
+                "voice_id": engine_voice_id,
+                "valid": is_valid,
+                "message": message
+            }
+        
+        test_results[voice_id] = {
+            "display_name": voice_info["display_name"],
+            "engine_mappings": engine_tests,
+            "characteristics": voice_info["characteristics"],
+            "quality_score": voice_info["quality_score"]
+        }
+    
+    # Test legacy voice resolution
+    legacy_tests = {}
+    legacy_voices = ["p225", "p228", "en-US-JennyNeural", "en-US-AriaNeural"]
+    
+    for legacy_voice in legacy_voices:
+        resolved = voice_mapping_service._resolve_legacy_voice_id(legacy_voice)
+        legacy_tests[legacy_voice] = {
+            "resolved_to": resolved,
+            "valid": resolved is not None
+        }
+    
+    # Test context recommendations
+    context_tests = {}
+    contexts = ["travel_planning", "financial", "emergency", "casual", "professional"]
+    
+    for context in contexts:
+        recommendations = voice_mapping_service.get_recommended_voices_for_context(context, limit=3)
+        context_tests[context] = recommendations
+    
+    return {
+        "voice_mappings": test_results,
+        "legacy_resolution": legacy_tests,
+        "context_recommendations": context_tests,
+        "mapping_stats": voice_mapping_service.get_mapping_stats(),
+        "test_timestamp": datetime.utcnow().isoformat()
+    }
+
+# Voice synthesis test endpoint  
+@router.post("/voice-test")
+async def test_voice_synthesis(voice_id: str = "pam_default", text: str = "Hello, this is a voice test."):
+    """Test voice synthesis with specific voice ID"""
+    from app.services.tts.enhanced_tts_service import enhanced_tts_service
+    
+    try:
+        # Initialize if needed
+        if not enhanced_tts_service.is_initialized:
+            await enhanced_tts_service.initialize()
+        
+        # Test synthesis
+        result = await enhanced_tts_service.synthesize(
+            text=text,
+            voice_id=voice_id,
+            max_retries=2
+        )
+        
+        return {
+            "success": result.audio_data is not None,
+            "voice_id_requested": voice_id,
+            "voice_id_used": result.voice_id,
+            "engine_used": result.engine.value,
+            "quality": result.quality.value,
+            "processing_time_ms": result.processing_time_ms,
+            "fallback_used": result.fallback_used,
+            "error": result.error,
+            "audio_size_bytes": len(result.audio_data) if result.audio_data else 0,
+            "test_text": text,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "voice_id_requested": voice_id,
+            "error": str(e),
+            "test_text": text,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 # TTS endpoint for voice generation
 class VoiceRequest(BaseModel):
@@ -766,10 +904,13 @@ async def generate_pam_voice(
                 }
             )
         
-        # Use enhanced TTS service with automatic fallback
+        # Use enhanced TTS service with automatic fallback and voice mapping
+        # Convert any legacy voice configuration to generic voice ID
+        configured_voice = settings.TTS_VOICE_DEFAULT or "pam_default"
+        
         result = await enhanced_tts_service.synthesize(
             text=request.text,
-            voice_id=settings.TTS_VOICE_DEFAULT or "en-US-JennyNeural",  # Mature female voice
+            voice_id=configured_voice,  # Will be resolved by voice mapping system
             max_retries=4  # Try all 4 engines in fallback chain
         )
         

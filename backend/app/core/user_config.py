@@ -16,14 +16,14 @@ class UserSettings(BaseSettings):
     SHOW_DEBUG_TOKENS: bool = False
     ENABLE_REASONING_DEBUG: bool = False
 
-    # TTS Configuration - Enhanced Neural Voice Quality
+    # TTS Configuration - Enhanced Neural Voice Quality with Generic Voice IDs
     TTS_ENABLED: bool = True
     TTS_PRIMARY_ENGINE: str = "edge"  # Edge TTS working while debugging Coqui
     TTS_FALLBACK_ENABLED: bool = True
     TTS_SUPABASE_FALLBACK: bool = True  # Enable Supabase as final fallback
     TTS_CACHE_ENABLED: bool = True
     TTS_CACHE_TTL: int = 86400  # 24 hours
-    TTS_VOICE_DEFAULT: str = "en-US-JennyNeural"  # Edge TTS mature female voice (most natural)
+    TTS_VOICE_DEFAULT: str = "pam_female_professional"  # Generic voice ID for professional female voice
     TTS_QUALITY_THRESHOLD: float = 0.8  # Higher threshold for neural voices
     TTS_MAX_TEXT_LENGTH: int = 5000  # Maximum text length for TTS
     TTS_RATE_LIMIT: int = 10  # Requests per minute per user
