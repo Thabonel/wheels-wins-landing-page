@@ -46,7 +46,6 @@
     "@fullcalendar/timegrid": "^6.1.17",
     "@mapbox/mapbox-gl-directions": "^4.3.1",
     "@mapbox/mapbox-gl-geocoder": "^5.0.3",
-    "@microsoft/signalr": "^8.0.7",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",
@@ -146,6 +145,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.19",
+    "vite-bundle-analyzer": "^1.1.0",
     "vite-plugin-node-polyfills": "^0.23.0",
     "vitest": "^3.2.4"
   },
