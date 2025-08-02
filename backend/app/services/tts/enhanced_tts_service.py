@@ -22,9 +22,13 @@ import json
 
 from app.core.logging import get_logger
 from app.core.config import get_settings
+from .voice_mapping import voice_mapping_service
+from .error_handling import classify_and_handle_error, get_error_recovery, get_fallback_manager
 
 logger = get_logger(__name__)
 settings = get_settings()
+error_recovery = get_error_recovery()
+fallback_manager = get_fallback_manager()
 
 
 class TTSEngine(Enum):
@@ -276,15 +280,23 @@ class EdgeTTSEngine:
             logger.error(f"❌ Edge TTS initialization failed: {e}")
             return False
     
-    async def synthesize(self, text: str, voice_id: str = "en-US-AriaNeural") -> TTSResponse:
-        """Synthesize speech using Edge TTS"""
+    async def synthesize(self, text: str, voice_id: str = "pam_default") -> TTSResponse:
+        """Synthesize speech using Edge TTS with voice mapping"""
         start_time = datetime.now()
         
         try:
             import edge_tts
             
+            # Map generic voice ID to Edge TTS specific voice
+            edge_voice_id = voice_mapping_service.get_engine_voice_id(voice_id, "edge")
+            if not edge_voice_id:
+                logger.warning(f"⚠️ No Edge TTS mapping for voice '{voice_id}', using fallback")
+                edge_voice_id = "en-US-JennyNeural"  # Safe fallback
+            
+            logger.info(f"🎯 Edge TTS synthesis: {voice_id} -> {edge_voice_id}")
+            
             # Create communicate instance
-            communicate = edge_tts.Communicate(text, voice_id)
+            communicate = edge_tts.Communicate(text, edge_voice_id)
             
             # Generate audio data
             audio_data = b""
@@ -300,7 +312,7 @@ class EdgeTTSEngine:
                 engine=TTSEngine.EDGE,
                 quality=TTSQuality.HIGH,
                 duration_ms=len(text) * 80,  # Rough estimate
-                voice_id=voice_id,
+                voice_id=edge_voice_id,
                 processing_time_ms=processing_time
             )
             
@@ -358,19 +370,27 @@ class CoquiTTSEngine:
             logger.error(f"❌ Coqui TTS initialization failed: {e}")
             return False
     
-    async def synthesize(self, text: str, voice_id: str = "default") -> TTSResponse:
-        """Synthesize speech using Coqui TTS"""
+    async def synthesize(self, text: str, voice_id: str = "pam_default") -> TTSResponse:
+        """Synthesize speech using Coqui TTS with voice mapping"""
         start_time = datetime.now()
         
         try:
             if not self.tts_model:
                 raise Exception("Coqui TTS not initialized")
             
+            # Map generic voice ID to Coqui TTS specific voice
+            coqui_voice_id = voice_mapping_service.get_engine_voice_id(voice_id, "coqui")
+            if not coqui_voice_id:
+                logger.warning(f"⚠️ No Coqui TTS mapping for voice '{voice_id}', using fallback")
+                coqui_voice_id = "p225"  # Safe fallback
+            
+            logger.info(f"🎯 Coqui TTS synthesis: {voice_id} -> {coqui_voice_id}")
+            
             # Create temporary file for audio output
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
                 tmp_path = tmp_file.name
             
-            # Generate audio
+            # Generate audio (Coqui TTS will handle the speaker selection internally)
             self.tts_model.tts_to_file(text=text, file_path=tmp_path)
             
             # Read audio data
@@ -388,7 +408,7 @@ class CoquiTTSEngine:
                 engine=TTSEngine.COQUI,
                 quality=TTSQuality.HIGH,
                 duration_ms=len(text) * 90,  # Rough estimate
-                voice_id=voice_id,
+                voice_id=coqui_voice_id,
                 processing_time_ms=processing_time
             )
             
@@ -437,16 +457,24 @@ class SystemTTSEngine:
             
         return False
     
-    async def synthesize(self, text: str, voice_id: str = "default") -> TTSResponse:
-        """Synthesize speech using system TTS"""
+    async def synthesize(self, text: str, voice_id: str = "pam_default") -> TTSResponse:
+        """Synthesize speech using system TTS with voice mapping"""
         start_time = datetime.now()
         
         try:
+            # Map generic voice ID to system TTS specific voice
+            system_voice_id = voice_mapping_service.get_engine_voice_id(voice_id, "system")
+            if not system_voice_id:
+                logger.warning(f"⚠️ No System TTS mapping for voice '{voice_id}', using fallback")
+                system_voice_id = "default"  # Safe fallback
+            
+            logger.info(f"🎯 System TTS synthesis: {voice_id} -> {system_voice_id}")
+            
             # Try pyttsx3 first if available
             if self.pyttsx3_engine:
-                return await self._synthesize_pyttsx3(text, voice_id, start_time)
+                return await self._synthesize_pyttsx3(text, system_voice_id, start_time)
             else:
-                return await self._synthesize_system_command(text, voice_id, start_time)
+                return await self._synthesize_system_command(text, system_voice_id, start_time)
                 
         except Exception as e:
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -585,8 +613,8 @@ class SupabaseTTSEngine:
             logger.error(f"❌ Supabase TTS initialization failed: {e}")
             return False
     
-    async def synthesize(self, text: str, voice_id: str = "default") -> TTSResponse:
-        """Synthesize speech using Supabase remote TTS"""
+    async def synthesize(self, text: str, voice_id: str = "pam_default") -> TTSResponse:
+        """Synthesize speech using Supabase remote TTS with voice mapping"""
         start_time = datetime.now()
         
         if not self.is_initialized:
@@ -600,11 +628,19 @@ class SupabaseTTSEngine:
         try:
             import httpx
             
+            # Map generic voice ID to Supabase TTS specific voice
+            supabase_voice_id = voice_mapping_service.get_engine_voice_id(voice_id, "supabase")
+            if not supabase_voice_id:
+                logger.warning(f"⚠️ No Supabase TTS mapping for voice '{voice_id}', using fallback")
+                supabase_voice_id = "nari-dia"  # Safe fallback
+            
+            logger.info(f"🎯 Supabase TTS synthesis: {voice_id} -> {supabase_voice_id}")
+            
             # Call Supabase TTS function
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.post(
                     self.base_url,
-                    json={"text": text},
+                    json={"text": text, "voice": supabase_voice_id},
                     headers=self.headers
                 )
                 
@@ -768,6 +804,107 @@ class EnhancedTTSService:
             
         return self.is_initialized
     
+    def _resolve_voice_id(self, voice_id: Optional[str], text: str) -> str:
+        """
+        Resolve and standardize voice ID with intelligent defaults.
+        
+        This method handles:
+        1. Legacy voice ID translation
+        2. Context-based voice selection
+        3. Intelligent fallbacks
+        """
+        
+        # If no voice specified, use intelligent default
+        if not voice_id:
+            # Analyze text for context clues
+            context = self._detect_text_context(text)
+            recommended_voices = voice_mapping_service.get_recommended_voices_for_context(context, limit=1)
+            resolved_voice = recommended_voices[0] if recommended_voices else "pam_default"
+            logger.info(f"🤖 No voice specified, auto-selected '{resolved_voice}' for context '{context}'")
+            return resolved_voice
+        
+        # Handle configuration default
+        if voice_id in ["default", "auto"]:
+            return "pam_default"
+        
+        # Check if it's already a valid generic voice ID
+        voice_info = voice_mapping_service.get_voice_info(voice_id)
+        if voice_info:
+            return voice_id
+        
+        # Try to resolve legacy voice ID
+        # This handles cases where legacy voice IDs are still being passed
+        for generic_id, mapping in voice_mapping_service.voice_mappings.items():
+            if (voice_id == mapping.edge_voice_id or 
+                voice_id == mapping.coqui_voice_id or
+                voice_id == mapping.system_voice_id or
+                voice_id == mapping.supabase_voice_id):
+                logger.info(f"🔄 Resolved legacy voice ID '{voice_id}' -> '{generic_id}'")
+                return generic_id
+        
+        # If we can't resolve it, try to find by characteristics
+        if isinstance(voice_id, str):
+            # Handle cases like "female", "professional", "british female", etc.
+            characteristics = voice_id.lower().split()
+            if len(characteristics) > 0:
+                gender = None
+                age = None
+                accent = None
+                style = None
+                
+                for char in characteristics:
+                    if char in ["female", "male"]:
+                        gender = char
+                    elif char in ["young", "middle", "adult", "elderly"]:
+                        age = char
+                    elif char in ["american", "british", "australian", "canadian"]:
+                        accent = char
+                    elif char in ["professional", "casual", "friendly", "energetic", "calm"]:
+                        style = char
+                
+                if any([gender, age, accent, style]):
+                    resolved_voice = voice_mapping_service.find_voice_by_characteristics(
+                        gender=gender, age=age, accent=accent, style=style
+                    )
+                    logger.info(f"🎯 Resolved by characteristics '{voice_id}' -> '{resolved_voice}'")
+                    return resolved_voice
+        
+        # Ultimate fallback
+        logger.warning(f"⚠️ Could not resolve voice ID '{voice_id}', using default")
+        return "pam_default"
+    
+    def _detect_text_context(self, text: str) -> str:
+        """
+        Detect context from text content to select appropriate voice.
+        
+        This provides intelligent voice selection based on content analysis.
+        """
+        
+        text_lower = text.lower()
+        
+        # Emergency/urgent context
+        if any(word in text_lower for word in ["emergency", "urgent", "warning", "alert", "danger", "help"]):
+            return "emergency"
+        
+        # Financial context
+        if any(word in text_lower for word in ["budget", "money", "cost", "expense", "financial", "price", "payment", "bank"]):
+            return "financial"
+        
+        # Travel context
+        if any(word in text_lower for word in ["trip", "travel", "route", "destination", "miles", "drive", "road", "rv", "campground"]):
+            return "travel_planning"
+        
+        # Professional/formal context
+        if any(word in text_lower for word in ["analysis", "recommendation", "strategy", "optimize", "efficient", "professional"]):
+            return "professional"
+        
+        # Social/casual context
+        if any(word in text_lower for word in ["hi", "hello", "thanks", "awesome", "cool", "fun", "great"]):
+            return "casual"
+        
+        # Default to general conversation
+        return "general_conversation"
+    
     async def synthesize(
         self,
         text: str,
@@ -776,11 +913,11 @@ class EnhancedTTSService:
         max_retries: int = 3
     ) -> TTSResponse:
         """
-        Synthesize speech with automatic fallback
+        Synthesize speech with automatic fallback and voice mapping
         
         Args:
             text: Text to synthesize
-            voice_id: Voice ID (engine-specific)
+            voice_id: Generic voice ID or legacy voice ID
             preferred_engine: Preferred engine to try first
             max_retries: Maximum number of fallback attempts
         """
@@ -795,23 +932,38 @@ class EnhancedTTSService:
                 error="TTS Service not initialized"
             )
         
+        # Resolve voice ID - handle legacy voice IDs and provide intelligent defaults
+        resolved_voice_id = self._resolve_voice_id(voice_id, text)
+        logger.info(f"🎯 Voice resolution: '{voice_id}' -> '{resolved_voice_id}'")
+        
         # Determine engine order
         if preferred_engine and preferred_engine in self.engines:
             engine_order = [preferred_engine] + [e for e in self.fallback_chain if e != preferred_engine and e in self.engines]
         else:
             engine_order = [e for e in self.fallback_chain if e in self.engines]
         
-        logger.info(f"🎯 TTS request for: '{text[:50]}...' using chain: {[e.value for e in engine_order]}")
+        logger.info(f"🎯 TTS request for: '{text[:50]}...' using voice '{resolved_voice_id}' with chain: {[e.value for e in engine_order]}")
         
-        # Try each engine in order
+        # Try each engine in order with comprehensive error handling
         last_error = None
+        original_request = {
+            "text": text,
+            "voice_id": resolved_voice_id,
+            "max_retries": max_retries
+        }
+        
         for i, engine_type in enumerate(engine_order):
             if i >= max_retries:
                 break
+            
+            # Check circuit breaker before attempting
+            if not error_recovery.should_use_engine(engine_type.value):
+                logger.warning(f"⚠️ Skipping {engine_type.value} - circuit breaker open")
+                continue
                 
             try:
                 engine = self.engines[engine_type]
-                response = await engine.synthesize(text, voice_id or "default")
+                response = await engine.synthesize(text, resolved_voice_id)
                 
                 # Update stats
                 self.stats["engine_usage"][engine_type.value] += 1
@@ -819,6 +971,9 @@ class EnhancedTTSService:
                     self._update_average_processing_time(response.processing_time_ms)
                 
                 if response.audio_data or response.error is None:
+                    # Success - record it for circuit breaker recovery
+                    error_recovery.record_success(engine_type.value)
+                    
                     self.stats["successful_syntheses"] += 1
                     if i > 0:  # Used fallback
                         response.fallback_used = True
@@ -829,11 +984,59 @@ class EnhancedTTSService:
                     
                     return response
                 else:
+                    # Engine returned error response
+                    error = classify_and_handle_error(response.error, engine_type.value)
                     last_error = response.error
+                    
+                    # Try recovery strategies if error is recoverable
+                    if error.recoverable:
+                        recovery_result = await fallback_manager.execute_recovery_strategy(
+                            error, original_request
+                        )
+                        
+                        if recovery_result.get("success"):
+                            logger.info(f"✅ Error recovery successful for {engine_type.value}")
+                            # Convert recovery result to TTSResponse
+                            recovery_response = recovery_result.get("response", {})
+                            return TTSResponse(
+                                audio_data=recovery_response.get("audio_data"),
+                                text=recovery_response.get("text", text),
+                                engine=TTSEngine(recovery_response.get("engine", "text_fallback")),
+                                quality=TTSQuality.FALLBACK,
+                                voice_id=resolved_voice_id,
+                                fallback_used=True,
+                                error=recovery_response.get("error")
+                            )
+                    
                     logger.warning(f"⚠️ {engine_type.value} TTS failed: {response.error}")
                     
             except Exception as e:
+                # Classify and handle the exception
+                error = classify_and_handle_error(str(e), engine_type.value)
                 last_error = str(e)
+                
+                # Try recovery strategies for exceptions too
+                if error.recoverable:
+                    try:
+                        recovery_result = await fallback_manager.execute_recovery_strategy(
+                            error, original_request
+                        )
+                        
+                        if recovery_result.get("success"):
+                            logger.info(f"✅ Exception recovery successful for {engine_type.value}")
+                            recovery_response = recovery_result.get("response", {})
+                            return TTSResponse(
+                                audio_data=recovery_response.get("audio_data"),
+                                text=recovery_response.get("text", text),
+                                engine=TTSEngine(recovery_response.get("engine", "text_fallback")),
+                                quality=TTSQuality.FALLBACK,
+                                voice_id=resolved_voice_id,
+                                fallback_used=True,
+                                error=recovery_response.get("error")
+                            )
+                    except Exception as recovery_error:
+                        logger.error(f"❌ Recovery failed for {engine_type.value}: {recovery_error}")
+                
                 logger.error(f"❌ {engine_type.value} TTS exception: {e}")
                 continue
         
@@ -858,12 +1061,15 @@ class EnhancedTTSService:
             )
     
     async def get_service_status(self) -> Dict[str, Any]:
-        """Get comprehensive service status"""
+        """Get comprehensive service status with error handling and voice mapping info"""
+        health_check_result = await self._perform_health_check()
+        
         return {
             "is_initialized": self.is_initialized,
             "engines": {
                 engine_type.value: {
                     "available": engine_type in self.engines,
+                    "circuit_breaker_open": not error_recovery.should_use_engine(engine_type.value),
                     "status": asdict(self.engine_status.get(engine_type, TTSEngineStatus(
                         engine=engine_type, available=False, initialized=False
                     )))
@@ -872,7 +1078,19 @@ class EnhancedTTSService:
             },
             "fallback_chain": [e.value for e in self.fallback_chain if e in self.engines],
             "stats": self.stats,
-            "health": await self._perform_health_check()
+            "health": health_check_result,
+            "error_analytics": error_recovery.get_error_analytics(hours=1),
+            "engine_health": error_recovery.get_engine_health_report(),
+            "voice_mapping": {
+                "total_voices": len(voice_mapping_service.voice_mappings),
+                "stats": voice_mapping_service.get_mapping_stats()
+            },
+            "configuration": {
+                "tts_enabled": getattr(settings, 'TTS_ENABLED', True),
+                "primary_engine": getattr(settings, 'TTS_PRIMARY_ENGINE', 'edge'),
+                "default_voice": getattr(settings, 'TTS_VOICE_DEFAULT', 'pam_default'),
+                "fallback_enabled": getattr(settings, 'TTS_FALLBACK_ENABLED', True)
+            }
         }
     
     async def _perform_health_check(self) -> Dict[str, Any]:

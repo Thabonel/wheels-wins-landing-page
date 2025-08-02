@@ -23,6 +23,9 @@ verify_jwt = false
 [functions.proactive-monitor]
 verify_jwt = false
 
+[functions.nari-dia-tts]
+verify_jwt = true
+
 [db]
 port = 54323
 shadow_port = 54324
