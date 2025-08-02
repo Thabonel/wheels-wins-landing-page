@@ -697,6 +697,25 @@ async def voice_options(request: Request):
         cache_bust=True
     )
 
+# TTS Debug endpoint
+@router.get("/tts-debug")
+async def tts_debug_info():
+    """Debug endpoint to verify TTS configuration and deployment"""
+    from app.services.tts.enhanced_tts_service import enhanced_tts_service
+    from app.core.config import get_settings
+    
+    settings = get_settings()
+    
+    return {
+        "deployment_timestamp": "2025-08-02T01:52:00Z",
+        "tts_voice_configured": settings.TTS_VOICE_DEFAULT,
+        "enhanced_tts_initialized": enhanced_tts_service.is_initialized,
+        "available_engines": list(enhanced_tts_service.engines.keys()) if enhanced_tts_service.engines else [],
+        "fallback_chain": [engine.value for engine in enhanced_tts_service.fallback_chain],
+        "edge_tts_available": "edge-tts package check",
+        "commit_hash": "62c0ef3"
+    }
+
 # TTS endpoint for voice generation
 class VoiceRequest(BaseModel):
     text: str
