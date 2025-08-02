@@ -740,6 +740,14 @@ Use Render MCP server for:
 - Performance monitoring
 - Deployment troubleshooting
 
+#### Code Integration
+Use Anthropic MCP Code Analyzer for:
+- Analyzing open source projects for feature adoption
+- Generating intelligent merge strategies
+- Identifying code patterns and best practices
+- Resolving integration conflicts
+- Planning architectural improvements
+
 ### Troubleshooting
 
 #### MCP Server Not Working
@@ -757,9 +765,10 @@ Use Render MCP server for:
 
 ### Setup Complete! ✅
 
-All three MCP servers are now configured and ready for use:
+All four MCP servers are now configured and ready for use:
 - 🗄️ **Supabase**: Direct database access and SQL execution
 - 🧠 **Serena**: Semantic code analysis and intelligent editing  
 - ☁️ **Render**: Deployment monitoring and management
+- 🔄 **Code Analyzer**: AI-powered repository analysis and integration
 
-This powerful combination enables rapid, AI-assisted development with direct access to database operations, intelligent code analysis, and deployment management capabilities.
+This powerful combination enables rapid, AI-assisted development with direct access to database operations, intelligent code analysis, deployment management, and smart code integration capabilities.

@@ -678,6 +678,37 @@ async def pam_health_check():
             "pam_service", _perform_health_check
         )
 
+@router.get("/tts-debug")
+async def tts_debug_status():
+    """Debug endpoint to check TTS initialization status"""
+    try:
+        from app.services.tts.enhanced_tts_service import enhanced_tts_service
+        
+        # Initialize if needed
+        if not enhanced_tts_service.is_initialized:
+            await enhanced_tts_service.initialize()
+        
+        status = {
+            "tts_initialized": enhanced_tts_service.is_initialized,
+            "available_engines": [e.value for e in enhanced_tts_service.engines.keys()],
+            "engine_status": {}
+        }
+        
+        # Get detailed status for each engine
+        for engine_type, engine_status in enhanced_tts_service.engine_status.items():
+            status["engine_status"][engine_type.value] = {
+                "available": engine_status.available,
+                "initialized": engine_status.initialized,
+                "dependencies_met": engine_status.dependencies_met,
+                "error": engine_status.error,
+                "version": engine_status.version
+            }
+        
+        return status
+        
+    except Exception as e:
+        return {"error": str(e), "tts_initialized": False}
+
 # OPTIONS handler for voice endpoint
 @router.options("/voice")
 async def voice_options(request: Request):
