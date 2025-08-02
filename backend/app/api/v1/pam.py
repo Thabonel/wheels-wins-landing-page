@@ -744,49 +744,43 @@ async def generate_pam_voice(
     try:
         logger.info(f"🎙️ Enhanced TTS request for text: {request.text[:100]}...")
         
-        # Use the enhanced TTS service with 3-tier fallback
+        # TEMPORARY BYPASS: Direct Edge TTS test
+        logger.info("🧪 Using direct Edge TTS bypass for testing")
+        
         try:
-            from app.services.tts.enhanced_tts_service import enhanced_tts_service
+            import edge_tts
             
-            # Initialize service if not already done
-            if not enhanced_tts_service.is_initialized:
-                logger.info("🔄 Initializing Enhanced TTS service...")
-                await enhanced_tts_service.initialize()
+            # Direct Edge TTS call
+            voice_id = settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural"
+            logger.info(f"🎯 Using direct Edge TTS with voice: {voice_id}")
             
-            if enhanced_tts_service.is_initialized:
-                # Use enhanced TTS service with automatic fallback
-                result = await enhanced_tts_service.synthesize(
-                    text=request.text,
-                    voice_id=settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural",  # Mature female voice
-                    max_retries=3
-                )
+            communicate = edge_tts.Communicate(request.text, voice_id)
+            
+            audio_data = b""
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_data += chunk["data"]
+            
+            if audio_data:
+                audio_array = list(audio_data)
+                logger.info(f"✅ Direct Edge TTS successful: {len(audio_array)} bytes")
                 
-                if result.audio_data:
-                    logger.info(f"✅ Enhanced TTS successful with {result.engine.value}: {len(result.audio_data)} bytes")
-                    
-                    # Convert audio data to array format expected by frontend
-                    audio_array = list(result.audio_data)
-                    
-                    return {
-                        "audio": audio_array,
-                        "duration": result.duration_ms // 1000 if result.duration_ms else len(request.text) // 10,
-                        "cached": result.cache_hit,
-                        "engine": result.engine.value,
-                        "quality": result.quality.value,
-                        "fallback_used": result.fallback_used,
-                        "processing_time_ms": result.processing_time_ms
-                    }
-                elif result.error:
-                    logger.error(f"❌ Enhanced TTS failed: {result.error}")
-                    raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {result.error}")
-                else:
-                    logger.warning("⚠️ Enhanced TTS returned no audio data")
-                    
+                return {
+                    "audio": audio_array,
+                    "duration": len(request.text) // 10,
+                    "cached": False,
+                    "engine": "edge-direct",
+                    "quality": "high",
+                    "fallback_used": False
+                }
             else:
-                logger.error("❌ Enhanced TTS service could not be initialized")
+                logger.warning("⚠️ Direct Edge TTS returned no audio data")
                 
-        except Exception as enhanced_error:
-            logger.error(f"❌ Enhanced TTS service failed: {enhanced_error}")
+        except Exception as direct_error:
+            logger.error(f"❌ Direct Edge TTS failed: {direct_error}")
+            
+        # If direct Edge TTS failed, continue to manual fallbacks below
+        logger.info("🔄 Direct Edge TTS failed, trying manual fallbacks...")
         
         # Legacy fallback chain (kept for compatibility)
         logger.info("🔄 Falling back to legacy TTS methods...")
