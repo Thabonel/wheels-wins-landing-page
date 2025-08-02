@@ -12,6 +12,7 @@ import AddExpenseForm from "./expenses/AddExpenseForm";
 import PamInsightCard from "./expenses/PamInsightCard";
 import { useExpenseActions } from "@/hooks/useExpenseActions";
 import ExpenseInput from "./expenses/ExpenseInput";
+import VoiceExpenseLogger from "./expenses/VoiceExpenseLogger";
 
 export default function WinsExpenses() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -95,6 +96,9 @@ export default function WinsExpenses() {
 
       {/* Natural language expense input */}
       <ExpenseInput />
+
+      {/* Voice expense logger for hands-free logging */}
+      <VoiceExpenseLogger className="mb-6" />
 
       {viewMode === "timeline" ? (
         <ExpenseTable 

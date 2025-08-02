@@ -16,7 +16,7 @@ import {
   CardFooter, 
   CardTitle 
 } from "@/components/ui/card";
-import { Filter } from "lucide-react";
+import { Filter, FileImage, ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export interface ExpenseItem {
@@ -25,6 +25,7 @@ export interface ExpenseItem {
   category: string;
   date: string;
   description: string;
+  receiptUrl?: string | null;
 }
 
 interface ExpenseTableProps {
@@ -70,6 +71,7 @@ export default function ExpenseTable({
                 <TableHead>Category</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-center">Receipt</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -83,6 +85,21 @@ export default function ExpenseTable({
                   </TableCell>
                   <TableCell>{expense.description}</TableCell>
                   <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
+                  <TableCell className="text-center">
+                    {expense.receiptUrl ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(expense.receiptUrl, '_blank')}
+                        className="p-1"
+                      >
+                        <FileImage className="h-4 w-4 mr-1" />
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">-</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

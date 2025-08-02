@@ -22,6 +22,7 @@ from . import (
     user_settings,
     tts,
     performance,
+    receipts,
 )
 
 __all__ = [
@@ -48,4 +49,5 @@ __all__ = [
     'user_settings',
     'tts',
     'performance',
+    'receipts',
 ]

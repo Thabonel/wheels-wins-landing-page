@@ -1,8 +1,8 @@
 import React, { lazy, Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 
-// Lazy load the heavy TripPlannerApp with all Mapbox dependencies
-const TripPlannerApp = lazy(() => import('./TripPlannerApp'));
+// Lazy load the optimized TripPlannerApp with progressive loading
+const TripPlannerApp = lazy(() => import('./OptimizedTripPlannerApp'));
 
 const TripPlannerLoadingFallback = () => (
   <Card className="h-[600px] w-full">
