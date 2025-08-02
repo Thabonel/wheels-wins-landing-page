@@ -10,6 +10,17 @@ import { pamFeedbackService } from "@/services/pamFeedbackService";
 import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
+import { 
+  WebSocketAuthManager, 
+  getValidTokenForWebSocket, 
+  createAuthenticatedWebSocketUrl 
+} from "@/utils/websocketAuth";
+import { 
+  AuthErrorHandler, 
+  mapWebSocketCloseToAuthError,
+  mapHttpStatusToAuthError 
+} from "@/utils/authErrorHandler";
+import { AuthTestSuite, quickAuthCheck } from "@/utils/authTestSuite";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -143,6 +154,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const authManagerRef = useRef<WebSocketAuthManager>(new WebSocketAuthManager({
+    maxRetries: 3,
+    retryDelay: 1000,
+    refreshThreshold: 5 // Refresh if token expires in 5 minutes
+  }));
+  const authErrorHandler = AuthErrorHandler.getInstance();
   
   const sessionToken = session?.access_token;
 
@@ -150,11 +167,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     console.log('🚀 PAM useEffect triggered with user:', { userId: user?.id, hasUser: !!user, hasSession: !!session });
     
-    // Expose test function to window for debugging (development only)
+    // Expose test functions to window for debugging (development only)
     if (import.meta.env.DEV) {
       (window as any).testPamConnection = testMinimalConnection;
-      console.log('🧪 PAM DEBUG: Test function exposed as window.testPamConnection()');
-      console.log('🧪 PAM DEBUG: Run in console to test connection: window.testPamConnection()');
+      (window as any).runAuthTests = async () => {
+        const testSuite = new AuthTestSuite();
+        return await testSuite.runFullTestSuite();
+      };
+      (window as any).quickAuthCheck = quickAuthCheck;
+      
+      console.log('🧪 PAM DEBUG: Test functions exposed:');
+      console.log('  - window.testPamConnection() - Original connection test');
+      console.log('  - window.runAuthTests() - Full authentication test suite');
+      console.log('  - window.quickAuthCheck() - Quick auth health check');
     }
     
     if (user?.id) {
@@ -549,42 +574,42 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🔧 PAM DEBUG: ==================== WEBSOCKET SETUP ====================');
     
     try {
-      // Step 1: Get WebSocket URL
-      console.log('🔧 PAM DEBUG: Calling getWebSocketUrl with path: /api/v1/pam/ws');
+      // Step 1: Get valid JWT token using new authentication manager
+      console.log('🔧 PAM DEBUG: Getting valid JWT token for WebSocket...');
+      const tokenResult = await authManagerRef.current.getValidToken();
+      
+      if (!tokenResult.isValid || !tokenResult.token) {
+        console.error('❌ PAM DEBUG: Failed to get valid token:', tokenResult.error);
+        setConnectionStatus("Disconnected");
+        addMessage(`🤖 Hi! I'm PAM. Authentication failed: ${tokenResult.error}. Please try logging out and back in.`, "pam");
+        return;
+      }
+      
+      console.log('✅ PAM DEBUG: Valid JWT token obtained:', {
+        tokenLength: tokenResult.token.length,
+        tokenPreview: tokenResult.token.substring(0, 30) + '...',
+        shouldRefresh: tokenResult.shouldRefresh
+      });
+      
+      // Step 2: Get WebSocket base URL
+      console.log('🔧 PAM DEBUG: Getting WebSocket base URL...');
       const baseWebSocketUrl = getWebSocketUrl('/api/v1/pam/ws');
-      console.log('🔧 PAM DEBUG: Received base URL:', baseWebSocketUrl);
-      console.log('🔧 PAM DEBUG: URL type:', typeof baseWebSocketUrl);
-      console.log('🔧 PAM DEBUG: URL includes pam-backend:', baseWebSocketUrl.includes('pam-backend'));
-      console.log('🔧 PAM DEBUG: URL includes /api/v1/pam/ws:', baseWebSocketUrl.includes('/api/v1/pam/ws'));
+      console.log('🔧 PAM DEBUG: Base WebSocket URL:', baseWebSocketUrl);
       
-      // Step 2: Prepare token - use JWT access token
-      let tokenForWs = sessionToken || session?.access_token || 'anonymous';
-      console.log('🎫 PAM DEBUG: Token preparation:');
-      console.log('🎫 PAM DEBUG: - Has sessionToken:', !!sessionToken);
-      console.log('🎫 PAM DEBUG: - Has session.access_token:', !!session?.access_token);
-      console.log('🎫 PAM DEBUG: - Final token preview:', tokenForWs.substring(0, 30));
-      console.log('🎫 PAM DEBUG: - Token type:', typeof tokenForWs);
-      console.log('🎫 PAM DEBUG: - Token length:', tokenForWs.length);
-      console.log('🎫 PAM DEBUG: - Token parts:', tokenForWs.split('.').length);
+      // Step 3: Create authenticated WebSocket URL
+      console.log('🔧 PAM DEBUG: Creating authenticated WebSocket URL...');
+      const wsUrl = createAuthenticatedWebSocketUrl(baseWebSocketUrl, tokenResult.token);
       
-      // Step 3: Build final URL
-      const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(tokenForWs)}`;
-      console.log('🌐 PAM DEBUG: Final WebSocket URL construction:');
-      console.log('🌐 PAM DEBUG: - Base URL:', baseWebSocketUrl);
-      console.log('🌐 PAM DEBUG: - Query string:', `?token=${encodeURIComponent(tokenForWs)}`);
-      console.log('🌐 PAM DEBUG: - Complete URL:', wsUrl);
-      console.log('🌐 PAM DEBUG: - Total URL length:', wsUrl.length);
-      
-      // Step 4: Validate URL
+      // Step 4: Validate URL format
       console.log('✅ PAM DEBUG: URL validation:');
       console.log('✅ PAM DEBUG: - Contains endpoint:', wsUrl.includes('/api/v1/pam/ws'));
-      console.log('✅ PAM DEBUG: - Starts with wss:', wsUrl.startsWith('wss://'));
-      console.log('✅ PAM DEBUG: - Contains backend domain:', wsUrl.includes('pam-backend.onrender.com'));
+      console.log('✅ PAM DEBUG: - Uses secure protocol:', wsUrl.startsWith('wss://'));
+      console.log('✅ PAM DEBUG: - Contains token parameter:', wsUrl.includes('token='));
       
       if (!wsUrl.includes('/api/v1/pam/ws')) {
         console.error('❌ PAM DEBUG: URL validation failed!');
         console.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
-        console.error('❌ PAM DEBUG: Actual URL:', wsUrl);
+        console.error('❌ PAM DEBUG: Actual URL:', wsUrl.substring(0, 100) + '...');
         throw new Error('WebSocket endpoint validation failed');
       }
       
@@ -805,16 +830,48 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           console.warn('⚠️ PAM DEBUG: Could not save conversation state:', error);
         }
         
-        // Reconnection logic
+        // Enhanced reconnection logic with comprehensive authentication error handling
         if (event.code !== 1000 && reconnectAttempts < 5) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
           console.log(`🔄 PAM DEBUG: Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/5)`);
           
-          reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('🔄 PAM DEBUG: Executing reconnect attempt');
-            setReconnectAttempts(prev => prev + 1);
-            connectToBackend();
-          }, delay);
+          // Check if disconnection was due to authentication issues
+          const authError = mapWebSocketCloseToAuthError(event.code, event.reason);
+          
+          if (authError) {
+            console.log('🔐 PAM DEBUG: Authentication error detected:', authError);
+            
+            reconnectTimeoutRef.current = setTimeout(async () => {
+              console.log('🔄 PAM DEBUG: Executing auth-aware reconnect attempt');
+              
+              // Handle the authentication error appropriately
+              const handled = await authErrorHandler.handleAuthError(
+                authError, 
+                'websocket_reconnect',
+                (message, type) => {
+                  const icon = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+                  addMessage(`🤖 ${icon} ${message}`, "pam");
+                }
+              );
+              
+              if (handled) {
+                console.log('🔐 PAM DEBUG: Auth error handled successfully, attempting reconnection');
+                setReconnectAttempts(prev => prev + 1);
+                connectToBackend();
+              } else {
+                console.error('🔐 PAM DEBUG: Failed to handle auth error, stopping reconnection attempts');
+                setConnectionStatus("Disconnected");
+                addMessage("🤖 Unable to resolve authentication issue. Please refresh the page or contact support.", "pam");
+              }
+            }, delay);
+          } else {
+            // Non-authentication related disconnection
+            reconnectTimeoutRef.current = setTimeout(() => {
+              console.log('🔄 PAM DEBUG: Executing standard reconnect attempt');
+              setReconnectAttempts(prev => prev + 1);
+              connectToBackend();
+            }, delay);
+          }
         } else {
           console.log('🔄 PAM DEBUG: Not reconnecting - max attempts reached or normal close');
         }
