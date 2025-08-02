@@ -759,43 +759,66 @@ async def generate_pam_voice(
     try:
         logger.info(f"🎙️ Enhanced TTS request for text: {request.text[:100]}...")
         
-        # TEMPORARY BYPASS: Direct Edge TTS test
-        logger.info("🧪 Using direct Edge TTS bypass for testing")
+        # MINIMAL TTS TEST: Check what's actually failing  
+        logger.info("🧪 Starting minimal TTS diagnostic")
         
+        # Test 1: Can we import edge-tts?
         try:
             import edge_tts
+            logger.info("✅ edge-tts import successful")
             
-            # Direct Edge TTS call
-            voice_id = settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural"
-            logger.info(f"🎯 Using direct Edge TTS with voice: {voice_id}")
-            
-            communicate = edge_tts.Communicate(request.text, voice_id)
-            
-            audio_data = b""
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    audio_data += chunk["data"]
-            
-            if audio_data:
-                audio_array = list(audio_data)
-                logger.info(f"✅ Direct Edge TTS successful: {len(audio_array)} bytes")
+            # Test 2: Can we create a Communicate object?
+            try:
+                voice_id = "en-US-SaraNeural"  # Use hardcoded voice 
+                logger.info(f"🎯 Testing with voice: {voice_id}")
                 
-                return {
-                    "audio": audio_array,
-                    "duration": len(request.text) // 10,
-                    "cached": False,
-                    "engine": "edge-direct",
-                    "quality": "high",
-                    "fallback_used": False
-                }
-            else:
-                logger.warning("⚠️ Direct Edge TTS returned no audio data")
+                communicate = edge_tts.Communicate(request.text, voice_id)
+                logger.info("✅ Communicate object created")
                 
-        except Exception as direct_error:
-            logger.error(f"❌ Direct Edge TTS failed: {direct_error}")
+                # Test 3: Can we stream audio?
+                try:
+                    audio_data = b""
+                    chunk_count = 0
+                    
+                    async for chunk in communicate.stream():
+                        chunk_count += 1
+                        if chunk["type"] == "audio":
+                            audio_data += chunk["data"]
+                        
+                        # Limit chunks to avoid hanging
+                        if chunk_count > 1000:
+                            logger.warning("⚠️ Too many chunks, breaking")
+                            break
+                    
+                    logger.info(f"✅ Streaming completed: {chunk_count} chunks, {len(audio_data)} bytes")
+                    
+                    if audio_data:
+                        audio_array = list(audio_data)
+                        logger.info(f"✅ SUCCESS: Direct Edge TTS: {len(audio_array)} bytes")
+                        
+                        return {
+                            "audio": audio_array,
+                            "duration": len(request.text) // 10,
+                            "cached": False,
+                            "engine": "edge-minimal",
+                            "quality": "high",
+                            "fallback_used": False
+                        }
+                    else:
+                        logger.error("❌ No audio data received from streaming")
+                        
+                except Exception as stream_error:
+                    logger.error(f"❌ Streaming failed: {stream_error}")
+                    
+            except Exception as communicate_error:
+                logger.error(f"❌ Failed to create Communicate object: {communicate_error}")
+                
+        except ImportError as import_error:
+            logger.error(f"❌ Cannot import edge-tts: {import_error}")
+        except Exception as general_error:
+            logger.error(f"❌ General TTS error: {general_error}")
             
-        # If direct Edge TTS failed, continue to manual fallbacks below
-        logger.info("🔄 Direct Edge TTS failed, trying manual fallbacks...")
+        logger.error("❌ All TTS tests failed - proceeding to fallbacks")
         
         # Legacy fallback chain (kept for compatibility)
         logger.info("🔄 Falling back to legacy TTS methods...")
