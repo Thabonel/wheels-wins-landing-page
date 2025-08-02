@@ -1,26 +1,38 @@
 {
-  "enableSubagents": true,
-  "agentDirectory": ".claude/agents",
-  "model": "claude-3-opus-20240229",
-  "permissions": {
-    "allow": [
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "WebFetch(domain:pam-backend.onrender.com)",
-      "WebFetch(domain:docs.mundi.ai)",
-      "Bash(cd:*)",
-      "Bash(grep:*)",
-      "Bash(python:*)",
-      "Bash(pip-compile:*)",
-      "Bash(rm:*)",
-      "Bash(npm install:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm test:*)",
-      "Bash(npm run lint:*)",
-      "Bash(npm run type-check:*)",
-      "Bash(npm run quality:check:full:*)",
-      "Bash(npm run e2e:*)",
-      "mcp__supabase__*"
-    ]
+  "project": {
+    "name": "Wheels & Wins",
+    "description": "Travel planning and RV community platform with AI assistant",
+    "tech_stack": {
+      "frontend": ["React 18", "TypeScript", "Vite", "Tailwind CSS", "Radix UI"],
+      "backend": ["FastAPI", "Python", "Supabase", "Redis", "WebSocket"],
+      "deployment": ["Render.com", "Netlify", "Docker"],
+      "ai_services": ["OpenAI", "Edge TTS", "Coqui TTS", "PAM Assistant"]
+    }
+  },
+  "agents": {
+    "parallel_limit": 3,
+    "timeout_minutes": 10,
+    "retry_attempts": 2,
+    "context_sharing": true,
+    "verbose_logging": true
+  },
+  "workflows": {
+    "auto_testing": true,
+    "security_checks": true,
+    "performance_monitoring": true,
+    "deployment_validation": true
+  },
+  "quality_gates": {
+    "typescript_strict": true,
+    "test_coverage_min": 80,
+    "bundle_size_limit": "2MB",
+    "api_response_time_max": "200ms"
+  },
+  "conventions": {
+    "commit_format": "conventional",
+    "code_style": "prettier",
+    "naming": "camelCase_frontend_snake_case_backend",
+    "file_structure": "feature_based"
   }
 }
+EOF < /dev/null
