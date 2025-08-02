@@ -55,16 +55,27 @@ async def websocket_endpoint(
             return
         
         try:
-            # Validate JWT token using proper verification
-            from app.api.deps import verify_supabase_jwt_token_sync
+            # TEMPORARY: Support both JWT tokens and user IDs during transition
+            # Check if token looks like a UUID (user ID) vs JWT
+            import re
+            uuid_pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', re.IGNORECASE)
             
-            # Create a mock request object for token verification
-            class MockCredentials:
-                def __init__(self, token):
-                    self.credentials = token
-            
-            mock_credentials = MockCredentials(token)
-            user_data = verify_supabase_jwt_token_sync(mock_credentials)
+            if uuid_pattern.match(token):
+                # TEMPORARY: Accept user ID during frontend deployment transition
+                logger.warning(f"⚠️ Using legacy user ID authentication for WebSocket (user_id: {token})")
+                user_id = token
+                user_data = {"user_id": user_id, "sub": user_id, "email": f"user_{user_id}@temp.com"}
+            else:
+                # Validate JWT token using proper verification
+                from app.api.deps import verify_supabase_jwt_token_sync
+                
+                # Create a mock request object for token verification
+                class MockCredentials:
+                    def __init__(self, token):
+                        self.credentials = token
+                
+                mock_credentials = MockCredentials(token)
+                user_data = verify_supabase_jwt_token_sync(mock_credentials)
             user_id = user_data.get('sub')
             
             if not user_id:

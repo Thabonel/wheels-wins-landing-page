@@ -235,6 +235,20 @@ def verify_supabase_jwt_token_sync(
         token = credentials.credentials
         logger.info(f"🔐 Verifying Supabase access token (length: {len(token)})")
         
+        # TEMPORARY: Check if token is a UUID (user ID) during transition period
+        import re
+        uuid_pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', re.IGNORECASE)
+        
+        if uuid_pattern.match(token):
+            logger.warning(f"⚠️ TEMPORARY: Accepting user ID as token during transition: {token}")
+            return {
+                "sub": token,
+                "user_id": token,
+                "email": f"user_{token}@temporary.com",
+                "role": "user",
+                "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp())
+            }
+        
         # Supabase uses standard JWT format - decode without signature verification
         try:
             payload = jwt.decode(
