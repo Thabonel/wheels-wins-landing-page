@@ -678,51 +678,6 @@ async def pam_health_check():
             "pam_service", _perform_health_check
         )
 
-@router.get("/tts-debug")
-async def tts_debug_status():
-    """Debug endpoint to check TTS package availability"""
-    debug_info = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "environment": "production",
-        "python_version": None,
-        "packages": {},
-        "import_tests": {}
-    }
-    
-    # Python version
-    import sys
-    debug_info["python_version"] = sys.version
-    
-    # Test package imports
-    packages_to_test = ["edge_tts", "pyttsx3", "torch", "TTS"]
-    
-    for package in packages_to_test:
-        try:
-            if package == "TTS":
-                import TTS
-                debug_info["import_tests"][package] = {"success": True, "version": getattr(TTS, "__version__", "unknown")}
-            elif package == "edge_tts":
-                import edge_tts
-                debug_info["import_tests"][package] = {"success": True, "version": getattr(edge_tts, "__version__", "unknown")}
-            else:
-                exec(f"import {package}")
-                debug_info["import_tests"][package] = {"success": True, "version": "imported"}
-        except ImportError as e:
-            debug_info["import_tests"][package] = {"success": False, "error": str(e)}
-        except Exception as e:
-            debug_info["import_tests"][package] = {"success": False, "error": f"Other error: {str(e)}"}
-    
-    # Test basic edge-tts functionality if available
-    if debug_info["import_tests"].get("edge_tts", {}).get("success"):
-        try:
-            import edge_tts
-            # Test voice creation (this should work even without internet)
-            communicate = edge_tts.Communicate("test", "en-US-AriaNeural")
-            debug_info["edge_tts_basic_test"] = {"success": True, "message": "Communication object created"}
-        except Exception as e:
-            debug_info["edge_tts_basic_test"] = {"success": False, "error": str(e)}
-    
-    return debug_info
 
 # OPTIONS handler for voice endpoint
 @router.options("/voice")
@@ -759,69 +714,52 @@ async def generate_pam_voice(
     try:
         logger.info(f"🎙️ Enhanced TTS request for text: {request.text[:100]}...")
         
-        # MINIMAL TTS TEST: Check what's actually failing  
-        logger.info("🧪 Starting minimal TTS diagnostic")
-        
-        # Test 1: Can we import edge-tts?
+        # Use the enhanced TTS service with 4-tier fallback
         try:
-            import edge_tts
-            logger.info("✅ edge-tts import successful")
+            from app.services.tts.enhanced_tts_service import enhanced_tts_service
             
-            # Test 2: Can we create a Communicate object?
-            try:
-                voice_id = "en-US-SaraNeural"  # Use hardcoded voice 
-                logger.info(f"🎯 Testing with voice: {voice_id}")
-                
-                communicate = edge_tts.Communicate(request.text, voice_id)
-                logger.info("✅ Communicate object created")
-                
-                # Test 3: Can we stream audio?
-                try:
-                    audio_data = b""
-                    chunk_count = 0
-                    
-                    async for chunk in communicate.stream():
-                        chunk_count += 1
-                        if chunk["type"] == "audio":
-                            audio_data += chunk["data"]
-                        
-                        # Limit chunks to avoid hanging
-                        if chunk_count > 1000:
-                            logger.warning("⚠️ Too many chunks, breaking")
-                            break
-                    
-                    logger.info(f"✅ Streaming completed: {chunk_count} chunks, {len(audio_data)} bytes")
-                    
-                    if audio_data:
-                        audio_array = list(audio_data)
-                        logger.info(f"✅ SUCCESS: Direct Edge TTS: {len(audio_array)} bytes")
-                        
-                        return {
-                            "audio": audio_array,
-                            "duration": len(request.text) // 10,
-                            "cached": False,
-                            "engine": "edge-minimal",
-                            "quality": "high",
-                            "fallback_used": False
-                        }
-                    else:
-                        logger.error("❌ No audio data received from streaming")
-                        
-                except Exception as stream_error:
-                    logger.error(f"❌ Streaming failed: {stream_error}")
-                    
-            except Exception as communicate_error:
-                logger.error(f"❌ Failed to create Communicate object: {communicate_error}")
-                
-        except ImportError as import_error:
-            logger.error(f"❌ Cannot import edge-tts: {import_error}")
-        except Exception as general_error:
-            logger.error(f"❌ General TTS error: {general_error}")
+            # Initialize service if not already done
+            if not enhanced_tts_service.is_initialized:
+                logger.info("🔄 Initializing Enhanced TTS service...")
+                await enhanced_tts_service.initialize()
             
-        logger.error("❌ All TTS tests failed - proceeding to fallbacks")
+            if enhanced_tts_service.is_initialized:
+                # Use enhanced TTS service with automatic fallback
+                result = await enhanced_tts_service.synthesize(
+                    text=request.text,
+                    voice_id=settings.TTS_VOICE_DEFAULT or "en-US-SaraNeural",  # Mature female voice
+                    max_retries=4  # Try all 4 engines
+                )
+                
+                if result.audio_data:
+                    logger.info(f"✅ Enhanced TTS successful with {result.engine.value}: {len(result.audio_data)} bytes")
+                    
+                    # Convert audio data to array format expected by frontend
+                    audio_array = list(result.audio_data)
+                    
+                    return {
+                        "audio": audio_array,
+                        "duration": result.duration_ms // 1000 if result.duration_ms else len(request.text) // 10,
+                        "cached": result.cache_hit,
+                        "engine": result.engine.value,
+                        "quality": result.quality.value,
+                        "fallback_used": result.fallback_used,
+                        "processing_time_ms": result.processing_time_ms
+                    }
+                elif result.error:
+                    logger.error(f"❌ Enhanced TTS failed: {result.error}")
+                    # Don't raise exception, continue to manual fallbacks
+                else:
+                    logger.warning("⚠️ Enhanced TTS returned no audio data")
+                    
+            else:
+                logger.error("❌ Enhanced TTS service could not be initialized")
+                
+        except Exception as enhanced_error:
+            logger.error(f"❌ Enhanced TTS service failed: {enhanced_error}")
         
-        # Legacy fallback chain (kept for compatibility)
-        logger.info("🔄 Falling back to legacy TTS methods...")
+        # Manual fallback chain (kept for last resort)
+        logger.info("🔄 Enhanced TTS failed, trying manual fallbacks...")
         
         # Try direct Edge TTS
         try:

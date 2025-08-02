@@ -33,6 +33,7 @@ class TTSEngine(Enum):
     COQUI = "coqui"
     PYTTSX3 = "pyttsx3"
     SYSTEM = "system"
+    SUPABASE = "supabase"  # Remote TTS via Supabase function
     DISABLED = "disabled"
 
 
@@ -214,6 +215,38 @@ class DependencyChecker:
             logger.warning(f"⚠️ System TTS check failed: {e}")
             
         return status
+    
+    @staticmethod
+    def check_supabase_tts() -> TTSEngineStatus:
+        """Check Supabase TTS availability"""
+        status = TTSEngineStatus(
+            engine=TTSEngine.SUPABASE,
+            available=False,
+            initialized=False,
+            dependencies_met=True  # No local dependencies needed
+        )
+        
+        try:
+            # Check if httpx is available
+            import httpx
+            status.dependencies_met = True
+            
+            # Check if Supabase credentials are configured
+            if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+                status.available = True
+                status.test_passed = True
+                status.version = "Supabase Function (nari-dia-tts)"
+                logger.info("✅ Supabase TTS available (remote service)")
+            else:
+                status.error = "Supabase credentials not configured"
+                logger.warning("⚠️ Supabase TTS not configured (missing URL or key)")
+                
+        except ImportError:
+            status.dependencies_met = False
+            status.error = "httpx package not installed"
+            logger.warning("⚠️ httpx not available - required for Supabase TTS")
+            
+        return status
 
 
 class EdgeTTSEngine:
@@ -234,7 +267,16 @@ class EdgeTTSEngine:
                 self.voices = await edge_tts.list_voices()
                 logger.info(f"✅ Edge TTS initialized with {len(self.voices)} voices")
             except Exception as voice_error:
-                logger.warning(f"⚠️ Could not load Edge TTS voices (network issue?): {voice_error}")
+                error_str = str(voice_error)
+                if "ConnectError" in error_str or "NetworkError" in error_str:
+                    logger.warning(f"⚠️ Edge TTS: No internet connection - {voice_error}")
+                elif "TimeoutError" in error_str:
+                    logger.warning(f"⚠️ Edge TTS: Network timeout loading voices - {voice_error}")
+                elif "ssl" in error_str.lower() or "certificate" in error_str.lower():
+                    logger.warning(f"⚠️ Edge TTS: SSL/Certificate issue - {voice_error}")
+                else:
+                    logger.warning(f"⚠️ Could not load Edge TTS voices: {voice_error}")
+                
                 logger.info("✅ Edge TTS available (import successful) - will use default voices")
                 self.voices = []  # Use default voices
             
@@ -278,12 +320,29 @@ class EdgeTTSEngine:
             
         except Exception as e:
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"❌ Edge TTS synthesis failed: {e}")
+            
+            # Detailed error logging for different failure types
+            error_msg = str(e)
+            if "ConnectError" in error_msg or "NetworkError" in error_msg:
+                logger.error(f"❌ Edge TTS network error (no internet?): {e}")
+                error_msg = f"Network connectivity error: {error_msg}"
+            elif "TimeoutError" in error_msg or "ReadTimeout" in error_msg:
+                logger.error(f"❌ Edge TTS timeout (slow connection?): {e}")
+                error_msg = f"Connection timeout: {error_msg}"
+            elif "certificate" in error_msg.lower() or "ssl" in error_msg.lower():
+                logger.error(f"❌ Edge TTS SSL/Certificate error: {e}")
+                error_msg = f"SSL/Certificate error: {error_msg}"
+            elif "403" in error_msg or "401" in error_msg:
+                logger.error(f"❌ Edge TTS authentication/permission error: {e}")
+                error_msg = f"Authentication error: {error_msg}"
+            else:
+                logger.error(f"❌ Edge TTS synthesis failed: {e}")
+            
             return TTSResponse(
                 text=text,
                 engine=TTSEngine.EDGE,
                 quality=TTSQuality.FALLBACK,
-                error=str(e),
+                error=error_msg,
                 processing_time_ms=processing_time
             )
 
@@ -508,20 +567,132 @@ class SystemTTSEngine:
             )
 
 
+class SupabaseTTSEngine:
+    """Supabase remote TTS engine implementation"""
+    
+    def __init__(self):
+        self.engine_type = TTSEngine.SUPABASE
+        self.is_initialized = False
+        self.base_url = None
+        self.headers = None
+        
+    async def initialize(self) -> bool:
+        """Initialize Supabase TTS engine"""
+        try:
+            # Check if Supabase is configured
+            if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
+                logger.warning("⚠️ Supabase TTS not configured (missing URL or key)")
+                return False
+                
+            self.base_url = f"{settings.SUPABASE_URL.rstrip('/')}/functions/v1/nari-dia-tts"
+            self.headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+                "apikey": settings.SUPABASE_KEY,
+            }
+            
+            self.is_initialized = True
+            logger.info("✅ Supabase TTS initialized (remote service)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Supabase TTS initialization failed: {e}")
+            return False
+    
+    async def synthesize(self, text: str, voice_id: str = "default") -> TTSResponse:
+        """Synthesize speech using Supabase remote TTS"""
+        start_time = datetime.now()
+        
+        if not self.is_initialized:
+            return TTSResponse(
+                text=text,
+                engine=TTSEngine.SUPABASE,
+                quality=TTSQuality.FALLBACK,
+                error="Supabase TTS not initialized"
+            )
+        
+        try:
+            import httpx
+            
+            # Call Supabase TTS function
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    self.base_url,
+                    json={"text": text},
+                    headers=self.headers
+                )
+                
+                if response.status_code != 200:
+                    error_msg = f"Supabase TTS API error: {response.status_code}"
+                    try:
+                        error_data = response.json()
+                        error_msg += f" - {error_data.get('error', 'Unknown error')}"
+                    except:
+                        error_msg += f" - {response.text}"
+                    
+                    logger.error(f"❌ {error_msg}")
+                    return TTSResponse(
+                        text=text,
+                        engine=TTSEngine.SUPABASE,
+                        quality=TTSQuality.FALLBACK,
+                        error=error_msg
+                    )
+                
+                data = response.json()
+                audio_array = data.get('audio', [])
+                
+                # Convert array to bytes
+                audio_data = bytes(audio_array) if audio_array else None
+                
+                processing_time = (datetime.now() - start_time).total_seconds() * 1000
+                
+                return TTSResponse(
+                    audio_data=audio_data,
+                    text=text,
+                    engine=TTSEngine.SUPABASE,
+                    quality=TTSQuality.HIGH if audio_data else TTSQuality.FALLBACK,
+                    duration_ms=data.get('duration', len(text) // 10) * 1000,
+                    voice_id="nari-dia",  # Supabase uses Nari Labs Dia voice
+                    processing_time_ms=processing_time,
+                    cache_hit=data.get('cached', False)
+                )
+                
+        except httpx.TimeoutException:
+            error_msg = "Supabase TTS timeout (30s exceeded)"
+            logger.error(f"❌ {error_msg}")
+            return TTSResponse(
+                text=text,
+                engine=TTSEngine.SUPABASE,
+                quality=TTSQuality.FALLBACK,
+                error=error_msg
+            )
+        except Exception as e:
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+            logger.error(f"❌ Supabase TTS synthesis failed: {e}")
+            return TTSResponse(
+                text=text,
+                engine=TTSEngine.SUPABASE,
+                quality=TTSQuality.FALLBACK,
+                error=str(e),
+                processing_time_ms=processing_time
+            )
+
+
 class EnhancedTTSService:
     """
-    Enhanced TTS Service with 3-Tier Fallback System
+    Enhanced TTS Service with 4-Tier Fallback System
     
-    Tier 1: Edge TTS (Primary) - High quality, free, reliable
+    Tier 1: Edge TTS (Primary) - High quality, free, cloud-based
     Tier 2: Coqui TTS (Secondary) - Local neural TTS
     Tier 3: System TTS (Fallback) - pyttsx3 or system commands
+    Tier 4: Supabase TTS (Remote) - Network-independent remote fallback
     """
     
     def __init__(self):
         self.is_initialized = False
         self.engines = {}
         self.engine_status = {}
-        self.fallback_chain = [TTSEngine.EDGE, TTSEngine.COQUI, TTSEngine.SYSTEM]
+        self.fallback_chain = [TTSEngine.EDGE, TTSEngine.COQUI, TTSEngine.SYSTEM, TTSEngine.SUPABASE]
         self.stats = {
             "total_requests": 0,
             "successful_syntheses": 0,
@@ -532,14 +703,15 @@ class EnhancedTTSService:
         
     async def initialize(self) -> bool:
         """Initialize TTS service with all available engines"""
-        logger.info("🎙️ Initializing Enhanced TTS Service with 3-tier fallback...")
+        logger.info("🎙️ Initializing Enhanced TTS Service with 4-tier fallback...")
         
         # Check dependencies first
         dependency_status = {
             TTSEngine.EDGE: DependencyChecker.check_edge_tts(),
             TTSEngine.COQUI: DependencyChecker.check_coqui_tts(),
             TTSEngine.PYTTSX3: DependencyChecker.check_pyttsx3(),
-            TTSEngine.SYSTEM: DependencyChecker.check_system_tts()
+            TTSEngine.SYSTEM: DependencyChecker.check_system_tts(),
+            TTSEngine.SUPABASE: DependencyChecker.check_supabase_tts()
         }
         
         self.engine_status = dependency_status
@@ -579,6 +751,17 @@ class EnhancedTTSService:
                     logger.info("✅ Tier 3: System TTS initialized")
             except Exception as e:
                 logger.warning(f"⚠️ System TTS initialization failed: {e}")
+        
+        # Tier 4: Supabase TTS (remote fallback - always available if configured)
+        if dependency_status[TTSEngine.SUPABASE].available:
+            try:
+                supabase_engine = SupabaseTTSEngine()
+                if await supabase_engine.initialize():
+                    self.engines[TTSEngine.SUPABASE] = supabase_engine
+                    initialized_engines.append(TTSEngine.SUPABASE)
+                    logger.info("✅ Tier 4: Supabase TTS initialized (remote fallback)")
+            except Exception as e:
+                logger.warning(f"⚠️ Supabase TTS initialization failed: {e}")
         
         # Update initialization status
         self.is_initialized = len(initialized_engines) > 0
