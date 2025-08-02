@@ -1,9 +1,9 @@
 services:
   - type: web
     name: pam-backend
-    env: docker
-    dockerfilePath: Dockerfile
-    dockerContext: .
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
     plan: starter
     envVars:
       - key: ENVIRONMENT
