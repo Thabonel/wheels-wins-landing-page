@@ -20,6 +20,7 @@ class UserSettings(BaseSettings):
     TTS_ENABLED: bool = True
     TTS_PRIMARY_ENGINE: str = "edge"  # Edge TTS working while debugging Coqui
     TTS_FALLBACK_ENABLED: bool = True
+    TTS_SUPABASE_FALLBACK: bool = True  # Enable Supabase as final fallback
     TTS_CACHE_ENABLED: bool = True
     TTS_CACHE_TTL: int = 86400  # 24 hours
     TTS_VOICE_DEFAULT: str = "en-US-SaraNeural"  # Edge TTS mature female voice
