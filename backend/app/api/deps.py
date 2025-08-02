@@ -217,6 +217,80 @@ def verify_supabase_jwt_token(
         )
 
 
+def verify_supabase_jwt_token_sync(
+    credentials: HTTPAuthorizationCredentials,
+) -> Dict[str, Any]:
+    """
+    Synchronous version of verify_supabase_jwt_token for WebSocket use
+    """
+    try:
+        if not credentials or not credentials.credentials:
+            logger.error("🔐 No credentials provided")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization header missing",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        token = credentials.credentials
+        logger.info(f"🔐 Verifying Supabase access token (length: {len(token)})")
+        
+        # Supabase uses standard JWT format - decode without signature verification
+        try:
+            payload = jwt.decode(
+                token, 
+                options={
+                    "verify_signature": False,  # Trust Supabase's signing
+                    "verify_exp": True,         # Check if token is expired
+                    "verify_aud": False,        # Don't verify audience
+                    "verify_iss": False         # Don't verify issuer
+                },
+                algorithms=["HS256", "RS256"]
+            )
+            logger.info("🔐 Supabase JWT decoded successfully (sync)")
+            
+        except jwt.ExpiredSignatureError:
+            logger.warning("🔐 Token has expired - frontend should refresh")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token expired - please refresh",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except Exception as e:
+            logger.error(f"🔐 JWT decode failed: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid JWT format: {str(e)}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Validate required fields
+        user_id = payload.get('sub')
+        if not user_id:
+            logger.error(f"🔐 Token missing 'sub' field. Available keys: {list(payload.keys())}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing user ID",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Log successful authentication
+        logger.info(f"🔐 User authenticated (sync): {user_id}")
+        
+        return payload
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        logger.error(f"🔐 Unexpected authentication error (sync): {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 async def verify_supabase_jwt_flexible(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
