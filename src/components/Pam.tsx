@@ -65,6 +65,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [isShowingAudioLevel, setIsShowingAudioLevel] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   
+  // Voice settings
+  const [voiceSettings, setVoiceSettings] = useState({
+    voice: 'en-US-AriaNeural',
+    rate: 1.0,
+    pitch: 1.0,
+    volume: 1.0
+  });
+  
   // VAD and conversation management
   const [isVADActive, setIsVADActive] = useState(false);
   const [conversationState, setConversationState] = useState<ConversationState>({
@@ -1254,6 +1262,41 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
+  // Add a new handler for direct speech input (without wake word in continuous mode)
+  const handleDirectSpeechInput = async (transcript: string) => {
+    console.log('🎙️ Processing direct speech input:', transcript);
+    
+    if (transcript.trim().length > 0) {
+      // Add user message
+      addMessage(transcript, "user");
+      
+      // Process through text chat
+      console.log('🚀 Processing speech input through text chat...');
+      await handleTextMessage(transcript);
+    }
+  };
+
+  // Voice settings handlers
+  const handleVoiceChange = (newVoice: string) => {
+    setVoiceSettings(prev => ({ ...prev, voice: newVoice }));
+    console.log('🎙️ Voice changed to:', newVoice);
+  };
+
+  const handleRateChange = (newRate: number) => {
+    setVoiceSettings(prev => ({ ...prev, rate: newRate }));
+    console.log('⚡ Speech rate changed to:', newRate);
+  };
+
+  const handlePitchChange = (newPitch: number) => {
+    setVoiceSettings(prev => ({ ...prev, pitch: newPitch }));
+    console.log('🎵 Speech pitch changed to:', newPitch);
+  };
+
+  const handleVolumeChange = (newVolume: number) => {
+    setVoiceSettings(prev => ({ ...prev, volume: newVolume }));
+    console.log('🔊 Volume changed to:', newVolume);
+  };
+
   const startContinuousVoiceMode = async () => {
     console.log('🔄 Starting continuous voice mode');
     
@@ -1922,12 +1965,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       vadService.setPAMSpeaking(true);
       console.log('🔊 Generating voice for:', cleanContent);
       
-      // Generate voice using pamVoiceService
+      // Generate voice using pamVoiceService with user settings
       const voiceResponse = await pamVoiceService.generateVoice({
         text: cleanContent,
         emotion: 'helpful',
         context: 'general',
-        priority: 'normal'
+        priority: 'normal',
+        voice: voiceSettings.voice,
+        rate: voiceSettings.rate,
+        pitch: voiceSettings.pitch,
+        volume: voiceSettings.volume
       });
 
       console.log('🎵 Voice response received:', voiceResponse);
@@ -2325,6 +2372,59 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         </div>
         <div className="p-3 border-t">
           <AudioLevelMeter />
+          
+          {/* Voice Settings Panel */}
+          <details className="mb-2">
+            <summary className="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-800 mb-2">
+              Voice Settings
+            </summary>
+            <div className="p-2 bg-gray-50 rounded-lg space-y-2">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Voice</label>
+                <select
+                  value={voiceSettings.voice}
+                  onChange={(e) => handleVoiceChange(e.target.value)}
+                  className="w-full text-xs p-1 border border-gray-300 rounded"
+                >
+                  <option value="en-US-AriaNeural">Aria (US Female)</option>
+                  <option value="en-US-JennyNeural">Jenny (US Female)</option>
+                  <option value="en-US-GuyNeural">Guy (US Male)</option>
+                  <option value="en-US-DavisNeural">Davis (US Male)</option>
+                  <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
+                  <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">
+                  Speed: {voiceSettings.rate.toFixed(1)}x
+                </label>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2.0"
+                  step="0.1"
+                  value={voiceSettings.rate}
+                  onChange={(e) => handleRateChange(parseFloat(e.target.value))}
+                  className="w-full h-1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">
+                  Volume: {Math.round(voiceSettings.volume * 100)}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={voiceSettings.volume}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  className="w-full h-1"
+                />
+              </div>
+            </div>
+          </details>
+          
           <div className="flex items-center space-x-2">
             <input
               ref={inputRef}
@@ -2588,6 +2688,59 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           {/* Input */}
           <div className="p-4 border-t">
             <AudioLevelMeter />
+            
+            {/* Voice Settings Panel */}
+            <details className="mb-2">
+              <summary className="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-800 mb-2">
+                Voice Settings
+              </summary>
+              <div className="p-2 bg-gray-50 rounded-lg space-y-2">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Voice</label>
+                  <select
+                    value={voiceSettings.voice}
+                    onChange={(e) => handleVoiceChange(e.target.value)}
+                    className="w-full text-xs p-1 border border-gray-300 rounded"
+                  >
+                    <option value="en-US-AriaNeural">Aria (US Female)</option>
+                    <option value="en-US-JennyNeural">Jenny (US Female)</option>
+                    <option value="en-US-GuyNeural">Guy (US Male)</option>
+                    <option value="en-US-DavisNeural">Davis (US Male)</option>
+                    <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
+                    <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Speed: {voiceSettings.rate.toFixed(1)}x
+                  </label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2.0"
+                    step="0.1"
+                    value={voiceSettings.rate}
+                    onChange={(e) => handleRateChange(parseFloat(e.target.value))}
+                    className="w-full h-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Volume: {Math.round(voiceSettings.volume * 100)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={voiceSettings.volume}
+                    onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                    className="w-full h-1"
+                  />
+                </div>
+              </div>
+            </details>
+            
             <div className="flex items-center space-x-2">
               <input
                 ref={inputRef}
