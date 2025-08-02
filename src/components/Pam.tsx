@@ -557,14 +557,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('🔧 PAM DEBUG: URL includes pam-backend:', baseWebSocketUrl.includes('pam-backend'));
       console.log('🔧 PAM DEBUG: URL includes /api/v1/pam/ws:', baseWebSocketUrl.includes('/api/v1/pam/ws'));
       
-      // Step 2: Prepare token
-      let tokenForWs = user?.id || 'anonymous';
+      // Step 2: Prepare token - use JWT access token
+      let tokenForWs = sessionToken || session?.access_token || 'anonymous';
       console.log('🎫 PAM DEBUG: Token preparation:');
-      console.log('🎫 PAM DEBUG: - Raw user.id:', user?.id);
-      console.log('🎫 PAM DEBUG: - Final token:', tokenForWs);
+      console.log('🎫 PAM DEBUG: - Has sessionToken:', !!sessionToken);
+      console.log('🎫 PAM DEBUG: - Has session.access_token:', !!session?.access_token);
+      console.log('🎫 PAM DEBUG: - Final token preview:', tokenForWs.substring(0, 30));
       console.log('🎫 PAM DEBUG: - Token type:', typeof tokenForWs);
       console.log('🎫 PAM DEBUG: - Token length:', tokenForWs.length);
-      console.log('🎫 PAM DEBUG: - Encoded token:', encodeURIComponent(tokenForWs));
+      console.log('🎫 PAM DEBUG: - Token parts:', tokenForWs.split('.').length);
       
       // Step 3: Build final URL
       const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(tokenForWs)}`;
