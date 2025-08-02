@@ -23,7 +23,7 @@ class UserSettings(BaseSettings):
     TTS_SUPABASE_FALLBACK: bool = True  # Enable Supabase as final fallback
     TTS_CACHE_ENABLED: bool = True
     TTS_CACHE_TTL: int = 86400  # 24 hours
-    TTS_VOICE_DEFAULT: str = "en-US-SaraNeural"  # Edge TTS mature female voice
+    TTS_VOICE_DEFAULT: str = "en-US-JennyNeural"  # Edge TTS mature female voice (most natural)
     TTS_QUALITY_THRESHOLD: float = 0.8  # Higher threshold for neural voices
     TTS_MAX_TEXT_LENGTH: int = 5000  # Maximum text length for TTS
     TTS_RATE_LIMIT: int = 10  # Requests per minute per user

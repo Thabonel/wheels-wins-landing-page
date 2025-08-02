@@ -1,0 +1,26 @@
+{
+  "enableSubagents": true,
+  "agentDirectory": ".claude/agents",
+  "model": "claude-3-opus-20240229",
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:pam-backend.onrender.com)",
+      "WebFetch(domain:docs.mundi.ai)",
+      "Bash(cd:*)",
+      "Bash(grep:*)",
+      "Bash(python:*)",
+      "Bash(pip-compile:*)",
+      "Bash(rm:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run quality:check:full:*)",
+      "Bash(npm run e2e:*)",
+      "mcp__supabase__*"
+    ]
+  }
+}
