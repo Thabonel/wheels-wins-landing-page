@@ -38,7 +38,7 @@ services:
       - key: TTS_FALLBACK_ENABLED
         value: true
       - key: TTS_VOICE_DEFAULT
-        value: en-US-AriaNeural
+        value: en-US-SaraNeural
       # Monitoring
       - key: SENTRY_DSN
         sync: false  # Set manually in dashboard if needed
