@@ -12,7 +12,7 @@ import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
 import { 
   WebSocketAuthManager, 
-  getValidTokenForWebSocket, 
+  getValidAccessToken, 
   createAuthenticatedWebSocketUrl 
 } from "@/utils/websocketAuth";
 import { 
@@ -159,7 +159,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     retryDelay: 1000,
     refreshThreshold: 5 // Refresh if token expires in 5 minutes
   }));
-  const authErrorHandler = AuthErrorHandler.getInstance();
+  const authErrorHandler = new AuthErrorHandler();
   
   const sessionToken = session?.access_token;
 
@@ -576,7 +576,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     try {
       // Step 1: Get valid JWT token using new authentication manager
       console.log('🔧 PAM DEBUG: Getting valid JWT token for WebSocket...');
-      const tokenResult = await authManagerRef.current.getValidToken();
+      const tokenResult = await authManagerRef.current.getValidTokenWithRetry();
       
       if (!tokenResult.isValid || !tokenResult.token) {
         console.error('❌ PAM DEBUG: Failed to get valid token:', tokenResult.error);
@@ -845,14 +845,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               console.log('🔄 PAM DEBUG: Executing auth-aware reconnect attempt');
               
               // Handle the authentication error appropriately
-              const handled = await authErrorHandler.handleAuthError(
-                authError, 
-                'websocket_reconnect',
-                (message, type) => {
-                  const icon = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
-                  addMessage(`🤖 ${icon} ${message}`, "pam");
-                }
-              );
+              const handled = await authErrorHandler.handleAuthError(authError);
               
               if (handled) {
                 console.log('🔐 PAM DEBUG: Auth error handled successfully, attempting reconnection');

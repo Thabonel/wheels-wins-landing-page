@@ -1,319 +1,334 @@
+/**
+ * Authentication Error Handler
+ * Provides comprehensive error handling for authentication issues
+ */
+
 import { supabase } from '@/integrations/supabase/client';
 
+export enum AuthErrorType {
+  TOKEN_EXPIRED = 'TOKEN_EXPIRED',
+  TOKEN_INVALID = 'TOKEN_INVALID',
+  SESSION_MISSING = 'SESSION_MISSING',
+  REFRESH_FAILED = 'REFRESH_FAILED',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  UNAUTHORIZED = 'UNAUTHORIZED',
+  FORBIDDEN = 'FORBIDDEN',
+  UNKNOWN = 'UNKNOWN',
+}
+
 export interface AuthError {
-  code: string;
+  type: AuthErrorType;
   message: string;
-  severity: 'warning' | 'error' | 'critical';
-  action: 'retry' | 'refresh' | 'logout' | 'reload';
-  userMessage: string;
+  originalError?: any;
+  canRetry: boolean;
+  suggestedAction: 'refresh' | 'login' | 'retry' | 'reload' | 'none';
+}
+
+export interface AuthErrorHandlerConfig {
+  onTokenRefresh?: () => Promise<void>;
+  onLogout?: () => Promise<void>;
+  onReload?: () => void;
+  maxRetries?: number;
 }
 
 /**
  * Maps WebSocket close codes to authentication errors
  */
-export function mapWebSocketCloseToAuthError(closeCode: number, reason?: string): AuthError | null {
-  const authRelatedCodes: Record<number, AuthError> = {
-    1008: {
-      code: 'WS_AUTH_REQUIRED',
-      message: 'WebSocket authentication required',
-      severity: 'error',
-      action: 'refresh',
-      userMessage: 'Authentication is required. I\'ll try to refresh your session.'
-    },
-    4001: {
-      code: 'WS_AUTH_INVALID',
-      message: 'WebSocket authentication invalid',
-      severity: 'error',
-      action: 'refresh',
-      userMessage: 'Your session appears to be invalid. Let me refresh it.'
-    },
-    4003: {
-      code: 'WS_AUTH_FORBIDDEN',
-      message: 'WebSocket authentication forbidden',
-      severity: 'critical',
-      action: 'logout',
-      userMessage: 'Access forbidden. Please log out and back in.'
-    },
-    4004: {
-      code: 'WS_AUTH_EXPIRED',
-      message: 'WebSocket authentication expired',
-      severity: 'warning',
-      action: 'refresh',
-      userMessage: 'Your session expired. Refreshing authentication...'
-    }
-  };
-
-  const authError = authRelatedCodes[closeCode];
-  
-  if (authError) {
-    return authError;
-  }
-
-  // Check reason string for auth-related keywords
-  if (reason) {
-    const lowerReason = reason.toLowerCase();
-    if (lowerReason.includes('auth') || lowerReason.includes('token') || lowerReason.includes('unauthorized')) {
+export function mapWebSocketCloseCodeToAuthError(code: number, reason?: string): AuthError {
+  switch (code) {
+    case 1008: // Policy Violation
       return {
-        code: 'WS_AUTH_GENERIC',
-        message: `WebSocket authentication issue: ${reason}`,
-        severity: 'error',
-        action: 'refresh',
-        userMessage: 'Authentication issue detected. Attempting to refresh your session.'
+        type: AuthErrorType.TOKEN_INVALID,
+        message: 'Authentication failed - invalid token',
+        canRetry: true,
+        suggestedAction: 'refresh',
       };
-    }
+    
+    case 4001: // Unauthorized
+      return {
+        type: AuthErrorType.UNAUTHORIZED,
+        message: 'Unauthorized - please log in again',
+        canRetry: false,
+        suggestedAction: 'login',
+      };
+    
+    case 4003: // Forbidden
+      return {
+        type: AuthErrorType.FORBIDDEN,
+        message: 'Access forbidden - insufficient permissions',
+        canRetry: false,
+        suggestedAction: 'none',
+      };
+    
+    case 4004: // Token Expired
+      return {
+        type: AuthErrorType.TOKEN_EXPIRED,
+        message: 'Session expired - refreshing token',
+        canRetry: true,
+        suggestedAction: 'refresh',
+      };
+    
+    default:
+      if (reason?.toLowerCase().includes('auth')) {
+        return {
+          type: AuthErrorType.UNAUTHORIZED,
+          message: reason || 'Authentication required',
+          canRetry: true,
+          suggestedAction: 'refresh',
+        };
+      }
+      
+      return {
+        type: AuthErrorType.UNKNOWN,
+        message: `Connection closed: ${reason || `Code ${code}`}`,
+        canRetry: true,
+        suggestedAction: 'retry',
+      };
   }
-
-  return null;
 }
 
 /**
  * Maps HTTP status codes to authentication errors
  */
-export function mapHttpStatusToAuthError(status: number, responseText?: string): AuthError | null {
-  const authRelatedStatus: Record<number, AuthError> = {
-    401: {
-      code: 'HTTP_UNAUTHORIZED',
-      message: 'HTTP authentication failed',
-      severity: 'error',
-      action: 'refresh',
-      userMessage: 'Authentication failed. Refreshing your session...'
-    },
-    403: {
-      code: 'HTTP_FORBIDDEN',
-      message: 'HTTP access forbidden',
-      severity: 'critical',
-      action: 'logout',
-      userMessage: 'Access forbidden. Please log out and back in.'
-    }
-  };
-
-  const authError = authRelatedStatus[status];
-  
-  if (authError) {
-    return authError;
-  }
-
-  // Check response text for auth-related errors
-  if (responseText) {
-    const lowerText = responseText.toLowerCase();
-    if (lowerText.includes('jwt') || lowerText.includes('token') || lowerText.includes('expired')) {
+export function mapHttpStatusToAuthError(status: number, message?: string): AuthError | null {
+  switch (status) {
+    case 401:
       return {
-        code: 'HTTP_AUTH_GENERIC',
-        message: `HTTP authentication issue: ${responseText}`,
-        severity: 'error',
-        action: 'refresh',
-        userMessage: 'Session issue detected. Refreshing authentication...'
+        type: AuthErrorType.UNAUTHORIZED,
+        message: message || 'Authentication required',
+        canRetry: true,
+        suggestedAction: 'refresh',
       };
-    }
+    
+    case 403:
+      return {
+        type: AuthErrorType.FORBIDDEN,
+        message: message || 'Access forbidden',
+        canRetry: false,
+        suggestedAction: 'none',
+      };
+    
+    default:
+      return null;
   }
-
-  return null;
 }
 
 /**
- * Maps JWT decode errors to authentication errors
+ * Maps JWT errors to authentication errors
  */
-export function mapJwtErrorToAuthError(error: Error): AuthError {
-  const errorMessage = error.message.toLowerCase();
+export function mapJWTErrorToAuthError(error: string): AuthError {
+  const lowerError = error.toLowerCase();
   
-  if (errorMessage.includes('expired')) {
+  if (lowerError.includes('expired')) {
     return {
-      code: 'JWT_EXPIRED',
-      message: 'JWT token expired',
-      severity: 'warning',
-      action: 'refresh',
-      userMessage: 'Your session expired. Refreshing...'
+      type: AuthErrorType.TOKEN_EXPIRED,
+      message: 'Token expired',
+      originalError: error,
+      canRetry: true,
+      suggestedAction: 'refresh',
     };
   }
   
-  if (errorMessage.includes('not enough segments') || errorMessage.includes('invalid')) {
+  if (lowerError.includes('invalid') || lowerError.includes('malformed')) {
     return {
-      code: 'JWT_INVALID_FORMAT',
-      message: 'JWT token has invalid format',
-      severity: 'error',
-      action: 'logout',
-      userMessage: 'Invalid session format. Please log out and back in.'
+      type: AuthErrorType.TOKEN_INVALID,
+      message: 'Invalid token format',
+      originalError: error,
+      canRetry: true,
+      suggestedAction: 'login',
     };
   }
   
-  if (errorMessage.includes('signature')) {
+  if (lowerError.includes('signature')) {
     return {
-      code: 'JWT_INVALID_SIGNATURE',
-      message: 'JWT token signature invalid',
-      severity: 'critical',
-      action: 'logout',
-      userMessage: 'Session signature invalid. Please log out and back in.'
+      type: AuthErrorType.TOKEN_INVALID,
+      message: 'Invalid token signature',
+      originalError: error,
+      canRetry: false,
+      suggestedAction: 'login',
     };
   }
   
   return {
-    code: 'JWT_GENERIC_ERROR',
-    message: `JWT error: ${error.message}`,
-    severity: 'error',
-    action: 'refresh',
-    userMessage: 'Session error detected. Attempting to refresh...'
+    type: AuthErrorType.UNKNOWN,
+    message: error,
+    originalError: error,
+    canRetry: true,
+    suggestedAction: 'refresh',
   };
 }
 
 /**
- * Handles authentication errors with appropriate actions
+ * Authentication Error Handler
+ * Handles authentication errors with automatic recovery
  */
 export class AuthErrorHandler {
-  private static instance: AuthErrorHandler;
-  private retryAttempts = new Map<string, number>();
-  private maxRetries = 3;
+  private config: Required<AuthErrorHandlerConfig>;
+  private retryCount: Map<string, number> = new Map();
 
-  static getInstance(): AuthErrorHandler {
-    if (!AuthErrorHandler.instance) {
-      AuthErrorHandler.instance = new AuthErrorHandler();
-    }
-    return AuthErrorHandler.instance;
+  constructor(config: AuthErrorHandlerConfig = {}) {
+    this.config = {
+      onTokenRefresh: config.onTokenRefresh || this.defaultTokenRefresh,
+      onLogout: config.onLogout || this.defaultLogout,
+      onReload: config.onReload || (() => window.location.reload()),
+      maxRetries: config.maxRetries || 3,
+    };
   }
 
-  async handleAuthError(
-    error: AuthError,
-    context: string = 'unknown',
-    onMessage?: (message: string, type: 'error' | 'warning' | 'info') => void
-  ): Promise<boolean> {
-    const errorKey = `${error.code}_${context}`;
-    const currentAttempts = this.retryAttempts.get(errorKey) || 0;
+  /**
+   * Handles authentication error with automatic recovery
+   */
+  async handleAuthError(error: AuthError): Promise<boolean> {
+    const errorKey = `${error.type}-${error.message}`;
+    const currentRetries = this.retryCount.get(errorKey) || 0;
 
-    console.log(`🔐 AUTH ERROR: Handling ${error.code} in ${context}`, {
-      severity: error.severity,
-      action: error.action,
-      attempts: currentAttempts,
-      maxRetries: this.maxRetries
-    });
-
-    // Check if we've exceeded retry attempts
-    if (currentAttempts >= this.maxRetries && error.action !== 'logout') {
-      console.error(`🔐 AUTH ERROR: Max retries exceeded for ${error.code}`);
-      if (onMessage) {
-        onMessage(`Max retry attempts exceeded. Please refresh the page or log out and back in.`, 'error');
-      }
+    // Check if we've exceeded max retries
+    if (currentRetries >= this.config.maxRetries && error.canRetry) {
+      console.error(`❌ Max retries (${this.config.maxRetries}) exceeded for ${error.type}`);
+      await this.handleMaxRetriesExceeded(error);
       return false;
     }
 
     // Increment retry count
-    this.retryAttempts.set(errorKey, currentAttempts + 1);
-
-    // Notify user
-    if (onMessage && error.userMessage) {
-      const messageType = error.severity === 'critical' ? 'error' : 
-                         error.severity === 'error' ? 'error' : 'warning';
-      onMessage(error.userMessage, messageType);
+    if (error.canRetry) {
+      this.retryCount.set(errorKey, currentRetries + 1);
     }
 
+    // Handle based on suggested action
     try {
-      switch (error.action) {
+      switch (error.suggestedAction) {
         case 'refresh':
-          return await this.handleRefreshAction(error, context);
-          
-        case 'logout':
-          return await this.handleLogoutAction(error, context);
-          
-        case 'reload':
-          return this.handleReloadAction(error, context);
-          
-        case 'retry':
-          // Retry is handled by the caller
+          console.log('🔄 Attempting token refresh...');
+          await this.config.onTokenRefresh();
+          this.resetRetryCount(errorKey);
           return true;
-          
+
+        case 'login':
+          console.log('🔐 Redirecting to login...');
+          await this.config.onLogout();
+          return false;
+
+        case 'retry':
+          console.log('🔁 Will retry connection...');
+          return true;
+
+        case 'reload':
+          console.log('🔃 Reloading page...');
+          this.config.onReload();
+          return false;
+
+        case 'none':
         default:
-          console.warn(`🔐 AUTH ERROR: Unknown action ${error.action}`);
+          console.warn('⚠️ No action available for error:', error.message);
           return false;
       }
     } catch (actionError) {
-      console.error(`🔐 AUTH ERROR: Failed to handle ${error.action} action:`, actionError);
-      return false;
-    }
-  }
-
-  private async handleRefreshAction(error: AuthError, context: string): Promise<boolean> {
-    try {
-      console.log(`🔄 AUTH: Attempting token refresh for ${error.code} in ${context}`);
+      console.error('❌ Error handling failed:', actionError);
       
-      const { data, error: refreshError } = await supabase.auth.refreshSession();
-      
-      if (refreshError || !data.session?.access_token) {
-        console.error('🔄 AUTH: Token refresh failed:', refreshError);
-        
-        // If refresh fails, escalate to logout
-        const logoutError: AuthError = {
-          code: 'REFRESH_FAILED',
-          message: 'Token refresh failed',
-          severity: 'critical',
-          action: 'logout',
-          userMessage: 'Unable to refresh your session. Please log out and back in.'
-        };
-        
-        return await this.handleLogoutAction(logoutError, context);
+      // If refresh failed, try logout
+      if (error.suggestedAction === 'refresh') {
+        await this.config.onLogout();
       }
       
-      console.log('✅ AUTH: Token refresh successful');
-      
-      // Clear retry count on successful refresh
-      const errorKey = `${error.code}_${context}`;
-      this.retryAttempts.delete(errorKey);
-      
-      return true;
-      
-    } catch (refreshError) {
-      console.error('🔄 AUTH: Exception during token refresh:', refreshError);
-      return false;
-    }
-  }
-
-  private async handleLogoutAction(error: AuthError, context: string): Promise<boolean> {
-    try {
-      console.log(`🚪 AUTH: Attempting logout for ${error.code} in ${context}`);
-      
-      await supabase.auth.signOut();
-      
-      // Clear all retry counts
-      this.retryAttempts.clear();
-      
-      // Redirect to login page or reload
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-      
-      return true;
-      
-    } catch (logoutError) {
-      console.error('🚪 AUTH: Exception during logout:', logoutError);
-      return false;
-    }
-  }
-
-  private handleReloadAction(error: AuthError, context: string): boolean {
-    try {
-      console.log(`🔄 AUTH: Attempting page reload for ${error.code} in ${context}`);
-      
-      if (typeof window !== 'undefined') {
-        window.location.reload();
-      }
-      
-      return true;
-      
-    } catch (reloadError) {
-      console.error('🔄 AUTH: Exception during page reload:', reloadError);
       return false;
     }
   }
 
   /**
-   * Reset retry count for a specific error/context combination
+   * Handles case when max retries are exceeded
    */
-  resetRetryCount(errorCode: string, context: string): void {
-    const errorKey = `${errorCode}_${context}`;
-    this.retryAttempts.delete(errorKey);
+  private async handleMaxRetriesExceeded(error: AuthError): Promise<void> {
+    switch (error.type) {
+      case AuthErrorType.TOKEN_EXPIRED:
+      case AuthErrorType.TOKEN_INVALID:
+      case AuthErrorType.UNAUTHORIZED:
+        // For auth errors, logout after max retries
+        await this.config.onLogout();
+        break;
+      
+      case AuthErrorType.NETWORK_ERROR:
+        // For network errors, show message and don't logout
+        this.showErrorMessage('Network connection issues. Please check your connection and refresh the page.');
+        break;
+      
+      default:
+        // For other errors, reload the page
+        this.config.onReload();
+    }
   }
 
   /**
-   * Clear all retry counts
+   * Default token refresh implementation
    */
-  clearAllRetries(): void {
-    this.retryAttempts.clear();
+  private async defaultTokenRefresh(): Promise<void> {
+    const { error } = await supabase.auth.refreshSession();
+    if (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Default logout implementation
+   */
+  private async defaultLogout(): Promise<void> {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  }
+
+  /**
+   * Shows error message to user
+   */
+  private showErrorMessage(message: string): void {
+    // This could be replaced with a toast notification system
+    console.error('🚨 ' + message);
+    
+    // Create a simple error banner if it doesn't exist
+    let errorBanner = document.getElementById('auth-error-banner');
+    if (!errorBanner) {
+      errorBanner = document.createElement('div');
+      errorBanner.id = 'auth-error-banner';
+      errorBanner.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: #ef4444;
+        color: white;
+        padding: 12px;
+        text-align: center;
+        z-index: 9999;
+        font-family: sans-serif;
+      `;
+      document.body.appendChild(errorBanner);
+    }
+    
+    errorBanner.textContent = message;
+    errorBanner.style.display = 'block';
+    
+    // Auto-hide after 10 seconds
+    setTimeout(() => {
+      if (errorBanner) {
+        errorBanner.style.display = 'none';
+      }
+    }, 10000);
+  }
+
+  /**
+   * Resets retry count for an error
+   */
+  resetRetryCount(errorKey?: string): void {
+    if (errorKey) {
+      this.retryCount.delete(errorKey);
+    } else {
+      this.retryCount.clear();
+    }
+  }
+
+  /**
+   * Gets current retry count for an error
+   */
+  getRetryCount(error: AuthError): number {
+    const errorKey = `${error.type}-${error.message}`;
+    return this.retryCount.get(errorKey) || 0;
   }
 }
