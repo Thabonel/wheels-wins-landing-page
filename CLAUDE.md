@@ -651,6 +651,34 @@ The Wheels & Wins project uses Model Context Protocol (MCP) servers to provide C
 - `@render/mcp-server` package
 - Configured services in Render.com dashboard
 
+#### 🔄 Anthropic MCP Code Analyzer
+**Purpose**: AI-powered repository analysis and code integration
+**Key Features**:
+- Analyzes open source projects for integration opportunities
+- Uses Claude AI to generate intelligent merge strategies
+- Performs AST (Abstract Syntax Tree) parsing for deep code understanding
+- Identifies patterns, dependencies, and architectural decisions
+- Provides conflict resolution and refactoring recommendations
+
+**Available Endpoints**:
+- **POST /analyze**: Analyzes source and target repositories
+  - Accepts source and target repository URLs
+  - Returns comprehensive integration strategy
+  - Identifies potential conflicts and solutions
+- **GET /health**: Server status verification
+
+**Common Use Cases**:
+- Integrating travel/RV-related open source projects
+- Analyzing similar PWA implementations for best practices
+- Merging AI assistant features from other projects
+- Understanding mapping library integration patterns
+- Adopting financial management features from similar platforms
+
+**Setup Requirements**:
+- Anthropic API key (same as Claude's)
+- `anthropic-mcp-code-analyzer` package
+- Optional: Configure PORT (defaults to 3000)
+
 ### Setup Instructions
 
 #### Initial Setup
@@ -664,11 +692,15 @@ The Wheels & Wins project uses Model Context Protocol (MCP) servers to provide C
    
    # Render MCP Server
    npm install -g @render/mcp-server
+   
+   # Anthropic MCP Code Analyzer
+   npm install -g anthropic-mcp-code-analyzer
    ```
 
 2. **Configure Environment Variables**:
    - Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for Supabase
    - Set `RENDER_API_KEY` for Render.com
+   - Set `ANTHROPIC_API_KEY` for Code Analyzer
    - Configure project paths for Serena
 
 3. **Update Configuration Files**:

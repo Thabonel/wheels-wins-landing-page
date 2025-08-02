@@ -229,12 +229,21 @@ class EdgeTTSEngine:
         try:
             import edge_tts
             
-            # Load available voices
-            self.voices = await edge_tts.list_voices()
+            # Try to load available voices, but don't fail if network is unavailable
+            try:
+                self.voices = await edge_tts.list_voices()
+                logger.info(f"✅ Edge TTS initialized with {len(self.voices)} voices")
+            except Exception as voice_error:
+                logger.warning(f"⚠️ Could not load Edge TTS voices (network issue?): {voice_error}")
+                logger.info("✅ Edge TTS available (import successful) - will use default voices")
+                self.voices = []  # Use default voices
+            
             self.is_initialized = True
-            logger.info(f"✅ Edge TTS initialized with {len(self.voices)} voices")
             return True
             
+        except ImportError as e:
+            logger.error(f"❌ Edge TTS not available: {e}")
+            return False
         except Exception as e:
             logger.error(f"❌ Edge TTS initialization failed: {e}")
             return False
