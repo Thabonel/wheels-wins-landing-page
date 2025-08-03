@@ -21,6 +21,7 @@ import {
   mapHttpStatusToAuthError 
 } from "@/utils/authErrorHandler";
 import { AuthTestSuite, quickAuthCheck } from "@/utils/authTestSuite";
+import { audioManager } from "@/utils/audioManager";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -597,8 +598,32 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('✅ PAM DEBUG: Valid JWT token obtained:', {
         tokenLength: tokenResult.token.length,
         tokenPreview: tokenResult.token.substring(0, 30) + '...',
-        shouldRefresh: tokenResult.shouldRefresh
+        expiresAt: tokenResult.expiresAt,
+        needsRefresh: tokenResult.needsRefresh
       });
+      
+      // CRITICAL: Verify this is actually a JWT, not a UUID
+      if (tokenResult.token.includes('-') && tokenResult.token.length === 36) {
+        console.error('❌ PAM DEBUG: ERROR - Token appears to be a UUID, not a JWT!');
+        console.error('❌ PAM DEBUG: Token value:', tokenResult.token);
+        console.error('❌ PAM DEBUG: This will cause authentication to fail');
+        
+        // Try to get the actual JWT from session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          console.log('🔄 PAM DEBUG: Found JWT in session, using that instead');
+          tokenResult.token = session.access_token;
+          console.log('✅ PAM DEBUG: JWT token from session:', {
+            tokenLength: session.access_token.length,
+            tokenPreview: session.access_token.substring(0, 30) + '...'
+          });
+        } else {
+          console.error('❌ PAM DEBUG: No JWT found in session either!');
+          setConnectionStatus("Disconnected");
+          addMessage("🤖 Hi! I'm PAM. Authentication failed - no valid JWT token found. Please try logging out and back in.", "pam");
+          return;
+        }
+      }
       
       // Step 2: Get WebSocket base URL
       console.log('🔧 PAM DEBUG: Getting WebSocket base URL...');
@@ -1577,7 +1602,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           const audioBuffer = await response.arrayBuffer();
           const responseAudioBlob = new Blob([audioBuffer], { type: contentType });
           const audioUrl = URL.createObjectURL(responseAudioBlob);
-          const audio = new Audio(audioUrl);
+          const audio = audioManager.getAudio(audioUrl);
           
           // Get transcription and response text from headers
           const transcription = response.headers.get('X-Transcription') || '';
@@ -1979,8 +2004,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       console.log('🎵 Voice response received:', voiceResponse);
 
-      // Create and configure audio element
-      const audio = new Audio(voiceResponse.audioUrl);
+      // Use audio manager to prevent WebMediaPlayer overflow
+      const audio = audioManager.getAudio(voiceResponse.audioUrl);
       setCurrentAudio(audio);
 
       // Set up audio event listeners
@@ -1989,7 +2014,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         setIsSpeaking(false);
         vadService.setPAMSpeaking(false);
         setCurrentAudio(null);
-        URL.revokeObjectURL(voiceResponse.audioUrl); // Clean up blob URL
+        // Audio manager handles URL cleanup
       });
 
       audio.addEventListener('error', (error) => {
@@ -1997,7 +2022,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         setIsSpeaking(false);
         vadService.setPAMSpeaking(false);
         setCurrentAudio(null);
-        URL.revokeObjectURL(voiceResponse.audioUrl); // Clean up blob URL
+        // Audio manager handles URL cleanup
       });
 
       // Play the generated audio
@@ -2217,6 +2242,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Stop all voice-related activities and release microphone
       stopAudioLevelMonitoring();
       stopWakeWordListening();
+      
+      // Clean up audio manager
+      audioManager.stopAll();
+      console.log('🎵 Audio manager stats:', audioManager.getStats());
       
       // Stop any active media recording
       if (mediaRecorder && mediaRecorder.state === 'recording') {
