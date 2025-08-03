@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TabTransition } from "@/components/common/TabTransition";
-import LazyTripPlannerApp from '@/components/wheels/LazyTripPlannerApp';
+import TripPlannerApp from '@/components/wheels/TripPlannerApp';
 import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
 import { TripPlannerErrorBoundary } from "@/components/common/TripPlannerErrorBoundary";
 import { PAMErrorBoundary } from "@/components/common/PAMErrorBoundary";
@@ -75,7 +75,7 @@ const Wheels = () => {
                   <TripPlannerErrorBoundary>
                     <PAMErrorBoundary>
                       <PAMProvider>
-                        <LazyTripPlannerApp />
+                        <TripPlannerApp />
                       </PAMProvider>
                     </PAMErrorBoundary>
                   </TripPlannerErrorBoundary>

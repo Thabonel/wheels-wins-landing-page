@@ -1,3 +1,17 @@
+/**
+ * IMPORTANT: This Trip Planner component is SACROSANCT and must NOT be modified
+ * without explicit permission from the project owner. Any optimizations, 
+ * refactoring, or changes require direct approval.
+ * 
+ * DO NOT:
+ * - Add performance optimizations
+ * - Refactor the code structure
+ * - Add lazy loading
+ * - Modify the UI/UX
+ * - Change any functionality
+ * 
+ * This component works exactly as intended.
+ */
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
