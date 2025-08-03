@@ -23,6 +23,8 @@ from . import (
     tts,
     performance,
     receipts,
+    camping,
+    youtube_scraper,
 )
 
 __all__ = [
@@ -50,4 +52,6 @@ __all__ = [
     'tts',
     'performance',
     'receipts',
+    'camping',
+    'youtube_scraper',
 ]

@@ -68,6 +68,7 @@ from app.api.v1 import (
     user_settings,
     onboarding,
     performance,
+    camping,
 )
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
@@ -526,6 +527,8 @@ except Exception as e:
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
+app.include_router(camping.router, prefix="/api/v1", tags=["Camping Locations"])
+app.include_router(youtube_scraper.router, prefix="/api/v1/youtube", tags=["YouTube Scraper"])
 
 # Security status endpoint is automatically added by enhanced_security_setup
 # Additional security endpoints can be accessed at /api/security/status and /api/security/recommendations
