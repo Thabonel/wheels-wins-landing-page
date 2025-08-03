@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import { validateAndPrepareToken, refreshToken, WebSocketAuthManager } from './websocketAuth';
-import { AuthErrorHandler, mapWebSocketCloseToAuthError, mapJwtErrorToAuthError } from './authErrorHandler';
+import { validateJWTToken, getValidAccessToken, WebSocketAuthManager, createAuthenticatedWebSocketUrl } from './websocketAuth';
+import { AuthErrorHandler, AuthErrorType, mapWebSocketCloseCodeToAuthError, mapJWTErrorToAuthError } from './authErrorHandler';
 
 export interface TestResult {
   testName: string;
@@ -113,7 +113,7 @@ export class AuthTestSuite {
 
   async testTokenValidation(): Promise<TestResult> {
     return this.runTest('Token Validation Utility', async () => {
-      const result = await validateAndPrepareToken();
+      const result = await getValidAccessToken();
       
       if (!result.isValid) {
         throw new Error(result.error || 'Token validation failed');
@@ -167,7 +167,8 @@ export class AuthTestSuite {
       const originalToken = currentSession.access_token;
       
       // Attempt refresh
-      const refreshResult = await refreshToken();
+      // Force refresh by calling getValidAccessToken
+      const refreshResult = await getValidAccessToken();
       
       if (!refreshResult.isValid) {
         throw new Error(refreshResult.error || 'Token refresh failed');
@@ -194,13 +195,13 @@ export class AuthTestSuite {
       const errorHandler = AuthErrorHandler.getInstance();
       
       // Test WebSocket close code mapping
-      const wsError1008 = mapWebSocketCloseToAuthError(1008);
-      if (!wsError1008 || wsError1008.code !== 'WS_AUTH_REQUIRED') {
+      const wsError1008 = mapWebSocketCloseCodeToAuthError(1008);
+      if (!wsError1008 || wsError1008.type !== AuthErrorType.TOKEN_INVALID) {
         throw new Error('WebSocket error mapping failed for code 1008');
       }
       
       // Test JWT error mapping
-      const jwtError = mapJwtErrorToAuthError(new Error('Token expired'));
+      const jwtError = mapJWTErrorToAuthError(new Error('Token expired'));
       if (!jwtError || jwtError.code !== 'JWT_EXPIRED') {
         throw new Error('JWT error mapping failed for expired token');
       }
@@ -233,7 +234,7 @@ export class AuthTestSuite {
   async testWebSocketUrlCreation(): Promise<TestResult> {
     return this.runTest('WebSocket URL Creation', async () => {
       // Get a valid token first
-      const tokenResult = await validateAndPrepareToken();
+      const tokenResult = await getValidAccessToken();
       if (!tokenResult.isValid || !tokenResult.token) {
         throw new Error('Cannot test URL creation without valid token');
       }
