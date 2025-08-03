@@ -51,7 +51,7 @@ interface PamProps {
 
 const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const { user, session } = useAuth();
-  const { settings } = useUserSettings();
+  const { settings, updateSettings } = useUserSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -1762,14 +1762,31 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           }
           addMessage(`${responseText} 🔊`, "pam");
           
-          // Play audio response
-          audio.oncanplaythrough = () => {
-            console.log('🔊 Playing audio response...');
-            audio.play().catch(err => {
-              console.warn('⚠️ Could not play audio:', err);
-              addMessage("(Audio response ready but playback failed)", "pam");
+          // CONTROLLED AUDIO PLAYBACK: Only play if user has voice enabled and expects it
+          // Check if this is a continuous conversation mode response that should auto-play
+          const shouldAutoPlay = isContinuousMode && (settings?.pam_preferences?.voice_enabled ?? false);
+          
+          if (shouldAutoPlay) {
+            // Wait for natural conversation pause before speaking (preserves VAD intelligence)
+            vadService.waitForPause(2000).then(() => {
+              if (vadService.canPAMSpeak()) {
+                console.log('🔊 Playing audio response in continuous mode...');
+                audio.oncanplaythrough = () => {
+                  audio.play().catch(err => {
+                    console.warn('⚠️ Could not play audio:', err);
+                    addMessage("(Audio response ready but playback failed)", "pam");
+                  });
+                };
+                vadService.setPAMSpeaking(true);
+              } else {
+                console.log('🔇 VAD determined not appropriate time to speak - audio ready for manual play');
+              }
             });
-          };
+          } else {
+            console.log('🔇 Auto-play disabled - audio ready for manual activation');
+            // Store audio for manual playback but don't auto-play
+            setCurrentAudio(audio);
+          }
           
           audio.onerror = (err) => {
             console.warn('⚠️ Audio playback error:', err);
@@ -2166,9 +2183,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         // Audio manager handles URL cleanup
       });
 
-      // Play the generated audio
-      await audio.play();
-      console.log('✅ Voice playback started');
+      // CONTROLLED TTS PLAYBACK: Respect VAD conversation management
+      // Wait for appropriate moment to speak if in continuous mode
+      if (isContinuousMode && isVADActive) {
+        await vadService.waitForPause(2000);
+        if (vadService.canPAMSpeak()) {
+          await audio.play();
+          console.log('✅ Voice playback started (VAD-controlled)');
+        } else {
+          console.log('🔇 VAD determined not appropriate time to speak - skipping TTS playback');
+          setIsSpeaking(false);
+          vadService.setPAMSpeaking(false);
+          setCurrentAudio(null);
+          return;
+        }
+      } else {
+        // Normal manual TTS playback (user clicked a voice button)
+        await audio.play();
+        console.log('✅ Voice playback started (manual)');
+      }
 
     } catch (error) {
       console.warn('🔊 Voice synthesis failed:', error);
@@ -2624,6 +2657,33 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   className="w-full h-1"
                 />
               </div>
+              <div className="pt-2 border-t border-gray-200">
+                <label className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Auto-speak in Continuous Mode</span>
+                  <input
+                    type="checkbox"
+                    checked={settings?.pam_preferences?.voice_enabled ?? false}
+                    onChange={(e) => {
+                      console.log('🔊 Voice auto-play toggled:', e.target.checked);
+                      updateSettings({
+                        pam_preferences: {
+                          ...settings?.pam_preferences,
+                          voice_enabled: e.target.checked
+                        }
+                      });
+                    }}
+                    className="ml-2"
+                  />
+                </label>
+                <div className="text-xs text-gray-500 mt-1">
+                  {isContinuousMode 
+                    ? (settings?.pam_preferences?.voice_enabled 
+                        ? "✅ PAM will speak responses automatically" 
+                        : "🔇 PAM responses will be silent (click speaker icons to hear)")
+                    : "Only applies when Continuous Mode is active"
+                  }
+                </div>
+              </div>
             </div>
           </details>
           
@@ -2964,6 +3024,33 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
                     className="w-full h-1"
                   />
+                </div>
+                <div className="pt-2 border-t border-gray-200">
+                  <label className="flex items-center justify-between text-xs text-gray-600">
+                    <span>Auto-speak in Continuous Mode</span>
+                    <input
+                      type="checkbox"
+                      checked={settings?.pam_preferences?.voice_enabled ?? false}
+                      onChange={(e) => {
+                        console.log('🔊 Voice auto-play toggled:', e.target.checked);
+                        updateSettings({
+                          pam_preferences: {
+                            ...settings?.pam_preferences,
+                            voice_enabled: e.target.checked
+                          }
+                        });
+                      }}
+                      className="ml-2"
+                    />
+                  </label>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {isContinuousMode 
+                      ? (settings?.pam_preferences?.voice_enabled 
+                          ? "✅ PAM will speak responses automatically" 
+                          : "🔇 PAM responses will be silent (click speaker icons to hear)")
+                      : "Only applies when Continuous Mode is active"
+                    }
+                  </div>
                 </div>
               </div>
             </details>
