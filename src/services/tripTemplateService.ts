@@ -39,13 +39,23 @@ export async function fetchTripTemplatesForRegion(region: Region): Promise<TripT
   try {
     console.log(`Fetching trip templates for region: ${region}`);
     
-    const { data, error } = await (supabase as any)
+    // Build query based on region - handle Australian templates specially
+    let query = (supabase as any)
       .from('trip_templates')
       .select('*')
-      .or(`template_data->>'region'.eq.${region},is_public.eq.true`)
-      .eq('is_public', true)
+      .eq('is_public', true);
+    
+    // For Australia, get all templates that contain "Australia" in region or are general Australian routes
+    if (region === 'Australia') {
+      query = query.or(`template_data->>'region'.ilike.*Australia*,template_data->>'region'.ilike.*Victoria*,template_data->>'region'.ilike.*NSW*,template_data->>'region'.ilike.*Queensland*,template_data->>'region'.ilike.*Tasmania*,template_data->>'region'.ilike.*Territory*,tags.cs.{australia}`);
+    } else {
+      // For other regions, try exact match first, then broader match
+      query = query.or(`template_data->>'region'.ilike.*${region}*,template_data->>'region'.eq.${region}`);
+    }
+    
+    const { data, error } = await query
       .order('usage_count', { ascending: false })
-      .limit(10);
+      .limit(20); // Increased limit to get more templates
 
     if (error) {
       console.error('Error fetching trip templates:', error);
@@ -57,6 +67,8 @@ export async function fetchTripTemplatesForRegion(region: Region): Promise<TripT
       return [];
     }
 
+    console.log(`Found ${data.length} trip templates for region ${region}`);
+    
     // Transform database records to TripTemplate format
     return data.map(transformDatabaseToTemplate);
   } catch (error) {
@@ -75,11 +87,13 @@ function transformDatabaseToTemplate(dbRecord: any): TripTemplate {
     id: dbRecord.id,
     name: dbRecord.name,
     description: dbRecord.description || templateData.description || '',
-    estimatedDays: templateData.estimatedDays || 7,
-    estimatedMiles: templateData.estimatedMiles || 500,
+    // Fix field mapping from database structure
+    estimatedDays: templateData.duration_days || templateData.estimatedDays || 7,
+    estimatedMiles: templateData.distance_miles || templateData.estimatedMiles || 500,
     difficulty: templateData.difficulty || 'intermediate',
     highlights: templateData.highlights || [],
-    suggestedBudget: templateData.suggestedBudget || 1000,
+    // Fix budget field mapping
+    suggestedBudget: templateData.estimated_budget || templateData.suggestedBudget || 1000,
     route: templateData.route || null,
     region: templateData.region || 'Rest of the World',
     category: dbRecord.category || 'general',
