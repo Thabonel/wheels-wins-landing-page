@@ -17,7 +17,7 @@ import {
 } from "@/utils/websocketAuth";
 import { 
   AuthErrorHandler, 
-  mapWebSocketCloseToAuthError,
+  mapWebSocketCloseCodeToAuthError,
   mapHttpStatusToAuthError 
 } from "@/utils/authErrorHandler";
 import { AuthTestSuite, quickAuthCheck } from "@/utils/authTestSuite";
@@ -882,7 +882,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           console.log(`🔄 PAM DEBUG: Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/5)`);
           
           // Check if disconnection was due to authentication issues
-          const authError = mapWebSocketCloseToAuthError(event.code, event.reason);
+          const authError = mapWebSocketCloseCodeToAuthError(event.code, event.reason);
           
           if (authError) {
             console.log('🔐 PAM DEBUG: Authentication error detected:', authError);
