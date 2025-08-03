@@ -70,7 +70,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [voiceActivationMode, setVoiceActivationMode] = useState<'manual' | 'auto' | 'command'>('manual');
   const ttsQueueRef = useRef<TTSQueueManager | null>(null);
-  const { startTracking, stopTracking, getCurrentLocation, state: locationState } = useLocationTracking();
+  const { startTracking, stopTracking, getCurrentLocation, ...locationState } = useLocationTracking();
   const [audioLevel, setAudioLevel] = useState(0);
   const [isShowingAudioLevel, setIsShowingAudioLevel] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
@@ -231,7 +231,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   // Update location context when tracking state changes
   useEffect(() => {
     const updateLocationContext = async () => {
-      if (user?.id && locationState.isTracking) {
+      if (user?.id && locationState?.isTracking) {
         try {
           const userLocation = await locationService.getUserLocation(user.id);
           if (userLocation && userLocation.current_latitude && userLocation.current_longitude) {
@@ -251,7 +251,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     };
 
     updateLocationContext();
-  }, [user?.id, locationState.isTracking, locationState.lastUpdate]);
+  }, [user?.id, locationState?.isTracking, locationState?.lastUpdate]);
 
   // Listen for external PAM control events
   useEffect(() => {
@@ -327,7 +327,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
 
       // Also fetch current location if user has location tracking enabled
-      if (user?.id && locationState.isTracking) {
+      if (user?.id && locationState?.isTracking) {
         try {
           const userLocation = await locationService.getUserLocation(user.id);
           if (userLocation && userLocation.current_latitude && userLocation.current_longitude) {
@@ -367,7 +367,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     try {
       // First, check if we already have location from the tracking service
-      if (locationState.isTracking && user?.id) {
+      if (locationState?.isTracking && user?.id) {
         console.log('📍 Using existing location from tracking service');
         const userLocation = await locationService.getUserLocation(user.id);
         if (userLocation && userLocation.current_latitude && userLocation.current_longitude) {
