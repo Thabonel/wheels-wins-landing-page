@@ -4,8 +4,9 @@ Infrastructure and deployment settings for databases, external APIs, and service
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import SecretStr
+from pydantic import SecretStr, Field
 from typing import List, Optional
+import os
 
 
 class InfrastructureSettings(BaseSettings):
@@ -52,7 +53,9 @@ class InfrastructureSettings(BaseSettings):
     MAPBOX_SECRET_TOKEN: Optional[str] = None
     
     # YouTube API
-    YOUTUBE_API_KEY: Optional[str] = None
+    YOUTUBE_API_KEY: Optional[str] = Field(
+        default_factory=lambda: os.getenv('YOUTUBE_API_KEY') or os.getenv('YOUTUBE-API')
+    )
 
     # AI Agent Observability Infrastructure
     LANGFUSE_SECRET_KEY: Optional[str] = None

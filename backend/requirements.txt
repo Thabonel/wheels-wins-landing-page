@@ -93,6 +93,12 @@ textstat==0.7.7
 googlemaps==4.10.0
 lxml==5.2.1
 
+# YouTube scraping
+youtube-transcript-api==0.6.2
+google-api-python-client==2.111.0
+google-auth==2.25.2
+google-auth-httplib2==0.2.0
+
 chromadb==0.4.22
 sentence-transformers==2.7.0
 whisper==1.1.1
