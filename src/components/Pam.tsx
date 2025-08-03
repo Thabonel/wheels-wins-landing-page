@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign } from "lucide-react";
+import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
 import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
@@ -22,6 +22,9 @@ import {
 } from "@/utils/authErrorHandler";
 import { AuthTestSuite, quickAuthCheck } from "@/utils/authTestSuite";
 import { audioManager } from "@/utils/audioManager";
+import { TTSQueueManager } from "@/utils/ttsQueueManager";
+import { locationService } from "@/services/locationService";
+import { useLocationTracking } from "@/hooks/useLocationTracking";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -37,6 +40,9 @@ interface PamMessage {
   sender: "user" | "pam";
   timestamp: string;
   context?: any;
+  shouldSpeak?: boolean;  // Control whether this message should be spoken
+  voicePriority?: 'low' | 'normal' | 'high' | 'urgent';
+  isStreaming?: boolean;  // Indicates if this message is currently being streamed
 }
 
 interface PamProps {
@@ -62,6 +68,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [wakeWordRecognition, setWakeWordRecognition] = useState<any | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [voiceActivationMode, setVoiceActivationMode] = useState<'manual' | 'auto' | 'command'>('manual');
+  const ttsQueueRef = useRef<TTSQueueManager | null>(null);
+  const { startTracking, stopTracking, getCurrentLocation, state: locationState } = useLocationTracking();
   const [audioLevel, setAudioLevel] = useState(0);
   const [isShowingAudioLevel, setIsShowingAudioLevel] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
@@ -95,6 +104,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     isWakeWordListeningRef.current = isWakeWordListening;
   }, [isWakeWordListening]);
+
+  // Initialize TTS Queue Manager
+  useEffect(() => {
+    ttsQueueRef.current = new TTSQueueManager(
+      (isSpeaking) => setIsSpeaking(isSpeaking),
+      () => console.log('🔇 Speech interrupted')
+    );
+    
+    return () => {
+      ttsQueueRef.current?.destroy();
+    };
+  }, []);
 
   // Cleanup audio level monitoring and VAD on unmount
   useEffect(() => {
@@ -207,6 +228,31 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // eslint-disable-next-line
   }, [user?.id, sessionId]);
 
+  // Update location context when tracking state changes
+  useEffect(() => {
+    const updateLocationContext = async () => {
+      if (user?.id && locationState.isTracking) {
+        try {
+          const userLocation = await locationService.getUserLocation(user.id);
+          if (userLocation && userLocation.current_latitude && userLocation.current_longitude) {
+            const { current_latitude, current_longitude } = userLocation;
+            const locationString = `${current_latitude.toFixed(4)}, ${current_longitude.toFixed(4)}`;
+            setUserContext(prev => ({
+              ...prev,
+              current_location: locationString,
+              location_source: 'trip_planner'
+            }));
+            console.log('📍 Updated PAM location context from trip planner:', locationString);
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to update location context:', error);
+        }
+      }
+    };
+
+    updateLocationContext();
+  }, [user?.id, locationState.isTracking, locationState.lastUpdate]);
+
   // Listen for external PAM control events
   useEffect(() => {
     const handleOpenWithMessage = (event: CustomEvent) => {
@@ -261,6 +307,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadUserContext = async () => {
     try {
+      // Fetch user preferences and context
       const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
         body: JSON.stringify({
@@ -271,11 +318,34 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           }
         })
       });
+      
+      let contextData = {};
       if (response.ok) {
         const data = await response.json();
         console.log('📋 Loaded user context:', data);
-        setUserContext(data?.context_updates || data?.actions || data);
+        contextData = data?.context_updates || data?.actions || data;
       }
+
+      // Also fetch current location if user has location tracking enabled
+      if (user?.id && locationState.isTracking) {
+        try {
+          const userLocation = await locationService.getUserLocation(user.id);
+          if (userLocation && userLocation.current_latitude && userLocation.current_longitude) {
+            const { current_latitude, current_longitude } = userLocation;
+            const locationString = `${current_latitude.toFixed(4)}, ${current_longitude.toFixed(4)}`;
+            contextData = {
+              ...contextData,
+              current_location: locationString,
+              location_source: 'trip_planner'
+            };
+            console.log('📍 Added location from trip planner:', locationString);
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to fetch location from trip planner:', error);
+        }
+      }
+
+      setUserContext(contextData);
     } catch (error) {
       console.error('Failed to load user context:', error);
     }
@@ -296,6 +366,23 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     setIsRequestingLocation(true);
     
     try {
+      // First, check if we already have location from the tracking service
+      if (locationState.isTracking && user?.id) {
+        console.log('📍 Using existing location from tracking service');
+        const userLocation = await locationService.getUserLocation(user.id);
+        if (userLocation && userLocation.current_latitude && userLocation.current_longitude) {
+          const { current_latitude, current_longitude } = userLocation;
+          const locationString = `${current_latitude.toFixed(4)}, ${current_longitude.toFixed(4)}`;
+          setUserContext(prev => ({
+            ...prev,
+            current_location: locationString
+          }));
+          setIsRequestingLocation(false);
+          return { latitude: current_latitude, longitude: current_longitude };
+        }
+      }
+
+      // If not tracking or no stored location, request fresh location
       return new Promise((resolve) => {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
@@ -309,19 +396,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               current_location: locationString
             }));
             
-            // Optionally store in locationService
-            try {
-              const { locationService } = await import('@/services/locationService');
-              if (user?.id) {
+            // Store in locationService
+            if (user?.id) {
+              try {
                 await locationService.updateUserLocation({
                   user_id: user.id,
                   current_latitude: latitude,
                   current_longitude: longitude,
                   status: 'active'
                 });
+                console.log('✅ Location stored in database');
+              } catch (error) {
+                console.warn('⚠️ Failed to update location in database:', error);
               }
-            } catch (error) {
-              console.warn('⚠️ Failed to update location in database:', error);
             }
             
             setIsRequestingLocation(false);
@@ -703,7 +790,60 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             text: message.text
           });
           
-          // Handle chat responses (multiple types)
+          // Handle streaming chat responses
+          if (message.type === 'chat_response_start') {
+            console.log('🌊 PAM DEBUG: Streaming response started');
+            // Show immediate processing indicator
+            addMessage(message.message || "🔍 Processing your request...", "pam", undefined, false, 'normal');
+            return;
+          }
+          
+          if (message.type === 'chat_response_delta') {
+            console.log('🌊 PAM DEBUG: Streaming delta received:', message.content);
+            // Update the last PAM message with new content
+            setMessages(prev => {
+              const lastPamIndex = prev.length - 1;
+              if (lastPamIndex >= 0 && prev[lastPamIndex].sender === 'pam') {
+                const updated = [...prev];
+                updated[lastPamIndex] = {
+                  ...updated[lastPamIndex],
+                  content: (updated[lastPamIndex].content || '') + message.content,
+                  isStreaming: true
+                };
+                return updated;
+              } else {
+                // Start new streaming message if no existing PAM message
+                return [...prev, {
+                  id: Date.now().toString(),
+                  content: message.content,
+                  sender: "pam",
+                  timestamp: new Date().toISOString(),
+                  isStreaming: true
+                }];
+              }
+            });
+            return;
+          }
+          
+          if (message.type === 'chat_response_complete') {
+            console.log('🌊 PAM DEBUG: Streaming response completed');
+            // Mark the last PAM message as complete
+            setMessages(prev => {
+              const lastPamIndex = prev.length - 1;
+              if (lastPamIndex >= 0 && prev[lastPamIndex].sender === 'pam') {
+                const updated = [...prev];
+                updated[lastPamIndex] = {
+                  ...updated[lastPamIndex],
+                  isStreaming: false
+                };
+                return updated;
+              }
+              return prev;
+            });
+            return;
+          }
+
+          // Handle traditional chat responses (non-streaming fallback)
           if (message.type === 'chat_response' || message.type === 'response') {
             const content = message.content || message.message || message.response;
             console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
@@ -1929,49 +2069,34 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  // Function to speak PAM's messages using TTS
-  const speakMessage = async (content: string) => {
-    // Check if voice is enabled in user settings (default to true if not set)
-    const isVoiceEnabled = settings?.pam_preferences?.voice_enabled ?? true;
-    console.log('🔊 Voice enabled status:', isVoiceEnabled, 'Settings:', settings?.pam_preferences);
+  // Function to speak PAM's messages using TTS with controlled activation
+  const speakMessage = async (content: string, priority: 'low' | 'normal' | 'high' | 'urgent' = 'normal', forceSpeak: boolean = false) => {
+    // STRICT VOICE CONTROL: Only speak when explicitly triggered by user action
+    // Do not speak automatically regardless of settings
+    console.log('🔊 Voice request - Priority:', priority, 'Force speak:', forceSpeak, 'Activation mode:', voiceActivationMode);
     
-    if (!isVoiceEnabled) {
-      console.log('🔇 Voice is disabled in settings');
-      return; // Voice is disabled, don't speak
+    // CRITICAL: Never auto-speak unless forceSpeak is true AND user explicitly triggered it
+    if (!forceSpeak) {
+      console.log('🔇 Auto-speaking disabled - PAM will not speak automatically');
+      return;
     }
 
-    // Voice is now available for all PAM responses when enabled in settings
-    // Users can control voice through pam_preferences.voice_enabled setting
-    console.log('🎵 Voice enabled for PAM response (user setting controls voice)');
+    // Additional safety check: Only speak in manual mode when explicitly forced
+    if (voiceActivationMode === 'manual' && !forceSpeak) {
+      console.log('🔇 Manual voice mode - no auto-speaking allowed');
+      return;
+    }
+
+    // Check if voice is enabled in user settings (but still require explicit trigger)
+    const isVoiceEnabled = settings?.pam_preferences?.voice_enabled ?? false;
+    if (!isVoiceEnabled) {
+      console.log('🔇 Voice is disabled in user settings');
+      return;
+    }
+
+    console.log('🎵 Speaking PAM response with priority:', priority);
 
     try {
-      // Stop any currently playing audio to prevent overlap
-      if (currentAudio && !currentAudio.paused) {
-        console.log('🔇 Interrupting current speech for new message');
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        setIsSpeaking(false);
-        vadService.setPAMSpeaking(false);
-      }
-
-      // Sophisticated conversation management - wait for natural pause if VAD is active
-      if (isVADActive) {
-        console.log('🤔 Checking if PAM should wait for natural conversation pause...');
-        
-        if (!vadService.canPAMSpeak()) {
-          console.log('⏳ Waiting for natural conversation pause before PAM speaks...');
-          const pauseDetected = await vadService.waitForPause(3000); // Wait up to 3 seconds
-          
-          if (!pauseDetected) {
-            console.log('⏰ Timeout waiting for pause, PAM will speak anyway');
-          } else {
-            console.log('✅ Natural pause detected, PAM can speak now');
-          }
-        }
-      }
-
-      console.log('🎵 Speaking PAM response:', content.substring(0, 50) + '...');
-      
       // Clean the content for TTS (remove emojis and markdown)
       const cleanContent = content
         .replace(/[🤖🎤🚫🔇🎙️✅❌⚠️🔊💡🔧👂🌐🟢]/g, '') // Remove emojis
@@ -1982,13 +2107,29 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       if (cleanContent.length === 0) {
         console.log('🔇 No content to speak after cleaning');
-        return; // Nothing to speak
+        return;
       }
 
-      // Set speaking state for UI feedback and VAD
-      setIsSpeaking(true);
-      vadService.setPAMSpeaking(true);
-      console.log('🔊 Generating voice for:', cleanContent);
+      // Use TTS Queue Manager to handle speech
+      if (ttsQueueRef.current) {
+        ttsQueueRef.current.enqueue({
+          content: cleanContent,
+          priority,
+          context: 'general',
+          onComplete: () => {
+            console.log('✅ Speech completed');
+            vadService.setPAMSpeaking(false);
+          },
+          onError: (error) => {
+            console.error('❌ Speech error:', error);
+            vadService.setPAMSpeaking(false);
+          }
+        });
+        
+        vadService.setPAMSpeaking(true);
+      } else {
+        console.error('❌ TTS Queue Manager not initialized');
+      }
       
       // Generate voice using pamVoiceService with user settings
       const voiceResponse = await pamVoiceService.generateVoice({
@@ -2053,12 +2194,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string): PamMessage => {
+  const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string, shouldSpeak: boolean = false, voicePriority?: 'low' | 'normal' | 'high' | 'urgent'): PamMessage => {
     const newMessage: PamMessage = {
       id: Date.now().toString(),
       content,
       sender,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      shouldSpeak,
+      voicePriority
     };
     setMessages(prev => {
       const updatedMessages = [...prev, newMessage];
@@ -2073,9 +2216,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         processFeedbackActions("", content); // content is the user message for user sender
       }
 
-      // 🔊 VOICE OUTPUT: Speak PAM's responses if voice is enabled
-      if (sender === "pam") {
-        speakMessage(content);
+      // 🔊 VOICE OUTPUT: Controlled voice activation for PAM responses
+      // CRITICAL: Only speak when explicitly requested by user action
+      if (sender === "pam" && newMessage.shouldSpeak) {
+        console.log('🔊 PAM message marked for speech - shouldSpeak:', newMessage.shouldSpeak, 'priority:', newMessage.voicePriority);
+        speakMessage(content, newMessage.voicePriority || 'normal', true);
+      } else if (sender === "pam") {
+        console.log('🔇 PAM message added without voice - shouldSpeak:', newMessage.shouldSpeak);
       }
       
       // ROBUST MEMORY: Save to localStorage on every message
@@ -2146,6 +2293,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     const messageData = {
       type: "chat",
       message: message,  // Backend expects 'message' not 'content'
+      stream: true,  // Request streaming response for better UX
       context: {
         user_id: user?.id,  // Move userId into context as expected by backend
         userLocation: userContext?.current_location,
@@ -2390,6 +2538,31 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
                 }`}>
                   <p className="text-sm">{msg.content}</p>
+                  {/* Streaming indicator */}
+                  {msg.isStreaming && (
+                    <div className="flex items-center mt-1 text-xs text-gray-500">
+                      <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1"></div>
+                      <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1 animation-delay-100"></div>
+                      <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-2 animation-delay-200"></div>
+                      <span>thinking...</span>
+                    </div>
+                  )}
+                  {/* Voice control button for PAM messages */}
+                  {msg.sender === "pam" && !msg.isStreaming && (
+                    <div className="flex items-center mt-1">
+                      <button
+                        onClick={() => {
+                          console.log('🔊 User clicked voice button for message:', msg.content.substring(0, 50));
+                          speakMessage(msg.content, 'normal', true);
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        title="Click to hear this message"
+                      >
+                        <Volume2 className="w-3 h-3" />
+                        <span>Play</span>
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs opacity-70 mt-1">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </p>
@@ -2705,6 +2878,31 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
                   }`}>
                     <p className="text-sm">{msg.content}</p>
+                    {/* Streaming indicator */}
+                    {msg.isStreaming && (
+                      <div className="flex items-center mt-1 text-xs text-gray-500">
+                        <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1"></div>
+                        <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1 animation-delay-100"></div>
+                        <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-2 animation-delay-200"></div>
+                        <span>thinking...</span>
+                      </div>
+                    )}
+                    {/* Voice control button for PAM messages */}
+                    {msg.sender === "pam" && !msg.isStreaming && (
+                      <div className="flex items-center mt-1">
+                        <button
+                          onClick={() => {
+                            console.log('🔊 User clicked voice button for message:', msg.content.substring(0, 50));
+                            speakMessage(msg.content, 'normal', true);
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          title="Click to hear this message"
+                        >
+                          <Volume2 className="w-3 h-3" />
+                          <span>Play</span>
+                        </button>
+                      </div>
+                    )}
                     <p className="text-xs opacity-70 mt-1">
                       {new Date(msg.timestamp).toLocaleTimeString()}
                     </p>

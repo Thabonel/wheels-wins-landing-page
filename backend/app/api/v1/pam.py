@@ -7,6 +7,7 @@ import json
 import uuid
 import logging
 import time
+import asyncio
 from datetime import datetime
 
 from app.api.deps import (
@@ -188,9 +189,16 @@ async def websocket_endpoint(
                 logger.debug(f"💓 [DEBUG] Received pong from {connection_id}")
                 
             elif data.get("type") == "chat":
-                logger.info(f"💬 [DEBUG] Chat message detected, calling handle_websocket_chat")
-                await handle_websocket_chat(websocket, data, user_id, orchestrator)
-                logger.info(f"✅ [DEBUG] handle_websocket_chat completed for user {user_id}")
+                logger.info(f"💬 [DEBUG] Chat message detected")
+                # Check if streaming is requested
+                if data.get("stream", False) or data.get("streaming", False):
+                    logger.info(f"🌊 [DEBUG] Streaming response requested, calling handle_websocket_chat_streaming")
+                    await handle_websocket_chat_streaming(websocket, data, user_id, orchestrator)
+                    logger.info(f"✅ [DEBUG] handle_websocket_chat_streaming completed for user {user_id}")
+                else:
+                    logger.info(f"💬 [DEBUG] Non-streaming response, calling handle_websocket_chat")
+                    await handle_websocket_chat(websocket, data, user_id, orchestrator)
+                    logger.info(f"✅ [DEBUG] handle_websocket_chat completed for user {user_id}")
                 
             elif data.get("type") == "context_update":
                 logger.info(f"🔄 [DEBUG] Context update received from {user_id}")
@@ -353,6 +361,268 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 "type": "error",
                 "message": f"Sorry, I encountered an error: {str(e)}"
             })
+
+async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user_id: str, orchestrator):
+    """Handle streaming chat messages over WebSocket with token-by-token delivery"""
+    try:
+        # Support both 'message' and 'content' fields for backwards compatibility
+        message = data.get("message") or data.get("content", "")
+        
+        context = data.get("context", {})
+        context["user_id"] = user_id
+        context["connection_type"] = "websocket_streaming"
+        
+        # CRITICAL: Fix location context mapping
+        if context.get("userLocation"):
+            context["user_location"] = context["userLocation"]
+            logger.info(f"📍 [DEBUG] User location received: {context['user_location']}")
+        
+        # Add current timestamp
+        context["server_timestamp"] = datetime.utcnow().isoformat()
+        
+        logger.info(f"🌊 [DEBUG] handle_websocket_chat_streaming called with:")
+        logger.info(f"  - Message: '{message}'")
+        logger.info(f"  - User ID: {user_id}")
+        
+        # Check for empty message
+        if not message or message.strip() == "":
+            logger.warning(f"❌ [DEBUG] Empty message received from user {user_id}")
+            await websocket.send_json({
+                "type": "error",
+                "message": "I didn't receive your message. Could you please try again?"
+            })
+            return
+        
+        # 1. Send immediate acknowledgment (sub-50ms response)
+        start_time = time.time()
+        logger.info(f"⚡ [DEBUG] Sending immediate acknowledgment...")
+        
+        await websocket.send_json({
+            "type": "chat_response_start",
+            "message_id": str(uuid.uuid4()),
+            "status": "processing",
+            "message": "🔍 I'm processing your request...",
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        # 2. Try edge processing first (still fastest path)
+        logger.info(f"⚡ [DEBUG] Attempting edge processing...")
+        edge_result = await edge_processing_service.process_query(message, context)
+        
+        if edge_result.handled and edge_result.response:
+            # Edge processing succeeded - send as streaming chunks
+            processing_time = (time.time() - start_time) * 1000
+            logger.info(f"⚡ [DEBUG] Edge processed in {processing_time:.1f}ms")
+            
+            # Send response as streaming chunks
+            await stream_response_to_websocket(websocket, edge_result.response, {
+                "source": "edge",
+                "processing_time_ms": processing_time,
+                "confidence": edge_result.confidence,
+                "metadata": edge_result.metadata
+            })
+            return
+        
+        # 3. Fallback to cloud processing with streaming
+        logger.info(f"🌊 [DEBUG] Starting cloud AI streaming...")
+        
+        # Get conversation history
+        conversation_history = context.get("conversation_history", [])
+        
+        # Stream response from AI service
+        await stream_ai_response_to_websocket(websocket, message, context, conversation_history, start_time)
+        
+    except Exception as e:
+        logger.error(f"❌ [DEBUG] Streaming chat handling error: {str(e)}", exc_info=True)
+        if websocket.client_state.value == 1:  # Only send if connected
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Sorry, I encountered an error: {str(e)}"
+            })
+
+async def stream_response_to_websocket(websocket: WebSocket, response: str, metadata: dict = None):
+    """Stream a complete response to WebSocket in chunks"""
+    try:
+        # Split response into natural chunks (by sentences or words)
+        chunks = split_response_into_chunks(response)
+        
+        for chunk in chunks:
+            if websocket.client_state.value != 1:  # Check if still connected
+                logger.warning("WebSocket disconnected during streaming")
+                break
+                
+            await websocket.send_json({
+                "type": "chat_response_delta",
+                "content": chunk,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+            # Small delay to create smooth streaming effect
+            await asyncio.sleep(0.05)  # 50ms between chunks
+        
+        # Send completion message
+        if websocket.client_state.value == 1:
+            await websocket.send_json({
+                "type": "chat_response_complete",
+                "metadata": metadata or {},
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+    except Exception as e:
+        logger.error(f"Error streaming response: {str(e)}")
+
+async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, context: dict, conversation_history: list, start_time: float):
+    """Stream AI response from cloud services to WebSocket"""
+    try:
+        # Import SimplePamService for streaming
+        from app.core.simple_pam_service import simple_pam_service
+        
+        # Get streaming response from AI service
+        full_response = ""
+        
+        async for chunk in get_streaming_ai_response(message, context, conversation_history):
+            if websocket.client_state.value != 1:  # Check if still connected
+                logger.warning("WebSocket disconnected during AI streaming")
+                break
+                
+            full_response += chunk
+            
+            await websocket.send_json({
+                "type": "chat_response_delta",
+                "content": chunk,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+        
+        # Send completion
+        total_processing_time = (time.time() - start_time) * 1000
+        if websocket.client_state.value == 1:
+            await websocket.send_json({
+                "type": "chat_response_complete",
+                "full_response": full_response,
+                "source": "cloud",
+                "processing_time_ms": total_processing_time,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+    except Exception as e:
+        logger.error(f"Error streaming AI response: {str(e)}")
+        if websocket.client_state.value == 1:
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Streaming error: {str(e)}"
+            })
+
+async def get_streaming_ai_response(message: str, context: dict, conversation_history: list):
+    """Generator for streaming AI responses from OpenAI/Anthropic"""
+    try:
+        # Use Anthropic Claude streaming for better performance
+        import anthropic
+        from app.core.config import settings
+        
+        if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:
+            # Use Anthropic Claude streaming
+            logger.info("🤖 Using Anthropic Claude streaming")
+            client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+            
+            # Build conversation messages
+            messages = []
+            if conversation_history:
+                for msg in conversation_history[-5:]:  # Last 5 messages for context
+                    messages.append({
+                        "role": msg.get("role", "user"),
+                        "content": msg.get("content", "")
+                    })
+            
+            messages.append({"role": "user", "content": message})
+            
+            # Stream from Claude
+            with client.messages.stream(
+                model="claude-3-5-sonnet-20241022",
+                messages=messages,
+                max_tokens=1024,
+                system=build_pam_system_prompt(context)
+            ) as stream:
+                for text in stream.text_stream:
+                    yield text
+                    
+        else:
+            # Fallback to OpenAI streaming
+            logger.info("🤖 Using OpenAI streaming fallback")
+            from openai import AsyncOpenAI
+            
+            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            
+            # Build messages for OpenAI
+            openai_messages = [
+                {"role": "system", "content": build_pam_system_prompt(context)}
+            ]
+            
+            if conversation_history:
+                for msg in conversation_history[-5:]:
+                    openai_messages.append({
+                        "role": msg.get("role", "user"),
+                        "content": msg.get("content", "")
+                    })
+            
+            openai_messages.append({"role": "user", "content": message})
+            
+            # Stream from OpenAI
+            stream = await client.chat.completions.create(
+                model="gpt-4",
+                messages=openai_messages,
+                max_tokens=1024,
+                stream=True
+            )
+            
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+                    
+    except Exception as e:
+        logger.error(f"AI streaming error: {str(e)}")
+        yield f"I encountered an error while processing your request: {str(e)}"
+
+def split_response_into_chunks(response: str, chunk_size: int = 50) -> list:
+    """Split response into natural chunks for smooth streaming"""
+    if not response:
+        return []
+    
+    # Split by sentences first
+    sentences = response.split('. ')
+    chunks = []
+    current_chunk = ""
+    
+    for sentence in sentences:
+        if len(current_chunk + sentence) < chunk_size:
+            current_chunk += sentence + ". " if sentence != sentences[-1] else sentence
+        else:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            current_chunk = sentence + ". " if sentence != sentences[-1] else sentence
+    
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    
+    return chunks
+
+def build_pam_system_prompt(context: dict) -> str:
+    """Build system prompt for PAM with user context"""
+    user_location = context.get("user_location", "unknown location")
+    
+    return f"""You are PAM, the Personal AI Manager for Wheels & Wins, a travel planning platform for RV enthusiasts.
+
+Current Context:
+- User Location: {user_location}
+- Time: {context.get('server_timestamp', 'unknown')}
+
+You help with:
+- Trip planning and route suggestions
+- RV park and campground recommendations  
+- Weather and road condition updates
+- Local attractions and activities
+- Travel tips and safety advice
+
+Keep responses concise, helpful, and enthusiastic about RV travel. Use emojis appropriately to make conversations engaging."""
 
 async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, db):
     """Handle context updates over WebSocket"""
