@@ -37,71 +37,169 @@ export interface ScrapedTripData {
  */
 export async function fetchTripTemplatesForRegion(region: Region): Promise<TripTemplate[]> {
   try {
-    console.log(`Fetching trip templates for region: ${region}`);
+    console.log(`🔍 Fetching trip templates for region: ${region}`);
     
-    // Build query based on region - handle Australian templates specially
-    let query = (supabase as any)
+    // Use the working tag-based approach that was verified in backend tests
+    let query = supabase
       .from('trip_templates')
       .select('*')
       .eq('is_public', true);
     
-    // For Australia, get all templates that contain "Australia" in region or are general Australian routes
     if (region === 'Australia') {
-      query = query.or(`template_data->>'region'.ilike.*Australia*,template_data->>'region'.ilike.*Victoria*,template_data->>'region'.ilike.*NSW*,template_data->>'region'.ilike.*Queensland*,template_data->>'region'.ilike.*Tasmania*,template_data->>'region'.ilike.*Territory*,tags.cs.{australia}`);
+      // Use the proven tag-based query that works reliably
+      query = query.contains('tags', ['australia']);
     } else {
-      // For other regions, try exact match first, then broader match
-      query = query.or(`template_data->>'region'.ilike.*${region}*,template_data->>'region'.eq.${region}`);
+      // For other regions, use tag matching with lowercase region name
+      query = query.contains('tags', [region.toLowerCase()]);
     }
     
     const { data, error } = await query
       .order('usage_count', { ascending: false })
-      .limit(20); // Increased limit to get more templates
+      .limit(20);
 
     if (error) {
-      console.error('Error fetching trip templates:', error);
-      return [];
+      console.error('❌ Database query failed:', error);
+      console.error('Query details:', { region, queryType: 'tag-based' });
+      throw new Error(`Failed to fetch trip templates: ${error.message}`);
     }
 
     if (!data || data.length === 0) {
-      console.log(`No trip templates found for region ${region}, will trigger scraping`);
+      console.log(`⚠️ No trip templates found for region ${region} using tag-based query`);
       return [];
     }
 
-    console.log(`Found ${data.length} trip templates for region ${region}`);
+    console.log(`✅ Found ${data.length} trip templates for region ${region}`);
+    console.log('Template summary:', data.map(d => ({ 
+      name: d.name, 
+      region: d.template_data?.region, 
+      tags: d.tags,
+      category: d.category
+    })));
     
-    // Transform database records to TripTemplate format
-    return data.map(transformDatabaseToTemplate);
+    // Transform database records to TripTemplate format with validation
+    const transformedTemplates = data
+      .map(transformDatabaseToTemplate)
+      .filter(template => template !== null) as TripTemplate[];
+    
+    console.log(`🔄 Successfully transformed ${transformedTemplates.length} templates`);
+    
+    // Log the final template names for debugging
+    console.log('Final templates:', transformedTemplates.map(t => ({ 
+      name: t.name, 
+      days: t.estimatedDays, 
+      budget: t.suggestedBudget, 
+      category: t.category 
+    })));
+    
+    return transformedTemplates;
+    
   } catch (error) {
-    console.error('Unexpected error fetching trip templates:', error);
-    return [];
+    console.error('💥 Unexpected error fetching trip templates:', error);
+    throw error;
   }
 }
 
 /**
- * Transform database record to TripTemplate interface
+ * Transform database record to TripTemplate interface with validation
  */
-function transformDatabaseToTemplate(dbRecord: any): TripTemplate {
-  const templateData = dbRecord.template_data || {};
+function transformDatabaseToTemplate(dbRecord: any): TripTemplate | null {
+  try {
+    const templateData = dbRecord.template_data || {};
+    
+    // Validate required fields
+    if (!dbRecord.id || !dbRecord.name) {
+      console.warn('⚠️ Skipping template with missing required fields:', dbRecord);
+      return null;
+    }
+    
+    // Convert string numbers to actual numbers with validation
+    const estimatedDays = parseNumberField(templateData.duration_days || templateData.estimatedDays, 7);
+    const estimatedMiles = parseNumberField(templateData.distance_miles || templateData.estimatedMiles, 500);
+    const suggestedBudget = parseNumberField(templateData.estimated_budget || templateData.suggestedBudget, 1000);
+    
+    // Validate difficulty enum
+    const difficulty = validateDifficulty(templateData.difficulty);
+    
+    // Ensure highlights is an array
+    const highlights = Array.isArray(templateData.highlights) ? templateData.highlights : [];
+    
+    // Map region to proper Region type
+    const region = mapToRegionType(templateData.region);
+    
+    const transformed: TripTemplate = {
+      id: dbRecord.id,
+      name: dbRecord.name,
+      description: dbRecord.description || templateData.description || '',
+      estimatedDays,
+      estimatedMiles,
+      difficulty,
+      highlights,
+      suggestedBudget,
+      route: templateData.route || null,
+      region,
+      category: dbRecord.category || 'general',
+      tags: Array.isArray(dbRecord.tags) ? dbRecord.tags : [],
+      usageCount: parseInt(dbRecord.usage_count) || 0,
+      isPublic: Boolean(dbRecord.is_public),
+      createdBy: templateData.createdBy
+    };
+    
+    console.log(`✅ Transformed template: ${transformed.name} (${transformed.estimatedDays} days, $${transformed.suggestedBudget})`);
+    return transformed;
+    
+  } catch (error) {
+    console.error('❌ Error transforming template:', dbRecord, error);
+    return null;
+  }
+}
+
+/**
+ * Parse a field that should be a number, with fallback
+ */
+function parseNumberField(value: any, fallback: number): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) ? fallback : parsed;
+  }
+  return fallback;
+}
+
+/**
+ * Validate difficulty field
+ */
+function validateDifficulty(difficulty: any): 'beginner' | 'intermediate' | 'advanced' {
+  const validDifficulties = ['beginner', 'intermediate', 'advanced'];
+  return validDifficulties.includes(difficulty) ? difficulty : 'intermediate';
+}
+
+/**
+ * Map region string to Region type
+ */
+function mapToRegionType(regionString: any): Region {
+  if (!regionString || typeof regionString !== 'string') {
+    return 'Rest of the World';
+  }
   
-  return {
-    id: dbRecord.id,
-    name: dbRecord.name,
-    description: dbRecord.description || templateData.description || '',
-    // Fix field mapping from database structure
-    estimatedDays: templateData.duration_days || templateData.estimatedDays || 7,
-    estimatedMiles: templateData.distance_miles || templateData.estimatedMiles || 500,
-    difficulty: templateData.difficulty || 'intermediate',
-    highlights: templateData.highlights || [],
-    // Fix budget field mapping
-    suggestedBudget: templateData.estimated_budget || templateData.suggestedBudget || 1000,
-    route: templateData.route || null,
-    region: templateData.region || 'Rest of the World',
-    category: dbRecord.category || 'general',
-    tags: dbRecord.tags || [],
-    usageCount: dbRecord.usage_count || 0,
-    isPublic: dbRecord.is_public || false,
-    createdBy: templateData.createdBy
-  };
+  const region = regionString.toLowerCase();
+  
+  // Map Australian regional descriptions to Australia
+  if (region.includes('australia') || 
+      region.includes('victoria') || 
+      region.includes('nsw') || 
+      region.includes('queensland') || 
+      region.includes('tasmania') || 
+      region.includes('territory')) {
+    return 'Australia';
+  }
+  
+  // Map other known regions
+  if (region.includes('new zealand')) return 'New Zealand';
+  if (region.includes('united states') || region.includes('usa')) return 'United States';
+  if (region.includes('canada')) return 'Canada';
+  if (region.includes('united kingdom') || region.includes('uk')) return 'United Kingdom';
+  
+  return 'Rest of the World';
 }
 
 /**
@@ -327,28 +425,55 @@ function getFallbackTemplatesForRegion(region: Region): TripTemplate[] {
 }
 
 /**
- * Get trip templates with intelligent loading
+ * Get trip templates with intelligent loading and proper error handling
  */
 export async function getLocationBasedTripTemplates(region: Region): Promise<TripTemplate[]> {
-  console.log(`Getting location-based trip templates for region: ${region}`);
+  console.log(`🚀 Getting location-based trip templates for region: ${region}`);
   
-  // First, try to fetch from database
-  let templates = await fetchTripTemplatesForRegion(region);
-  
-  // If no templates found, trigger scraping
-  if (templates.length === 0) {
-    console.log('No templates in database, triggering scraping...');
-    templates = await triggerTripScraping(region);
+  try {
+    // First, try to fetch from database with enhanced error handling
+    const templates = await fetchTripTemplatesForRegion(region);
+    
+    if (templates.length > 0) {
+      console.log(`✅ Successfully loaded ${templates.length} templates from database`);
+      return templates;
+    }
+    
+    console.log('⚠️ No templates found in database, checking fallback options...');
+    
+    // Only use fallback for now - don't trigger scraping in production
+    const fallbackTemplates = getFallbackTemplatesForRegion(region);
+    console.log(`📋 Using ${fallbackTemplates.length} fallback templates for region ${region}`);
+    
+    // Add indicator that these are fallback templates
+    const markedFallbackTemplates = fallbackTemplates.map(template => ({
+      ...template,
+      createdBy: 'fallback-system'
+    }));
+    
+    return markedFallbackTemplates;
+    
+  } catch (error) {
+    console.error('💥 Critical error loading templates:', error);
+    
+    // Log the full error for debugging
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        region
+      });
+    }
+    
+    // Return fallback templates but mark them as error fallbacks
+    const errorFallbackTemplates = getFallbackTemplatesForRegion(region).map(template => ({
+      ...template,
+      createdBy: 'error-fallback'
+    }));
+    
+    console.log(`🚨 Returning ${errorFallbackTemplates.length} error fallback templates`);
+    return errorFallbackTemplates;
   }
-  
-  // If still no templates, use fallback
-  if (templates.length === 0) {
-    console.log('Scraping failed, using fallback templates');
-    templates = getFallbackTemplatesForRegion(region);
-  }
-  
-  console.log(`Returning ${templates.length} templates for region ${region}`);
-  return templates;
 }
 
 /**
