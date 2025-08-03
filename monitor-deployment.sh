@@ -35,9 +35,9 @@ check_backend_logs() {
     echo "-----------------------------------"
     echo ""
     echo "Look for these patterns:"
-    echo -e "${RED}❌ OLD:${NC} token=21a2151a-cd37-41d5-a1c7-124bb05e7a6a (UUID)"
+    echo -e "${RED}❌ OLD:${NC} token=<uuid-format> (UUID)"
     echo -e "${YELLOW}⚠️  TEMP:${NC} TEMPORARY: Accepting UUID token"
-    echo -e "${GREEN}✅ NEW:${NC} token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (JWT)"
+    echo -e "${GREEN}✅ NEW:${NC} token=<jwt-format>... (JWT)"
     echo ""
 }
 
