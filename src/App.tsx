@@ -30,7 +30,6 @@ const UpdatePassword = lazy(() => import("@/pages/UpdatePassword"));
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtection from './components/admin/AdminProtection';
 import { LazyPamIntegrationProvider } from './components/pam/LazyPamIntegrationProvider';
-import PamTrigger from './components/pam/PamTrigger';
 import { StagingBanner } from './components/StagingBanner';
 import { logEnvironmentInfo } from './config/environment';
 import { logEnvironmentStatus } from './config/env-validator';
@@ -100,7 +99,6 @@ function App() {
                                 </Routes>
                             </Suspense>
                           </div>
-                          <PamTrigger />
                         </Layout>
                       </LazyPamIntegrationProvider>
                     </PAMErrorBoundary>
