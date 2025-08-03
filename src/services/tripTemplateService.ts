@@ -46,11 +46,11 @@ export async function fetchTripTemplatesForRegion(region: Region): Promise<TripT
       .eq('is_public', true);
     
     if (region === 'Australia') {
-      // Use the proven tag-based query that works reliably
-      query = query.contains('tags', ['australia']);
+      // Use raw SQL for array contains check
+      query = query.filter('tags', 'cs', '{australia}');
     } else {
       // For other regions, use tag matching with lowercase region name
-      query = query.contains('tags', [region.toLowerCase()]);
+      query = query.filter('tags', 'cs', `{${region.toLowerCase()}}`);
     }
     
     const { data, error } = await query
