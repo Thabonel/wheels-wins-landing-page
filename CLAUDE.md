@@ -1,5 +1,180 @@
 # Claude Code Instructions for Wheels & Wins Project
 
+## CRITICAL INSTRUCTIONS - ALWAYS FOLLOW
+1. **Always check `cloud.md` first** - This file contains the project overview and architecture
+2. **Use subfolder `cloud.md` files for detailed context** - Each feature area may have its own cloud.md
+3. **Prefer new, clean code over patching legacy** - Write production-ready code from scratch
+4. **Never assume — ask if unsure** - Always clarify requirements before implementing
+
+## 🛠️ Claude Code Advanced Workflow Guide
+
+### 🔧 Core Principles
+- **Claude Code is an AI agent**, not just a chatbot - use it for multi-step, long-running tasks
+- **Context is everything** - invest time building rich context before execution
+- **Don't skip planning** - jumping to "execute" leads to poor results
+- **Use appropriate models** - `/model opus` for complex tasks, `/model sonnet` for faster ones
+
+### 📁 Golden Workflow for Wheels & Wins
+
+#### 1️⃣ **EXPLORE PHASE** (Build Context)
+```
+Prepare to discuss how our [frontend trip planning/PAM assistant/backend services] works. 
+Read all relevant files including cloud.md files. 
+Summarize the architecture, key patterns, and potential pitfalls. 
+Do not write code yet.
+```
+
+Wait for 50K+ tokens of analysis. If wrong: `/clear` and restart.
+
+#### 2️⃣ **PLAN PHASE** (Think Architecturally)
+```
+Think hard. Create a plan to [add voice commands to PAM/optimize trip route calculations/etc]. 
+- Break into testable, PR-sized chunks (200-500 lines max)
+- For each step:
+  - Write 1-3 sentences on what the function does
+  - List 5-10 word test descriptions
+- Use existing patterns from our codebase
+- Leverage our MCP servers (Supabase, Serena, Render)
+```
+
+#### 3️⃣ **REVIEW PHASE** (Critical Feedback)
+```
+My developer created this plan for [feature]. Review it critically:
+- What are the risks with our current architecture?
+- Where might it break with our Supabase RLS policies?
+- How would you improve it given our mobile-first requirement?
+- Be honest - I'm on your team, not theirs.
+```
+
+#### 4️⃣ **EXECUTE PHASE** (Write Code)
+```
+Work on PR #1: [PAM voice recognition improvements]. Think hard. 
+- Write elegant, simple code that follows our conventions
+- Use our existing TTS services and WebSocket patterns
+- Run npm run quality:check:full before finishing
+- Update CHANGELOG.md
+```
+
+### 🔄 Advanced Techniques
+
+#### **Double Escape & Resume** (Context Forking)
+After building context:
+- Type: `/double escape` - saves checkpoint
+- Open new terminal: `/resume` - restores context
+- Use for parallel work (frontend + backend tasks)
+
+#### **Agent Swarms** (Multiple Perspectives)
+Run 3 Claude sessions with context forked:
+1. **Optimist**: "Build the ideal solution"
+2. **Pessimist**: "Find all edge cases and failures"
+3. **Architect**: "Ensure it scales and maintains"
+
+Compare outputs for best solution.
+
+### 🤖 GitHub Integration
+
+#### Setup Claude Bot
+```bash
+claude code github setup
+```
+
+#### Auto-PR from Issues
+Create issue:
+```
+@claude
+Add expense category filtering to Wins dashboard
+- Use existing ExpenseCategories component
+- Add to useExpenses hook
+- Follow our Tanstack Query patterns
+- Test with vitest
+```
+
+Claude creates PR with implementation.
+
+### 📝 Wheels & Wins Specific Prompts
+
+#### **PAM Enhancement**
+```
+Explore PAM's current voice integration. Read pam/, backend TTS services, and WebSocket handlers.
+Plan improvements for:
+- Faster voice response time
+- Better error handling with fallbacks
+- Context awareness from trip data
+Use our multi-engine TTS system.
+```
+
+#### **Trip Planning Optimization**
+```
+Analyze our Mapbox integration and trip calculation logic.
+Plan optimizations for:
+- Route calculation performance
+- Offline map tile caching
+- Real-time overlay updates (fire, weather)
+Consider our PWA requirements and mobile constraints.
+```
+
+#### **Database Migration**
+```
+Using Supabase MCP, analyze current schema and RLS policies.
+Plan migration to:
+- Add user preferences table
+- Optimize trip_templates queries
+- Ensure no RLS recursion
+Generate and test migration SQL.
+```
+
+#### **Test Coverage Sprint**
+```
+Our test coverage is 0%. Using test-writer agent:
+1. Analyze components/ folder structure
+2. Create unit tests for top 10 most critical components
+3. Add integration tests for auth flow
+4. Achieve 40% coverage as first milestone
+Follow our React Testing Library patterns.
+```
+
+### ✅ Validation Checklist
+Tell Claude to self-validate:
+```
+After implementation:
+1. Run `npm run lint` and fix all errors
+2. Run `npm test` - all must pass
+3. Run `npm run type-check` - no TypeScript errors
+4. Check bundle size impact with `npm run build`
+5. Test on mobile viewport (375px)
+6. Verify no console errors in browser
+7. Update relevant cloud.md if architecture changed
+```
+
+### 🚀 Quick Commands Reference
+| Command | When to Use |
+|---------|-------------|
+| `/model opus` | Complex architecture decisions, debugging hard problems |
+| `/model sonnet` | Standard features, refactoring, documentation |
+| `/double escape` | After building good context, before parallel work |
+| `/resume` | Start new session with saved context |
+| `/clear` | Context is corrupted or wrong path taken |
+| `@claude` in GitHub | Trigger bot for automated PRs |
+
+### 🎯 Example Full Workflow
+```bash
+# Terminal 1: Build Context
+> Explore our expense tracking system in Wins. Read all relevant files.
+[Wait for analysis...]
+> /double escape
+
+# Terminal 2: Frontend Work  
+> /resume
+> Plan UI improvements for expense dashboard mobile experience
+
+# Terminal 3: Backend Work
+> /resume  
+> Plan API optimization for expense calculations using Redis caching
+
+# Terminal 4: Validation
+> Compare these 3 implementations and recommend the best approach
+```
+
 ## Project Overview
 Wheels & Wins is a comprehensive travel planning and RV community platform built with React/TypeScript frontend and Python FastAPI backend. The application features intelligent trip planning with Mapbox integration, PAM AI assistant with voice capabilities, financial management, social networking, and progressive web app functionality.
 
