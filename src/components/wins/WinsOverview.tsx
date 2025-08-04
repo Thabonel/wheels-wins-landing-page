@@ -9,6 +9,9 @@ import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
+import QuickActions from "./QuickActions";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const WinsOverview = React.memo(() => {
   const { user, token } = useAuth();
@@ -16,6 +19,9 @@ const WinsOverview = React.memo(() => {
   const { state: expensesState } = useExpenses();
   const { incomeData, chartData: incomeChartData } = useIncomeData();
   const [pamInsights, setPamInsights] = useState<string[]>([]);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   const handlePamMessage = useCallback((msg: any) => {
     if (msg.type === 'chat_response') {
@@ -42,6 +48,20 @@ const WinsOverview = React.memo(() => {
       });
     }
   }, [user, isConnected, pamInsights.length, sendMessage]);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const monthlyData = useMemo(() => {
     const months = new Map<string, { income: number; expenses: number }>();
@@ -127,8 +147,69 @@ const WinsOverview = React.memo(() => {
         }
       ], [summary, incomeData, expensesState.expenses]);
 
+  // Quick Actions handlers
+  const handleAddExpense = useCallback((preset?: { category?: string }) => {
+    // Store preset in sessionStorage if provided
+    if (preset?.category) {
+      sessionStorage.setItem('expensePreset', JSON.stringify(preset));
+    }
+    // Mark that we want to open the form
+    sessionStorage.setItem('openExpenseForm', 'true');
+    // Navigate to expenses tab
+    const winsPage = document.querySelector('[value="expenses"]') as HTMLButtonElement;
+    if (winsPage) {
+      winsPage.click();
+    } else {
+      // Fallback navigation
+      window.location.hash = '#expenses';
+    }
+  }, []);
+
+  const handleAddIncome = useCallback(() => {
+    // Mark that we want to open the form
+    sessionStorage.setItem('openIncomeForm', 'true');
+    // Navigate to income tab
+    const incomePage = document.querySelector('[value="income"]') as HTMLButtonElement;
+    if (incomePage) {
+      incomePage.click();
+    } else {
+      window.location.hash = '#income';
+    }
+  }, []);
+
+  const handleOpenReceipt = useCallback(() => {
+    sessionStorage.setItem('openReceiptUpload', 'true');
+    handleAddExpense();
+  }, [handleAddExpense]);
+
+  const handleVoiceEntry = useCallback(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast({
+        title: "Voice Entry Not Available",
+        description: "Your browser doesn't support voice recognition. Try Chrome or Edge.",
+        variant: "destructive"
+      });
+      return;
+    }
+    sessionStorage.setItem('startVoiceEntry', 'true');
+    handleAddExpense();
+  }, [handleAddExpense, toast]);
+
+  // Check if voice is available
+  const isVoiceAvailable = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+
   return (
     <div className="space-y-6">
+      {/* Quick Actions Widget - Always at the top */}
+      <QuickActions
+        onAddExpense={handleAddExpense}
+        onAddIncome={handleAddIncome}
+        onOpenReceipt={handleOpenReceipt}
+        onVoiceEntry={handleVoiceEntry}
+        isVoiceAvailable={isVoiceAvailable}
+        isOffline={isOffline}
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {summaryStats.map((stat, index) => (
           <Card key={index} className="hover:shadow-md transition-shadow">
@@ -218,6 +299,12 @@ const WinsOverview = React.memo(() => {
                     <p className="font-medium text-blue-900">{insight}</p>
                   </div>
                 ))
+              ) : isOffline || !isConnected ? (
+                <FallbackFinancialTips 
+                  totalExpenses={expensesState.expenses.reduce((sum, exp) => sum + exp.amount, 0)}
+                  totalIncome={incomeData.reduce((sum, inc) => sum + inc.amount, 0)}
+                  topCategory={categoryData[0]?.name}
+                />
               ) : (
                 <p className="text-muted-foreground">Connecting to PAM...</p>
               )}
@@ -244,4 +331,59 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     );
   }
   return null;
+};
+
+// Fallback tips when PAM is not available
+const FallbackFinancialTips: React.FC<{
+  totalExpenses: number;
+  totalIncome: number;
+  topCategory?: string;
+}> = ({ totalExpenses, totalIncome, topCategory }) => {
+  const netIncome = totalIncome - totalExpenses;
+  const savingsRate = totalIncome > 0 ? ((netIncome / totalIncome) * 100).toFixed(1) : 0;
+  
+  const tips = [
+    {
+      condition: netIncome < 0,
+      tip: `You're spending more than you're earning. Consider reducing expenses in ${topCategory || 'your top spending category'}.`
+    },
+    {
+      condition: Number(savingsRate) < 20 && netIncome > 0,
+      tip: `Your savings rate is ${savingsRate}%. Aim for 20% or more for better financial health.`
+    },
+    {
+      condition: topCategory === 'Fuel',
+      tip: "Fuel is your top expense. Consider planning more efficient routes to save on gas."
+    },
+    {
+      condition: topCategory === 'Food',
+      tip: "Food is your biggest expense. Cooking in your RV more often can significantly reduce costs."
+    },
+    {
+      condition: Number(savingsRate) >= 20,
+      tip: `Great job! You're saving ${savingsRate}% of your income. Keep up the good financial habits!`
+    }
+  ];
+
+  const activeTips = tips.filter(t => t.condition).slice(0, 2);
+  
+  if (activeTips.length === 0) {
+    activeTips.push({
+      condition: true,
+      tip: "Track your expenses regularly to identify areas where you can save money on the road."
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground mb-2">
+        {!navigator.onLine ? "Offline mode - showing cached tips" : "PAM is temporarily unavailable"}
+      </p>
+      {activeTips.map((tip, idx) => (
+        <div key={idx} className="p-3 bg-white rounded-lg border border-blue-100">
+          <p className="font-medium text-blue-900">{tip.tip}</p>
+        </div>
+      ))}
+    </div>
+  );
 };

@@ -10,7 +10,7 @@ from uuid import UUID
 
 from app.core.auth import get_current_user
 from app.core.database import get_supabase_client
-from app.models.user import User
+from app.models.schemas.user import User
 
 router = APIRouter()
 

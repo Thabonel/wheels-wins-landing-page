@@ -101,7 +101,7 @@ class RequestValidator:
             r"javascript\s*:",                        # JavaScript protocol
             r"vbscript\s*:",                         # VBScript protocol
             r"data\s*:.*?base64",                    # Data URI with base64
-            r"on\w+\s*=",                           # Event handlers (onclick, onload, etc.)
+            r"(?<![\w&])on[a-z]+\s*=",             # Event handlers (onclick, onload, etc.) - but not longitude, onboarding, etc.
             r"expression\s*\(",                      # CSS expressions
             r"eval\s*\(",                           # JavaScript eval
             r"<\s*iframe[^>]*>",                    # Iframe tags

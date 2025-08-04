@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { useScrollReset } from "@/hooks/useScrollReset";
@@ -32,10 +32,6 @@ export default function Social() {
   
   return (
     <div className="container p-6">
-      {/* Debug info */}
-      <div className="mb-4 p-2 bg-blue-50 rounded text-sm">
-        Social page loaded. Active tab: {activeTab}
-      </div>
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4">

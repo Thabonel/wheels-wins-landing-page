@@ -4,11 +4,14 @@ import { Drawer, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { useScrollReset } from "@/hooks/useScrollReset";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileFormWrapper } from "@/components/common/MobileFormWrapper";
 
 // Import refactored components
 import ExpenseTable from "./expenses/ExpenseTable";
 import ExpenseChart from "./expenses/ExpenseChart";
 import AddExpenseForm from "./expenses/AddExpenseForm";
+import MobileExpenseForm from "./expenses/MobileExpenseForm";
 import PamInsightCard from "./expenses/PamInsightCard";
 import { useExpenseActions } from "@/hooks/useExpenseActions";
 import ExpenseInput from "./expenses/ExpenseInput";
@@ -19,9 +22,42 @@ export default function WinsExpenses() {
   const [viewMode, setViewMode] = useState("timeline");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const { expenses, categories, categoryColors } = useExpenseActions();
+  const [presetCategory, setPresetCategory] = useState<string | undefined>();
+  const isMobile = useIsMobile();
   
   // Reset scroll when selected category or view mode changes
   useScrollReset([selectedCategory, viewMode]);
+  
+  // Check for Quick Actions presets on mount
+  useEffect(() => {
+    // Check if we should open the form
+    if (sessionStorage.getItem('openExpenseForm') === 'true') {
+      setDrawerOpen(true);
+      sessionStorage.removeItem('openExpenseForm');
+    }
+    
+    // Check for expense preset
+    const preset = sessionStorage.getItem('expensePreset');
+    if (preset) {
+      const { category } = JSON.parse(preset);
+      setPresetCategory(category);
+      setDrawerOpen(true);
+      sessionStorage.removeItem('expensePreset');
+    }
+    
+    // Check for receipt upload
+    if (sessionStorage.getItem('openReceiptUpload') === 'true') {
+      setDrawerOpen(true);
+      // The AddExpenseForm will handle the receipt upload
+      sessionStorage.removeItem('openReceiptUpload');
+    }
+    
+    // Check for voice entry
+    if (sessionStorage.getItem('startVoiceEntry') === 'true') {
+      // Voice entry will be handled by VoiceExpenseLogger
+      sessionStorage.removeItem('startVoiceEntry');
+    }
+  }, []);
   
   // Filter expenses based on selected category
   const filteredExpenses = selectedCategory === "all" 
@@ -82,15 +118,29 @@ export default function WinsExpenses() {
             </Button>
           </div>
           
-          <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-            <DrawerTrigger asChild>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Expense
-              </Button>
-            </DrawerTrigger>
-            <AddExpenseForm onClose={() => setDrawerOpen(false)} />
-          </Drawer>
+          <MobileFormWrapper open={drawerOpen} onOpenChange={setDrawerOpen}>
+            {isMobile ? (
+              <MobileExpenseForm 
+                onClose={() => {
+                  setDrawerOpen(false);
+                  setPresetCategory(undefined);
+                }} 
+                presetCategory={presetCategory}
+              />
+            ) : (
+              <AddExpenseForm 
+                onClose={() => {
+                  setDrawerOpen(false);
+                  setPresetCategory(undefined);
+                }} 
+                presetCategory={presetCategory}
+              />
+            )}
+          </MobileFormWrapper>
+          <Button onClick={() => setDrawerOpen(true)}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Expense
+          </Button>
         </div>
       </div>
 

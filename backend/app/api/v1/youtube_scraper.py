@@ -9,7 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, HttpUrl
 
 from app.core.auth import get_current_user
-from app.models.user import User
+from app.models.schemas.user import User
 from app.services.scraping.youtube_travel_scraper import YouTubeTravelScraper, SAMPLE_SEARCH_QUERIES
 from app.core.logging import get_logger
 

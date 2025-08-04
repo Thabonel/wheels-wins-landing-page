@@ -31,20 +31,30 @@ import { format } from "date-fns";
 
 interface AddExpenseFormProps {
   onClose?: () => void;
+  presetCategory?: string;
 }
 
-export default function AddExpenseForm({ onClose }: AddExpenseFormProps) {
+export default function AddExpenseForm({ onClose, presetCategory }: AddExpenseFormProps) {
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(presetCategory || "");
   const [description, setDescription] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [receipt, setReceipt] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [shouldOpenReceipt, setShouldOpenReceipt] = useState(false);
   
   const { addExpense, categories } = useExpenseActions();
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  // Check if we should open receipt upload on mount
+  useState(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('openReceiptUpload') === 'true') {
+      setShouldOpenReceipt(true);
+      // Don't remove it here as WinsExpenses handles it
+    }
+  });
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
