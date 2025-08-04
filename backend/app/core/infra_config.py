@@ -57,6 +57,17 @@ class InfrastructureSettings(BaseSettings):
     YOUTUBE_API_KEY: Optional[str] = Field(
         default_factory=lambda: os.getenv('YOUTUBE_API_KEY') or os.getenv('YOUTUBE-API')
     )
+    
+    # Digistore24 Configuration
+    DIGISTORE24_VENDOR_ID: Optional[str] = None
+    DIGISTORE24_API_KEY: Optional[str] = None
+    DIGISTORE24_IPN_PASSPHRASE: Optional[str] = None
+    DIGISTORE24_THANK_YOU_PAGE_KEY: Optional[str] = None
+    DIGISTORE24_SYNC_ENABLED: bool = False
+    DIGISTORE24_MIN_COMMISSION: float = 30.0
+    DIGISTORE24_AUTO_IMPORT_CATEGORIES: str = "travel,outdoor,electronics"
+    DIGISTORE24_KEYWORDS: Optional[str] = None
+    DIGISTORE24_TARGET_AUDIENCE: Optional[str] = None
 
     # AI Agent Observability Infrastructure
     LANGFUSE_SECRET_KEY: Optional[str] = None

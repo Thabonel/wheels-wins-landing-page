@@ -27,6 +27,7 @@ const PaymentCanceled = lazy(() => import("@/pages/PaymentCanceled"));
 const CancelTrial = lazy(() => import("@/pages/CancelTrial"));
 const PasswordResetRequest = lazy(() => import("@/pages/PasswordResetRequest"));
 const UpdatePassword = lazy(() => import("@/pages/UpdatePassword"));
+const ThankYouDigistore24 = lazy(() => import("@/pages/ThankYouDigistore24"));
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtection from './components/admin/AdminProtection';
 import { LazyPamIntegrationProvider } from './components/pam/LazyPamIntegrationProvider';
@@ -92,6 +93,7 @@ function App() {
                                   <Route path="/cancel-trial" element={<CancelTrial />} />
                                   <Route path="/reset-password" element={<PasswordResetRequest />} />
                                   <Route path="/update-password" element={<UpdatePassword />} />
+                                  <Route path="/thank-you/digistore24" element={<ThankYouDigistore24 />} />
                                   <Route path="/terms" element={<TermsOfService />} />
                                   <Route path="/privacy" element={<PrivacyPolicy />} />
                                   <Route path="/cookies" element={<CookiePolicy />} />

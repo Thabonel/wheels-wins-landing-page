@@ -31,6 +31,10 @@ export const ENV = {
   
   // Payment
   STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
+  
+  // Digistore24
+  DIGISTORE24_VENDOR_ID: import.meta.env.VITE_DIGISTORE24_VENDOR_ID || 'Thabonel',
+  DIGISTORE24_THANK_YOU_PAGE_KEY: import.meta.env.VITE_DIGISTORE24_THANK_YOU_PAGE_KEY || '',
 } as const;
 
 export const isDevelopment = ENV.ENVIRONMENT === 'development';

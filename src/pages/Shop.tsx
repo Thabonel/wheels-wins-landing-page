@@ -11,6 +11,8 @@ import PamRecommendations from "@/components/shop/PamRecommendations";
 import { usePersonalizedRecommendations } from "@/hooks/usePersonalizedRecommendations";
 import { useShoppingAnalytics } from "@/hooks/useShoppingAnalytics";
 import { getAffiliateProducts, getDigitalProducts } from "@/components/shop/ProductsData";
+import { digistore24Service } from "@/services/digistore24Service";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Shop() {
   const [activeTab, setActiveTab] = useState<TabValue>("all");
@@ -18,6 +20,7 @@ export default function Shop() {
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
   const { region } = useRegion();
+  const { user } = useAuth();
   const { personalizedProducts } = usePersonalizedRecommendations();
   const { startShoppingSession, endShoppingSession, trackProductInteraction } = useShoppingAnalytics();
   
@@ -73,21 +76,50 @@ export default function Shop() {
   };
   
   // Handle external link clicks for affiliate products
-  const handleExternalLinkClick = (url: string) => {
+  const handleExternalLinkClick = async (url: string, productId?: string) => {
+    // If it's a Digistore24 product, use the service to generate proper affiliate URL
+    if (productId && url.includes('digistore24')) {
+      const product = allProducts.find(p => p.id === productId);
+      if (product && 'digistore24_product_id' in product) {
+        const checkoutUrl = digistore24Service.generateCheckoutUrl({
+          productId: product.digistore24_product_id,
+          userId: user?.id,
+          email: user?.email,
+          custom: user?.id // Track user ID for commission attribution
+        });
+        window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    }
+    
+    // Default behavior for other affiliate links
     window.open(url, '_blank', 'noopener,noreferrer');
   };
   
   // Handle digital product purchases
-  const handleBuyProduct = (productId: string) => {
+  const handleBuyProduct = async (productId: string) => {
     trackProductInteraction({
       productId,
       interactionType: 'purchase',
       contextData: { section: 'main_grid' }
     });
     
-    // In a real implementation, this would initiate the checkout process
-    console.log(`Initiating checkout for product: ${productId}`);
-    alert("Checkout functionality would be integrated with Stripe in a real implementation.");
+    // Check if it's a Digistore24 product
+    const product = allProducts.find(p => p.id === productId);
+    if (product && 'digistore24_product_id' in product && product.digistore24_product_id) {
+      // Redirect to Digistore24 checkout
+      const checkoutUrl = digistore24Service.generateCheckoutUrl({
+        productId: product.digistore24_product_id,
+        userId: user?.id,
+        email: user?.email,
+        custom: user?.id
+      });
+      window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      // Handle other digital products (Stripe, etc.)
+      console.log(`Initiating checkout for product: ${productId}`);
+      alert("Stripe checkout would be integrated here for non-Digistore24 products.");
+    }
   };
 
   // Track product views
