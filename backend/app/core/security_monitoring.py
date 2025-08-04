@@ -664,6 +664,10 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
         asyncio.create_task(self.security_monitor.initialize())
     
     async def dispatch(self, request: Request, call_next) -> Response:
+        # Skip security monitoring for OPTIONS requests (CORS preflight)
+        if request.method == "OPTIONS":
+            return await call_next(request)
+            
         # Check if IP is blocked
         client_ip = self._get_client_ip(request)
         if await self.security_monitor.is_ip_blocked(client_ip):

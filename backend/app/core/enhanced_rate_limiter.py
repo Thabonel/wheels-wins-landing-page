@@ -457,6 +457,10 @@ class EnhancedRateLimitMiddleware(BaseHTTPMiddleware):
         if any(request.url.path.startswith(path) for path in self.exempt_paths):
             return await call_next(request)
         
+        # Skip rate limiting for OPTIONS requests (CORS preflight)
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
         # Get client identifier
         client_id = self._get_client_identifier(request)
         

@@ -94,6 +94,10 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
         ]
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip security checks for OPTIONS requests (CORS preflight)
+        if request.method == "OPTIONS":
+            return await call_next(request)
+            
         # Check for suspicious patterns in URL
         if self._contains_suspicious_content(str(request.url)):
             logger.warning(f"Suspicious URL detected: {request.url}")
