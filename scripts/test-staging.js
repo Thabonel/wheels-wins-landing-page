@@ -155,7 +155,7 @@ async function testStagingDeployment() {
   }
   
   // Summary
-  log('\n' + '='.repeat(50));
+  log(`\n${  '='.repeat(50)}`);
   log(`${colors.bold}📊 Test Results${colors.reset}`);
   log(`Passed: ${passedTests}/${totalTests} tests`);
   

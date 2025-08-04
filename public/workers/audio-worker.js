@@ -111,8 +111,8 @@ class AudioProcessor {
       
       return {
         success: true,
-        result: result,
-        processingTime: processingTime,
+        result,
+        processingTime,
         memoryUsage: this.estimateMemoryUsage()
       };
       
@@ -123,7 +123,7 @@ class AudioProcessor {
       return {
         success: false,
         error: error.message,
-        processingTime: processingTime
+        processingTime
       };
     }
   }
@@ -144,9 +144,9 @@ class AudioProcessor {
     
     return {
       type: 'audio_analysis',
-      features: features,
+      features,
       timestamp: Date.now(),
-      sampleRate: sampleRate
+      sampleRate
     };
   }
   
@@ -169,7 +169,7 @@ class AudioProcessor {
       type: 'noise_reduction',
       enhancedSamples: Array.from(filteredSamples),
       noiseReductionLevel: this.calculateNoiseReduction(floatSamples, filteredSamples),
-      sampleRate: sampleRate
+      sampleRate
     };
   }
   
@@ -193,7 +193,7 @@ class AudioProcessor {
       type: 'voice_enhancement',
       enhancedSamples: Array.from(floatSamples),
       enhancementMetrics: this.calculateEnhancementMetrics(samples, floatSamples),
-      sampleRate: sampleRate
+      sampleRate
     };
   }
   
@@ -224,7 +224,7 @@ class AudioProcessor {
     return {
       type: 'spectral_analysis',
       features: spectralFeatures,
-      sampleRate: sampleRate,
+      sampleRate,
       fftSize: this.fftSize
     };
   }
@@ -243,8 +243,8 @@ class AudioProcessor {
       const confidence = this.matchKeywordPattern(features, keyword);
       
       detectionResults.push({
-        keyword: keyword,
-        confidence: confidence,
+        keyword,
+        confidence,
         detected: confidence > 0.7
       });
     }
@@ -255,7 +255,7 @@ class AudioProcessor {
       bestMatch: detectionResults.reduce((best, current) => 
         current.confidence > best.confidence ? current : best
       ),
-      features: features
+      features
     };
   }
   
@@ -321,9 +321,9 @@ class AudioProcessor {
     
     return {
       isVoice: confidence > 0.6,
-      confidence: confidence,
-      energy: energy,
-      zcr: zcr
+      confidence,
+      energy,
+      zcr
     };
   }
   

@@ -280,7 +280,7 @@ export class AuthErrorHandler {
    */
   private showErrorMessage(message: string): void {
     // This could be replaced with a toast notification system
-    console.error('🚨 ' + message);
+    console.error(`🚨 ${  message}`);
     
     // Create a simple error banner if it doesn't exist
     let errorBanner = document.getElementById('auth-error-banner');

@@ -119,7 +119,7 @@ class VADProcessorWorklet extends AudioWorkletProcessor {
       result: {
         isSpeech: smoothedResult.isSpeech,
         confidence: smoothedResult.confidence,
-        features: features,
+        features,
         frameIndex: this.frameCounter,
         timestamp: currentTime * 1000
       }
@@ -150,8 +150,8 @@ class VADProcessorWorklet extends AudioWorkletProcessor {
     const temporalFeatures = this.calculateTemporalFeatures(frame);
     
     return {
-      energy: energy,
-      zcr: zcr,
+      energy,
+      zcr,
       spectralCentroid: spectralFeatures.centroid,
       spectralRolloff: spectralFeatures.rolloff,
       spectralFlux: spectralFeatures.flux,
@@ -196,10 +196,10 @@ class VADProcessorWorklet extends AudioWorkletProcessor {
     const harmonicity = this.calculateHarmonicity(spectrum);
     
     return {
-      centroid: centroid,
-      rolloff: rolloff,
-      flux: flux,
-      harmonicity: harmonicity
+      centroid,
+      rolloff,
+      flux,
+      harmonicity
     };
   }
   
@@ -289,8 +289,8 @@ class VADProcessorWorklet extends AudioWorkletProcessor {
     const voicedness = this.calculateVoicedness(frame, pitch);
     
     return {
-      pitch: pitch,
-      voicedness: voicedness
+      pitch,
+      voicedness
     };
   }
   
@@ -375,7 +375,7 @@ class VADProcessorWorklet extends AudioWorkletProcessor {
     
     return {
       isSpeech: confidence > 0.5,
-      confidence: confidence,
+      confidence,
       scores: {
         energy: energyScore,
         zcr: zcrScore,

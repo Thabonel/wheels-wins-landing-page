@@ -69,7 +69,7 @@ export const checkHealth: Tool = {
       // Calculate uptime based on deployment history
       const liveDeployments = deployments.filter(d => d.status === 'live').length;
       const uptime = deployments.length > 0 
-        ? (liveDeployments / deployments.length * 100).toFixed(1) + '%'
+        ? `${(liveDeployments / deployments.length * 100).toFixed(1)  }%`
         : 'N/A';
 
       const result = {
@@ -97,7 +97,7 @@ export const checkHealth: Tool = {
           totalDeployments: deployments.length,
           recentFailures,
           successRate: deployments.length > 0 
-            ? ((deployments.length - recentFailures) / deployments.length * 100).toFixed(1) + '%'
+            ? `${((deployments.length - recentFailures) / deployments.length * 100).toFixed(1)  }%`
             : 'N/A',
         },
         recommendations: [],

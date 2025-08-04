@@ -15,6 +15,7 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
   // Define authenticated nav items
   const authenticatedNavItems = [
     { label: "You", path: "/you" },
+    { label: "Plan Your Trip", path: "/plan-your-trip" },
     { label: "Wheels", path: "/wheels" },
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },

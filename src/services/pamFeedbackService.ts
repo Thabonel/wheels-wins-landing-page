@@ -142,7 +142,7 @@ class PamFeedbackService {
 
     // Truncate to reasonable length
     if (title.length > 80) {
-      title = title.substring(0, 77) + "...";
+      title = `${title.substring(0, 77)  }...`;
     }
 
     // Add type prefix if not clear
@@ -284,7 +284,7 @@ class PamFeedbackService {
 
       return {
         feedbackProcessed: true,
-        response: responses[parsedFeedback.type] + ` (Feedback ID: ${result.feedbackId?.substring(0, 8)})`
+        response: `${responses[parsedFeedback.type]  } (Feedback ID: ${result.feedbackId?.substring(0, 8)})`
       };
     } else {
       return {

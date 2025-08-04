@@ -117,7 +117,7 @@ export const resumeService: Tool = {
           recentDeployment 
             ? `Monitor deployment ${recentDeployment.id} with get_deployments tool`
             : 'Check service health with check_health tool in a few minutes',
-          'Verify service is responding at: ' + (service.serviceDetails?.url || 'service URL'),
+          `Verify service is responding at: ${  service.serviceDetails?.url || 'service URL'}`,
         ],
       };
 

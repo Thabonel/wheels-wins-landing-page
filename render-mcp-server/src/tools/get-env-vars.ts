@@ -84,7 +84,7 @@ export const getEnvVars: Tool = {
         
         // For non-sensitive variables, show first few characters
         if (value.length > 10) {
-          return value.substring(0, 4) + '...' + value.substring(value.length - 2);
+          return `${value.substring(0, 4)  }...${  value.substring(value.length - 2)}`;
         }
         
         return value;
