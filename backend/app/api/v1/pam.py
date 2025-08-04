@@ -513,71 +513,44 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
             })
 
 async def get_streaming_ai_response(message: str, context: dict, conversation_history: list):
-    """Generator for streaming AI responses from OpenAI/Anthropic"""
+    """Generator for streaming AI responses using the AI Orchestrator"""
     try:
-        # Use Anthropic Claude streaming for better performance
-        import anthropic
-        from app.core.config import settings
+        # Use the AI Orchestrator for intelligent provider selection and failover
+        from app.services.ai.ai_orchestrator import ai_orchestrator, AIMessage, AICapability
         
-        if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:
-            # Use Anthropic Claude streaming
-            logger.info("🤖 Using Anthropic Claude streaming")
-            client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        # Initialize orchestrator if needed
+        if not ai_orchestrator._initialized:
+            await ai_orchestrator.initialize()
+        
+        # Build system message
+        system_message = AIMessage(
+            role="system",
+            content=build_pam_system_prompt(context)
+        )
+        
+        # Build conversation messages
+        messages = [system_message]
+        
+        if conversation_history:
+            for msg in conversation_history[-5:]:  # Last 5 messages for context
+                messages.append(AIMessage(
+                    role=msg.get("role", "user"),
+                    content=msg.get("content", "")
+                ))
+        
+        messages.append(AIMessage(role="user", content=message))
+        
+        # Stream from the best available provider
+        logger.info("🤖 Streaming AI response via orchestrator")
+        
+        async for chunk in ai_orchestrator.stream(
+            messages=messages,
+            required_capabilities={AICapability.STREAMING},
+            temperature=0.7,
+            max_tokens=1024
+        ):
+            yield chunk
             
-            # Build conversation messages
-            messages = []
-            if conversation_history:
-                for msg in conversation_history[-5:]:  # Last 5 messages for context
-                    messages.append({
-                        "role": msg.get("role", "user"),
-                        "content": msg.get("content", "")
-                    })
-            
-            messages.append({"role": "user", "content": message})
-            
-            # Stream from Claude
-            with client.messages.stream(
-                model="claude-3-5-sonnet-20241022",
-                messages=messages,
-                max_tokens=1024,
-                system=build_pam_system_prompt(context)
-            ) as stream:
-                for text in stream.text_stream:
-                    yield text
-                    
-        else:
-            # Fallback to OpenAI streaming
-            logger.info("🤖 Using OpenAI streaming fallback")
-            from openai import AsyncOpenAI
-            
-            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-            
-            # Build messages for OpenAI
-            openai_messages = [
-                {"role": "system", "content": build_pam_system_prompt(context)}
-            ]
-            
-            if conversation_history:
-                for msg in conversation_history[-5:]:
-                    openai_messages.append({
-                        "role": msg.get("role", "user"),
-                        "content": msg.get("content", "")
-                    })
-            
-            openai_messages.append({"role": "user", "content": message})
-            
-            # Stream from OpenAI
-            stream = await client.chat.completions.create(
-                model="gpt-4",
-                messages=openai_messages,
-                max_tokens=1024,
-                stream=True
-            )
-            
-            async for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-                    
     except Exception as e:
         logger.error(f"AI streaming error: {str(e)}")
         yield f"I encountered an error while processing your request: {str(e)}"
