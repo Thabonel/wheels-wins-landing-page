@@ -36,11 +36,11 @@ import BudgetSidebar from './trip-planner/BudgetSidebar';
 import SocialSidebar from './trip-planner/SocialSidebar';
 import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
 import NavigationExportHub from './trip-planner/NavigationExportHub';
+import TripTemplates from './TripTemplates';
 import { useIntegratedTripState } from './trip-planner/hooks/useIntegratedTripState';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useRegion } from '@/context/RegionContext';
-import { getLocationBasedTripTemplates, incrementTemplateUsage, TripTemplate as ServiceTripTemplate } from '@/services/tripTemplateService';
+import { incrementTemplateUsage, TripTemplate as ServiceTripTemplate } from '@/services/tripTemplateService';
 
 // Use the service interface
 type TripTemplate = ServiceTripTemplate;
@@ -50,7 +50,6 @@ type TripTemplate = ServiceTripTemplate;
 export default function TripPlannerApp() {
   const auth = useAuth();
   const { toast } = useToast();
-  const { region } = useRegion();
   
   // Handle case where auth context might not be available
   const user = auth?.user || null;
@@ -58,9 +57,6 @@ export default function TripPlannerApp() {
   const [isPlannerInitialized, setIsPlannerInitialized] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
   const [showWelcome, setShowWelcome] = useState(!auth?.user);
-  const [tripTemplates, setTripTemplates] = useState<TripTemplate[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(true);
-  const [templatesError, setTemplatesError] = useState<string | null>(null);
   
   // Initialize integrated state
   const integratedState = useIntegratedTripState(false);
@@ -142,158 +138,6 @@ export default function TripPlannerApp() {
     setIsPlannerInitialized(true);
   };
 
-  // Load trip templates based on user's region
-  useEffect(() => {
-    async function loadTripTemplates() {
-      try {
-        setTemplatesLoading(true);
-        setTemplatesError(null);
-        
-        console.log(`Loading trip templates for region: ${region}`);
-        const templates = await getLocationBasedTripTemplates(region);
-        
-        setTripTemplates(templates);
-        
-        if (templates.length === 0) {
-          setTemplatesError('No trip templates available for your region. Our scraper is working to find some!');
-        }
-      } catch (error) {
-        console.error('Error loading trip templates:', error);
-        setTemplatesError('Failed to load trip templates. Please try refreshing the page.');
-      } finally {
-        setTemplatesLoading(false);
-      }
-    }
-
-    loadTripTemplates();
-  }, [region]);
-
-  const TripTemplatesContent = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Trip Templates</h2>
-          <p className="text-muted-foreground">Start with proven RV routes and customize to your needs</p>
-        </div>
-      </div>
-
-      {templatesLoading && (
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading trip templates for {region}...</p>
-        </div>
-      )}
-
-      {templatesError && (
-        <div className="text-center py-8">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-yellow-800">{templatesError}</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="mt-2 text-yellow-600 underline hover:text-yellow-700"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!templatesLoading && !templatesError && tripTemplates.length > 0 && (
-        <>
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>📍 {region} Templates:</strong> Showing {tripTemplates.length} trip templates for your region.
-              {tripTemplates.some(t => t.createdBy === 'auto-scraper') && ' Some templates were automatically discovered and curated for you!'}
-            </p>
-          </div>
-          
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {tripTemplates.map((template) => (
-          <Card key={template.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{template.name}</CardTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={
-                      template.difficulty === 'beginner' ? 'secondary' : 
-                      template.difficulty === 'intermediate' ? 'default' : 'destructive'
-                    }>
-                      {template.difficulty}
-                    </Badge>
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <Star 
-                          key={i} 
-                          className={cn(
-                            "w-3 h-3",
-                            i < (template.difficulty === 'beginner' ? 3 : template.difficulty === 'intermediate' ? 4 : 5)
-                              ? "text-yellow-400 fill-current" 
-                              : "text-gray-300"
-                          )} 
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">{template.description}</p>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Duration:</span>
-                  <span className="font-medium">{template.estimatedDays} days</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Distance:</span>
-                  <span className="font-medium">{template.estimatedMiles.toLocaleString()} miles</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Suggested Budget:</span>
-                  <span className="font-medium">${template.suggestedBudget.toLocaleString()}</span>
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium mb-2">Highlights:</div>
-                <div className="flex flex-wrap gap-1">
-                  {template.highlights.slice(0, 3).map((highlight) => (
-                    <Badge key={highlight} variant="outline" className="text-xs">
-                      {highlight}
-                    </Badge>
-                  ))}
-                  {template.highlights.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{template.highlights.length - 3} more
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button 
-                  className="flex-1" 
-                  onClick={() => handleUseTemplate(template)}
-                >
-                  Use This Template
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-                {template.createdBy === 'auto-scraper' && (
-                  <Badge variant="outline" className="text-xs px-2">
-                    Auto
-                  </Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
 
 
   // Welcome screen for non-authenticated users
@@ -372,8 +216,8 @@ export default function TripPlannerApp() {
             <TabsList className="grid grid-cols-2 w-full sm:w-auto">
               <TabsTrigger value="trip-templates" className="flex items-center gap-2 text-xs sm:text-sm">
                 <Sparkles className="w-4 h-4" />
-                <span className="hidden sm:inline">Trip Templates</span>
-                <span className="sm:hidden">Templates</span>
+                <span className="hidden sm:inline">Plan Your Trip</span>
+                <span className="sm:hidden">Plan Trip</span>
               </TabsTrigger>
               <TabsTrigger value="plan-trip" className="flex items-center gap-2 text-xs sm:text-sm">
                 <Route className="w-4 h-4" />
@@ -418,7 +262,7 @@ export default function TripPlannerApp() {
           </div>
 
           <TabsContent value="trip-templates" className="mt-0">
-            <TripTemplatesContent />
+            <TripTemplates onUseTemplate={handleUseTemplate} />
           </TabsContent>
 
           <TabsContent value="plan-trip" className="mt-0">
