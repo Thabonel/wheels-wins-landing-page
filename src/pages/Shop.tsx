@@ -12,7 +12,7 @@ import { usePersonalizedRecommendations } from "@/hooks/usePersonalizedRecommend
 import { useShoppingAnalytics } from "@/hooks/useShoppingAnalytics";
 import { getAffiliateProducts, getDigitalProducts } from "@/components/shop/ProductsData";
 import { digistore24Service } from "@/services/digistore24Service";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Shop() {
   const [activeTab, setActiveTab] = useState<TabValue>("all");

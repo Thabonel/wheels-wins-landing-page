@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, AlertCircle, ShoppingBag, ArrowRight } from "lucide-react";
 import { digistore24Service } from "@/services/digistore24Service";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ThankYouDigistore24() {
   const [searchParams] = useSearchParams();
