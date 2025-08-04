@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { getUserSettings } from '@/services/userSettingsService';
 
 interface BudgetSummary {
   weeklyBudget: number;
@@ -33,24 +34,8 @@ export function useBudgetSummary() {
   // Fetch user's budget settings
   const fetchBudgetSettings = async (userId: string): Promise<BudgetSettings> => {
     try {
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('budget_settings')
-        .eq('user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
-        throw error;
-      }
-
-      // Default budget if no settings found
-      const defaultBudget = {
-        weeklyBudget: 300,
-        monthlyBudget: 1200,
-        yearlyBudget: 14400
-      };
-
-      return data?.budget_settings || defaultBudget;
+      const settings = await getUserSettings(userId);
+      return settings.budget_settings;
     } catch (error) {
       console.error('Error fetching budget settings:', error);
       // Return default budget on error
