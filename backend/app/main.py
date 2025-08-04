@@ -404,7 +404,29 @@ logger.info(f"   Methods: {cors_config.allowed_methods}")
 logger.info(f"   Headers: {len(cors_config.allowed_headers)} headers configured")
 
 # CORS middleware handles OPTIONS requests automatically
-# No custom OPTIONS handler needed
+# But we still need a catch-all OPTIONS handler for proper preflight responses
+
+
+# Global OPTIONS handler to ensure all preflight requests get proper responses
+@app.options("/{full_path:path}")
+async def catch_all_options(request: Request, full_path: str):
+    """
+    Global OPTIONS handler for all routes to ensure CORS preflight requests work properly.
+    The CORS middleware adds headers, but we need to return a proper 200 response.
+    """
+    origin = request.headers.get("origin")
+    method = request.headers.get("access-control-request-method")
+    headers = request.headers.get("access-control-request-headers")
+    
+    logger.debug(f"OPTIONS request for /{full_path} from origin: {origin}")
+    
+    # Create proper OPTIONS response using our CORS config
+    return cors_config.create_options_response(
+        origin=origin,
+        requested_method=method,
+        requested_headers=headers,
+        cache_bust=True
+    )
 
 
 # Add root route handler
