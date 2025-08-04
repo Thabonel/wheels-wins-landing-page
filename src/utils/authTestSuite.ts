@@ -126,7 +126,7 @@ export class AuthTestSuite {
       return {
         tokenLength: result.token.length,
         shouldRefresh: result.shouldRefresh,
-        tokenPreview: result.token.substring(0, 30) + '...'
+        tokenPreview: `${result.token.substring(0, 30)  }...`
       };
     });
   }

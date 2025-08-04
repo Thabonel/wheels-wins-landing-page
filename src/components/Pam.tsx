@@ -639,7 +639,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       });
       
       const healthTime = Date.now() - healthStartTime;
-      console.log('🏥 PAM DEBUG: Health check completed in:', healthTime + 'ms');
+      console.log('🏥 PAM DEBUG: Health check completed in:', `${healthTime  }ms`);
       console.log('🏥 PAM DEBUG: Health response status:', healthResponse.status);
       console.log('🏥 PAM DEBUG: Health response ok:', healthResponse.ok);
       
@@ -684,7 +684,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       console.log('✅ PAM DEBUG: Valid JWT token obtained:', {
         tokenLength: tokenResult.token.length,
-        tokenPreview: tokenResult.token.substring(0, 30) + '...',
+        tokenPreview: `${tokenResult.token.substring(0, 30)  }...`,
         expiresAt: tokenResult.expiresAt,
         needsRefresh: tokenResult.needsRefresh
       });
@@ -702,7 +702,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           tokenResult.token = session.access_token;
           console.log('✅ PAM DEBUG: JWT token from session:', {
             tokenLength: session.access_token.length,
-            tokenPreview: session.access_token.substring(0, 30) + '...'
+            tokenPreview: `${session.access_token.substring(0, 30)  }...`
           });
         } else {
           console.error('❌ PAM DEBUG: No JWT found in session either!');
@@ -730,7 +730,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       if (!wsUrl.includes('/api/v1/pam/ws')) {
         console.error('❌ PAM DEBUG: URL validation failed!');
         console.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
-        console.error('❌ PAM DEBUG: Actual URL:', wsUrl.substring(0, 100) + '...');
+        console.error('❌ PAM DEBUG: Actual URL:', `${wsUrl.substring(0, 100)  }...`);
         throw new Error('WebSocket endpoint validation failed');
       }
       
@@ -750,7 +750,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         const connectionTime = Date.now() - connectionStartTime;
         console.log('✅ PAM DEBUG: ==================== CONNECTION SUCCESS ====================');
         console.log('✅ PAM DEBUG: WebSocket OPENED successfully!');
-        console.log('✅ PAM DEBUG: Connection time:', connectionTime + 'ms');
+        console.log('✅ PAM DEBUG: Connection time:', `${connectionTime  }ms`);
         console.log('✅ PAM DEBUG: Event:', event);
         console.log('✅ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
         console.log('✅ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
@@ -846,7 +846,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           // Handle traditional chat responses (non-streaming fallback)
           if (message.type === 'chat_response' || message.type === 'response') {
             const content = message.content || message.message || message.response;
-            console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
+            console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: `${content?.substring(0, 100)  }...` });
             
             if (content && content.trim()) {
               // Check if PAM is asking for location and offer to get it automatically
@@ -997,7 +997,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         try {
           localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
             messages: messages.slice(-10),
-            sessionId: sessionId,
+            sessionId,
             timestamp: new Date().toISOString()
           }));
           console.log('💾 PAM DEBUG: Conversation state saved');
@@ -1265,7 +1265,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         const currentIsContinuousMode = isContinuousModeRef.current;
         
         console.log('🎙️ Speech detected:', {
-          transcript: transcript,
+          transcript,
           isFinal: latest.isFinal,
           confidence: latest[0].confidence,
           isWakeWordListening: currentIsWakeWordListening,
@@ -1305,8 +1305,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         console.error('⚠️ Speech recognition error:', {
           error: event.error,
           message: event.message,
-          isWakeWordListening: isWakeWordListening,
-          isContinuousMode: isContinuousMode
+          isWakeWordListening,
+          isContinuousMode
         });
         
         if (event.error === 'not-allowed') {
@@ -1539,7 +1539,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Process text message through PAM (used for continuous voice conversations)
     const messageData = {
       type: "chat",
-      message: message,  // Backend expects 'message' not 'content'
+      message,  // Backend expects 'message' not 'content'
       context: {
         user_id: user?.id,
         userLocation: userContext?.current_location,
@@ -2195,7 +2195,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           setIsSpeaking(false);
           vadService.setPAMSpeaking(false);
           setCurrentAudio(null);
-          return;
+          
         }
       } else {
         // Normal manual TTS playback (user clicked a voice button)
@@ -2262,7 +2262,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       try {
         localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
           messages: updatedMessages.slice(-10), // Keep last 10 messages
-          sessionId: sessionId,
+          sessionId,
           timestamp: new Date().toISOString()
         }));
       } catch (error) {
@@ -2325,7 +2325,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     const messageData = {
       type: "chat",
-      message: message,  // Backend expects 'message' not 'content'
+      message,  // Backend expects 'message' not 'content'
       stream: true,  // Request streaming response for better UX
       context: {
         user_id: user?.id,  // Move userId into context as expected by backend

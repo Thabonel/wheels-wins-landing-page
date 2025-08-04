@@ -73,9 +73,9 @@ export default function TripControls({
       const routeData = {
         origin: originName,
         destination: destName,
-        waypoints: waypoints,
-        routeType: routeType,
-        vehicle: vehicle,
+        waypoints,
+        routeType,
+        vehicle,
         totalStops: waypoints.length + 2 // origin + destination + waypoints
       };
 

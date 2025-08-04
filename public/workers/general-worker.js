@@ -98,8 +98,8 @@ class GeneralProcessor {
       
       return {
         success: true,
-        result: result,
-        processingTime: processingTime,
+        result,
+        processingTime,
         memoryUsage: this.estimateMemoryUsage()
       };
       
@@ -112,7 +112,7 @@ class GeneralProcessor {
       return {
         success: false,
         error: error.message,
-        processingTime: processingTime
+        processingTime
       };
     }
   }
@@ -341,7 +341,7 @@ class GeneralProcessor {
     return {
       dominantEmotion: dominantEmotion.emotion,
       confidence: dominantEmotion.score,
-      emotionScores: emotionScores,
+      emotionScores,
       valence: this.calculateValence(emotionScores),
       arousal: this.calculateArousal(audioFeatures)
     };
@@ -378,7 +378,7 @@ class GeneralProcessor {
     return {
       detected: confidence > 0.7,
       confidence: Math.min(1, confidence),
-      keyword: keyword,
+      keyword,
       features: audioFeatures
     };
   }
@@ -591,7 +591,7 @@ class GeneralProcessor {
     return {
       isVoice: probability > 0.5,
       confidence: probability,
-      features: features
+      features
     };
   }
   
@@ -625,8 +625,8 @@ class GeneralProcessor {
     
     return {
       detected: confidence > 0.6,
-      confidence: confidence,
-      features: features
+      confidence,
+      features
     };
   }
   
@@ -699,7 +699,7 @@ class GeneralProcessor {
     // Simple predicate evaluation (unsafe - in production use safer methods)
     return array.filter(item => {
       try {
-        return Function('"use strict"; return (' + predicate + ')')()(item);
+        return Function(`"use strict"; return (${  predicate  })`)()(item);
       } catch {
         return false;
       }
@@ -731,10 +731,10 @@ class GeneralProcessor {
     
     return {
       count: n,
-      sum: sum,
-      mean: mean,
-      median: median,
-      variance: variance,
+      sum,
+      mean,
+      median,
+      variance,
       standardDeviation: stdDev,
       min: Math.min(...values),
       max: Math.max(...values)
@@ -774,8 +774,8 @@ class GeneralProcessor {
       }
       
       result[k] = { 
-        real: real, 
-        imag: imag, 
+        real, 
+        imag, 
         magnitude: Math.sqrt(real * real + imag * imag),
         phase: Math.atan2(imag, real)
       };
@@ -826,7 +826,7 @@ class GeneralProcessor {
   validateJson(jsonString) {
     try {
       const parsed = JSON.parse(jsonString);
-      return { valid: true, parsed: parsed };
+      return { valid: true, parsed };
     } catch (error) {
       return { valid: false, error: error.message };
     }
@@ -845,7 +845,7 @@ class GeneralProcessor {
       if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
         paths.push(...this.extractJsonPaths(obj[key], path));
       } else {
-        paths.push({ path: path, value: obj[key], type: typeof obj[key] });
+        paths.push({ path, value: obj[key], type: typeof obj[key] });
       }
     }
     

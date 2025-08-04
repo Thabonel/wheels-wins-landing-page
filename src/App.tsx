@@ -19,6 +19,7 @@ const Wins = lazy(() => import('./pages/Wins'));
 const Social = lazy(() => import('./pages/Social'));
 const Shop = lazy(() => import('./pages/Shop'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const PlanYourTrip = lazy(() => import('./pages/PlanYourTrip'));
 import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
@@ -74,6 +75,7 @@ function App() {
                                 <Routes>
                                   <Route path="/" element={<Index />} />
                                   <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
+                                  <Route path="/plan-your-trip" element={<ProtectedRoute><PlanYourTrip /></ProtectedRoute>} />
                                   <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
                                   <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                                   <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />

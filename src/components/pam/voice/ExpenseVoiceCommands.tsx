@@ -24,7 +24,7 @@ export function useExpenseVoiceCommands(config: VoiceCommandConfig) {
     isValid: boolean;
   } => {
     const lowerCommand = command.toLowerCase();
-    let result: any = { isValid: false };
+    const result: any = { isValid: false };
 
     // Pattern: "log [amount] [dollars/bucks] for [category/description]"
     // Examples: 
