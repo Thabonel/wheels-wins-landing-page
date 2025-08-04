@@ -8,7 +8,7 @@ import { useRegion } from "@/context/RegionContext";
 
 interface ProductCardProps {
   product: ShopProduct;
-  onExternalLinkClick: (url: string) => void;
+  onExternalLinkClick: (url: string, productId?: string) => void;
   onBuyProduct: (productId: string) => void;
 }
 
@@ -17,7 +17,7 @@ export default function ProductCard({ product, onExternalLinkClick, onBuyProduct
   
   const handleClick = () => {
     if (isAffiliateProduct(product)) {
-      onExternalLinkClick(product.externalLink);
+      onExternalLinkClick(product.externalLink, product.id);
     } else if (isDigitalProduct(product)) {
       onBuyProduct(product.id);
     }
@@ -68,6 +68,29 @@ export default function ProductCard({ product, onExternalLinkClick, onBuyProduct
             </span>
             <span className="text-sm text-gray-500 ml-1">
               {product.currency}
+            </span>
+          </div>
+        )}
+        
+        {/* Digistore24 specific badges */}
+        {product.commission_percentage && product.commission_percentage > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              {product.commission_percentage}% commission
+            </Badge>
+            {product.auto_approved && (
+              <Badge variant="outline" className="text-xs text-green-600">
+                Auto-approved
+              </Badge>
+            )}
+          </div>
+        )}
+        
+        {product.vendor_rating && product.vendor_rating > 0 && (
+          <div className="mt-1 flex items-center gap-1">
+            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+            <span className="text-xs text-gray-600">
+              {product.vendor_rating.toFixed(1)} vendor rating
             </span>
           </div>
         )}

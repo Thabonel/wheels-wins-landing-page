@@ -10,6 +10,13 @@ export interface BaseProduct {
   categories?: string[];
   brand?: string;
   features?: string[];
+  // Digistore24 fields
+  digistore24_product_id?: string;
+  digistore24_vendor_id?: string;
+  commission_percentage?: number;
+  vendor_rating?: number;
+  auto_approved?: boolean;
+  target_audience?: string[];
 }
 
 export interface AffiliateProduct extends BaseProduct {

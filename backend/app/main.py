@@ -71,6 +71,7 @@ from app.api.v1 import (
     user_settings,
     onboarding,
     performance,
+    digistore24,
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import observability as observability_api
@@ -532,6 +533,7 @@ app.include_router(orders.router, prefix="/api/v1", tags=["Orders"])
 app.include_router(maintenance.router, prefix="/api/v1", tags=["Maintenance"])
 app.include_router(custom_routes.router, prefix="/api/v1", tags=["Routes"])
 app.include_router(onboarding.router, prefix="/api/v1", tags=["Onboarding"])
+app.include_router(digistore24.router, prefix="/api/v1/digistore24", tags=["Digistore24"])
 # Removed generic websocket router to avoid conflicts with PAM WebSocket
 # app.include_router(websocket.router, prefix="/api", tags=["WebSocket"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
