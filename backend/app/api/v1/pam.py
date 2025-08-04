@@ -139,6 +139,9 @@ async def websocket_endpoint(
         # Now register the connection with the manager  
         await manager.connect(websocket, user_id, connection_id)
         
+        # Store connection_id on websocket for use in handlers
+        websocket.connection_id = connection_id
+        
         # Send welcome message
         await websocket.send_json({
             "type": "connection",
@@ -204,6 +207,29 @@ async def websocket_endpoint(
                 logger.info(f"🔄 [DEBUG] Context update received from {user_id}")
                 await handle_context_update(websocket, data, user_id, db)
                 
+            elif data.get("type") == "init":
+                logger.info(f"🚀 [DEBUG] Init message received from {user_id}")
+                context = data.get("context", {})
+                
+                # Store user location in connection context
+                if context.get("userLocation"):
+                    await manager.update_connection_context(connection_id, {
+                        "user_location": context["userLocation"],
+                        "vehicle_info": context.get("vehicleInfo"),
+                        "travel_style": context.get("travelStyle"),
+                        "session_id": context.get("session_id")
+                    })
+                    logger.info(f"📍 [DEBUG] User location stored: {context['userLocation']}")
+                else:
+                    logger.info(f"📍 [DEBUG] No location provided in init message")
+                
+                # Send acknowledgment
+                await websocket.send_json({
+                    "type": "init_ack",
+                    "message": "Context initialized successfully",
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                
             elif data.get("type") == "auth":
                 logger.info(f"🔐 [DEBUG] Auth message received from {user_id} - ignoring (already authenticated)")
                 # Auth messages are just for connection establishment, ignore them
@@ -238,6 +264,20 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         context = data.get("context", {})
         context["user_id"] = user_id
         context["connection_type"] = "websocket"
+        
+        # Get stored connection context (includes location from init)
+        connection_id = getattr(websocket, 'connection_id', None)
+        if connection_id:
+            stored_context = manager.get_connection_context(connection_id)
+            if stored_context:
+                # Merge stored context with message context
+                if stored_context.get("user_location") and not context.get("user_location"):
+                    context["user_location"] = stored_context["user_location"]
+                    logger.info(f"📍 [DEBUG] Using stored location: {context['user_location']}")
+                if stored_context.get("vehicle_info"):
+                    context["vehicle_info"] = stored_context["vehicle_info"]
+                if stored_context.get("travel_style"):
+                    context["travel_style"] = stored_context["travel_style"]
         
         # CRITICAL: Fix location context mapping
         # Frontend sends 'userLocation' but backend expects 'user_location'

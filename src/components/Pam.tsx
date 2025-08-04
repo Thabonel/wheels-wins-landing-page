@@ -326,7 +326,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         contextData = data?.context_updates || data?.actions || data;
       }
 
-      // Also fetch current location if user has location tracking enabled
+      // Try to get location on PAM startup
+      let locationObtained = false;
+      
+      // First try: Check if user has location tracking enabled from trip planner
       if (user?.id && locationState?.isTracking) {
         try {
           const userLocation = await locationService.getUserLocation(user.id);
@@ -339,9 +342,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               location_source: 'trip_planner'
             };
             console.log('📍 Added location from trip planner:', locationString);
+            locationObtained = true;
           }
         } catch (error) {
           console.warn('⚠️ Failed to fetch location from trip planner:', error);
+        }
+      }
+      
+      // Second try: If no location from trip planner, request fresh location
+      if (!locationObtained) {
+        console.log('📍 No location from trip planner, requesting fresh location for PAM');
+        const location = await requestUserLocation();
+        if (location) {
+          const locationString = `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+          contextData = {
+            ...contextData,
+            current_location: locationString,
+            location_source: 'geolocation'
+          };
+          console.log('📍 Got fresh location for PAM:', locationString);
         }
       }
 
@@ -766,6 +785,22 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           clearTimeout(reconnectTimeoutRef.current);
           reconnectTimeoutRef.current = null;
         }
+        
+        // Send initial context with location on connection
+        const initMessage = {
+          type: "init",
+          context: {
+            user_id: user?.id,
+            userLocation: userContext?.current_location,
+            vehicleInfo: userContext?.vehicle_info,
+            travelStyle: userContext?.travel_style,
+            session_id: sessionId,
+            timestamp: new Date().toISOString()
+          }
+        };
+        
+        console.log('📍 PAM DEBUG: Sending init message with location:', initMessage);
+        wsRef.current.send(JSON.stringify(initMessage));
         
         if (messages.length === 0 && !hasShownWelcomeRef.current) {
           console.log('💬 PAM DEBUG: Adding greeting message');

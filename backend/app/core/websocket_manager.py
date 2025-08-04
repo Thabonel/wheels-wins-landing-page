@@ -244,6 +244,20 @@ class ConnectionManager:
             })
         
         return stats
+    
+    async def update_connection_context(self, connection_id: str, context: Dict) -> None:
+        """Update the context data for a specific connection."""
+        if connection_id in self.connection_metadata:
+            if "context" not in self.connection_metadata[connection_id]:
+                self.connection_metadata[connection_id]["context"] = {}
+            self.connection_metadata[connection_id]["context"].update(context)
+            logger.info(f"📍 Updated context for connection {connection_id}: {context}")
+    
+    def get_connection_context(self, connection_id: str) -> Optional[Dict]:
+        """Get the context data for a specific connection."""
+        if connection_id in self.connection_metadata:
+            return self.connection_metadata[connection_id].get("context", {})
+        return None
 
 # Create the manager instance
 manager = ConnectionManager()
