@@ -71,10 +71,10 @@ export function useBudgetSummary() {
     try {
       const { data, error } = await supabase
         .from('expenses')
-        .select('amount, category, expense_date')
+        .select('amount, category, date')
         .eq('user_id', userId)
-        .gte('expense_date', weekStart.toISOString().split('T')[0])
-        .lte('expense_date', weekEnd.toISOString().split('T')[0]);
+        .gte('date', weekStart.toISOString().split('T')[0])
+        .lte('date', weekEnd.toISOString().split('T')[0]);
 
       if (error) throw error;
 
@@ -206,7 +206,7 @@ export function useBudgetSummary() {
           amount,
           category,
           description,
-          expense_date: new Date().toISOString().split('T')[0]
+          date: new Date().toISOString().split('T')[0]
         });
 
       if (error) throw error;
