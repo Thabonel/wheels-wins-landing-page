@@ -377,8 +377,8 @@ export default function TripPlannerApp() {
               </TabsTrigger>
               <TabsTrigger value="plan-trip" className="flex items-center gap-2 text-xs sm:text-sm">
                 <Route className="w-4 h-4" />
-                <span className="hidden sm:inline">Plan Trip</span>
-                <span className="sm:hidden">Plan</span>
+                <span className="hidden sm:inline">Trip Map Editor</span>
+                <span className="sm:hidden">Map</span>
               </TabsTrigger>
             </TabsList>
             
