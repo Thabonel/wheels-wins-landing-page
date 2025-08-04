@@ -9,12 +9,14 @@ import WinsIncome from "@/components/wins/WinsIncome";
 import WinsBudgets from "@/components/wins/WinsBudgets";
 import WinsTips from "@/components/wins/WinsTips";
 import WinsMoneyMaker from "@/components/wins/WinsMoneyMaker";
+import WinsOnboarding from "@/components/wins/WinsOnboarding";
 
 import { useScrollReset } from "@/hooks/useScrollReset";
 
 export default function Wins() {
   const [activeTab, setActiveTab] = useState("overview");
   const isMobile = useIsMobile();
+  const [showOnboarding, setShowOnboarding] = useState(false);
   
   // Use our consistent scroll reset hook
   useScrollReset([activeTab]);
@@ -29,7 +31,11 @@ export default function Wins() {
   ];
   
   return (
-    <div className="container p-6">
+    <>
+      {/* Onboarding modal */}
+      <WinsOnboarding onComplete={() => setShowOnboarding(false)} />
+      
+      <div className="container p-6">
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4">
@@ -91,5 +97,6 @@ export default function Wins() {
         </div>
       </div>
     </div>
+    </>
   );
 }
