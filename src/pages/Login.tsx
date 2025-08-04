@@ -15,7 +15,14 @@ const Login = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
+    console.log('[Login Page] Auth check:', {
+      isAuthenticated,
+      timestamp: new Date().toISOString(),
+      currentPath: window.location.pathname
+    });
+    
     if (isAuthenticated) {
+      console.log('[Login Page] User is authenticated, redirecting to /you');
       navigate("/you");
     }
   }, [isAuthenticated, navigate]);

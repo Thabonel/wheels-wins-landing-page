@@ -441,7 +441,14 @@ export async function getLocationBasedTripTemplates(region: Region): Promise<Tri
     
     console.log('⚠️ No templates found in database, checking fallback options...');
     
-    // Only use fallback for now - don't trigger scraping in production
+    // Return expanded fallback templates for Australia
+    if (region === 'Australia') {
+      const australianTemplates = getExpandedAustralianTemplates();
+      console.log(`📋 Using ${australianTemplates.length} comprehensive fallback templates for Australia`);
+      return australianTemplates;
+    }
+    
+    // Use standard fallback for other regions
     const fallbackTemplates = getFallbackTemplatesForRegion(region);
     console.log(`📋 Using ${fallbackTemplates.length} fallback templates for region ${region}`);
     
@@ -465,6 +472,11 @@ export async function getLocationBasedTripTemplates(region: Region): Promise<Tri
       });
     }
     
+    // Return expanded fallback for Australia even on error
+    if (region === 'Australia') {
+      return getExpandedAustralianTemplates();
+    }
+    
     // Return fallback templates but mark them as error fallbacks
     const errorFallbackTemplates = getFallbackTemplatesForRegion(region).map(template => ({
       ...template,
@@ -474,6 +486,201 @@ export async function getLocationBasedTripTemplates(region: Region): Promise<Tri
     console.log(`🚨 Returning ${errorFallbackTemplates.length} error fallback templates`);
     return errorFallbackTemplates;
   }
+}
+
+/**
+ * Get expanded Australian trip templates when database is not accessible
+ */
+function getExpandedAustralianTemplates(): TripTemplate[] {
+  return [
+    {
+      id: 'aus-great-ocean-road',
+      name: 'Great Ocean Road Classic',
+      description: 'Melbourne to Adelaide coastal adventure featuring the iconic Twelve Apostles and charming seaside towns.',
+      estimatedDays: 7,
+      estimatedMiles: 400,
+      difficulty: 'beginner',
+      highlights: ['Twelve Apostles', 'Port Campbell', 'Lorne Beach', 'Apollo Bay'],
+      suggestedBudget: 1200,
+      route: null,
+      region: 'Australia',
+      category: 'coastal',
+      tags: ['australia', 'coastal', 'scenic', 'victoria'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-big-lap',
+      name: 'The Big Lap - Around Australia',
+      description: 'Complete circumnavigation of Australia covering all states and territories. The ultimate Australian RV adventure.',
+      estimatedDays: 90,
+      estimatedMiles: 9300,
+      difficulty: 'advanced',
+      highlights: ['All capital cities', 'Uluru', 'Great Barrier Reef', 'Nullarbor Plain'],
+      suggestedBudget: 12000,
+      route: null,
+      region: 'Australia',
+      category: 'epic_journeys',
+      tags: ['australia', 'epic', 'long-term'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-east-coast',
+      name: 'East Coast Discovery',
+      description: 'Sydney to Cairns coastal adventure with stunning beaches, rainforest, and the Great Barrier Reef.',
+      estimatedDays: 21,
+      estimatedMiles: 1700,
+      difficulty: 'intermediate',
+      highlights: ['Great Barrier Reef', 'Byron Bay', 'Gold Coast', 'Whitsundays'],
+      suggestedBudget: 3500,
+      route: null,
+      region: 'Australia',
+      category: 'coastal',
+      tags: ['australia', 'beaches', 'reef', 'queensland'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-red-centre',
+      name: 'Red Centre Explorer',
+      description: 'Uluru, Kings Canyon and MacDonnell Ranges outback adventure through the heart of Australia.',
+      estimatedDays: 14,
+      estimatedMiles: 1200,
+      difficulty: 'advanced',
+      highlights: ['Uluru', 'Kings Canyon', 'Alice Springs', 'MacDonnell Ranges'],
+      suggestedBudget: 2800,
+      route: null,
+      region: 'Australia',
+      category: 'outback',
+      tags: ['australia', 'outback', 'desert', 'cultural'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-savannah-way',
+      name: 'Savannah Way Adventure',
+      description: 'Cairns to Broome tropical crossing through Queensland, Northern Territory and Western Australia.',
+      estimatedDays: 18,
+      estimatedMiles: 2300,
+      difficulty: 'advanced',
+      highlights: ['Kakadu', 'Katherine Gorge', 'Kimberleys', 'Bungle Bungles'],
+      suggestedBudget: 3200,
+      route: null,
+      region: 'Australia',
+      category: 'adventure',
+      tags: ['australia', 'tropical', 'adventure', 'remote'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-tasmania-circuit',
+      name: 'Tasmania Circuit',
+      description: 'Complete loop of Tasmania featuring pristine wilderness, historic sites and gourmet experiences.',
+      estimatedDays: 10,
+      estimatedMiles: 800,
+      difficulty: 'beginner',
+      highlights: ['Cradle Mountain', 'Wineglass Bay', 'Port Arthur', 'MONA'],
+      suggestedBudget: 1800,
+      route: null,
+      region: 'Australia',
+      category: 'island',
+      tags: ['australia', 'tasmania', 'wilderness', 'gourmet'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-southwest-wa',
+      name: 'Southwest WA Wine & Surf',
+      description: 'Perth to Esperance via Margaret River wine region, tall forests and pristine beaches.',
+      estimatedDays: 12,
+      estimatedMiles: 900,
+      difficulty: 'beginner',
+      highlights: ['Margaret River', 'Karri Forests', 'Lucky Bay', 'Wave Rock'],
+      suggestedBudget: 2200,
+      route: null,
+      region: 'Australia',
+      category: 'wine_culinary',
+      tags: ['australia', 'wine', 'beaches', 'western-australia'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-queensland-outback',
+      name: 'Queensland Outback Trail',
+      description: 'Brisbane to Mount Isa via historic mining towns and dinosaur country.',
+      estimatedDays: 14,
+      estimatedMiles: 1100,
+      difficulty: 'intermediate',
+      highlights: ['Carnarvon Gorge', 'Winton Dinosaurs', 'Longreach', 'Mount Isa'],
+      suggestedBudget: 2400,
+      route: null,
+      region: 'Australia',
+      category: 'historical',
+      tags: ['australia', 'outback', 'history', 'queensland'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-murray-river',
+      name: 'Murray River Journey',
+      description: 'Follow Australia\'s mightiest river from the mountains to the sea through historic river towns.',
+      estimatedDays: 10,
+      estimatedMiles: 750,
+      difficulty: 'beginner',
+      highlights: ['Echuca', 'Swan Hill', 'Mildura', 'Murray Mouth'],
+      suggestedBudget: 1600,
+      route: null,
+      region: 'Australia',
+      category: 'river_lakes',
+      tags: ['australia', 'river', 'historic', 'family-friendly'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-gibb-river-road',
+      name: 'Gibb River Road Expedition',
+      description: 'Epic 4WD adventure through the Kimberley wilderness with gorges, waterfalls and ancient rock art.',
+      estimatedDays: 7,
+      estimatedMiles: 400,
+      difficulty: 'advanced',
+      highlights: ['Windjana Gorge', 'Bell Gorge', 'El Questro', 'Mitchell Falls'],
+      suggestedBudget: 2500,
+      route: null,
+      region: 'Australia',
+      category: 'adventure',
+      tags: ['australia', '4wd', 'kimberley', 'remote'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    },
+    {
+      id: 'aus-high-country',
+      name: 'Victorian High Country',
+      description: 'Alpine adventure through Victoria\'s mountain country with historic towns and mountain vistas.',
+      estimatedDays: 7,
+      estimatedMiles: 500,
+      difficulty: 'intermediate',
+      highlights: ['Mount Buffalo', 'Bright', 'Falls Creek', 'Beechworth'],
+      suggestedBudget: 1400,
+      route: null,
+      region: 'Australia',
+      category: 'mountain',
+      tags: ['australia', 'mountains', 'alpine', 'victoria'],
+      usageCount: 0,
+      isPublic: true,
+      createdBy: 'fallback-system'
+    }
+  ];
 }
 
 /**

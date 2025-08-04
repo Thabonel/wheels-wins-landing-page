@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Open Graph Image - Wheels & Wins</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f3f4f6;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 800px;
+        }
+        .preview {
+            width: 600px;
+            height: 315px;
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 3rem;
+            box-sizing: border-box;
+            margin: 2rem auto;
+        }
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        .tagline {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        .features {
+            display: flex;
+            gap: 2rem;
+            font-size: 1rem;
+        }
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .icon {
+            width: 24px;
+            height: 24px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+        }
+        .instructions {
+            background: #fef3c7;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 2rem;
+        }
+        .button {
+            background: #2563eb;
+            color: white;
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        .button:hover {
+            background: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Open Graph Image Template</h1>
+        
+        <div class="preview" id="preview">
+            <div class="logo">🚐 Wheels & Wins</div>
+            <div class="tagline">#1 RV Trip Planner & Budget Tracker</div>
+            <div class="features">
+                <div class="feature">
+                    <div class="icon">📍</div>
+                    <span>Trip Planning</span>
+                </div>
+                <div class="feature">
+                    <div class="icon">💰</div>
+                    <span>Budget Tracking</span>
+                </div>
+                <div class="feature">
+                    <div class="icon">🤖</div>
+                    <span>AI Assistant</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h2>📸 How to Create Your Open Graph Image:</h2>
+            <ol>
+                <li><strong>Quick Option:</strong> Take a screenshot of the preview above</li>
+                <li><strong>Professional Option:</strong> 
+                    <ul>
+                        <li>Go to <a href="https://www.canva.com" target="_blank">Canva.com</a> (free)</li>
+                        <li>Search for "Facebook Link Preview" template</li>
+                        <li>Size: 1200 x 630 pixels</li>
+                        <li>Include: Logo, tagline, and key features</li>
+                        <li>Use brand colors: Blue (#2563eb)</li>
+                    </ul>
+                </li>
+                <li><strong>Save as:</strong> opengraph-image.png in the /public folder</li>
+            </ol>
+            
+            <button class="button" onclick="downloadCanvas()">Download Template as Image</button>
+        </div>
+
+        <h2>Why This Matters:</h2>
+        <p>When someone shares your website on Facebook, Twitter, or LinkedIn, this image will appear with your link. A good image can increase clicks by 40%!</p>
+    </div>
+
+    <script>
+        function downloadCanvas() {
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = 1200;
+            canvas.height = 630;
+            const ctx = canvas.getContext('2d');
+
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
+            gradient.addColorStop(0, '#2563eb');
+            gradient.addColorStop(1, '#1e40af');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 1200, 630);
+
+            // Text settings
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'white';
+
+            // Logo
+            ctx.font = 'bold 80px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText('🚐 Wheels & Wins', 600, 200);
+
+            // Tagline
+            ctx.font = '40px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText('#1 RV Trip Planner & Budget Tracker', 600, 300);
+
+            // Features
+            ctx.font = '30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText('📍 Trip Planning   💰 Budget Tracking   🤖 AI Assistant', 600, 450);
+
+            // Download
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'opengraph-image.png';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+    </script>
+</body>
+</html>

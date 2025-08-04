@@ -1,17 +1,27 @@
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TabTransition } from "@/components/common/TabTransition";
-import WinsOverview from "@/components/wins/WinsOverview";
-import WinsExpenses from "@/components/wins/WinsExpenses";
-import WinsIncome from "@/components/wins/WinsIncome";
-import WinsBudgets from "@/components/wins/WinsBudgets";
-import WinsTips from "@/components/wins/WinsTips";
-import WinsMoneyMaker from "@/components/wins/WinsMoneyMaker";
 import WinsOnboarding from "@/components/wins/WinsOnboarding";
 
+// Lazy load financial components to reduce initial bundle size (especially charts)
+const WinsOverview = lazy(() => import("@/components/wins/WinsOverview"));
+const WinsExpenses = lazy(() => import("@/components/wins/WinsExpenses"));
+const WinsIncome = lazy(() => import("@/components/wins/WinsIncome"));
+const WinsBudgets = lazy(() => import("@/components/wins/WinsBudgets"));
+const WinsTips = lazy(() => import("@/components/wins/WinsTips"));
+const WinsMoneyMaker = lazy(() => import("@/components/wins/WinsMoneyMaker"));
+
 import { useScrollReset } from "@/hooks/useScrollReset";
+
+// Loading component for financial modules
+const FinancialModuleLoader = ({ moduleName }: { moduleName: string }) => (
+  <div className="flex items-center justify-center h-96">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+    <span className="ml-3 text-gray-600">Loading {moduleName}...</span>
+  </div>
+);
 
 export default function Wins() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -75,22 +85,34 @@ export default function Wins() {
             
             <div className="bg-white rounded-lg border p-4 min-h-[600px] mt-2" id="content">
               <TabTransition activeTab={activeTab} tabId="overview">
-                <WinsOverview />
+                <Suspense fallback={<FinancialModuleLoader moduleName="Overview" />}>
+                  <WinsOverview />
+                </Suspense>
               </TabTransition>
               <TabTransition activeTab={activeTab} tabId="expenses">
-                <WinsExpenses />
+                <Suspense fallback={<FinancialModuleLoader moduleName="Expenses" />}>
+                  <WinsExpenses />
+                </Suspense>
               </TabTransition>
               <TabTransition activeTab={activeTab} tabId="income">
-                <WinsIncome />
+                <Suspense fallback={<FinancialModuleLoader moduleName="Income" />}>
+                  <WinsIncome />
+                </Suspense>
               </TabTransition>
               <TabTransition activeTab={activeTab} tabId="budgets">
-                <WinsBudgets />
+                <Suspense fallback={<FinancialModuleLoader moduleName="Budgets" />}>
+                  <WinsBudgets />
+                </Suspense>
               </TabTransition>
               <TabTransition activeTab={activeTab} tabId="tips">
-                <WinsTips />
+                <Suspense fallback={<FinancialModuleLoader moduleName="Money-Saving Tips" />}>
+                  <WinsTips />
+                </Suspense>
               </TabTransition>
               <TabTransition activeTab={activeTab} tabId="money-maker">
-                <WinsMoneyMaker />
+                <Suspense fallback={<FinancialModuleLoader moduleName="Money Maker" />}>
+                  <WinsMoneyMaker />
+                </Suspense>
               </TabTransition>
             </div>
           </Tabs>

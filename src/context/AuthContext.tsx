@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { recordLogin, endSession } from '@/lib/authLogging';
@@ -30,6 +30,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const authStateDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAuthEventRef = useRef<string | null>(null);
 
   const isDevMode = false;
   const isAuthenticated = !!user && !!session;
@@ -37,39 +39,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // Set up auth state listener
+    // Set up auth state listener with debouncing
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      console.log('Auth state change:', event, session?.user?.email);
+      console.log('[AuthContext] Auth state change:', {
+        event,
+        email: session?.user?.email,
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        timestamp: new Date().toISOString(),
+        lastEvent: lastAuthEventRef.current
+      });
 
-      try {
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Use setTimeout to defer Supabase calls and prevent deadlocks
-          setTimeout(async () => {
-            try {
-              await recordLogin(session.user.id, session);
-            } catch (error) {
-              console.error('Error recording login:', error);
-            }
-          }, 0);
-        }
+      // Debounce rapid auth state changes
+      if (authStateDebounceRef.current) {
+        clearTimeout(authStateDebounceRef.current);
+      }
+
+      // Store the last event for debugging
+      lastAuthEventRef.current = event;
+
+      // Process auth state change with debounce
+      authStateDebounceRef.current = setTimeout(async () => {
+        if (!mounted) return;
+
+        console.log('[AuthContext] Processing auth state after debounce:', event);
+
+        try {
+          if (event === 'SIGNED_IN' && session?.user) {
+            // Use setTimeout to defer Supabase calls and prevent deadlocks
+            setTimeout(async () => {
+              try {
+                await recordLogin(session.user.id, session);
+              } catch (error) {
+                console.error('[AuthContext] Error recording login:', error);
+              }
+            }, 0);
+          }
         
-        if (event === 'SIGNED_OUT' && session) {
-          setTimeout(async () => {
-            try {
-              await endSession(session.access_token);
-            } catch (error) {
-              console.error('Error ending session:', error);
-            }
-          }, 0);
-        }
+          if (event === 'SIGNED_OUT' && session) {
+            setTimeout(async () => {
+              try {
+                await endSession(session.access_token);
+              } catch (error) {
+                console.error('[AuthContext] Error ending session:', error);
+              }
+            }, 0);
+          }
 
-        // Only synchronous state updates here
-        setSession(session);
-        setToken(session?.access_token || null);
+          // Only synchronous state updates here
+          const previousSession = session;
+          setSession(session);
+          setToken(session?.access_token || null);
+          
+          console.log('[AuthContext] Session updated:', {
+            hadSession: !!previousSession,
+            hasSession: !!session,
+            event
+          });
         
         if (session?.user) {
           const userData = {
@@ -101,11 +131,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
         
-        setLoading(false);
-      } catch (error) {
-        console.error('Auth state change error:', error);
-        setLoading(false);
-      }
+          setLoading(false);
+        } catch (error) {
+          console.error('[AuthContext] Auth state change error:', error);
+          setLoading(false);
+        }
+      }, 300); // 300ms debounce to prevent rapid state changes
     });
 
     // Get initial session
@@ -138,6 +169,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      if (authStateDebounceRef.current) {
+        clearTimeout(authStateDebounceRef.current);
+      }
       subscription.unsubscribe();
     };
   }, []);

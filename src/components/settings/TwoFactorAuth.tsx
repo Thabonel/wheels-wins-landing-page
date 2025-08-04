@@ -120,7 +120,7 @@ export const TwoFactorAuth = () => {
               </p>
               {qrCodeDataUrl && (
                 <div className="flex justify-center">
-                  <img src={qrCodeDataUrl} alt="QR Code" className="border rounded" />
+                  <img src={qrCodeDataUrl} alt="Two-factor authentication QR code for Wheels & Wins account security" className="border rounded" />
                 </div>
               )}
             </div>

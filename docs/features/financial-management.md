@@ -12,13 +12,17 @@ The Wins section provides comprehensive financial management tools including bud
 - **Budget Alerts**: Notifications when approaching limits
 - **PAM Budget Advice**: AI-powered budget recommendations
 - **Offline Budget Access**: View budgets without internet
+- **Budget Preferences**: Customizable categories and personal spending limits
+- **Alert Thresholds**: Configurable notification triggers
 
 ### Expense Tracking
 - **Manual Entry**: Quick expense logging with categories
+- **Quick Actions Widget**: Fast expense entry from dashboard
 - **Receipt Scanning**: Photo-based expense capture
 - **Categorization**: Automatic and manual expense categorization
 - **Expense Analytics**: Charts and insights
 - **PAM Expense Insights**: AI analysis of spending patterns
+- **One-tap Budget Tracking**: Instant budget status updates
 
 ### Income Management
 - **Multiple Income Sources**: Track various income streams
@@ -26,6 +30,8 @@ The Wins section provides comprehensive financial management tools including bud
 - **Income Analytics**: Visualize income trends
 - **Goal Setting**: Set and track income goals
 - **PAM Income Advice**: AI-powered income optimization
+- **Affiliate Income Tracking**: Integrated Digistore24 commission tracking
+- **Automated Commission Sync**: Real-time affiliate earnings updates
 
 ### Money Maker Ideas
 - **Idea Management**: Track money-making opportunities
@@ -50,6 +56,7 @@ The Wins section provides comprehensive financial management tools including bud
 - `TotalBudgetCard.tsx` - Overall budget summary
 - `PamBudgetAdvice.tsx` - AI budget recommendations
 - `OfflinePamBudgetAdvice.tsx` - Offline budget tips
+- `QuickActions.tsx` - Fast expense entry widget
 
 ### Expense Components
 - `WinsExpenses.tsx` - Expense management dashboard
@@ -161,9 +168,12 @@ The Wins section provides comprehensive financial management tools including bud
 - Receipt scanning services
 - Financial data providers
 - Tax software integration
+- **Digistore24 Integration**: Automated commission tracking and reporting
 
 ### Internal Systems
 - User authentication
 - PAM AI assistant
 - Notification system
 - Reporting system
+- **Quick Actions System**: Dashboard-level fast expense entry
+- **Budget Preferences**: User-configurable budget settings

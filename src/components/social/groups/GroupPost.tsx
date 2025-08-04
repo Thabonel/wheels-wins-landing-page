@@ -28,7 +28,7 @@ export default function GroupPost({ post, isPending = false, onModerate, showMod
     <Card className={isPending ? "border-2 border-amber-200" : ""}>
       <CardHeader className="flex flex-row items-center gap-4 pb-2">
         <Avatar className="w-10 h-10">
-          <img src={post.authorAvatar} alt={post.author} />
+          <img src={post.authorAvatar} alt={`${post.author} - RV group member profile photo`} />
         </Avatar>
         <div className="flex flex-col">
           <div className="flex items-center gap-2">

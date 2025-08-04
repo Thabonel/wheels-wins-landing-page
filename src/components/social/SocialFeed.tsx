@@ -266,7 +266,7 @@ export default function SocialFeed() {
             <Card key={post.id} className={post.status === "hidden" ? "bg-gray-50" : ""}>
               <CardHeader className="flex items-center gap-4 pb-2">
                 <Avatar className="w-10 h-10">
-                  <img src={post.authorAvatar} alt={post.author} />
+                  <img src={post.authorAvatar} alt={`${post.author} - RV community member profile picture`} />
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
