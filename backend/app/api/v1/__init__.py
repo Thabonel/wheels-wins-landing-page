@@ -23,8 +23,8 @@ from . import (
     tts,
     performance,
     receipts,
-    camping,
-    youtube_scraper,
+    # camping,  # Loaded with import guard
+    # youtube_scraper,  # Loaded with import guard
 )
 
 __all__ = [
@@ -52,6 +52,6 @@ __all__ = [
     'tts',
     'performance',
     'receipts',
-    'camping',
-    'youtube_scraper',
+    # 'camping',  # Loaded with import guard
+    # 'youtube_scraper',  # Loaded with import guard
 ]
