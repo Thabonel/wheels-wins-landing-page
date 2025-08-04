@@ -5,7 +5,14 @@ Handles conversational AI, content generation, and complex reasoning
 import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-import anthropic
+
+# Safe import of anthropic
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    anthropic = None
+    ANTHROPIC_AVAILABLE = False
 
 from app.core.logging import logger
 from app.core.config import get_settings
@@ -21,7 +28,10 @@ class ClaudeService:
         settings = get_settings()
         api_key = os.getenv("ANTHROPIC-WHEELS-KEY") or settings.ANTHROPIC_API_KEY
         
-        if not api_key:
+        if not ANTHROPIC_AVAILABLE:
+            logger.warning("⚠️ Anthropic package not installed - Claude service unavailable")
+            self.client = None
+        elif not api_key:
             logger.warning("⚠️ Anthropic API key not found")
             self.client = None
         else:

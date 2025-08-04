@@ -259,93 +259,128 @@ class SimplePamService:
         return response_text
     
     async def _call_openai(self, messages: List[Dict[str, str]], context: Dict[str, Any] = None) -> str:
-        """Make the actual OpenAI API call with intelligent function calling"""
+        """Make the AI API call using the AI Orchestrator with automatic failover"""
         
-        # Define available functions for OpenAI to use intelligently
-        functions = []
-        
-        # Add location-based functions if tools are initialized and user has location context
-        if self.tools_initialized and context and context.get('user_location'):
-            functions.extend([
-                {
-                    "name": "search_nearby_places",
-                    "description": "Search for places, locations, geographical features, businesses, or points of interest near the user's current location. Use this for ANY location-based query, including distances, directions, 'next town', 'mountains nearby', 'restaurants around here', etc. No keyword restrictions - understand natural language.",
+        try:
+            # Use the AI Orchestrator for intelligent provider selection
+            from app.services.ai.ai_orchestrator import ai_orchestrator, AIMessage, AICapability
+            
+            # Initialize orchestrator if needed
+            if not ai_orchestrator._initialized:
+                await ai_orchestrator.initialize()
+            
+            # Convert messages to AIMessage format
+            ai_messages = []
+            for msg in messages:
+                ai_messages.append(AIMessage(
+                    role=msg.get("role", "user"),
+                    content=msg.get("content", "")
+                ))
+            
+            # Define available functions for OpenAI to use intelligently
+            functions = []
+            
+            # Add location-based functions if tools are initialized and user has location context
+            if self.tools_initialized and context and context.get('user_location'):
+                functions.extend([
+                    {
+                        "name": "search_nearby_places",
+                        "description": "Search for places, locations, geographical features, businesses, or points of interest near the user's current location. Use this for ANY location-based query, including distances, directions, 'next town', 'mountains nearby', 'restaurants around here', etc. No keyword restrictions - understand natural language.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "query": {
+                                    "type": "string",
+                                    "description": "Natural language description of what the user is looking for. Examples: 'mountains nearby', 'next town', 'how far to closest city', 'coffee shops', 'scenic lookouts', 'camping near here'"
+                                },
+                                "place_type": {
+                                    "type": "string",
+                                    "enum": ["restaurant", "lodging", "tourist_attraction", "gas_station", "locality", "natural_feature", "campground", "point_of_interest", "establishment"],
+                                    "description": "Type of place: locality=towns/cities, natural_feature=mountains/hills/geographical features, restaurant=food places, tourist_attraction=attractions/sights, point_of_interest=general points of interest"
+                                },
+                                "radius_km": {
+                                    "type": "number",
+                                    "description": "Search radius in kilometers. Use 10-20 for towns/cities, 5-10 for restaurants/businesses, 20-50 for geographical features",
+                                    "default": 10
+                                }
+                            },
+                            "required": ["query", "place_type"]
+                        }
+                    }
+                ])
+            
+            # Always add web search function if tools are initialized
+            if self.tools_initialized:
+                functions.append({
+                    "name": "search_web_information", 
+                    "description": "Search the web for current information, news, weather, or data about any topic. Use when user needs up-to-date information, current events, or wants to 'look up' something.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "Natural language description of what the user is looking for. Examples: 'mountains nearby', 'next town', 'how far to closest city', 'coffee shops', 'scenic lookouts', 'camping near here'"
-                            },
-                            "place_type": {
-                                "type": "string",
-                                "enum": ["restaurant", "lodging", "tourist_attraction", "gas_station", "locality", "natural_feature", "campground", "point_of_interest", "establishment"],
-                                "description": "Type of place: locality=towns/cities, natural_feature=mountains/hills/geographical features, restaurant=food places, tourist_attraction=attractions/sights, point_of_interest=general points of interest"
-                            },
-                            "radius_km": {
-                                "type": "number",
-                                "description": "Search radius in kilometers. Use 10-20 for towns/cities, 5-10 for restaurants/businesses, 20-50 for geographical features",
-                                "default": 10
+                                "description": "What to search for on the web (e.g., 'weather forecast Brisbane', 'camping tips', 'current fuel prices')"
                             }
                         },
-                        "required": ["query", "place_type"]
+                        "required": ["query"]
                     }
-                }
-            ])
-        
-        # Always add web search function if tools are initialized
-        if self.tools_initialized:
-            functions.append({
-                "name": "search_web_information", 
-                "description": "Search the web for current information, news, weather, or data about any topic. Use when user needs up-to-date information, current events, or wants to 'look up' something.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "What to search for on the web (e.g., 'weather forecast Brisbane', 'camping tips', 'current fuel prices')"
-                        }
-                    },
-                    "required": ["query"]
-                }
-            })
-        
-        # Make OpenAI call with or without functions
-        if functions:
-            logger.info(f"🧠 OpenAI call with {len(functions)} functions available for intelligent tool usage")
-            response = await self.client.chat.completions.create(
-                model="gpt-4",
-                messages=messages,
-                functions=functions,
-                function_call="auto",  # Let OpenAI decide when to use functions
-                temperature=0.7,
-                max_tokens=1000,  # Increased for function calls
-                timeout=30
-            )
-        else:
-            logger.info(f"🧠 OpenAI call without functions (tools not available or no location context)")
-            response = await self.client.chat.completions.create(
-                model="gpt-4",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=500,
-                timeout=30
-            )
-        
-        # Handle function calls
-        message = response.choices[0].message
-        
-        if message.function_call:
-            logger.info(f"🛠️ OpenAI requested function call: {message.function_call.name}")
-            function_result = await self._handle_function_call(message.function_call, context)
+                })
             
-            # Track tool usage for analytics
-            if hasattr(context, 'tools_used'):
-                context['tools_used'].append(message.function_call.name)
+            # Get response from the best available provider
+            logger.info(f"🧠 AI call via orchestrator with {len(functions)} functions available")
             
-            return function_result
-        
-        return message.content
+            # Build kwargs for the call
+            kwargs = {
+                "temperature": 0.7,
+                "max_tokens": 1000 if functions else 500
+            }
+            
+            # Add functions if available (only OpenAI supports this currently)
+            if functions:
+                kwargs["functions"] = functions
+                kwargs["function_call"] = "auto"
+                required_capabilities = {AICapability.FUNCTION_CALLING}
+            else:
+                required_capabilities = set()
+            
+            # Call the orchestrator
+            response = await ai_orchestrator.complete(
+                messages=ai_messages,
+                required_capabilities=required_capabilities,
+                **kwargs
+            )
+            
+            logger.info(f"✅ AI response received from {response.provider}")
+            
+            # Handle function calls if present
+            if response.function_calls:
+                logger.info(f"🛠️ AI requested function call: {response.function_calls[0]['name']}")
+                function_result = await self._handle_function_call(response.function_calls[0], context)
+                
+                # Track tool usage for analytics
+                if hasattr(context, 'tools_used'):
+                    context['tools_used'].append(response.function_calls[0]['name'])
+                
+                return function_result
+            
+            return response.content
+            
+        except Exception as e:
+            logger.error(f"AI orchestrator call failed: {str(e)}")
+            # Fall back to direct OpenAI if orchestrator fails
+            try:
+                logger.info("Falling back to direct OpenAI call")
+                response = await self.client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=500,
+                    timeout=30
+                )
+                return response.choices[0].message.content
+            except Exception as fallback_e:
+                logger.error(f"Direct OpenAI fallback also failed: {str(fallback_e)}")
+                raise
     
     async def _handle_function_call(self, function_call, context: Dict[str, Any]) -> str:
         """Handle OpenAI function calls by executing the appropriate PAM tools with progress communication"""
