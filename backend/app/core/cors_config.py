@@ -156,6 +156,7 @@ class CORSConfig:
             "X-CSRF-Token",
             "X-Client-Info",
             "X-Request-ID",
+            "X-Auth-Type",
         ]
         
     @property
