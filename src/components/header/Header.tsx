@@ -31,7 +31,7 @@ const Header = () => {
       <Link to="/" className="flex-shrink-0">
         <img
           src={getPublicAssetUrl('wheels and wins Logo alpha.png')}
-          alt="Wheels & Wins"
+          alt="Wheels & Wins - RV Trip Planning and Budget Management App Logo"
           className="h-14 object-contain drop-shadow-md"
         />
       </Link>

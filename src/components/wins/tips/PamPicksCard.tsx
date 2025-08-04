@@ -10,7 +10,7 @@ export default function PamPicksCard() {
           <span className="bg-blue-100 p-1 rounded-full">
             <img
               src={getPublicAssetUrl('Pam.webp')}
-              alt="Pam"
+              alt="PAM AI RV travel assistant providing personalized money-saving tips"
               className="h-5 w-5 rounded-full"
             />
           </span>

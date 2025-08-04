@@ -43,7 +43,7 @@ const UserMenu = () => {
         title="Your Profile"
       >
         <Avatar>
-          {profileImageUrl && <AvatarImage src={profileImageUrl} alt="Profile" />}
+          {profileImageUrl && <AvatarImage src={profileImageUrl} alt="User profile picture - Wheels & Wins RV trip planner account" />}
           <AvatarFallback className="bg-primary text-primary-foreground">
             {user?.email?.[0]?.toUpperCase() || "U"}
           </AvatarFallback>

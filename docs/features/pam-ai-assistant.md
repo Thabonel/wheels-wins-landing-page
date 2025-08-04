@@ -1,7 +1,7 @@
 # PAM AI Assistant
 
 ## Overview
-The PAM AI Assistant is the core conversational AI feature of the WHEELS WINS system, providing intelligent assistance through WebSocket-based real-time communication. PAM is designed to help users manage expenses, plan trips, track budgets, and navigate the platform efficiently.
+The PAM AI Assistant is the core conversational AI feature of the WHEELS WINS system, providing intelligent assistance through WebSocket-based real-time communication. PAM is designed to help users manage expenses, plan trips, track budgets, navigate the platform efficiently, and now includes location awareness, world-class AI provider orchestration, and enhanced security through isolation architecture.
 
 ## Architecture
 
@@ -24,6 +24,11 @@ PAM receives rich contextual information with each message:
 interface MessageContext {
   region: string;              // User's current region
   current_page: string;        // Current route/page
+  location?: {                 // User's current location (new)
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  };
   session_data: {              // Session tracking data
     recent_intents: string[];
     intent_counts: Record<string, number>;
@@ -88,10 +93,13 @@ PAM automatically classifies user intents into categories:
 ### PAM Backend (Render.com)
 The PAM backend is a FastAPI application deployed on Render.com that provides:
 - WebSocket endpoint for real-time communication
-- Context processing and enrichment
-- OpenAI GPT integration for natural language processing
+- Context processing and enrichment with location awareness
+- World-class AI provider orchestration with intelligent failover
+- OpenAI GPT integration with fallback to alternative providers
 - Supabase database integration for user data
 - Intent-based response routing
+- Hardened isolation architecture for enhanced security
+- Real-time location context for better recommendations
 
 ### Token Verification
 The backend validates JWTs using its internal `SECRET_KEY` with the HS256 algorithm.
@@ -105,6 +113,36 @@ from app.core.auth import verify_supabase_token
 
 payload = verify_supabase_token(supabase_token, settings.SUPABASE_URL)
 ```
+
+## Enhanced Capabilities (2025 Updates)
+
+### Location Awareness
+PAM now includes real-time location awareness capabilities:
+- **Geolocation Context**: Receives user's current GPS coordinates
+- **Location-Based Recommendations**: Provides context-aware suggestions based on current location
+- **Nearby Services**: Recommends campgrounds, fuel stops, and attractions near current position
+- **Route Adjustments**: Suggests route changes based on real-time location and conditions
+
+### AI Provider Orchestration
+Implemented world-class AI provider orchestration system:
+- **Multi-Provider Support**: Integrates with OpenAI, Anthropic, and other leading AI providers
+- **Intelligent Failover**: Automatically switches providers if primary is unavailable
+- **Performance Optimization**: Routes requests to the best provider for specific tasks
+- **Cost Management**: Optimizes provider selection based on cost and performance
+
+### Enhanced Security Architecture
+PAM now features hardened isolation architecture:
+- **Dedicated Processing Environment**: Isolated PAM processing for enhanced security
+- **Request Validation**: Enhanced input validation and sanitization
+- **Rate Limiting**: Intelligent rate limiting to prevent abuse
+- **Audit Logging**: Comprehensive logging for security monitoring
+
+### Shopping Intelligence
+Integration with Digistore24 for e-commerce capabilities:
+- **Product Recommendations**: AI-curated product suggestions based on user profile
+- **Commission Optimization**: Suggests high-converting affiliate products
+- **Category Matching**: Matches products to user interests and travel style
+- **Purchase Tracking**: Monitors and learns from purchase patterns
 
 Refresh tokens when expired to maintain the connection.
 

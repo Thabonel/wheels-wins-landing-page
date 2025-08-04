@@ -30,7 +30,7 @@ export default function ProductCard({ product, onExternalLinkClick, onBuyProduct
           {product.image ? (
             <img 
               src={product.image} 
-              alt={product.title}
+              alt={`${product.title} - RV travel product recommended for trip planning and budgeting`}
               className="w-full h-full object-cover rounded-lg"
             />
           ) : (

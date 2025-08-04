@@ -286,7 +286,7 @@ const WinsOverview = React.memo(() => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span className="bg-blue-100 p-1 rounded-full">
-                <img src={getPublicAssetUrl('Pam.webp')} alt="Pam" className="h-6 w-6 rounded-full" />
+                <img src={getPublicAssetUrl('Pam.webp')} alt="PAM AI assistant for RV trip planning and budget tracking" className="h-6 w-6 rounded-full" />
               </span>
               <span>Pam's Financial Summary</span>
             </CardTitle>

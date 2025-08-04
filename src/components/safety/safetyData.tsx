@@ -32,8 +32,10 @@ export const safetyTopics: SafetyTopic[] = [
         <div className="mt-6">
           <img 
             src="https://images.unsplash.com/photo-1472396961693-142e6e269027" 
-            alt="Properly balanced caravan" 
+            alt="RV weight distribution guide - properly balanced caravan for safe towing" 
             className="rounded-lg w-full max-h-64 object-cover mb-4" 
+            loading="lazy"
+            decoding="async"
           />
         </div>
       </>
@@ -72,8 +74,10 @@ export const safetyTopics: SafetyTopic[] = [
         <div className="mt-6">
           <img 
             src="https://images.unsplash.com/photo-1482938289607-e9573fc25ebb" 
-            alt="Proper hitching demonstration" 
+            alt="RV hitching safety guide - step-by-step trailer coupling demonstration" 
             className="rounded-lg w-full max-h-64 object-cover mb-4" 
+            loading="lazy"
+            decoding="async"
           />
         </div>
       </>
@@ -112,8 +116,10 @@ export const safetyTopics: SafetyTopic[] = [
         <div className="mt-6">
           <img 
             src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05" 
-            alt="Caravan reversing demonstration" 
+            alt="RV reversing techniques tutorial - backing up your travel trailer safely" 
             className="rounded-lg w-full max-h-64 object-cover mb-4" 
+            loading="lazy"
+            decoding="async"
           />
         </div>
       </>
@@ -152,8 +158,10 @@ export const safetyTopics: SafetyTopic[] = [
         <div className="mt-6">
           <img 
             src="https://images.unsplash.com/photo-1469474968028-56623f02e42e" 
-            alt="Safe driving on the road" 
+            alt="RV road safety best practices - maintaining safe following distance while towing" 
             className="rounded-lg w-full max-h-64 object-cover mb-4" 
+            loading="lazy"
+            decoding="async"
           />
         </div>
       </>

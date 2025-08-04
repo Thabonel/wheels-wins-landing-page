@@ -9,7 +9,7 @@ const PamSpotlight = () => {
           <div className="w-full md:w-1/2 order-2 md:order-1">
             <img
               src={getPublicAssetUrl('Pam.webp')}
-              alt="Pam AI Assistant"
+              alt="PAM AI Assistant - Your intelligent RV trip planning companion for route optimization and expense tracking"
               className="rounded-2xl shadow-lg w-full max-w-md mx-auto"
             />
           </div>

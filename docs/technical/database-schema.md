@@ -69,6 +69,94 @@ CREATE POLICY "Users can view own sessions" ON user_sessions
     FOR SELECT USING (auth.uid() = user_id);
 ```
 
+## Personal Productivity
+
+### todos
+User task management and todo tracking.
+
+```sql
+CREATE TABLE todos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled')),
+    priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+    category TEXT, -- travel, financial, personal, etc.
+    due_date TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    -- Related entities
+    trip_id UUID REFERENCES trips(id) ON DELETE SET NULL,
+    expense_id UUID REFERENCES expenses(id) ON DELETE SET NULL,
+    budget_id UUID REFERENCES budgets(id) ON DELETE SET NULL,
+    -- Metadata
+    tags TEXT[],
+    metadata JSONB DEFAULT '{}',
+    reminder_at TIMESTAMP WITH TIME ZONE,
+    recurrence_pattern TEXT, -- daily, weekly, monthly, etc.
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS Policies
+ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own todos" ON todos
+    FOR ALL USING (auth.uid() = user_id);
+
+-- Indexes for performance
+CREATE INDEX idx_todos_user_status ON todos(user_id, status);
+CREATE INDEX idx_todos_due_date ON todos(due_date) WHERE status != 'completed';
+CREATE INDEX idx_todos_category ON todos(user_id, category);
+
+-- Function to auto-complete related todos
+CREATE OR REPLACE FUNCTION complete_related_todos()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
+        NEW.completed_at = NOW();
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER auto_complete_todos
+    BEFORE UPDATE ON todos
+    FOR EACH ROW
+    EXECUTE FUNCTION complete_related_todos();
+```
+
+### todo_subtasks
+Subtasks for breaking down larger todos.
+
+```sql
+CREATE TABLE todo_subtasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    todo_id UUID REFERENCES todos(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    is_completed BOOLEAN DEFAULT FALSE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    position INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS via parent todo
+ALTER TABLE todo_subtasks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage subtasks of own todos" ON todo_subtasks
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM todos 
+            WHERE todos.id = todo_subtasks.todo_id 
+            AND todos.user_id = auth.uid()
+        )
+    );
+
+-- Index for ordering
+CREATE INDEX idx_subtasks_todo_position ON todo_subtasks(todo_id, position);
+```
+
 ## Financial Management
 
 ### budgets
@@ -577,6 +665,174 @@ CREATE POLICY "Users manage own knowledge" ON user_knowledge
 
 -- Vector similarity search index
 CREATE INDEX ON user_knowledge USING ivfflat (embedding vector_cosine_ops);
+```
+
+## E-commerce & Affiliate Marketing
+
+### shop_products
+Products available in the marketplace.
+
+```sql
+CREATE TABLE shop_products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    currency TEXT DEFAULT 'USD',
+    category TEXT NOT NULL,
+    subcategory TEXT,
+    tags TEXT[],
+    image_url TEXT,
+    thumbnail_url TEXT,
+    product_url TEXT,
+    is_featured BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    stock_quantity INTEGER,
+    -- Digistore24 specific fields
+    digistore24_id VARCHAR(255) UNIQUE,
+    commission_percentage DECIMAL(5,2),
+    vendor_name VARCHAR(255),
+    vendor_rating DECIMAL(3,2),
+    auto_approve BOOLEAN DEFAULT false,
+    marketplace_category VARCHAR(100),
+    last_synced_at TIMESTAMP WITH TIME ZONE,
+    -- Metadata
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX idx_shop_products_category ON shop_products(category);
+CREATE INDEX idx_shop_products_featured ON shop_products(is_featured) WHERE is_featured = TRUE;
+CREATE INDEX idx_shop_products_digistore24 ON shop_products(digistore24_id) WHERE digistore24_id IS NOT NULL;
+
+-- No RLS as products are public
+```
+
+### affiliate_sales
+Track affiliate sales and commissions.
+
+```sql
+CREATE TABLE affiliate_sales (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES shop_products(id),
+    order_id VARCHAR(255) UNIQUE NOT NULL,
+    sale_amount DECIMAL(10,2) NOT NULL,
+    commission_amount DECIMAL(10,2) NOT NULL,
+    commission_percentage DECIMAL(5,2),
+    currency TEXT DEFAULT 'USD',
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'paid', 'refunded', 'cancelled')),
+    -- Platform specific fields
+    platform VARCHAR(50) DEFAULT 'digistore24',
+    vendor_id VARCHAR(255),
+    customer_email VARCHAR(255), -- Hashed for privacy
+    refunded_at TIMESTAMP WITH TIME ZONE,
+    chargeback_at TIMESTAMP WITH TIME ZONE,
+    -- Tracking
+    tracking_id TEXT,
+    referrer_url TEXT,
+    metadata JSONB DEFAULT '{}',
+    -- Timestamps
+    confirmed_at TIMESTAMP WITH TIME ZONE,
+    paid_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS Policies
+ALTER TABLE affiliate_sales ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users see own affiliate sales" ON affiliate_sales
+    FOR SELECT USING (auth.uid() = user_id);
+
+-- Indexes
+CREATE INDEX idx_affiliate_sales_user ON affiliate_sales(user_id);
+CREATE INDEX idx_affiliate_sales_status ON affiliate_sales(status);
+CREATE INDEX idx_affiliate_sales_created ON affiliate_sales(created_at DESC);
+```
+
+### user_wishlists
+Track user product wishlists.
+
+```sql
+CREATE TABLE user_wishlists (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES shop_products(id) ON DELETE CASCADE,
+    notes TEXT,
+    priority INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, product_id)
+);
+
+-- RLS Policies
+ALTER TABLE user_wishlists ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own wishlists" ON user_wishlists
+    FOR ALL USING (auth.uid() = user_id);
+```
+
+### digistore24_sync_logs
+Track Digistore24 synchronization history.
+
+```sql
+CREATE TABLE digistore24_sync_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sync_started_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    sync_completed_at TIMESTAMP WITH TIME ZONE,
+    products_added INTEGER DEFAULT 0,
+    products_updated INTEGER DEFAULT 0,
+    products_removed INTEGER DEFAULT 0,
+    categories_synced TEXT[],
+    error_message TEXT,
+    sync_duration_seconds DECIMAL(10,2),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Admin only access
+ALTER TABLE digistore24_sync_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins view sync logs" ON digistore24_sync_logs
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM profiles 
+            WHERE profiles.id = auth.uid() 
+            AND profiles.is_admin = TRUE
+        )
+    );
+```
+
+### digistore24_webhook_logs
+Log Digistore24 webhook calls for debugging and audit.
+
+```sql
+CREATE TABLE digistore24_webhook_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type VARCHAR(50) NOT NULL,
+    order_id VARCHAR(255),
+    product_id VARCHAR(255),
+    request_data JSONB NOT NULL,
+    signature_valid BOOLEAN,
+    processed BOOLEAN DEFAULT false,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Admin only access
+ALTER TABLE digistore24_webhook_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins view webhook logs" ON digistore24_webhook_logs
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM profiles 
+            WHERE profiles.id = auth.uid() 
+            AND profiles.is_admin = TRUE
+        )
+    );
+
+-- Index for order lookup
+CREATE INDEX idx_webhook_logs_order ON digistore24_webhook_logs(order_id);
 ```
 
 ## Database Functions & Triggers

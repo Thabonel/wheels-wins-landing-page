@@ -1,16 +1,18 @@
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TabTransition } from "@/components/common/TabTransition";
-import TripPlannerApp from '@/components/wheels/TripPlannerApp';
 import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
 import { TripPlannerErrorBoundary } from "@/components/common/TripPlannerErrorBoundary";
 import { PAMErrorBoundary } from "@/components/common/PAMErrorBoundary";
-import FuelLog from "@/components/wheels/FuelLog";
-import VehicleMaintenance from "@/components/wheels/VehicleMaintenance";
-import RVStorageOrganizer from "@/components/wheels/RVStorageOrganizer";
-import CaravanSafety from "@/components/wheels/CaravanSafety";
+
+// Lazy load heavy components to reduce initial bundle size
+const TripPlannerApp = lazy(() => import('@/components/wheels/TripPlannerApp'));
+const FuelLog = lazy(() => import("@/components/wheels/FuelLog"));
+const VehicleMaintenance = lazy(() => import("@/components/wheels/VehicleMaintenance"));
+const RVStorageOrganizer = lazy(() => import("@/components/wheels/RVStorageOrganizer"));
+const CaravanSafety = lazy(() => import("@/components/wheels/CaravanSafety"));
 
 const Wheels = () => {
   const [activeTab, setActiveTab] = useState("trip-planner");
@@ -75,26 +77,61 @@ const Wheels = () => {
                   <TripPlannerErrorBoundary>
                     <PAMErrorBoundary>
                       <PAMProvider>
-                        <TripPlannerApp />
+                        <Suspense fallback={
+                          <div className="flex items-center justify-center h-96">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                            <span className="ml-3 text-gray-600">Loading Trip Planner...</span>
+                          </div>
+                        }>
+                          <TripPlannerApp />
+                        </Suspense>
                       </PAMProvider>
                     </PAMErrorBoundary>
                   </TripPlannerErrorBoundary>
                 </TabTransition>
                 
                 <TabTransition activeTab={activeTab} tabId="fuel-log" className="mt-0">
-                  <FuelLog />
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center h-96">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-gray-600">Loading Fuel Log...</span>
+                    </div>
+                  }>
+                    <FuelLog />
+                  </Suspense>
                 </TabTransition>
                 
                 <TabTransition activeTab={activeTab} tabId="vehicle-maintenance" className="mt-0">
-                  <VehicleMaintenance />
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center h-96">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-gray-600">Loading Vehicle Maintenance...</span>
+                    </div>
+                  }>
+                    <VehicleMaintenance />
+                  </Suspense>
                 </TabTransition>
                 
                 <TabTransition activeTab={activeTab} tabId="rv-storage" className="mt-0">
-                  <RVStorageOrganizer />
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center h-96">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-gray-600">Loading RV Storage...</span>
+                    </div>
+                  }>
+                    <RVStorageOrganizer />
+                  </Suspense>
                 </TabTransition>
                 
                 <TabTransition activeTab={activeTab} tabId="caravan-safety" className="mt-0">
-                  <CaravanSafety />
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center h-96">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-gray-600">Loading Safety Information...</span>
+                    </div>
+                  }>
+                    <CaravanSafety />
+                  </Suspense>
                 </TabTransition>
               </div>
             </Tabs>

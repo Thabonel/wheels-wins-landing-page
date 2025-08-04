@@ -141,7 +141,7 @@ export default function PAMTripChat({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Avatar className="w-8 h-8">
-                <AvatarImage src="/pam-avatar.png" alt="PAM" />
+                <AvatarImage src="/pam-avatar.png" alt="PAM AI trip planning assistant avatar" />
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
                   PAM
                 </AvatarFallback>
@@ -208,7 +208,7 @@ export default function PAMTripChat({
             )}>
               {msg.role === 'assistant' && (
                 <Avatar className="w-6 h-6 flex-shrink-0">
-                  <AvatarImage src="/pam-avatar.png" alt="PAM" />
+                  <AvatarImage src="/pam-avatar.png" alt="PAM AI trip planning assistant avatar" />
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                     P
                   </AvatarFallback>
@@ -239,7 +239,7 @@ export default function PAMTripChat({
           {isLoading && (
             <div className="flex gap-3 justify-start">
               <Avatar className="w-6 h-6 flex-shrink-0">
-                <AvatarImage src="/pam-avatar.png" alt="PAM" />
+                <AvatarImage src="/pam-avatar.png" alt="PAM AI trip planning assistant avatar" />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                   P
                 </AvatarFallback>

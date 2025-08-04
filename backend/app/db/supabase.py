@@ -18,3 +18,7 @@ if infra_settings.SUPABASE_SERVICE_ROLE_KEY:
     )
 else:
     supabase_admin = supabase
+
+def get_supabase_client() -> Client:
+    """Get the Supabase client instance"""
+    return supabase

@@ -24,6 +24,8 @@ The API is organized into the following modules:
 | Vehicles | `/vehicles`, `/vehicles/{id}` | Vehicle and maintenance tracking |
 | Trips | `/trips`, `/trips/{id}` | Trip planning and logging |
 | Health | `/health`, `/health/detailed` | System health and monitoring |
+| Digistore24 | `/digistore24/ipn`, `/digistore24/sync` | Affiliate marketplace integration |
+| Shop | `/shop/products`, `/shop/sync-digistore24` | E-commerce and product management |
 
 ### New Backend Architecture (2025)
 The backend has been strategically simplified with:
@@ -649,6 +651,127 @@ All endpoints may return the following error responses:
   - `X-RateLimit-Remaining`: Requests remaining in current window
   - `X-RateLimit-Reset`: Unix timestamp when window resets
 
+## Digistore24 Integration Endpoints
+
+### POST /api/v1/digistore24/ipn
+Process Instant Payment Notifications from Digistore24.
+
+**Note**: This endpoint is called by Digistore24 servers, not by clients.
+
+**Request Body**:
+```json
+{
+  "event": "payment",
+  "order_id": "DS24-123456",
+  "product_id": "123456",
+  "product_name": "RV Travel Guide",
+  "amount": "49.99",
+  "currency": "USD",
+  "customer_email": "customer@example.com",
+  "vendor_id": "your_vendor_id",
+  "sha_signature": "computed_sha512_signature"
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "message": "IPN processed successfully"
+}
+```
+
+### POST /api/v1/shop/sync-digistore24
+Manually trigger Digistore24 product synchronization.
+
+**Headers**: `Authorization: Bearer <token>` (Admin only)
+
+**Response**:
+```json
+{
+  "status": "success",
+  "products_added": 15,
+  "products_updated": 23,
+  "products_removed": 2,
+  "sync_duration_seconds": 12.5
+}
+```
+
+### GET /api/v1/shop/products
+Get shop products with optional filtering.
+
+**Headers**: `Authorization: Bearer <token>`
+
+**Query Parameters**:
+- `category` (optional): Filter by category
+- `source` (optional): Filter by source (digistore24, manual)
+- `featured` (optional): Show only featured products
+- `page` (optional): Page number for pagination
+- `limit` (optional): Items per page (default: 20)
+
+**Response**:
+```json
+{
+  "products": [
+    {
+      "id": "product_uuid",
+      "name": "Ultimate RV Travel Guide",
+      "description": "Complete guide for RV travelers",
+      "price": 49.99,
+      "currency": "USD",
+      "image_url": "https://example.com/product.jpg",
+      "category": "travel_tourism",
+      "digistore24_id": "123456",
+      "commission_percentage": 50.0,
+      "vendor_name": "Travel Experts Inc",
+      "vendor_rating": 4.8,
+      "auto_approve": true,
+      "featured": true,
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "total": 150,
+  "page": 1,
+  "pages": 8
+}
+```
+
+### GET /api/v1/affiliate/sales
+Get user's affiliate sales and commissions.
+
+**Headers**: `Authorization: Bearer <token>`
+
+**Query Parameters**:
+- `start_date` (optional): Filter by date range
+- `end_date` (optional): Filter by date range
+- `status` (optional): Filter by status (pending, paid, refunded)
+
+**Response**:
+```json
+{
+  "sales": [
+    {
+      "id": "sale_uuid",
+      "order_id": "DS24-123456",
+      "product_name": "RV Travel Guide",
+      "sale_amount": 49.99,
+      "commission_amount": 24.99,
+      "commission_percentage": 50.0,
+      "status": "paid",
+      "customer_email_hash": "hashed_email",
+      "created_at": "2024-01-15T10:30:00Z",
+      "paid_at": "2024-01-20T10:30:00Z"
+    }
+  ],
+  "summary": {
+    "total_sales": 1250.00,
+    "total_commissions": 625.00,
+    "pending_commissions": 125.00,
+    "paid_commissions": 500.00
+  }
+}
+```
+
 ## Webhooks
 
 ### Webhook Events
@@ -657,6 +780,8 @@ PAM can send webhooks for certain events:
 - `budget.exceeded`: When a budget category is exceeded
 - `trip.completed`: When a trip is marked complete
 - `expense.large`: When an expense exceeds a threshold
+- `affiliate.sale`: When an affiliate sale is confirmed
+- `affiliate.refund`: When an affiliate sale is refunded
 
 ### Webhook Format
 ```json
@@ -668,6 +793,22 @@ PAM can send webhooks for certain events:
     "category": "groceries",
     "budgeted_amount": 400.00,
     "current_amount": 425.30
+  },
+  "user_id": "user_uuid"
+}
+```
+
+### Affiliate Webhook Format
+```json
+{
+  "event": "affiliate.sale",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "data": {
+    "order_id": "DS24-123456",
+    "product_name": "RV Travel Guide",
+    "sale_amount": 49.99,
+    "commission_amount": 24.99,
+    "vendor": "digistore24"
   },
   "user_id": "user_uuid"
 }
