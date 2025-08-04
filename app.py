@@ -76,23 +76,36 @@ except Exception as import_error:
     # Fallback application shown when the backend fails to import
     logger.error("Backend import failed: %s", import_error)
 
-    # Minimal fallback FastAPI application
-    app = FastAPI(title="Wheels & Wins Backend - Error")
+    # Minimal fallback FastAPI application with basic PAM support
+    app = FastAPI(title="Wheels & Wins Backend - Emergency Mode")
 
-    # Apply CORS settings using the same environment variable as the main app
+    # Apply CORS settings with sensible defaults for PAM
     cors_origins_env = os.getenv("CORS_ORIGINS", "")
     allowed_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+    
+    # Add default origins to ensure frontend can connect
+    default_origins = [
+        "https://wheelsandwins.com",
+        "https://www.wheelsandwins.com",
+        "https://wheels-wins.netlify.app",
+        "http://localhost:8080",
+        "http://localhost:3000"
+    ]
+    
+    # Combine configured and default origins
+    all_origins = list(set(allowed_origins + default_origins))
 
-    if allowed_origins:
-        from fastapi.middleware.cors import CORSMiddleware
-
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=allowed_origins,
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"]
-        )
+    from fastapi.middleware.cors import CORSMiddleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=all_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"]
+    )
+    
+    logger.info(f"Fallback app CORS configured with origins: {all_origins}")
 
     # Store error details for the fallback handler
     error_details = str(import_error)
@@ -128,6 +141,68 @@ except Exception as import_error:
             "working_directory": os.getcwd(),
             "backend_path_exists": os.path.exists("backend/app/main.py"),
         }
+    
+    # Basic PAM endpoints for emergency mode
+    @app.get("/api/v1/pam/health")
+    async def pam_health():
+        """PAM health check endpoint"""
+        return {
+            "status": "degraded",
+            "mode": "emergency",
+            "message": "PAM is running in emergency mode due to backend import failure",
+            "capabilities": ["basic_chat"],
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": error_details
+        }
+    
+    @app.post("/api/v1/pam/chat")
+    async def pam_chat(request: dict):
+        """Basic PAM chat endpoint"""
+        return {
+            "response": "I'm currently running in emergency mode. The main backend failed to load properly. Please contact support.",
+            "mode": "emergency",
+            "status": "degraded",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    # WebSocket support for emergency PAM
+    from fastapi import WebSocket, WebSocketDisconnect
+    import json
+    
+    @app.websocket("/api/v1/pam/ws")
+    async def pam_websocket(websocket: WebSocket, token: str = None):
+        """Emergency WebSocket endpoint for PAM"""
+        await websocket.accept()
+        
+        # Send initial connection message
+        await websocket.send_json({
+            "type": "connection",
+            "status": "connected",
+            "mode": "emergency",
+            "message": "Connected to PAM emergency mode",
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        try:
+            while True:
+                # Receive message from client
+                data = await websocket.receive_json()
+                
+                # Send emergency response
+                await websocket.send_json({
+                    "type": "response",
+                    "content": "I'm running in emergency mode. The main system encountered an error. Please try again later or contact support.",
+                    "mode": "emergency",
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                
+        except WebSocketDisconnect:
+            logger.info("Emergency WebSocket disconnected")
+        except Exception as e:
+            logger.error(f"Emergency WebSocket error: {e}")
+            await websocket.close()
+    
+    logger.warning("⚠️ PAM running in emergency mode with basic functionality")
     
     # Ensure fallback app is available at module level
     globals()['app'] = app

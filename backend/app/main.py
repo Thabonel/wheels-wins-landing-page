@@ -40,6 +40,9 @@ from app.services.monitoring_service import monitoring_service
 from app.services.sentry_service import sentry_service
 from app.monitoring.production_monitor import production_monitor, MonitoringMiddleware
 
+# Import guard for safe module loading
+from app.core.import_guard import safe_import_router
+
 # Import API routers
 from app.api.v1 import (
     health,
@@ -68,7 +71,7 @@ from app.api.v1 import (
     user_settings,
     onboarding,
     performance,
-    camping,
+    # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
@@ -78,6 +81,16 @@ from app.api.deps import verify_supabase_jwt_token
 
 setup_logging()
 logger = get_logger(__name__)
+
+# Safe imports for modules that have caused issues
+camping_router = safe_import_router("app.api.v1.camping")
+youtube_scraper_router = safe_import_router("app.api.v1.youtube_scraper")
+
+# Log if critical modules failed to load
+if not camping_router:
+    logger.warning("⚠️ Camping module failed to load - feature will be unavailable")
+if not youtube_scraper_router:
+    logger.warning("⚠️ YouTube scraper module failed to load - feature will be unavailable")
 
 # Configuration validation at startup
 def validate_configuration():
@@ -527,8 +540,19 @@ except Exception as e:
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
-app.include_router(camping.router, prefix="/api/v1", tags=["Camping Locations"])
-app.include_router(youtube_scraper.router, prefix="/api/v1/youtube", tags=["YouTube Scraper"])
+
+# Conditionally register routers that might fail to import
+if camping_router:
+    app.include_router(camping_router, prefix="/api/v1", tags=["Camping Locations"])
+    logger.info("✅ Camping routes registered successfully")
+else:
+    logger.warning("⚠️ Camping routes not available - module import failed")
+
+if youtube_scraper_router:
+    app.include_router(youtube_scraper_router, prefix="/api/v1/youtube", tags=["YouTube Scraper"])
+    logger.info("✅ YouTube scraper routes registered successfully")
+else:
+    logger.warning("⚠️ YouTube scraper routes not available - module import failed")
 
 # Security status endpoint is automatically added by enhanced_security_setup
 # Additional security endpoints can be accessed at /api/security/status and /api/security/recommendations
