@@ -27,6 +27,7 @@ interface JourneyBuilderProps {
   selectedTrips: TripTemplate[];
   onRemoveTrip: (templateId: string) => void;
   onReorderTrips: (trips: TripTemplate[]) => void;
+  onUseJourney: () => void;
 }
 
 interface SortableTripItemProps {
@@ -52,74 +53,72 @@ function SortableTripItem({ template, onRemove, index }: SortableTripItemProps) 
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="mb-3">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`mb-3 ${isDragging ? 'z-50' : ''}`}
+    >
       <Card className="hover:shadow-md transition-shadow">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <button
+              className="cursor-grab touch-none mt-1"
               {...attributes}
               {...listeners}
-              className="mt-1 cursor-move text-gray-400 hover:text-gray-600"
-              aria-label="Drag to reorder"
             >
-              <GripVertical className="w-5 h-5" />
+              <GripVertical className="w-5 h-5 text-gray-400" />
             </button>
             
-            <div className="flex-1 space-y-2">
+            <div className="flex-1">
               <div className="flex items-start justify-between">
                 <div>
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      Trip {index + 1}
-                    </Badge>
-                    {template.name}
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {template.description}
-                  </p>
+                  <h4 className="font-semibold">{template.name}</h4>
+                  <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      {template.estimatedDays} days
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      {template.estimatedMiles} miles
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <DollarSign className="w-4 h-4" />
+                      ${template.suggestedBudget}
+                    </span>
+                  </div>
                 </div>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => onRemove(template.id)}
-                  className="h-8 w-8 p-0"
+                  className="text-red-600 hover:text-red-700"
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              
-              <div className="flex items-center gap-4 text-sm text-gray-600">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {template.estimatedDays} days
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  {template.estimatedMiles.toLocaleString()} miles
-                </span>
-                <span className="flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" />
-                  ${template.suggestedBudget.toLocaleString()}
-                </span>
-              </div>
             </div>
           </div>
+          
+          {index < 2 && (
+            <div className="mt-3 pt-3 border-t text-center">
+              <ChevronRight className="w-5 h-5 text-gray-400 inline-block" />
+            </div>
+          )}
         </CardContent>
       </Card>
-      
-      {index < 2 && ( // Only show connector for first 2 items (assuming max 3)
-        <div className="flex items-center justify-center py-2">
-          <ChevronRight className="w-5 h-5 text-gray-400" />
-        </div>
-      )}
     </div>
   );
 }
 
-export default function JourneyBuilder({ selectedTrips, onRemoveTrip, onReorderTrips }: JourneyBuilderProps) {
+export default function JourneyBuilder({ 
+  selectedTrips, 
+  onRemoveTrip, 
+  onReorderTrips,
+  onUseJourney
+}: JourneyBuilderProps) {
   const { toast } = useToast();
-  const [isExporting, setIsExporting] = useState(false);
-  
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -133,51 +132,62 @@ export default function JourneyBuilder({ selectedTrips, onRemoveTrip, onReorderT
     if (over && active.id !== over.id) {
       const oldIndex = selectedTrips.findIndex((trip) => trip.id === active.id);
       const newIndex = selectedTrips.findIndex((trip) => trip.id === over.id);
-      
+
       onReorderTrips(arrayMove(selectedTrips, oldIndex, newIndex));
     }
   };
 
+  const handleShareJourney = () => {
+    const journeyText = selectedTrips.map((trip, index) => 
+      `${index + 1}. ${trip.name} (${trip.estimatedDays} days)`
+    ).join('\n');
+    
+    navigator.clipboard.writeText(journeyText);
+    toast({
+      title: "Journey Copied",
+      description: "Your journey details have been copied to clipboard",
+    });
+  };
+
+  const handleDownloadItinerary = () => {
+    const itinerary = selectedTrips.map((trip, index) => {
+      return `Trip ${index + 1}: ${trip.name}
+Duration: ${trip.estimatedDays} days
+Distance: ${trip.estimatedMiles} miles
+Budget: $${trip.suggestedBudget}
+Highlights: ${trip.highlights.join(', ')}
+`;
+    }).join('\n---\n');
+
+    const blob = new Blob([itinerary], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rv-journey-itinerary.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Calculate totals
   const totalDays = selectedTrips.reduce((sum, trip) => sum + trip.estimatedDays, 0);
   const totalMiles = selectedTrips.reduce((sum, trip) => sum + trip.estimatedMiles, 0);
   const totalBudget = selectedTrips.reduce((sum, trip) => sum + trip.suggestedBudget, 0);
 
-  const handleExportJourney = async () => {
-    setIsExporting(true);
-    
-    // Simulate export process
-    setTimeout(() => {
-      toast({
-        title: "Journey Exported",
-        description: "Your journey has been saved and is ready to use in the Trip Map Editor",
-      });
-      setIsExporting(false);
-    }, 1500);
-  };
-
-  const handleShareJourney = () => {
-    toast({
-      title: "Share Link Copied",
-      description: "Journey sharing link has been copied to your clipboard",
-    });
-  };
-
   if (selectedTrips.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="max-w-md mx-auto space-y-4">
-          <div className="text-gray-400 mb-4">
-            <Calendar className="w-16 h-16 mx-auto" />
-          </div>
-          <h3 className="text-xl font-semibold">No trips in your journey yet</h3>
-          <p className="text-gray-600">
-            Browse templates and add trips to start building your perfect RV journey. 
-            You can chain up to 3 trips for a 3-month adventure!
-          </p>
-          <Button variant="outline" onClick={() => document.querySelector('[value="browse"]')?.click()}>
-            Browse Trip Templates
-          </Button>
-        </div>
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-8">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">No trips in your journey yet</h3>
+            <p className="text-gray-600">
+              Add trips from the templates above to start building your perfect RV journey. 
+              You can chain up to 3 trips for a 3-month adventure!
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -247,43 +257,29 @@ export default function JourneyBuilder({ selectedTrips, onRemoveTrip, onReorderT
       </div>
 
       {/* Action Buttons */}
-      <Separator />
-      
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Button 
-          className="flex-1" 
-          onClick={handleExportJourney}
-          disabled={isExporting}
-        >
-          {isExporting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-              Preparing Journey...
-            </>
-          ) : (
-            <>
-              <Download className="w-4 h-4 mr-2" />
-              Use in Trip Map Editor
-            </>
-          )}
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          className="flex-1"
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Button
+          variant="outline"
           onClick={handleShareJourney}
+          className="flex items-center justify-center gap-2"
         >
-          <Share2 className="w-4 h-4 mr-2" />
+          <Share2 className="w-4 h-4" />
           Share Journey
         </Button>
-        
-        <Button 
-          variant="outline" 
-          className="flex-1"
-          onClick={() => toast({ title: "PAM Integration", description: "PAM journey optimization coming soon!" })}
+        <Button
+          variant="outline"
+          onClick={handleDownloadItinerary}
+          className="flex items-center justify-center gap-2"
         >
-          <Sparkles className="w-4 h-4 mr-2" />
-          Ask PAM to Optimize
+          <Download className="w-4 h-4" />
+          Download Itinerary
+        </Button>
+        <Button
+          onClick={onUseJourney}
+          className="flex items-center justify-center gap-2"
+        >
+          <Sparkles className="w-4 h-4" />
+          Use This Journey
         </Button>
       </div>
     </div>

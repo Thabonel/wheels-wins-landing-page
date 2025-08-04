@@ -6,7 +6,7 @@ import { getLocationBasedTripTemplates, TripTemplate, incrementTemplateUsage } f
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { 
   MapPin, 
   Clock, 
@@ -14,20 +14,17 @@ import {
   ChevronRight,
   Search,
   Filter,
-  Sparkles,
   Route,
-  Star,
-  Navigation,
-  Calendar
+  Calendar,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Import the advanced components
 import TripTemplateCard from './trip-templates/TripTemplateCard';
-import JourneyBuilder from './trip-templates/JourneyBuilder';
 import TripSearch from './trip-templates/TripSearch';
 import TripFilters from './trip-templates/TripFilters';
-import PAMTripAssistant from './trip-templates/PAMTripAssistant';
 
 interface TripTemplatesProps {
   onUseTemplate?: (template: TripTemplate) => void;
@@ -42,9 +39,9 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
   const [filteredTemplates, setFilteredTemplates] = useState<TripTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('browse');
   const [selectedTrips, setSelectedTrips] = useState<TripTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showJourneyPanel, setShowJourneyPanel] = useState(false);
   const [activeFilters, setActiveFilters] = useState({
     duration: 'all',
     difficulty: 'all',
@@ -116,6 +113,13 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
     setFilteredTemplates(filtered);
   }, [searchQuery, activeFilters, tripTemplates]);
 
+  // Auto-show journey panel when trips are selected
+  useEffect(() => {
+    if (selectedTrips.length > 0 && !showJourneyPanel) {
+      setShowJourneyPanel(true);
+    }
+  }, [selectedTrips.length]);
+
   const handleAddToJourney = (template: TripTemplate) => {
     if (selectedTrips.find(t => t.id === template.id)) {
       toast({
@@ -140,15 +144,13 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
       title: "Added to Journey",
       description: `${template.name} has been added to your journey`,
     });
-
-    // Switch to journey tab if this is the first trip
-    if (selectedTrips.length === 0) {
-      setActiveTab('journey');
-    }
   };
 
   const handleRemoveFromJourney = (templateId: string) => {
     setSelectedTrips(selectedTrips.filter(t => t.id !== templateId));
+    if (selectedTrips.length === 1) {
+      setShowJourneyPanel(false);
+    }
   };
 
   const handleUseTemplate = async (template: TripTemplate) => {
@@ -161,7 +163,7 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
     } else {
       toast({
         title: "Template Selected",
-        description: `${template.name} has been selected. Switch to the Plan Trip tab to customize it.`,
+        description: `${template.name} has been selected. Switch to the Trip Map Planner tab to customize it.`,
       });
     }
   };
@@ -203,150 +205,178 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Search and Filters */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="md:col-span-2">
+          <TripSearch 
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onPAMSearch={() => {
+              // Open PAM from the global button instead
+              const pamButton = document.querySelector('[aria-label="Open PAM Assistant"]') as HTMLButtonElement;
+              if (pamButton) pamButton.click();
+            }}
+          />
+        </div>
         <div>
-          <h2 className="text-2xl font-bold">Plan Your Trip</h2>
-          <p className="text-muted-foreground">
-            Browse curated RV routes, get PAM's insights, and build your perfect journey
-          </p>
+          <TripFilters
+            filters={activeFilters}
+            onChange={setActiveFilters}
+            templates={tripTemplates}
+          />
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="browse" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Browse
-          </TabsTrigger>
-          <TabsTrigger value="journey" className="flex items-center gap-2 relative">
-            <Route className="w-4 h-4" />
-            Journey
-            {selectedTrips.length > 0 && (
-              <Badge 
-                variant="destructive" 
-                className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
-              >
-                {selectedTrips.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="assistant" className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4" />
-            PAM
-          </TabsTrigger>
-        </TabsList>
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading amazing trips for {region}...</p>
+        </div>
+      )}
 
-        <TabsContent value="browse" className="space-y-6">
-          {/* Search and Filters */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="md:col-span-2">
-              <TripSearch 
-                value={searchQuery}
-                onChange={setSearchQuery}
-                onPAMSearch={(query) => {
-                  // Switch to PAM tab with the query
-                  setActiveTab('assistant');
-                }}
-              />
-            </div>
-            <div>
-              <TripFilters
-                filters={activeFilters}
-                onChange={setActiveFilters}
-                templates={tripTemplates}
-              />
-            </div>
+      {/* Error State */}
+      {error && !loading && (
+        <div className="text-center py-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-2 text-yellow-600 underline hover:text-yellow-700"
+            >
+              Try Again
+            </button>
           </div>
+        </div>
+      )}
 
-          {/* Loading State */}
-          {loading && (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading amazing trips for {region}...</p>
-            </div>
-          )}
+      {/* Main Content Area */}
+      {!loading && !error && (
+        <>
+          {/* Selected Journey Summary (when trips are selected) */}
+          {selectedTrips.length > 0 && (
+            <Card className="bg-blue-50 border-blue-200">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+                    <Route className="w-5 h-5" />
+                    Journey Builder ({selectedTrips.length}/3 trips)
+                  </h3>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowJourneyPanel(!showJourneyPanel)}
+                    className="text-blue-700"
+                  >
+                    {showJourneyPanel ? 'Hide' : 'Show'} Details
+                  </Button>
+                </div>
 
-          {/* Error State */}
-          {error && !loading && (
-            <div className="text-center py-8">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-yellow-800">{error}</p>
-                <button 
-                  onClick={() => window.location.reload()} 
-                  className="mt-2 text-yellow-600 underline hover:text-yellow-700"
-                >
-                  Try Again
-                </button>
+                {showJourneyPanel && (
+                  <>
+                    <div className="space-y-2 mb-4">
+                      {selectedTrips.map((trip, index) => (
+                        <div key={trip.id} className="flex items-center justify-between bg-white rounded-lg p-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
+                            <div>
+                              <p className="font-medium">{trip.name}</p>
+                              <p className="text-sm text-gray-600">{trip.estimatedDays} days • {trip.estimatedMiles} miles</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRemoveFromJourney(trip.id)}
+                            className="text-red-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="grid grid-cols-3 gap-4 text-center mb-4">
+                      <div>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {selectedTrips.reduce((sum, trip) => sum + trip.estimatedDays, 0)}
+                        </p>
+                        <p className="text-sm text-gray-600">Total Days</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {selectedTrips.reduce((sum, trip) => sum + trip.estimatedMiles, 0).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-600">Total Miles</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-blue-700">
+                          ${selectedTrips.reduce((sum, trip) => sum + trip.suggestedBudget, 0).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-600">Est. Budget</p>
+                      </div>
+                    </div>
+
+                    <Button 
+                      onClick={handleUseJourney} 
+                      className="w-full"
+                      size="lg"
+                    >
+                      Use This Journey
+                      <ChevronRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </>
+                )}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Trip Templates Grid */}
-          {!loading && !error && (
+          {filteredTemplates.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600 mb-4">
+                No trips match your current filters
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery('');
+                  setActiveFilters({
+                    duration: 'all',
+                    difficulty: 'all',
+                    category: 'all'
+                  });
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          ) : (
             <>
-              {filteredTemplates.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-600 mb-4">
-                    No trips match your current filters
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setActiveFilters({
-                        duration: 'all',
-                        difficulty: 'all',
-                        category: 'all'
-                      });
-                    }}
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      <strong>📍 {region} Templates:</strong> Showing {filteredTemplates.length} of {tripTemplates.length} trip templates.
-                      {tripTemplates.some(t => t.createdBy === 'auto-scraper') && ' Some templates were automatically discovered and curated for you!'}
-                    </p>
-                  </div>
-                  
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredTemplates.map((template) => (
-                      <TripTemplateCard
-                        key={template.id}
-                        template={template}
-                        onAddToJourney={handleAddToJourney}
-                        onUseTemplate={handleUseTemplate}
-                        isInJourney={selectedTrips.some(t => t.id === template.id)}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>📍 {region} Templates:</strong> Showing {filteredTemplates.length} of {tripTemplates.length} trip templates.
+                  {tripTemplates.some(t => t.createdBy === 'auto-scraper') && ' Some templates were automatically discovered and curated for you!'}
+                </p>
+              </div>
+              
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredTemplates.map((template) => (
+                  <TripTemplateCard
+                    key={template.id}
+                    template={template}
+                    onAddToJourney={handleAddToJourney}
+                    onUseTemplate={handleUseTemplate}
+                    isInJourney={selectedTrips.some(t => t.id === template.id)}
+                  />
+                ))}
+              </div>
             </>
           )}
-        </TabsContent>
-
-        <TabsContent value="journey" className="space-y-6">
-          <JourneyBuilder
-            selectedTrips={selectedTrips}
-            onRemoveTrip={handleRemoveFromJourney}
-            onReorderTrips={setSelectedTrips}
-            onUseJourney={handleUseJourney}
-          />
-        </TabsContent>
-
-        <TabsContent value="assistant" className="space-y-6">
-          <PAMTripAssistant
-            templates={tripTemplates}
-            onSelectTemplate={handleUseTemplate}
-            onAddToJourney={handleAddToJourney}
-            initialQuery={searchQuery}
-          />
-        </TabsContent>
-      </Tabs>
+        </>
+      )}
     </div>
   );
 }
