@@ -43,8 +43,91 @@ export default function TripTemplateCard({
     'advanced': 'bg-red-100 text-red-800'
   };
 
-  const mapUrl = template.route?.mapPreview || 
-    `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/static/pin-s+3b82f6(-122.4194,37.7749)/-122.4194,37.7749,10,0/400x200@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`;
+  // Use template image if available, otherwise generate dynamic map based on location
+  const getTemplateImage = () => {
+    // If template has an image URL, use it
+    if (template.imageUrl || template.image_url) {
+      return template.imageUrl || template.image_url;
+    }
+    
+    // If template has thumbnail for performance
+    if (template.thumbnailUrl || template.thumbnail_url) {
+      return template.thumbnailUrl || template.thumbnail_url;
+    }
+    
+    // Generate dynamic map based on template location
+    const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+    if (!mapboxToken) {
+      return '/api/placeholder/400/200'; // Fallback placeholder
+    }
+    
+    // Determine map center based on region and highlights
+    let centerLat = -25.2744; // Default to Australia
+    let centerLon = 133.7751;
+    let zoom = 4;
+    
+    // Region-specific coordinates
+    const regionCoords: Record<string, [number, number, number]> = {
+      'Australia': [-25.2744, 133.7751, 4],
+      'Victoria': [-37.4713, 144.7852, 6],
+      'Queensland': [-20.9176, 142.7028, 5],
+      'New South Wales': [-31.8401, 145.6121, 5],
+      'Tasmania': [-41.4545, 145.9707, 6],
+      'Western Australia': [-27.6728, 121.6283, 5],
+      'United States': [37.0902, -95.7129, 4],
+      'Canada': [56.1304, -106.3468, 3],
+      'New Zealand': [-40.9006, 174.8860, 5],
+      'United Kingdom': [55.3781, -3.4360, 5],
+    };
+    
+    // Location-specific coordinates for highlights
+    const locationCoords: Record<string, [number, number, number]> = {
+      'Great Barrier Reef': [-18.2871, 147.6992, 8],
+      'Uluru': [-25.3444, 131.0369, 10],
+      'Byron Bay': [-28.6434, 153.6122, 11],
+      'Gold Coast': [-28.0167, 153.4000, 10],
+      'Twelve Apostles': [-38.6662, 143.1044, 11],
+      'Sydney': [-33.8688, 151.2093, 10],
+      'Melbourne': [-37.8136, 144.9631, 10],
+    };
+    
+    // Check highlights for specific locations
+    if (template.highlights && template.highlights.length > 0) {
+      for (const highlight of template.highlights) {
+        for (const [location, coords] of Object.entries(locationCoords)) {
+          if (highlight.toLowerCase().includes(location.toLowerCase())) {
+            [centerLat, centerLon, zoom] = coords;
+            break;
+          }
+        }
+      }
+    }
+    
+    // Check region
+    if (template.region) {
+      for (const [region, coords] of Object.entries(regionCoords)) {
+        if (template.region.toLowerCase().includes(region.toLowerCase())) {
+          [centerLat, centerLon, zoom] = coords;
+          break;
+        }
+      }
+    }
+    
+    // Choose map style based on category
+    let mapStyle = 'outdoors-v12';
+    if (template.category === 'coastal') {
+      mapStyle = 'satellite-streets-v12';
+    } else if (template.category === 'outback' || template.category === 'desert') {
+      mapStyle = 'satellite-v9';
+    }
+    
+    // Create marker for the location
+    const marker = `pin-l-star+3b82f6(${centerLon},${centerLat})`;
+    
+    return `https://api.mapbox.com/styles/v1/mapbox/${mapStyle}/static/${marker}/${centerLon},${centerLat},${zoom},0/400x200@2x?access_token=${mapboxToken}`;
+  };
+  
+  const mapUrl = template.route?.mapPreview || getTemplateImage();
 
   return (
     <Card className="hover:shadow-lg transition-all duration-200 overflow-hidden group">

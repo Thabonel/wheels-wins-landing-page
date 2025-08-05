@@ -24,6 +24,7 @@ from . import (
     performance,
     receipts,
     digistore24,
+    national_parks,
     # camping,  # Loaded with import guard
     # youtube_scraper,  # Loaded with import guard
 )
@@ -54,6 +55,7 @@ __all__ = [
     'performance',
     'receipts',
     'digistore24',
+    'national_parks',
     # 'camping',  # Loaded with import guard
     # 'youtube_scraper',  # Loaded with import guard
 ]
