@@ -4,6 +4,7 @@ Advanced Caching Service
 Implements Redis-based caching with performance optimizations.
 """
 
+import os
 import json
 import pickle
 import asyncio
@@ -34,23 +35,48 @@ class CacheService:
                 return
                 
             try:
+                redis_url = getattr(settings, 'REDIS_URL', None) or os.environ.get('REDIS_URL', 'redis://localhost:6379')
+                
+                # Log Redis URL (masked for security)
+                if redis_url and redis_url != 'redis://localhost:6379':
+                    masked_url = redis_url.split('@')[0] + '@***' if '@' in redis_url else redis_url
+                    logger.info(f"Attempting Redis connection to: {masked_url}")
+                else:
+                    logger.warning("No Redis URL configured, using default localhost")
+                
                 self.redis = await aioredis.from_url(
-                    settings.REDIS_URL,
+                    redis_url,
                     encoding="utf-8",
                     decode_responses=True,
                     max_connections=20,
                     retry_on_timeout=True,
-                    health_check_interval=30
+                    health_check_interval=30,
+                    socket_connect_timeout=10,
+                    socket_timeout=5
                 )
-                logger.info("Redis cache initialized successfully")
+                
+                # Test the connection
+                await self.redis.ping()
+                logger.info("✅ Redis cache initialized and connected successfully")
+                
+            except asyncio.TimeoutError:
+                logger.error("Redis connection timeout - service may be starting up")
+                self.redis = None
+            except ConnectionRefusedError:
+                logger.error("Redis connection refused - service may not be running")
+                self.redis = None
             except Exception as e:
-                logger.error(f"Failed to initialize Redis cache: {e}")
-                raise
+                logger.error(f"Failed to initialize Redis cache: {type(e).__name__}: {e}")
+                self.redis = None
     
     async def get(self, key: str, use_pickle: bool = False) -> Optional[Any]:
         """Get value from cache with optional pickle deserialization"""
         if not self.redis:
             await self.initialize()
+        
+        if not self.redis:
+            # Redis not available, return None
+            return None
         
         try:
             value = await self.redis.get(key)
@@ -70,6 +96,10 @@ class CacheService:
         if not self.redis:
             await self.initialize()
         
+        if not self.redis:
+            # Redis not available, silently skip
+            return
+        
         try:
             ttl = ttl or self.default_ttl
             
@@ -87,6 +117,10 @@ class CacheService:
         if not self.redis:
             await self.initialize()
         
+        if not self.redis:
+            # Redis not available, silently skip
+            return
+        
         try:
             await self.redis.delete(key)
         except Exception as e:
@@ -96,6 +130,10 @@ class CacheService:
         """Check if key exists in cache"""
         if not self.redis:
             await self.initialize()
+        
+        if not self.redis:
+            # Redis not available, return False
+            return False
         
         try:
             result = await self.redis.exists(key)
@@ -108,6 +146,10 @@ class CacheService:
         """Get multiple keys in batch for better performance"""
         if not self.redis:
             await self.initialize()
+        
+        if not self.redis:
+            # Redis not available, return empty dict
+            return {}
         
         try:
             values = await self.redis.mget(keys)
@@ -127,6 +169,10 @@ class CacheService:
         """Set multiple keys in batch for better performance"""
         if not self.redis:
             await self.initialize()
+        
+        if not self.redis:
+            # Redis not available, silently skip
+            return
         
         try:
             ttl = ttl or self.default_ttl

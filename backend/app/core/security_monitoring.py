@@ -428,7 +428,11 @@ class SecurityMonitor:
     """Security monitoring and response system"""
     
     def __init__(self, redis_url: str = "redis://localhost:6379"):
+        import os
+        # Try to get Redis URL from environment if not provided
         self.redis_url = redis_url
+        if redis_url == "redis://localhost:6379":
+            self.redis_url = os.environ.get('REDIS_URL', redis_url)
         self.redis_client: Optional[aioredis.Redis] = None
         self.threat_detector = ThreatDetector()
         self.event_storage: List[SecurityEvent] = []
@@ -450,16 +454,28 @@ class SecurityMonitor:
             return False
         
         try:
+            # Log Redis URL (masked for security)
+            if self.redis_url and self.redis_url != 'redis://localhost:6379':
+                masked_url = self.redis_url.split('@')[0] + '@***' if '@' in self.redis_url else self.redis_url
+                logger.info(f"Security monitoring attempting Redis connection to: {masked_url}")
+            
             self.redis_client = aioredis.from_url(
                 self.redis_url,
                 encoding="utf-8",
-                decode_responses=True
+                decode_responses=True,
+                socket_connect_timeout=10,
+                socket_timeout=5
             )
             await self.redis_client.ping()
-            logger.info("Security monitoring Redis initialized")
+            logger.info("✅ Security monitoring Redis initialized successfully")
             return True
+        except asyncio.TimeoutError:
+            logger.warning("Security monitoring Redis connection timeout - using in-memory fallback")
+            self.redis_client = None
+            return False
         except Exception as e:
-            logger.error(f"Failed to initialize security monitoring Redis: {e}")
+            logger.warning(f"Security monitoring Redis unavailable ({type(e).__name__}: {e}) - using in-memory fallback")
+            self.redis_client = None
             return False
     
     async def process_request(self, request: Request, response: Response = None) -> List[SecurityEvent]:
