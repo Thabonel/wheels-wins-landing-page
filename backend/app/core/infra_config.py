@@ -111,7 +111,7 @@ class InfrastructureSettings(BaseSettings):
     NEO4J_DATABASE: Optional[str] = "neo4j"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[".env", "backend/.env", "../.env"],  # Multiple potential paths
         case_sensitive=True,
         extra="allow"
         # No env_prefix for backward compatibility with existing deployments

@@ -87,7 +87,7 @@ class FeatureFlags(BaseSettings):
     BUDGET_PREDICTIONS_ROLLOUT_PERCENT: int = 15
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[".env", "backend/.env", "../.env"],  # Multiple potential paths
         case_sensitive=True,
         extra="allow"
         # No env_prefix for backward compatibility with existing deployments

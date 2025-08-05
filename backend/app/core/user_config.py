@@ -52,7 +52,7 @@ class UserSettings(BaseSettings):
     GRAPH_SYNC_ON_STARTUP: bool = False  # Sync existing data to graph on startup
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[".env", "backend/.env", "../.env"],  # Multiple potential paths
         case_sensitive=True,
         extra="allow"
         # No env_prefix for backward compatibility with existing deployments
