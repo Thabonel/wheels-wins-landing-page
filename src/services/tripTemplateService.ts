@@ -17,6 +17,10 @@ export interface TripTemplate {
   usageCount: number;
   isPublic: boolean;
   createdBy?: string;
+  imageUrl?: string;
+  image_url?: string;
+  thumbnailUrl?: string;
+  thumbnail_url?: string;
 }
 
 export interface ScrapedTripData {
@@ -141,7 +145,11 @@ function transformDatabaseToTemplate(dbRecord: any): TripTemplate | null {
       tags: Array.isArray(dbRecord.tags) ? dbRecord.tags : [],
       usageCount: parseInt(dbRecord.usage_count) || 0,
       isPublic: Boolean(dbRecord.is_public),
-      createdBy: templateData.createdBy
+      createdBy: templateData.createdBy,
+      imageUrl: dbRecord.image_url,
+      image_url: dbRecord.image_url,
+      thumbnailUrl: dbRecord.thumbnail_url,
+      thumbnail_url: dbRecord.thumbnail_url
     };
     
     console.log(`✅ Transformed template: ${transformed.name} (${transformed.estimatedDays} days, $${transformed.suggestedBudget})`);

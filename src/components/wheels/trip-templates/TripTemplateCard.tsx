@@ -91,11 +91,50 @@ export default function TripTemplateCard({
       'Melbourne': [-37.8136, 144.9631, 10],
     };
     
-    // Check highlights for specific locations
-    if (template.highlights && template.highlights.length > 0) {
-      for (const highlight of template.highlights) {
-        for (const [location, coords] of Object.entries(locationCoords)) {
-          if (highlight.toLowerCase().includes(location.toLowerCase())) {
+    // Check template name for specific routes first
+    const templateName = template.name.toLowerCase();
+    if (templateName.includes('great ocean road')) {
+      [centerLat, centerLon, zoom] = [-38.6662, 143.1044, 8]; // Twelve Apostles
+    } else if (templateName.includes('big lap') || templateName.includes('around australia')) {
+      [centerLat, centerLon, zoom] = [-25.2744, 133.7751, 3]; // Australia overview
+    } else if (templateName.includes('red centre') || templateName.includes('uluru')) {
+      [centerLat, centerLon, zoom] = [-25.3444, 131.0369, 9]; // Uluru
+    } else if (templateName.includes('pacific coast')) {
+      [centerLat, centerLon, zoom] = [-28.6434, 153.6122, 7]; // Byron Bay
+    } else if (templateName.includes('tasmania') || templateName.includes('tassie')) {
+      [centerLat, centerLon, zoom] = [-41.4545, 145.9707, 7]; // Tasmania center
+    } else {
+      // Check highlights for specific locations
+      if (template.highlights && template.highlights.length > 0) {
+        for (const highlight of template.highlights) {
+          for (const [location, coords] of Object.entries(locationCoords)) {
+            if (highlight.toLowerCase().includes(location.toLowerCase())) {
+              [centerLat, centerLon, zoom] = coords;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    // Check region with improved multi-region parsing
+    if (template.region) {
+      const regionString = template.region.toLowerCase();
+      
+      // Check for specific multi-region patterns first
+      if (regionString.includes('victoria') && regionString.includes('south australia')) {
+        // Great Ocean Road area
+        [centerLat, centerLon, zoom] = [-38.4161, 143.1044, 7]; // Near Twelve Apostles
+      } else if (regionString.includes('nsw') && regionString.includes('queensland')) {
+        // Pacific Coast area
+        [centerLat, centerLon, zoom] = [-28.6434, 153.6122, 6]; // Byron Bay area
+      } else if (regionString.includes('northern territory') && regionString.includes('south australia')) {
+        // Red Centre area
+        [centerLat, centerLon, zoom] = [-25.3444, 131.0369, 8]; // Uluru area
+      } else {
+        // Single region matching
+        for (const [region, coords] of Object.entries(regionCoords)) {
+          if (regionString.includes(region.toLowerCase())) {
             [centerLat, centerLon, zoom] = coords;
             break;
           }
@@ -103,22 +142,18 @@ export default function TripTemplateCard({
       }
     }
     
-    // Check region
-    if (template.region) {
-      for (const [region, coords] of Object.entries(regionCoords)) {
-        if (template.region.toLowerCase().includes(region.toLowerCase())) {
-          [centerLat, centerLon, zoom] = coords;
-          break;
-        }
-      }
-    }
+    // Choose map style based on category and template name
+    let mapStyle = 'outdoors-v12'; // Default
+    const category = template.category || '';
     
-    // Choose map style based on category
-    let mapStyle = 'outdoors-v12';
-    if (template.category === 'coastal') {
-      mapStyle = 'satellite-streets-v12';
-    } else if (template.category === 'outback' || template.category === 'desert') {
-      mapStyle = 'satellite-v9';
+    if (category.includes('coastal') || templateName.includes('ocean') || templateName.includes('pacific coast')) {
+      mapStyle = 'satellite-streets-v12'; // Best for coastal views
+    } else if (category.includes('outback') || templateName.includes('red centre') || templateName.includes('uluru')) {
+      mapStyle = 'satellite-v9'; // Best for desert landscapes
+    } else if (templateName.includes('big lap')) {
+      mapStyle = 'streets-v12'; // Overview style for country-wide routes
+    } else if (category.includes('scenic') || category.includes('mountain')) {
+      mapStyle = 'outdoors-v12'; // Best for scenic routes
     }
     
     // Create marker for the location
