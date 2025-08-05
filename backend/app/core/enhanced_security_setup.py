@@ -242,7 +242,7 @@ def get_security_recommendations() -> dict:
     
     # Check Redis availability
     try:
-        import aioredis
+        import redis.asyncio as aioredis
         recommendations.append({
             "type": "info",
             "message": "Redis available for enhanced security features",

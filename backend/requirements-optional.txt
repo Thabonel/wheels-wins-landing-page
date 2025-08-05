@@ -10,7 +10,7 @@ python-rapidjson==1.12
 
 # Enhanced async support
 aiofiles==23.2.0
-aioredis==2.0.1
+# aioredis==2.0.1  # Removed - now included in redis>=4.2.0
 
 # Enhanced security
 argon2-cffi==23.1.0
