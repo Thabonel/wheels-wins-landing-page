@@ -11,7 +11,6 @@ import logging
 from app.core.auth import get_current_user_optional
 from app.services.database import get_database_service
 from app.services.images import fetch_national_parks_for_country, ImageService
-from app.models.domain.auth import User
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -138,12 +137,12 @@ async def populate_national_parks(
     country: str,
     background_tasks: BackgroundTasks,
     limit: int = Query(50, ge=1, le=100),
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """Populate national parks data from Wikipedia for a specific country"""
     
     # Check if user is admin (optional - you can remove this check)
-    if current_user and hasattr(current_user, 'user_role') and current_user.user_role != 'admin':
+    if current_user and current_user.get('user_role') != 'admin':
         raise HTTPException(status_code=403, detail="Only admins can populate park data")
     
     # Add background task to fetch and save parks
@@ -275,7 +274,7 @@ async def fetch_and_save_national_parks(country: str, limit: int):
 @router.post("/update-images")
 async def update_trip_template_images(
     background_tasks: BackgroundTasks,
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """Update all trip templates with appropriate images"""
     
