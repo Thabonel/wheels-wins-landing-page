@@ -72,6 +72,7 @@ from app.api.v1 import (
     onboarding,
     performance,
     digistore24,
+    national_parks,
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import observability as observability_api
