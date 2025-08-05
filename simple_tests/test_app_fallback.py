@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 
-spec = importlib.util.spec_from_file_location("root_app", ROOT / "app.py")
+spec = importlib.util.spec_from_file_location("root_app", ROOT / "main.py")
 app_module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(app_module)

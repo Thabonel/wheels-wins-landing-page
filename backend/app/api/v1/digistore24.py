@@ -14,7 +14,7 @@ from decimal import Decimal
 from app.core.config import get_settings
 from app.db.supabase import get_supabase_client
 from app.api.deps import get_current_user
-from app.models.user import User
+from app.models.schemas.user import User
 from supabase import Client
 
 logger = logging.getLogger(__name__)

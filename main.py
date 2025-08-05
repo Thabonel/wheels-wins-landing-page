@@ -2,8 +2,8 @@
 
 This module imports the main FastAPI instance defined in
 ``backend/app/main.py``.  It is intentionally lightweight so that
-``uvicorn`` can load ``app:app`` without running into the module name
-clashes that occur when this file is also named ``app``.
+``uvicorn`` can load ``main:app`` without running into the module name
+clashes that occur when this file was previously named ``app``.
 
 If the backend application fails to import, a minimal FastAPI app is
 exposed so that the deployment can still start and return a helpful
@@ -35,35 +35,34 @@ def _load_backend_app() -> FastAPI:
     project_root = Path(__file__).resolve().parent
     backend_path = project_root / "backend"
 
-    # Ensure the backend package is importable
+    # Ensure the backend directory is importable
     if str(backend_path) not in sys.path:
         sys.path.insert(0, str(backend_path))
         logger.info("Added %s to PYTHONPATH", backend_path)
 
-    # Ensure this module stays registered so Uvicorn reload works correctly
-    # even after inserting the backend path. Removing it can cause ``app``
-    # to resolve to the backend package instead of this file on reload.
-
-    main_file = backend_path / "app" / "main.py"
-    spec = importlib.util.spec_from_file_location("backend_main", main_file)
-    module = importlib.util.module_from_spec(spec)
+    # Clear any existing 'app' module from sys.modules to avoid conflicts
+    if 'app' in sys.modules:
+        del sys.modules['app']
+    
+    # Remove the current script's directory from sys.path temporarily
+    # to avoid the root app.py conflicting with backend's app package
+    current_dir = str(project_root)
+    original_path = sys.path.copy()
+    if current_dir in sys.path:
+        sys.path.remove(current_dir)
 
     try:
-        assert spec.loader is not None
-        spec.loader.exec_module(module)
-        logger.info("Successfully imported backend app from %s", main_file)
+        # Import the backend app directly now that paths are clean
+        from app.main import app as backend_app
+        logger.info("Successfully imported backend app directly")
+        return backend_app
         
-        # Check if app attribute exists and log its type
-        if hasattr(module, "app"):
-            app_instance = getattr(module, "app")
-            logger.info("Found app attribute of type: %s", type(app_instance))
-            return app_instance
-        else:
-            logger.error("Module does not have 'app' attribute. Available attributes: %s", dir(module))
-            raise AttributeError("Backend module does not export 'app'")
-    except Exception as exc:  # pragma: no cover - import failure path
+    except Exception as exc:
         logger.exception("Failed to load backend FastAPI app: %s", exc)
         raise
+    finally:
+        # Restore the original sys.path
+        sys.path[:] = original_path
 
 
 try:

@@ -83,32 +83,50 @@ export function PAMConnectionDiagnostic() {
         const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/api/v1/pam/ws?token=${encodeURIComponent(token)}`;
         const ws = new WebSocket(wsUrl);
         const startTime = Date.now();
+        let pingTime = 0;
+        let pongReceived = false;
         
         const timeout = setTimeout(() => {
           ws.close();
           resolve({ 
             status: 'timeout', 
-            message: 'WebSocket connection timed out after 8 seconds',
+            message: 'WebSocket connection timed out after 10 seconds',
             responseTime: Date.now() - startTime
           });
-        }, 8000);
+        }, 10000);
 
         ws.onopen = () => {
-          // Send a ping to ensure full connectivity
-          ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+          // Send a ping to test full connectivity and measure latency
+          pingTime = Date.now();
+          ws.send(JSON.stringify({ type: 'ping', timestamp: pingTime }));
         };
 
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            clearTimeout(timeout);
-            ws.close();
-            resolve({ 
-              status: 'connected', 
-              message: 'WebSocket connection successful',
-              responseTime: Date.now() - startTime,
-              data
-            });
+            const pongLatency = pingTime ? Date.now() - pingTime : 0;
+            
+            if (data.type === 'pong') {
+              pongReceived = true;
+              clearTimeout(timeout);
+              ws.close();
+              resolve({ 
+                status: 'connected', 
+                message: `WebSocket connection healthy (${pongLatency}ms ping)`,
+                responseTime: Date.now() - startTime,
+                data: { ...data, pingLatency }
+              });
+            } else {
+              // Other connection messages are also good signs
+              clearTimeout(timeout);
+              ws.close();
+              resolve({ 
+                status: 'connected', 
+                message: 'WebSocket connection successful',
+                responseTime: Date.now() - startTime,
+                data
+              });
+            }
           } catch (error) {
             clearTimeout(timeout);
             ws.close();
@@ -124,7 +142,7 @@ export function PAMConnectionDiagnostic() {
           clearTimeout(timeout);
           resolve({ 
             status: 'error', 
-            message: 'WebSocket connection failed',
+            message: 'WebSocket connection failed - check if backend is running',
             error,
             responseTime: Date.now() - startTime
           });
@@ -132,17 +150,24 @@ export function PAMConnectionDiagnostic() {
 
         ws.onclose = (event) => {
           clearTimeout(timeout);
-          if (event.code === 1000) {
-            // Normal closure - connection was successful
+          if (event.code === 1000 && pongReceived) {
+            // Normal closure after successful ping/pong
             resolve({ 
               status: 'connected', 
-              message: 'WebSocket connection successful (normal closure)',
+              message: `WebSocket connection healthy (code: ${event.code})`,
+              responseTime: Date.now() - startTime
+            });
+          } else if (event.code === 4000 || event.code === 1008) {
+            // Authentication error
+            resolve({ 
+              status: 'error', 
+              message: `WebSocket authentication failed (code: ${event.code})`,
               responseTime: Date.now() - startTime
             });
           } else {
             resolve({ 
               status: 'disconnected', 
-              message: `WebSocket closed unexpectedly (code: ${event.code})`,
+              message: `WebSocket closed unexpectedly (code: ${event.code}, reason: ${event.reason || 'unknown'})`,
               responseTime: Date.now() - startTime
             });
           }
