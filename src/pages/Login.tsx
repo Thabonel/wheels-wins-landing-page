@@ -1,10 +1,9 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Link } from "react-router-dom";
 import LoginForm from "@/components/auth/LoginForm";
 import OAuthButtons from "@/components/auth/OAuthButtons";
 
