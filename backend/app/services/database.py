@@ -73,23 +73,42 @@ class DatabaseService:
             if not self.client:
                 return []
             
+            # Use service client for PAM operations to bypass RLS
+            client = self.service_client if hasattr(self, 'service_client') else self.client
+            
             # Use the database function we created
-            result = self.client.rpc('get_conversation_history', {
+            result = client.rpc('get_conversation_history', {
                 'p_user_id': user_id,
                 'p_limit': limit
             }).execute()
             
             if result.data:
-                # Convert to expected format
-                return [
-                    {
-                        'user_message': msg['content'] if msg['role'] == 'user' else '',
-                        'assistant_response': msg['content'] if msg['role'] == 'assistant' else '',
-                        'intent': msg.get('intent'),
-                        'created_at': msg['created_at']
-                    }
-                    for msg in result.data
-                ]
+                # Convert to expected format - group messages by pairs
+                messages = []
+                current_pair = {'user_message': '', 'assistant_response': '', 'intent': None, 'created_at': None}
+                
+                for msg in reversed(result.data):  # Reverse to process chronologically
+                    if msg['role'] == 'user':
+                        # Start a new pair
+                        if current_pair['user_message'] or current_pair['assistant_response']:
+                            messages.append(current_pair)
+                        current_pair = {
+                            'user_message': msg['content'],
+                            'assistant_response': '',
+                            'intent': msg.get('intent'),
+                            'created_at': msg['created_at']
+                        }
+                    elif msg['role'] == 'assistant':
+                        # Complete the current pair
+                        current_pair['assistant_response'] = msg['content']
+                        if not current_pair['created_at']:
+                            current_pair['created_at'] = msg['created_at']
+                
+                # Add the last pair if it has content
+                if current_pair['user_message'] or current_pair['assistant_response']:
+                    messages.append(current_pair)
+                
+                return messages[-limit:] if len(messages) > limit else messages
             return []
         except Exception as e:
             logger.warning(f"Error fetching conversation context: {e}")
@@ -101,8 +120,11 @@ class DatabaseService:
             if not self.client:
                 return {}
             
+            # Use service client for PAM operations to bypass RLS
+            client = self.service_client if hasattr(self, 'service_client') else self.client
+            
             # Use the database function we created
-            result = self.client.rpc('get_user_preferences', {
+            result = client.rpc('get_user_preferences', {
                 'p_user_id': user_id
             }).execute()
             
@@ -117,8 +139,11 @@ class DatabaseService:
             if not self.client:
                 return False
             
-            # Get or create conversation
-            conversation_result = self.client.rpc('get_or_create_pam_conversation', {
+            # Use service client for PAM operations to bypass RLS
+            client = self.service_client if hasattr(self, 'service_client') else self.client
+            
+            # Get or create conversation - function returns UUID directly
+            conversation_result = client.rpc('get_or_create_pam_conversation', {
                 'p_user_id': user_id,
                 'p_session_id': session_id,
                 'p_context': memory_data.get('context', {})
@@ -128,11 +153,21 @@ class DatabaseService:
                 logger.error("Failed to get/create conversation")
                 return False
             
+            # The function returns the UUID directly, not wrapped in an array
             conversation_id = conversation_result.data
+            
+            # Handle case where function returns array with single UUID
+            if isinstance(conversation_id, list) and len(conversation_id) > 0:
+                conversation_id = conversation_id[0]
+            
+            # Validate UUID format
+            if not conversation_id or conversation_id == 'default':
+                logger.error(f"Invalid conversation_id received: {conversation_id}")
+                return False
             
             # Store user message if provided
             if memory_data.get('user_message'):
-                self.client.rpc('store_pam_message', {
+                user_message_result = client.rpc('store_pam_message', {
                     'p_conversation_id': conversation_id,
                     'p_role': 'user',
                     'p_content': memory_data['user_message'],
@@ -141,19 +176,28 @@ class DatabaseService:
                     'p_entities': memory_data.get('entities', {}),
                     'p_metadata': memory_data.get('user_metadata', {})
                 }).execute()
+                
+                if not user_message_result.data:
+                    logger.warning("Failed to store user message")
             
             # Store assistant response if provided
             if memory_data.get('assistant_response'):
-                self.client.rpc('store_pam_message', {
+                assistant_message_result = client.rpc('store_pam_message', {
                     'p_conversation_id': conversation_id,
                     'p_role': 'assistant',
                     'p_content': memory_data['assistant_response'],
                     'p_metadata': memory_data.get('assistant_metadata', {})
                 }).execute()
+                
+                if not assistant_message_result.data:
+                    logger.warning("Failed to store assistant message")
             
             return True
         except Exception as e:
             logger.warning(f"Error storing conversation: {e}")
+            # Log more details for debugging
+            logger.error(f"Conversation storage details - user_id: {user_id}, session_id: {session_id}")
+            logger.error(f"Memory data keys: {list(memory_data.keys()) if memory_data else 'None'}")
             return False
     
     async def store_user_preference(self, user_id: str, key: str, value: Any, confidence: float = 1.0) -> bool:
@@ -162,19 +206,48 @@ class DatabaseService:
             if not self.client:
                 return False
             
-            self.client.rpc('store_user_context', {
+            # Use service client for PAM operations to bypass RLS
+            client = self.service_client if hasattr(self, 'service_client') else self.client
+            
+            # Convert value to string for storage
+            value_str = str(value) if not isinstance(value, str) else value
+            
+            result = client.rpc('store_user_context', {
                 'p_user_id': user_id,
                 'p_context_type': 'preference',
                 'p_key': key,
-                'p_value': value,
+                'p_value': value_str,
                 'p_confidence': confidence,
                 'p_source': 'conversation'
             }).execute()
             
-            return True
+            return bool(result.data)
         except Exception as e:
             logger.warning(f"Error storing user preference: {e}")
             return False
+    
+    async def store_memory(self, memory) -> str:
+        """Store PamMemory object - compatibility method for orchestrator"""
+        try:
+            # Convert PamMemory to the format expected by store_conversation
+            memory_data = {
+                'user_message': memory.content if memory.memory_type.value == 'user_interaction' else '',
+                'assistant_response': memory.content if memory.memory_type.value == 'assistant_response' else '',
+                'context': memory.context,
+                'intent': memory.memory_type.value,
+                'confidence': memory.confidence,
+                'user_metadata': {'memory_type': memory.memory_type.value},
+                'assistant_metadata': {'memory_type': memory.memory_type.value}
+            }
+            
+            # Extract session_id from context or use a default
+            session_id = memory.context.get('session_id', f"memory-{memory.id}")
+            
+            success = await self.store_conversation(memory.user_id, session_id, memory_data)
+            return memory.id if success else ""
+        except Exception as e:
+            logger.warning(f"Error storing memory: {e}")
+            return ""
     
     # Trip Data Methods
     async def get_user_profile(self, user_id: str) -> Dict[str, Any]:

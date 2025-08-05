@@ -1466,7 +1466,7 @@ User context: {user_context}""".format(
             if user_id == "anonymous":
                 return
                 
-            from app.database.supabase_client import get_supabase
+            from app.database.supabase_client import get_supabase_service
             
             # Prepare log data
             log_data = {
@@ -1483,8 +1483,9 @@ User context: {user_context}""".format(
                 'metadata': metadata or {}
             }
             
-            # Get Supabase client and insert into agent_logs table
-            supabase = get_supabase()
+            # Get Supabase SERVICE ROLE client for agent_logs operations
+            # This bypasses RLS policies and allows backend logging
+            supabase = get_supabase_service()
             result = supabase.table('agent_logs').insert(log_data).execute()
             
             if result.data:
