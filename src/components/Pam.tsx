@@ -25,6 +25,7 @@ import { audioManager } from "@/utils/audioManager";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
+import { pamLogger } from "@/services/pamLogger";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -92,6 +93,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     lastSpeechEnd: 0,
     lastSilenceStart: 0,
   });
+  
+  // Track message timing for analytics
+  const messageTimingRef = useRef<{ [messageId: string]: { startTime: number; intent?: string; mode: 'voice' | 'text' } }>({});
   
   // Audio analysis refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -848,8 +852,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 return updated;
               } else {
                 // Start new streaming message if no existing PAM message
+                const newMessageId = Date.now().toString();
+                
+                // Track timing for this streaming message
+                if (messageTimingRef.current[message.request_id || newMessageId]) {
+                  messageTimingRef.current[newMessageId] = messageTimingRef.current[message.request_id || newMessageId];
+                  if (message.request_id) {
+                    delete messageTimingRef.current[message.request_id];
+                  }
+                }
+                
                 return [...prev, {
-                  id: Date.now().toString(),
+                  id: newMessageId,
                   content: message.content,
                   sender: "pam",
                   timestamp: new Date().toISOString(),
@@ -871,6 +885,26 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   ...updated[lastPamIndex],
                   isStreaming: false
                 };
+                
+                // Log completed streaming interaction
+                const messageId = updated[lastPamIndex].id;
+                const timing = messageTimingRef.current[messageId];
+                if (timing) {
+                  const responseTime = Date.now() - timing.startTime;
+                  pamLogger.logInteraction({
+                    user_id: user?.id,
+                    intent: timing.intent || 'general_inquiry',
+                    response: updated[lastPamIndex].content,
+                    response_time: responseTime,
+                    mode: timing.mode,
+                    metadata: {
+                      api_type: 'websocket',
+                      streaming: true
+                    }
+                  });
+                  delete messageTimingRef.current[messageId];
+                }
+                
                 return updated;
               }
               return prev;
@@ -1761,6 +1795,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('📤 Sending audio to backend via /api/v1/pam/voice...');
       console.log('📦 FormData contains:', formData.get('audio'));
       
+      const voiceStartTime = Date.now();
+      
       const response = await authenticatedFetch('/api/v1/pam/voice', {
         method: 'POST',
         body: formData
@@ -1849,6 +1885,23 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           
           // Handle different response types with better user guidance
           if (data.response) {
+            // Log voice interaction
+            const responseTime = Date.now() - voiceStartTime;
+            const intent = data.text ? detectIntent(data.text) : 'voice_command';
+            
+            await pamLogger.logInteraction({
+              user_id: user?.id,
+              intent: intent,
+              message: data.text || 'voice input',
+              response: data.response,
+              response_time: responseTime,
+              mode: 'voice',
+              metadata: {
+                api_type: 'rest',
+                voice_ready: data.voice_ready,
+                has_audio: !!data.audio_url
+              }
+            });
             // Successful voice processing but no audio
             if (data.voice_ready === false && data.guidance) {
               addMessage(data.response, "pam");
@@ -1858,6 +1911,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             }
           } else if (data.error) {
             // Voice processing error
+            await pamLogger.logError({
+              user_id: user?.id,
+              intent: 'voice_command',
+              message: data.text || 'voice input',
+              error_type: 'VOICE_PROCESSING_ERROR',
+              error_message: data.error,
+              mode: 'voice'
+            });
+            
             if (data.guidance) {
               addMessage(`${data.response || "I had trouble processing your voice message."}`, "pam");
               addMessage(`💡 ${data.guidance}`, "pam");
@@ -2317,6 +2379,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
     
     const message = inputMessage.trim();
+    const startTime = Date.now();
     addMessage(message, "user");
     // Note: PAM backend automatically saves all conversation history
     setInputMessage("");
@@ -2358,6 +2421,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
     }
 
+    // Detect intent from message
+    const detectedIntent = detectIntent(message);
+    
     const messageData = {
       type: "chat",
       message: message,  // Backend expects 'message' not 'content'
@@ -2380,6 +2446,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Try WebSocket first if connected
     if (connectionStatus === "Connected" && wsRef.current?.readyState === WebSocket.OPEN) {
       try {
+        // Track timing for WebSocket messages
+        const messageId = Date.now().toString();
+        messageTimingRef.current[messageId] = {
+          startTime,
+          intent: detectedIntent,
+          mode: 'text'
+        };
+        
         wsRef.current.send(JSON.stringify(messageData));
         return;
       } catch (error) {
@@ -2403,17 +2477,80 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         addMessage(pamResponse, "pam", message);
         // Note: PAM backend automatically saves all conversation history
         
+        // Log successful interaction
+        const responseTime = Date.now() - startTime;
+        await pamLogger.logInteraction({
+          user_id: user?.id,
+          intent: detectedIntent,
+          message: message,
+          response: pamResponse,
+          response_time: responseTime,
+          mode: 'text',
+          metadata: {
+            api_type: 'rest',
+            location_query: isLocationQuery
+          }
+        });
+        
         // Handle any UI actions from the response
         if (data.ui_action) {
           handleUIAction(data.ui_action);
         }
       } else {
         addMessage("I'm having trouble connecting to the server. Please try again later.", "pam");
+        
+        // Log error
+        await pamLogger.logError({
+          user_id: user?.id,
+          intent: detectedIntent,
+          message: message,
+          error_type: 'API_ERROR',
+          error_message: `HTTP ${response.status}: ${response.statusText}`,
+          mode: 'text'
+        });
       }
     } catch (error) {
       console.error('❌ Failed to send message via REST API:', error);
       addMessage("I'm experiencing connection issues. Please check your internet connection and try again.", "pam");
+      
+      // Log error
+      await pamLogger.logError({
+        user_id: user?.id,
+        intent: detectedIntent,
+        message: message,
+        error_type: 'NETWORK_ERROR',
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+        mode: 'text'
+      });
     }
+  };
+
+  // Intent Detection
+  const detectIntent = (message: string): string => {
+    const lowerMessage = message.toLowerCase();
+    
+    // Define intent patterns
+    const intents = {
+      'travel_planning': ['trip', 'travel', 'route', 'destination', 'plan', 'journey', 'road trip'],
+      'location_search': ['near me', 'nearby', 'close to', 'where is', 'find', 'location', 'places'],
+      'financial_planning': ['budget', 'expense', 'cost', 'money', 'spend', 'save', 'price'],
+      'weather_inquiry': ['weather', 'forecast', 'rain', 'snow', 'temperature', 'climate'],
+      'vehicle_maintenance': ['oil', 'tire', 'maintenance', 'repair', 'service', 'car', 'vehicle'],
+      'general_chat': ['hello', 'hi', 'how are you', 'thanks', 'goodbye', 'help'],
+      'navigation': ['directions', 'navigate', 'turn', 'miles', 'kilometers', 'distance'],
+      'accommodation': ['hotel', 'motel', 'camp', 'stay', 'sleep', 'accommodation'],
+      'food_search': ['restaurant', 'food', 'eat', 'pizza', 'coffee', 'breakfast', 'lunch', 'dinner'],
+      'fuel_search': ['gas', 'fuel', 'station', 'petrol', 'diesel']
+    };
+    
+    // Check each intent
+    for (const [intent, keywords] of Object.entries(intents)) {
+      if (keywords.some(keyword => lowerMessage.includes(keyword))) {
+        return intent;
+      }
+    }
+    
+    return 'general_inquiry';
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

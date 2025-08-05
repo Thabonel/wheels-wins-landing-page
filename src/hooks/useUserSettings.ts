@@ -128,7 +128,7 @@ export const useUserSettings = () => {
         },
         pam_preferences: {
           voice_enabled: true,
-          proactive_suggestions: true,
+          proactive_suggestions: false,
           response_style: 'helpful',
           expertise_level: 'intermediate',
           knowledge_sources: true,
