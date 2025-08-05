@@ -534,6 +534,7 @@ app.include_router(maintenance.router, prefix="/api/v1", tags=["Maintenance"])
 app.include_router(custom_routes.router, prefix="/api/v1", tags=["Routes"])
 app.include_router(onboarding.router, prefix="/api/v1", tags=["Onboarding"])
 app.include_router(digistore24.router, prefix="/api/v1/digistore24", tags=["Digistore24"])
+app.include_router(national_parks.router, prefix="/api/v1", tags=["National Parks"])
 # Removed generic websocket router to avoid conflicts with PAM WebSocket
 # app.include_router(websocket.router, prefix="/api", tags=["WebSocket"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
