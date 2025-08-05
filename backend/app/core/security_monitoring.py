@@ -18,7 +18,7 @@ from starlette.responses import Response, JSONResponse
 from app.core.logging import get_logger
 
 try:
-    import aioredis
+    import redis.asyncio as aioredis
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False

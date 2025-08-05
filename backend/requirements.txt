@@ -24,7 +24,7 @@ requests==2.32.4
 urllib3==2.5.0
 
 # Database essentials
-redis==6.2.0
+redis>=4.5.0,<5.0.0
 sqlalchemy[asyncio]==2.0.41
 asyncpg==0.30.0
 psycopg2-binary>=2.9.0
