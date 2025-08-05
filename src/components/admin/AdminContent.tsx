@@ -12,6 +12,7 @@ import ShopManagement from './ShopManagement';
 import SupportTickets from './SupportTickets';
 import UserFeedback from './UserFeedback';
 import Settings from './Settings';
+import DataCollectorMonitor from './DataCollectorMonitor';
 
 interface AdminContentProps {
   activeSection: string;
@@ -28,6 +29,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <ContentModeration />;
       case 'Analytics':
         return <ReportsAnalytics />;
+      case 'Data Collector':
+        return <DataCollectorMonitor />;
       case 'Chat Logs':
         return <PAMAnalyticsDashboard />;
       case 'User Feedback':

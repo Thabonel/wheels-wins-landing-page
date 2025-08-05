@@ -16,7 +16,8 @@ import {
   Brain,
   Activity,
   TestTube,
-  MessageCircle
+  MessageCircle,
+  Database
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -40,6 +41,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { name: 'Users', icon: Users },
     { name: 'Content Moderation', icon: Shield },
     { name: 'Analytics', icon: BarChart3 },
+    { name: 'Data Collector', icon: Database },
     { name: 'Chat Logs', icon: MessageSquare },
     { name: 'User Feedback', icon: MessageCircle },
     { name: 'Learning Dashboard', icon: Brain },
