@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { getWebSocketUrl } from '@/services/api';
 import { jwtDecode } from 'jwt-decode';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WebSocketConnectionConfig {
   userId: string;
@@ -41,7 +42,10 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
   }, [onMessage]);
 
   const validateToken = useCallback((tokenToValidate: string): boolean => {
-    if (!tokenToValidate || tokenToValidate === 'demo-token') return true; // Allow demo mode
+    if (!tokenToValidate || tokenToValidate === 'demo-token') {
+      console.error('❌ PAM Token validation failed: No valid token provided');
+      return false;
+    }
     
     try {
       const decoded = jwtDecode(tokenToValidate) as any;
@@ -68,27 +72,40 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
     }
   }, []);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!userId || ws.current?.readyState === WebSocket.OPEN) return;
 
     if (reconnectTimeout.current) {
       clearTimeout(reconnectTimeout.current);
     }
 
-    // Validate token before connection attempt
-    const tokenToUse = token || userId || 'demo-token';
-    if (!validateToken(tokenToUse)) {
-      console.error('❌ PAM Connection aborted: Invalid or expired token');
-      onMessage({
-        type: 'error',
-        message: '🔐 Authentication token expired. Please refresh the page to continue.'
-      });
-      return;
-    }
-
     try {
-      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}?token=${encodeURIComponent(tokenToUse)}`;
-      console.log('🔌 Attempting PAM WebSocket connection:', wsUrl);
+      // Get the current session token from Supabase
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session?.access_token) {
+        console.error('❌ PAM Connection aborted: No valid session');
+        onMessage({
+          type: 'error',
+          message: '🔐 Please sign in to connect to PAM. Refresh the page if you are already signed in.'
+        });
+        return;
+      }
+
+      const actualToken = session.access_token;
+      
+      // Validate the actual session token
+      if (!validateToken(actualToken)) {
+        console.error('❌ PAM Connection aborted: Invalid or expired session token');
+        onMessage({
+          type: 'error',
+          message: '🔐 Authentication token expired. Please refresh the page to continue.'
+        });
+        return;
+      }
+
+      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}?token=${encodeURIComponent(actualToken)}`;
+      console.log('🔌 Attempting PAM WebSocket connection with valid session token');
       
       ws.current = new WebSocket(wsUrl);
 
@@ -213,13 +230,28 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
         });
       }
     }
-  }, [userId, token, onMessage, updateConnectionStatus, scheduleReconnect, validateToken]);
+  }, [userId, onMessage, updateConnectionStatus, scheduleReconnect, validateToken]);
 
-  // Auto-connect when userId changes
+  // Auto-connect when userId changes and listen for auth changes
   useEffect(() => {
     if (userId) {
       connect();
     }
+    
+    // Listen for auth state changes to handle token refresh
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        console.log('🔐 User signed out, disconnecting PAM WebSocket');
+        disconnect();
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        console.log('🔄 Auth token refreshed, reconnecting PAM WebSocket');
+        // Disconnect and reconnect with new token
+        if (ws.current) {
+          ws.current.close(1000, 'Token refreshed');
+        }
+        setTimeout(() => connect(), 1000); // Small delay to ensure clean disconnect
+      }
+    });
     
     // Cleanup on unmount
     return () => {
@@ -232,8 +264,9 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
       if (ws.current) {
         ws.current.close(1000, 'Component unmounting');
       }
+      authListener.subscription.unsubscribe();
     };
-  }, [userId, connect]);
+  }, [userId, connect, disconnect]);
 
   const sendMessage = useCallback((message: any) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
