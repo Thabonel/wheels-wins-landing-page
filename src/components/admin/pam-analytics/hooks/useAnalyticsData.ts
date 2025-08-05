@@ -222,9 +222,10 @@ export const useAnalyticsData = (dateRange: string) => {
         .limit(1000);
 
       if (error) {
-        // Check if the error is due to table not existing
-        if (error.message?.includes('relation "public.agent_logs" does not exist')) {
-          console.warn('Agent logs table does not exist yet. Using demo data.');
+        // Check if the error is due to table not existing or permission issues
+        if (error.message?.includes('relation "public.agent_logs" does not exist') ||
+            error.message?.includes('permission denied')) {
+          console.warn('Agent logs table not accessible. Using demo data. Error:', error.message);
           // Use demo data for now
           setData(getDemoData());
           return;
@@ -305,9 +306,10 @@ export const useAnalyticsData = (dateRange: string) => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       
-      // Check if it's a table missing error
-      if (errorMessage.includes('relation "public.agent_logs" does not exist')) {
-        console.warn('Agent logs table does not exist. Using demo data.');
+      // Check if it's a table missing error or permission error
+      if (errorMessage.includes('relation "public.agent_logs" does not exist') ||
+          errorMessage.includes('permission denied')) {
+        console.warn('Agent logs table not accessible. Using demo data.');
         setData(getDemoData());
         setError(null); // Clear error since we're showing demo data
       } else {
