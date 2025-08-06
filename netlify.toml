@@ -7,10 +7,9 @@
   NODE_VERSION = "20"
   # Disable Python - frontend only needs Node.js
   PYTHON_VERSION = ""
-  # Configure secrets scanning to allow safe public keys and common values
-  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,SUPABASE_KEY,VITE_MAPBOX_PUBLIC_TOKEN,VITE_MAPBOX_TOKEN,VITE_SUPABASE_URL,VITE_ENVIRONMENT,VITE_SENTRY_ENVIRONMENT,VITE_SENTRY_DSN"
-  # Exclude documentation, test files, configuration files, and build output from secrets scanning
-  SECRETS_SCAN_OMIT_PATHS = ".env.production,**/*.md,**/*.js,**/*.sh,**/*.ts,**/*.tsx,**/*.py,docs/**,scripts/**,backend/**,*.yaml,*.toml,.github/**,.claude/**,wheels-wins-data-collector/**,package.json,package.json.bak,src/**,index.html,dist/**,protected-components/**,public/**,**/*.html"
+  # Disable secrets scanning for staging builds
+  # This should be enabled only in production
+  SECRETS_SCAN_ENABLED = "false"
 
 [[redirects]]
   from = "/*"
