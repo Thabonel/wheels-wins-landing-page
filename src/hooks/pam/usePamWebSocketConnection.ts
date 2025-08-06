@@ -23,6 +23,10 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
     onStatusChange(connected);
   }, [onStatusChange]);
 
+  // Remove connect from dependencies to avoid circular dependency
+  // We'll use a ref to access the latest connect function
+  const connectRef = useRef<() => void>();
+  
   const scheduleReconnect = useCallback(() => {
     if (reconnectAttempts.current < maxReconnectAttempts) {
       const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 10000);
@@ -30,7 +34,10 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
       
       reconnectTimeout.current = setTimeout(() => {
         reconnectAttempts.current++;
-        connect();
+        // Use the ref to access the latest connect function
+        if (connectRef.current) {
+          connectRef.current();
+        }
       }, delay);
     } else {
       console.error('❌ Max PAM reconnect attempts reached');
@@ -230,7 +237,10 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
         });
       }
     }
-  }, [userId, onMessage, updateConnectionStatus, scheduleReconnect, validateToken]);
+  }, [userId, onMessage, updateConnectionStatus, validateToken, scheduleReconnect]);
+  
+  // Update the ref after connect is defined
+  connectRef.current = connect;
 
   // Auto-connect when userId changes and listen for auth changes
   useEffect(() => {
@@ -277,12 +287,12 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
       console.error('❌ PAM WebSocket is not connected, cannot send message');
       
       if (!isConnected && reconnectAttempts.current < maxReconnectAttempts) {
-        connect();
+        connectRef.current?.();
       }
       
       return false;
     }
-  }, [isConnected, connect]);
+  }, [isConnected]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeout.current) {
