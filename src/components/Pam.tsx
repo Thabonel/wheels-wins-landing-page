@@ -1795,7 +1795,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (transcription && transcription.trim()) {
             addMessage(transcription, "user");
           }
-          addMessage(`${responseText} 🔊`, "pam");
+          // Don't trigger TTS since we already have audio
+          addMessage(`${responseText} 🔊`, "pam", undefined, false);
           
           // CONTROLLED AUDIO PLAYBACK: Only play if user has voice enabled and expects it
           // Check if this is a continuous conversation mode response that should auto-play
@@ -1851,22 +1852,22 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (data.response) {
             // Successful voice processing but no audio
             if (data.voice_ready === false && data.guidance) {
-              addMessage(data.response, "pam");
-              addMessage(`💡 ${data.guidance}`, "pam");
+              addMessage(data.response, "pam", undefined, false);
+              addMessage(`💡 ${data.guidance}`, "pam", undefined, false);
             } else {
-              addMessage(data.response, "pam");
+              addMessage(data.response, "pam", undefined, false);
             }
           } else if (data.error) {
             // Voice processing error
             if (data.guidance) {
-              addMessage(`${data.response || "I had trouble processing your voice message."}`, "pam");
-              addMessage(`💡 ${data.guidance}`, "pam");
+              addMessage(`${data.response || "I had trouble processing your voice message."}`, "pam", undefined, false);
+              addMessage(`💡 ${data.guidance}`, "pam", undefined, false);
             } else {
-              addMessage(`❌ ${data.error}`, "pam");
+              addMessage(`❌ ${data.error}`, "pam", undefined, false);
             }
           } else {
             // Fallback message
-            addMessage("I processed your voice message but couldn't generate an audio response. You can continue typing your messages!", "pam");
+            addMessage("I processed your voice message but couldn't generate an audio response. You can continue typing your messages!", "pam", undefined, false);
           }
           
           // Log technical details for debugging
@@ -2615,22 +2616,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                       <span>thinking...</span>
                     </div>
                   )}
-                  {/* Voice control button for PAM messages */}
-                  {msg.sender === "pam" && !msg.isStreaming && (
-                    <div className="flex items-center mt-1">
-                      <button
-                        onClick={() => {
-                          console.log('🔊 User clicked voice button for message:', msg.content.substring(0, 50));
-                          speakMessage(msg.content, 'normal', true);
-                        }}
-                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                        title="Click to hear this message"
-                      >
-                        <Volume2 className="w-3 h-3" />
-                        <span>Play</span>
-                      </button>
-                    </div>
-                  )}
                   <p className="text-xs opacity-70 mt-1">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </p>
@@ -2642,85 +2627,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         </div>
         <div className="p-3 border-t">
           <AudioLevelMeter />
-          
-          {/* Voice Settings Panel */}
-          <details className="mb-2">
-            <summary className="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-800 mb-2">
-              Voice Settings
-            </summary>
-            <div className="p-2 bg-gray-50 rounded-lg space-y-2">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Voice</label>
-                <select
-                  value={voiceSettings.voice}
-                  onChange={(e) => handleVoiceChange(e.target.value)}
-                  className="w-full text-xs p-1 border border-gray-300 rounded"
-                >
-                  <option value="en-US-AriaNeural">Aria (US Female)</option>
-                  <option value="en-US-JennyNeural">Jenny (US Female)</option>
-                  <option value="en-US-GuyNeural">Guy (US Male)</option>
-                  <option value="en-US-DavisNeural">Davis (US Male)</option>
-                  <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
-                  <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Speed: {voiceSettings.rate.toFixed(1)}x
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="2.0"
-                  step="0.1"
-                  value={voiceSettings.rate}
-                  onChange={(e) => handleRateChange(parseFloat(e.target.value))}
-                  className="w-full h-1"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Volume: {Math.round(voiceSettings.volume * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={voiceSettings.volume}
-                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="w-full h-1"
-                />
-              </div>
-              <div className="pt-2 border-t border-gray-200">
-                <label className="flex items-center justify-between text-xs text-gray-600">
-                  <span>Auto-speak in Continuous Mode</span>
-                  <input
-                    type="checkbox"
-                    checked={settings?.pam_preferences?.voice_enabled ?? false}
-                    onChange={(e) => {
-                      console.log('🔊 Voice auto-play toggled:', e.target.checked);
-                      updateSettings({
-                        pam_preferences: {
-                          ...settings?.pam_preferences,
-                          voice_enabled: e.target.checked
-                        }
-                      });
-                    }}
-                    className="ml-2"
-                  />
-                </label>
-                <div className="text-xs text-gray-500 mt-1">
-                  {isContinuousMode 
-                    ? (settings?.pam_preferences?.voice_enabled 
-                        ? "✅ PAM will speak responses automatically" 
-                        : "🔇 PAM responses will be silent (click speaker icons to hear)")
-                    : "Only applies when Continuous Mode is active"
-                  }
-                </div>
-              </div>
-            </div>
-          </details>
           
           <div className="flex items-center space-x-2">
             <input
@@ -2739,49 +2645,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
               }`}
               disabled={connectionStatus !== "Connected"}
-              title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Continuous Voice Chat"}
+              title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
             >
               <div className="flex flex-col items-center gap-0.5">
                 <Mic className="w-4 h-4" />
-                <span className="text-xs font-medium">Continuous</span>
+                <span className="text-xs font-medium">Live</span>
               </div>
               {isContinuousMode && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
-                     title="Continuous mode active" />
-              )}
-            </button>
-            <button
-              onClick={handleVoiceToggle}
-              className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                voiceStatus === "listening" ? "bg-green-600 text-white" : 
-                voiceStatus === "processing" ? "bg-yellow-500 text-white" :
-                voiceStatus === "error" ? "bg-red-600 text-white" :
-                "bg-green-50 text-green-600 border border-green-200 hover:bg-green-100"
-              }`}
-              disabled={connectionStatus !== "Connected" || isProcessingVoice}
-              title={
-                voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
-                voiceStatus === "processing" ? "⏳ Processing voice..." :
-                voiceStatus === "error" ? "❌ Voice error" :
-                isSpeaking ? "🔊 PAM is speaking" :
-                "🎤 Record Voice Message"
-              }
-            >
-              <div className="flex flex-col items-center gap-0.5">
-                <Mic className="w-4 h-4" />
-                <span className="text-xs font-medium">Record</span>
-              </div>
-              {voiceStatus === "listening" && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-300 rounded-full animate-pulse" 
-                     title="Recording active" />
-              )}
-              {isWakeWordListening && voiceStatus === "idle" && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
-                     title="Wake word 'Hi PAM' active" />
-              )}
-              {isSpeaking && (
-                <div className="absolute -top-1 -left-1 w-3 h-3 bg-purple-500 rounded-full animate-pulse" 
-                     title="PAM is speaking" />
+                     title="Live mode active - Say 'Hey PAM'" />
               )}
             </button>
             {isSpeaking && (
@@ -2982,22 +2854,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                         <span>thinking...</span>
                       </div>
                     )}
-                    {/* Voice control button for PAM messages */}
-                    {msg.sender === "pam" && !msg.isStreaming && (
-                      <div className="flex items-center mt-1">
-                        <button
-                          onClick={() => {
-                            console.log('🔊 User clicked voice button for message:', msg.content.substring(0, 50));
-                            speakMessage(msg.content, 'normal', true);
-                          }}
-                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                          title="Click to hear this message"
-                        >
-                          <Volume2 className="w-3 h-3" />
-                          <span>Play</span>
-                        </button>
-                      </div>
-                    )}
                     <p className="text-xs opacity-70 mt-1">
                       {new Date(msg.timestamp).toLocaleTimeString()}
                     </p>
@@ -3011,84 +2867,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           <div className="p-4 border-t">
             <AudioLevelMeter />
             
-            {/* Voice Settings Panel */}
-            <details className="mb-2">
-              <summary className="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-800 mb-2">
-                Voice Settings
-              </summary>
-              <div className="p-2 bg-gray-50 rounded-lg space-y-2">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">Voice</label>
-                  <select
-                    value={voiceSettings.voice}
-                    onChange={(e) => handleVoiceChange(e.target.value)}
-                    className="w-full text-xs p-1 border border-gray-300 rounded"
-                  >
-                    <option value="en-US-AriaNeural">Aria (US Female)</option>
-                    <option value="en-US-JennyNeural">Jenny (US Female)</option>
-                    <option value="en-US-GuyNeural">Guy (US Male)</option>
-                    <option value="en-US-DavisNeural">Davis (US Male)</option>
-                    <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
-                    <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">
-                    Speed: {voiceSettings.rate.toFixed(1)}x
-                  </label>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2.0"
-                    step="0.1"
-                    value={voiceSettings.rate}
-                    onChange={(e) => handleRateChange(parseFloat(e.target.value))}
-                    className="w-full h-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">
-                    Volume: {Math.round(voiceSettings.volume * 100)}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={voiceSettings.volume}
-                    onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                    className="w-full h-1"
-                  />
-                </div>
-                <div className="pt-2 border-t border-gray-200">
-                  <label className="flex items-center justify-between text-xs text-gray-600">
-                    <span>Auto-speak in Continuous Mode</span>
-                    <input
-                      type="checkbox"
-                      checked={settings?.pam_preferences?.voice_enabled ?? false}
-                      onChange={(e) => {
-                        console.log('🔊 Voice auto-play toggled:', e.target.checked);
-                        updateSettings({
-                          pam_preferences: {
-                            ...settings?.pam_preferences,
-                            voice_enabled: e.target.checked
-                          }
-                        });
-                      }}
-                      className="ml-2"
-                    />
-                  </label>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {isContinuousMode 
-                      ? (settings?.pam_preferences?.voice_enabled 
-                          ? "✅ PAM will speak responses automatically" 
-                          : "🔇 PAM responses will be silent (click speaker icons to hear)")
-                      : "Only applies when Continuous Mode is active"
-                    }
-                  </div>
-                </div>
-              </div>
-            </details>
             
             <div className="flex items-center space-x-2">
               <input
@@ -3107,49 +2885,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
                 }`}
                 disabled={connectionStatus !== "Connected"}
-                title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Continuous Voice Chat"}
+                title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
               >
                 <div className="flex flex-col items-center gap-0.5">
                   <Mic className="w-4 h-4" />
-                  <span className="text-xs font-medium">Continuous</span>
+                  <span className="text-xs font-medium">Live</span>
                 </div>
                 {isContinuousMode && (
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
-                       title="Continuous mode active" />
-                )}
-              </button>
-              <button
-                onClick={handleVoiceToggle}
-                className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                  voiceStatus === "listening" ? "bg-green-600 text-white" : 
-                  voiceStatus === "processing" ? "bg-yellow-500 text-white" :
-                  voiceStatus === "error" ? "bg-red-600 text-white" :
-                  "bg-green-50 text-green-600 border border-green-200 hover:bg-green-100"
-                }`}
-                disabled={connectionStatus !== "Connected" || isProcessingVoice}
-                title={
-                  voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
-                  voiceStatus === "processing" ? "⏳ Processing voice..." :
-                  voiceStatus === "error" ? "❌ Voice error" :
-                  isSpeaking ? "🔊 PAM is speaking" :
-                  "🎤 Record Voice Message"
-                }
-              >
-                <div className="flex flex-col items-center gap-0.5">
-                  <Mic className="w-4 h-4" />
-                  <span className="text-xs font-medium">Record</span>
-                </div>
-                {voiceStatus === "listening" && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-300 rounded-full animate-pulse" 
-                       title="Recording active" />
-                )}
-                {isWakeWordListening && voiceStatus === "idle" && (
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
-                       title="Wake word 'Hi PAM' active" />
-                )}
-                {isSpeaking && (
-                  <div className="absolute -top-1 -left-1 w-3 h-3 bg-purple-500 rounded-full animate-pulse" 
-                       title="PAM is speaking" />
+                       title="Live mode active - Say 'Hey PAM'" />
                 )}
               </button>
               {isSpeaking && (
