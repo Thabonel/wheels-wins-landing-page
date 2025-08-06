@@ -5,7 +5,8 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { DollarSign, TrendingUp, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
+// HOTFIX: Temporarily disabled due to production crash
+// import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
@@ -23,6 +24,9 @@ const WinsOverview = React.memo(() => {
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
+  // HOTFIX: Temporarily disable PAM on Wins page due to production crash
+  // TODO: Fix the circular dependency issue in usePamWebSocketConnection
+  /*
   const handlePamMessage = useCallback((msg: any) => {
     if (msg.type === 'chat_response') {
       setPamInsights((prev) => [...prev, msg.message || msg.content]);
@@ -48,6 +52,9 @@ const WinsOverview = React.memo(() => {
       });
     }
   }, [user, isConnected, pamInsights.length, sendMessage]);
+  */
+  const isConnected = false;
+  const sendMessage = () => {};
 
   // Monitor online/offline status
   useEffect(() => {
