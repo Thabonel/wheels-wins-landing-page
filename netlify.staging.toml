@@ -1,23 +1,21 @@
-# Force fresh deployment - cache fix
 [build]
-  publish = "dist" 
-  command = "npm run build:netlify"
+  publish = "dist"
+  command = "npm run build:staging"
 
 [build.environment]
-  NODE_VERSION = "20"
-  # Disable Python - frontend only needs Node.js
-  PYTHON_VERSION = ""
-  # Configure secrets scanning to allow safe public keys and common values
-  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,SUPABASE_KEY,VITE_MAPBOX_PUBLIC_TOKEN,VITE_MAPBOX_TOKEN,VITE_SUPABASE_URL,VITE_ENVIRONMENT,VITE_SENTRY_ENVIRONMENT,VITE_SENTRY_DSN"
-  # Exclude documentation, test files, configuration files, and build output from secrets scanning
-  SECRETS_SCAN_OMIT_PATHS = ".env.production,**/*.md,**/*.js,**/*.sh,**/*.ts,**/*.tsx,**/*.py,docs/**,scripts/**,backend/**,*.yaml,*.toml,.github/**,.claude/**,wheels-wins-data-collector/**,package.json,package.json.bak,src/**,index.html,dist/**,protected-components/**,public/**,**/*.html"
+  NODE_VERSION = "18"
+  NODE_ENV = "staging"
+  VITE_ENVIRONMENT = "staging"
+  # Add staging-specific environment variables here
+  VITE_SUPABASE_URL = "https://your-staging-supabase-url.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "your-staging-supabase-anon-key"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# Security and SEO headers
+# Security headers (same as production but with additional staging indicators)
 [[headers]]
   for = "/*"
   [headers.values]
@@ -25,45 +23,20 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; font-src 'self' https: data:; connect-src 'self' https: wss: wss://pam-backend.onrender.com wss://api.wheelsandwins.com;"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=(self), interest-cohort=()"
-    X-DNS-Prefetch-Control = "on"
-    
-# Performance headers for static assets
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-    
-[[headers]]
-  for = "/*.css"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-    
-[[headers]]
-  for = "/*.woff2"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-    
-[[headers]]
-  for = "/images/*"
-  [headers.values]
-    Cache-Control = "public, max-age=86400, must-revalidate"
-    
-[[headers]]
-  for = "/icons/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    X-Environment = "staging"
 
-# SEO-specific headers
+# Add staging banner headers
 [[headers]]
-  for = "/sitemap.xml"
+  for = "/*.html"
   [headers.values]
-    Content-Type = "application/xml; charset=utf-8"
-    Cache-Control = "public, max-age=3600, must-revalidate"
-    
-[[headers]]
-  for = "/robots.txt"
-  [headers.values]
-    Content-Type = "text/plain; charset=utf-8"
-    Cache-Control = "public, max-age=86400, must-revalidate"
+    X-Staging-Environment = "true"
+
+# Context-specific deployments for staging
+[context.staging]
+  environment = { NODE_ENV = "staging", VITE_ENVIRONMENT = "staging" }
+
+[context.deploy-preview]
+  environment = { NODE_ENV = "staging", VITE_ENVIRONMENT = "staging" }
+
+[context.branch-deploy]
+  environment = { NODE_ENV = "staging", VITE_ENVIRONMENT = "staging" }
