@@ -242,10 +242,23 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
   // Update the ref after connect is defined
   connectRef.current = connect;
 
+  const disconnect = useCallback(() => {
+    if (reconnectTimeout.current) {
+      clearTimeout(reconnectTimeout.current);
+    }
+    if (pingInterval.current) {
+      clearInterval(pingInterval.current);
+    }
+    if (ws.current) {
+      console.log('🔌 Closing PAM WebSocket connection');
+      ws.current.close(1000, 'Component unmounting');
+    }
+  }, []);
+
   // Auto-connect when userId changes and listen for auth changes
   useEffect(() => {
     if (userId) {
-      connect();
+      connectRef.current?.();
     }
     
     // Listen for auth state changes to handle token refresh
@@ -259,7 +272,7 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
         if (ws.current) {
           ws.current.close(1000, 'Token refreshed');
         }
-        setTimeout(() => connect(), 1000); // Small delay to ensure clean disconnect
+        setTimeout(() => connectRef.current?.(), 1000); // Small delay to ensure clean disconnect
       }
     });
     
@@ -276,7 +289,7 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
       }
       authListener.subscription.unsubscribe();
     };
-  }, [userId, connect, disconnect]);
+  }, [userId, disconnect]);
 
   const sendMessage = useCallback((message: any) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -293,19 +306,6 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
       return false;
     }
   }, [isConnected]);
-
-  const disconnect = useCallback(() => {
-    if (reconnectTimeout.current) {
-      clearTimeout(reconnectTimeout.current);
-    }
-    if (pingInterval.current) {
-      clearInterval(pingInterval.current);
-    }
-    if (ws.current) {
-      console.log('🔌 Closing PAM WebSocket connection');
-      ws.current.close(1000, 'Component unmounting');
-    }
-  }, []);
 
   return {
     isConnected,
