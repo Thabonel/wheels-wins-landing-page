@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 
 const Hero = () => {
   // Supabase storage URL for the hero image
-  const heroImageUrl = "https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/hero-rv-camping.png";
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project-id.supabase.co';
+  const heroImageUrl = `${supabaseUrl}/storage/v1/object/public/public-assets/hero-rv-camping.png`;
   
   return <section className="w-full h-screen flex items-start justify-center overflow-hidden pt-32">
       <div className="absolute inset-0 bg-cover bg-center" style={{
