@@ -3,8 +3,13 @@ PAM Backend Main Application
 High-performance FastAPI application with comprehensive monitoring and security.
 """
 
-import asyncio
+# Import staging guard FIRST to prevent heavy imports
 import os
+if os.getenv("ENVIRONMENT") == "staging":
+    import app.core.import_staging_guard  # Must be first!
+    import app.core.staging_config  # Then staging config
+
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 from fastapi import FastAPI, Request, UploadFile, File, Depends
