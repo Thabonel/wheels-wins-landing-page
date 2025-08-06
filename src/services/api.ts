@@ -1,7 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
 
+// Use environment-specific backend URL
 export const API_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
+  import.meta.env.VITE_API_URL || 
+  import.meta.env.VITE_BACKEND_URL || 
+  'https://pam-backend.onrender.com';
 
 // Allow overriding the WebSocket endpoint separately if needed
 const WS_OVERRIDE = import.meta.env.VITE_PAM_WEBSOCKET_URL;
