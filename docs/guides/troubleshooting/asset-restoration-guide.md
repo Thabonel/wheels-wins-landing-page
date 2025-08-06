@@ -8,7 +8,7 @@ If the script doesn't work, follow these manual steps:
 Edit `src/utils/publicAssets.ts`:
 ```typescript
 export function getPublicAssetUrl(file: string): string {
-  return `https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/${file}`;
+  return `https://your-project-id.supabase.co/storage/v1/object/public/public-assets/${file}`;
 }
 ```
 
@@ -45,7 +45,7 @@ NOT:
 
 - **Hero Image**: WheelsnadwinsHero.jpg
 - **Logo**: wheels and wins Logo alpha.png
-- **Supabase Base URL**: https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/public-assets/
+- **Supabase Base URL**: https://your-project-id.supabase.co/storage/v1/object/public/public-assets/
 
 ## Prevention Strategy
 

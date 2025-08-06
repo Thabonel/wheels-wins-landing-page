@@ -546,7 +546,7 @@ The Wheels & Wins project uses Model Context Protocol (MCP) servers to provide C
         "@supabase/mcp-server-supabase"
       ],
       "env": {
-        "SUPABASE_URL": "https://kycoklimpzkyrecbjecn.supabase.co",
+        "SUPABASE_URL": "https://your-project-id.supabase.co",
         "SUPABASE_SERVICE_ROLE_KEY": "YOUR_SERVICE_ROLE_KEY"
       }
     },
@@ -576,7 +576,7 @@ The Wheels & Wins project uses Model Context Protocol (MCP) servers to provide C
         "@supabase/mcp-server-supabase"
       ],
       "env": {
-        "SUPABASE_URL": "https://kycoklimpzkyrecbjecn.supabase.co",
+        "SUPABASE_URL": "https://your-project-id.supabase.co",
         "SUPABASE_SERVICE_ROLE_KEY": "YOUR_SERVICE_ROLE_KEY"
       }
     }

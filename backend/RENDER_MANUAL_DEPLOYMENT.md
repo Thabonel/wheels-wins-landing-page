@@ -166,7 +166,7 @@ Ensure these are set in your Render service:
 ENVIRONMENT=production
 DEBUG=false
 OPENAI_API_KEY=<OPENAI_API_KEY>
-SUPABASE_URL=https://kycoklimpzkyrecbjecn.supabase.co
+SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_KEY=<SUPABASE_ANON_KEY>
 ```
 
