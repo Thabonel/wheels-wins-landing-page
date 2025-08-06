@@ -26,7 +26,7 @@ SECRET_KEY=<generate-secure-key>
 JWT_SECRET_KEY=<generate-secure-key>
 
 # Supabase Configuration
-SUPABASE_URL=https://kycoklimpzkyrecbjecn.supabase.co
+SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 
@@ -55,7 +55,7 @@ Since the backend is already deployed, we need to update it with the latest code
    ```bash
    # Add missing variables in Settings → Environment
    OPENAI_API_KEY=sk-proj-YOUR_OPENAI_API_KEY_HERE
-   SUPABASE_URL=https://kycoklimpzkyrecbjecn.supabase.co
+   SUPABASE_URL=https://your-project-id.supabase.co
    SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5Y29rbGltcHpreXJlY2JqZWNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyNTU4MDAsImV4cCI6MjA2MTgzMTgwMH0.nRZhYxImQ0rOlh0xZjHcdVq2Q2NY0v-9W3wciaxV2EA
    ```
 

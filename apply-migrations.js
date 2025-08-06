@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Initialize Supabase client with service role key
-const supabaseUrl = 'https://kycoklimpzkyrecbjecn.supabase.co';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://your-project-id.supabase.co';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!serviceRoleKey) {
