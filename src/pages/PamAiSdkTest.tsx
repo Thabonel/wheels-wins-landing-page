@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, AlertTriangle, Shield } from 'lucide-react';
 
-export const PamAiSdkTest: React.FC = () => {
+const PamAiSdkTest: React.FC = () => {
   const navigate = useNavigate();
 
   // Security check - only allow in non-production environments
@@ -83,3 +83,5 @@ export const PamAiSdkTest: React.FC = () => {
     </div>
   );
 };
+
+export default PamAiSdkTest;
