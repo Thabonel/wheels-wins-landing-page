@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Pie, PieChart } from "recharts";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
-import { DollarSign, TrendingUp, Calendar } from "lucide-react";
+import { DollarSign, TrendingUp, Calendar, Sparkles, Shield } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
@@ -12,6 +12,11 @@ import { useIncomeData } from "@/components/wins/income/useIncomeData";
 import QuickActions from "./QuickActions";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { pamSavingsApi } from "@/services/pamSavingsService";
+import { formatCurrency } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 const WinsOverview = React.memo(() => {
   const { user, token } = useAuth();
@@ -22,6 +27,28 @@ const WinsOverview = React.memo(() => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Fetch PAM savings data
+  const { data: guaranteeStatus } = useQuery({
+    queryKey: ['guarantee-status'],
+    queryFn: () => pamSavingsApi.getGuaranteeStatus(),
+    refetchInterval: 60000, // Refresh every minute
+    enabled: !!user
+  });
+
+  const { data: monthlySummary } = useQuery({
+    queryKey: ['monthly-savings-summary'],
+    queryFn: () => pamSavingsApi.getMonthlySavingsSummary(),
+    refetchInterval: 300000, // Refresh every 5 minutes
+    enabled: !!user
+  });
+
+  const { data: recentSavings } = useQuery({
+    queryKey: ['recent-savings-events'],
+    queryFn: () => pamSavingsApi.getRecentSavingsEvents(10),
+    refetchInterval: 300000, // Refresh every 5 minutes
+    enabled: !!user
+  });
 
   const handlePamMessage = useCallback((msg: any) => {
     if (msg.type === 'chat_response') {
@@ -105,47 +132,61 @@ const WinsOverview = React.memo(() => {
     }));
   }, [summary?.expense_categories, expensesState.expenses]);
 
-  const summaryStats = useMemo(() => summary
-    ? [
-        {
-          title: "Total Income",
-          value: `$${summary.total_income.toFixed(2)}`,
-          description: `Last ${summary.period_days} days`,
-          icon: <TrendingUp className="h-5 w-5 text-green-500" />
-        },
-        {
-          title: "Total Expenses",
-          value: `$${summary.total_expenses.toFixed(2)}`,
-          description: `Last ${summary.period_days} days`,
-          icon: <DollarSign className="h-5 w-5 text-purple-500" />
-        },
-        {
-          title: "Net Income",
-          value: `$${summary.net_income.toFixed(2)}`,
-          description: new Date(summary.generated_at).toLocaleDateString(),
-          icon: <Calendar className="h-5 w-5 text-blue-500" />
-        }
-      ]
-    : [
-        {
-          title: "Total Expenses",
-          value: `$${expensesState.expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}`,
-          description: "All time",
-          icon: <DollarSign className="h-5 w-5 text-purple-500" />
-        },
-        {
-          title: "Total Income",
-          value: `$${incomeData.reduce((sum, inc) => sum + inc.amount, 0).toFixed(2)}`,
-          description: "All time",
-          icon: <TrendingUp className="h-5 w-5 text-green-500" />
-        },
-        {
-          title: "Net Balance",
-          value: `$${(incomeData.reduce((sum, inc) => sum + inc.amount, 0) - expensesState.expenses.reduce((sum, exp) => sum + exp.amount, 0)).toFixed(2)}`,
-          description: "All time",
-          icon: <Calendar className="h-5 w-5 text-blue-500" />
-        }
-      ], [summary, incomeData, expensesState.expenses]);
+  const summaryStats = useMemo(() => {
+    const baseStats = summary
+      ? [
+          {
+            title: "Total Income",
+            value: `$${summary.total_income.toFixed(2)}`,
+            description: `Last ${summary.period_days} days`,
+            icon: <TrendingUp className="h-5 w-5 text-green-500" />
+          },
+          {
+            title: "Total Expenses",
+            value: `$${summary.total_expenses.toFixed(2)}`,
+            description: `Last ${summary.period_days} days`,
+            icon: <DollarSign className="h-5 w-5 text-purple-500" />
+          },
+          {
+            title: "Net Income",
+            value: `$${summary.net_income.toFixed(2)}`,
+            description: new Date(summary.generated_at).toLocaleDateString(),
+            icon: <Calendar className="h-5 w-5 text-blue-500" />
+          }
+        ]
+      : [
+          {
+            title: "Total Expenses",
+            value: `$${expensesState.expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}`,
+            description: "All time",
+            icon: <DollarSign className="h-5 w-5 text-purple-500" />
+          },
+          {
+            title: "Total Income",
+            value: `$${incomeData.reduce((sum, inc) => sum + inc.amount, 0).toFixed(2)}`,
+            description: "All time",
+            icon: <TrendingUp className="h-5 w-5 text-green-500" />
+          },
+          {
+            title: "Net Balance",
+            value: `$${(incomeData.reduce((sum, inc) => sum + inc.amount, 0) - expensesState.expenses.reduce((sum, exp) => sum + exp.amount, 0)).toFixed(2)}`,
+            description: "All time",
+            icon: <Calendar className="h-5 w-5 text-blue-500" />
+          }
+        ];
+
+    // Add PAM savings stat if available
+    if (guaranteeStatus) {
+      baseStats.push({
+        title: "PAM Savings",
+        value: formatCurrency(guaranteeStatus.total_savings),
+        description: guaranteeStatus.guarantee_met ? "Guarantee Met! ✓" : `${Math.round(guaranteeStatus.percentage_achieved)}% of goal`,
+        icon: <Sparkles className="h-5 w-5 text-cyan-500" />
+      });
+    }
+
+    return baseStats;
+  }, [summary, incomeData, expensesState.expenses, guaranteeStatus]);
 
   // Quick Actions handlers
   const handleAddExpense = useCallback((preset?: { category?: string }) => {
@@ -210,7 +251,7 @@ const WinsOverview = React.memo(() => {
         isOffline={isOffline}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {summaryStats.map((stat, index) => (
           <Card key={index} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
@@ -230,6 +271,98 @@ const WinsOverview = React.memo(() => {
           </Card>
         ))}
       </div>
+
+      {/* PAM Savings Guarantee Section */}
+      {guaranteeStatus && (
+        <Card className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 border-cyan-200 dark:border-cyan-800">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="h-5 w-5 text-cyan-500" />
+                <CardTitle>PAM Savings Guarantee Progress</CardTitle>
+              </div>
+              {guaranteeStatus.guarantee_met && (
+                <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                  <Shield className="h-3 w-3 mr-1" />
+                  Guaranteed!
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Total Saved</p>
+                <p className="text-xl font-bold text-cyan-600 dark:text-cyan-400">
+                  {formatCurrency(guaranteeStatus.total_savings)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Target</p>
+                <p className="text-xl font-bold">
+                  {formatCurrency(guaranteeStatus.subscription_cost)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Savings Count</p>
+                <p className="text-xl font-bold">
+                  {guaranteeStatus.savings_events_count}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Progress</p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                  {Math.round(guaranteeStatus.percentage_achieved)}%
+                </p>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Monthly Guarantee Progress</span>
+                <span className="font-medium">{Math.round(guaranteeStatus.percentage_achieved)}%</span>
+              </div>
+              <Progress 
+                value={guaranteeStatus.percentage_achieved} 
+                className="h-3"
+                indicatorClassName={guaranteeStatus.guarantee_met ? "bg-green-500" : "bg-cyan-500"}
+              />
+              <p className="text-sm text-muted-foreground">
+                {guaranteeStatus.guarantee_met 
+                  ? "🎉 You've saved more than your subscription cost this month!"
+                  : `${formatCurrency(guaranteeStatus.savings_shortfall)} more savings needed to guarantee your subscription`}
+              </p>
+            </div>
+
+            {/* Recent Savings Events */}
+            {recentSavings && recentSavings.length > 0 && (
+              <div className="pt-4 border-t border-cyan-200 dark:border-cyan-800">
+                <h4 className="text-sm font-medium mb-3">Recent PAM Savings</h4>
+                <div className="space-y-2">
+                  {recentSavings.slice(0, 5).map((event) => (
+                    <div key={event.id} className="flex justify-between items-center p-2 bg-white/50 dark:bg-gray-800/50 rounded">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{event.savings_description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {event.category} • {new Date(event.saved_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                          +{formatCurrency(event.actual_savings)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {Math.round(event.confidence_score * 100)}% confident
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -279,6 +412,33 @@ const WinsOverview = React.memo(() => {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            
+            {/* Show PAM savings by category if available */}
+            {recentSavings && recentSavings.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <h4 className="text-sm font-medium mb-2">PAM Savings by Category</h4>
+                <div className="space-y-1">
+                  {(() => {
+                    const savingsByCategory = recentSavings.reduce((acc, event) => {
+                      acc[event.category] = (acc[event.category] || 0) + event.actual_savings;
+                      return acc;
+                    }, {} as Record<string, number>);
+                    
+                    return Object.entries(savingsByCategory)
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 3)
+                      .map(([category, amount]) => (
+                        <div key={category} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground capitalize">{category}</span>
+                          <span className="font-medium text-green-600 dark:text-green-400">
+                            +{formatCurrency(amount)}
+                          </span>
+                        </div>
+                      ));
+                  })()}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
