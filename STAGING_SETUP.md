@@ -148,44 +148,63 @@ Once Render staging is deployed:
 1. **Netlify**: Use "Rollback" button in deploy history
 2. **Render**: Use "Rollback" button in deploy history
 
-### Git Rollback
-```bash
-# If staging breaks
-git checkout staging
-git reset --hard [last-good-commit]
-git push --force origin staging
-
-# If production breaks
-git checkout main
-git reset --hard [last-good-commit]
-git push --force origin main
-```
-
-## Best Practices
-
-1. **Always test on staging first**
-2. **Never commit secrets to git**
-3. **Use feature branches from staging**
-4. **Test PAM AI thoroughly in staging**
-5. **Monitor logs during deployment**
-6. **Keep staging and production in sync**
+### Full Rollback
+1. **Git**: Revert commits on staging branch
+2. **Force Push**: `git push origin staging --force`
+3. **Redeploy**: Trigger new deployments
 
 ## Troubleshooting
 
-### Staging site shows production data
-- This is correct - we share the same Supabase database
-- Be careful with destructive operations in staging
+### Common Issues
 
-### CORS errors
-- Check CORS_ALLOWED_ORIGINS in Render staging
-- Ensure staging Netlify URL is included
+1. **Environment Variables Not Set**
+   - Check Netlify site settings
+   - Verify all VITE_ prefixes
+   - Trigger redeploy after changes
 
-### PAM not working
-- Check WebSocket connection to staging Render
-- Verify API_URL environment variable
-- Check Render logs for errors
+2. **CORS Errors**
+   - Check CORS_ALLOWED_ORIGINS in Render
+   - Include both HTTP and HTTPS variants
+   - Include localhost for development
 
-### Build failures
-- Check Node version matches (18.17.0)
-- Verify all environment variables are set
-- Check build logs for specific errors
+3. **Database Errors**
+   - Staging uses same database as production
+   - Check Supabase connection strings
+   - Verify RLS policies allow access
+
+4. **Build Failures**
+   - Check Node version (use 18.x)
+   - Clear build cache and retry
+   - Check for missing environment variables
+
+### Debug Commands
+
+```bash
+# Check environment variables locally
+npm run dev
+# Look for console output showing API_BASE_URL
+
+# Test API connectivity
+curl https://wheels-wins-backend-staging.onrender.com/health
+
+# Check WebSocket connection
+# Open browser dev tools and check WebSocket tab
+```
+
+### Contact Information
+
+For issues with:
+- **Netlify**: Check deploy logs and build settings
+- **Render**: Check service logs and environment variables
+- **Database**: Check Supabase dashboard and RLS policies
+
+## Security Notes
+
+- Staging uses same database as production (shared data)
+- API keys are same between environments
+- Never commit secrets to git
+- Use environment variables for all sensitive data
+
+---
+
+*Last updated: August 2025*
