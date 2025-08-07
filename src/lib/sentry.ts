@@ -93,3 +93,94 @@ export const setContext = Sentry.setContext;
 // Performance monitoring utilities  
 export const startSpan = Sentry.startSpan;
 export const getActiveSpan = Sentry.getActiveSpan;
+
+// PAM-specific metrics tracking for migration baseline
+export const trackPAMMetrics = {
+  websocketConnection: (success: boolean, latency?: number, attempt?: number) => {
+    addBreadcrumb({
+      category: 'pam.websocket',
+      message: `WebSocket connection ${success ? 'successful' : 'failed'}${attempt ? ` (attempt ${attempt})` : ''}`,
+      level: success ? 'info' : 'error',
+      data: { success, latency, attempt },
+    });
+    
+    if (!success) {
+      captureException(new Error(`PAM WebSocket connection failed${attempt ? ` on attempt ${attempt}` : ''}`));
+    }
+
+    // Track connection success rate
+    setTag('pam.websocket.last_result', success ? 'success' : 'failure');
+  },
+
+  messageResponse: (responseTime: number, success: boolean, messageType: 'text' | 'voice' = 'text', error?: string) => {
+    addBreadcrumb({
+      category: 'pam.message',
+      message: `PAM message response: ${responseTime}ms (${messageType})`,
+      level: success ? 'info' : 'error',
+      data: { responseTime, success, messageType, error },
+    });
+
+    // Track performance metrics for baseline
+    setTag('pam.response.type', messageType);
+    setTag('pam.response.success', success);
+    setTag('pam.response.time_range', responseTime < 1000 ? 'fast' : responseTime < 3000 ? 'medium' : 'slow');
+    
+    if (!success && error) {
+      captureException(new Error(`PAM message failed: ${error}`));
+    }
+  },
+
+  voiceProcessing: (stage: 'stt' | 'processing' | 'tts', duration: number, success: boolean, error?: string) => {
+    addBreadcrumb({
+      category: 'pam.voice',
+      message: `Voice ${stage}: ${duration}ms`,
+      level: success ? 'info' : 'error',
+      data: { stage, duration, success, error },
+    });
+
+    setTag(`pam.voice.${stage}.success`, success);
+    setTag(`pam.voice.${stage}.duration`, duration < 2000 ? 'fast' : duration < 5000 ? 'medium' : 'slow');
+    
+    if (!success && error) {
+      captureException(new Error(`Voice ${stage} failed: ${error}`));
+    }
+  },
+
+  error: (error: Error, context: Record<string, any> = {}) => {
+    Sentry.withScope((scope) => {
+      scope.setTag('component', 'pam');
+      Object.keys(context).forEach(key => {
+        scope.setContext(key, context[key]);
+      });
+      captureException(error);
+    });
+  },
+
+  // Track current baseline metrics
+  baseline: {
+    dailyMessageCount: 0,
+    connectionFailures: 0,
+    averageResponseTime: 0,
+    voiceFailures: 0,
+    
+    record: (metric: 'message' | 'connection_failure' | 'voice_failure', value?: number) => {
+      const now = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      setTag('pam.baseline.date', now);
+      
+      switch (metric) {
+        case 'message':
+          trackPAMMetrics.baseline.dailyMessageCount++;
+          setTag('pam.baseline.daily_messages', trackPAMMetrics.baseline.dailyMessageCount);
+          break;
+        case 'connection_failure':
+          trackPAMMetrics.baseline.connectionFailures++;
+          setTag('pam.baseline.connection_failures', trackPAMMetrics.baseline.connectionFailures);
+          break;
+        case 'voice_failure':
+          trackPAMMetrics.baseline.voiceFailures++;
+          setTag('pam.baseline.voice_failures', trackPAMMetrics.baseline.voiceFailures);
+          break;
+      }
+    }
+  }
+};

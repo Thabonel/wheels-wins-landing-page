@@ -10,6 +10,7 @@ import { pamFeedbackService } from "@/services/pamFeedbackService";
 import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
+import { trackPAMMetrics } from "@/lib/sentry";
 import { 
   WebSocketAuthManager, 
   getValidAccessToken, 
@@ -775,6 +776,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         console.log('✅ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
         console.log('✅ PAM DEBUG: WebSocket protocol:', wsRef.current?.protocol);
         
+        // Track baseline metrics
+        trackPAMMetrics.websocketConnection(true, connectionTime, reconnectAttempts.current + 1);
+        
         setConnectionStatus("Connected");
         setReconnectAttempts(0);
         
@@ -942,6 +946,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 }, 500); // Short delay for better UX
               } else {
                 addMessage(content, "pam");
+                
+                // Track response time if we have tracking data
+                if (window.pamMessageTracking) {
+                  const trackingKeys = Object.keys(window.pamMessageTracking);
+                  if (trackingKeys.length > 0) {
+                    const lastKey = trackingKeys[trackingKeys.length - 1];
+                    const tracking = window.pamMessageTracking[lastKey];
+                    const responseTime = Date.now() - tracking.sendTime;
+                    trackPAMMetrics.messageResponse(responseTime, true, tracking.type);
+                    delete window.pamMessageTracking[lastKey]; // Clean up
+                  }
+                }
               }
             } else {
               console.warn('⚠️ Empty content in response:', message);
@@ -1098,6 +1114,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         console.error('❌ PAM DEBUG: Error type:', error.type);
         console.error('❌ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
         console.error('❌ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
+        
+        // Track baseline metrics
+        trackPAMMetrics.websocketConnection(false, undefined, reconnectAttempts.current + 1);
+        trackPAMMetrics.baseline.record('connection_failure');
         
         setConnectionStatus("Disconnected");
       };
@@ -2307,6 +2327,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
     
     const message = inputMessage.trim();
+    const sendStartTime = Date.now();
+    
+    // Track baseline metrics
+    trackPAMMetrics.baseline.record('message');
+    
     addMessage(message, "user");
     // Note: PAM backend automatically saves all conversation history
     setInputMessage("");
@@ -2371,9 +2396,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (connectionStatus === "Connected" && wsRef.current?.readyState === WebSocket.OPEN) {
       try {
         wsRef.current.send(JSON.stringify(messageData));
+        
+        // Store message send time for response tracking
+        const messageId = `msg_${Date.now()}`;
+        window.pamMessageTracking = window.pamMessageTracking || {};
+        window.pamMessageTracking[messageId] = { 
+          sendTime: sendStartTime, 
+          type: 'text' 
+        };
+        
         return;
       } catch (error) {
         console.error('❌ Failed to send via WebSocket:', error);
+        trackPAMMetrics.messageResponse(Date.now() - sendStartTime, false, 'text', error.message);
       }
     }
 
