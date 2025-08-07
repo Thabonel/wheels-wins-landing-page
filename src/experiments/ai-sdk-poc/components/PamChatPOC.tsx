@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
 import { useVoiceAiSdk } from '../hooks/useVoiceAiSdk';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
 import * as Sentry from '@sentry/react';
 
 interface VoiceAiSdkOptions {
