@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff, VolumeX, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useVoice } from "@/hooks/useVoice";
-import { useChat } from 'ai/react';
 import { AudioPlayer } from "./AudioPlayer";
 import { useUserSettings } from "@/hooks/useUserSettings";
 
@@ -41,32 +40,49 @@ export const PamVoice: React.FC<PamVoiceProps> = ({
   const [inputMessage, setInputMessage] = useState("");
   const [messages, setMessages] = useState<PamMessage[]>([]);
   
-  // Vercel AI SDK integration for chat
-  const chat = useChat({
-    api: '/api/chat', // This would need to be implemented
-    initialMessages: [],
-    onFinish: (message) => {
-      // When AI response is complete, speak it
-      if (message.content && voiceSystem.isInitialized) {
-        voiceSystem.speak(message.content, { 
-          priority: 'normal',
-          fallbackToText: true 
-        });
+  // Mock chat implementation (AI SDK not configured yet)
+  const chat = {
+    messages: messages,
+    input: inputMessage,
+    handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => setInputMessage(e.target.value),
+    handleSubmit: (e?: React.FormEvent) => {
+      e?.preventDefault();
+      if (inputMessage.trim()) {
+        // Add user message
+        const userMsg: PamMessage = {
+          id: `user_${Date.now()}`,
+          content: inputMessage,
+          sender: "user",
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, userMsg]);
+        
+        // Mock PAM response
+        setTimeout(() => {
+          const response = "I'm PAM, your travel assistant. The full AI integration is coming soon!";
+          setMessages(prev => [...prev, {
+            id: `pam_${Date.now()}`,
+            content: response,
+            sender: "pam",
+            timestamp: new Date().toISOString()
+          }]);
+          
+          if (voiceSystem.isInitialized) {
+            voiceSystem.speak(response, { 
+              priority: 'normal',
+              fallbackToText: true 
+            });
+          }
+        }, 1000);
+        
+        setInputMessage("");
       }
     },
-    onError: (error) => {
-      console.error('❌ Chat error:', error);
-      setMessages(prev => [...prev, {
-        id: `error_${Date.now()}`,
-        content: "I'm having trouble connecting right now. Please try again.",
-        sender: "pam",
-        timestamp: new Date().toISOString()
-      }]);
-    }
-  });
+    isLoading: false
+  };
 
   // Voice system integration
-  const voiceSystem = useVoice(chat);
+  const voiceSystem = useVoice();
   
   // Handle opening/closing and voice initialization
   const handleToggleOpen = useCallback(() => {
@@ -126,14 +142,11 @@ export const PamVoice: React.FC<PamVoiceProps> = ({
     
     setMessages(prev => [...prev, userMessage]);
     
-    // Send to AI via Vercel AI SDK
-    chat.append({
-      role: 'user',
-      content: inputMessage.trim()
-    });
+    // Send message using mock chat
+    chat.handleSubmit();
     
     setInputMessage("");
-  }, [inputMessage, chat]);
+  }, [inputMessage, chat.handleSubmit]);
 
   // Handle voice recording (placeholder for future WebRTC integration)
   const handleVoiceToggle = useCallback(() => {
