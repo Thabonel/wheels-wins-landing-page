@@ -1352,12 +1352,24 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         if (latest.isFinal) {
           console.log('🎙️ Final speech result:', transcript);
           
-          // Check for "Hi PAM" or variations (activation) - including "bam" misrecognition
+          // Check for wake word patterns and process the entire message
           if (transcript.includes('hi pam') || transcript.includes('hey pam') || 
               transcript.includes('hello pam') || transcript.includes('hi palm') ||
               transcript.includes('hi bam') || transcript.includes('hey bam')) {
             console.log('✅ Wake word detected - activating PAM!');
             handleWakeWordDetected();
+            
+            // If there's more after the wake word, process it as a question
+            const wakeWordPattern = /(hi|hey|hello)\s+(pam|palm|bam)\s+/i;
+            const questionAfterWakeWord = transcript.replace(wakeWordPattern, '').trim();
+            
+            if (questionAfterWakeWord.length > 0 && currentIsContinuousMode) {
+              console.log('🎯 Processing question after wake word:', questionAfterWakeWord);
+              // Small delay to ensure PAM is open first
+              setTimeout(() => {
+                handleContinuousConversation(questionAfterWakeWord);
+              }, 100);
+            }
           }
           // Check for "PAM" followed by question (continuous conversation) - including "bam"
           else if (currentIsContinuousMode && (
@@ -1487,8 +1499,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const handleContinuousConversation = async (transcript: string) => {
     console.log('🎙️ Processing continuous conversation transcript:', transcript);
     
-    // Extract the actual question after "PAM/BAM" and clean it up
-    const question = transcript.replace(/^.*?(pam|palm|bam)\s+/i, '').trim();
+    // If the transcript is already cleaned (passed from wake word detection), use it as-is
+    // Otherwise, extract the actual question after "PAM/BAM" and clean it up
+    let question = transcript;
+    if (transcript.match(/\b(pam|palm|bam)\b/i)) {
+      question = transcript.replace(/^.*?\b(pam|palm|bam)\s+/i, '').trim();
+    }
     
     console.log('🎯 Extracted question:', question);
     
@@ -1496,9 +1512,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Add user message immediately (show what they actually asked)
       addMessage(question, "user");
       
-      // Process through text chat (faster than voice processing)
-      console.log('🚀 Processing question through text chat...');
-      await handleTextMessage(question);
+      // Send the message through WebSocket
+      console.log('🚀 Sending voice question to PAM...');
+      sendMessage(question);
     } else {
       console.log('⚠️ No question extracted from transcript after wake word');
     }
