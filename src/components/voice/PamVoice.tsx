@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff, VolumeX, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useVoice } from "@/hooks/useVoice";
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
 import { AudioPlayer } from "./AudioPlayer";
 import { useUserSettings } from "@/hooks/useUserSettings";
 
