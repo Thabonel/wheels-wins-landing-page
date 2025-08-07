@@ -45,7 +45,17 @@ const PamAiSdkTest = lazy(() => import('./pages/PamAiSdkTest'));
 const PamVoiceTest = lazy(() => import('./pages/PamVoiceTest'));
 
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: 1000,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnMount: false
+    }
+  }
+});
 
 function App() {
   // Log environment info in development/staging

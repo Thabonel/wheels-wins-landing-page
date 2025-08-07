@@ -19,11 +19,7 @@ export const PamSavingsSummaryCard = () => {
         return null;
       }
     },
-    refetchInterval: 60000, // Refresh every minute
-    retry: 1, // Only retry once
-    retryDelay: 1000,
-    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
-    enabled: true // Always enabled
+    refetchInterval: 60000 // Refresh every minute
   });
 
   // Fetch recent savings events with error handling
@@ -37,11 +33,7 @@ export const PamSavingsSummaryCard = () => {
         return [];
       }
     },
-    refetchInterval: 300000, // Refresh every 5 minutes
-    retry: 1,
-    retryDelay: 1000,
-    staleTime: 10 * 60 * 1000, // Consider data stale after 10 minutes
-    enabled: true
+    refetchInterval: 300000 // Refresh every 5 minutes
   });
 
   // Handle error state - fail gracefully
