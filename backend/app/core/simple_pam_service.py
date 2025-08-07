@@ -6,6 +6,7 @@ with a streamlined, reliable implementation.
 """
 
 import json
+import uuid
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import asyncio
@@ -159,7 +160,8 @@ class SimplePamService:
             PAM's response as a string
         """
         user_id = context.get("user_id", "anonymous")
-        session_id = context.get("session_id", "default")
+        # Generate a proper UUID for session_id if not provided
+        session_id = context.get("session_id", str(uuid.uuid4()))
         input_type = context.get("input_type", "text")
         start_time = datetime.utcnow()
         
@@ -786,7 +788,7 @@ User context: {user_context}""".format(
         # Build complete context
         full_context = {
             "user_id": user_id,
-            "session_id": session_id or "default",
+            "session_id": session_id or str(uuid.uuid4()),
             **(context or {})
         }
         
@@ -890,7 +892,7 @@ User context: {user_context}""".format(
                     }
                 }
                 
-                success = await db_service.store_conversation(user_id, session_id or "default", memory_data)
+                success = await db_service.store_conversation(user_id, session_id or str(uuid.uuid4()), memory_data)
                 if success:
                     logger.info(f"💾 Stored conversation for user {user_id}")
                 else:
