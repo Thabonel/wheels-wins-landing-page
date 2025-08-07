@@ -5,6 +5,7 @@ import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
 import TrialStatusBanner from "@/components/subscription/TrialStatusBanner";
 import SubscriptionStatusWidget from "@/components/subscription/SubscriptionStatusWidget";
+import { PamSavingsSummaryCard } from "@/components/pam/PamSavingsSummaryCard";
 
 const You = () => {
 
@@ -14,6 +15,11 @@ const You = () => {
       <main className="container p-6">
         {/* Trial Status Banner */}
         <TrialStatusBanner />
+
+        {/* PAM Savings Summary - Prominent placement at top */}
+        <div className="mb-6">
+          <PamSavingsSummaryCard />
+        </div>
 
         {/* Adjusted for Pam sidebar */}
         <div className="flex flex-col lg:flex-row gap-6">
