@@ -12,6 +12,7 @@ from urllib.parse import urlparse, urljoin
 from .base_tool import BaseTool
 from app.services.scraping.enhanced_scraper import EnhancedScrapingService
 from app.services.knowledge.vector_store import VectorKnowledgeBase
+from .free_apis_config import FreeAPIsConfig
 
 class WebscraperTool(BaseTool):
     """Webscraper tool for PAM - provides intelligent web scraping capabilities"""
@@ -21,6 +22,8 @@ class WebscraperTool(BaseTool):
         self.scraping_service = None
         self.vector_store = None
         self.initialized = False
+        self.cache = {}  # Simple in-memory cache
+        self.cache_timestamps = {}  # Track cache entry timestamps
     
     async def initialize(self):
         """Initialize the webscraper with robust fallback capabilities"""
@@ -47,15 +50,16 @@ class WebscraperTool(BaseTool):
     
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Execute web scraping operation
+        Execute web scraping operation with intelligent query routing
         
         Parameters:
-        - action: 'scrape_url', 'location_scrape', 'search_scrape', 'cached_results'
+        - action: 'scrape_url', 'location_scrape', 'search_scrape', 'cached_results', 'weather', 'fuel_prices', 'smart_search'
         - url: target URL to scrape (for scrape_url action)
         - location: [latitude, longitude] for location-based scraping
         - radius_km: search radius in kilometers (default: 10)
         - categories: list of categories to scrape ['local_businesses', 'travel_info', 'real_time_data']
         - search_query: search query for search_scrape action
+        - query: general query for smart_search (auto-routes to best API)
         - selector: CSS selector for specific content extraction
         - content_fields: specific fields to extract from content
         """
@@ -64,6 +68,29 @@ class WebscraperTool(BaseTool):
             return self._create_error_response("No parameters provided")
         
         action = parameters.get('action', 'scrape_url')
+        
+        # Smart routing for general queries
+        if action == 'smart_search' or (action == 'search_scrape' and parameters.get('smart', False)):
+            query = parameters.get('query') or parameters.get('search_query', '')
+            if not query:
+                return self._create_error_response("Query required for smart search")
+            
+            # Intelligently route based on query content
+            query_lower = query.lower()
+            
+            if 'weather' in query_lower or 'forecast' in query_lower or 'temperature' in query_lower:
+                parameters['action'] = 'weather'
+                parameters['query'] = query
+                action = 'weather'
+            elif any(word in query_lower for word in ['fuel', 'petrol', 'diesel', 'gas price']):
+                parameters['action'] = 'fuel_prices'
+                action = 'fuel_prices'
+            elif any(word in query_lower for word in ['camp', 'rv park', 'caravan', 'camping ground']):
+                # Use recreation.gov for US or general search for others
+                action = 'search_scrape'
+            else:
+                # Default to intelligent search across multiple APIs
+                action = 'search_scrape'
         
         try:
             if action == 'scrape_url':
@@ -76,6 +103,10 @@ class WebscraperTool(BaseTool):
                 return await self._get_cached_results(user_id, parameters)
             elif action == 'health_check':
                 return await self._health_check()
+            elif action == 'weather':
+                return await self._get_weather(user_id, parameters)
+            elif action == 'fuel_prices':
+                return await self._get_fuel_prices(user_id, parameters)
             else:
                 return self._create_error_response(f"Unknown action: {action}")
                 
@@ -180,7 +211,7 @@ class WebscraperTool(BaseTool):
             return self._create_error_response(f"Location scraping failed: {str(e)}")
     
     async def _search_scrape(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Scrape search results from various sources"""
+        """Scrape search results from various sources with intelligent caching"""
         
         search_query = parameters.get('search_query')
         if not search_query:
@@ -188,6 +219,13 @@ class WebscraperTool(BaseTool):
         
         location = parameters.get('location')  # Optional for search
         max_results = min(parameters.get('max_results', 10), 50)  # Limit to 50 max
+        
+        # Check cache first
+        cache_key = self._get_search_cache_key(search_query, location)
+        cached_result = self._get_cached_result(cache_key, search_query)
+        if cached_result:
+            self.logger.info(f"📦 Returning cached results for: '{search_query}'")
+            return cached_result
         
         self.logger.info(f"🔍 Search scraping for: '{search_query}'")
         
@@ -219,12 +257,18 @@ class WebscraperTool(BaseTool):
             # Process results
             aggregated_results = self._aggregate_search_results(results, search_query)
             
-            return self._create_success_response({
+            # Create response
+            response = self._create_success_response({
                 'search_query': search_query,
                 'location': location,
                 'results': aggregated_results,
                 'scraped_at': datetime.utcnow().isoformat()
             })
+            
+            # Cache the successful response
+            self._cache_result(cache_key, response, search_query)
+            
+            return response
             
         except Exception as e:
             self.logger.error(f"❌ Search scraping failed: {e}")
@@ -402,21 +446,60 @@ class WebscraperTool(BaseTool):
         }
     
     def _build_search_urls(self, search_query: str, location: Optional[List[float]]) -> Dict[str, str]:
-        """Build search URLs for different sources"""
+        """Build search URLs for different sources using free APIs"""
         
         # URL-encode the search query
         import urllib.parse
         encoded_query = urllib.parse.quote_plus(search_query)
         
-        search_urls = {
-            'wikipedia': f"https://en.wikipedia.org/w/api.php?action=opensearch&search={encoded_query}&limit=5&format=json",
-        }
+        # Determine which APIs to use based on query
+        api_list = FreeAPIsConfig.route_query(search_query)
+        search_urls = {}
         
-        # Add location-based searches if location provided
-        if location:
-            lat, lon = location
-            # Add other location-based search URLs here
-            pass
+        for api_name in api_list:
+            if api_name == 'wikipedia':
+                search_urls['wikipedia'] = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={encoded_query}&limit=5&format=json"
+            
+            elif api_name == 'duckduckgo':
+                params = FreeAPIsConfig.get_default_params('duckduckgo')
+                params['q'] = search_query
+                param_str = urllib.parse.urlencode(params)
+                search_urls['duckduckgo'] = f"{FreeAPIsConfig.get_api_url('duckduckgo', 'instant')}?{param_str}"
+            
+            elif api_name == 'nominatim' and location:
+                lat, lon = location
+                # Search near location
+                params = FreeAPIsConfig.get_default_params('nominatim')
+                params['q'] = search_query
+                params['lat'] = lat
+                params['lon'] = lon
+                params['bounded'] = 1
+                params['limit'] = 5
+                param_str = urllib.parse.urlencode(params)
+                search_urls['nominatim'] = f"{FreeAPIsConfig.get_api_url('nominatim', 'search')}?{param_str}"
+            
+            elif api_name == 'open_meteo' and 'weather' in search_query.lower():
+                if location:
+                    lat, lon = location
+                    params = FreeAPIsConfig.get_default_params('open_meteo')
+                    params['latitude'] = lat
+                    params['longitude'] = lon
+                    param_str = urllib.parse.urlencode(params)
+                    search_urls['weather'] = f"{FreeAPIsConfig.get_api_url('open_meteo', 'forecast')}?{param_str}"
+            
+            elif api_name == 'recreation_gov' and any(word in search_query.lower() for word in ['camp', 'rv', 'park']):
+                params = FreeAPIsConfig.get_default_params('recreation_gov')
+                params['query'] = search_query
+                if location:
+                    params['latitude'] = location[0]
+                    params['longitude'] = location[1]
+                    params['radius'] = 50  # 50 mile radius
+                param_str = urllib.parse.urlencode(params)
+                search_urls['recreation'] = f"{FreeAPIsConfig.get_api_url('recreation_gov', 'facilities')}?{param_str}"
+        
+        # Always include at least Wikipedia as fallback
+        if not search_urls:
+            search_urls['wikipedia'] = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={encoded_query}&limit=5&format=json"
         
         return search_urls
     
@@ -440,6 +523,14 @@ class WebscraperTool(BaseTool):
                 
                 if source_name == 'wikipedia':
                     return self._parse_wikipedia_search(data, max_results)
+                elif source_name == 'duckduckgo':
+                    return FreeAPIsConfig.parse_duckduckgo_instant(data)
+                elif source_name == 'nominatim':
+                    return FreeAPIsConfig.parse_nominatim_results(data, max_results)
+                elif source_name == 'weather':
+                    return FreeAPIsConfig.parse_open_meteo_weather(data)
+                elif source_name == 'recreation':
+                    return self._parse_recreation_gov(data, max_results)
             
             return {'source': source_name, 'data': content[:1000]}  # Fallback
             
@@ -693,6 +784,289 @@ class WebscraperTool(BaseTool):
             'scraped_at': datetime.utcnow().isoformat(),
             'note': '🔍 Research guidance - For live web scraping, service initialization needed'
         })
+    
+    def _parse_recreation_gov(self, data: Any, max_results: int) -> Dict[str, Any]:
+        """Parse Recreation.gov facility data"""
+        results = {
+            'source': 'recreation_gov',
+            'type': 'camping',
+            'results': []
+        }
+        
+        try:
+            # Handle different response formats
+            facilities = []
+            if isinstance(data, dict):
+                if 'RECDATA' in data:
+                    facilities = data['RECDATA'][:max_results]
+                elif 'data' in data:
+                    facilities = data['data'][:max_results]
+            elif isinstance(data, list):
+                facilities = data[:max_results]
+            
+            for facility in facilities:
+                result = {
+                    'title': facility.get('FacilityName', facility.get('name', '')),
+                    'description': facility.get('FacilityDescription', facility.get('description', '')),
+                    'type': facility.get('FacilityTypeDescription', 'Campground'),
+                    'latitude': facility.get('FacilityLatitude', facility.get('latitude', 0)),
+                    'longitude': facility.get('FacilityLongitude', facility.get('longitude', 0)),
+                    'phone': facility.get('FacilityPhone', ''),
+                    'email': facility.get('FacilityEmail', ''),
+                    'reservable': facility.get('Reservable', False),
+                    'activities': facility.get('ACTIVITY', [])
+                }
+                
+                # Add address if available
+                if facility.get('FACILITYADDRESS'):
+                    addresses = facility['FACILITYADDRESS']
+                    if addresses and len(addresses) > 0:
+                        addr = addresses[0]
+                        result['address'] = {
+                            'street': addr.get('FacilityStreetAddress1', ''),
+                            'city': addr.get('City', ''),
+                            'state': addr.get('AddressStateCode', ''),
+                            'zip': addr.get('PostalCode', '')
+                        }
+                
+                results['results'].append(result)
+            
+        except Exception as e:
+            self.logger.warning(f"Error parsing Recreation.gov data: {e}")
+            results['error'] = str(e)
+        
+        return results
+    
+    def _get_search_cache_key(self, query: str, location: Optional[List[float]]) -> str:
+        """Generate cache key for search query"""
+        import hashlib
+        key_parts = [query.lower()]
+        if location:
+            key_parts.extend([str(location[0]), str(location[1])])
+        key_string = ':'.join(key_parts)
+        return hashlib.md5(key_string.encode()).hexdigest()
+    
+    def _get_cached_result(self, cache_key: str, query: str) -> Optional[Dict[str, Any]]:
+        """Get cached result if still valid"""
+        if cache_key not in self.cache:
+            return None
+        
+        # Check if cache is still valid
+        cache_timestamp = self.cache_timestamps.get(cache_key, 0)
+        cache_age = datetime.utcnow().timestamp() - cache_timestamp
+        
+        # Determine cache TTL based on query type
+        query_lower = query.lower()
+        if 'weather' in query_lower:
+            ttl = FreeAPIsConfig.get_cache_ttl('weather')
+        elif 'fuel' in query_lower:
+            ttl = FreeAPIsConfig.get_cache_ttl('fuel')
+        elif any(word in query_lower for word in ['camp', 'rv', 'park']):
+            ttl = FreeAPIsConfig.get_cache_ttl('general')
+        else:
+            ttl = FreeAPIsConfig.get_cache_ttl('default')
+        
+        if cache_age > ttl:
+            # Cache expired, remove it
+            del self.cache[cache_key]
+            del self.cache_timestamps[cache_key]
+            return None
+        
+        return self.cache[cache_key]
+    
+    def _cache_result(self, cache_key: str, result: Dict[str, Any], query: str):
+        """Cache a successful result"""
+        # Limit cache size to prevent memory issues
+        if len(self.cache) > 100:
+            # Remove oldest entries
+            oldest_keys = sorted(self.cache_timestamps.items(), key=lambda x: x[1])[:20]
+            for key, _ in oldest_keys:
+                del self.cache[key]
+                del self.cache_timestamps[key]
+        
+        self.cache[cache_key] = result
+        self.cache_timestamps[cache_key] = datetime.utcnow().timestamp()
+    
+    async def _get_weather(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Get weather information using free Open-Meteo API"""
+        
+        location = parameters.get('location')
+        if not location or not isinstance(location, (list, tuple)) or len(location) != 2:
+            # Try to extract location from query
+            query = parameters.get('query', '')
+            if query:
+                # Use Nominatim to geocode the location
+                import urllib.parse
+                encoded_query = urllib.parse.quote_plus(query)
+                geocode_url = f"{FreeAPIsConfig.get_api_url('nominatim', 'search')}?q={encoded_query}&format=json&limit=1"
+                
+                try:
+                    session = await self.scraping_service._get_session() if self.scraping_service else None
+                    if session:
+                        async with session.get(geocode_url) as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                if data and len(data) > 0:
+                                    location = [float(data[0]['lat']), float(data[0]['lon'])]
+                except Exception as e:
+                    self.logger.warning(f"Geocoding failed: {e}")
+            
+            if not location:
+                return self._create_error_response("Location required for weather data")
+        
+        lat, lon = float(location[0]), float(location[1])
+        
+        # Check cache
+        cache_key = f"weather:{lat:.2f}:{lon:.2f}"
+        cached = self._get_cached_result(cache_key, 'weather')
+        if cached:
+            return cached
+        
+        self.logger.info(f"☁ Getting weather for ({lat:.4f}, {lon:.4f})")
+        
+        try:
+            # Build Open-Meteo URL
+            params = FreeAPIsConfig.get_default_params('open_meteo')
+            params['latitude'] = lat
+            params['longitude'] = lon
+            
+            import urllib.parse
+            param_str = urllib.parse.urlencode(params)
+            weather_url = f"{FreeAPIsConfig.get_api_url('open_meteo', 'forecast')}?{param_str}"
+            
+            session = await self.scraping_service._get_session() if self.scraping_service else None
+            if not session:
+                import aiohttp
+                session = aiohttp.ClientSession()
+            
+            async with session.get(weather_url) as response:
+                if response.status != 200:
+                    return self._create_error_response(f"Weather API returned {response.status}")
+                
+                data = await response.json()
+            
+            # Parse weather data
+            weather_info = FreeAPIsConfig.parse_open_meteo_weather(data)
+            
+            # Format response
+            response = self._create_success_response({
+                'location': {'latitude': lat, 'longitude': lon},
+                'weather': weather_info,
+                'formatted': FreeAPIsConfig.format_for_pam(weather_info, f"weather at {lat}, {lon}"),
+                'source': 'open_meteo',
+                'retrieved_at': datetime.utcnow().isoformat()
+            })
+            
+            # Cache result
+            self._cache_result(cache_key, response, 'weather')
+            
+            return response
+            
+        except Exception as e:
+            self.logger.error(f"Weather fetch failed: {e}")
+            return self._create_error_response(f"Failed to get weather: {str(e)}")
+    
+    async def _get_fuel_prices(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Get fuel prices using free government APIs (Australia)"""
+        
+        location = parameters.get('location')
+        fuel_type = parameters.get('fuel_type', 'E10')  # Default to E10
+        radius = parameters.get('radius_km', 5)
+        
+        if not location:
+            return self._create_error_response("Location required for fuel prices")
+        
+        lat, lon = float(location[0]), float(location[1])
+        
+        # Determine region (simplified for Australia)
+        is_nsw = -37.5 < lat < -28 and 141 < lon < 154
+        is_wa = -35 < lat < -13 and 112 < lon < 129
+        
+        self.logger.info(f"⛽ Getting fuel prices near ({lat:.4f}, {lon:.4f})")
+        
+        try:
+            results = []
+            
+            if is_nsw:
+                # Use NSW FuelCheck API (free, no auth)
+                # Note: This is a simplified example - actual API may require registration
+                fuel_url = f"https://api.onegov.nsw.gov.au/FuelCheckRefData/v1/fuel/prices/nearby"
+                params = {
+                    'fueltype': fuel_type,
+                    'latitude': lat,
+                    'longitude': lon,
+                    'radius': radius,
+                    'brand': '',
+                    'namedlocation': ''
+                }
+                
+                # This would need proper API implementation
+                results.append({
+                    'region': 'NSW',
+                    'message': f'For NSW fuel prices, use the FuelCheck NSW app or website',
+                    'url': 'https://www.fuelcheck.nsw.gov.au'
+                })
+            
+            elif is_wa:
+                # WA FuelWatch RSS feed
+                results.append({
+                    'region': 'WA',
+                    'message': 'For WA fuel prices, check FuelWatch WA',
+                    'url': 'https://www.fuelwatch.wa.gov.au'
+                })
+            
+            else:
+                # Other regions
+                results.append({
+                    'region': 'Other',
+                    'message': 'For fuel prices in your area, try MotorMouth or GasBuddy apps',
+                    'apps': ['MotorMouth', 'GasBuddy', 'PetrolSpy']
+                })
+            
+            return self._create_success_response({
+                'location': {'latitude': lat, 'longitude': lon},
+                'fuel_type': fuel_type,
+                'radius_km': radius,
+                'results': results,
+                'note': 'Real-time fuel prices available through official apps',
+                'retrieved_at': datetime.utcnow().isoformat()
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Fuel price fetch failed: {e}")
+            return self._create_error_response(f"Failed to get fuel prices: {str(e)}")
+    
+    async def search_with_intelligence(self, query: str, location: Optional[List[float]] = None) -> Dict[str, Any]:
+        """High-level intelligent search that combines multiple free APIs"""
+        
+        # Route query to appropriate APIs
+        api_list = FreeAPIsConfig.route_query(query)
+        
+        self.logger.info(f"🧠 Intelligent search for '{query}' using APIs: {api_list}")
+        
+        # Execute search
+        result = await self._search_scrape('system', {
+            'search_query': query,
+            'location': location,
+            'max_results': 10
+        })
+        
+        # Format results for PAM if successful
+        if result.get('status') == 'success' and result.get('data', {}).get('results'):
+            aggregated = result['data']['results']
+            
+            # Format for human-readable response
+            formatted_responses = []
+            for source_name, source_data in aggregated.get('sources', {}).items():
+                if source_data.get('results'):
+                    formatted_text = FreeAPIsConfig.format_for_pam(source_data, query)
+                    if formatted_text:
+                        formatted_responses.append(formatted_text)
+            
+            if formatted_responses:
+                result['formatted_response'] = '\n\n---\n\n'.join(formatted_responses)
+        
+        return result
     
     async def close(self):
         """Clean up resources"""
