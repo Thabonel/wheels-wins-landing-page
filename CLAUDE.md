@@ -15,7 +15,7 @@ Wheels & Wins is a comprehensive travel planning and RV community platform built
 
 ### Backend Stack
 - **FastAPI** - High-performance Python API framework
-- **PostgreSQL** - Primary database via Supabase
+- **PostgreSQL** - Primary database via Supabase with automated migrations
 - **Redis** - Caching and session management
 - **WebSocket** - Real-time PAM communication
 - **Multi-Engine TTS** - Edge TTS, Coqui TTS, system TTS fallbacks
@@ -160,6 +160,152 @@ export const MyComponent: React.FC<ComponentProps> = ({
 - **Consistent Spacing**: Follow Tailwind spacing scale
 - **Dark Mode**: Support with next-themes
 
+## Database Management with Supabase
+
+### Migration-Based Database Changes
+**CRITICAL**: Never write SQL directly to Supabase in production. Always use version-controlled migration files.
+
+#### Creating Database Migrations
+1. **Create migration file** with timestamp naming:
+   ```
+   supabase/migrations/YYYYMMDD-HHMMSS-description.sql
+   ```
+
+2. **Migration file structure**:
+   ```sql
+   -- Migration description and purpose
+   -- Create tables with proper constraints
+   CREATE TABLE IF NOT EXISTS public.table_name (
+       id BIGSERIAL PRIMARY KEY,
+       user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+       -- Add columns with proper types and constraints
+       created_at TIMESTAMPTZ DEFAULT NOW(),
+       updated_at TIMESTAMPTZ DEFAULT NOW()
+   );
+
+   -- Create indexes for performance
+   CREATE INDEX IF NOT EXISTS idx_table_user_id ON public.table_name(user_id);
+
+   -- Enable Row Level Security
+   ALTER TABLE public.table_name ENABLE ROW LEVEL SECURITY;
+
+   -- Create RLS policies
+   CREATE POLICY "Users access own data" ON public.table_name
+       FOR ALL USING (auth.uid() = user_id);
+
+   -- Create triggers for updated_at
+   CREATE OR REPLACE FUNCTION update_table_updated_at()
+   RETURNS TRIGGER AS $$
+   BEGIN
+       NEW.updated_at = NOW();
+       RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql;
+
+   CREATE TRIGGER trigger_update_table_updated_at
+       BEFORE UPDATE ON public.table_name
+       FOR EACH ROW
+       EXECUTE FUNCTION update_table_updated_at();
+
+   -- Grant permissions
+   GRANT SELECT, INSERT, UPDATE, DELETE ON public.table_name TO authenticated;
+   ```
+
+#### Database Migration Best Practices
+- **Always use IF NOT EXISTS** for tables, indexes, and constraints
+- **Include proper foreign keys** with CASCADE options
+- **Add RLS policies** for user data security
+- **Create performance indexes** for commonly queried columns
+- **Use proper data types** with constraints (e.g., CHECK constraints)
+- **Add updated_at triggers** for audit trails
+- **Grant minimal necessary permissions**
+
+#### Automated Migration Deployment
+Migrations run automatically during deployment:
+
+1. **Local Development**:
+   ```bash
+   # Create migration file
+   touch supabase/migrations/$(date +"%Y%m%d-%H%M%S")-description.sql
+   # Edit the file with your SQL
+   # Commit to git
+   git add supabase/migrations/
+   git commit -m "feat: add table_name table for feature"
+   ```
+
+2. **Staging Deployment**:
+   ```bash
+   git push origin staging
+   # Render auto-deploys → runs migrations → updates database
+   ```
+
+3. **Production Deployment**:
+   ```bash
+   git push origin main
+   # Production deployment → runs migrations → updates database
+   ```
+
+#### Common Migration Patterns
+- **Adding Tables**: Use the full template above
+- **Adding Columns**: `ALTER TABLE table_name ADD COLUMN IF NOT EXISTS column_name TYPE;`
+- **Updating RLS**: Drop and recreate policies with new logic
+- **Adding Indexes**: `CREATE INDEX IF NOT EXISTS idx_name ON table(column);`
+- **Data Fixes**: Include data updates in migrations when needed
+
+#### Migration Troubleshooting
+- **Check Render logs** for migration errors during deployment
+- **Verify table exists** in Supabase dashboard → Table Editor
+- **Test RLS policies** by trying operations as different users
+- **Monitor performance** with new indexes using Supabase dashboard
+
+#### Example: Complete Table Migration
+```sql
+-- Create expenses table for financial tracking
+-- This resolves "Something went wrong" on Wins page
+
+CREATE TABLE IF NOT EXISTS public.expenses (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    amount DECIMAL(10,2) NOT NULL CHECK (amount >= 0),
+    category TEXT NOT NULL,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    description TEXT,
+    receipt_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON public.expenses(user_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON public.expenses(date);
+CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON public.expenses(user_id, date);
+
+-- Row Level Security
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Users can manage their own expenses" ON public.expenses
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Updated_at trigger
+CREATE OR REPLACE FUNCTION update_expenses_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_expenses_updated_at
+    BEFORE UPDATE ON public.expenses
+    FOR EACH ROW
+    EXECUTE FUNCTION update_expenses_updated_at();
+
+-- Permissions
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.expenses TO authenticated;
+GRANT USAGE ON SEQUENCE public.expenses_id_seq TO authenticated;
+```
+
 ## Environment Configuration
 
 ### Frontend Environment Variables (.env)
@@ -298,6 +444,7 @@ REDIS_URL=redis://localhost:6379
 - **Row Level Security**: Database-level authorization
 - **Automatic Backups**: Point-in-time recovery
 - **Edge Functions**: Serverless compute
+- **Automated Migrations**: Version-controlled schema changes
 
 ## Development Workflow
 
