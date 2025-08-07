@@ -1260,53 +1260,30 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   // Don't auto-initialize wake word detection - only when user explicitly enables it
   // Removed auto-initialization to prevent unwanted microphone access
 
-  const requestMicrophonePermission = async (keepStream: boolean = false) => {
+  const requestMicrophonePermission = async (keepStream: boolean = false): Promise<MediaStream | boolean> => {
     try {
-      // First check if we already have permission
-      if (navigator.permissions && navigator.permissions.query) {
-        try {
-          const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-          console.log('🎤 Current microphone permission state:', permissionStatus.state);
-          
-          if (permissionStatus.state === 'granted') {
-            console.log('✅ Microphone permission already granted');
-            // If permission is already granted and we need a stream, get it
-            if (keepStream) {
-              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-              return stream;
-            }
-            return true;
-          } else if (permissionStatus.state === 'denied') {
-            console.warn('⚠️ Microphone permission was previously denied');
-            addMessage("🚫 Microphone access was denied. Please check your browser settings to allow microphone access for this site.", "pam");
-            return false;
-          }
-        } catch (permError) {
-          console.log('⚠️ Could not check permission status, attempting to request directly:', permError);
-        }
-      }
-      
-      // Request permission if not already granted
+      // Just request the microphone directly - the browser handles permission state
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('✅ Microphone access granted');
       
       if (keepStream) {
         // Return the stream for use
-        console.log('✅ Microphone permission granted, returning stream');
         return stream;
       } else {
         // Just checking permission - stop the stream
         stream.getTracks().forEach(track => track.stop());
-        console.log('✅ Microphone permission granted');
         return true;
       }
     } catch (error: any) {
-      console.warn('⚠️ Microphone permission denied:', error);
+      console.warn('⚠️ Microphone access failed:', error);
       
-      // Provide more specific error messages
+      // Provide specific error messages based on the error type
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        addMessage("🚫 Microphone access was denied. Please click the lock icon in your browser's address bar and allow microphone access.", "pam");
+        addMessage("🚫 Microphone access was denied. Please allow microphone access and try again.", "pam");
       } else if (error.name === 'NotFoundError') {
         addMessage("🚫 No microphone found. Please connect a microphone and try again.", "pam");
+      } else if (error.name === 'NotReadableError') {
+        addMessage("🚫 Microphone is in use by another application. Please close other apps using the microphone.", "pam");
       } else {
         addMessage("🚫 Could not access microphone. Please check your browser settings.", "pam");
       }
