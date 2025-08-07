@@ -57,46 +57,96 @@ export const useVoiceAiSdk = (options: VoiceAiSdkOptions = {}) => {
   });
 
   /**
-   * Start voice recognition
+   * Start voice recognition using Web Speech API
    */
   const startListening = useCallback(async () => {
     try {
       setVoiceError(null);
       
-      // Request microphone permission
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Create MediaRecorder for audio capture
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      // Use Web Speech API for better browser integration
+      startWebSpeechRecognition();
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Voice recognition failed';
+      setVoiceError(errorMessage);
+      options.onError?.(error as Error);
+      Sentry.captureException(error);
+    }
+  }, [startWebSpeechRecognition, options]);
+
+  /**
+   * Stop voice recognition
+   */
+  const stopListening = useCallback(() => {
+    // Stop Web Speech API recognition
+    if ((window as any).currentRecognition) {
+      (window as any).currentRecognition.stop();
+      (window as any).currentRecognition = null;
+    }
+    
+    // Stop MediaRecorder if it was used
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    setIsListening(false);
+    options.onVoiceEnd?.();
+  }, [options]);
+
+  /**
+   * Use Web Speech API for real voice recognition
+   */
+  const startWebSpeechRecognition = useCallback(() => {
+    try {
+      // Check for browser support
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        throw new Error('Speech recognition not supported');
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0])
+          .map((result: any) => result.transcript)
+          .join('');
+
+        if (event.results[0].isFinal) {
+          options.onTranscription?.(transcript);
+          setIsListening(false);
+          
+          // Don't auto-send to AI - let the component handle submission
+          Sentry.addBreadcrumb({
+            message: 'Voice transcription completed',
+            data: { transcript, source: 'voice' },
+            level: 'info',
+          });
         }
       };
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        
-        // Convert speech to text (mock implementation for POC)
-        await transcribeAudio(audioBlob);
-        
-        // Clean up stream
-        stream.getTracks().forEach(track => track.stop());
+      recognition.onerror = (event: any) => {
+        setIsListening(false);
+        setVoiceError(`Speech recognition error: ${event.error}`);
+        options.onError?.(new Error(event.error));
+        Sentry.captureException(new Error(`Speech recognition error: ${event.error}`));
       };
 
-      mediaRecorder.start();
+      recognition.onend = () => {
+        setIsListening(false);
+        options.onVoiceEnd?.();
+      };
+
+      recognition.start();
       setIsListening(true);
       options.onVoiceStart?.();
 
-      // Auto-stop after 10 seconds for POC
-      setTimeout(() => {
-        if (mediaRecorderRef.current?.state === 'recording') {
-          stopListening();
-        }
-      }, 10000);
+      // Store reference for stopping
+      (window as any).currentRecognition = recognition;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Voice recognition failed';
@@ -107,60 +157,22 @@ export const useVoiceAiSdk = (options: VoiceAiSdkOptions = {}) => {
   }, [options]);
 
   /**
-   * Stop voice recognition
-   */
-  const stopListening = useCallback(() => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    setIsListening(false);
-    options.onVoiceEnd?.();
-  }, [options]);
-
-  /**
-   * Transcribe audio to text (mock implementation for POC)
+   * Transcribe audio to text (fallback for non-Web Speech API)
    */
   const transcribeAudio = useCallback(async (audioBlob: Blob) => {
     try {
-      // Mock transcription for POC - in real implementation:
-      // 1. Send audioBlob to speech-to-text API (Whisper, etc.)
-      // 2. Get transcribed text back
-      // 3. Process with AI SDK
+      // This is now a fallback - Web Speech API is preferred
+      // Could send to backend for Whisper API processing
       
-      const mockTranscriptions = [
-        "What's the weather like in San Francisco?",
-        "Help me plan a trip to Yellowstone",
-        "Search for RV parks near me",
-        "How much did I spend on gas this month?",
-        "What are the best camping spots in Colorado?",
-      ];
+      setVoiceError('Audio transcription not yet implemented - using Web Speech API instead');
+      options.onError?.(new Error('Audio transcription not implemented'));
       
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const transcription = mockTranscriptions[Math.floor(Math.random() * mockTranscriptions.length)];
-      
-      options.onTranscription?.(transcription);
-      
-      // Send to AI SDK for processing
-      setIsThinking(true);
-      await append({
-        role: 'user',
-        content: transcription,
-      });
-
-      Sentry.addBreadcrumb({
-        message: 'Voice transcription processed',
-        data: { transcription, source: 'voice' },
-        level: 'info',
-      });
-
     } catch (error) {
       setVoiceError('Transcription failed');
       options.onError?.(error as Error);
       Sentry.captureException(error);
     }
-  }, [append, options]);
+  }, [options]);
 
   /**
    * Convert text to speech
