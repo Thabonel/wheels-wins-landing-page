@@ -8,7 +8,6 @@ import { webRTCService } from '@/services/voice/WebRTCConnectionService';
 import { vadService } from '@/services/voice/VADService';
 import { sttService } from '@/services/voice/STTService';
 import { conversationManager } from '@/services/voice/ConversationManager';
-import type { UseChat } from 'ai/react';
 
 /**
  * Main voice hook that orchestrates the entire voice system
@@ -16,7 +15,7 @@ import type { UseChat } from 'ai/react';
  * Implements settings-dependent initialization to fix race conditions
  * Manages connection lifecycle and integrates with Vercel AI SDK
  */
-export const useVoice = (chat?: UseChat) => {
+export const useVoice = (chat?: any) => {
   const voiceStore = useVoiceStore();
   const { settings: voiceSettings, settingsLoaded: voiceSettingsLoaded, updateSettings: updateVoiceSettings } = useVoiceSettings();
   const { settings: userSettings, loading: userSettingsLoading } = useUserSettings();
