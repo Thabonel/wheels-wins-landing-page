@@ -41,10 +41,7 @@ const WinsOverview = React.memo(() => {
       }
     },
     refetchInterval: 60000, // Refresh every minute
-    enabled: !!user,
-    retry: 1,
-    retryDelay: 1000,
-    staleTime: 5 * 60 * 1000
+    enabled: !!user
   });
 
   const { data: monthlySummary } = useQuery({
@@ -59,10 +56,7 @@ const WinsOverview = React.memo(() => {
       }
     },
     refetchInterval: 300000, // Refresh every 5 minutes
-    enabled: !!user,
-    retry: 1,
-    retryDelay: 1000,
-    staleTime: 10 * 60 * 1000
+    enabled: !!user
   });
 
   const { data: recentSavings } = useQuery({
@@ -77,10 +71,7 @@ const WinsOverview = React.memo(() => {
       }
     },
     refetchInterval: 300000, // Refresh every 5 minutes
-    enabled: !!user,
-    retry: 1,
-    retryDelay: 1000,
-    staleTime: 10 * 60 * 1000
+    enabled: !!user
   });
 
   const handlePamMessage = useCallback((msg: any) => {
