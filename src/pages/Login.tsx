@@ -6,6 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import LoginForm from "@/components/auth/LoginForm";
 import OAuthButtons from "@/components/auth/OAuthButtons";
+import { isStaging } from "@/config/staging";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
@@ -90,6 +94,34 @@ const Login = () => {
               Sign up
             </Link>
           </div>
+
+          {isStaging() && (
+            <>
+              <div className="relative w-full">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-yellow-400"></span>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-yellow-600">staging mode</span>
+                </div>
+              </div>
+              
+              <Alert className="border-yellow-400 bg-yellow-50">
+                <AlertCircle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="text-yellow-800">
+                  Having authentication issues? Use staging bypass for testing.
+                </AlertDescription>
+              </Alert>
+              
+              <Button
+                variant="outline"
+                className="w-full border-yellow-400 hover:bg-yellow-50"
+                onClick={() => navigate('/staging-bypass')}
+              >
+                Use Staging Bypass
+              </Button>
+            </>
+          )}
         </CardFooter>
       </Card>
     </div>
