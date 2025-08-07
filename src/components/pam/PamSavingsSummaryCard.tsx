@@ -103,8 +103,7 @@ export const PamSavingsSummaryCard = () => {
           </div>
           <Progress 
             value={savingsProgress} 
-            className="h-2"
-            indicatorClassName={guaranteeMet ? "bg-green-500" : "bg-blue-500"}
+            className={`h-2 ${guaranteeMet ? '[&>*]:bg-green-500' : '[&>*]:bg-blue-500'}`}
           />
         </div>
 
