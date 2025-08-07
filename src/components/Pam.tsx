@@ -1262,13 +1262,42 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const requestMicrophonePermission = async () => {
     try {
+      // First check if we already have permission
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          console.log('🎤 Current microphone permission state:', permissionStatus.state);
+          
+          if (permissionStatus.state === 'granted') {
+            console.log('✅ Microphone permission already granted');
+            return true;
+          } else if (permissionStatus.state === 'denied') {
+            console.warn('⚠️ Microphone permission was previously denied');
+            addMessage("🚫 Microphone access was denied. Please check your browser settings to allow microphone access for this site.", "pam");
+            return false;
+          }
+        } catch (permError) {
+          console.log('⚠️ Could not check permission status, attempting to request directly:', permError);
+        }
+      }
+      
+      // Request permission if not already granted
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Immediately stop the stream - we just wanted permission
       stream.getTracks().forEach(track => track.stop());
       console.log('✅ Microphone permission granted');
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.warn('⚠️ Microphone permission denied:', error);
+      
+      // Provide more specific error messages
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        addMessage("🚫 Microphone access was denied. Please click the lock icon in your browser's address bar and allow microphone access.", "pam");
+      } else if (error.name === 'NotFoundError') {
+        addMessage("🚫 No microphone found. Please connect a microphone and try again.", "pam");
+      } else {
+        addMessage("🚫 Could not access microphone. Please check your browser settings.", "pam");
+      }
       return false;
     }
   };
@@ -1398,7 +1427,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     const hasPermission = await requestMicrophonePermission();
     if (!hasPermission) {
       console.warn('⚠️ Cannot start wake word detection without microphone permission');
-      addMessage("🚫 Microphone permission needed for wake word detection. Please allow microphone access.", "pam");
+      // Error message already shown by requestMicrophonePermission
       return;
     }
 
@@ -1504,7 +1533,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     const hasPermission = await requestMicrophonePermission();
     if (!hasPermission) {
       console.warn('⚠️ Cannot start continuous mode without microphone permission');
-      addMessage("🚫 Microphone permission needed for continuous voice mode. Please allow microphone access.", "pam");
+      // Error message already shown by requestMicrophonePermission
       return;
     }
 
