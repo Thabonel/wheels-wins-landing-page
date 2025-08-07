@@ -28,6 +28,12 @@ export const PamWithFallback: React.FC<PamWithFallbackProps> = ({
   const [variant, setVariant] = useState<'ai-sdk' | 'legacy' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fallbackTriggered, setFallbackTriggered] = useState(false);
+  const [consecutiveErrors, setConsecutiveErrors] = useState(0);
+  const [circuitBreakerOpen, setCircuitBreakerOpen] = useState(false);
+  
+  // Circuit breaker settings
+  const ERROR_THRESHOLD = 3; // Max consecutive errors before fallback
+  const CIRCUIT_BREAKER_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
   useEffect(() => {
     try {
@@ -58,14 +64,16 @@ export const PamWithFallback: React.FC<PamWithFallbackProps> = ({
     }
   }, [user?.id]);
 
-  const handleFallbackToLegacy = () => {
+  const handleFallbackToLegacy = (reason: string = 'User initiated fallback') => {
     setFallbackTriggered(true);
     setVariant('legacy');
     setError(null);
+    setCircuitBreakerOpen(false);
+    setConsecutiveErrors(0);
     
     Sentry.addBreadcrumb({
       message: 'PAM Fallback Triggered',
-      data: { reason: 'User initiated fallback' },
+      data: { reason, consecutiveErrors },
       level: 'warning',
     });
   };
@@ -74,6 +82,46 @@ export const PamWithFallback: React.FC<PamWithFallbackProps> = ({
     setFallbackTriggered(false);
     setVariant('ai-sdk');
     setError(null);
+    setConsecutiveErrors(0);
+    setCircuitBreakerOpen(false);
+  };
+
+  const handleAiSdkError = (error: Error) => {
+    const newErrorCount = consecutiveErrors + 1;
+    setConsecutiveErrors(newErrorCount);
+    setError(error.message);
+
+    Sentry.addBreadcrumb({
+      message: 'PAM AI SDK Error',
+      data: { 
+        error: error.message, 
+        consecutiveErrors: newErrorCount,
+        circuitBreakerOpen: circuitBreakerOpen 
+      },
+      level: 'error',
+    });
+
+    // Circuit breaker logic
+    if (newErrorCount >= ERROR_THRESHOLD && !circuitBreakerOpen) {
+      setCircuitBreakerOpen(true);
+      handleFallbackToLegacy('Circuit breaker triggered - too many consecutive errors');
+      
+      // Auto-retry after timeout
+      setTimeout(() => {
+        if (circuitBreakerOpen) {
+          setCircuitBreakerOpen(false);
+          setConsecutiveErrors(0);
+        }
+      }, CIRCUIT_BREAKER_TIMEOUT);
+    }
+  };
+
+  const handleAiSdkSuccess = () => {
+    // Reset error count on successful interaction
+    if (consecutiveErrors > 0) {
+      setConsecutiveErrors(0);
+      setError(null);
+    }
   };
 
   // Show loading state while determining variant
@@ -111,7 +159,11 @@ export const PamWithFallback: React.FC<PamWithFallbackProps> = ({
           </Alert>
         )}
 
-        <PamChatPOC className="w-full" />
+        <PamChatPOC 
+          className="w-full" 
+          onError={handleAiSdkError}
+          onSuccess={handleAiSdkSuccess}
+        />
         
         {/* Error boundary with fallback option */}
         {error && (
