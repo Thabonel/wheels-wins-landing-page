@@ -21,13 +21,12 @@
 - **WebSocket Disconnects**: Normal behavior after request completion
 
 ## Staging Site
-**Status: NEEDS ENV UPDATE ⚠️**
+**Status: FIXED ✅**
 - **Issue**: "Invalid API key" error on login
-- **Solution**: Update Netlify staging environment variables with correct Supabase key
-- **Required Key**: 
-  ```
-  VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5Y29rbGltcHpreXJlY2JqZWNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyNTU4MDAsImV4cCI6MjA2MTgzMTgwMH0.nRZhYxImQ0rOlh0xZjHcdVq2Q2NY0v-9W3wciaxV2EA
-  ```
+- **Root Cause**: Staging was using `npm run build:staging` which looked for `.env.staging` (didn't exist), falling back to `.env` with placeholder values
+- **Solution**: Updated `netlify.staging.toml` to use same build command as production (`npm run build:netlify`)
+- **Result**: Staging now builds exactly like production, using environment variables from Netlify correctly
+- **Date Fixed**: August 7, 2025
 
 ## What's Working Now
 - ✅ Production Wins page loads without errors
