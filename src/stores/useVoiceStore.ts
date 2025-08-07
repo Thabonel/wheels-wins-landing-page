@@ -24,6 +24,7 @@ export interface VoiceSettings {
   endpointingSilenceDuration: number; // ms
   enableEchoCancellation: boolean;
   enableNoiseSuppression: boolean;
+  enableWebRTC?: boolean; // Optional WebRTC support
 }
 
 export interface ConnectionMetrics {
