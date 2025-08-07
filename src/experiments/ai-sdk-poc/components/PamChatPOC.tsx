@@ -36,7 +36,7 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSu
     isLoading,
     error,
   } = useChat({
-    api: '/.netlify/functions/pam-chat', // Netlify serverless function
+    api: '/api/v1/pam-ai-sdk/chat', // Backend AI SDK endpoint
     onResponse: (response) => {
       // Track response metrics
       const responseTime = Date.now();
