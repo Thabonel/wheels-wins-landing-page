@@ -45,6 +45,9 @@
     "postinstall": "husky install && node -e \"try{require.resolve('@esbuild/linux-x64')}catch(e){require('child_process').execSync('npm install @esbuild/linux-x64 --no-save',{stdio:'inherit'})}\" && node -e \"try{require.resolve('@rollup/rollup-linux-x64-gnu')}catch(e){require('child_process').execSync('npm install @rollup/rollup-linux-x64-gnu --no-save',{stdio:'inherit'})}\""
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.1",
+    "@ai-sdk/openai": "^2.0.4",
+    "@ai-sdk/react": "^2.0.5",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -89,6 +92,7 @@
     "@tanstack/react-query": "^5.80.10",
     "@turf/turf": "^6.5.0",
     "@types/ws": "^8.18.1",
+    "ai": "^5.0.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
