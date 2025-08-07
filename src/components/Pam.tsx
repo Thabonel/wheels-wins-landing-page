@@ -844,7 +844,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (message.type === 'chat_response_start') {
             console.log('🌊 PAM DEBUG: Streaming response started');
             // Show immediate processing indicator
-            addMessage(message.message || "🔍 Processing your request...", "pam", undefined, false, 'normal');
+            addMessage(message.message || "🔍 Processing your request...", "pam", undefined, undefined, 'normal');
             return;
           }
           
@@ -2279,13 +2279,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string, shouldSpeak: boolean = false, voicePriority?: 'low' | 'normal' | 'high' | 'urgent'): PamMessage => {
+  const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string, shouldSpeak?: boolean, voicePriority?: 'low' | 'normal' | 'high' | 'urgent'): PamMessage => {
+    // Auto-determine shouldSpeak based on user settings for PAM messages
+    const finalShouldSpeak = shouldSpeak !== undefined 
+      ? shouldSpeak 
+      : (sender === "pam" && settings?.pam_preferences?.voice_enabled);
+    
+    console.log('🔊 addMessage voice decision:', {
+      sender,
+      explicitShouldSpeak: shouldSpeak,
+      voiceEnabled: settings?.pam_preferences?.voice_enabled,
+      finalShouldSpeak
+    });
+    
     const newMessage: PamMessage = {
       id: Date.now().toString(),
       content,
       sender,
       timestamp: new Date().toISOString(),
-      shouldSpeak,
+      shouldSpeak: finalShouldSpeak,
       voicePriority
     };
     setMessages(prev => {
