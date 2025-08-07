@@ -3,15 +3,18 @@
  * Testing Vercel AI SDK with basic chat functionality
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { useVoiceAiSdk } from '../hooks/useVoiceAiSdk';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Send, Mic, Square, Volume2, VolumeX, TestTube } from 'lucide-react';
+import { Loader2, Send, Mic, Square, Volume2, VolumeX, TestTube, Map, MapPin } from 'lucide-react';
 import * as Sentry from '@sentry/react';
+import { tripPlannerBridge } from '../services/tripPlannerBridge';
+import { extractTripPlan } from '../services/routeParser';
+import { useToast } from '@/hooks/use-toast';
 
 interface PamChatPOCProps {
   className?: string;
@@ -26,6 +29,8 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSu
     successRate: 0,
   });
   const [lastTranscription, setLastTranscription] = useState<string>('');
+  const [lastRoute, setLastRoute] = useState<any>(null);
+  const { toast } = useToast();
 
   // Use AI SDK's useChat hook for chat functionality
   const {
@@ -58,9 +63,26 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSu
         ...prev,
         totalMessages: prev.totalMessages + 1,
       }));
+      
+      // Check if response contains trip planning information
+      const tripPlan = extractTripPlan(message.content);
+      if (tripPlan) {
+        setLastRoute(tripPlan);
+        console.log('🗺️ Trip plan detected:', tripPlan);
+      }
+      
+      // Speak the response if TTS is enabled and available
+      if (isTtsSupported && !isListening) {
+        speakText(message.content);
+      }
+      
       onSuccess?.();
     },
   });
+
+  // Form ref for programmatic submission
+  const formRef = useRef<HTMLFormElement>(null);
+  const [autoSubmitOnTranscription, setAutoSubmitOnTranscription] = useState(true);
 
   // Use voice AI SDK hook for voice functionality
   const {
@@ -70,6 +92,7 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSu
     voiceError,
     startListening,
     stopListening,
+    speakText,
     stopSpeaking,
     testVoicePipeline,
     isVoiceSupported,
@@ -79,17 +102,20 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSu
       setLastTranscription(text);
       handleInputChange({ target: { value: text } } as any);
       
-      // Auto-submit transcribed text
-      setTimeout(() => {
-        const form = document.querySelector('form');
-        if (form) {
-          const event = new Event('submit', { bubbles: true });
-          form.dispatchEvent(event);
-        }
-      }, 500);
+      // Auto-submit transcribed text if enabled
+      if (autoSubmitOnTranscription && formRef.current) {
+        setTimeout(() => {
+          const submitEvent = new Event('submit', { 
+            bubbles: true,
+            cancelable: true 
+          });
+          formRef.current?.dispatchEvent(submitEvent);
+        }, 100);
+      }
     },
     onError: (error) => {
       console.error('Voice error:', error);
+      Sentry.captureException(error);
     },
   });
 
@@ -113,19 +139,56 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSu
     "What's the weather like in New York?",
     "Search for RV parks near Yellowstone",
     "Help me plan a trip to Colorado",
-    "What are the best camping spots in California?",
+    "Plan a trip from Sydney to Grampians on dirt roads",
   ];
+
+  // Handle adding route to trip planner
+  const handleAddToTripPlanner = () => {
+    if (!lastRoute) {
+      toast({
+        title: "No route found",
+        description: "Ask PAM to plan a trip first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Send route to trip planner
+      if (lastRoute.origin && lastRoute.destination) {
+        tripPlannerBridge.addRoute(
+          lastRoute.origin.name,
+          lastRoute.destination.name,
+          lastRoute.waypoints?.map((w: any) => w.name)
+        );
+        
+        toast({
+          title: "Route added to map",
+          description: `${lastRoute.origin.name} → ${lastRoute.destination.name}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error adding route to trip planner:', error);
+      toast({
+        title: "Failed to add route",
+        description: "Please try again",
+        variant: "destructive"
+      });
+    }
+  };
 
   const runTestScenario = (scenario: string) => {
     handleInputChange({ target: { value: scenario } } as any);
     // Auto-submit after a brief delay to show the input
     setTimeout(() => {
-      const form = document.querySelector('form');
-      if (form) {
-        const event = new Event('submit', { bubbles: true });
-        form.dispatchEvent(event);
+      if (formRef.current) {
+        const submitEvent = new Event('submit', { 
+          bubbles: true,
+          cancelable: true 
+        });
+        formRef.current.dispatchEvent(submitEvent);
       }
-    }, 500);
+    }, 100);
   };
 
   return (
@@ -156,6 +219,17 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSu
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium">Quick Test Scenarios:</h4>
             <div className="flex gap-2">
+              {lastRoute && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddToTripPlanner}
+                  className="text-green-600"
+                >
+                  <Map className="w-3 h-3 mr-1" />
+                  Add to Map
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -273,7 +347,7 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSu
         )}
 
         {/* Input Form */}
-        <form onSubmit={handleSubmit} className="flex gap-2">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex gap-2">
           <div className="flex-1 relative">
             <Input
               value={input}
@@ -325,9 +399,9 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSu
         <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
           <strong>POC Notes:</strong>
           <ul className="mt-1 space-y-1">
-            <li>• Testing Vercel AI SDK integration with mock tools</li>
-            <li>• Voice mode simulates input for demonstration</li>
-            <li>• Metrics tracking via Sentry integration</li>
+            <li>• Testing Vercel AI SDK integration with streaming responses</li>
+            <li>• Voice mode uses Web Speech API for real transcription</li>
+            <li>• Trip planning integration with map (ask PAM to plan a trip)</li>
             <li>• Ready for A/B testing with feature flags</li>
           </ul>
         </div>
