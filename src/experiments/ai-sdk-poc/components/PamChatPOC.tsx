@@ -15,9 +15,11 @@ import * as Sentry from '@sentry/react';
 
 interface PamChatPOCProps {
   className?: string;
+  onError?: (error: Error) => void;
+  onSuccess?: () => void;
 }
 
-export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className }) => {
+export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className, onError, onSuccess }) => {
   const [metrics, setMetrics] = useState({
     totalMessages: 0,
     averageResponseTime: 0,
@@ -34,7 +36,7 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className }) => {
     isLoading,
     error,
   } = useChat({
-    api: '/api/pam-poc', // This would be the actual API endpoint
+    api: '/.netlify/functions/pam-chat', // Netlify serverless function
     onResponse: (response) => {
       // Track response metrics
       const responseTime = Date.now();
@@ -48,6 +50,7 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className }) => {
     onError: (error) => {
       Sentry.captureException(error);
       console.error('PAM POC Chat Error:', error);
+      onError?.(error);
     },
     onFinish: (message) => {
       // Update metrics when message is complete
@@ -55,6 +58,7 @@ export const PamChatPOC: React.FC<PamChatPOCProps> = ({ className }) => {
         ...prev,
         totalMessages: prev.totalMessages + 1,
       }));
+      onSuccess?.();
     },
   });
 
