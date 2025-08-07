@@ -25,7 +25,7 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Content-Security-Policy = "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; font-src 'self' https: data:; connect-src 'self' https: wss: wss://pam-backend.onrender.com wss://api.wheelsandwins.com;"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=(self), interest-cohort=()"
+    Permissions-Policy = "camera=(), microphone=(self), geolocation=(self), interest-cohort=()"
     X-DNS-Prefetch-Control = "on"
     
 # Performance headers for static assets
