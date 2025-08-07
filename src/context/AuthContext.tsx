@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { recordLogin, endSession } from '@/lib/authLogging';
 import { setUser as setSentryUser, setTag, captureMessage } from '@/lib/sentry';
-import { isStaging, isStagingBypassEnabled, mockStagingUser, mockStagingSession } from '@/config/staging';
 
 interface User {
   id: string;
@@ -40,15 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // Check for staging bypass first
-    if (isStagingBypassEnabled()) {
-      console.log('[AuthContext] Staging bypass enabled - using mock user');
-      setUser(mockStagingUser);
-      setSession(mockStagingSession as any);
-      setToken(mockStagingSession.access_token);
-      setLoading(false);
-      return;
-    }
 
     // Set up auth state listener with debouncing
     const {
