@@ -1262,8 +1262,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const requestMicrophonePermission = async (keepStream: boolean = false): Promise<MediaStream | boolean> => {
     try {
-      // Just request the microphone directly - the browser handles permission state
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request microphone with explicit constraints
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      };
+      
+      console.log('🎤 Requesting microphone with constraints:', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('✅ Microphone access granted');
       
       if (keepStream) {
