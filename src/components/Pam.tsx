@@ -2281,14 +2281,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string, shouldSpeak?: boolean, voicePriority?: 'low' | 'normal' | 'high' | 'urgent'): PamMessage => {
     // Auto-determine shouldSpeak based on user settings for PAM messages
+    // Default to true for PAM if settings aren't loaded yet (fallback)
+    const voiceEnabled = settings?.pam_preferences?.voice_enabled ?? true; // Default to enabled
     const finalShouldSpeak = shouldSpeak !== undefined 
       ? shouldSpeak 
-      : (sender === "pam" && settings?.pam_preferences?.voice_enabled);
+      : (sender === "pam" && voiceEnabled);
     
     console.log('🔊 addMessage voice decision:', {
       sender,
       explicitShouldSpeak: shouldSpeak,
-      voiceEnabled: settings?.pam_preferences?.voice_enabled,
+      voiceEnabled,
+      settingsLoaded: !!settings,
       finalShouldSpeak
     });
     
