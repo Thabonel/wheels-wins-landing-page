@@ -28,26 +28,44 @@ const WinsOverview = React.memo(() => {
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
-  // Fetch PAM savings data
+  // Fetch PAM savings data with error handling
   const { data: guaranteeStatus } = useQuery({
     queryKey: ['guarantee-status'],
     queryFn: () => pamSavingsApi.getGuaranteeStatus(),
     refetchInterval: 60000, // Refresh every minute
-    enabled: !!user
+    enabled: !!user,
+    retry: 1,
+    retryDelay: 1000,
+    staleTime: 5 * 60 * 1000,
+    onError: (err) => {
+      console.warn('Failed to fetch guarantee status in WinsOverview:', err);
+    }
   });
 
   const { data: monthlySummary } = useQuery({
     queryKey: ['monthly-savings-summary'],
     queryFn: () => pamSavingsApi.getMonthlySavingsSummary(),
     refetchInterval: 300000, // Refresh every 5 minutes
-    enabled: !!user
+    enabled: !!user,
+    retry: 1,
+    retryDelay: 1000,
+    staleTime: 10 * 60 * 1000,
+    onError: (err) => {
+      console.warn('Failed to fetch monthly summary in WinsOverview:', err);
+    }
   });
 
   const { data: recentSavings } = useQuery({
     queryKey: ['recent-savings-events'],
     queryFn: () => pamSavingsApi.getRecentSavingsEvents(10),
     refetchInterval: 300000, // Refresh every 5 minutes
-    enabled: !!user
+    enabled: !!user,
+    retry: 1,
+    retryDelay: 1000,
+    staleTime: 10 * 60 * 1000,
+    onError: (err) => {
+      console.warn('Failed to fetch recent savings in WinsOverview:', err);
+    }
   });
 
   const handlePamMessage = useCallback((msg: any) => {
