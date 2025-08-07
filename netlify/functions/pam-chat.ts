@@ -12,7 +12,7 @@ import { z } from 'zod';
 // Environment validation
 const requiredEnvVars = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || process.env['ANTHROPIC-WHEELS-KEY'],
 };
 
 // AI Model configuration
