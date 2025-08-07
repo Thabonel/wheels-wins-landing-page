@@ -6,6 +6,8 @@ import { createNariLabsProvider } from '@/services/tts/NariLabsProvider';
 import { createBrowserTTSProvider } from '@/services/tts/BrowserTTSProvider';
 import { webRTCService } from '@/services/voice/WebRTCConnectionService';
 import { vadService } from '@/services/voice/VADService';
+import { sttService } from '@/services/voice/STTService';
+import { conversationManager } from '@/services/voice/ConversationManager';
 import type { UseChat } from 'ai/react';
 
 /**
@@ -90,26 +92,44 @@ export const useVoice = (chat?: UseChat) => {
             speechThreshold: settings.vadThreshold || 0.6,
             silenceDuration: settings.endpointingSilenceDuration || 800,
             enableWakeWord: false, // Can be enabled later
-            onSpeechStart: () => {
-              console.log('🗣️ User started speaking');
-              // Handle speech start (e.g., pause TTS)
-              if (voiceStore.agentStatus === 'speaking') {
-                voiceOrchestrator.interrupt();
-              }
-            },
-            onSpeechEnd: () => {
-              console.log('🔇 User stopped speaking');
-              // Handle speech end (e.g., process user input)
-            },
-            onVolumeChange: (volume) => {
-              // Update volume visualization if needed
-            }
           });
           
           vadRef.current = vadService;
           console.log('✅ VAD service initialized');
         } catch (error) {
           console.warn('⚠️ VAD initialization failed:', error);
+        }
+        
+        // Step 4: Initialize STT service
+        try {
+          await sttService.initialize({
+            language: 'en-US',
+            enablePartialResults: true,
+            enablePunctuation: true,
+          });
+          
+          console.log('✅ STT service initialized');
+        } catch (error) {
+          console.warn('⚠️ STT initialization failed:', error);
+        }
+        
+        // Step 5: Initialize Conversation Manager
+        try {
+          await conversationManager.initialize({
+            maxTurns: 50,
+            sessionTimeout: 30 * 60 * 1000, // 30 minutes
+            enableIntentRecognition: true,
+            onStateChange: (state) => {
+              console.log('🔄 Conversation state:', state);
+            },
+            onTurnComplete: (turn) => {
+              console.log('💬 Turn complete:', turn);
+            },
+          });
+          
+          console.log('✅ Conversation Manager initialized');
+        } catch (error) {
+          console.warn('⚠️ Conversation Manager initialization failed:', error);
         }
 
         // Step 4: Mark as initialized
@@ -165,8 +185,14 @@ export const useVoice = (chat?: UseChat) => {
   const cleanup = useCallback(() => {
     console.log('🧹 Cleaning up voice system...');
     
+    // End any ongoing conversation
+    conversationManager.endConversation();
+    
     // Cancel any ongoing speech
     voiceOrchestrator.cancelSpeech();
+    
+    // Clean up STT service
+    sttService.destroy();
     
     // Clean up WebRTC connection
     if (connectionRef.current === webRTCService) {
@@ -215,23 +241,28 @@ export const useVoice = (chat?: UseChat) => {
     }
   }, [initializationStatus, voiceStore]);
 
-  // Start voice recording
+  // Start conversation/listening
   const startListening = useCallback(() => {
-    if (vadRef.current) {
-      vadRef.current.start();
-      voiceStore.setAgentStatus('listening');
-    } else {
-      console.warn('⚠️ VAD not initialized');
+    if (initializationStatus !== 'initialized') {
+      console.warn('⚠️ Voice system not initialized');
+      return;
     }
-  }, [voiceStore]);
+    
+    // Start conversation manager
+    const userContext = {
+      profile: userSettings,
+      preferences: voiceSettings,
+    };
+    
+    conversationManager.startConversation(userContext);
+    console.log('🎭 Conversation started');
+  }, [initializationStatus, userSettings, voiceSettings]);
 
-  // Stop voice recording
+  // Stop conversation/listening
   const stopListening = useCallback(() => {
-    if (vadRef.current) {
-      vadRef.current.stop();
-      voiceStore.setAgentStatus('connected');
-    }
-  }, [voiceStore]);
+    conversationManager.endConversation();
+    console.log('👋 Conversation ended');
+  }, []);
 
   // Interrupt function for barge-in
   const interrupt = useCallback(() => {
