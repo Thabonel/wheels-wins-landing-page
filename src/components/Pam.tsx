@@ -291,16 +291,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('🎯 PAM: Sending message:', message);
       if (isOpen) {
         setInputMessage(message);
-        // Auto-send the message
+        // Send the message directly
         setTimeout(() => {
-          handleSendMessage();
+          handleSendMessage(message);
         }, 100);
       } else {
         // Open PAM and send message
         setIsOpen(true);
         setInputMessage(message);
         setTimeout(() => {
-          handleSendMessage();
+          handleSendMessage(message);
         }, 200);
       }
     };
@@ -1540,14 +1540,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🎯 Extracted question:', question);
     
     if (question.length > 0) {
-      // Set the input message and send it
+      // Send the question directly without relying on state
       console.log('🚀 Sending voice question to PAM...');
-      setInputMessage(question);
+      setInputMessage(question); // Update UI to show what was said
       
-      // Use a small delay to ensure state update before sending
-      setTimeout(() => {
-        handleSendMessage();
-      }, 50);
+      // Send message directly with the question
+      handleSendMessage(question);
     } else {
       console.log('⚠️ No question extracted from transcript after wake word');
     }
@@ -1558,14 +1556,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🎙️ Processing direct speech input:', transcript);
     
     if (transcript.trim().length > 0) {
-      // Set the input message and send it
+      // Send the transcript directly without relying on state
       console.log('🚀 Processing speech input through text chat...');
-      setInputMessage(transcript);
+      setInputMessage(transcript); // Update UI to show what was said
       
-      // Use a small delay to ensure state update before sending
-      setTimeout(() => {
-        handleSendMessage();
-      }, 50);
+      // Send message directly with the transcript
+      handleSendMessage(transcript);
     }
   };
 
@@ -2331,13 +2327,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     return newMessage;
   };
 
-  const handleSendMessage = async () => {
-    if (!inputMessage?.trim()) {
+  const handleSendMessage = async (messageOverride?: string) => {
+    const messageToSend = messageOverride || inputMessage;
+    
+    if (!messageToSend?.trim()) {
       console.warn('⚠️ PAM DEBUG: Attempted to send empty message');
       return;
     }
     
-    const message = inputMessage.trim();
+    const message = messageToSend.trim();
     const sendStartTime = Date.now();
     
     // Track baseline metrics
@@ -2345,6 +2343,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     addMessage(message, "user");
     // Note: PAM backend automatically saves all conversation history
+    
+    // Clear input regardless of source
     setInputMessage("");
 
     // Check if user is asking for location-based services and we don't have location
