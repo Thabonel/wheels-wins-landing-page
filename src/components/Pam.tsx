@@ -1275,17 +1275,32 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         return true;
       }
     } catch (error: any) {
-      console.warn('⚠️ Microphone access failed:', error);
+      console.error('⚠️ Microphone access failed:', {
+        name: error.name,
+        message: error.message,
+        constraint: error.constraint,
+        toString: error.toString()
+      });
       
       // Provide specific error messages based on the error type
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        addMessage("🚫 Microphone access was denied. Please allow microphone access and try again.", "pam");
+        // More specific guidance for permission issues
+        const isHttps = window.location.protocol === 'https:';
+        if (!isHttps) {
+          addMessage("🚫 Microphone access requires HTTPS. This site is not using HTTPS.", "pam");
+        } else {
+          addMessage("🚫 Microphone access was blocked. Please: 1) Click the lock icon in your address bar, 2) Set Microphone to 'Allow', 3) Refresh the page.", "pam");
+        }
       } else if (error.name === 'NotFoundError') {
         addMessage("🚫 No microphone found. Please connect a microphone and try again.", "pam");
       } else if (error.name === 'NotReadableError') {
         addMessage("🚫 Microphone is in use by another application. Please close other apps using the microphone.", "pam");
+      } else if (error.name === 'AbortError') {
+        addMessage("🚫 Microphone access was aborted. Please try again.", "pam");
+      } else if (error.name === 'OverconstrainedError') {
+        addMessage("🚫 Microphone constraints cannot be satisfied. Please try a different microphone.", "pam");
       } else {
-        addMessage("🚫 Could not access microphone. Please check your browser settings.", "pam");
+        addMessage(`🚫 Microphone error: ${error.name || 'Unknown'}. Please check your browser settings.`, "pam");
       }
       return false;
     }
