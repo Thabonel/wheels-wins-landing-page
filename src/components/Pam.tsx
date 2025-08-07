@@ -1499,7 +1499,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       setIsWakeWordListening(true);
       localStorage.setItem('pam_wake_word_enabled', 'true');
       console.log('👂 Wake word detection started - say "Hi PAM" to activate');
-      addMessage("👂 Wake word detection enabled. Say 'Hi PAM' to activate voice chat.", "pam");
+      addMessage("👂 Wake word detection enabled. Say 'Hi PAM' to activate voice chat.", "pam", undefined, false);
     } catch (error) {
       console.warn('⚠️ Could not start wake word detection:', error);
       addMessage("❌ Could not start wake word detection. Please try again.", "pam");
@@ -1637,7 +1637,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Stop wake word listening when continuous mode is turned off
     stopWakeWordListening();
     
-    addMessage("🔇 Continuous voice mode deactivated. Microphone access has been released.", "pam");
+    addMessage("🔇 Continuous voice mode deactivated. Microphone access has been released.", "pam", undefined, false);
   };
 
   // Removed duplicate handleTextMessage function - now using handleSendMessage for all message sending
