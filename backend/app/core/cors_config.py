@@ -41,6 +41,7 @@ class CORSConfig:
             "https://wheelz-wins.com",
             "https://www.wheelz-wins.com",
             "https://wheels-wins-landing-page.netlify.app",
+            "https://wheels-wins-staging.netlify.app",  # Staging frontend
             "https://65a8f6b6c9f5d2092be8bfc2--wheels-wins-landing-page.netlify.app",
         ])
         
