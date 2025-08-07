@@ -1509,12 +1509,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🎯 Extracted question:', question);
     
     if (question.length > 0) {
-      // Add user message immediately (show what they actually asked)
-      addMessage(question, "user");
-      
-      // Send the message through WebSocket
+      // Set the input message and send it
       console.log('🚀 Sending voice question to PAM...');
-      sendMessage(question);
+      setInputMessage(question);
+      
+      // Use a small delay to ensure state update before sending
+      setTimeout(() => {
+        handleSendMessage();
+      }, 50);
     } else {
       console.log('⚠️ No question extracted from transcript after wake word');
     }
@@ -1525,12 +1527,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🎙️ Processing direct speech input:', transcript);
     
     if (transcript.trim().length > 0) {
-      // Add user message
-      addMessage(transcript, "user");
-      
-      // Process through text chat
+      // Set the input message and send it
       console.log('🚀 Processing speech input through text chat...');
-      await handleTextMessage(transcript);
+      setInputMessage(transcript);
+      
+      // Use a small delay to ensure state update before sending
+      setTimeout(() => {
+        handleSendMessage();
+      }, 50);
     }
   };
 
@@ -1628,63 +1632,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     addMessage("🔇 Continuous voice mode deactivated. Microphone access has been released.", "pam");
   };
 
-  const handleTextMessage = async (message: string) => {
-    console.log('📝 Processing text message from continuous voice:', message);
-    
-    // Process text message through PAM (used for continuous voice conversations)
-    const messageData = {
-      type: "chat",
-      message: message,  // Backend expects 'message' not 'content'
-      context: {
-        user_id: user?.id,
-        userLocation: userContext?.current_location,
-        vehicleInfo: userContext?.vehicle_info,
-        travelStyle: userContext?.travel_style,
-        conversation_history: messages.slice(-5).map(msg => ({
-          role: msg.sender === "user" ? "user" : "assistant",
-          content: msg.content
-        })),
-        timestamp: new Date().toISOString(),
-        session_id: sessionId,
-        input_type: "voice_continuous"
-      }
-    };
-
-    console.log('🔌 WebSocket state:', wsRef.current?.readyState);
-    console.log('🌐 Connection status:', connectionStatus);
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      console.log('📤 Sending message via WebSocket:', messageData);
-      wsRef.current.send(JSON.stringify(messageData));
-    } else {
-      console.log('📤 WebSocket not available, using REST API fallback');
-      // Fallback to REST API
-      try {
-        const response = await authenticatedFetch('/api/v1/pam/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(messageData)
-        });
-        
-        console.log('📥 REST API response status:', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ REST API response data:', data);
-          addMessage(data.response, "pam", message);
-        } else {
-          const errorText = await response.text();
-          console.error('❌ REST API error:', response.status, errorText);
-          addMessage("Sorry, I had trouble processing that message.", "pam");
-        }
-      } catch (error) {
-        console.error('❌ Failed to send message via REST:', error);
-        addMessage("Sorry, I had trouble processing that message.", "pam");
-      }
-    }
-  };
+  // Removed duplicate handleTextMessage function - now using handleSendMessage for all message sending
 
   const handleVoiceToggle = async () => {
     try {
