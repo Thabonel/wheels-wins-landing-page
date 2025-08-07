@@ -75,13 +75,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [isShowingAudioLevel, setIsShowingAudioLevel] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   
-  // Voice settings
-  const [voiceSettings, setVoiceSettings] = useState({
+  // Voice settings - simplified to default values
+  const voiceSettings = {
     voice: 'en-US-AriaNeural',
     rate: 1.0,
     pitch: 1.0,
     volume: 1.0
-  });
+  };
   
   // VAD and conversation management
   const [isVADActive, setIsVADActive] = useState(false);
@@ -1260,15 +1260,57 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   // Don't auto-initialize wake word detection - only when user explicitly enables it
   // Removed auto-initialization to prevent unwanted microphone access
 
-  const requestMicrophonePermission = async () => {
+  const requestMicrophonePermission = async (keepStream: boolean = false): Promise<MediaStream | boolean> => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Immediately stop the stream - we just wanted permission
-      stream.getTracks().forEach(track => track.stop());
-      console.log('✅ Microphone permission granted');
-      return true;
-    } catch (error) {
-      console.warn('⚠️ Microphone permission denied:', error);
+      // Request microphone with explicit constraints
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      };
+      
+      console.log('🎤 Requesting microphone with constraints:', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('✅ Microphone access granted');
+      
+      if (keepStream) {
+        // Return the stream for use
+        return stream;
+      } else {
+        // Just checking permission - stop the stream
+        stream.getTracks().forEach(track => track.stop());
+        return true;
+      }
+    } catch (error: any) {
+      console.error('⚠️ Microphone access failed:', {
+        name: error.name,
+        message: error.message,
+        constraint: error.constraint,
+        toString: error.toString()
+      });
+      
+      // Provide specific error messages based on the error type
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        // More specific guidance for permission issues
+        const isHttps = window.location.protocol === 'https:';
+        if (!isHttps) {
+          addMessage("🚫 Microphone access requires HTTPS. This site is not using HTTPS.", "pam");
+        } else {
+          addMessage("🚫 Microphone access was blocked. Please: 1) Click the lock icon in your address bar, 2) Set Microphone to 'Allow', 3) Refresh the page.", "pam");
+        }
+      } else if (error.name === 'NotFoundError') {
+        addMessage("🚫 No microphone found. Please connect a microphone and try again.", "pam");
+      } else if (error.name === 'NotReadableError') {
+        addMessage("🚫 Microphone is in use by another application. Please close other apps using the microphone.", "pam");
+      } else if (error.name === 'AbortError') {
+        addMessage("🚫 Microphone access was aborted. Please try again.", "pam");
+      } else if (error.name === 'OverconstrainedError') {
+        addMessage("🚫 Microphone constraints cannot be satisfied. Please try a different microphone.", "pam");
+      } else {
+        addMessage(`🚫 Microphone error: ${error.name || 'Unknown'}. Please check your browser settings.`, "pam");
+      }
       return false;
     }
   };
@@ -1310,12 +1352,24 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         if (latest.isFinal) {
           console.log('🎙️ Final speech result:', transcript);
           
-          // Check for "Hi PAM" or variations (activation) - including "bam" misrecognition
+          // Check for wake word patterns and process the entire message
           if (transcript.includes('hi pam') || transcript.includes('hey pam') || 
               transcript.includes('hello pam') || transcript.includes('hi palm') ||
               transcript.includes('hi bam') || transcript.includes('hey bam')) {
             console.log('✅ Wake word detected - activating PAM!');
             handleWakeWordDetected();
+            
+            // If there's more after the wake word, process it as a question
+            const wakeWordPattern = /(hi|hey|hello)\s+(pam|palm|bam)\s+/i;
+            const questionAfterWakeWord = transcript.replace(wakeWordPattern, '').trim();
+            
+            if (questionAfterWakeWord.length > 0 && currentIsContinuousMode) {
+              console.log('🎯 Processing question after wake word:', questionAfterWakeWord);
+              // Small delay to ensure PAM is open first
+              setTimeout(() => {
+                handleContinuousConversation(questionAfterWakeWord);
+              }, 100);
+            }
           }
           // Check for "PAM" followed by question (continuous conversation) - including "bam"
           else if (currentIsContinuousMode && (
@@ -1398,7 +1452,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     const hasPermission = await requestMicrophonePermission();
     if (!hasPermission) {
       console.warn('⚠️ Cannot start wake word detection without microphone permission');
-      addMessage("🚫 Microphone permission needed for wake word detection. Please allow microphone access.", "pam");
+      // Error message already shown by requestMicrophonePermission
       return;
     }
 
@@ -1445,18 +1499,24 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const handleContinuousConversation = async (transcript: string) => {
     console.log('🎙️ Processing continuous conversation transcript:', transcript);
     
-    // Extract the actual question after "PAM/BAM" and clean it up
-    const question = transcript.replace(/^.*?(pam|palm|bam)\s+/i, '').trim();
+    // If the transcript is already cleaned (passed from wake word detection), use it as-is
+    // Otherwise, extract the actual question after "PAM/BAM" and clean it up
+    let question = transcript;
+    if (transcript.match(/\b(pam|palm|bam)\b/i)) {
+      question = transcript.replace(/^.*?\b(pam|palm|bam)\s+/i, '').trim();
+    }
     
     console.log('🎯 Extracted question:', question);
     
     if (question.length > 0) {
-      // Add user message immediately (show what they actually asked)
-      addMessage(question, "user");
+      // Set the input message and send it
+      console.log('🚀 Sending voice question to PAM...');
+      setInputMessage(question);
       
-      // Process through text chat (faster than voice processing)
-      console.log('🚀 Processing question through text chat...');
-      await handleTextMessage(question);
+      // Use a small delay to ensure state update before sending
+      setTimeout(() => {
+        handleSendMessage();
+      }, 50);
     } else {
       console.log('⚠️ No question extracted from transcript after wake word');
     }
@@ -1467,53 +1527,38 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🎙️ Processing direct speech input:', transcript);
     
     if (transcript.trim().length > 0) {
-      // Add user message
-      addMessage(transcript, "user");
-      
-      // Process through text chat
+      // Set the input message and send it
       console.log('🚀 Processing speech input through text chat...');
-      await handleTextMessage(transcript);
+      setInputMessage(transcript);
+      
+      // Use a small delay to ensure state update before sending
+      setTimeout(() => {
+        handleSendMessage();
+      }, 50);
     }
   };
 
-  // Voice settings handlers
-  const handleVoiceChange = (newVoice: string) => {
-    setVoiceSettings(prev => ({ ...prev, voice: newVoice }));
-    console.log('🎙️ Voice changed to:', newVoice);
-  };
-
-  const handleRateChange = (newRate: number) => {
-    setVoiceSettings(prev => ({ ...prev, rate: newRate }));
-    console.log('⚡ Speech rate changed to:', newRate);
-  };
-
-  const handlePitchChange = (newPitch: number) => {
-    setVoiceSettings(prev => ({ ...prev, pitch: newPitch }));
-    console.log('🎵 Speech pitch changed to:', newPitch);
-  };
-
-  const handleVolumeChange = (newVolume: number) => {
-    setVoiceSettings(prev => ({ ...prev, volume: newVolume }));
-    console.log('🔊 Volume changed to:', newVolume);
-  };
+  // Voice settings handlers removed - using default settings
 
   const startContinuousVoiceMode = async () => {
     console.log('🔄 Starting continuous voice mode');
     
-    // Request microphone permission first
-    const hasPermission = await requestMicrophonePermission();
-    if (!hasPermission) {
+    // Request microphone permission and get the stream
+    const permissionResult = await requestMicrophonePermission(true);
+    if (!permissionResult || typeof permissionResult === 'boolean') {
       console.warn('⚠️ Cannot start continuous mode without microphone permission');
-      addMessage("🚫 Microphone permission needed for continuous voice mode. Please allow microphone access.", "pam");
+      // Error message already shown by requestMicrophonePermission
       return;
     }
 
+    // permissionResult is now the MediaStream
+    const stream = permissionResult as MediaStream;
+    
     setIsContinuousMode(true);
     setVoiceStatus("listening");
     
     // Setup audio level monitoring for continuous mode
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       await setupAudioLevelMonitoring(stream);
       
       // Try to initialize VAD with the same stream (optional - continuous mode works without it)
@@ -1568,63 +1613,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     addMessage("🔇 Continuous voice mode deactivated. Microphone access has been released.", "pam");
   };
 
-  const handleTextMessage = async (message: string) => {
-    console.log('📝 Processing text message from continuous voice:', message);
-    
-    // Process text message through PAM (used for continuous voice conversations)
-    const messageData = {
-      type: "chat",
-      message: message,  // Backend expects 'message' not 'content'
-      context: {
-        user_id: user?.id,
-        userLocation: userContext?.current_location,
-        vehicleInfo: userContext?.vehicle_info,
-        travelStyle: userContext?.travel_style,
-        conversation_history: messages.slice(-5).map(msg => ({
-          role: msg.sender === "user" ? "user" : "assistant",
-          content: msg.content
-        })),
-        timestamp: new Date().toISOString(),
-        session_id: sessionId,
-        input_type: "voice_continuous"
-      }
-    };
-
-    console.log('🔌 WebSocket state:', wsRef.current?.readyState);
-    console.log('🌐 Connection status:', connectionStatus);
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      console.log('📤 Sending message via WebSocket:', messageData);
-      wsRef.current.send(JSON.stringify(messageData));
-    } else {
-      console.log('📤 WebSocket not available, using REST API fallback');
-      // Fallback to REST API
-      try {
-        const response = await authenticatedFetch('/api/v1/pam/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(messageData)
-        });
-        
-        console.log('📥 REST API response status:', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ REST API response data:', data);
-          addMessage(data.response, "pam", message);
-        } else {
-          const errorText = await response.text();
-          console.error('❌ REST API error:', response.status, errorText);
-          addMessage("Sorry, I had trouble processing that message.", "pam");
-        }
-      } catch (error) {
-        console.error('❌ Failed to send message via REST:', error);
-        addMessage("Sorry, I had trouble processing that message.", "pam");
-      }
-    }
-  };
+  // Removed duplicate handleTextMessage function - now using handleSendMessage for all message sending
 
   const handleVoiceToggle = async () => {
     try {
@@ -1795,7 +1784,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (transcription && transcription.trim()) {
             addMessage(transcription, "user");
           }
-          addMessage(`${responseText} 🔊`, "pam");
+          // Don't trigger TTS since we already have audio
+          addMessage(`${responseText} 🔊`, "pam", undefined, false);
           
           // CONTROLLED AUDIO PLAYBACK: Only play if user has voice enabled and expects it
           // Check if this is a continuous conversation mode response that should auto-play
@@ -1851,22 +1841,22 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (data.response) {
             // Successful voice processing but no audio
             if (data.voice_ready === false && data.guidance) {
-              addMessage(data.response, "pam");
-              addMessage(`💡 ${data.guidance}`, "pam");
+              addMessage(data.response, "pam", undefined, false);
+              addMessage(`💡 ${data.guidance}`, "pam", undefined, false);
             } else {
-              addMessage(data.response, "pam");
+              addMessage(data.response, "pam", undefined, false);
             }
           } else if (data.error) {
             // Voice processing error
             if (data.guidance) {
-              addMessage(`${data.response || "I had trouble processing your voice message."}`, "pam");
-              addMessage(`💡 ${data.guidance}`, "pam");
+              addMessage(`${data.response || "I had trouble processing your voice message."}`, "pam", undefined, false);
+              addMessage(`💡 ${data.guidance}`, "pam", undefined, false);
             } else {
-              addMessage(`❌ ${data.error}`, "pam");
+              addMessage(`❌ ${data.error}`, "pam", undefined, false);
             }
           } else {
             // Fallback message
-            addMessage("I processed your voice message but couldn't generate an audio response. You can continue typing your messages!", "pam");
+            addMessage("I processed your voice message but couldn't generate an audio response. You can continue typing your messages!", "pam", undefined, false);
           }
           
           // Log technical details for debugging
@@ -2615,22 +2605,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                       <span>thinking...</span>
                     </div>
                   )}
-                  {/* Voice control button for PAM messages */}
-                  {msg.sender === "pam" && !msg.isStreaming && (
-                    <div className="flex items-center mt-1">
-                      <button
-                        onClick={() => {
-                          console.log('🔊 User clicked voice button for message:', msg.content.substring(0, 50));
-                          speakMessage(msg.content, 'normal', true);
-                        }}
-                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                        title="Click to hear this message"
-                      >
-                        <Volume2 className="w-3 h-3" />
-                        <span>Play</span>
-                      </button>
-                    </div>
-                  )}
                   <p className="text-xs opacity-70 mt-1">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </p>
@@ -2642,85 +2616,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         </div>
         <div className="p-3 border-t">
           <AudioLevelMeter />
-          
-          {/* Voice Settings Panel */}
-          <details className="mb-2">
-            <summary className="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-800 mb-2">
-              Voice Settings
-            </summary>
-            <div className="p-2 bg-gray-50 rounded-lg space-y-2">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Voice</label>
-                <select
-                  value={voiceSettings.voice}
-                  onChange={(e) => handleVoiceChange(e.target.value)}
-                  className="w-full text-xs p-1 border border-gray-300 rounded"
-                >
-                  <option value="en-US-AriaNeural">Aria (US Female)</option>
-                  <option value="en-US-JennyNeural">Jenny (US Female)</option>
-                  <option value="en-US-GuyNeural">Guy (US Male)</option>
-                  <option value="en-US-DavisNeural">Davis (US Male)</option>
-                  <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
-                  <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Speed: {voiceSettings.rate.toFixed(1)}x
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="2.0"
-                  step="0.1"
-                  value={voiceSettings.rate}
-                  onChange={(e) => handleRateChange(parseFloat(e.target.value))}
-                  className="w-full h-1"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Volume: {Math.round(voiceSettings.volume * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={voiceSettings.volume}
-                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="w-full h-1"
-                />
-              </div>
-              <div className="pt-2 border-t border-gray-200">
-                <label className="flex items-center justify-between text-xs text-gray-600">
-                  <span>Auto-speak in Continuous Mode</span>
-                  <input
-                    type="checkbox"
-                    checked={settings?.pam_preferences?.voice_enabled ?? false}
-                    onChange={(e) => {
-                      console.log('🔊 Voice auto-play toggled:', e.target.checked);
-                      updateSettings({
-                        pam_preferences: {
-                          ...settings?.pam_preferences,
-                          voice_enabled: e.target.checked
-                        }
-                      });
-                    }}
-                    className="ml-2"
-                  />
-                </label>
-                <div className="text-xs text-gray-500 mt-1">
-                  {isContinuousMode 
-                    ? (settings?.pam_preferences?.voice_enabled 
-                        ? "✅ PAM will speak responses automatically" 
-                        : "🔇 PAM responses will be silent (click speaker icons to hear)")
-                    : "Only applies when Continuous Mode is active"
-                  }
-                </div>
-              </div>
-            </div>
-          </details>
           
           <div className="flex items-center space-x-2">
             <input
@@ -2739,49 +2634,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
               }`}
               disabled={connectionStatus !== "Connected"}
-              title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Continuous Voice Chat"}
+              title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
             >
               <div className="flex flex-col items-center gap-0.5">
                 <Mic className="w-4 h-4" />
-                <span className="text-xs font-medium">Continuous</span>
+                <span className="text-xs font-medium">Live</span>
               </div>
               {isContinuousMode && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
-                     title="Continuous mode active" />
-              )}
-            </button>
-            <button
-              onClick={handleVoiceToggle}
-              className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                voiceStatus === "listening" ? "bg-green-600 text-white" : 
-                voiceStatus === "processing" ? "bg-yellow-500 text-white" :
-                voiceStatus === "error" ? "bg-red-600 text-white" :
-                "bg-green-50 text-green-600 border border-green-200 hover:bg-green-100"
-              }`}
-              disabled={connectionStatus !== "Connected" || isProcessingVoice}
-              title={
-                voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
-                voiceStatus === "processing" ? "⏳ Processing voice..." :
-                voiceStatus === "error" ? "❌ Voice error" :
-                isSpeaking ? "🔊 PAM is speaking" :
-                "🎤 Record Voice Message"
-              }
-            >
-              <div className="flex flex-col items-center gap-0.5">
-                <Mic className="w-4 h-4" />
-                <span className="text-xs font-medium">Record</span>
-              </div>
-              {voiceStatus === "listening" && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-300 rounded-full animate-pulse" 
-                     title="Recording active" />
-              )}
-              {isWakeWordListening && voiceStatus === "idle" && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
-                     title="Wake word 'Hi PAM' active" />
-              )}
-              {isSpeaking && (
-                <div className="absolute -top-1 -left-1 w-3 h-3 bg-purple-500 rounded-full animate-pulse" 
-                     title="PAM is speaking" />
+                     title="Live mode active - Say 'Hey PAM'" />
               )}
             </button>
             {isSpeaking && (
@@ -2982,22 +2843,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                         <span>thinking...</span>
                       </div>
                     )}
-                    {/* Voice control button for PAM messages */}
-                    {msg.sender === "pam" && !msg.isStreaming && (
-                      <div className="flex items-center mt-1">
-                        <button
-                          onClick={() => {
-                            console.log('🔊 User clicked voice button for message:', msg.content.substring(0, 50));
-                            speakMessage(msg.content, 'normal', true);
-                          }}
-                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                          title="Click to hear this message"
-                        >
-                          <Volume2 className="w-3 h-3" />
-                          <span>Play</span>
-                        </button>
-                      </div>
-                    )}
                     <p className="text-xs opacity-70 mt-1">
                       {new Date(msg.timestamp).toLocaleTimeString()}
                     </p>
@@ -3011,84 +2856,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           <div className="p-4 border-t">
             <AudioLevelMeter />
             
-            {/* Voice Settings Panel */}
-            <details className="mb-2">
-              <summary className="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-800 mb-2">
-                Voice Settings
-              </summary>
-              <div className="p-2 bg-gray-50 rounded-lg space-y-2">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">Voice</label>
-                  <select
-                    value={voiceSettings.voice}
-                    onChange={(e) => handleVoiceChange(e.target.value)}
-                    className="w-full text-xs p-1 border border-gray-300 rounded"
-                  >
-                    <option value="en-US-AriaNeural">Aria (US Female)</option>
-                    <option value="en-US-JennyNeural">Jenny (US Female)</option>
-                    <option value="en-US-GuyNeural">Guy (US Male)</option>
-                    <option value="en-US-DavisNeural">Davis (US Male)</option>
-                    <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
-                    <option value="en-AU-NatashaNeural">Natasha (AU Female)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">
-                    Speed: {voiceSettings.rate.toFixed(1)}x
-                  </label>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2.0"
-                    step="0.1"
-                    value={voiceSettings.rate}
-                    onChange={(e) => handleRateChange(parseFloat(e.target.value))}
-                    className="w-full h-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">
-                    Volume: {Math.round(voiceSettings.volume * 100)}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={voiceSettings.volume}
-                    onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                    className="w-full h-1"
-                  />
-                </div>
-                <div className="pt-2 border-t border-gray-200">
-                  <label className="flex items-center justify-between text-xs text-gray-600">
-                    <span>Auto-speak in Continuous Mode</span>
-                    <input
-                      type="checkbox"
-                      checked={settings?.pam_preferences?.voice_enabled ?? false}
-                      onChange={(e) => {
-                        console.log('🔊 Voice auto-play toggled:', e.target.checked);
-                        updateSettings({
-                          pam_preferences: {
-                            ...settings?.pam_preferences,
-                            voice_enabled: e.target.checked
-                          }
-                        });
-                      }}
-                      className="ml-2"
-                    />
-                  </label>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {isContinuousMode 
-                      ? (settings?.pam_preferences?.voice_enabled 
-                          ? "✅ PAM will speak responses automatically" 
-                          : "🔇 PAM responses will be silent (click speaker icons to hear)")
-                      : "Only applies when Continuous Mode is active"
-                    }
-                  </div>
-                </div>
-              </div>
-            </details>
             
             <div className="flex items-center space-x-2">
               <input
@@ -3107,49 +2874,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
                 }`}
                 disabled={connectionStatus !== "Connected"}
-                title={isContinuousMode ? "🔄 Stop continuous voice chat" : "🎙️ Continuous Voice Chat"}
+                title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
               >
                 <div className="flex flex-col items-center gap-0.5">
                   <Mic className="w-4 h-4" />
-                  <span className="text-xs font-medium">Continuous</span>
+                  <span className="text-xs font-medium">Live</span>
                 </div>
                 {isContinuousMode && (
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
-                       title="Continuous mode active" />
-                )}
-              </button>
-              <button
-                onClick={handleVoiceToggle}
-                className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                  voiceStatus === "listening" ? "bg-green-600 text-white" : 
-                  voiceStatus === "processing" ? "bg-yellow-500 text-white" :
-                  voiceStatus === "error" ? "bg-red-600 text-white" :
-                  "bg-green-50 text-green-600 border border-green-200 hover:bg-green-100"
-                }`}
-                disabled={connectionStatus !== "Connected" || isProcessingVoice}
-                title={
-                  voiceStatus === "listening" ? "🟢 Recording... Click to stop" :
-                  voiceStatus === "processing" ? "⏳ Processing voice..." :
-                  voiceStatus === "error" ? "❌ Voice error" :
-                  isSpeaking ? "🔊 PAM is speaking" :
-                  "🎤 Record Voice Message"
-                }
-              >
-                <div className="flex flex-col items-center gap-0.5">
-                  <Mic className="w-4 h-4" />
-                  <span className="text-xs font-medium">Record</span>
-                </div>
-                {voiceStatus === "listening" && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-300 rounded-full animate-pulse" 
-                       title="Recording active" />
-                )}
-                {isWakeWordListening && voiceStatus === "idle" && (
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
-                       title="Wake word 'Hi PAM' active" />
-                )}
-                {isSpeaking && (
-                  <div className="absolute -top-1 -left-1 w-3 h-3 bg-purple-500 rounded-full animate-pulse" 
-                       title="PAM is speaking" />
+                       title="Live mode active - Say 'Hey PAM'" />
                 )}
               </button>
               {isSpeaking && (

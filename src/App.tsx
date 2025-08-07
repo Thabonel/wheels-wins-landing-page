@@ -40,7 +40,6 @@ import { RouteMonitor } from './components/common/RouteMonitor';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
-const StagingBypass = lazy(() => import('./components/StagingBypass'));
 
 
 const queryClient = new QueryClient();
@@ -89,7 +88,6 @@ function App() {
                                   } />
                                   <Route path="/profile" element={<Profile />} />
                                   <Route path="/login" element={<Login />} />
-                                  <Route path="/staging-bypass" element={<StagingBypass />} />
                                   <Route path="/signup" element={<Signup />} />
                                   <Route path="/onboarding" element={<Onboarding />} />
                                   <Route path="/payment-success" element={<PaymentSuccess />} />
