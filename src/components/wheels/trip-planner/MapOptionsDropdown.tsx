@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import {
   ChevronDown,
@@ -58,6 +58,8 @@ export default function MapOptionsDropdown({
   const [userCountry, setUserCountry] = useState('AU');
   const [showWheelersLayer, setShowWheelersLayer] = useState(false);
   const [showFriendsLayer, setShowFriendsLayer] = useState(false);
+  const [menuSide, setMenuSide] = useState<'bottom' | 'top'>('bottom');
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [overlays, setOverlays] = useState({
     traffic: false,
     phoneCoverage: false,
@@ -81,6 +83,35 @@ export default function MapOptionsDropdown({
       setPoiState(poiFilters);
     }
   }, [poiFilters]);
+
+  // Detect button position for smart menu positioning
+  useEffect(() => {
+    const updateMenuPosition = () => {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        // If button is in top 30% of viewport, open menu below
+        // If button is in bottom 30%, open above
+        // Otherwise use default
+        if (rect.top < viewportHeight * 0.3) {
+          setMenuSide('bottom');
+        } else if (rect.bottom > viewportHeight * 0.7) {
+          setMenuSide('top');
+        } else {
+          setMenuSide('bottom');
+        }
+      }
+    };
+    
+    updateMenuPosition();
+    window.addEventListener('scroll', updateMenuPosition);
+    window.addEventListener('resize', updateMenuPosition);
+    
+    return () => {
+      window.removeEventListener('scroll', updateMenuPosition);
+      window.removeEventListener('resize', updateMenuPosition);
+    };
+  }, []);
 
   // Detect user's country based on map center
   useEffect(() => {
@@ -605,6 +636,7 @@ export default function MapOptionsDropdown({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button 
+            ref={buttonRef}
             variant="outline" 
             className={isMapControl 
               ? "mapboxgl-ctrl-icon map-options-button w-[30px] h-[30px] bg-white border-none shadow-none rounded-[2px] p-0 m-0 hover:bg-[rgba(0,0,0,0.05)]" 
@@ -621,10 +653,13 @@ export default function MapOptionsDropdown({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
-          className="w-64 max-h-[70vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[999999]" 
+          className="w-64 max-h-[70vh] overflow-y-auto bg-white/95 backdrop-blur-sm border shadow-xl z-[999999] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent" 
           align="start"
-          side="bottom"
+          side={menuSide}
           sideOffset={8}
+          collisionPadding={20}
+          avoidCollisions={true}
+          sticky="always"
         >
           {/* Base Map Section */}
           <DropdownMenuLabel className="text-sm font-semibold text-gray-700">
