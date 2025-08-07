@@ -27,7 +27,8 @@ import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { flags, getUserVariant } from "@/config/featureFlags";
-import { PamWithFallback } from "@/experiments/ai-sdk-poc/components/PamWithFallback";
+// Temporarily disabled - AI SDK not configured
+// import { PamWithFallback } from "@/experiments/ai-sdk-poc/components/PamWithFallback";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -55,14 +56,14 @@ interface PamProps {
 const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const { user, session } = useAuth();
   
-  // AI SDK Integration - Check if user should see the new version
-  if (user?.id && flags.useAiSdkPam) {
-    const variant = getUserVariant(user.id);
-    if (variant === 'ai-sdk') {
-      // Use the new AI SDK version
-      return <PamWithFallback className={mode === "floating" ? "fixed bottom-4 right-4" : ""} />;
-    }
-  }
+  // AI SDK Integration - Temporarily disabled until AI SDK is configured
+  // if (user?.id && flags.useAiSdkPam) {
+  //   const variant = getUserVariant(user.id);
+  //   if (variant === 'ai-sdk') {
+  //     // Use the new AI SDK version
+  //     return <PamWithFallback className={mode === "floating" ? "fixed bottom-4 right-4" : ""} />;
+  //   }
+  // }
   const { settings, updateSettings } = useUserSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
