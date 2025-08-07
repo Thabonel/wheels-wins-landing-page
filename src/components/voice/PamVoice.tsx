@@ -252,9 +252,6 @@ export const PamVoice: React.FC<PamVoiceProps> = ({
             🧳
           </div>
         </button>
-        
-        {/* Hidden AudioPlayer - always present for voice management */}
-        <AudioPlayer />
       </>
     );
   }
