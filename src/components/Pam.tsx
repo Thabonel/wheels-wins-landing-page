@@ -1260,7 +1260,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   // Don't auto-initialize wake word detection - only when user explicitly enables it
   // Removed auto-initialization to prevent unwanted microphone access
 
-  const requestMicrophonePermission = async () => {
+  const requestMicrophonePermission = async (keepStream: boolean = false) => {
     try {
       // First check if we already have permission
       if (navigator.permissions && navigator.permissions.query) {
@@ -1270,6 +1270,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           
           if (permissionStatus.state === 'granted') {
             console.log('✅ Microphone permission already granted');
+            // If permission is already granted and we need a stream, get it
+            if (keepStream) {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              return stream;
+            }
             return true;
           } else if (permissionStatus.state === 'denied') {
             console.warn('⚠️ Microphone permission was previously denied');
@@ -1283,10 +1288,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       // Request permission if not already granted
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Immediately stop the stream - we just wanted permission
-      stream.getTracks().forEach(track => track.stop());
-      console.log('✅ Microphone permission granted');
-      return true;
+      
+      if (keepStream) {
+        // Return the stream for use
+        console.log('✅ Microphone permission granted, returning stream');
+        return stream;
+      } else {
+        // Just checking permission - stop the stream
+        stream.getTracks().forEach(track => track.stop());
+        console.log('✅ Microphone permission granted');
+        return true;
+      }
     } catch (error: any) {
       console.warn('⚠️ Microphone permission denied:', error);
       
@@ -1529,20 +1541,22 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const startContinuousVoiceMode = async () => {
     console.log('🔄 Starting continuous voice mode');
     
-    // Request microphone permission first
-    const hasPermission = await requestMicrophonePermission();
-    if (!hasPermission) {
+    // Request microphone permission and get the stream
+    const permissionResult = await requestMicrophonePermission(true);
+    if (!permissionResult || typeof permissionResult === 'boolean') {
       console.warn('⚠️ Cannot start continuous mode without microphone permission');
       // Error message already shown by requestMicrophonePermission
       return;
     }
 
+    // permissionResult is now the MediaStream
+    const stream = permissionResult as MediaStream;
+    
     setIsContinuousMode(true);
     setVoiceStatus("listening");
     
     // Setup audio level monitoring for continuous mode
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       await setupAudioLevelMonitoring(stream);
       
       // Try to initialize VAD with the same stream (optional - continuous mode works without it)
