@@ -1316,3 +1316,249 @@ async def generate_pam_voice(
     except Exception as e:
         logger.error(f"❌ Voice generation critical error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Voice generation system error: {str(e)}")
+
+
+# =====================================================
+# PAM SAVINGS GUARANTEE ENDPOINTS
+# =====================================================
+
+from decimal import Decimal
+from app.services.savings_calculator import (
+    PAMSavingsCalculator, 
+    SavingsEvent, 
+    SavingsType, 
+    VerificationMethod,
+    GuaranteeStatus
+)
+
+# Initialize savings calculator
+savings_calculator = PAMSavingsCalculator()
+
+
+class RecordSavingsRequest(BaseModel):
+    """Request model for recording a savings event"""
+    savings_type: str
+    predicted_savings: float
+    actual_savings: float
+    baseline_cost: float
+    optimized_cost: float
+    description: str
+    verification_method: str
+    confidence_score: Optional[float] = 0.8
+    location: Optional[List[float]] = None
+    category: Optional[str] = "other"
+    recommendation_id: Optional[str] = None
+
+
+class CreateRecommendationRequest(BaseModel):
+    """Request model for creating a recommendation with savings prediction"""
+    title: str
+    description: str
+    category: str
+    predicted_savings: float
+    confidence: Optional[float] = 0.7
+
+
+class DetectSavingsRequest(BaseModel):
+    """Request model for automatic savings detection"""
+    expense_amount: float
+    category: str
+    location: Optional[List[float]] = None
+    description: Optional[str] = ""
+
+
+@router.post("/savings/record", response_model=SuccessResponse)
+async def record_savings_event(
+    request: RecordSavingsRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Record a PAM savings event when the AI helps a user save money
+    """
+    try:
+        # Create savings event
+        savings_event = SavingsEvent(
+            user_id=str(current_user.id),
+            savings_type=SavingsType(request.savings_type),
+            predicted_savings=Decimal(str(request.predicted_savings)),
+            actual_savings=Decimal(str(request.actual_savings)),
+            baseline_cost=Decimal(str(request.baseline_cost)),
+            optimized_cost=Decimal(str(request.optimized_cost)),
+            description=request.description,
+            verification_method=VerificationMethod(request.verification_method),
+            confidence_score=request.confidence_score,
+            location=tuple(request.location) if request.location else None,
+            category=request.category,
+            recommendation_id=request.recommendation_id
+        )
+        
+        # Record the event
+        success = savings_calculator.record_savings_event(savings_event)
+        
+        if success:
+            logger.info(f"Recorded savings event for user {current_user.id}")
+            return SuccessResponse(
+                success=True,
+                message="Savings event recorded successfully"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to record savings event"
+            )
+        
+    except Exception as e:
+        logger.error(f"Failed to record savings event: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to record savings event: {str(e)}"
+        )
+
+
+@router.get("/savings/status")
+async def get_guarantee_status(current_user = Depends(get_current_user)):
+    """
+    Get current guarantee status for the user
+    """
+    try:
+        status_data = savings_calculator.get_current_guarantee_status(str(current_user.id))
+        
+        return {
+            "success": True,
+            "data": {
+                "guarantee_met": status_data.guarantee_met,
+                "total_savings": float(status_data.total_savings),
+                "subscription_cost": float(status_data.subscription_cost),
+                "savings_shortfall": float(status_data.savings_shortfall),
+                "savings_events_count": status_data.savings_events_count,
+                "billing_period_start": status_data.billing_period_start.isoformat(),
+                "billing_period_end": status_data.billing_period_end.isoformat(),
+                "percentage_achieved": status_data.percentage_achieved
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get guarantee status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get guarantee status: {str(e)}"
+        )
+
+
+@router.get("/savings/events")
+async def get_savings_events(
+    limit: int = Query(10, ge=1, le=100),
+    current_user = Depends(get_current_user)
+):
+    """
+    Get recent savings events for the user
+    """
+    try:
+        events = savings_calculator.get_user_savings_events(str(current_user.id), limit)
+        
+        return {
+            "success": True,
+            "data": {
+                "events": events,
+                "count": len(events)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get savings events: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get savings events: {str(e)}"
+        )
+
+
+@router.post("/savings/recommendation", response_model=SuccessResponse)
+async def create_savings_recommendation(
+    request: CreateRecommendationRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Create a new PAM recommendation with savings potential
+    """
+    try:
+        recommendation_id = savings_calculator.create_recommendation(
+            user_id=str(current_user.id),
+            title=request.title,
+            description=request.description,
+            category=request.category,
+            predicted_savings=Decimal(str(request.predicted_savings)),
+            confidence=request.confidence
+        )
+        
+        if recommendation_id:
+            return SuccessResponse(
+                success=True,
+                message="Recommendation created successfully",
+                data={"recommendation_id": recommendation_id}
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to create recommendation"
+            )
+        
+    except Exception as e:
+        logger.error(f"Failed to create recommendation: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create recommendation: {str(e)}"
+        )
+
+
+@router.post("/savings/detect")
+async def detect_savings_opportunity(
+    request: DetectSavingsRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Detect potential savings opportunities from expense data
+    """
+    try:
+        opportunity = savings_calculator.detect_savings_opportunity(
+            user_id=str(current_user.id),
+            expense_amount=Decimal(str(request.expense_amount)),
+            category=request.category,
+            location=tuple(request.location) if request.location else None,
+            description=request.description
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "opportunity_found": opportunity is not None,
+                "opportunity": opportunity
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to detect savings opportunity: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to detect savings opportunity: {str(e)}"
+        )
+
+
+@router.get("/savings/analytics")
+async def get_savings_analytics(current_user = Depends(get_current_user)):
+    """
+    Get comprehensive savings analytics for the user
+    """
+    try:
+        analytics = savings_calculator.get_savings_analytics(str(current_user.id))
+        
+        return {
+            "success": True,
+            "data": analytics
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get savings analytics: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get savings analytics: {str(e)}"
+        )
