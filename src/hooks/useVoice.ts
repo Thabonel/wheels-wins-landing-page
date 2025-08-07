@@ -4,6 +4,8 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 import { voiceOrchestrator } from '@/services/VoiceOrchestrator';
 import { createNariLabsProvider } from '@/services/tts/NariLabsProvider';
 import { createBrowserTTSProvider } from '@/services/tts/BrowserTTSProvider';
+import { webRTCService } from '@/services/voice/WebRTCConnectionService';
+import { vadService } from '@/services/voice/VADService';
 import type { UseChat } from 'ai/react';
 
 /**
@@ -18,8 +20,8 @@ export const useVoice = (chat?: UseChat) => {
   const { settings: userSettings, loading: userSettingsLoading } = useUserSettings();
   
   // Refs for persistent objects (prevents re-initialization on re-renders)
-  const connectionRef = useRef<WebRTC​Connection | null>(null);
-  const vadRef = useRef<VADService | null>(null);
+  const connectionRef = useRef<typeof webRTCService | null>(null);
+  const vadRef = useRef<typeof vadService | null>(null);
   const initializationPromise = useRef<Promise<void> | null>(null);
   
   // Local state for initialization tracking
@@ -62,11 +64,53 @@ export const useVoice = (chat?: UseChat) => {
         await voiceOrchestrator.initialize(providers);
         console.log('✅ Voice orchestrator initialized');
 
-        // Step 2: Initialize WebRTC connection (placeholder for now)
-        // connectionRef.current = await initializeWebRTCConnection();
+        // Step 2: Initialize WebRTC connection (if enabled in settings)
+        if (settings.enableWebRTC !== false) {
+          try {
+            const signalingUrl = import.meta.env.VITE_WEBRTC_SIGNALING_URL || 
+                               'wss://wheels-wins-backend-staging.onrender.com/api/v1/webrtc';
+            
+            await webRTCService.connect({
+              signalingUrl,
+              enableDataChannel: true,
+              enableAudioStream: true,
+            });
+            
+            connectionRef.current = webRTCService;
+            console.log('✅ WebRTC connection initialized');
+          } catch (error) {
+            console.warn('⚠️ WebRTC initialization failed, continuing with WebSocket fallback:', error);
+          }
+        }
         
-        // Step 3: Initialize VAD service (placeholder for now)  
-        // vadRef.current = await initializeVADService();
+        // Step 3: Initialize VAD service  
+        try {
+          await vadService.initialize({
+            algorithm: 'webrtc',
+            speechThreshold: settings.vadThreshold || 0.6,
+            silenceDuration: settings.endpointingSilenceDuration || 800,
+            enableWakeWord: false, // Can be enabled later
+            onSpeechStart: () => {
+              console.log('🗣️ User started speaking');
+              // Handle speech start (e.g., pause TTS)
+              if (voiceStore.agentStatus === 'speaking') {
+                voiceOrchestrator.interrupt();
+              }
+            },
+            onSpeechEnd: () => {
+              console.log('🔇 User stopped speaking');
+              // Handle speech end (e.g., process user input)
+            },
+            onVolumeChange: (volume) => {
+              // Update volume visualization if needed
+            }
+          });
+          
+          vadRef.current = vadService;
+          console.log('✅ VAD service initialized');
+        } catch (error) {
+          console.warn('⚠️ VAD initialization failed:', error);
+        }
 
         // Step 4: Mark as initialized
         voiceStore.setConnectionId(`voice_${Date.now()}`);
@@ -124,14 +168,15 @@ export const useVoice = (chat?: UseChat) => {
     // Cancel any ongoing speech
     voiceOrchestrator.cancelSpeech();
     
-    // Clean up connections
-    if (connectionRef.current) {
-      connectionRef.current.disconnect();
+    // Clean up WebRTC connection
+    if (connectionRef.current === webRTCService) {
+      webRTCService.disconnect();
       connectionRef.current = null;
     }
     
-    if (vadRef.current) {
-      vadRef.current.stop();
+    // Clean up VAD service
+    if (vadRef.current === vadService) {
+      vadService.destroy();
       vadRef.current = null;
     }
     
@@ -170,11 +215,37 @@ export const useVoice = (chat?: UseChat) => {
     }
   }, [initializationStatus, voiceStore]);
 
+  // Start voice recording
+  const startListening = useCallback(() => {
+    if (vadRef.current) {
+      vadRef.current.start();
+      voiceStore.setAgentStatus('listening');
+    } else {
+      console.warn('⚠️ VAD not initialized');
+    }
+  }, [voiceStore]);
+
+  // Stop voice recording
+  const stopListening = useCallback(() => {
+    if (vadRef.current) {
+      vadRef.current.stop();
+      voiceStore.setAgentStatus('connected');
+    }
+  }, [voiceStore]);
+
   // Interrupt function for barge-in
   const interrupt = useCallback(() => {
     console.log('⚠️ Voice interrupt requested');
     voiceOrchestrator.interrupt();
-  }, []);
+    
+    // Stop any ongoing playback
+    voiceStore.clearAudioQueue();
+    
+    // Resume listening if VAD is available
+    if (vadRef.current) {
+      vadRef.current.resume();
+    }
+  }, [voiceStore]);
 
   // Mute/unmute functions
   const mute = useCallback(() => {
@@ -218,6 +289,11 @@ export const useVoice = (chat?: UseChat) => {
     isInitializing: initializationStatus === 'initializing',
     error: voiceStore.error,
     
+    // Voice activity
+    isListening: voiceStore.agentStatus === 'listening',
+    isSpeaking: voiceStore.agentStatus === 'speaking',
+    isUserSpeaking: voiceStore.isUserSpeaking,
+    
     // Settings
     settings: voiceSettings,
     settingsLoaded: voiceSettingsLoaded,
@@ -225,6 +301,8 @@ export const useVoice = (chat?: UseChat) => {
     
     // Controls
     speak,
+    startListening,
+    stopListening,
     interrupt,
     mute,
     unmute,
@@ -241,14 +319,12 @@ export const useVoice = (chat?: UseChat) => {
     // Advanced controls
     cancel: voiceOrchestrator.cancelSpeech.bind(voiceOrchestrator),
     reset: cleanup,
+    
+    // VAD status
+    vadStatus: vadRef.current?.getStatus() || null,
+    
+    // WebRTC status
+    webRTCStatus: connectionRef.current?.getStatus() || null,
   };
 };
 
-// Type definitions (placeholders for future WebRTC/VAD implementation)
-interface WebRTC​Connection {
-  disconnect(): void;
-}
-
-interface VADService {
-  stop(): void;
-}
