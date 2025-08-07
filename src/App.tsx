@@ -37,10 +37,12 @@ import { logEnvironmentStatus } from './config/env-validator';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import { RouteMonitor } from './components/common/RouteMonitor';
+import { AudioPlayer } from './components/voice/AudioPlayer';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
 const PamAiSdkTest = lazy(() => import('./pages/PamAiSdkTest'));
+const PamVoiceTest = lazy(() => import('./pages/PamVoiceTest'));
 
 
 const queryClient = new QueryClient();
@@ -67,6 +69,7 @@ function App() {
                       <LazyPamIntegrationProvider>
                         <ScrollToTop />
                         <RouteMonitor />
+                        <AudioPlayer />
                         <Layout>
                           <div className="route-container">
                             <Suspense fallback={
@@ -101,6 +104,7 @@ function App() {
                                   <Route path="/privacy" element={<PrivacyPolicy />} />
                                   <Route path="/cookies" element={<CookiePolicy />} />
                                   <Route path="/pam-ai-sdk-test" element={<PamAiSdkTest />} />
+                                  <Route path="/pam-voice-test" element={<PamVoiceTest />} />
                                   <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                                 </Routes>
                             </Suspense>
