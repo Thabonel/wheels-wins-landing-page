@@ -11,29 +11,37 @@ export const PamSavingsSummaryCard = () => {
   // Fetch guarantee status with error handling
   const { data: guaranteeStatus, isLoading, error } = useQuery({
     queryKey: ['guarantee-status'],
-    queryFn: () => pamSavingsApi.getGuaranteeStatus(),
+    queryFn: async () => {
+      try {
+        return await pamSavingsApi.getGuaranteeStatus();
+      } catch (err) {
+        console.error('Failed to fetch guarantee status:', err);
+        return null;
+      }
+    },
     refetchInterval: 60000, // Refresh every minute
     retry: 1, // Only retry once
     retryDelay: 1000,
     staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
-    enabled: true, // Always enabled
-    onError: (err) => {
-      console.error('Failed to fetch guarantee status:', err);
-    }
+    enabled: true // Always enabled
   });
 
   // Fetch recent savings events with error handling
   const { data: recentEvents } = useQuery({
     queryKey: ['recent-savings'],
-    queryFn: () => pamSavingsApi.getRecentSavingsEvents(5),
+    queryFn: async () => {
+      try {
+        return await pamSavingsApi.getRecentSavingsEvents(5);
+      } catch (err) {
+        console.error('Failed to fetch recent savings:', err);
+        return [];
+      }
+    },
     refetchInterval: 300000, // Refresh every 5 minutes
     retry: 1,
     retryDelay: 1000,
     staleTime: 10 * 60 * 1000, // Consider data stale after 10 minutes
-    enabled: true,
-    onError: (err) => {
-      console.error('Failed to fetch recent savings:', err);
-    }
+    enabled: true
   });
 
   // Handle error state - fail gracefully
@@ -126,7 +134,6 @@ export const PamSavingsSummaryCard = () => {
           <Progress 
             value={savingsProgress} 
             className="h-2"
-            indicatorClassName={guaranteeMet ? "bg-green-500" : "bg-blue-500"}
           />
         </div>
 

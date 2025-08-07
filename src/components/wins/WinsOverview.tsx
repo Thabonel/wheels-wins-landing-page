@@ -31,41 +31,56 @@ const WinsOverview = React.memo(() => {
   // Fetch PAM savings data with error handling
   const { data: guaranteeStatus } = useQuery({
     queryKey: ['guarantee-status'],
-    queryFn: () => pamSavingsApi.getGuaranteeStatus(),
+    queryFn: async () => {
+      try {
+        if (!user) return null;
+        return await pamSavingsApi.getGuaranteeStatus();
+      } catch (err) {
+        console.warn('Failed to fetch guarantee status in WinsOverview:', err);
+        return null;
+      }
+    },
     refetchInterval: 60000, // Refresh every minute
     enabled: !!user,
     retry: 1,
     retryDelay: 1000,
-    staleTime: 5 * 60 * 1000,
-    onError: (err) => {
-      console.warn('Failed to fetch guarantee status in WinsOverview:', err);
-    }
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: monthlySummary } = useQuery({
     queryKey: ['monthly-savings-summary'],
-    queryFn: () => pamSavingsApi.getMonthlySavingsSummary(),
+    queryFn: async () => {
+      try {
+        if (!user) return null;
+        return await pamSavingsApi.getMonthlySavingsSummary();
+      } catch (err) {
+        console.warn('Failed to fetch monthly summary in WinsOverview:', err);
+        return null;
+      }
+    },
     refetchInterval: 300000, // Refresh every 5 minutes
     enabled: !!user,
     retry: 1,
     retryDelay: 1000,
-    staleTime: 10 * 60 * 1000,
-    onError: (err) => {
-      console.warn('Failed to fetch monthly summary in WinsOverview:', err);
-    }
+    staleTime: 10 * 60 * 1000
   });
 
   const { data: recentSavings } = useQuery({
     queryKey: ['recent-savings-events'],
-    queryFn: () => pamSavingsApi.getRecentSavingsEvents(10),
+    queryFn: async () => {
+      try {
+        if (!user) return [];
+        return await pamSavingsApi.getRecentSavingsEvents(10);
+      } catch (err) {
+        console.warn('Failed to fetch recent savings in WinsOverview:', err);
+        return [];
+      }
+    },
     refetchInterval: 300000, // Refresh every 5 minutes
     enabled: !!user,
     retry: 1,
     retryDelay: 1000,
-    staleTime: 10 * 60 * 1000,
-    onError: (err) => {
-      console.warn('Failed to fetch recent savings in WinsOverview:', err);
-    }
+    staleTime: 10 * 60 * 1000
   });
 
   const handlePamMessage = useCallback((msg: any) => {
@@ -343,7 +358,6 @@ const WinsOverview = React.memo(() => {
               <Progress 
                 value={guaranteeStatus.percentage_achieved} 
                 className="h-3"
-                indicatorClassName={guaranteeStatus.guarantee_met ? "bg-green-500" : "bg-cyan-500"}
               />
               <p className="text-sm text-muted-foreground">
                 {guaranteeStatus.guarantee_met 
