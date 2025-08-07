@@ -53,6 +53,7 @@ from app.api.v1 import (
     monitoring,
     receipts,
     pam,
+    pam_ai_sdk,
     auth,
     subscription,
     support,
