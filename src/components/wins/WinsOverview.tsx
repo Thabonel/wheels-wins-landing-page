@@ -12,6 +12,10 @@ import { useIncomeData } from "@/components/wins/income/useIncomeData";
 import QuickActions from "./QuickActions";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+// PAM Savings Guarantee - Phase 5: Uncomment when ready to enable
+// import { useQuery } from "@tanstack/react-query";
+// import { pamSavingsApi, formatSavingsAmount } from "@/services/pamSavingsService";
+// import { Target, Zap } from "lucide-react";
 
 const WinsOverview = React.memo(() => {
   const { user, token } = useAuth();
@@ -22,6 +26,21 @@ const WinsOverview = React.memo(() => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // PAM Savings Guarantee - Phase 5: Uncomment when ready to enable
+  // const { data: guaranteeStatus } = useQuery({
+  //   queryKey: ['guarantee-status'],
+  //   queryFn: () => pamSavingsApi.getGuaranteeStatus(),
+  //   refetchInterval: 60000,
+  //   enabled: !!user
+  // });
+
+  // const { data: recentSavings } = useQuery({
+  //   queryKey: ['recent-savings-events'],
+  //   queryFn: () => pamSavingsApi.getRecentSavingsEvents(10),
+  //   refetchInterval: 300000,
+  //   enabled: !!user
+  // });
 
   const handlePamMessage = useCallback((msg: any) => {
     if (msg.type === 'chat_response') {
@@ -105,27 +124,28 @@ const WinsOverview = React.memo(() => {
     }));
   }, [summary?.expense_categories, expensesState.expenses]);
 
-  const summaryStats = useMemo(() => summary
-    ? [
-        {
-          title: "Total Income",
-          value: `$${summary.total_income.toFixed(2)}`,
-          description: `Last ${summary.period_days} days`,
-          icon: <TrendingUp className="h-5 w-5 text-green-500" />
-        },
-        {
-          title: "Total Expenses",
-          value: `$${summary.total_expenses.toFixed(2)}`,
-          description: `Last ${summary.period_days} days`,
-          icon: <DollarSign className="h-5 w-5 text-purple-500" />
-        },
-        {
-          title: "Net Income",
-          value: `$${summary.net_income.toFixed(2)}`,
-          description: new Date(summary.generated_at).toLocaleDateString(),
-          icon: <Calendar className="h-5 w-5 text-blue-500" />
-        }
-      ]
+  const summaryStats = useMemo(() => {
+    const baseStats = summary
+      ? [
+          {
+            title: "Total Income",
+            value: `$${summary.total_income.toFixed(2)}`,
+            description: `Last ${summary.period_days} days`,
+            icon: <TrendingUp className="h-5 w-5 text-green-500" />
+          },
+          {
+            title: "Total Expenses",
+            value: `$${summary.total_expenses.toFixed(2)}`,
+            description: `Last ${summary.period_days} days`,
+            icon: <DollarSign className="h-5 w-5 text-purple-500" />
+          },
+          {
+            title: "Net Income",
+            value: `$${summary.net_income.toFixed(2)}`,
+            description: new Date(summary.generated_at).toLocaleDateString(),
+            icon: <Calendar className="h-5 w-5 text-blue-500" />
+          }
+        ]
     : [
         {
           title: "Total Expenses",
@@ -145,7 +165,25 @@ const WinsOverview = React.memo(() => {
           description: "All time",
           icon: <Calendar className="h-5 w-5 text-blue-500" />
         }
-      ], [summary, incomeData, expensesState.expenses]);
+      ];
+
+    // PAM Savings Guarantee - Phase 5: Uncomment when ready to enable
+    // if (guaranteeStatus) {
+    //   const pamSavingsStat = {
+    //     title: "PAM Savings",
+    //     value: formatSavingsAmount(guaranteeStatus.total_savings),
+    //     description: guaranteeStatus.guarantee_met 
+    //       ? "✅ Guarantee Met!" 
+    //       : `${Math.round(guaranteeStatus.percentage_achieved)}% to goal`,
+    //     icon: guaranteeStatus.guarantee_met 
+    //       ? <Target className="h-5 w-5 text-green-500" />
+    //       : <Zap className="h-5 w-5 text-orange-500" />
+    //   };
+    //   baseStats.push(pamSavingsStat);
+    // }
+
+    return baseStats;
+  }, [summary, incomeData, expensesState.expenses]);
 
   // Quick Actions handlers
   const handleAddExpense = useCallback((preset?: { category?: string }) => {
