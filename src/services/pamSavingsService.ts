@@ -80,12 +80,18 @@ export interface DetectSavingsData {
 }
 
 // Get auth token from Supabase session
-async function getAuthToken(): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    throw new Error('No authentication token available');
+async function getAuthToken(): Promise<string | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      console.warn('No authentication token available for PAM savings');
+      return null;
+    }
+    return session.access_token;
+  } catch (error) {
+    console.error('Error getting auth token:', error);
+    return null;
   }
-  return session.access_token;
 }
 
 // PAM Savings API service
@@ -154,6 +160,11 @@ export const pamSavingsApi = {
   async getGuaranteeStatus(month?: string): Promise<GuaranteeStatus | null> {
     try {
       const token = await getAuthToken();
+      if (!token) {
+        console.warn('No auth token available, skipping guarantee status fetch');
+        return null;
+      }
+      
       const params = month ? `?month=${month}` : '';
       const response = await fetch(`/api/v1/pam/savings/guarantee-status${params}`, {
         method: 'GET',
@@ -163,12 +174,13 @@ export const pamSavingsApi = {
       });
       
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Failed to get guarantee status: ${error}`);
+        // Don't throw, just log and return null
+        console.warn(`Guarantee status API returned ${response.status}`);
+        return null;
       }
       
       const data = await response.json();
-      return data.guarantee_status;
+      return data.guarantee_status || null;
     } catch (error) {
       console.error('Error getting guarantee status:', error);
       return null;
@@ -258,6 +270,11 @@ export const pamSavingsApi = {
   async getRecentSavingsEvents(limit: number = 10): Promise<PamSavingsEvent[]> {
     try {
       const token = await getAuthToken();
+      if (!token) {
+        console.warn('No auth token available, skipping recent events fetch');
+        return [];
+      }
+      
       const response = await fetch(`/api/v1/pam/savings/recent?limit=${limit}`, {
         method: 'GET',
         headers: {
@@ -266,8 +283,9 @@ export const pamSavingsApi = {
       });
       
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Failed to get recent savings events: ${error}`);
+        // Don't throw, just log and return empty array
+        console.warn(`Recent savings API returned ${response.status}`);
+        return [];
       }
       
       const data = await response.json();

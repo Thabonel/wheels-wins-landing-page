@@ -1,11 +1,18 @@
 
+import { lazy, Suspense } from "react";
 import "@/components/you/calendar-styles.css";
 import UserCalendar from "@/components/UserCalendar";
 import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
 import TrialStatusBanner from "@/components/subscription/TrialStatusBanner";
 import SubscriptionStatusWidget from "@/components/subscription/SubscriptionStatusWidget";
-import { PamSavingsSummaryCard } from "@/components/pam/PamSavingsSummaryCard";
+
+// Lazy load the PAM Savings component to prevent page crashes
+const PamSavingsSummaryCard = lazy(() => 
+  import("@/components/pam/PamSavingsSummaryCard").then(module => ({
+    default: module.PamSavingsSummaryCard
+  }))
+);
 
 const You = () => {
 
@@ -17,9 +24,11 @@ const You = () => {
         <TrialStatusBanner />
 
         {/* PAM Savings Summary - Prominent placement at top */}
-        <div className="mb-6">
-          <PamSavingsSummaryCard />
-        </div>
+        <Suspense fallback={null}>
+          <div className="mb-6">
+            <PamSavingsSummaryCard />
+          </div>
+        </Suspense>
 
         {/* Adjusted for Pam sidebar */}
         <div className="flex flex-col lg:flex-row gap-6">

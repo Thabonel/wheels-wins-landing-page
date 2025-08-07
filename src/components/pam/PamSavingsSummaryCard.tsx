@@ -8,19 +8,40 @@ import { pamSavingsApi } from '@/services/pamSavingsService';
 import { formatCurrency } from '@/lib/utils';
 
 export const PamSavingsSummaryCard = () => {
-  // Fetch guarantee status
-  const { data: guaranteeStatus, isLoading } = useQuery({
+  // Fetch guarantee status with error handling
+  const { data: guaranteeStatus, isLoading, error } = useQuery({
     queryKey: ['guarantee-status'],
     queryFn: () => pamSavingsApi.getGuaranteeStatus(),
-    refetchInterval: 60000 // Refresh every minute
+    refetchInterval: 60000, // Refresh every minute
+    retry: 1, // Only retry once
+    retryDelay: 1000,
+    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
+    enabled: true, // Always enabled
+    onError: (err) => {
+      console.error('Failed to fetch guarantee status:', err);
+    }
   });
 
-  // Fetch recent savings events
+  // Fetch recent savings events with error handling
   const { data: recentEvents } = useQuery({
     queryKey: ['recent-savings'],
     queryFn: () => pamSavingsApi.getRecentSavingsEvents(5),
-    refetchInterval: 300000 // Refresh every 5 minutes
+    refetchInterval: 300000, // Refresh every 5 minutes
+    retry: 1,
+    retryDelay: 1000,
+    staleTime: 10 * 60 * 1000, // Consider data stale after 10 minutes
+    enabled: true,
+    onError: (err) => {
+      console.error('Failed to fetch recent savings:', err);
+    }
   });
+
+  // Handle error state - fail gracefully
+  if (error) {
+    console.error('PamSavingsSummaryCard error:', error);
+    // Return null to not break the page
+    return null;
+  }
 
   if (isLoading) {
     return (
@@ -42,6 +63,7 @@ export const PamSavingsSummaryCard = () => {
   }
 
   if (!guaranteeStatus) {
+    // If no data and not loading, just don't show the card
     return null;
   }
 
