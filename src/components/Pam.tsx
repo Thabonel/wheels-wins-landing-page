@@ -75,13 +75,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [isShowingAudioLevel, setIsShowingAudioLevel] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   
-  // Voice settings
-  const [voiceSettings, setVoiceSettings] = useState({
+  // Voice settings - simplified to default values
+  const voiceSettings = {
     voice: 'en-US-AriaNeural',
     rate: 1.0,
     pitch: 1.0,
     volume: 1.0
-  });
+  };
   
   // VAD and conversation management
   const [isVADActive, setIsVADActive] = useState(false);
@@ -1538,26 +1538,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  // Voice settings handlers
-  const handleVoiceChange = (newVoice: string) => {
-    setVoiceSettings(prev => ({ ...prev, voice: newVoice }));
-    console.log('🎙️ Voice changed to:', newVoice);
-  };
-
-  const handleRateChange = (newRate: number) => {
-    setVoiceSettings(prev => ({ ...prev, rate: newRate }));
-    console.log('⚡ Speech rate changed to:', newRate);
-  };
-
-  const handlePitchChange = (newPitch: number) => {
-    setVoiceSettings(prev => ({ ...prev, pitch: newPitch }));
-    console.log('🎵 Speech pitch changed to:', newPitch);
-  };
-
-  const handleVolumeChange = (newVolume: number) => {
-    setVoiceSettings(prev => ({ ...prev, volume: newVolume }));
-    console.log('🔊 Volume changed to:', newVolume);
-  };
+  // Voice settings handlers removed - using default settings
 
   const startContinuousVoiceMode = async () => {
     console.log('🔄 Starting continuous voice mode');
