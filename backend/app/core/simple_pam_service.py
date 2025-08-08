@@ -258,7 +258,11 @@ class SimplePamService:
             metadata=context
         )
         
-        return response_text
+        # Return both response text and context (which may contain visual_action)
+        return {
+            "response": response_text,
+            "context": context
+        }
     
     async def _call_openai(self, messages: List[Dict[str, str]], context: Dict[str, Any] = None) -> str:
         """Make the AI API call using the AI Orchestrator with automatic failover"""
@@ -327,6 +331,86 @@ class SimplePamService:
                         "required": ["query"]
                     }
                 })
+            
+            # Add visual action functions for UI control
+            functions.extend([
+                {
+                    "name": "book_calendar_appointment",
+                    "description": "Book an appointment, meeting, or calendar event. Use when user wants to schedule something, meet someone, or add to calendar.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "person": {
+                                "type": "string",
+                                "description": "Person to meet with (if mentioned)"
+                            },
+                            "title": {
+                                "type": "string", 
+                                "description": "Event title/description"
+                            },
+                            "date": {
+                                "type": "string",
+                                "description": "Date (e.g., 'tomorrow', '2025-08-09', 'next Monday')"
+                            },
+                            "time": {
+                                "type": "string",
+                                "description": "Time (e.g., '2pm', '14:00', 'noon', '12')"
+                            },
+                            "location": {
+                                "type": "string",
+                                "description": "Location if mentioned"
+                            }
+                        },
+                        "required": ["date", "time"]
+                    }
+                },
+                {
+                    "name": "log_expense",
+                    "description": "Log an expense, purchase, or money spent. Use when user mentions spending money, buying something, or tracking expenses.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "amount": {
+                                "type": "number",
+                                "description": "Amount spent (numeric value)"
+                            },
+                            "category": {
+                                "type": "string",
+                                "enum": ["fuel", "food", "maintenance", "camping", "entertainment", "supplies", "other"],
+                                "description": "Expense category"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "What was purchased or expense description"
+                            },
+                            "date": {
+                                "type": "string",
+                                "description": "Date of expense (default: today)"
+                            }
+                        },
+                        "required": ["amount", "category"]
+                    }
+                },
+                {
+                    "name": "navigate_to_page",
+                    "description": "Navigate to a specific page or section of the application. Use when user wants to go to, open, or view a specific area.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "page": {
+                                "type": "string",
+                                "enum": ["dashboard", "wheels", "wins", "social", "shop", "you", "profile"],
+                                "description": "Page to navigate to"
+                            },
+                            "section": {
+                                "type": "string",
+                                "description": "Specific section within the page (optional)"
+                            }
+                        },
+                        "required": ["page"]
+                    }
+                }
+            ])
             
             # Get response from the best available provider
             logger.info(f"🧠 AI call via orchestrator with {len(functions)} functions available")
@@ -452,6 +536,125 @@ class SimplePamService:
                         return f"🔍 I tried to research {query} for you, but my web research tools are currently offline. I can provide general guidance based on my knowledge - would that help, or would you prefer to try again in a few minutes when my research capabilities are back online?"
                 else:
                     return f"🔍 I'd love to research {query} for you! My web research tools are currently initializing. This should only take a minute - please try asking me again shortly and I'll be able to provide you with up-to-date information from multiple sources."
+            
+            elif function_name == "book_calendar_appointment":
+                # Handle calendar appointment booking
+                logger.info(f"📅 Booking appointment with args: {function_args}")
+                
+                # Parse the date and time with dateutil for flexibility
+                from dateutil import parser as date_parser
+                from datetime import datetime, timedelta
+                
+                date_str = function_args.get('date', 'today')
+                time_str = function_args.get('time', '09:00')
+                
+                # Handle relative dates
+                if date_str.lower() == 'tomorrow':
+                    date_str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+                elif date_str.lower() == 'today':
+                    date_str = datetime.now().strftime("%Y-%m-%d")
+                else:
+                    try:
+                        parsed_date = date_parser.parse(date_str)
+                        date_str = parsed_date.strftime("%Y-%m-%d")
+                    except:
+                        date_str = datetime.now().strftime("%Y-%m-%d")
+                
+                # Normalize time format
+                if time_str.lower() in ['noon', 'midday']:
+                    time_str = '12:00'
+                elif time_str.isdigit():
+                    hour = int(time_str)
+                    time_str = f"{hour}:00" if hour < 12 else f"{hour}:00"
+                
+                # Create visual action for frontend
+                person = function_args.get('person', '')
+                title = function_args.get('title', f"Meeting with {person}" if person else "Appointment")
+                
+                # Store visual action in context for WebSocket to send
+                if 'visual_action' not in context:
+                    context['visual_action'] = {
+                        "type": "visual_action",
+                        "action": {
+                            "action": "book_appointment",
+                            "parameters": {
+                                "person": person,
+                                "title": title,
+                                "date": date_str,
+                                "time": time_str,
+                                "location": function_args.get('location', '')
+                            }
+                        }
+                    }
+                
+                # Return confirmation message
+                if person:
+                    return f"📅 I'll book an appointment with {person} for {date_str} at {time_str}. Opening your calendar now..."
+                else:
+                    return f"📅 I'll add '{title}' to your calendar for {date_str} at {time_str}. Opening your calendar now..."
+            
+            elif function_name == "log_expense":
+                # Handle expense logging
+                logger.info(f"💰 Logging expense with args: {function_args}")
+                
+                amount = function_args.get('amount', 0)
+                category = function_args.get('category', 'other')
+                description = function_args.get('description', f"{category} expense")
+                
+                # Store visual action in context
+                if 'visual_action' not in context:
+                    context['visual_action'] = {
+                        "type": "visual_action",
+                        "action": {
+                            "action": "log_expense",
+                            "parameters": {
+                                "amount": amount,
+                                "category": category,
+                                "description": description
+                            }
+                        }
+                    }
+                
+                return f"💰 I'll log your ${amount:.2f} {category} expense. Opening the expense tracker now..."
+            
+            elif function_name == "navigate_to_page":
+                # Handle page navigation
+                logger.info(f"🧭 Navigating to page with args: {function_args}")
+                
+                page = function_args.get('page', 'dashboard')
+                section = function_args.get('section', '')
+                
+                # Map page names to routes
+                page_routes = {
+                    'dashboard': '/you',
+                    'you': '/you',
+                    'wheels': '/wheels',
+                    'wins': '/wins',
+                    'social': '/social',
+                    'shop': '/shop',
+                    'profile': '/profile'
+                }
+                
+                route = page_routes.get(page, '/you')
+                
+                # Store visual action in context
+                if 'visual_action' not in context:
+                    context['visual_action'] = {
+                        "type": "visual_action",
+                        "action": {
+                            "action": "navigate",
+                            "parameters": {
+                                "route": route,
+                                "section": section
+                            }
+                        }
+                    }
+                
+                page_display = page.capitalize()
+                if section:
+                    return f"🧭 Navigating to the {page_display} page, {section} section..."
+                else:
+                    return f"🧭 Navigating to the {page_display} page..."
             
             return f"I understand you're asking about {query}, but I'm currently setting up my research tools. Please try again in a moment and I'll be able to provide comprehensive information!"
             

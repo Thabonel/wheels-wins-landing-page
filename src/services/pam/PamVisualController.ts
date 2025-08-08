@@ -192,7 +192,19 @@ export class PamVisualController {
    * Fill a form with animated typing
    */
   async fillForm(formData: FormData): Promise<void> {
+    // Validate formData exists and is an object
+    if (!formData || typeof formData !== 'object') {
+      console.warn('Invalid form data provided to fillForm');
+      return;
+    }
+    
     for (const [fieldName, value] of Object.entries(formData)) {
+      // Skip if fieldName is invalid
+      if (!fieldName || typeof fieldName !== 'string') {
+        console.warn('Invalid field name:', fieldName);
+        continue;
+      }
+      
       const sanitizedFieldName = sanitizeFieldName(fieldName);
       const field = this.findFormField(sanitizedFieldName);
       
@@ -443,6 +455,11 @@ export class PamVisualController {
    */
   async bookAppointment(details: AppointmentDetails): Promise<ActionResult> {
     try {
+    // Validate and sanitize details
+    const person = details.person || 'Unknown';
+    const date = details.date || new Date().toISOString().split('T')[0];
+    const time = details.time || '09:00';
+    
     // Navigate to You page
     await this.executeVisualCommand({
       type: 'navigate',
@@ -461,12 +478,12 @@ export class PamVisualController {
     await this.executeVisualCommand({
       type: 'fill_form',
       data: {
-        'event-title': `Appointment with ${details.person}`,
-        'event-date': details.date,
-        'event-time': details.time,
+        'event-title': `Appointment with ${person}`,
+        'event-date': date,
+        'event-time': time,
         'event-type': 'appointment'
       },
-      description: `Scheduling appointment with ${details.person}`
+      description: `Scheduling appointment with ${person}`
     });
     
     // Submit form
@@ -476,7 +493,7 @@ export class PamVisualController {
       description: 'Saving appointment'
     });
     
-    return { success: true, message: `Appointment with ${details.person} booked successfully` };
+    return { success: true, message: `Appointment with ${person} booked successfully` };
     } catch (error) {
       return { 
         success: false, 

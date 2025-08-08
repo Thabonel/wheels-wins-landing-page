@@ -34,6 +34,12 @@ class PamCalendarService {
    */
   private parseDate(dateStr: string): Date {
     const today = new Date();
+    
+    // Handle null/undefined/non-string values
+    if (!dateStr || typeof dateStr !== 'string') {
+      return today;
+    }
+    
     const lowerDate = dateStr.toLowerCase().trim();
 
     // Handle relative dates
@@ -80,6 +86,11 @@ class PamCalendarService {
    * Parse natural language time into 24-hour format
    */
   private parseTime(timeStr: string): { startTime: string; endTime: string } {
+    // Handle null/undefined/non-string values
+    if (!timeStr || typeof timeStr !== 'string') {
+      return { startTime: "09:00", endTime: "10:00" };
+    }
+    
     const lowerTime = timeStr.toLowerCase().trim();
     
     // Handle special cases
@@ -284,6 +295,11 @@ class PamCalendarService {
    * Extract calendar event from PAM conversation text
    */
   public extractEventFromText(text: string): PamCalendarEvent | null {
+    // Handle null/undefined/non-string values
+    if (!text || typeof text !== 'string') {
+      return null;
+    }
+    
     const lowerText = text.toLowerCase();
 
     // Look for calendar-related keywords

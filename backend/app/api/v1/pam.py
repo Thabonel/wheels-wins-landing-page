@@ -346,11 +346,19 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         
         # Process through SimplePamService
         logger.info(f"🤖 [DEBUG] Calling SimplePamService.get_response with message: '{message}'")
-        response_message = await simple_pam_service.get_response(
+        result = await simple_pam_service.get_response(
             message=message,
             context=context,
             conversation_history=conversation_history
         )
+        
+        # Handle both old string format and new dict format for compatibility
+        if isinstance(result, str):
+            response_message = result
+            response_context = context
+        else:
+            response_message = result["response"]
+            response_context = result["context"]
         
         logger.info(f"🎯 [DEBUG] SimplePamService response received: '{response_message[:100]}...'")
         
@@ -383,6 +391,24 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             # Send response
             await websocket.send_json(response_payload)
             logger.info(f"✅ [DEBUG] Response sent successfully to user {user_id}")
+            
+            # Check for visual action from AI function call OR regex pattern matching
+            visual_action = None
+            
+            # First check if AI determined a visual action via function calling
+            if 'visual_action' in response_context:
+                visual_action = response_context['visual_action']
+                logger.info(f"🤖 AI function call generated visual action: {visual_action}")
+            else:
+                # Fallback to regex pattern matching (for backwards compatibility)
+                visual_action = pam_visual_actions.parse_intent_to_visual_action(message, response_context)
+                if visual_action:
+                    logger.info(f"🔍 Regex pattern matched visual action: {visual_action}")
+            
+            # Send visual action if detected
+            if visual_action and websocket.client_state.value == 1:
+                logger.info(f"🎨 Sending visual action to frontend: {visual_action}")
+                await websocket.send_json(visual_action)
             
             # Send UI actions if any (currently none from SimplePamService)
             ui_actions = [a for a in actions if a.get("type") in ["navigate", "fill_form", "click", "alert"]]
@@ -537,8 +563,18 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
         # Send completion
         total_processing_time = (time.time() - start_time) * 1000
         if websocket.client_state.value == 1:
-            # Check if we should also send a visual action
-            visual_action = pam_visual_actions.parse_intent_to_visual_action(message, context)
+            # Check for visual action from AI function call OR regex pattern matching
+            visual_action = None
+            
+            # First check if AI determined a visual action via function calling
+            if 'visual_action' in context:
+                visual_action = context['visual_action']
+                logger.info(f"🤖 AI function call generated visual action: {visual_action}")
+            else:
+                # Fallback to regex pattern matching (for backwards compatibility)
+                visual_action = pam_visual_actions.parse_intent_to_visual_action(message, context)
+                if visual_action:
+                    logger.info(f"🔍 Regex pattern matched visual action: {visual_action}")
             
             await websocket.send_json({
                 "type": "chat_response_complete",
@@ -550,7 +586,7 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
             
             # Send visual action if detected
             if visual_action:
-                logger.info(f"🎨 Visual action detected: {visual_action}")
+                logger.info(f"🎨 Sending visual action to frontend: {visual_action}")
                 await websocket.send_json(visual_action)
             
     except Exception as e:
@@ -562,43 +598,32 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
             })
 
 async def get_streaming_ai_response(message: str, context: dict, conversation_history: list):
-    """Generator for streaming AI responses using the AI Orchestrator"""
+    """Generator for streaming AI responses using SimplePamService"""
     try:
-        # Use the AI Orchestrator for intelligent provider selection and failover
-        from app.services.ai.ai_orchestrator import ai_orchestrator, AIMessage, AICapability
+        # For now, call SimplePamService non-streaming and simulate streaming
+        # This allows us to get visual actions from function calls
+        from app.core.simple_pam_service import simple_pam_service
         
-        # Initialize orchestrator if needed
-        if not ai_orchestrator._initialized:
-            await ai_orchestrator.initialize()
-        
-        # Build system message
-        system_message = AIMessage(
-            role="system",
-            content=build_pam_system_prompt(context)
+        result = await simple_pam_service.get_response(
+            message=message,
+            context=context,
+            conversation_history=conversation_history
         )
         
-        # Build conversation messages
-        messages = [system_message]
+        # Handle both old string format and new dict format
+        if isinstance(result, str):
+            response_text = result
+        else:
+            response_text = result["response"]
+            # Update the context with any visual actions
+            if "context" in result and "visual_action" in result["context"]:
+                context["visual_action"] = result["context"]["visual_action"]
         
-        if conversation_history:
-            for msg in conversation_history[-5:]:  # Last 5 messages for context
-                messages.append(AIMessage(
-                    role=msg.get("role", "user"),
-                    content=msg.get("content", "")
-                ))
-        
-        messages.append(AIMessage(role="user", content=message))
-        
-        # Stream from the best available provider
-        logger.info("🤖 Streaming AI response via orchestrator")
-        
-        async for chunk in ai_orchestrator.stream(
-            messages=messages,
-            required_capabilities={AICapability.STREAMING},
-            temperature=0.7,
-            max_tokens=1024
-        ):
+        # Simulate streaming by chunking the response
+        chunks = split_response_into_chunks(response_text)
+        for chunk in chunks:
             yield chunk
+            await asyncio.sleep(0.05)  # Small delay for streaming effect
             
     except Exception as e:
         logger.error(f"AI streaming error: {str(e)}")
