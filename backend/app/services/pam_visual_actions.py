@@ -31,11 +31,22 @@ class PamVisualActionsService:
         Parse natural language intent into visual action commands
         Returns a visual action object that can be sent to the frontend
         """
+        logger.info(f"🔍 Checking message for visual actions: {message}")
         message_lower = message.lower()
         
-        # Appointment booking patterns
-        if any(phrase in message_lower for phrase in ["book appointment", "schedule meeting", "set up meeting", "meet with"]):
-            return self._extract_appointment_details(message, context)
+        # Appointment booking patterns - more flexible matching
+        appointment_keywords = [
+            "book appointment", "schedule meeting", "set up meeting", 
+            "meet with", "meeting with", "appointment with",
+            "calendar", "schedule"
+        ]
+        # Also check for "meet [name]" pattern
+        if any(phrase in message_lower for phrase in appointment_keywords) or \
+           re.search(r'\bmeet\s+\w+', message_lower):
+            logger.info(f"✅ Appointment pattern matched for: {message}")
+            result = self._extract_appointment_details(message, context)
+            logger.info(f"📅 Extracted appointment details: {result}")
+            return result
         
         # Expense logging patterns
         if any(phrase in message_lower for phrase in ["spent", "paid", "bought", "expense", "cost me"]):
@@ -55,11 +66,18 @@ class PamVisualActionsService:
         """Extract appointment details from natural language"""
         
         # Extract person name (simplified - in production would use NER)
-        # Escape user input for regex safety
-        safe_message = re.escape(message)
-        person_pattern = r'with\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)'
-        person_match = re.search(person_pattern, message)  # Use original for pattern matching
-        person = person_match.group(1) if person_match else "Unknown"
+        # Try multiple patterns for person extraction
+        person = "Unknown"
+        
+        # Pattern 1: "with [Name]"
+        person_match = re.search(r'with\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)', message)
+        if person_match:
+            person = person_match.group(1)
+        else:
+            # Pattern 2: "meet [Name]" (without "with")
+            person_match = re.search(r'meet\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)', message)
+            if person_match:
+                person = person_match.group(1)
         
         # Extract date
         tomorrow_keywords = ["tomorrow", "tmrw", "next day"]
@@ -85,12 +103,23 @@ class PamVisualActionsService:
         # Extract time
         time_match = re.search(r'at\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?|\d{1,2}(?:am|pm))', message.lower())
         if time_match:
-            time_str = time_match.group(1)
+            time_str = time_match.group(1).strip()
             # Normalize time format
             if ':' not in time_str and ('am' in time_str or 'pm' in time_str):
                 time_str = time_str.replace('am', ':00 AM').replace('pm', ':00 PM')
             elif ':' not in time_str:
-                time_str = f"{time_str}:00"
+                # If just a number like "12", assume PM for 12, AM for 1-11
+                hour = int(time_str)
+                if hour == 12:
+                    time_str = "12:00 PM"
+                elif hour >= 1 and hour <= 11:
+                    # Could be AM or PM, default to business hours (PM for 1-6, AM for 7-11)
+                    if hour >= 7:
+                        time_str = f"{hour}:00 AM"
+                    else:
+                        time_str = f"{hour}:00 PM"
+                else:
+                    time_str = f"{time_str}:00"
             time = time_str
         else:
             time = "09:00"
