@@ -26,6 +26,7 @@ from app.core.logging import setup_logging, get_logger
 from app.core.exceptions import PAMError
 from app.observability.monitor import global_monitor
 from app.services.voice.edge_processing_service import edge_processing_service
+from app.services.pam_visual_actions import pam_visual_actions
 
 router = APIRouter()
 setup_logging()
@@ -536,6 +537,9 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
         # Send completion
         total_processing_time = (time.time() - start_time) * 1000
         if websocket.client_state.value == 1:
+            # Check if we should also send a visual action
+            visual_action = pam_visual_actions.parse_intent_to_visual_action(message, context)
+            
             await websocket.send_json({
                 "type": "chat_response_complete",
                 "full_response": full_response,
@@ -543,6 +547,11 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
                 "processing_time_ms": total_processing_time,
                 "timestamp": datetime.utcnow().isoformat()
             })
+            
+            # Send visual action if detected
+            if visual_action:
+                logger.info(f"🎨 Visual action detected: {visual_action}")
+                await websocket.send_json(visual_action)
             
     except Exception as e:
         logger.error(f"Error streaming AI response: {str(e)}")

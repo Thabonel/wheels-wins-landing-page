@@ -27,6 +27,7 @@ import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { flags, getUserVariant } from "@/config/featureFlags";
+import { usePamVisualControl } from "@/hooks/pam/usePamVisualControl";
 // Temporarily disabled - AI SDK not configured
 // import { PamWithFallback } from "@/experiments/ai-sdk-poc/components/PamWithFallback";
 
@@ -240,6 +241,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
     // eslint-disable-next-line
   }, [user?.id, sessionId]);
+
+  // Initialize PAM Visual Control
+  const { handlePamMessage: handleVisualMessage } = usePamVisualControl();
 
   // Update location context when tracking state changes
   useEffect(() => {
@@ -996,6 +1000,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (message.type === 'ui_action') {
             console.log('🎛️ PAM DEBUG: UI action received:', message);
             handleUIAction(message);
+          }
+
+          // Handle visual control actions
+          if (message.type === 'visual_action' || message.visual_action) {
+            console.log('🎨 PAM DEBUG: Visual action received:', message.visual_action || message);
+            handleVisualMessage(message);
           }
           
           // Handle welcome messages
