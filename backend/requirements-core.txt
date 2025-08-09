@@ -14,6 +14,7 @@ PyJWT[crypto]==2.10.1
 cryptography==45.0.5
 email-validator==2.2.0
 passlib[bcrypt]==1.7.4
+bleach==6.2.0
 
 # Core APIs and HTTP
 openai>=1.50.0,<2.0.0
