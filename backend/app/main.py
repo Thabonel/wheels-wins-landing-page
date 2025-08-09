@@ -128,7 +128,7 @@ def validate_configuration():
     # Validate required settings with defensive access
     required_settings = [
         ("SUPABASE_URL", getattr(settings, 'SUPABASE_URL', None)),
-        ("SUPABASE_KEY", getattr(settings, 'SUPABASE_KEY', None)),
+        ("SUPABASE_SERVICE_ROLE_KEY", getattr(settings, 'SUPABASE_SERVICE_ROLE_KEY', None)),
         ("SECRET_KEY", getattr(settings, 'SECRET_KEY', None)),
     ]
     
@@ -157,6 +157,10 @@ def validate_configuration():
             
             if debug_mode:
                 validation_errors.append("DEBUG mode should not be enabled in production")
+        elif environment == "staging":
+            # Staging is allowed to have DEBUG mode enabled
+            if not openai_key:
+                logger.warning("⚠️ OPENAI_API_KEY not set in staging - PAM features may be limited")
     except AttributeError:
         logger.warning("⚠️ Could not access environment configuration - using defaults")
     
