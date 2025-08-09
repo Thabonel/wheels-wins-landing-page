@@ -90,7 +90,7 @@ export class NariLabsProvider implements TTSProvider {
  */
 export const createNariLabsProvider = (): NariLabsProvider => {
   // Use the same backend URL that PAM is already using
-  const backendUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
+  const backendUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
   const apiKey = import.meta.env.VITE_NARI_LABS_API_KEY;
   
   return new NariLabsProvider(backendUrl, apiKey);
