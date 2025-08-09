@@ -52,12 +52,14 @@ export const PAM_CONFIG = {
     import.meta.env.VITE_WEBSOCKET_URL || 
     import.meta.env.VITE_API_BASE_URL?.replace('https:', 'wss:').replace('http:', 'ws:') ||
     import.meta.env.VITE_BACKEND_URL?.replace('https:', 'wss:').replace('http:', 'ws:') ||
-    'wss://pam-backend.onrender.com',
+    'wss://wheels-wins-backend-staging.onrender.com',
+    'wss://wheels-wins-backend.onrender.com',  // Production fallback
   ],
   
   // Fallback HTTP endpoints for when WebSocket isn't available
   HTTP_ENDPOINTS: [
-    `${import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}/api/v1/pam/chat`,
+    `${import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com'}/api/v1/pam/chat`,
+    'https://wheels-wins-backend.onrender.com/api/v1/pam/chat'
   ],
   
   // Connection settings
