@@ -1,13 +1,13 @@
 # PERMANENT FIX: Load core stable dependencies
 -r requirements-core.txt
 
-# Additional stable dependencies
-stripe==12.3.0
-beautifulsoup4==4.13.4
-psutil==7.0.0
-prometheus-client==0.22.1
-tiktoken>=0.8.0
-assemblyai==0.42.0
+# Additional stable dependencies (removing duplicates from requirements-core.txt)
+# stripe==12.3.0          # Already in requirements-core.txt
+# beautifulsoup4==4.13.4  # Already in requirements-core.txt  
+# psutil==7.0.0           # Already in requirements-core.txt (version 6.1.0)
+# prometheus-client==0.22.1 # Already in requirements-core.txt
+# tiktoken>=0.8.0         # Already in requirements-core.txt
+# assemblyai==0.42.0      # Already in requirements-core.txt
 
 # OpenTelemetry for observability (stable versions)
 opentelemetry-api>=1.20.0
