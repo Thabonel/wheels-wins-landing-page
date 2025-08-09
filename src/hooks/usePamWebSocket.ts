@@ -33,7 +33,8 @@ export interface PamWebSocketState {
 
 export const usePamWebSocket = (options: UsePamWebSocketOptions = {}) => {
   const { autoConnect = true, onMessage, onConnectionChange } = options;
-  const voiceRecovery = useVoiceErrorRecovery();
+  // Temporarily disable voice recovery to fix React hooks error
+  // const voiceRecovery = useVoiceErrorRecovery();
   const { toast } = useToast();
 
   // Enhanced state management
@@ -145,10 +146,10 @@ export const usePamWebSocket = (options: UsePamWebSocketOptions = {}) => {
         console.log('🎙️ PAM voice status changed:', status);
         
         if (status === 'error') {
-          voiceRecovery.handleVoiceError(
-            new Error('PAM voice synthesis error'),
-            'pam_synthesis'
-          );
+          // voiceRecovery.handleVoiceError(
+          //   new Error('PAM voice synthesis error'),
+          //   'pam_synthesis'
+          // );
         }
       },
 
@@ -168,9 +169,9 @@ export const usePamWebSocket = (options: UsePamWebSocketOptions = {}) => {
         });
 
         // Use voice error recovery for voice-related errors
-        if (error.message.includes('voice') || error.message.includes('speech')) {
-          voiceRecovery.handleVoiceError(error, 'pam_service_error');
-        }
+        // if (error.message.includes('voice') || error.message.includes('speech')) {
+        //   voiceRecovery.handleVoiceError(error, 'pam_service_error');
+        // }
       }
     };
 
@@ -348,14 +349,14 @@ export const usePamWebSocket = (options: UsePamWebSocketOptions = {}) => {
     pamService.interruptVoice();
   }, []);
 
-  // Voice recovery integration
-  useEffect(() => {
-    if (voiceRecovery.fallbackMode === 'silent') {
-      setVoiceEnabled(false);
-    } else if (voiceRecovery.status === 'healthy' && !state.voiceEnabled) {
-      setVoiceEnabled(true);
-    }
-  }, [voiceRecovery.fallbackMode, voiceRecovery.status, state.voiceEnabled, setVoiceEnabled]);
+  // Voice recovery integration - temporarily disabled
+  // useEffect(() => {
+  //   if (voiceRecovery.fallbackMode === 'silent') {
+  //     setVoiceEnabled(false);
+  //   } else if (voiceRecovery.status === 'healthy' && !state.voiceEnabled) {
+  //     setVoiceEnabled(true);
+  //   }
+  // }, [voiceRecovery.fallbackMode, voiceRecovery.status, state.voiceEnabled, setVoiceEnabled]);
 
   return {
     // Legacy compatibility
@@ -383,12 +384,12 @@ export const usePamWebSocket = (options: UsePamWebSocketOptions = {}) => {
     lastMessage: state.messages[state.messages.length - 1] || null,
     isHealthy: state.isConnected && !state.lastError,
     
-    // Voice recovery integration
+    // Voice recovery integration - temporarily mocked
     voiceRecovery: {
-      status: voiceRecovery.status,
-      isRecovering: voiceRecovery.isRecovering,
-      fallbackMode: voiceRecovery.fallbackMode,
-      triggerRecovery: voiceRecovery.triggerRecovery
+      status: 'healthy' as const,
+      isRecovering: false,
+      fallbackMode: 'text' as const,
+      triggerRecovery: () => {}
     },
     
     // Service status
