@@ -1,0 +1,27 @@
+Collecting edge-tts
+  Downloading edge_tts-7.0.2-py3-none-any.whl.metadata (5.5 kB)
+Requirement already satisfied: aiohttp<4.0.0,>=3.8.0 in /opt/anaconda3/lib/python3.12/site-packages (from edge-tts) (3.10.5)
+Requirement already satisfied: certifi>=2023.11.17 in /opt/anaconda3/lib/python3.12/site-packages (from edge-tts) (2024.8.30)
+Collecting srt<4.0.0,>=3.4.1 (from edge-tts)
+  Downloading srt-3.5.3.tar.gz (28 kB)
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Requirement already satisfied: tabulate<1.0.0,>=0.4.4 in /opt/anaconda3/lib/python3.12/site-packages (from edge-tts) (0.9.0)
+Requirement already satisfied: typing-extensions<5.0.0,>=4.1.0 in /opt/anaconda3/lib/python3.12/site-packages (from edge-tts) (4.14.1)
+Requirement already satisfied: aiohappyeyeballs>=2.3.0 in /opt/anaconda3/lib/python3.12/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts) (2.4.0)
+Requirement already satisfied: aiosignal>=1.1.2 in /opt/anaconda3/lib/python3.12/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts) (1.2.0)
+Requirement already satisfied: attrs>=17.3.0 in /opt/anaconda3/lib/python3.12/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts) (23.1.0)
+Requirement already satisfied: frozenlist>=1.1.1 in /opt/anaconda3/lib/python3.12/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts) (1.4.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in /opt/anaconda3/lib/python3.12/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts) (6.0.4)
+Requirement already satisfied: yarl<2.0,>=1.0 in /opt/anaconda3/lib/python3.12/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts) (1.11.0)
+Requirement already satisfied: idna>=2.0 in /opt/anaconda3/lib/python3.12/site-packages (from yarl<2.0,>=1.0->aiohttp<4.0.0,>=3.8.0->edge-tts) (3.7)
+Downloading edge_tts-7.0.2-py3-none-any.whl (26 kB)
+Building wheels for collected packages: srt
+  Building wheel for srt (setup.py): started
+  Building wheel for srt (setup.py): finished with status 'done'
+  Created wheel for srt: filename=srt-3.5.3-py3-none-any.whl size=22512 sha256=2d69e8330a58cc3d91993ab2439df623e94dc32aa8b2e5d89eb7bd42ee3a1367
+  Stored in directory: /Users/thabonel/Library/Caches/pip/wheels/7e/75/5b/e1d5c3756631e4bda806f6cc9640153b39484bb6f7b0b8def3
+Successfully built srt
+Installing collected packages: srt, edge-tts
+
+Successfully installed edge-tts-7.0.2 srt-3.5.3

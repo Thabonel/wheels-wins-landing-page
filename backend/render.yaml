@@ -1,0 +1,61 @@
+services:
+  - type: web
+    name: pam-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    plan: starter
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: NODE_ENV
+        value: staging
+      - key: DEBUG
+        value: true
+      - key: APP_URL
+        value: https://pam-backend.onrender.com
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      # Security keys - set in Render dashboard
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Required Supabase configuration
+      - key: SUPABASE_URL
+        sync: false  # Set manually in dashboard
+      - key: SUPABASE_KEY
+        sync: false  # Set manually in dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # Set manually in dashboard
+      # Required OpenAI API Key
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in dashboard
+      # Optional Redis for caching
+      - key: REDIS_URL
+        sync: false  # Set manually in dashboard if needed
+      # CORS Configuration for staging
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app
+      # TTS Configuration
+      - key: TTS_ENABLED
+        value: true
+      - key: TTS_PRIMARY_ENGINE
+        value: edge
+      - key: TTS_FALLBACK_ENABLED
+        value: true
+      - key: TTS_VOICE_DEFAULT
+        value: en-US-SaraNeural
+      # Monitoring
+      - key: SENTRY_DSN
+        sync: false  # Set manually in dashboard if needed
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+      ignoredPaths:
+        - backend/tests/**
+        - backend/**/*.md
+        - backend/.env
+        - backend/.env.*

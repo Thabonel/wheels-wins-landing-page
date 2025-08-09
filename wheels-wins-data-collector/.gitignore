@@ -1,0 +1,54 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Data directories (large files)
+data/
+outputs/
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+
+# API keys and credentials
+credentials.json
+*.key
+*.pem
+
+# Test outputs
+test_data/
+test_outputs/
+
+# Archives
+*.tar.gz
+*.zip
+*.7z
