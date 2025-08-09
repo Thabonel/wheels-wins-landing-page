@@ -108,7 +108,10 @@ export interface DetectSavingsData {
 // API CLIENT CONFIGURATION
 // =====================================================
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = 
+  import.meta.env.VITE_API_URL || 
+  import.meta.env.VITE_BACKEND_URL || 
+  'https://wheels-wins-backend-staging.onrender.com';
 const PAM_SAVINGS_BASE = `${API_BASE_URL}/api/v1/pam`;
 
 // Circuit breaker configuration
