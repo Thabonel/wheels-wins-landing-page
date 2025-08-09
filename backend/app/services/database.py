@@ -21,11 +21,12 @@ class DatabaseService:
     def _initialize_client(self):
         """Initialize Supabase client with error handling"""
         try:
-            # Use service role key for both clients
+            # Convert URL to string and get service key
+            supabase_url = str(settings.SUPABASE_URL)
             service_key = settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value() if hasattr(settings.SUPABASE_SERVICE_ROLE_KEY, 'get_secret_value') else str(settings.SUPABASE_SERVICE_ROLE_KEY)
             
             self.client = create_client(
-                settings.SUPABASE_URL,
+                supabase_url,
                 service_key
             )
             # Initialize service client with same credentials
