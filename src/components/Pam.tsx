@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { usePamErrorRecovery } from "@/hooks/pam/usePamErrorRecovery";
+import { PamErrorBoundary } from "@/components/pam/PamErrorBoundary";
 import { pamUIController } from "@/lib/PamUIController";
 import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
@@ -68,6 +70,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   //   }
   // }
   const { settings, updateSettings } = useUserSettings();
+  
+  // Error recovery system
+  const errorRecovery = usePamErrorRecovery();
   
   // Enhanced PAM WebSocket integration with voice and error recovery
   const pamWebSocket = usePamWebSocket({
@@ -760,7 +765,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // CRITICAL: Verify this is actually a JWT, not a UUID
       if (tokenResult.token.includes('-') && tokenResult.token.length === 36) {
         console.error('❌ PAM DEBUG: ERROR - Token appears to be a UUID, not a JWT!');
-        console.error('❌ PAM DEBUG: Token value:', tokenResult.token);
+        console.error('❌ PAM DEBUG: Token type: UUID (length: 36, contains dashes)');
         console.error('❌ PAM DEBUG: This will cause authentication to fail');
         
         // Try to get the actual JWT from session
@@ -780,9 +785,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       }
       
-      // Step 2: Get WebSocket base URL
+      // Step 2: Get WebSocket base URL with user ID
       console.log('🔧 PAM DEBUG: Getting WebSocket base URL...');
-      const baseWebSocketUrl = getWebSocketUrl('/api/v1/pam/ws');
+      const baseWebSocketUrl = getWebSocketUrl(`/api/v1/pam/ws/${user.id}`);
       console.log('🔧 PAM DEBUG: Base WebSocket URL:', baseWebSocketUrl);
       
       // Step 3: Create authenticated WebSocket URL
@@ -792,10 +797,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Step 4: Validate URL format
       console.log('✅ PAM DEBUG: URL validation:');
       console.log('✅ PAM DEBUG: - Contains endpoint:', wsUrl.includes('/api/v1/pam/ws'));
+      console.log('✅ PAM DEBUG: - Contains user ID:', wsUrl.includes(user.id));
       console.log('✅ PAM DEBUG: - Uses secure protocol:', wsUrl.startsWith('wss://'));
       console.log('✅ PAM DEBUG: - Contains token parameter:', wsUrl.includes('token='));
       
-      if (!wsUrl.includes('/api/v1/pam/ws')) {
+      if (!wsUrl.includes('/api/v1/pam/ws') || !wsUrl.includes(user.id)) {
         console.error('❌ PAM DEBUG: URL validation failed!');
         console.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
         console.error('❌ PAM DEBUG: Actual URL:', `${wsUrl.substring(0, 100)  }...`);
@@ -1204,13 +1210,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     // Test 3: URL construction
     console.log('🧪 TEST 3: URL Construction');
-    const testUrl = getWebSocketUrl('/api/v1/pam/ws');
+    const testUrl = getWebSocketUrl(`/api/v1/pam/ws/${user?.id || 'test-user'}`);
     console.log('- getWebSocketUrl result:', testUrl);
     
     // Test 4: Token preparation
     console.log('🧪 TEST 4: Token Preparation');
     const testToken = user?.id || 'test_user';
-    console.log('- Test token:', testToken);
+    console.log('- Test token length:', testToken?.length || 0);
     
     // Test 5: Final URL
     console.log('🧪 TEST 5: Final URL');
@@ -2671,7 +2677,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     console.log('🧪 Session details:');
                     console.log('  - Has session:', !!session);
                     console.log('  - Has access_token:', !!session?.access_token);
-                    console.log('  - Token preview:', session?.access_token?.substring(0, 30));
+                    console.log('  - Token length:', session?.access_token?.length || 0);
                     console.log('  - Token parts:', session?.access_token?.split('.').length);
                     console.log('  - User email:', user?.email);
                     console.log('  - User ID:', user?.id);
@@ -2939,7 +2945,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                       console.log('🧪 Session details:');
                       console.log('  - Has session:', !!session);
                       console.log('  - Has access_token:', !!session?.access_token);
-                      console.log('  - Token preview:', session?.access_token?.substring(0, 30));
+                      console.log('  - Token length:', session?.access_token?.length || 0);
                       console.log('  - Token parts:', session?.access_token?.split('.').length);
                       console.log('  - User email:', user?.email);
                       console.log('  - User ID:', user?.id);
@@ -3081,4 +3087,30 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   );
 };
 
-export default Pam;
+// Enhanced Pam with Error Boundary
+const PamWithErrorBoundary: React.FC<PamProps> = (props) => (
+  <PamErrorBoundary
+    onError={(error, errorInfo) => {
+      console.error('🚨 PAM Error Boundary: Component crashed', {
+        error: error.message,
+        componentStack: errorInfo.componentStack,
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Track error for analytics
+      if (window.gtag) {
+        window.gtag('event', 'pam_error', {
+          event_category: 'error',
+          event_label: error.message,
+          value: 1,
+        });
+      }
+    }}
+    showRetryButton={true}
+    maxRetries={3}
+  >
+    <Pam {...props} />
+  </PamErrorBoundary>
+);
+
+export default PamWithErrorBoundary;

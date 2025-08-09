@@ -2,7 +2,6 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Bot, RefreshCw, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
-import ErrorBoundary from '../ErrorBoundary';
 
 interface PAMErrorFallbackProps {
   error: Error;
@@ -115,38 +114,61 @@ function PAMErrorFallback({ error, resetError }: PAMErrorFallbackProps) {
   );
 }
 
+interface PAMErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
 interface PAMErrorBoundaryProps {
   children: React.ReactNode;
 }
 
-export function PAMErrorBoundary({ children }: PAMErrorBoundaryProps) {
-  return (
-    <ErrorBoundary
-      fallback={null} // We'll handle the fallback internally
-      onError={(error, errorInfo) => {
-        console.error('PAM AI Assistant error:', error, errorInfo);
-        
-        // Log PAM-specific diagnostic information
-        console.error('PAM Error Context:', {
-          userAgent: navigator.userAgent,
-          websocketSupport: 'WebSocket' in window,
-          mediaDevicesSupport: 'mediaDevices' in navigator,
-          speechRecognitionSupport: 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window,
-          geolocationSupport: 'geolocation' in navigator,
-          timestamp: new Date().toISOString(),
-          errorType: error.constructor.name,
-          errorMessage: error.message
-        });
-        
-        // Could integrate with error reporting service here
-        // Report PAM-specific metrics to monitoring service
-      }}
-    >
+class PAMErrorBoundaryClass extends React.Component<PAMErrorBoundaryProps, PAMErrorBoundaryState> {
+  constructor(props: PAMErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): PAMErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('PAM AI Assistant error:', error, errorInfo);
+    
+    // Log PAM-specific diagnostic information
+    console.error('PAM Error Context:', {
+      userAgent: navigator.userAgent,
+      websocketSupport: 'WebSocket' in window,
+      mediaDevicesSupport: 'mediaDevices' in navigator,
+      speechRecognitionSupport: 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window,
+      geolocationSupport: 'geolocation' in navigator,
+      timestamp: new Date().toISOString(),
+      errorType: error.constructor.name,
+      errorMessage: error.message
+    });
+  }
+
+  render() {
+    if (this.state.hasError && this.state.error) {
+      return (
+        <PAMErrorFallback
+          error={this.state.error}
+          resetError={() => this.setState({ hasError: false, error: undefined })}
+        />
+      );
+    }
+
+    return (
       <div className="pam-error-boundary">
-        {children}
+        {this.props.children}
       </div>
-    </ErrorBoundary>
-  );
+    );
+  }
+}
+
+export function PAMErrorBoundary({ children }: PAMErrorBoundaryProps) {
+  return <PAMErrorBoundaryClass>{children}</PAMErrorBoundaryClass>;
 }
 
 // Higher-order component to wrap individual PAM components
@@ -156,21 +178,9 @@ export function withPAMErrorBoundary<P extends object>(
 ) {
   return function WrappedPAMComponent(props: P) {
     return (
-      <ErrorBoundary
-        fallback={
-          <div className="p-4 min-h-[100px] flex items-center justify-center">
-            <PAMErrorFallback
-              error={new Error(`${componentName || 'PAM component'} failed to load`)}
-              resetError={() => window.location.reload()}
-            />
-          </div>
-        }
-        onError={(error, errorInfo) => {
-          console.error(`PAM component error in ${componentName}:`, error, errorInfo);
-        }}
-      >
+      <PAMErrorBoundary>
         <Component {...props} />
-      </ErrorBoundary>
+      </PAMErrorBoundary>
     );
   };
 }

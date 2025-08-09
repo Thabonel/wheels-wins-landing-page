@@ -152,7 +152,7 @@ export const usePamWebSocketEnhanced = (userId: string) => {
       setCurrentToken(tokenInfo);
       setConnectionError(null);
       
-      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}?token=${encodeURIComponent(tokenInfo.token)}`;
+      const wsUrl = `${getWebSocketUrl(`/api/v1/pam/ws/${user.id}`)}?token=${encodeURIComponent(tokenInfo.token)}`;
       console.log('🔌 Connecting to PAM WebSocket...');
       
       wsRef.current = new WebSocket(wsUrl);

@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 // FORCE REAL SUPABASE CLIENT - NOT MOCK
 import { toast } from 'sonner';
 import { API_BASE_URL, authenticatedFetch } from '@/services/api';
+import { backendHealthMonitor, type HealthCheckResult, type WebSocketTestResult } from '@/utils/backendHealthCheck';
 
 interface TestResult {
   status: 'checking' | 'success' | 'error' | 'timeout' | 'online' | 'offline' | 'connected' | 'disconnected' | 'operational' | 'degraded';
@@ -80,7 +81,7 @@ export function PAMConnectionDiagnostic() {
           const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token || 'test-connection';
         
-        const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/api/v1/pam/ws?token=${encodeURIComponent(token)}`;
+        const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/api/v1/pam/ws/${user?.id || 'diagnostic-test'}?token=${encodeURIComponent(token)}`;
         const ws = new WebSocket(wsUrl);
         const startTime = Date.now();
         let pingTime = 0;
@@ -559,7 +560,7 @@ export function PAMConnectionDiagnostic() {
         {/* Connection Details */}
         <div className="text-sm text-muted-foreground space-y-1 pb-2 border-b">
           <p><strong>Backend URL:</strong> {API_BASE_URL}</p>
-          <p><strong>WebSocket URL:</strong> {API_BASE_URL.replace(/^http/, 'ws')}/api/v1/pam/ws</p>
+          <p><strong>WebSocket URL:</strong> {API_BASE_URL.replace(/^http/, 'ws')}/api/v1/pam/ws/{user?.id || 'user-id'}</p>
           <p><strong>User:</strong> {user?.email || 'Not logged in'}</p>
           {results.lastCheck && (
             <p><strong>Last checked:</strong> {results.lastCheck.toLocaleTimeString()}</p>
