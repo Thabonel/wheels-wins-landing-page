@@ -42,6 +42,7 @@ class CORSConfig:
             "https://www.wheelz-wins.com",
             "https://wheels-wins-landing-page.netlify.app",
             "https://wheels-wins-staging.netlify.app",  # Staging frontend
+            "https://staging-wheelsandwins.netlify.app",  # Additional staging URL
             "https://65a8f6b6c9f5d2092be8bfc2--wheels-wins-landing-page.netlify.app",
         ])
         
@@ -84,9 +85,9 @@ class CORSConfig:
     def _is_development(self) -> bool:
         """Check if running in development mode"""
         try:
-            env = getattr(settings, 'ENVIRONMENT', 'production')
+            env = getattr(settings, 'NODE_ENV', 'production')
             debug = getattr(settings, 'DEBUG', False)
-            return env == "development" or debug
+            return env in ["development", "staging"] or debug
         except AttributeError:
             logger.warning("⚠️ Using fallback environment detection")
             return True  # Fallback to development for safety
@@ -104,7 +105,7 @@ class CORSConfig:
     def _get_environment(self) -> str:
         """Get current environment"""
         try:
-            return getattr(settings, 'ENVIRONMENT', 'production')
+            return getattr(settings, 'NODE_ENV', 'production')
         except AttributeError:
             return 'production'
             
