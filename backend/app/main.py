@@ -56,7 +56,7 @@ except Exception as config_error:
     print(f"⚠️ Failed to load full config: {config_error}")
     print("🔄 Using simple config fallback for staging...")
     from app.core.simple_config import settings
-    print(f"✅ Simple config loaded - Environment: {settings.ENVIRONMENT}")
+    print(f"✅ Simple config loaded - Environment: {settings.NODE_ENV}")
 from app.core.logging import setup_logging, get_logger
 from app.core.environment_validator import validate_environment
 
@@ -173,7 +173,7 @@ def validate_configuration():
     else:
         logger.info("✅ Configuration validation passed")
         try:
-            logger.info(f"   Environment: {getattr(settings, 'ENVIRONMENT', 'unknown')}")
+            logger.info(f"   Environment: {getattr(settings, 'NODE_ENV', 'unknown')}")
             logger.info(f"   Debug mode: {getattr(settings, 'DEBUG', 'unknown')}")
             logger.info(f"   Site URL: {getattr(settings, 'SITE_URL', 'fallback')}")
         except AttributeError:
@@ -373,8 +373,8 @@ app = FastAPI(
     description="High-performance Personal Assistant Manager Backend with Monitoring",
     version="2.0.0",
     lifespan=lifespan,
-    docs_url="/api/docs" if settings.ENVIRONMENT != "production" else None,
-    redoc_url="/api/redoc" if settings.ENVIRONMENT != "production" else None,
+    docs_url="/api/docs" if settings.NODE_ENV != "production" else None,
+    redoc_url="/api/redoc" if settings.NODE_ENV != "production" else None,
 )
 
 # Enable distributed tracing with OpenTelemetry if available
@@ -417,7 +417,7 @@ app.add_middleware(EnhancedCORSMiddleware)
 
 # Add CORS debugging middleware in development
 try:
-    if getattr(settings, 'ENVIRONMENT', 'production') == "development" or getattr(settings, 'DEBUG', False):
+    if getattr(settings, 'NODE_ENV', 'production') == "development" or getattr(settings, 'DEBUG', False):
         app.add_middleware(CORSDebugMiddleware)
         logger.info("🔧 CORS debugging middleware enabled")
 except AttributeError:
@@ -496,7 +496,7 @@ async def cors_debug_info(request: Request):
         "request_origin": origin,
         "configured_cors_origins": cors_config.origins,
         "origin_allowed": cors_config.is_origin_allowed(origin) if origin != "No origin header" else False,
-        "environment": getattr(settings, 'ENVIRONMENT', 'unknown'),
+        "environment": getattr(settings, 'NODE_ENV', 'unknown'),
         "total_origins": len(cors_config.origins),
         "cors_config": {
             "allowed_methods": cors_config.allowed_methods,
@@ -521,7 +521,7 @@ async def cors_stats():
                 "expose_headers_count": len(cors_config.expose_headers),
             },
             "system_info": {
-                "environment": getattr(settings, 'ENVIRONMENT', 'unknown'),
+                "environment": getattr(settings, 'NODE_ENV', 'unknown'),
                 "cors_debugging_enabled": True,
                 "enhanced_middleware_active": True,
             },
@@ -1117,9 +1117,9 @@ if __name__ == "__main__":
         "app.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=settings.ENVIRONMENT == "development",
-        workers=1 if settings.ENVIRONMENT == "development" else 4,
+        reload=settings.NODE_ENV == "development",
+        workers=1 if settings.NODE_ENV == "development" else 4,
         loop="uvloop",
         http="httptools",
-        access_log=settings.ENVIRONMENT == "development",
+        access_log=settings.NODE_ENV == "development",
     )
