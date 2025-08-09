@@ -47,17 +47,19 @@ export interface PamServiceEvents {
 // PAM Configuration - Enhanced from existing setup
 export const PAM_CONFIG = {
   // Primary PAM WebSocket endpoints (production ready)
+  // Note: Don't include /api/v1/pam/ws path here - it will be added with user ID
   WEBSOCKET_ENDPOINTS: [
-    import.meta.env.VITE_WEBSOCKET_URL ? `${import.meta.env.VITE_WEBSOCKET_URL}/api/v1/pam/ws` :
-    import.meta.env.VITE_PAM_WEBSOCKET_URL || 
-    'wss://pam-backend.onrender.com/api/v1/pam/ws',
-    'wss://api.wheelsandwins.com/pam/ws',  // Alternate production endpoint
+    import.meta.env.VITE_WEBSOCKET_URL || 
+    import.meta.env.VITE_API_BASE_URL?.replace('https:', 'wss:').replace('http:', 'ws:') ||
+    import.meta.env.VITE_BACKEND_URL?.replace('https:', 'wss:').replace('http:', 'ws:') ||
+    'wss://wheels-wins-backend-staging.onrender.com',
+    'wss://wheels-wins-backend.onrender.com',  // Production fallback
   ],
   
   // Fallback HTTP endpoints for when WebSocket isn't available
   HTTP_ENDPOINTS: [
-    `${import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'  }/api/v1/pam/chat`,
-    'https://api.wheelsandwins.com/pam/chat'
+    `${import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com'}/api/v1/pam/chat`,
+    'https://wheels-wins-backend.onrender.com/api/v1/pam/chat'
   ],
   
   // Connection settings
@@ -194,23 +196,16 @@ class PAMService {
       }
 
       // Create WebSocket connection with authentication
-      // Backend expects user ID in path: /ws/{user_id}
+      // Backend expects user ID in path: /api/v1/pam/ws/{user_id}
       const userId = this.currentUser?.id || session?.user?.id;
       if (!userId) {
         throw new Error('User ID not available for WebSocket connection');
       }
       
-      // Fix the endpoint to include user ID in the path
-      let baseUrl = endpoint;
-      if (endpoint.includes('/api/v1/pam/ws')) {
-        // Replace /api/v1/pam/ws with /api/v1/pam/ws/{userId}
-        baseUrl = endpoint.replace('/api/v1/pam/ws', `/api/v1/pam/ws/${userId}`);
-      } else if (endpoint.includes('/pam/ws')) {
-        // Handle alternate endpoint format
-        baseUrl = endpoint.replace('/pam/ws', `/pam/ws/${userId}`);
-      }
-      
-      const wsUrl = new URL(baseUrl);
+      // Construct the WebSocket URL with user ID in the path
+      // The endpoint is just the base URL (e.g., wss://backend.com)
+      // We need to add /api/v1/pam/ws/{userId}
+      const wsUrl = new URL(`${endpoint}/api/v1/pam/ws/${userId}`);
       wsUrl.searchParams.append('token', token);
       wsUrl.searchParams.append('user_id', userId);
       wsUrl.searchParams.append('version', '1.0');
