@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL || 
   import.meta.env.VITE_BACKEND_URL || 
-  'https://wheels-wins-backend-staging.onrender.com';
+  'https://pam-backend.onrender.com';
 
 // Allow overriding the WebSocket endpoint separately if needed
 const WS_OVERRIDE = import.meta.env.VITE_PAM_WEBSOCKET_URL;

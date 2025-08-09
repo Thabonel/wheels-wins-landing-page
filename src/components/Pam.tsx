@@ -631,7 +631,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('🔄 Testing REST API connection...');
       
       // First try the health endpoint (no auth required)
-      const healthResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com'}/health`);
+      const healthResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}/health`);
       if (!healthResponse.ok) {
         throw new Error('Backend health check failed');
       }
@@ -697,7 +697,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
 
     console.log('🏥 PAM DEBUG: ==================== HEALTH CHECK ====================');
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
     console.log('🏥 PAM DEBUG: Backend URL:', backendUrl);
     console.log('🏥 PAM DEBUG: Health check URL:', `${backendUrl}/health`);
     
@@ -2684,7 +2684,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     
                     // Test backend health
                     try {
-                      const healthResponse = await fetch('https://wheels-wins-backend-staging.onrender.com/health');
+                      const healthResponse = await fetch('https://pam-backend.onrender.com/health');
                       console.log('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
                     } catch (error) {
                       console.log('🧪 Backend health: ERROR', error);
@@ -2952,7 +2952,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                       
                       // Test backend health
                       try {
-                        const healthResponse = await fetch('https://wheels-wins-backend-staging.onrender.com/health');
+                        const healthResponse = await fetch('https://pam-backend.onrender.com/health');
                         console.log('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
                       } catch (error) {
                         console.log('🧪 Backend health: ERROR', error);
