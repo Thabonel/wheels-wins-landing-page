@@ -147,7 +147,7 @@ def validate_configuration():
     
     # Validate environment-specific requirements
     try:
-        environment = getattr(settings, 'ENVIRONMENT', 'production')
+        environment = getattr(settings, 'NODE_ENV', 'production')
         debug_mode = getattr(settings, 'DEBUG', False)
         openai_key = getattr(settings, 'OPENAI_API_KEY', None)
         
