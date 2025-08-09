@@ -195,9 +195,24 @@ class PAMService {
 
       // Create WebSocket connection with authentication
       // Backend expects user ID in path: /ws/{user_id}
-      const baseUrl = endpoint.replace('/api/v1/pam/ws', `/api/v1/pam/ws/${this.currentUser.id}`);
+      const userId = this.currentUser?.id || session?.user?.id;
+      if (!userId) {
+        throw new Error('User ID not available for WebSocket connection');
+      }
+      
+      // Fix the endpoint to include user ID in the path
+      let baseUrl = endpoint;
+      if (endpoint.includes('/api/v1/pam/ws')) {
+        // Replace /api/v1/pam/ws with /api/v1/pam/ws/{userId}
+        baseUrl = endpoint.replace('/api/v1/pam/ws', `/api/v1/pam/ws/${userId}`);
+      } else if (endpoint.includes('/pam/ws')) {
+        // Handle alternate endpoint format
+        baseUrl = endpoint.replace('/pam/ws', `/pam/ws/${userId}`);
+      }
+      
       const wsUrl = new URL(baseUrl);
       wsUrl.searchParams.append('token', token);
+      wsUrl.searchParams.append('user_id', userId);
       wsUrl.searchParams.append('version', '1.0');
 
       // Return a promise that resolves when connection opens
