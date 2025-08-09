@@ -1,0 +1,198 @@
+{
+  "name": "Wheels & Wins - Travel Planning & RV Community",
+  "short_name": "Wheels & Wins",
+  "description": "Complete travel planning, RV management, and community platform with PAM AI assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["travel", "navigation", "lifestyle", "productivity"],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop-home.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Wheels & Wins Desktop Home Screen"
+    },
+    {
+      "src": "/screenshots/mobile-trip-planner.png", 
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Trip Planner Mobile View"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Plan Trip",
+      "short_name": "Trip Plan",
+      "description": "Start planning a new trip with PAM assistance",
+      "url": "/wheels/trip-planner",
+      "icons": [
+        {
+          "src": "/icons/shortcut-trip.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Chat with PAM",
+      "short_name": "PAM Chat",
+      "description": "Get AI assistance for travel and RV questions",
+      "url": "/pam",
+      "icons": [
+        {
+          "src": "/icons/shortcut-pam.png",
+          "sizes": "96x96", 
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Community",
+      "short_name": "Community",
+      "description": "Connect with other travelers and RV enthusiasts",
+      "url": "/social",
+      "icons": [
+        {
+          "src": "/icons/shortcut-community.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "short_name": "Expenses",
+      "description": "Track and manage your travel expenses",
+      "url": "/wins/expenses",
+      "icons": [
+        {
+          "src": "/icons/shortcut-expenses.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://wheelsandwins.com/manifest.json"
+    }
+  ],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "media",
+          "accept": ["image/*", "video/*"]
+        }
+      ]
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+wheelsandwins",
+      "url": "/handle-protocol?type=%s"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/import-trip",
+      "accept": {
+        "application/json": [".json"],
+        "text/csv": [".csv"]
+      },
+      "icons": [
+        {
+          "src": "/icons/file-handler.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ],
+      "launch_type": "single-client"
+    }
+  ]
+}

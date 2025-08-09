@@ -1,0 +1,319 @@
+# Country-specific configuration for data collection
+# Each country has specific data sources and collection parameters
+
+countries:
+  australia:
+    name: "Australia"
+    iso_code: "AU"
+    currency: "AUD"
+    timezone: "Australia/Sydney"
+    data_sources:
+      national_parks:
+        - name: "Parks Australia"
+          api_url: "https://data.gov.au/data/api/3/action/package_search"
+          api_type: "government"
+          rate_limit: 100  # requests per hour
+        - name: "State Parks (NSW, VIC, QLD, etc)"
+          api_url: "https://www.nationalparks.nsw.gov.au/api"
+          api_type: "state_government"
+          rate_limit: 50
+      camping:
+        - name: "WikiCamps Australia"
+          url: "https://wikicamps.com.au"
+          type: "scraping"
+          rate_limit: 30
+        - name: "Free Camps Australia"
+          url: "https://freecamps.com.au"
+          type: "scraping"
+          rate_limit: 30
+      attractions:
+        - name: "Tourism Australia"
+          api_url: "https://developer.tourism.australia.com"
+          api_type: "tourism_board"
+          rate_limit: 100
+    regions:
+      - "New South Wales"
+      - "Victoria"
+      - "Queensland"
+      - "Western Australia"
+      - "South Australia"
+      - "Tasmania"
+      - "Northern Territory"
+      - "Australian Capital Territory"
+
+  new_zealand:
+    name: "New Zealand"
+    iso_code: "NZ"
+    currency: "NZD"
+    timezone: "Pacific/Auckland"
+    data_sources:
+      national_parks:
+        - name: "Department of Conservation (DOC)"
+          api_url: "https://www.doc.govt.nz/api"
+          api_type: "government"
+          rate_limit: 100
+      camping:
+        - name: "DOC Campsites"
+          url: "https://www.doc.govt.nz/parks-and-recreation/places-to-stay/campsites"
+          type: "api"
+          rate_limit: 50
+        - name: "CamperMate NZ"
+          url: "https://campermate.co.nz"
+          type: "scraping"
+          rate_limit: 30
+      attractions:
+        - name: "Tourism New Zealand"
+          api_url: "https://www.newzealand.com/api"
+          api_type: "tourism_board"
+          rate_limit: 100
+    regions:
+      - "Auckland"
+      - "Bay of Plenty"
+      - "Canterbury"
+      - "Gisborne"
+      - "Hawke's Bay"
+      - "Manawatu-Wanganui"
+      - "Marlborough"
+      - "Nelson"
+      - "Northland"
+      - "Otago"
+      - "Southland"
+      - "Taranaki"
+      - "Tasman"
+      - "Waikato"
+      - "Wellington"
+      - "West Coast"
+
+  canada:
+    name: "Canada"
+    iso_code: "CA"
+    currency: "CAD"
+    timezone: "America/Toronto"
+    data_sources:
+      national_parks:
+        - name: "Parks Canada"
+          api_url: "https://www.pc.gc.ca/apps/tcpapi/v1"
+          api_type: "government"
+          rate_limit: 100
+        - name: "Provincial Parks"
+          api_url: "https://www.ontarioparks.com/api"
+          api_type: "provincial"
+          rate_limit: 50
+      camping:
+        - name: "iOverlander Canada"
+          url: "https://www.ioverlander.com"
+          type: "api"
+          rate_limit: 60
+        - name: "Campendium Canada"
+          url: "https://www.campendium.com"
+          type: "scraping"
+          rate_limit: 30
+      attractions:
+        - name: "Destination Canada"
+          api_url: "https://www.destinationcanada.com/api"
+          api_type: "tourism_board"
+          rate_limit: 100
+    regions:
+      - "Alberta"
+      - "British Columbia"
+      - "Manitoba"
+      - "New Brunswick"
+      - "Newfoundland and Labrador"
+      - "Northwest Territories"
+      - "Nova Scotia"
+      - "Nunavut"
+      - "Ontario"
+      - "Prince Edward Island"
+      - "Quebec"
+      - "Saskatchewan"
+      - "Yukon"
+
+  united_states:
+    name: "United States"
+    iso_code: "US"
+    currency: "USD"
+    timezone: "America/New_York"
+    data_sources:
+      national_parks:
+        - name: "National Park Service"
+          api_url: "https://developer.nps.gov/api/v1"
+          api_type: "government"
+          rate_limit: 1000  # NPS has generous rate limits
+        - name: "State Parks"
+          api_url: "https://www.stateparks.com/api"
+          api_type: "state_government"
+          rate_limit: 100
+      camping:
+        - name: "Recreation.gov"
+          api_url: "https://ridb.recreation.gov/api/v1"
+          api_type: "government"
+          rate_limit: 200
+        - name: "iOverlander USA"
+          url: "https://www.ioverlander.com"
+          type: "api"
+          rate_limit: 60
+        - name: "Campendium"
+          url: "https://www.campendium.com"
+          type: "scraping"
+          rate_limit: 30
+        - name: "FreeRoam"
+          url: "https://freeroam.app"
+          type: "api"
+          rate_limit: 100
+      attractions:
+        - name: "Brand USA"
+          api_url: "https://www.visittheusa.com/api"
+          api_type: "tourism_board"
+          rate_limit: 100
+    regions:
+      - "Alabama"
+      - "Alaska"
+      - "Arizona"
+      - "Arkansas"
+      - "California"
+      - "Colorado"
+      - "Connecticut"
+      - "Delaware"
+      - "Florida"
+      - "Georgia"
+      - "Hawaii"
+      - "Idaho"
+      - "Illinois"
+      - "Indiana"
+      - "Iowa"
+      - "Kansas"
+      - "Kentucky"
+      - "Louisiana"
+      - "Maine"
+      - "Maryland"
+      - "Massachusetts"
+      - "Michigan"
+      - "Minnesota"
+      - "Mississippi"
+      - "Missouri"
+      - "Montana"
+      - "Nebraska"
+      - "Nevada"
+      - "New Hampshire"
+      - "New Jersey"
+      - "New Mexico"
+      - "New York"
+      - "North Carolina"
+      - "North Dakota"
+      - "Ohio"
+      - "Oklahoma"
+      - "Oregon"
+      - "Pennsylvania"
+      - "Rhode Island"
+      - "South Carolina"
+      - "South Dakota"
+      - "Tennessee"
+      - "Texas"
+      - "Utah"
+      - "Vermont"
+      - "Virginia"
+      - "Washington"
+      - "West Virginia"
+      - "Wisconsin"
+      - "Wyoming"
+
+  great_britain:
+    name: "Great Britain"
+    iso_code: "GB"
+    currency: "GBP"
+    timezone: "Europe/London"
+    data_sources:
+      national_parks:
+        - name: "Natural England"
+          api_url: "https://naturalengland-defra.opendata.arcgis.com"
+          api_type: "government"
+          rate_limit: 100
+        - name: "NatureScot"
+          api_url: "https://www.nature.scot/api"
+          api_type: "government"
+          rate_limit: 50
+        - name: "Natural Resources Wales"
+          api_url: "https://naturalresources.wales/api"
+          api_type: "government"
+          rate_limit: 50
+      camping:
+        - name: "Camping and Caravanning Club"
+          url: "https://www.campingandcaravanningclub.co.uk"
+          type: "scraping"
+          rate_limit: 30
+        - name: "Pitchup"
+          api_url: "https://www.pitchup.com/api"
+          type: "commercial"
+          rate_limit: 100
+      attractions:
+        - name: "VisitBritain"
+          api_url: "https://www.visitbritain.com/api"
+          api_type: "tourism_board"
+          rate_limit: 100
+        - name: "English Heritage"
+          api_url: "https://www.english-heritage.org.uk/api"
+          api_type: "heritage"
+          rate_limit: 50
+    regions:
+      - "England"
+      - "Scotland"
+      - "Wales"
+
+# Common data types to collect across all countries
+data_types:
+  national_parks:
+    priority: 1
+    fields:
+      - name
+      - location
+      - description
+      - entrance_fees
+      - camping_available
+      - rv_accessible
+      - activities
+      - best_visiting_season
+      - contact_info
+      
+  camping_spots:
+    priority: 1
+    fields:
+      - name
+      - location
+      - type  # free, paid, rv_park, national_park, etc.
+      - price_per_night
+      - amenities
+      - rv_length_limit
+      - reservations_required
+      - seasonal_availability
+      
+  swimming_spots:
+    priority: 2
+    fields:
+      - name
+      - location
+      - type  # beach, lake, pool, river
+      - water_temperature
+      - safety_info
+      - facilities
+      - accessibility
+      
+  waterfalls:
+    priority: 2
+    fields:
+      - name
+      - location
+      - height
+      - difficulty_to_reach
+      - best_viewing_season
+      - parking_info
+      
+  tourist_attractions:
+    priority: 3
+    fields:
+      - name
+      - location
+      - type
+      - description
+      - opening_hours
+      - admission_fees
+      - parking_available

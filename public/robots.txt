@@ -1,0 +1,45 @@
+# Wheels & Wins robots.txt
+# Updated: 2025-08-04
+
+# All bots
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /_next/
+Disallow: /payment-success
+Disallow: /payment-canceled
+Disallow: /cancel-trial
+Disallow: /reset-password
+Disallow: /update-password
+Crawl-delay: 1
+
+# Google
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Crawl-delay: 0
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Crawl-delay: 1
+
+# Social media bots
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+# Sitemap location
+Sitemap: https://wheelsandwins.com/sitemap.xml

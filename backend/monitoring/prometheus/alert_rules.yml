@@ -1,0 +1,83 @@
+
+groups:
+  - name: pam_backend_alerts
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status_code=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors per second"
+          
+      # High response time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }} seconds"
+          
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: system_cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}%"
+          
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: system_memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}%"
+          
+      # Low cache hit ratio
+      - alert: LowCacheHitRatio
+        expr: cache_hit_ratio < 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit ratio"
+          description: "Cache hit ratio is {{ $value }}"
+          
+      # Database connection issues
+      - alert: HighDatabaseConnections
+        expr: database_connections_active > 18
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection count"
+          description: "Active database connections: {{ $value }}"
+          
+      # AI service issues
+      - alert: HighAIErrorRate
+        expr: rate(ai_requests_total{status="error"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High AI service error rate"
+          description: "AI service error rate is {{ $value }} errors per second"
+          
+      # WebSocket connection issues
+      - alert: WebSocketConnectionDrop
+        expr: decrease(websocket_connections_active[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Significant WebSocket connection drop"
+          description: "WebSocket connections dropped by {{ $value }}"

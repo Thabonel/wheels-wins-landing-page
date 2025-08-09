@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.git.corrupted.backup/
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+coverage/
+.env
+.env.local
+.env.production
+.env.staging

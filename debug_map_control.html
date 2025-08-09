@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Options Control Debug</title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+        #map { height: 400px; width: 100%; }
+        .test-control {
+            background: white;
+            border-radius: 3px;
+            box-shadow: 0 0 0 2px rgba(0,0,0,.1);
+            cursor: pointer;
+            display: block;
+            font-size: 12px;
+            outline: none;
+            padding: 8px;
+            text-decoration: none;
+        }
+        .test-control:hover {
+            background: rgba(0,0,0,.05);
+        }
+    </style>
+</head>
+<body>
+    <h1>Map Options Control Debug</h1>
+    <div id="console"></div>
+    <div id="map"></div>
+
+    <script>
+        function log(message) {
+            console.log(message);
+            document.getElementById('console').innerHTML += message + '<br>';
+        }
+
+        // Use the same token from .env
+        mapboxgl.accessToken = 'pk.eyJ1IjoidGhhYm9uZWwiLCJhIjoiY205Z2pyODhuMDRvbzJrcHNicXdsMTB5cyJ9.J9fGA68HAcBf4VGLMQnfzA';
+        
+        log('Starting map initialization...');
+
+        // Test basic map creation
+        try {
+            const map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: [-74.5, 40],
+                zoom: 9
+            });
+
+            log('Map created successfully');
+
+            // Test map control interface
+            class TestMapControl {
+                onAdd(map) {
+                    log('TestMapControl onAdd called');
+                    this.map = map;
+                    this.container = document.createElement('div');
+                    this.container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+                    
+                    const button = document.createElement('button');
+                    button.className = 'test-control';
+                    button.innerHTML = 'Test Button';
+                    button.addEventListener('click', () => {
+                        log('Test button clicked!');
+                    });
+                    
+                    this.container.appendChild(button);
+                    log('TestMapControl container created and button added');
+                    return this.container;
+                }
+
+                onRemove() {
+                    log('TestMapControl onRemove called');
+                    if (this.container && this.container.parentNode) {
+                        this.container.parentNode.removeChild(this.container);
+                    }
+                    this.map = undefined;
+                }
+            }
+
+            map.on('load', () => {
+                log('Map loaded event fired');
+                
+                // Add test control
+                const testControl = new TestMapControl();
+                log('Adding test control to map...');
+                map.addControl(testControl, 'top-right');
+                log('Test control added successfully');
+
+                // Test if control has been properly added
+                setTimeout(() => {
+                    const controls = document.querySelectorAll('.mapboxgl-ctrl-group');
+                    log(`Found ${controls.length} control groups on map`);
+                    const testButtons = document.querySelectorAll('.test-control');
+                    log(`Found ${testButtons.length} test buttons`);
+                }, 1000);
+            });
+
+        } catch (error) {
+            log('Error creating map: ' + error.message);
+        }
+    </script>
+</body>
+</html>
