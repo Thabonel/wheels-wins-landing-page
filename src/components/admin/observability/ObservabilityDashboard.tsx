@@ -80,6 +80,7 @@ export default function ObservabilityDashboard() {
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const fetchData = async (showToast = false) => {
     try {
@@ -91,27 +92,49 @@ export default function ObservabilityDashboard() {
         authenticatedFetch('/api/v1/observability/health')
       ]);
 
-      if (dashboardResponse.ok) {
+      // Check for authentication/authorization errors
+      let hasAccessError = false;
+      
+      if (!dashboardResponse.ok && dashboardResponse.status === 403) {
+        console.warn('Admin access required for observability data');
+        hasAccessError = true;
+        setAccessDenied(true);
+      } else if (dashboardResponse.ok) {
         const dashboardResult = await dashboardResponse.json();
         setDashboardData(dashboardResult.data.summary);
+        setAccessDenied(false);
       }
 
-      if (metricsResponse.ok) {
+      if (!metricsResponse.ok && metricsResponse.status === 403) {
+        console.warn('Admin access required for metrics data');
+        hasAccessError = true;
+      } else if (metricsResponse.ok) {
         const metricsResult = await metricsResponse.json();
         setDetailedMetrics(metricsResult.data);
       }
 
-      if (healthResponse.ok) {
+      if (!healthResponse.ok && healthResponse.status === 403) {
+        console.warn('Admin access required for health data');
+        hasAccessError = true;
+      } else if (healthResponse.ok) {
         const healthResult = await healthResponse.json();
         setHealthStatus(healthResult.data);
       }
+      
+      // Only show the error toast once if there's an access error
+      if (hasAccessError && showToast) {
+        toast.error('Admin access required to view observability data');
+      }
 
-      if (showToast) {
+      if (showToast && dashboardResponse.ok) {
         toast.success('Observability data refreshed');
       }
     } catch (error) {
       console.error('Failed to fetch observability data:', error);
-      toast.error('Failed to load observability data');
+      // Only show error toast if it's not an authentication issue
+      if (error instanceof Error && !error.message.includes('403')) {
+        toast.error('Failed to load observability data');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -124,6 +147,11 @@ export default function ObservabilityDashboard() {
         method: 'POST'
       });
 
+      if (response.status === 403) {
+        toast.error('Admin access required to initialize observability');
+        return;
+      }
+
       if (response.ok) {
         toast.success('Observability platforms initialized');
         fetchData(false);
@@ -133,7 +161,9 @@ export default function ObservabilityDashboard() {
       }
     } catch (error) {
       console.error('Failed to initialize observability:', error);
-      toast.error('Failed to initialize observability');
+      if (error instanceof Error && !error.message.includes('403')) {
+        toast.error('Failed to initialize observability');
+      }
     }
   };
 
@@ -143,6 +173,11 @@ export default function ObservabilityDashboard() {
         method: 'POST'
       });
 
+      if (response.status === 403) {
+        toast.error('Admin access required to reset metrics');
+        return;
+      }
+
       if (response.ok) {
         toast.success('Metrics reset successfully');
         fetchData(false);
@@ -151,7 +186,9 @@ export default function ObservabilityDashboard() {
       }
     } catch (error) {
       console.error('Failed to reset metrics:', error);
-      toast.error('Failed to reset metrics');
+      if (error instanceof Error && !error.message.includes('403')) {
+        toast.error('Failed to reset metrics');
+      }
     }
   };
 
@@ -191,6 +228,42 @@ export default function ObservabilityDashboard() {
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="h-8 w-8 animate-spin" />
         <span className="ml-2">Loading observability data...</span>
+      </div>
+    );
+  }
+
+  // Show access denied message if user doesn't have admin privileges
+  if (accessDenied) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">AI Agent Observability</h2>
+            <p className="text-gray-600">Monitor and manage AI agent performance across platforms</p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center space-y-4 py-8">
+              <AlertTriangle className="h-12 w-12 text-yellow-500" />
+              <h3 className="text-lg font-semibold">Admin Access Required</h3>
+              <p className="text-gray-600 text-center max-w-md">
+                You need admin privileges to view observability data. 
+                Please contact your system administrator for access.
+              </p>
+              <Button
+                onClick={() => fetchData(true)}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
