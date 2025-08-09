@@ -55,3 +55,6 @@ APScheduler==3.11.0
 # Essential processing
 numpy==1.26.4
 Pillow==11.3.0
+
+# YouTube integration
+youtube-transcript-api==0.6.2
