@@ -18,7 +18,7 @@ import redis.asyncio as redis
 from sqlalchemy import text
 
 from app.core.config import settings
-from app.core.database import database
+from app.core.database import get_supabase
 from app.core.logging_config import PAMLogger
 from app.services.database import get_database_service
 from app.services.cache_service import cache_service

@@ -193,7 +193,7 @@ class Settings(BaseSettings):
     
     # Redis Configuration
     REDIS_ENABLED: bool = Field(default=True)
-    REDIS_URL: Optional[RedisDsn] = Field(
+    REDIS_URL: Optional[str] = Field(  # Changed from RedisDsn to str for Pydantic v2 compatibility
         default="redis://localhost:6379",
         description="Redis connection URL"
     )
