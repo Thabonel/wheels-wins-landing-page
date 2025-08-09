@@ -82,7 +82,9 @@ class CacheManager:
                  max_memory_items: int = 1000,
                  enable_compression: bool = True,
                  compression_threshold: int = 1024):  # Compress if > 1KB
-        self.redis_url = redis_url or settings.REDIS_URL
+        # Convert to string if it's a Pydantic URL object
+        redis_url_value = redis_url or settings.REDIS_URL
+        self.redis_url = str(redis_url_value) if redis_url_value else None
         self.default_ttl = default_ttl
         self.max_memory_items = max_memory_items
         self.enable_compression = enable_compression
