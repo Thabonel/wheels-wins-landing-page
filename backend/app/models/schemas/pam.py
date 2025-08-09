@@ -109,18 +109,18 @@ class SecureChatRequest(BaseModel):
     )
     user_id: Optional[str] = Field(
         None, 
-        regex=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
+        pattern=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
         description="Valid UUID for user identification"
     )
     session_id: Optional[str] = Field(
         None, 
-        regex=r'^[a-zA-Z0-9_-]+$',
+        pattern=r'^[a-zA-Z0-9_-]+$',
         max_length=100,
         description="Session identifier (alphanumeric, dash, underscore only)"
     )
     conversation_id: Optional[str] = Field(
         None, 
-        regex=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
+        pattern=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
         description="Valid UUID for conversation identification"
     )
     context: Optional[Dict[str, Any]] = Field(
@@ -138,7 +138,7 @@ class SecureChatRequest(BaseModel):
     )
     auth_token: Optional[str] = Field(
         None, 
-        regex=r'^[A-Za-z0-9._-]+$',
+        pattern=r'^[A-Za-z0-9._-]+$',
         max_length=2048,
         description="JWT token for authentication"
     )
@@ -199,7 +199,7 @@ class SecureWebSocketMessage(BaseModel):
     """
     type: str = Field(
         ...,
-        regex=r'^[a-zA-Z_][a-zA-Z0-9_]*$',
+        pattern=r'^[a-zA-Z_][a-zA-Z0-9_]*$',
         max_length=50,
         description="Message type (alphanumeric and underscore only)"
     )
@@ -219,18 +219,18 @@ class SecureWebSocketMessage(BaseModel):
     )
     user_id: Optional[str] = Field(
         None,
-        regex=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
+        pattern=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
         description="Valid UUID for user identification"
     )
     session_id: Optional[str] = Field(
         None,
-        regex=r'^[a-zA-Z0-9_-]+$',
+        pattern=r'^[a-zA-Z0-9_-]+$',
         max_length=100,
         description="Session identifier"
     )
     timestamp: Optional[str] = Field(
         None,
-        regex=r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$',
+        pattern=r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$',
         description="ISO 8601 timestamp"
     )
     metadata: Optional[Dict[str, Any]] = Field(
