@@ -58,3 +58,35 @@ Pillow==11.3.0
 
 # YouTube integration
 youtube-transcript-api==0.6.2
+google-api-python-client==2.149.0
+
+# Task queue and background jobs
+celery==5.4.0
+kombu==5.4.2
+
+# HTTP and web scraping
+aiohttp==3.10.10
+beautifulsoup4==4.13.4
+
+# Audio and voice processing
+soundfile==0.12.1
+pyttsx3==2.99
+assemblyai==0.42.0
+
+# Configuration and data processing
+pyyaml==6.0.2
+tiktoken>=0.8.0
+textstat==0.7.7
+
+# System monitoring and metrics
+psutil==6.1.0
+prometheus-client==0.22.1
+
+# WebSocket support
+websockets==13.1
+
+# Payment processing
+stripe==12.3.0
+
+# FastAPI dependencies (explicit)
+starlette==0.41.3
