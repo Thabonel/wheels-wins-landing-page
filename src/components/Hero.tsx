@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 const Hero = () => {
-  // Use local hero image from public folder
-  const heroImageUrl = '/WheelsnadwinsHero.jpg';
+  // Use new RV camping hero image from public folder
+  const heroImageUrl = '/hero-rv-camping.jpg';
   
   return <section className="w-full h-screen flex items-start justify-center overflow-hidden pt-32">
       <div className="absolute inset-0 bg-cover bg-center" style={{
