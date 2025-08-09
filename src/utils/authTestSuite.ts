@@ -242,7 +242,7 @@ export class AuthTestSuite {
       // Import the URL creation function
       const { createAuthenticatedWebSocketUrl } = await import('./websocketAuth');
       
-      const baseUrl = 'wss://pam-backend.onrender.com/api/v1/pam/ws';
+      const baseUrl = 'wss://pam-backend.onrender.com/api/v1/pam/ws/test-user-id';
       const wsUrl = createAuthenticatedWebSocketUrl(baseUrl, tokenResult.token);
       
       // Validate URL format

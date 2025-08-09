@@ -111,7 +111,7 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
         return;
       }
 
-      const wsUrl = `${getWebSocketUrl('/api/v1/pam/ws')}?token=${encodeURIComponent(actualToken)}`;
+      const wsUrl = `${getWebSocketUrl(`/api/v1/pam/ws/${userId}`)}?token=${encodeURIComponent(actualToken)}`;
       console.log('🔌 Attempting PAM WebSocket connection with valid session token');
       
       ws.current = new WebSocket(wsUrl);

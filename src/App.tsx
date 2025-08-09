@@ -1,6 +1,5 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { RouteTransition } from './components/common/RouteTransition';
 import { AuthProvider } from './context/AuthContext';
 import { RegionProvider } from './context/RegionContext';
 import { OfflineProvider } from './context/OfflineContext';
@@ -67,13 +66,13 @@ function App() {
               <OfflineProvider>
                 <ExpensesProvider>
                   <WheelsProvider>
-                    <PAMErrorBoundary>
-                      <PamProvider>
-                        <LazyPamIntegrationProvider>
-                          <ScrollToTop />
-                          <RouteMonitor />
-                          <Layout>
-                          <div className="route-container">
+                    <PamProvider>
+                      <LazyPamIntegrationProvider>
+                        <ScrollToTop />
+                        <RouteMonitor />
+                        <Layout>
+                        <div className="route-container">
+                          <AppErrorBoundary>
                             <Suspense fallback={
                               <div className="flex items-center justify-center h-64 space-x-2">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -110,14 +109,16 @@ function App() {
                                   <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                                 </Routes>
                             </Suspense>
-                          </div>
-                        </Layout>
-                        
-                        {/* Simple, elegant PAM widget */}
+                          </AppErrorBoundary>
+                        </div>
+                      </Layout>
+                      
+                      {/* PAM widget with its own error boundary */}
+                      <PAMErrorBoundary>
                         <PamWidget />
-                        </LazyPamIntegrationProvider>
-                      </PamProvider>
-                    </PAMErrorBoundary>
+                      </PAMErrorBoundary>
+                      </LazyPamIntegrationProvider>
+                    </PamProvider>
                   </WheelsProvider>
                 </ExpensesProvider>
               </OfflineProvider>
