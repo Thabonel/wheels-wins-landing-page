@@ -13,7 +13,7 @@ from .base_tts import (
     BaseTTSEngine, TTSEngine, VoiceProfile, AudioFormat, 
     TTSRequest, TTSResponse, AudioChunk, tts_manager
 )
-from .coqui_tts_engine import CoquiTTSEngine
+from .coqui_tts_engine import CoquiTTS as CoquiTTSEngine
 from .edge_tts import EdgeTTS
 from .voice_manager import voice_manager
 from .tts_cache import tts_cache
