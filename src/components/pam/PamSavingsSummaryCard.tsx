@@ -54,9 +54,11 @@ export const PamSavingsSummaryCard: React.FC<PamSavingsSummaryCardProps> = ({
   } = useQuery({
     queryKey: ['guarantee-status'],
     queryFn: () => pamSavingsApi.getGuaranteeStatus(),
-    refetchInterval: refreshInterval,
-    refetchIntervalInBackground: true,
+    refetchInterval: statusError ? false : refreshInterval, // Disable refetch on error
+    refetchIntervalInBackground: false, // Don't refetch in background if there's an error
     staleTime: 30000, // Consider data stale after 30 seconds
+    retry: 2, // Limit retries to prevent infinite loops
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 
   // Recent savings events query
@@ -67,8 +69,10 @@ export const PamSavingsSummaryCard: React.FC<PamSavingsSummaryCardProps> = ({
   } = useQuery({
     queryKey: ['recent-savings', 'summary-card'],
     queryFn: () => pamSavingsApi.getRecentSavingsEvents(5),
-    refetchInterval: refreshInterval * 5, // Refresh every 5 minutes
-    enabled: showRecentEvents,
+    refetchInterval: eventsError ? false : (refreshInterval * 5), // Disable refetch on error
+    enabled: showRecentEvents && !statusError, // Don't fetch if status failed
+    retry: 2, // Limit retries
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const handleRefresh = () => {
