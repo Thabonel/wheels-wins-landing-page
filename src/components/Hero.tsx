@@ -2,9 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 const Hero = () => {
-  // Supabase storage URL for the hero image
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project-id.supabase.co';
-  const heroImageUrl = `${supabaseUrl}/storage/v1/object/public/public-assets/hero-rv-camping.png`;
+  // Use local hero image from public folder
+  const heroImageUrl = '/WheelsnadwinsHero.jpg';
   
   return <section className="w-full h-screen flex items-start justify-center overflow-hidden pt-32">
       <div className="absolute inset-0 bg-cover bg-center" style={{
