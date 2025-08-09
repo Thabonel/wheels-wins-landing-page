@@ -15,8 +15,8 @@ def init_supabase() -> Client:
     global supabase_client
     try:
         supabase_client = create_client(
-            settings.SUPABASE_URL,
-            settings.SUPABASE_SERVICE_ROLE_KEY
+            str(settings.SUPABASE_URL),
+            settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value()
         )
         logger.info("Supabase client initialized successfully")
         return supabase_client
@@ -46,8 +46,8 @@ def init_supabase_service() -> Client:
             return get_supabase()
             
         supabase_service_client = create_client(
-            settings.SUPABASE_URL,
-            settings.SUPABASE_SERVICE_ROLE_KEY
+            str(settings.SUPABASE_URL),
+            settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value()
         )
         logger.info("Supabase service client initialized successfully")
         return supabase_service_client
