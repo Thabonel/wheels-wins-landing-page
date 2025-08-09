@@ -5,7 +5,9 @@ export const ENV = {
   ENVIRONMENT: import.meta.env.VITE_ENVIRONMENT || 'development',
   
   // API Configuration
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  API_BASE_URL: import.meta.env.VITE_API_URL || 
+                import.meta.env.VITE_BACKEND_URL || 
+                'https://wheels-wins-backend-staging.onrender.com',
   
   // Supabase Configuration
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || '',

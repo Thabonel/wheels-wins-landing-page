@@ -1,6 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = 
+  import.meta.env.VITE_API_URL || 
+  import.meta.env.VITE_BACKEND_URL || 
+  'https://wheels-wins-backend-staging.onrender.com';
 
 interface UploadReceiptResponse {
   success: boolean;

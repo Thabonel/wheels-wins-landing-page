@@ -93,8 +93,9 @@ export const PamProvider: React.FC<PamProviderProps> = ({ children }) => {
       } catch (err) {
         if (mounted) {
           console.warn('PAM capabilities not available:', err);
-          setError('PAM services temporarily unavailable');
+          setError(null); // Don't show error to user - graceful degradation
           setIsAvailable(false);
+          setCapabilities(null);
         }
       } finally {
         if (mounted) {

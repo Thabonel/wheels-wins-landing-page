@@ -6,7 +6,10 @@
 
 import { authenticatedFetch } from './api';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = 
+  import.meta.env.VITE_API_URL || 
+  import.meta.env.VITE_BACKEND_URL || 
+  'https://wheels-wins-backend-staging.onrender.com';
 
 /**
  * Base proxy request function

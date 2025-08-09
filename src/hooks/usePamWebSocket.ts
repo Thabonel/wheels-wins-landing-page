@@ -67,7 +67,9 @@ export const usePamWebSocket = (options: UsePamWebSocketOptions = {}) => {
       return `ws://localhost:8000`;
     } else {
       // Production/staging - use the backend URL
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
+      const backendUrl = import.meta.env.VITE_API_URL || 
+                        import.meta.env.VITE_BACKEND_URL || 
+                        'https://wheels-wins-backend-staging.onrender.com';
       return backendUrl.replace('https:', 'wss:').replace('http:', 'ws:');
     }
   }, []);
