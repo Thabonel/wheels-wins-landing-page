@@ -80,7 +80,10 @@ export const usePamWebSocket = (userId: string, token: string) => {
   }, [wsUrl]);
 
   useEffect(() => {
-    connect();
+    // Only connect if we have a valid token
+    if (token && token.trim()) {
+      connect();
+    }
     return () => {
       // Clean up on unmount
       if (reconnectTimeoutRef.current) {
@@ -88,7 +91,7 @@ export const usePamWebSocket = (userId: string, token: string) => {
       }
       wsRef.current?.close();
     };
-  }, [connect]);
+  }, [connect, token]);
 
   return {
     isConnected,
