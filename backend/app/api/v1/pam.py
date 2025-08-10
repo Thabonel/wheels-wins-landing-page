@@ -44,6 +44,8 @@ from app.services.voice.edge_processing_service import edge_processing_service
 from app.services.pam_visual_actions import pam_visual_actions
 from app.services.tts.manager import get_tts_manager, synthesize_text, VoiceSettings
 from app.services.tts.redis_optimization import get_redis_tts_manager
+from app.services.stt.manager import get_stt_manager
+from app.services.stt.base import AudioFormat
 
 router = APIRouter()
 setup_logging()
@@ -615,6 +617,103 @@ async def websocket_endpoint(
             elif data.get("type") == "auth":
                 logger.info(f"🔐 [DEBUG] Auth message received from {user_id} - ignoring (already authenticated)")
                 # Auth messages are just for connection establishment, ignore them
+                
+            elif data.get("type") == "voice":
+                # Handle voice/audio messages for STT
+                logger.info(f"🎤 Voice message received from {user_id}")
+                
+                # Extract audio data and metadata
+                audio_data_base64 = data.get("audio_data")
+                audio_format = data.get("format", "webm")  # Default to webm (browser recording)
+                language = data.get("language", "en")
+                
+                if not audio_data_base64:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "No audio data provided",
+                        "error_code": "MISSING_AUDIO_DATA"
+                    })
+                    continue
+                
+                try:
+                    # Decode base64 audio data
+                    import base64
+                    audio_bytes = base64.b64decode(audio_data_base64)
+                    
+                    # Get STT manager and transcribe
+                    stt_manager = get_stt_manager()
+                    
+                    # Convert format string to AudioFormat enum
+                    from app.services.stt.base import AudioFormat
+                    format_enum = AudioFormat(audio_format.lower())
+                    
+                    # Transcribe audio
+                    stt_result = await stt_manager.transcribe(
+                        audio_data=audio_bytes,
+                        format=format_enum,
+                        language=language
+                    )
+                    
+                    # Check if browser STT is required
+                    if stt_result.text == "[BROWSER_STT_REQUIRED]":
+                        # Signal client to use browser STT
+                        await websocket.send_json({
+                            "type": "stt_instruction",
+                            "instruction": "use_browser_stt",
+                            "language": language
+                        })
+                    else:
+                        # Send transcription result
+                        await websocket.send_json({
+                            "type": "stt_result",
+                            "text": stt_result.text,
+                            "confidence": stt_result.confidence,
+                            "language": stt_result.language,
+                            "engine": stt_result.engine_used,
+                            "processing_time": stt_result.processing_time
+                        })
+                        
+                        # If auto_send is enabled, send the transcribed text as a chat message
+                        if data.get("auto_send", False) and stt_result.text:
+                            # Process as chat message
+                            chat_data = {
+                                "message": stt_result.text,
+                                "context": data.get("context", {})
+                            }
+                            await process_chat_message(
+                                websocket, chat_data, user_id, orchestrator, 
+                                user_settings, connection_id
+                            )
+                            
+                except Exception as stt_error:
+                    logger.error(f"❌ STT error for user {user_id}: {str(stt_error)}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": f"Speech recognition failed: {str(stt_error)}",
+                        "error_code": "STT_ERROR"
+                    })
+                
+            elif data.get("type") == "stt_capabilities":
+                # Return STT capabilities to client
+                logger.info(f"🎙️ STT capabilities requested by {user_id}")
+                
+                try:
+                    stt_manager = get_stt_manager()
+                    capabilities = stt_manager.get_engine_capabilities()
+                    
+                    await websocket.send_json({
+                        "type": "stt_capabilities",
+                        "capabilities": capabilities,
+                        "supported_formats": [f.value for f in stt_manager.get_supported_formats()],
+                        "supported_languages": stt_manager.get_supported_languages()
+                    })
+                except Exception as cap_error:
+                    logger.error(f"❌ Error getting STT capabilities: {str(cap_error)}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Failed to get STT capabilities",
+                        "error_code": "CAPABILITIES_ERROR"
+                    })
                 
             else:
                 logger.warning(f"❓ [DEBUG] Unknown message type '{data.get('type')}' from user {user_id}")
