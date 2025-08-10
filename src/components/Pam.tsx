@@ -732,10 +732,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       }
       
-      // Step 2: Get WebSocket base URL
+      // Step 2: Get WebSocket base URL with user ID
       console.log('🔧 PAM DEBUG: Getting WebSocket base URL...');
-      const baseWebSocketUrl = getWebSocketUrl('/api/v1/pam/ws');
-      console.log('🔧 PAM DEBUG: Base WebSocket URL:', baseWebSocketUrl);
+      // Include user ID in the WebSocket path as backend expects /ws/{user_id}
+      const userId = user?.id || 'anonymous';
+      const baseWebSocketUrl = getWebSocketUrl(`/api/v1/pam/ws/${userId}`);
+      console.log('🔧 PAM DEBUG: Base WebSocket URL with user ID:', baseWebSocketUrl);
       
       // Step 3: Create authenticated WebSocket URL
       console.log('🔧 PAM DEBUG: Creating authenticated WebSocket URL...');
@@ -1131,7 +1133,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     // Test 3: URL construction
     console.log('🧪 TEST 3: URL Construction');
-    const testUrl = getWebSocketUrl('/api/v1/pam/ws');
+    const testUserId = user?.id || 'test_user';
+    const testUrl = getWebSocketUrl(`/api/v1/pam/ws/${testUserId}`);
     console.log('- getWebSocketUrl result:', testUrl);
     
     // Test 4: Token preparation

@@ -213,41 +213,25 @@ async def websocket_endpoint(
             return
         
         try:
-            # Import JWT verification function
-            from app.api.deps import verify_supabase_jwt_token_sync
-            from app.core.auth import verify_jwt_token
+            # Verify the JWT token using the flexible verification
+            payload = verify_supabase_jwt_flexible(token)
             
-            # Create credentials object for token verification
-            class MockCredentials:
-                def __init__(self, token):
-                    self.credentials = token
-            
-            # Verify the JWT token
-            mock_credentials = MockCredentials(token)
-            
-            # Try Supabase JWT verification first
-            try:
-                user_data = verify_supabase_jwt_token_sync(mock_credentials)
-                token_user_id = user_data.get('sub')
-            except Exception as supabase_error:
-                # Fallback to standard JWT verification if configured
-                try:
-                    user_data = await verify_jwt_token(token)
-                    token_user_id = user_data.get('sub') or user_data.get('user_id') or user_data.get('id')
-                except Exception as jwt_error:
-                    logger.warning(f"❌ WebSocket JWT verification failed: {str(jwt_error)}")
-                    await websocket.close(code=4001, reason="Invalid authentication token")
-                    return
-            
-            # Verify that the user_id in the URL matches the token
-            if not token_user_id:
-                logger.warning(f"❌ WebSocket connection rejected: no user ID in token")
-                await websocket.close(code=4001, reason="Invalid token: no user ID")
+            if not payload:
+                logger.warning(f"❌ WebSocket connection rejected: invalid token for user {user_id}")
+                await websocket.close(code=4001, reason="Invalid authentication token")
                 return
             
-            if str(token_user_id) != str(user_id):
-                logger.warning(f"❌ WebSocket connection rejected: user ID mismatch. Token: {token_user_id}, URL: {user_id}")
-                await websocket.close(code=4002, reason="User ID mismatch")
+            # Extract user information from token
+            token_user_id = payload.get('sub')
+            token_role = payload.get('role', 'authenticated')
+            
+            # Log successful token validation
+            logger.info(f"✅ JWT token validated for user {user_id}, role: {token_role}, token_sub: {token_user_id}")
+            
+            # Optional: Verify user_id matches token (can be relaxed for admin users)
+            if token_role not in ['admin', 'service_role'] and token_user_id != user_id:
+                logger.warning(f"❌ User ID mismatch: URL={user_id}, Token={token_user_id}")
+                await websocket.close(code=4001, reason="User ID mismatch")
                 return
             
             # Authentication successful - connection already accepted

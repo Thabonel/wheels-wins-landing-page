@@ -208,8 +208,11 @@ def verify_supabase_jwt_token(
         
         # Optional: Check token role and permissions
         role = payload.get('role', 'authenticated')
-        if role not in ['authenticated', 'service_role']:
+        # Accept admin role along with authenticated and service_role
+        if role not in ['authenticated', 'service_role', 'admin', 'anon']:
             logger.warning(f"🔐 Unusual token role: {role}")
+        else:
+            logger.info(f"🔐 Token role validated: {role}")
         
         return payload
         
