@@ -21,6 +21,8 @@ from app.services.pam.orchestrator import PamOrchestrator
 from app.services.pam.context_manager import ContextManager
 from app.services.ai_service import get_ai_service, AIService, AIResponse
 from app.observability import observe_agent, observe_llm_call
+from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry, ToolCapability
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +130,9 @@ class EnhancedPamOrchestrator:
             # Initialize base orchestrator
             await self.base_orchestrator.initialize()
             
+            # Initialize tool registry for function calling
+            await self._initialize_tool_registry()
+            
             # Initialize knowledge service
             await self._initialize_knowledge_service()
             
@@ -190,6 +195,43 @@ class EnhancedPamOrchestrator:
             
             self.service_capabilities["ai_service"] = ServiceCapability(
                 name="ai_service",
+                status=ServiceStatus.UNAVAILABLE,
+                confidence=0.0,
+                last_check=datetime.utcnow(),
+                error_message=str(e)
+            )
+    
+    async def _initialize_tool_registry(self):
+        """Initialize tool registry for function calling"""
+        try:
+            logger.info("🔧 Initializing Tool Registry for function calling...")
+            
+            # Initialize the global tool registry
+            self.tool_registry = await initialize_tool_registry()
+            
+            if self.tool_registry.is_initialized:
+                tool_stats = self.tool_registry.get_tool_stats()
+                enabled_tools = tool_stats["registry_stats"]["enabled_tools"]
+                
+                self.service_capabilities["tool_registry"] = ServiceCapability(
+                    name="tool_registry",
+                    status=ServiceStatus.HEALTHY,
+                    confidence=1.0,
+                    last_check=datetime.utcnow(),
+                    metadata={
+                        "total_tools": tool_stats["registry_stats"]["total_tools"],
+                        "enabled_tools": enabled_tools,
+                        "capabilities": tool_stats["registry_stats"]["capabilities"]
+                    }
+                )
+                logger.info(f"✅ Tool Registry initialized with {enabled_tools} tools")
+            else:
+                raise Exception("Tool registry failed to initialize")
+                
+        except Exception as e:
+            logger.error(f"❌ Tool Registry initialization failed: {e}")
+            self.service_capabilities["tool_registry"] = ServiceCapability(
+                name="tool_registry",
                 status=ServiceStatus.UNAVAILABLE,
                 confidence=0.0,
                 last_check=datetime.utcnow(),
@@ -426,14 +468,44 @@ class EnhancedPamOrchestrator:
             if hasattr(enhanced_context.base_context, '__dict__'):
                 ai_context.update(enhanced_context.base_context.__dict__)
             
-            # Call AI service
+            # Get available tools for function calling
+            tools = []
+            if hasattr(self, 'tool_registry') and self.tool_registry:
+                # Get relevant tool capabilities based on context
+                relevant_capabilities = self._determine_relevant_capabilities(message, enhanced_context)
+                tools = self.tool_registry.get_openai_functions(capabilities=relevant_capabilities)
+            
+            # Call AI service with tools for function calling
             ai_response = await self.ai_service.process_message(
                 message=message,
                 user_context=ai_context,
                 temperature=0.7,
                 max_tokens=2048,
-                stream=False
+                stream=False,
+                tools=tools if tools else None
             )
+            
+            # Handle function calling if present
+            if hasattr(ai_response, 'function_calls') and ai_response.function_calls:
+                tool_results = await self._execute_tool_calls(
+                    ai_response.function_calls,
+                    user_id,
+                    enhanced_context
+                )
+                
+                # Generate final response with tool results
+                tool_context = f"""Tool execution completed. Results:
+{json.dumps(tool_results, indent=2)}
+
+Based on these results, please provide a helpful response to the user's original query: {message}"""
+                
+                ai_response = await self.ai_service.process_message(
+                    message=tool_context,
+                    user_context=ai_context,
+                    temperature=0.7,
+                    max_tokens=2048,
+                    stream=False
+                )
             
             if isinstance(ai_response, AIResponse):
                 # Record provider success
@@ -925,6 +997,88 @@ class EnhancedPamOrchestrator:
         except Exception as e:
             logger.warning(f"⚠️ Audio generation failed: {e}")
             return None
+    
+    def _determine_relevant_capabilities(self, message: str, context: EnhancedPamContext) -> List[ToolCapability]:
+        """Determine relevant tool capabilities based on message and context"""
+        capabilities = []
+        message_lower = message.lower()
+        
+        # Financial capabilities
+        if any(word in message_lower for word in ['spend', 'spent', 'expense', 'cost', 'budget', 'money', 'paid', 'bought', 'purchased']):
+            capabilities.append(ToolCapability.USER_DATA)
+            capabilities.append(ToolCapability.FINANCIAL)
+        
+        # Trip planning capabilities  
+        if any(word in message_lower for word in ['route', 'trip', 'drive', 'navigate', 'campground', 'rv park', 'destination']):
+            capabilities.append(ToolCapability.LOCATION_SEARCH)
+            capabilities.append(ToolCapability.TRIP_PLANNING)
+        
+        # Weather capabilities
+        if any(word in message_lower for word in ['weather', 'forecast', 'rain', 'storm', 'temperature', 'wind']):
+            capabilities.append(ToolCapability.EXTERNAL_API)
+            capabilities.append(ToolCapability.WEATHER)
+        
+        # Location search
+        if any(word in message_lower for word in ['near', 'nearby', 'find', 'search', 'where', 'restaurant', 'gas', 'fuel']):
+            capabilities.append(ToolCapability.LOCATION_SEARCH)
+        
+        # Default to common capabilities if none detected
+        if not capabilities:
+            capabilities = [ToolCapability.USER_DATA, ToolCapability.LOCATION_SEARCH, ToolCapability.EXTERNAL_API]
+        
+        return capabilities
+    
+    async def _execute_tool_calls(
+        self,
+        tool_calls: List[Dict[str, Any]],
+        user_id: str,
+        context: EnhancedPamContext
+    ) -> Dict[str, Any]:
+        """Execute tool calls from AI response"""
+        results = {}
+        
+        for tool_call in tool_calls:
+            tool_name = tool_call.get('function', {}).get('name')
+            tool_args = tool_call.get('function', {}).get('arguments', {})
+            
+            if isinstance(tool_args, str):
+                import json
+                try:
+                    tool_args = json.loads(tool_args)
+                except:
+                    tool_args = {"query": tool_args}
+            
+            logger.info(f"🔧 Executing tool: {tool_name} with args: {tool_args}")
+            
+            try:
+                # Execute tool through registry
+                execution_result = await self.tool_registry.execute_tool(
+                    tool_name=tool_name,
+                    user_id=user_id,
+                    parameters=tool_args,
+                    timeout=30
+                )
+                
+                if execution_result.success:
+                    results[tool_name] = {
+                        "success": True,
+                        "result": execution_result.result,
+                        "execution_time_ms": execution_result.execution_time_ms
+                    }
+                else:
+                    results[tool_name] = {
+                        "success": False,
+                        "error": execution_result.error
+                    }
+                    
+            except Exception as e:
+                logger.error(f"❌ Tool execution failed for {tool_name}: {e}")
+                results[tool_name] = {
+                    "success": False,
+                    "error": str(e)
+                }
+        
+        return results
     
     async def shutdown(self):
         """Shutdown enhanced orchestrator"""

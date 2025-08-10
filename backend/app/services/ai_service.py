@@ -280,7 +280,8 @@ Remember: Every interaction should help the user have a better, safer, and more 
         model: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        stream: bool = False
+        stream: bool = False,
+        tools: Optional[List[Dict[str, Any]]] = None
     ) -> Union[AIResponse, AsyncGenerator[str, None]]:
         """
         Process a user message with full context awareness
@@ -332,7 +333,13 @@ Remember: Every interaction should help the user have a better, safer, and more 
             }
             
             # Add function calling if available and enabled
-            if self.function_calling_enabled and self.tool_registry:
+            if tools:
+                # Use provided tools from orchestrator
+                request_params["functions"] = tools
+                request_params["function_call"] = "auto"
+                logger.debug(f"🔧 Added {len(tools)} tools for potential calling")
+            elif self.function_calling_enabled and self.tool_registry:
+                # Use default functions from registry
                 functions = self._get_available_functions(consolidated_context)
                 if functions:
                     request_params["functions"] = functions
@@ -445,6 +452,8 @@ Remember: Every interaction should help the user have a better, safer, and more 
         
         # Handle function calls if present
         message = response.choices[0].message
+        function_calls = []
+        
         if hasattr(message, 'function_call') and message.function_call and user_context:
             logger.info(f"🔧 Processing function call: {message.function_call.name}")
             
@@ -509,7 +518,7 @@ Remember: Every interaction should help the user have a better, safer, and more 
             },
             latency_ms=latency_ms,
             finish_reason=response.choices[0].finish_reason,
-            function_calls=getattr(message, 'function_calls', None),
+            function_calls=function_calls if function_calls else None,
             streaming=False,
             cached=False,
             confidence_score=self._calculate_confidence(response)

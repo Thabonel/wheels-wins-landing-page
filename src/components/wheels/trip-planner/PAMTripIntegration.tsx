@@ -3,7 +3,7 @@ import { usePamMessageHandler } from '@/hooks/pam/usePamMessageHandler';
 import { usePAMContext } from './PAMContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { usePamWebSocketConnection } from '@/hooks/pam/usePamWebSocketConnection';
+import { usePamWebSocket as usePamWebSocketConnection } from '@/hooks/usePamWebSocket';
 
 interface PAMTripIntegrationProps {
   onRouteUpdate?: (route: any) => void;

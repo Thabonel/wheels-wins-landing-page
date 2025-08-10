@@ -25,6 +25,9 @@ class ToolCapability(Enum):
     MEMORY = "memory"
     CALCULATION = "calculation"
     EXTERNAL_API = "external_api"
+    FINANCIAL = "financial"
+    TRIP_PLANNING = "trip_planning"
+    WEATHER = "weather"
 
 
 @dataclass
@@ -411,7 +414,194 @@ async def _register_all_tools(registry: ToolRegistry):
     """Register all available PAM tools"""
     logger.info("📋 Registering PAM tools...")
     
-    # Google Places Tool
+    # Financial Tools - Core expense and budget management using WinsNode
+    try:
+        from ..nodes.wins_node import wins_node
+        
+        # Create wrapper class for WinsNode financial operations
+        class FinanceToolWrapper:
+            def __init__(self):
+                self.tool_name = "manage_finances"
+                self.wins_node = wins_node
+            
+            async def initialize(self):
+                # WinsNode is already initialized
+                pass
+            
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                action = params.get("action")
+                
+                if action == "log_expense":
+                    # Use WinsNode's expense tracking with automatic categorization
+                    description = params.get("description", "")
+                    amount = params.get("amount", 0)
+                    
+                    # Auto-categorize if no category provided
+                    category = params.get("category")
+                    if not category and description:
+                        category = await self.wins_node.categorize_expense(description, amount)
+                    
+                    result = await self.wins_node.add_expense(
+                        user_id=user_id,
+                        data={
+                            "category": category,
+                            "amount": amount,
+                            "description": description
+                        }
+                    )
+                    return result
+                    
+                elif action == "fetch_summary":
+                    # Get comprehensive financial summary
+                    summary = await self.wins_node.get_financial_summary(user_id)
+                    analytics = await self.wins_node.get_expense_analytics(user_id)
+                    
+                    return {
+                        "summary": summary,
+                        "analytics": analytics,
+                        "success": True
+                    }
+                    
+                elif action == "suggest_budget":
+                    # Check budget status and provide suggestions
+                    category = params.get("category")
+                    budget_status = await self.wins_node.check_budget_status(user_id, category)
+                    
+                    suggestion = "on_track"
+                    if budget_status.get("alert"):
+                        suggestion = "reduce_spending"
+                    elif budget_status.get("percentage_used", 0) < 50:
+                        suggestion = "budget_healthy"
+                    
+                    return {
+                        "suggestion": suggestion,
+                        "budget_status": budget_status,
+                        "success": True
+                    }
+                    
+                return {"error": "Unknown finance action", "success": False}
+        
+        registry.register_tool(
+            tool=FinanceToolWrapper(),
+            function_definition={
+                "name": "manage_finances",
+                "description": "Manage expenses, budgets, and financial tracking. Use when user mentions spending money, tracking expenses, or managing budgets.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["log_expense", "fetch_summary", "suggest_budget"],
+                            "description": "Financial action to perform"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Expense category (fuel, food, accommodation, maintenance, etc.)"
+                        },
+                        "amount": {
+                            "type": "number",
+                            "description": "Amount in dollars"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Optional description of the expense"
+                        }
+                    },
+                    "required": ["action"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Financial tools registered")
+        
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Financial tools: {e}")
+    
+    # Mapbox Tool for trip planning
+    try:
+        from .mapbox_tool import MapboxTool
+        
+        registry.register_tool(
+            tool=MapboxTool(),
+            function_definition={
+                "name": "mapbox_navigator",
+                "description": "Plan RV routes, find campgrounds, calculate distances and fuel costs. Use for trip planning and navigation.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["plan_route", "find_campgrounds", "find_fuel_stops", "calculate_costs"],
+                            "description": "Navigation action to perform"
+                        },
+                        "origin": {
+                            "type": "string",
+                            "description": "Starting location (address or coordinates)"
+                        },
+                        "destination": {
+                            "type": "string",
+                            "description": "Destination location (address or coordinates)"
+                        },
+                        "waypoints": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional waypoints for the route"
+                        },
+                        "radius": {
+                            "type": "number",
+                            "description": "Search radius in miles for POIs"
+                        }
+                    },
+                    "required": ["action"]
+                }
+            },
+            capability=ToolCapability.LOCATION_SEARCH,
+            priority=1
+        )
+        logger.info("✅ Mapbox tool registered")
+        
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Mapbox tool: {e}")
+    
+    # Weather Tool for travel safety
+    try:
+        from .weather_tool import WeatherTool
+        
+        registry.register_tool(
+            tool=WeatherTool(),
+            function_definition={
+                "name": "weather_service",
+                "description": "Get weather forecasts, alerts, and RV travel conditions. Use for weather-related queries.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["current_weather", "forecast", "travel_conditions", "weather_alerts"],
+                            "description": "Weather information to retrieve"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Location for weather (address or coordinates)"
+                        },
+                        "days": {
+                            "type": "number",
+                            "description": "Number of days for forecast (1-7)"
+                        }
+                    },
+                    "required": ["action", "location"]
+                }
+            },
+            capability=ToolCapability.EXTERNAL_API,
+            priority=2
+        )
+        logger.info("✅ Weather tool registered")
+        
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Weather tool: {e}")
+    
+    # Google Places Tool (existing)
     try:
         from .google_places_tool import GooglePlacesTool
         
@@ -450,7 +640,7 @@ async def _register_all_tools(registry: ToolRegistry):
                 }
             },
             capability=ToolCapability.LOCATION_SEARCH,
-            priority=1
+            priority=2
         )
         
     except ImportError as e:
