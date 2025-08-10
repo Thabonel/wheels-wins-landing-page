@@ -266,8 +266,8 @@ async def get_observability_configuration(
                     "public_key_preview": f"{getattr(settings, 'LANGFUSE_PUBLIC_KEY', '')[:8]}..." if getattr(settings, 'LANGFUSE_PUBLIC_KEY', None) else None
                 },
                 "agentops": {
-                    "configured": bool(settings.AGENTOPS_API_KEY),
-                    "key_preview": f"{settings.AGENTOPS_API_KEY[:8]}..." if settings.AGENTOPS_API_KEY else None
+                    "configured": bool(getattr(settings, 'AGENTOPS_API_KEY', None)),
+                    "key_preview": f"{getattr(settings, 'AGENTOPS_API_KEY', '')[:8]}..." if getattr(settings, 'AGENTOPS_API_KEY', None) else None
                 }
             }
         }
