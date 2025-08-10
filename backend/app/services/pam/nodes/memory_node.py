@@ -1,13 +1,15 @@
 # app/nodes/memory_node.py
 """
-PAM Memory Node - Conversation Memory and Context Management
-Integrates with existing pam_memory table to provide context retention
+PAM Memory Node - Enhanced with RAG Integration (Phase 4)
+Integrates with existing pam_memory table and vector-based semantic search
+Provides conversation memory, context retention, and personal knowledge integration
 """
 
 import uuid
 import re
+import json
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 from app.core.database import get_supabase
 
@@ -708,6 +710,278 @@ class MemoryNode:
             
         return False
 
+    # ========== PHASE 4 RAG ENHANCEMENTS ==========
+    
+    async def semantic_memory_search(
+        self,
+        user_id: str,
+        query: str,
+        limit: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Search user's personal knowledge using vector embeddings (Phase 4 Enhancement)
+        Integrates with existing search-user-knowledge edge function
+        """
+        try:
+            # Call the search-user-knowledge edge function
+            result = await self.supabase.functions.invoke(
+                "search-user-knowledge",
+                invoke_options={
+                    "body": {
+                        "userId": user_id,
+                        "query": query,
+                        "limit": limit
+                    }
+                }
+            )
+            
+            if result.data and result.data.get("results"):
+                search_results = result.data["results"]
+                
+                # Get total document count for context
+                doc_count = self.supabase.table("user_knowledge_documents")\
+                    .select("id", count="exact")\
+                    .eq("user_id", user_id)\
+                    .eq("processing_status", "completed")\
+                    .execute()
+                
+                total_docs = doc_count.count if doc_count else 0
+                
+                return {
+                    "success": True,
+                    "results": search_results,
+                    "summary": f"Found {len(search_results)} relevant pieces from your personal knowledge.",
+                    "total_documents": total_docs,
+                    "search_query": query
+                }
+            else:
+                return {
+                    "success": True,
+                    "results": [],
+                    "summary": "No relevant personal knowledge found for this query.",
+                    "total_documents": 0,
+                    "search_query": query
+                }
+                
+        except Exception as e:
+            print(f"❌ Semantic search error: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to search personal knowledge: {str(e)}",
+                "results": [],
+                "search_query": query
+            }
+    
+    async def get_conversation_context_with_rag(
+        self,
+        user_id: str,
+        current_message: str,
+        session_id: str = None,
+        region: str = None
+    ) -> Dict[str, Any]:
+        """
+        Build comprehensive conversation context with personal knowledge (Phase 4 Enhancement)
+        Integrates preferences with vector search results from user documents
+        """
+        try:
+            # Get basic conversation context
+            conversation_context = await self.get_enhanced_context(user_id, current_message, session_id)
+            
+            # Search personal knowledge for relevant context
+            personal_knowledge = None
+            if current_message and len(current_message) > 10:
+                knowledge_search = await self.semantic_memory_search(user_id, current_message, limit=3)
+                if knowledge_search.get("success") and knowledge_search.get("results"):
+                    personal_knowledge = {
+                        "relevant_chunks": knowledge_search["results"],
+                        "knowledge_summary": knowledge_search["summary"],
+                        "total_documents": knowledge_search["total_documents"]
+                    }
+            
+            # Build enhanced context with RAG
+            enhanced_context = {
+                "user_id": user_id,
+                "session_id": session_id or conversation_context.get("session_id"),
+                "enhanced_context": {
+                    "user_preferences": conversation_context.get("user_profile", {}),
+                    "personal_knowledge": personal_knowledge,
+                    "conversation_flow": {
+                        "last_interactions": conversation_context.get("conversation_history", [])[-6:],
+                        "interests": conversation_context.get("user_profile", {}).get("personal_info", {}).get("interests", []),
+                        "region": region or conversation_context.get("user_profile", {}).get("personal_info", {}).get("region")
+                    }
+                },
+                "success": True
+            }
+            
+            print(f"✅ Built enhanced context with RAG for user {user_id}")
+            return enhanced_context
+            
+        except Exception as e:
+            print(f"❌ Conversation context error: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to build conversation context: {str(e)}",
+                "enhanced_context": None
+            }
+    
+    async def store_conversation_memory_with_embeddings(
+        self,
+        user_id: str,
+        message: str,
+        response: str,
+        session_id: str,
+        intent: str = None,
+        feedback: Dict = None
+    ) -> bool:
+        """
+        Store conversation memory as knowledge chunk for future RAG retrieval (Phase 4 Enhancement)
+        Creates embeddings for important conversations
+        """
+        try:
+            # Check if conversation is worth storing
+            if not self._should_store_as_knowledge(message, response, feedback):
+                return False
+            
+            # Check/create PAM Conversations bucket
+            bucket_result = self.supabase.table("user_knowledge_buckets")\
+                .select("id")\
+                .eq("user_id", user_id)\
+                .eq("name", "PAM Conversations")\
+                .eq("is_active", True)\
+                .execute()
+            
+            if bucket_result.data:
+                bucket_id = bucket_result.data[0]["id"]
+            else:
+                # Create bucket for PAM conversations
+                new_bucket = self.supabase.table("user_knowledge_buckets")\
+                    .insert({
+                        "user_id": user_id,
+                        "name": "PAM Conversations",
+                        "description": "Memorable conversations with PAM assistant",
+                        "color": "#8B5CF6",
+                        "is_active": True
+                    })\
+                    .select("id")\
+                    .execute()
+                
+                if not new_bucket.data:
+                    return False
+                bucket_id = new_bucket.data[0]["id"]
+            
+            # Create conversation document
+            conversation_content = f"""Conversation on {datetime.utcnow().strftime('%Y-%m-%d')}
+
+User: {message}
+
+PAM: {response}"""
+            
+            # Store as document
+            document_result = self.supabase.table("user_knowledge_documents")\
+                .insert({
+                    "bucket_id": bucket_id,
+                    "user_id": user_id,
+                    "filename": f"conversation_{datetime.utcnow().timestamp():.0f}.txt",
+                    "file_path": f"conversations/{user_id}/{datetime.utcnow().timestamp():.0f}.txt",
+                    "content_type": "text/plain",
+                    "extracted_text": conversation_content,
+                    "processing_status": "completed",
+                    "metadata": {
+                        "source": "pam_conversation",
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "intent": intent,
+                        "session_id": session_id
+                    }
+                })\
+                .select("id")\
+                .execute()
+            
+            if not document_result.data:
+                return False
+            
+            document_id = document_result.data[0]["id"]
+            
+            # Create knowledge chunk
+            chunk_result = self.supabase.table("user_knowledge_chunks")\
+                .insert({
+                    "document_id": document_id,
+                    "user_id": user_id,
+                    "chunk_index": 0,
+                    "content": conversation_content,
+                    "token_count": len(conversation_content) // 4,  # Rough estimate
+                    "chunk_metadata": {
+                        "source": "pam_conversation",
+                        "conversation_date": datetime.utcnow().isoformat(),
+                        "intent": intent,
+                        "session_id": session_id
+                    }
+                })\
+                .execute()
+            
+            # Trigger embedding generation
+            try:
+                await self.supabase.functions.invoke(
+                    "generate-embeddings",
+                    invoke_options={
+                        "body": {"documentId": document_id}
+                    }
+                )
+                print(f"✅ Stored conversation memory with embeddings for user {user_id}")
+            except Exception as embed_error:
+                print(f"⚠️ Failed to generate embedding for conversation: {embed_error}")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error storing conversation memory: {str(e)}")
+            return False
+    
+    def _should_store_as_knowledge(self, message: str, response: str, feedback: Dict = None) -> bool:
+        """
+        Determine if a conversation should be stored as knowledge (Phase 4 Enhancement)
+        """
+        # Store substantive conversations
+        message_len = len(message or "")
+        response_len = len(response or "")
+        
+        # Skip very short exchanges
+        if message_len < 20 or response_len < 30:
+            return False
+        
+        # Store travel/RV related content
+        travel_keywords = r"travel|trip|rv|campground|destination|route|budget|plan|visit|stay|camping|park"
+        has_travel_content = bool(re.search(travel_keywords, message, re.IGNORECASE)) or \
+                            bool(re.search(travel_keywords, response, re.IGNORECASE))
+        
+        # Store positive feedback interactions
+        has_positive_feedback = feedback and feedback.get("rating", 0) > 3
+        
+        return has_travel_content or has_positive_feedback
+    
+    async def analyze_request_for_rag(self, message: str) -> Dict[str, bool]:
+        """
+        Analyze message to determine if RAG capabilities are needed (Phase 4 Enhancement)
+        """
+        message_lower = message.lower()
+        
+        return {
+            "has_knowledge_query": bool(re.search(
+                r"find|search|look\s+up|tell\s+me\s+about|document|file|remember\s+when|my\s+notes",
+                message_lower
+            )),
+            "has_personal_reference": bool(re.search(
+                r"my\s+(document|file|notes|information)|I\s+(wrote|saved|mentioned)|personal|private",
+                message_lower
+            )),
+            "needs_conversation_context": len(message) > 10 and bool(re.search(
+                r"travel|trip|rv|budget|plan|destination|campground|route",
+                message_lower
+            ))
+        }
+    
+    # ========== END OF PHASE 4 ENHANCEMENTS ==========
+    
     async def get_profile_completeness(self, user_id: str) -> Dict[str, Any]:
         """Analyze profile completeness and suggest missing information"""
         try:

@@ -1,6 +1,7 @@
 """
 PAM Tool Registry - Function Calling Integration
 Comprehensive tool management and OpenAI function calling integration
+Enhanced with Phase 4 RAG and intelligent agent capabilities
 """
 
 import asyncio

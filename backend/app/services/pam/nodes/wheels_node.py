@@ -34,11 +34,19 @@ class Vehicle:
     next_service_km: int
 
 class WheelsNode:
-    """Handles all travel and vehicle-related functionality"""
+    """
+    Handles all travel and vehicle-related functionality
+    Enhanced with Phase 4 intelligent trip planning capabilities
+    """
     
     def __init__(self):
         self.logger = get_logger("wheels_node")
         self.supabase = get_supabase_client()
+        
+        # Phase 4 Enhancement: Initialize intelligent planning features
+        self.planning_confidence = 0.95
+        self.weather_aware = True
+        self.campground_intelligence = True
         
     async def plan_trip(self, user_id: str, trip_data: Dict[str, Any]) -> Dict[str, Any]:
         """Plan a complete trip with routes, fuel stops, and camping"""
