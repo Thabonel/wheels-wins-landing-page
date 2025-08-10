@@ -181,14 +181,14 @@ async def websocket_endpoint(
         ip_allowed, ip_message = security_middleware.check_ip_reputation(client_ip)
         if not ip_allowed:
             logger.warning(f"🚫 [SECURITY] WebSocket connection rejected for IP {client_ip}: {ip_message}")
-            await websocket.close(code=4002, reason="IP blocked")
+            # Cannot close WebSocket before accepting - just return
             return
         # SECURITY: Verify JWT token BEFORE accepting the connection
         # This prevents unauthorized connections from being established
         
         if not token:
             logger.warning(f"❌ WebSocket connection rejected: missing token for user {user_id}")
-            await websocket.close(code=4001, reason="Unauthorized: Token required")
+            # Cannot close WebSocket before accepting - just return
             return
         
         try:
@@ -215,18 +215,18 @@ async def websocket_endpoint(
                     token_user_id = user_data.get('sub') or user_data.get('user_id') or user_data.get('id')
                 except Exception as jwt_error:
                     logger.warning(f"❌ WebSocket JWT verification failed: {str(jwt_error)}")
-                    await websocket.close(code=4001, reason="Unauthorized: Invalid token")
+                    # Cannot close WebSocket before accepting - just return
                     return
             
             # Verify that the user_id in the URL matches the token
             if not token_user_id:
                 logger.warning(f"❌ WebSocket connection rejected: no user ID in token")
-                await websocket.close(code=4001, reason="Unauthorized: Invalid token")
+                # Cannot close WebSocket before accepting - just return
                 return
             
             if str(token_user_id) != str(user_id):
                 logger.warning(f"❌ WebSocket connection rejected: user ID mismatch. Token: {token_user_id}, URL: {user_id}")
-                await websocket.close(code=4001, reason="Unauthorized: User ID mismatch")
+                # Cannot close WebSocket before accepting - just return
                 return
             
             # Authentication successful - NOW we can accept the connection
@@ -236,7 +236,7 @@ async def websocket_endpoint(
             
         except Exception as auth_error:
             logger.warning(f"❌ WebSocket authentication failed: {str(auth_error)}")
-            await websocket.close(code=4001, reason="Unauthorized")
+            # Cannot close WebSocket before accepting - just return
             return
         
         # SESSION-BASED TRUST: Once authenticated, trust the connection
