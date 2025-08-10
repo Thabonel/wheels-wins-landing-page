@@ -145,20 +145,24 @@ def verify_supabase_jwt_token(
         token = credentials.credentials
         logger.info(f"🔐 Verifying Supabase access token (length: {len(token)})")
         
-        # Supabase uses standard JWT format - decode without signature verification
-        # since we trust Supabase's token issuance and the frontend handles refresh
+        # Verify Supabase JWT with proper signature verification
+        # Use the service role key as the JWT secret
+        jwt_secret = settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value()
+        
         try:
+            # First try with proper signature verification
             payload = jwt.decode(
-                token, 
+                token,
+                jwt_secret,
+                algorithms=["HS256"],
                 options={
-                    "verify_signature": False,  # Trust Supabase's signing
+                    "verify_signature": True,   # Verify signature
                     "verify_exp": True,         # Check if token is expired
                     "verify_aud": False,        # Don't verify audience
                     "verify_iss": False         # Don't verify issuer
-                },
-                algorithms=["HS256", "RS256"]
+                }
             )
-            logger.info("🔐 Supabase JWT decoded successfully")
+            logger.debug("🔐 Supabase JWT verified with signature")
             
         except jwt.ExpiredSignatureError:
             logger.warning("🔐 Token has expired - frontend should refresh")
@@ -249,19 +253,22 @@ def verify_supabase_jwt_token_sync(
         # SECURITY FIX: Remove UUID acceptance - only accept proper JWT tokens
         # All clients must use JWT authentication
         
-        # Supabase uses standard JWT format - decode without signature verification
+        # Verify Supabase JWT with proper signature verification
+        jwt_secret = settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value()
+        
         try:
             payload = jwt.decode(
-                token, 
+                token,
+                jwt_secret, 
+                algorithms=["HS256"],
                 options={
-                    "verify_signature": False,  # Trust Supabase's signing
+                    "verify_signature": True,   # Verify signature
                     "verify_exp": True,         # Check if token is expired
                     "verify_aud": False,        # Don't verify audience
                     "verify_iss": False         # Don't verify issuer
-                },
-                algorithms=["HS256", "RS256"]
+                }
             )
-            logger.info("🔐 Supabase JWT decoded successfully (sync)")
+            logger.debug("🔐 Supabase JWT verified with signature (sync)")
             
         except jwt.ExpiredSignatureError:
             logger.warning("🔐 Token has expired - frontend should refresh")
