@@ -39,7 +39,7 @@ except ImportError:
     BatchSpanProcessor = None
     OTLPSpanExporter = None
 
-from app.core.config import get_settings
+from app.core.infra_config import get_infra_settings
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class ObservabilityConfig:
     """Centralized observability configuration using existing settings"""
 
     def __init__(self):
-        self.settings = get_settings()
+        self.settings = get_infra_settings()
         self.openai_client: Optional[OpenAI] = None
         self.langfuse_client: Optional[Langfuse] = None
         self.agentops_initialized = False
@@ -57,7 +57,7 @@ class ObservabilityConfig:
 
     def is_enabled(self) -> bool:
         """Check if observability is enabled"""
-        return getattr(self.settings, 'OBSERVABILITY_ENABLED', False)
+        return self.settings.OBSERVABILITY_ENABLED
 
     def initialize_tracing(self) -> None:
         """Set up OpenTelemetry tracing if available"""
@@ -94,7 +94,7 @@ class ObservabilityConfig:
             return None
 
         try:
-            self.openai_client = OpenAI(api_key=self.settings.OPENAI_API_KEY.get_secret_value())
+            self.openai_client = OpenAI(api_key=self.settings.OPENAI_API_KEY)
 
             # Ensure tracing is configured
             self.initialize_tracing()
@@ -110,23 +110,27 @@ class ObservabilityConfig:
         """Initialize Langfuse for LLM observability"""
         if not LANGFUSE_AVAILABLE:
             logger.info(
-                "Langfuse not available - install langfuse package to enable Langfuse observability"
+                "📦 Langfuse package not available - install langfuse package to enable observability"
             )
             return None
 
-        if not (
-            getattr(self.settings, 'LANGFUSE_SECRET_KEY', None) and getattr(self.settings, 'LANGFUSE_PUBLIC_KEY', None)
-        ):
+        secret_key = self.settings.LANGFUSE_SECRET_KEY
+        public_key = self.settings.LANGFUSE_PUBLIC_KEY
+        
+        if not (secret_key and public_key):
             logger.info(
-                "Langfuse credentials not configured - set LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY to enable Langfuse observability"
+                "🔑 Langfuse credentials not configured - set LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY"
             )
+            logger.debug(f"🔍 Secret key present: {bool(secret_key)}, Public key present: {bool(public_key)}")
             return None
+        
+        logger.info("✅ Langfuse credentials found, initializing client...")
 
         try:
             self.langfuse_client = Langfuse(
-                secret_key=getattr(self.settings, 'LANGFUSE_SECRET_KEY', None),
-                public_key=getattr(self.settings, 'LANGFUSE_PUBLIC_KEY', None),
-                host=getattr(self.settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
+                secret_key=self.settings.LANGFUSE_SECRET_KEY,
+                public_key=self.settings.LANGFUSE_PUBLIC_KEY,
+                host=self.settings.LANGFUSE_HOST,
             )
 
             logger.info("✅ Langfuse observability initialized")
@@ -140,15 +144,18 @@ class ObservabilityConfig:
         """Initialize AgentOps for agent workflow tracking"""
         if not AGENTOPS_AVAILABLE:
             logger.info(
-                "AgentOps not available - install agentops package to enable AgentOps observability"
+                "📦 AgentOps package not available - install agentops package to enable observability"
             )
             return False
 
-        if not getattr(self.settings, 'AGENTOPS_API_KEY', None):
+        api_key = self.settings.AGENTOPS_API_KEY
+        if not api_key:
             logger.info(
-                "AgentOps API key not configured - set AGENTOPS_API_KEY to enable AgentOps observability"
+                "🔑 AgentOps API key not configured - set AGENTOPS_API_KEY to enable observability"
             )
             return False
+        
+        logger.info("✅ AgentOps API key found, initializing client...")
 
         logger.info(
             "🔍 Attempting AgentOps initialization with OpenAI compatibility check..."
@@ -174,7 +181,7 @@ class ObservabilityConfig:
                 return False
 
             # AgentOps API updated - remove environment parameter
-            agentops.init(api_key=getattr(self.settings, 'AGENTOPS_API_KEY', None))
+            agentops.init(api_key=self.settings.AGENTOPS_API_KEY)
 
             self.agentops_initialized = True
             logger.info("✅ AgentOps observability initialized successfully")
@@ -235,13 +242,13 @@ class ObservabilityConfig:
             },
             "langfuse": {
                 "configured": bool(
-                    getattr(self.settings, 'LANGFUSE_SECRET_KEY', None)
-                    and getattr(self.settings, 'LANGFUSE_PUBLIC_KEY', None)
+                    self.settings.LANGFUSE_SECRET_KEY
+                    and self.settings.LANGFUSE_PUBLIC_KEY
                 ),
                 "client_ready": self.langfuse_client is not None,
             },
             "agentops": {
-                "configured": bool(getattr(self.settings, 'AGENTOPS_API_KEY', None)),
+                "configured": bool(self.settings.AGENTOPS_API_KEY),
                 "initialized": self.agentops_initialized,
             },
         }
