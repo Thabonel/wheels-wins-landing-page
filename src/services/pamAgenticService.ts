@@ -100,16 +100,28 @@ const handleApiError = (error: any, operation: string) => {
 
 // Get authentication headers
 const getAuthHeaders = async (): Promise<HeadersInit> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session?.access_token) {
-    throw new Error('No authentication session');
-  }
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      throw error;
+    }
+    
+    if (!session?.access_token) {
+      throw new Error('No authentication session');
+    }
 
-  return {
-    'Authorization': `Bearer ${session.access_token}`,
-    'Content-Type': 'application/json',
-  };
+    return {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    };
+  } catch (error) {
+    console.error('Auth header error:', error);
+    // Return basic headers if auth fails
+    return {
+      'Content-Type': 'application/json',
+    };
+  }
 };
 
 // =====================================================
@@ -211,8 +223,13 @@ export const pamAgenticService = {
       
       return data;
     } catch (error) {
-      handleApiError(error, 'Get Capabilities');
-      throw error;
+      console.error('❌ PAM Agentic Get Capabilities error:', error);
+      // Return fallback response instead of throwing
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        system_status: 'unavailable'
+      };
     }
   },
 

@@ -73,22 +73,33 @@ export const PamProvider: React.FC<PamProviderProps> = ({ children }) => {
     let mounted = true;
 
     const initializePam = async () => {
-      if (!user) return;
+      if (!user) {
+        setIsAvailable(false);
+        setCapabilities(null);
+        return;
+      }
 
       try {
         setIsLoading(true);
         const capabilityResponse = await pamAgenticService.getCapabilities();
         
-        if (mounted && capabilityResponse.success) {
+        if (mounted && capabilityResponse?.success) {
           setCapabilities(capabilityResponse.capabilities || null);
           setIsAvailable(true);
           setError(null);
           
           // Track initialization
-          trackPAMMetrics('pam_initialized', {
-            capabilities: Object.keys(capabilityResponse.capabilities?.domain_expertise || {}),
-            version: capabilityResponse.version
-          });
+          if (capabilityResponse.capabilities?.domain_expertise) {
+            trackPAMMetrics('pam_initialized', {
+              capabilities: Object.keys(capabilityResponse.capabilities.domain_expertise),
+              version: capabilityResponse.version
+            });
+          }
+        } else if (mounted) {
+          // Handle failed response gracefully
+          setIsAvailable(false);
+          setCapabilities(null);
+          setError(null); // Don't show error to user - graceful degradation
         }
       } catch (err) {
         if (mounted) {
@@ -168,17 +179,22 @@ export const PamProvider: React.FC<PamProviderProps> = ({ children }) => {
 
       const result = await pamAgenticService.planAndExecute(message, context);
       
-      if (result.execution.success && result.execution.execution_result) {
+      if (result?.execution?.success && result?.execution?.execution_result) {
         // Track successful interaction
-        trackPAMMetrics('pam_response_generated', {
-          complexity: result.plan.plan?.complexity,
-          tools_used: result.execution.execution_result.tools_used,
-          execution_time: result.execution.execution_result.execution_time
-        });
+        try {
+          trackPAMMetrics('pam_response_generated', {
+            complexity: result.plan?.plan?.complexity || 'unknown',
+            tools_used: result.execution.execution_result.tools_used || [],
+            execution_time: result.execution.execution_result.execution_time || '0s'
+          });
+        } catch (trackingError) {
+          console.warn('Failed to track PAM metrics:', trackingError);
+        }
 
-        return result.execution.execution_result.response;
+        return result.execution.execution_result.response || 'I processed your request successfully.';
       } else {
-        throw new Error(result.execution.error || 'Failed to generate response');
+        const errorMessage = result?.execution?.error || 'Failed to generate response';
+        throw new Error(errorMessage);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');

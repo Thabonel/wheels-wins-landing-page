@@ -15,10 +15,13 @@ export const usePamWebSocket = (userId: string, token: string) => {
   const reconnectAttempts = useRef(0);
 
   // Memoize WebSocket URL to prevent unnecessary recalculations
-  const wsUrl = useMemo(() => 
-    `${getWebSocketUrl(`/api/v1/pam/ws/${userId}`)}?token=${encodeURIComponent(token)}`,
-    [userId, token]
-  );
+  const wsUrl = useMemo(() => {
+    // Ensure userId is a string
+    const userIdString = typeof userId === 'string' ? userId : String(userId);
+    const tokenString = typeof token === 'string' ? token : String(token || '');
+    
+    return `${getWebSocketUrl(`/api/v1/pam/ws/${userIdString}`)}?token=${encodeURIComponent(tokenString)}`;
+  }, [userId, token]);
 
   const sendMessage = useCallback((message: any) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
