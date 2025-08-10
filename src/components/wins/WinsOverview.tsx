@@ -53,7 +53,7 @@ const WinsOverview = React.memo(() => {
   const handleStatusChange = useCallback(() => {}, []);
 
   const { isConnected, sendMessage } = usePamWebSocketConnection({
-    userId: user?.id || 'anonymous',
+    userId: user?.id ? String(user.id) : 'anonymous',
     token,
     onMessage: handlePamMessage,
     onStatusChange: handleStatusChange

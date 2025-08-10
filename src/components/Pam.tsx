@@ -787,7 +787,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       // Step 2: Get WebSocket base URL with user ID
       console.log('🔧 PAM DEBUG: Getting WebSocket base URL...');
-      const baseWebSocketUrl = getWebSocketUrl(`/api/v1/pam/ws/${user.id}`);
+      const userIdString = String(user.id);
+      const baseWebSocketUrl = getWebSocketUrl(`/api/v1/pam/ws/${userIdString}`);
       console.log('🔧 PAM DEBUG: Base WebSocket URL:', baseWebSocketUrl);
       
       // Step 3: Create authenticated WebSocket URL
@@ -797,11 +798,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Step 4: Validate URL format
       console.log('✅ PAM DEBUG: URL validation:');
       console.log('✅ PAM DEBUG: - Contains endpoint:', wsUrl.includes('/api/v1/pam/ws'));
-      console.log('✅ PAM DEBUG: - Contains user ID:', wsUrl.includes(user.id));
+      console.log('✅ PAM DEBUG: - Contains user ID:', wsUrl.includes(userIdString));
       console.log('✅ PAM DEBUG: - Uses secure protocol:', wsUrl.startsWith('wss://'));
       console.log('✅ PAM DEBUG: - Contains token parameter:', wsUrl.includes('token='));
       
-      if (!wsUrl.includes('/api/v1/pam/ws') || !wsUrl.includes(user.id)) {
+      if (!wsUrl.includes('/api/v1/pam/ws') || !wsUrl.includes(userIdString)) {
         console.error('❌ PAM DEBUG: URL validation failed!');
         console.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
         console.error('❌ PAM DEBUG: Actual URL:', `${wsUrl.substring(0, 100)  }...`);
