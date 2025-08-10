@@ -220,7 +220,7 @@ async def get_dashboard_data(
                 "health": health,
                 "platform_links": {
                     "openai": "https://platform.openai.com/usage",
-                    "langfuse": observability.settings.LANGFUSE_HOST,
+                    "langfuse": getattr(observability.settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
                     "agentops": "https://app.agentops.ai"
                 }
             }
@@ -261,9 +261,9 @@ async def get_observability_configuration(
                     "key_preview": f"{settings.OPENAI_API_KEY.get_secret_value()[:8]}..." if settings.OPENAI_API_KEY else None
                 },
                 "langfuse": {
-                    "configured": bool(settings.LANGFUSE_SECRET_KEY and settings.LANGFUSE_PUBLIC_KEY),
-                    "host": settings.LANGFUSE_HOST,
-                    "public_key_preview": f"{settings.LANGFUSE_PUBLIC_KEY[:8]}..." if settings.LANGFUSE_PUBLIC_KEY else None
+                    "configured": bool(getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)),
+                    "host": getattr(settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
+                    "public_key_preview": f"{getattr(settings, 'LANGFUSE_PUBLIC_KEY', '')[:8]}..." if getattr(settings, 'LANGFUSE_PUBLIC_KEY', None) else None
                 },
                 "agentops": {
                     "configured": bool(settings.AGENTOPS_API_KEY),
