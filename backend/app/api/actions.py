@@ -115,12 +115,38 @@ def get_available_actions():
 
 @router.get("/status")
 def get_action_status():
-    """Get the status of the actions service"""
-    return {
+    """Get the status of the actions service and platform configuration"""
+    
+    # Get basic actions status
+    basic_status = {
         "status": "operational",
         "message": "Actions service is ready to execute UI commands",
         "supported_actions": 4
     }
+    
+    # Try to get platform configuration status
+    try:
+        from app.core.config import get_settings
+        settings = get_settings()
+        
+        platform_status = {
+            "openai": "configured" if getattr(settings, 'OPENAI_API_KEY', None) else "not_configured",
+            "langfuse": "configured" if (getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)) else "not_configured",  
+            "agentops": "configured" if getattr(settings, 'AGENTOPS_API_KEY', None) else "not_configured"
+        }
+        
+        basic_status["platform_status"] = platform_status
+        basic_status["observability_enabled"] = getattr(settings, 'OBSERVABILITY_ENABLED', False)
+        
+    except Exception as e:
+        logger.warning(f"Could not get platform status: {e}")
+        basic_status["platform_status"] = {
+            "openai": "unknown",
+            "langfuse": "unknown", 
+            "agentops": "unknown"
+        }
+    
+    return basic_status
 
 @router.post("/test")
 def test_actions():
