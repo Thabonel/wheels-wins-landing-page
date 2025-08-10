@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { usePamErrorRecovery } from "@/hooks/pam/usePamErrorRecovery";
-import { PamErrorBoundary } from "@/components/pam/PamErrorBoundary";
 import { pamUIController } from "@/lib/PamUIController";
 import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
@@ -12,7 +10,6 @@ import { pamFeedbackService } from "@/services/pamFeedbackService";
 import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
-import { trackPAMMetrics } from "@/lib/sentry";
 import { 
   WebSocketAuthManager, 
   getValidAccessToken, 
@@ -28,12 +25,7 @@ import { audioManager } from "@/utils/audioManager";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
-import { flags, getUserVariant } from "@/config/featureFlags";
-import { usePamVisualControl } from "@/hooks/pam/usePamVisualControl";
-import { pamService } from '@/services/pamService';
-import { usePamWebSocket } from '@/hooks/usePamWebSocket';
-// Temporarily disabled - AI SDK not configured
-// import { PamWithFallback } from "@/experiments/ai-sdk-poc/components/PamWithFallback";
+import { pamAgenticService } from "@/services/pamAgenticService";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -60,44 +52,7 @@ interface PamProps {
 
 const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const { user, session } = useAuth();
-  
-  // AI SDK Integration - Temporarily disabled until AI SDK is configured
-  // if (user?.id && flags.useAiSdkPam) {
-  //   const variant = getUserVariant(user.id);
-  //   if (variant === 'ai-sdk') {
-  //     // Use the new AI SDK version
-  //     return <PamWithFallback className={mode === "floating" ? "fixed bottom-4 right-4" : ""} />;
-  //   }
-  // }
   const { settings, updateSettings } = useUserSettings();
-  
-  // Error recovery system
-  const errorRecovery = usePamErrorRecovery();
-  
-  // Enhanced PAM WebSocket integration with voice and error recovery
-  // Use the hook directly without wrapper - it now has all needed properties
-  const pamWebSocket = usePamWebSocket(
-    user?.id || '', 
-    session?.access_token || ''
-  );
-  
-  // Handle messages from WebSocket
-  useEffect(() => {
-    if (pamWebSocket.messages.length > 0) {
-      const lastMessage = pamWebSocket.messages[pamWebSocket.messages.length - 1];
-      console.log('📨 PAM component received message:', lastMessage);
-      
-      // Handle message in the component
-      if ('role' in lastMessage && lastMessage.role === 'assistant') {
-        // New pamService message format
-        addMessage(lastMessage.content, "pam");
-      } else if ('message' in lastMessage) {
-        // Legacy message format
-        addMessage(lastMessage.message || lastMessage.content || '', "pam");
-      }
-    }
-  }, [pamWebSocket.messages]);
-  
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -105,7 +60,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [messages, setMessages] = useState<PamMessage[]>([]);
-  // connectionStatus is already in pamWebSocket, no need for duplicate
+  const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
   const [userContext, setUserContext] = useState<any>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -260,30 +215,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
     
     if (user?.id) {
-      console.log('📋 PAM: Loading user context and connecting via enhanced pamService...');
+      console.log('📋 PAM: Loading user context and connecting...');
       
       // Persist session ID for conversation continuity
       localStorage.setItem('pam_session_id', sessionId);
       
       loadUserContext();
       loadConversationMemory();
-      
-      // Use enhanced pamService connection (handled automatically by usePamWebSocket)
-      if (!pamWebSocket.isConnected && !pamWebSocket.isConnecting) {
-        console.log('🚀 Manually triggering PAM connection...');
-        pamWebSocket.connect().catch(error => {
-          console.error('❌ Failed to connect PAM service:', error);
-        });
-      } else {
-        console.log('✅ PAM service already connected or connecting');
-      }
+      connectToBackend();
     } else {
       console.log('❌ PAM: No user ID, skipping connection');
     }
-  }, [user?.id, sessionId, pamWebSocket.isConnected, pamWebSocket.isConnecting, pamWebSocket.connect]);
-
-  // Initialize PAM Visual Control
-  const { handlePamMessage: handleVisualMessage } = usePamVisualControl();
+    // eslint-disable-next-line
+  }, [user?.id, sessionId]);
 
   // Update location context when tracking state changes
   useEffect(() => {
@@ -336,16 +280,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('🎯 PAM: Sending message:', message);
       if (isOpen) {
         setInputMessage(message);
-        // Send the message directly
+        // Auto-send the message
         setTimeout(() => {
-          handleSendMessage(message);
+          handleSendMessage();
         }, 100);
       } else {
         // Open PAM and send message
         setIsOpen(true);
         setInputMessage(message);
         setTimeout(() => {
-          handleSendMessage(message);
+          handleSendMessage();
         }, 200);
       }
     };
@@ -634,7 +578,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       console.log('🔄 Testing REST API connection...');
       
       // First try the health endpoint (no auth required)
-      const healthResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com'}/health`);
+      const healthResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}/health`);
       if (!healthResponse.ok) {
         throw new Error('Backend health check failed');
       }
@@ -700,7 +644,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
 
     console.log('🏥 PAM DEBUG: ==================== HEALTH CHECK ====================');
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
     console.log('🏥 PAM DEBUG: Backend URL:', backendUrl);
     console.log('🏥 PAM DEBUG: Health check URL:', `${backendUrl}/health`);
     
@@ -715,7 +659,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       });
       
       const healthTime = Date.now() - healthStartTime;
-      console.log('🏥 PAM DEBUG: Health check completed in:', `${healthTime  }ms`);
+      console.log('🏥 PAM DEBUG: Health check completed in:', healthTime + 'ms');
       console.log('🏥 PAM DEBUG: Health response status:', healthResponse.status);
       console.log('🏥 PAM DEBUG: Health response ok:', healthResponse.ok);
       
@@ -760,7 +704,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       console.log('✅ PAM DEBUG: Valid JWT token obtained:', {
         tokenLength: tokenResult.token.length,
-        tokenPreview: `${tokenResult.token.substring(0, 30)  }...`,
+        tokenPreview: tokenResult.token.substring(0, 30) + '...',
         expiresAt: tokenResult.expiresAt,
         needsRefresh: tokenResult.needsRefresh
       });
@@ -768,7 +712,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // CRITICAL: Verify this is actually a JWT, not a UUID
       if (tokenResult.token.includes('-') && tokenResult.token.length === 36) {
         console.error('❌ PAM DEBUG: ERROR - Token appears to be a UUID, not a JWT!');
-        console.error('❌ PAM DEBUG: Token type: UUID (length: 36, contains dashes)');
+        console.error('❌ PAM DEBUG: Token value:', tokenResult.token);
         console.error('❌ PAM DEBUG: This will cause authentication to fail');
         
         // Try to get the actual JWT from session
@@ -778,7 +722,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           tokenResult.token = session.access_token;
           console.log('✅ PAM DEBUG: JWT token from session:', {
             tokenLength: session.access_token.length,
-            tokenPreview: `${session.access_token.substring(0, 30)  }...`
+            tokenPreview: session.access_token.substring(0, 30) + '...'
           });
         } else {
           console.error('❌ PAM DEBUG: No JWT found in session either!');
@@ -788,10 +732,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       }
       
-      // Step 2: Get WebSocket base URL with user ID
+      // Step 2: Get WebSocket base URL
       console.log('🔧 PAM DEBUG: Getting WebSocket base URL...');
-      const userIdString = String(user.id);
-      const baseWebSocketUrl = getWebSocketUrl(`/api/v1/pam/ws/${userIdString}`);
+      const baseWebSocketUrl = getWebSocketUrl('/api/v1/pam/ws');
       console.log('🔧 PAM DEBUG: Base WebSocket URL:', baseWebSocketUrl);
       
       // Step 3: Create authenticated WebSocket URL
@@ -801,14 +744,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Step 4: Validate URL format
       console.log('✅ PAM DEBUG: URL validation:');
       console.log('✅ PAM DEBUG: - Contains endpoint:', wsUrl.includes('/api/v1/pam/ws'));
-      console.log('✅ PAM DEBUG: - Contains user ID:', wsUrl.includes(userIdString));
       console.log('✅ PAM DEBUG: - Uses secure protocol:', wsUrl.startsWith('wss://'));
       console.log('✅ PAM DEBUG: - Contains token parameter:', wsUrl.includes('token='));
       
-      if (!wsUrl.includes('/api/v1/pam/ws') || !wsUrl.includes(userIdString)) {
+      if (!wsUrl.includes('/api/v1/pam/ws')) {
         console.error('❌ PAM DEBUG: URL validation failed!');
         console.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
-        console.error('❌ PAM DEBUG: Actual URL:', `${wsUrl.substring(0, 100)  }...`);
+        console.error('❌ PAM DEBUG: Actual URL:', wsUrl.substring(0, 100) + '...');
         throw new Error('WebSocket endpoint validation failed');
       }
       
@@ -828,14 +770,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         const connectionTime = Date.now() - connectionStartTime;
         console.log('✅ PAM DEBUG: ==================== CONNECTION SUCCESS ====================');
         console.log('✅ PAM DEBUG: WebSocket OPENED successfully!');
-        console.log('✅ PAM DEBUG: Connection time:', `${connectionTime  }ms`);
+        console.log('✅ PAM DEBUG: Connection time:', connectionTime + 'ms');
         console.log('✅ PAM DEBUG: Event:', event);
         console.log('✅ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
         console.log('✅ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
         console.log('✅ PAM DEBUG: WebSocket protocol:', wsRef.current?.protocol);
-        
-        // Track baseline metrics
-        trackPAMMetrics.websocketConnection(true, connectionTime, reconnectAttempts.current + 1);
         
         setConnectionStatus("Connected");
         setReconnectAttempts(0);
@@ -891,7 +830,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (message.type === 'chat_response_start') {
             console.log('🌊 PAM DEBUG: Streaming response started');
             // Show immediate processing indicator
-            addMessage(message.message || "🔍 Processing your request...", "pam", undefined, undefined, 'normal');
+            addMessage(message.message || "🔍 Processing your request...", "pam", undefined, false, 'normal');
             return;
           }
           
@@ -943,7 +882,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           // Handle traditional chat responses (non-streaming fallback)
           if (message.type === 'chat_response' || message.type === 'response') {
             const content = message.content || message.message || message.response;
-            console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: `${content?.substring(0, 100)  }...` });
+            console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
             
             if (content && content.trim()) {
               // Check if PAM is asking for location and offer to get it automatically
@@ -1004,18 +943,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 }, 500); // Short delay for better UX
               } else {
                 addMessage(content, "pam");
-                
-                // Track response time if we have tracking data
-                if (window.pamMessageTracking) {
-                  const trackingKeys = Object.keys(window.pamMessageTracking);
-                  if (trackingKeys.length > 0) {
-                    const lastKey = trackingKeys[trackingKeys.length - 1];
-                    const tracking = window.pamMessageTracking[lastKey];
-                    const responseTime = Date.now() - tracking.sendTime;
-                    trackPAMMetrics.messageResponse(responseTime, true, tracking.type);
-                    delete window.pamMessageTracking[lastKey]; // Clean up
-                  }
-                }
               }
             } else {
               console.warn('⚠️ Empty content in response:', message);
@@ -1042,12 +969,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (message.type === 'ui_action') {
             console.log('🎛️ PAM DEBUG: UI action received:', message);
             handleUIAction(message);
-          }
-
-          // Handle visual control actions
-          if (message.type === 'visual_action' || message.visual_action) {
-            console.log('🎨 PAM DEBUG: Visual action received:', message.visual_action || message);
-            handleVisualMessage(message);
           }
           
           // Handle welcome messages
@@ -1112,7 +1033,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         try {
           localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
             messages: messages.slice(-10),
-            sessionId,
+            sessionId: sessionId,
             timestamp: new Date().toISOString()
           }));
           console.log('💾 PAM DEBUG: Conversation state saved');
@@ -1179,10 +1100,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         console.error('❌ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
         console.error('❌ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
         
-        // Track baseline metrics
-        trackPAMMetrics.websocketConnection(false, undefined, reconnectAttempts.current + 1);
-        trackPAMMetrics.baseline.record('connection_failure');
-        
         setConnectionStatus("Disconnected");
       };
     } catch (error) {
@@ -1214,13 +1131,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     // Test 3: URL construction
     console.log('🧪 TEST 3: URL Construction');
-    const testUrl = getWebSocketUrl(`/api/v1/pam/ws/${user?.id || 'test-user'}`);
+    const testUrl = getWebSocketUrl('/api/v1/pam/ws');
     console.log('- getWebSocketUrl result:', testUrl);
     
     // Test 4: Token preparation
     console.log('🧪 TEST 4: Token Preparation');
     const testToken = user?.id || 'test_user';
-    console.log('- Test token length:', testToken?.length || 0);
+    console.log('- Test token:', testToken);
     
     // Test 5: Final URL
     console.log('🧪 TEST 5: Final URL');
@@ -1426,7 +1343,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         const currentIsContinuousMode = isContinuousModeRef.current;
         
         console.log('🎙️ Speech detected:', {
-          transcript,
+          transcript: transcript,
           isFinal: latest.isFinal,
           confidence: latest[0].confidence,
           isWakeWordListening: currentIsWakeWordListening,
@@ -1478,8 +1395,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         console.error('⚠️ Speech recognition error:', {
           error: event.error,
           message: event.message,
-          isWakeWordListening,
-          isContinuousMode
+          isWakeWordListening: isWakeWordListening,
+          isContinuousMode: isContinuousMode
         });
         
         if (event.error === 'not-allowed') {
@@ -1552,7 +1469,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       setIsWakeWordListening(true);
       localStorage.setItem('pam_wake_word_enabled', 'true');
       console.log('👂 Wake word detection started - say "Hi PAM" to activate');
-      addMessage("👂 Wake word detection enabled. Say 'Hi PAM' to activate voice chat.", "pam", undefined, false);
+      addMessage("👂 Wake word detection enabled. Say 'Hi PAM' to activate voice chat.", "pam");
     } catch (error) {
       console.warn('⚠️ Could not start wake word detection:', error);
       addMessage("❌ Could not start wake word detection. Please try again.", "pam");
@@ -1593,12 +1510,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🎯 Extracted question:', question);
     
     if (question.length > 0) {
-      // Send the question directly without relying on state
+      // Set the input message and send it
       console.log('🚀 Sending voice question to PAM...');
-      setInputMessage(question); // Update UI to show what was said
+      setInputMessage(question);
       
-      // Send message directly with the question
-      handleSendMessage(question);
+      // Use a small delay to ensure state update before sending
+      setTimeout(() => {
+        handleSendMessage();
+      }, 50);
     } else {
       console.log('⚠️ No question extracted from transcript after wake word');
     }
@@ -1609,12 +1528,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     console.log('🎙️ Processing direct speech input:', transcript);
     
     if (transcript.trim().length > 0) {
-      // Send the transcript directly without relying on state
+      // Set the input message and send it
       console.log('🚀 Processing speech input through text chat...');
-      setInputMessage(transcript); // Update UI to show what was said
+      setInputMessage(transcript);
       
-      // Send message directly with the transcript
-      handleSendMessage(transcript);
+      // Use a small delay to ensure state update before sending
+      setTimeout(() => {
+        handleSendMessage();
+      }, 50);
     }
   };
 
@@ -1690,38 +1611,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Stop wake word listening when continuous mode is turned off
     stopWakeWordListening();
     
-    addMessage("🔇 Continuous voice mode deactivated. Microphone access has been released.", "pam", undefined, false);
+    addMessage("🔇 Continuous voice mode deactivated. Microphone access has been released.", "pam");
   };
 
   // Removed duplicate handleTextMessage function - now using handleSendMessage for all message sending
-
-  // Simple voice output toggle - separate from continuous mode
-  const toggleVoiceOutput = async () => {
-    const currentVoiceEnabled = settings?.pam_preferences?.voice_enabled ?? true;
-    const newVoiceEnabled = !currentVoiceEnabled;
-    
-    console.log('🔊 Toggling voice output:', currentVoiceEnabled, '->', newVoiceEnabled);
-    
-    try {
-      await updateSettings({
-        pam_preferences: {
-          ...settings?.pam_preferences,
-          voice_enabled: newVoiceEnabled
-        }
-      });
-      
-      // Provide feedback to user
-      const message = newVoiceEnabled 
-        ? "🔊 Voice responses enabled! PAM will now speak her responses."
-        : "🔇 Voice responses disabled. PAM will respond silently.";
-      
-      addMessage(message, "pam", undefined, newVoiceEnabled); // Only speak if voice was just enabled
-      
-    } catch (error) {
-      console.error('❌ Failed to update voice settings:', error);
-      addMessage("❌ Failed to update voice settings. Please try again.", "pam");
-    }
-  };
 
   const handleVoiceToggle = async () => {
     try {
@@ -2219,21 +2112,28 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  // Function to speak PAM's messages using TTS with simplified activation
+  // Function to speak PAM's messages using TTS with controlled activation
   const speakMessage = async (content: string, priority: 'low' | 'normal' | 'high' | 'urgent' = 'normal', forceSpeak: boolean = false) => {
-    console.log('🔊 Voice request - Priority:', priority, 'Force speak:', forceSpeak);
+    // STRICT VOICE CONTROL: Only speak when explicitly triggered by user action
+    // Do not speak automatically regardless of settings
+    console.log('🔊 Voice request - Priority:', priority, 'Force speak:', forceSpeak, 'Activation mode:', voiceActivationMode);
     
-    // Check if voice is enabled in user settings - consistent with addMessage default
-    const isVoiceEnabled = settings?.pam_preferences?.voice_enabled ?? true;
-    if (!isVoiceEnabled) {
-      console.log('🔇 Voice is disabled in user settings');
+    // CRITICAL: Never auto-speak unless forceSpeak is true AND user explicitly triggered it
+    if (!forceSpeak) {
+      console.log('🔇 Auto-speaking disabled - PAM will not speak automatically');
       return;
     }
 
-    // If forceSpeak is true, always proceed (for explicit user voice requests)
-    // If forceSpeak is false, only speak if voice is enabled (normal PAM responses)
-    if (!forceSpeak && !isVoiceEnabled) {
-      console.log('🔇 Voice not requested and not enabled in settings');
+    // Additional safety check: Only speak in manual mode when explicitly forced
+    if (voiceActivationMode === 'manual' && !forceSpeak) {
+      console.log('🔇 Manual voice mode - no auto-speaking allowed');
+      return;
+    }
+
+    // Check if voice is enabled in user settings (but still require explicit trigger)
+    const isVoiceEnabled = settings?.pam_preferences?.voice_enabled ?? false;
+    if (!isVoiceEnabled) {
+      console.log('🔇 Voice is disabled in user settings');
       return;
     }
 
@@ -2321,7 +2221,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           setIsSpeaking(false);
           vadService.setPAMSpeaking(false);
           setCurrentAudio(null);
-          
+          return;
         }
       } else {
         // Normal manual TTS playback (user clicked a voice button)
@@ -2353,28 +2253,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string, shouldSpeak?: boolean, voicePriority?: 'low' | 'normal' | 'high' | 'urgent'): PamMessage => {
-    // Auto-determine shouldSpeak based on user settings for PAM messages
-    // Default to true for PAM if settings aren't loaded yet (fallback)
-    const voiceEnabled = settings?.pam_preferences?.voice_enabled ?? true; // Default to enabled
-    const finalShouldSpeak = shouldSpeak !== undefined 
-      ? shouldSpeak 
-      : (sender === "pam" && voiceEnabled);
-    
-    console.log('🔊 addMessage voice decision:', {
-      sender,
-      explicitShouldSpeak: shouldSpeak,
-      voiceEnabled,
-      settingsLoaded: !!settings,
-      finalShouldSpeak
-    });
-    
+  const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string, shouldSpeak: boolean = false, voicePriority?: 'low' | 'normal' | 'high' | 'urgent'): PamMessage => {
     const newMessage: PamMessage = {
       id: Date.now().toString(),
       content,
       sender,
       timestamp: new Date().toISOString(),
-      shouldSpeak: finalShouldSpeak,
+      shouldSpeak,
       voicePriority
     };
     setMessages(prev => {
@@ -2403,7 +2288,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       try {
         localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
           messages: updatedMessages.slice(-10), // Keep last 10 messages
-          sessionId,
+          sessionId: sessionId,
           timestamp: new Date().toISOString()
         }));
       } catch (error) {
@@ -2416,25 +2301,66 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     return newMessage;
   };
 
-  const handleSendMessage = async (messageOverride?: string) => {
-    const messageToSend = messageOverride || inputMessage;
-    
-    if (!messageToSend?.trim()) {
+  // Determine if message needs agentic planning
+  const needsAgenticPlanning = (message: string): boolean => {
+    const planningKeywords = [
+      'plan', 'autonomously', 'complex', 'multi-step', 'analyze',
+      'strategy', 'comprehensive', 'detailed', 'coordinate', 'optimize',
+      'thinking process', 'reasoning', 'tools', 'execute'
+    ];
+    const lowercaseMsg = message.toLowerCase();
+    return planningKeywords.some(keyword => lowercaseMsg.includes(keyword));
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage?.trim()) {
       console.warn('⚠️ PAM DEBUG: Attempted to send empty message');
       return;
     }
     
-    const message = messageToSend.trim();
-    const sendStartTime = Date.now();
-    
-    // Track baseline metrics
-    trackPAMMetrics.baseline.record('message');
-    
+    const message = inputMessage.trim();
     addMessage(message, "user");
     // Note: PAM backend automatically saves all conversation history
-    
-    // Clear input regardless of source
     setInputMessage("");
+    
+    // Check if we should use agentic planning for complex queries
+    if (needsAgenticPlanning(message)) {
+      console.log('🧠 Using agentic planning for complex query');
+      try {
+        // Show planning indicator
+        const planningMsgId = Date.now().toString();
+        addMessage("🧠 Planning your request...", "pam");
+        
+        const result = await pamAgenticService.planAndExecute(message, {
+          conversation_history: messages.slice(-5).map(m => ({
+            content: m.content,
+            role: m.sender === 'user' ? 'user' : 'assistant'
+          })),
+          user_context: userContext,
+          user_preferences: settings
+        });
+        
+        if (result.execution.success && result.execution.execution_result) {
+          // Remove planning message and add result
+          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+          addMessage(result.execution.execution_result.response, "pam");
+          
+          // If voice is enabled, speak the response
+          if (settings?.pam_preferences?.voice_enabled) {
+            await speakText(result.execution.execution_result.response);
+          }
+          return; // Exit early, we've handled the message
+        } else {
+          // Remove planning message
+          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+          console.log('Agentic planning unsuccessful, falling back to WebSocket');
+        }
+      } catch (error) {
+        console.error('Agentic planning error:', error);
+        setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+        // Fall through to WebSocket
+      }
+    }
 
     // Check if user is asking for location-based services and we don't have location
     const locationQueries = [
@@ -2475,7 +2401,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     const messageData = {
       type: "chat",
-      message,  // Backend expects 'message' not 'content'
+      message: message,  // Backend expects 'message' not 'content'
       stream: true,  // Request streaming response for better UX
       context: {
         user_id: user?.id,  // Move userId into context as expected by backend
@@ -2492,45 +2418,42 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
     };
 
-    // Use enhanced PAM WebSocket service with voice integration and error recovery
-    try {
-      console.log('📤 Sending message via enhanced pamService...');
-      
-      const messageId = await pamWebSocket.sendMessage(message, {
-        userLocation: userContext?.current_location,
-        vehicleInfo: userContext?.vehicle_info,
-        travelStyle: userContext?.travel_style,
-        conversation_history: messages.slice(-5).map(msg => ({
-          role: msg.sender === "user" ? "user" : "assistant", 
-          content: msg.content
-        })),
-        timestamp: new Date().toISOString(),
-        session_id: sessionId,
-        location_request_attempted: isLocationQuery && !userContext?.current_location
-      });
-      
-      // Store message send time for response tracking
-      window.pamMessageTracking = window.pamMessageTracking || {};
-      if (typeof messageId === 'string') {
-        window.pamMessageTracking[messageId] = { 
-          sendTime: sendStartTime, 
-          type: 'text' 
-        };
+    // Try WebSocket first if connected
+    if (connectionStatus === "Connected" && wsRef.current?.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify(messageData));
+        return;
+      } catch (error) {
+        console.error('❌ Failed to send via WebSocket:', error);
       }
-      
-      console.log('✅ Message sent successfully via pamService, ID:', messageId);
-      
-      // Track successful message send
-      trackPAMMetrics.messageResponse(Date.now() - sendStartTime, true, 'text');
-      
+    }
+
+    // Fallback to REST API
+    try {
+      const response = await authenticatedFetch('/api/v1/pam/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          message,
+          context: messageData.context
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const pamResponse = data.response || data.message || data.content || "I'm sorry, I couldn't process that request.";
+        addMessage(pamResponse, "pam", message);
+        // Note: PAM backend automatically saves all conversation history
+        
+        // Handle any UI actions from the response
+        if (data.ui_action) {
+          handleUIAction(data.ui_action);
+        }
+      } else {
+        addMessage("I'm having trouble connecting to the server. Please try again later.", "pam");
+      }
     } catch (error) {
-      console.error('❌ Failed to send message via pamService:', error);
-      
-      // Track failed message send
-      trackPAMMetrics.messageResponse(Date.now() - sendStartTime, false, 'text', error.message);
-      
-      // Show user-friendly error (pamService handles toast notifications, but add backup message)
-      addMessage("I'm experiencing connection issues. Please try again or check your internet connection.", "pam");
+      console.error('❌ Failed to send message via REST API:', error);
+      addMessage("I'm experiencing connection issues. Please check your internet connection and try again.", "pam");
     }
   };
 
@@ -2568,9 +2491,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         clearTimeout(reconnectTimeoutRef.current);
       }
       
-      // Disconnect PAM service (pamService handles proper cleanup)
-      pamWebSocket.disconnect();
-      console.log('🔌 PAM service disconnected during cleanup');
+      // Close WebSocket
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Component unmounting');
+      }
       
       // Stop all voice-related activities and release microphone
       stopAudioLevelMonitoring();
@@ -2604,8 +2528,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               <h3 className="font-semibold text-gray-800">PAM</h3>
               <div className="text-xs text-gray-500 space-y-0.5">
                 <p>
-                  {pamWebSocket.connectionStatus === "connected" ? "🟢 Agentic AI Online" : 
-                   pamWebSocket.connectionStatus === "connecting" ? "🟡 Connecting..." : "🔴 Offline"}
+                  {connectionStatus === "Connected" ? "🟢 Agentic AI Online" : 
+                   connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
                 </p>
                 {isVADActive && (
                   <p className="text-xs">
@@ -2655,15 +2579,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word (Needs Mic)"}
                 </button>
                 <button 
-                  onClick={toggleVoiceOutput}
-                  className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
-                    (settings?.pam_preferences?.voice_enabled ?? true) ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  {(settings?.pam_preferences?.voice_enabled ?? true) ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                  {(settings?.pam_preferences?.voice_enabled ?? true) ? "🔊 Voice Responses ON" : "🔇 Voice Responses OFF"}
-                </button>
-                <button 
                   onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
                   className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
                     isContinuousMode ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -2681,14 +2596,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     console.log('🧪 Session details:');
                     console.log('  - Has session:', !!session);
                     console.log('  - Has access_token:', !!session?.access_token);
-                    console.log('  - Token length:', session?.access_token?.length || 0);
+                    console.log('  - Token preview:', session?.access_token?.substring(0, 30));
                     console.log('  - Token parts:', session?.access_token?.split('.').length);
                     console.log('  - User email:', user?.email);
                     console.log('  - User ID:', user?.id);
                     
                     // Test backend health
                     try {
-                      const healthResponse = await fetch('https://wheels-wins-backend-staging.onrender.com/health');
+                      const healthResponse = await fetch('https://pam-backend.onrender.com/health');
                       console.log('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
                     } catch (error) {
                       console.log('🧪 Backend health: ERROR', error);
@@ -2732,13 +2647,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
                 }`}>
                   <p className="text-sm">{msg.content}</p>
-                  {/* Speaking indicator for the most recent PAM message */}
-                  {msg.sender === "pam" && isSpeaking && messages[messages.length - 1]?.id === msg.id && (
-                    <div className="flex items-center mt-1 text-xs text-blue-600">
-                      <Volume2 className="w-3 h-3 mr-1 animate-pulse" />
-                      <span>speaking...</span>
-                    </div>
-                  )}
                   {/* Streaming indicator */}
                   {msg.isStreaming && (
                     <div className="flex items-center mt-1 text-xs text-gray-500">
@@ -2769,14 +2677,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               onKeyPress={handleKeyPress}
               placeholder="Ask PAM anything..."
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-              disabled={pamWebSocket.connectionStatus !== "connected"}
+              disabled={connectionStatus !== "Connected"}
             />
             <button
               onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
               className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
                 isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
               }`}
-              disabled={pamWebSocket.connectionStatus !== "connected"}
+              disabled={connectionStatus !== "Connected"}
               title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
             >
               <div className="flex flex-col items-center gap-0.5">
@@ -2791,19 +2699,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             {isSpeaking && (
               <button
                 onClick={stopSpeaking}
-                className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-100 text-purple-700 border border-purple-300 hover:bg-purple-200 animate-pulse"
+                className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100"
                 title="🔇 Stop PAM voice"
               >
                 <div className="flex flex-col items-center gap-0.5">
                   <VolumeX className="w-4 h-4" />
                   <span className="text-xs font-medium">Stop</span>
                 </div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full animate-ping" />
               </button>
             )}
             <button
               onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || pamWebSocket.connectionStatus !== "connected"}
+              disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
               className="bg-primary text-white p-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
@@ -2830,8 +2737,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               className="w-8 h-8 rounded-full"
             />
           <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
-            pamWebSocket.connectionStatus === "connected" ? "bg-green-500" : 
-            pamWebSocket.connectionStatus === "connecting" ? "bg-yellow-500" : "bg-red-500"
+            connectionStatus === "Connected" ? "bg-green-500" : 
+            connectionStatus === "Connecting" ? "bg-yellow-500" : "bg-red-500"
           }`} />
         </div>
       </button>
@@ -2851,22 +2758,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 <h3 className="font-semibold text-gray-800">PAM</h3>
                 <div className="text-xs text-gray-500 space-y-0.5">
                   <p>
-                    {pamWebSocket.connectionStatus === "connected" ? "🟢 Enhanced PAM Service" : 
-                     pamWebSocket.connectionStatus === "connecting" ? "🟡 Connecting..." : "🔴 Offline"}
+                    {connectionStatus === "Connected" ? "🟢 Agentic AI Reasoning" : 
+                     connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
                   </p>
-                  {/* Voice Recovery Status */}
-                  {pamWebSocket.voiceRecovery && (
-                    <p className={`text-xs ${
-                      pamWebSocket.voiceRecovery.status === 'healthy' ? 'text-green-600' :
-                      pamWebSocket.voiceRecovery.status === 'degraded' ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      🎙️ {pamWebSocket.voiceRecovery.isRecovering ? 'Recovering Voice...' : 
-                          pamWebSocket.voiceRecovery.fallbackMode === 'text-only' ? 'Text Only Mode' :
-                          pamWebSocket.voiceRecovery.fallbackMode === 'silent' ? 'Voice Silent' :
-                          'Voice Ready'}
-                    </p>
-                  )}
                   {isVADActive && (
                     <p className="text-xs">
                       {conversationState.userSpeaking ? "🎤 User Speaking" :
@@ -2923,15 +2817,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word (Needs Mic)"}
                   </button>
                   <button 
-                    onClick={toggleVoiceOutput}
-                    className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
-                      (settings?.pam_preferences?.voice_enabled ?? true) ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    {(settings?.pam_preferences?.voice_enabled ?? true) ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                    {(settings?.pam_preferences?.voice_enabled ?? true) ? "🔊 Voice Responses ON" : "🔇 Voice Responses OFF"}
-                  </button>
-                  <button 
                     onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
                     className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
                       isContinuousMode ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -2949,14 +2834,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                       console.log('🧪 Session details:');
                       console.log('  - Has session:', !!session);
                       console.log('  - Has access_token:', !!session?.access_token);
-                      console.log('  - Token length:', session?.access_token?.length || 0);
+                      console.log('  - Token preview:', session?.access_token?.substring(0, 30));
                       console.log('  - Token parts:', session?.access_token?.split('.').length);
                       console.log('  - User email:', user?.email);
                       console.log('  - User ID:', user?.id);
                       
                       // Test backend health
                       try {
-                        const healthResponse = await fetch('https://wheels-wins-backend-staging.onrender.com/health');
+                        const healthResponse = await fetch('https://pam-backend.onrender.com/health');
                         console.log('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
                       } catch (error) {
                         console.log('🧪 Backend health: ERROR', error);
@@ -3000,13 +2885,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                     msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
                   }`}>
                     <p className="text-sm">{msg.content}</p>
-                    {/* Speaking indicator for the most recent PAM message */}
-                    {msg.sender === "pam" && isSpeaking && messages[messages.length - 1]?.id === msg.id && (
-                      <div className="flex items-center mt-1 text-xs text-blue-600">
-                        <Volume2 className="w-3 h-3 mr-1 animate-pulse" />
-                        <span>speaking...</span>
-                      </div>
-                    )}
                     {/* Streaming indicator */}
                     {msg.isStreaming && (
                       <div className="flex items-center mt-1 text-xs text-gray-500">
@@ -3039,14 +2917,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 onKeyPress={handleKeyPress}
                 placeholder="Ask PAM anything..."
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-                disabled={pamWebSocket.connectionStatus !== "connected"}
+                disabled={connectionStatus !== "Connected"}
               />
               <button
                 onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
                 className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
                   isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
                 }`}
-                disabled={pamWebSocket.connectionStatus !== "connected"}
+                disabled={connectionStatus !== "Connected"}
                 title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
               >
                 <div className="flex flex-col items-center gap-0.5">
@@ -3061,27 +2939,26 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               {isSpeaking && (
                 <button
                   onClick={stopSpeaking}
-                  className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-100 text-purple-700 border border-purple-300 hover:bg-purple-200 animate-pulse"
+                  className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100"
                   title="🔇 Stop PAM voice"
                 >
                   <div className="flex flex-col items-center gap-0.5">
                     <VolumeX className="w-4 h-4" />
                     <span className="text-xs font-medium">Stop</span>
                   </div>
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full animate-ping" />
                 </button>
               )}
               <button
                 onClick={handleSendMessage}
-                disabled={!inputMessage.trim() || pamWebSocket.connectionStatus !== "connected"}
+                disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
                 className="bg-primary text-white p-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Send className="w-4 h-4" />
               </button>
             </div>
-            {pamWebSocket.connectionStatus !== "connected" && (
+            {connectionStatus !== "Connected" && (
               <p className="text-xs text-red-500 mt-1">
-                {pamWebSocket.connectionStatus === "connecting" ? "Connecting to PAM..." : "PAM is offline"}
+                {connectionStatus === "Connecting" ? "Connecting to PAM..." : "PAM is offline"}
               </p>
             )}
           </div>
@@ -3091,30 +2968,4 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   );
 };
 
-// Enhanced Pam with Error Boundary
-const PamWithErrorBoundary: React.FC<PamProps> = (props) => (
-  <PamErrorBoundary
-    onError={(error, errorInfo) => {
-      console.error('🚨 PAM Error Boundary: Component crashed', {
-        error: error.message,
-        componentStack: errorInfo.componentStack,
-        timestamp: new Date().toISOString(),
-      });
-      
-      // Track error for analytics
-      if (window.gtag) {
-        window.gtag('event', 'pam_error', {
-          event_category: 'error',
-          event_label: error.message,
-          value: 1,
-        });
-      }
-    }}
-    showRetryButton={true}
-    maxRetries={3}
-  >
-    <Pam {...props} />
-  </PamErrorBoundary>
-);
-
-export default PamWithErrorBoundary;
+export default Pam;

@@ -47,6 +47,20 @@ router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
 
+# Helper function for safe WebSocket operations
+async def safe_send_json(websocket: WebSocket, data: dict) -> bool:
+    """Safely send JSON data through WebSocket with state checking"""
+    try:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.send_json(data)
+            return True
+        else:
+            logger.warning(f"Attempted to send to disconnected WebSocket")
+            return False
+    except Exception as e:
+        logger.error(f"Error sending WebSocket message: {e}")
+        return False
+
 # Performance-optimized validation constants
 MAX_MESSAGE_SIZE = 65536  # 64KB - industry standard for WebSocket messages
 MAX_VOICE_TRANSCRIPT_LENGTH = 10000  # Generous limit for voice transcripts
@@ -268,14 +282,19 @@ async def websocket_endpoint(
         )
         
         # Send welcome message
-        await websocket.send_json({
+        await safe_send_json(websocket, {
             "type": "connection",
             "status": "connected", 
             "message": "🤖 PAM is ready to assist you!",
             "timestamp": datetime.utcnow().isoformat()
         })
         
-        while True:
+        while websocket.client_state == WebSocketState.CONNECTED:
+            # Check connection state before receiving
+            if websocket.client_state != WebSocketState.CONNECTED:
+                logger.info(f"WebSocket disconnected for user {user_id}, breaking receive loop")
+                break
+                
             # Receive message from client
             try:
                 message_start_time = time.time()
@@ -397,8 +416,18 @@ async def websocket_endpoint(
                     
                     continue
                     
+            except WebSocketDisconnect:
+                logger.info(f"WebSocket disconnected normally for user {user_id}")
+                break
             except Exception as receive_error:
                 logger.error(f"❌ [DEBUG] Error receiving WebSocket message from {user_id}: {str(receive_error)}")
+                # Check if it's a connection error
+                if "WebSocket is not connected" in str(receive_error):
+                    logger.error(f"WebSocket connection lost for {user_id}, breaking loop")
+                    break
+                # For other errors, check state before continuing
+                if websocket.client_state != WebSocketState.CONNECTED:
+                    break
                 continue
             
             # Advanced rate limiting per user (not per message type)
