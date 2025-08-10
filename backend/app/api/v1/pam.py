@@ -1133,7 +1133,7 @@ async def chat_endpoint(
     current_user: dict = Depends(verify_pam_security),  # Enhanced security verification (includes rate limiting)
 ):
     """Process a chat message via REST API - uses standard JWT auth with OPTIONS support"""
-    start_time = time.time()
+    start_time = datetime.utcnow()
     request_id = str(uuid.uuid4())
     
     try:

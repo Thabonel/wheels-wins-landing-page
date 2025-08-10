@@ -115,7 +115,7 @@ class ObservabilityConfig:
             return None
 
         if not (
-            self.settings.LANGFUSE_SECRET_KEY and self.settings.LANGFUSE_PUBLIC_KEY
+            getattr(self.settings, 'LANGFUSE_SECRET_KEY', None) and getattr(self.settings, 'LANGFUSE_PUBLIC_KEY', None)
         ):
             logger.info(
                 "Langfuse credentials not configured - set LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY to enable Langfuse observability"
@@ -124,9 +124,9 @@ class ObservabilityConfig:
 
         try:
             self.langfuse_client = Langfuse(
-                secret_key=self.settings.LANGFUSE_SECRET_KEY,
-                public_key=self.settings.LANGFUSE_PUBLIC_KEY,
-                host=self.settings.LANGFUSE_HOST,
+                secret_key=getattr(self.settings, 'LANGFUSE_SECRET_KEY', None),
+                public_key=getattr(self.settings, 'LANGFUSE_PUBLIC_KEY', None),
+                host=getattr(self.settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
             )
 
             logger.info("✅ Langfuse observability initialized")
@@ -235,8 +235,8 @@ class ObservabilityConfig:
             },
             "langfuse": {
                 "configured": bool(
-                    self.settings.LANGFUSE_SECRET_KEY
-                    and self.settings.LANGFUSE_PUBLIC_KEY
+                    getattr(self.settings, 'LANGFUSE_SECRET_KEY', None)
+                    and getattr(self.settings, 'LANGFUSE_PUBLIC_KEY', None)
                 ),
                 "client_ready": self.langfuse_client is not None,
             },
