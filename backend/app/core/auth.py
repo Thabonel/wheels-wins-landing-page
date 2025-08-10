@@ -127,7 +127,7 @@ async def verify_jwt_token(token: str) -> Dict[str, Any]:
 def verify_supabase_token(token: str, supabase_url: str):
     """Verify a Supabase-issued JWT using the project's public JWKS."""
     try:
-        jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/keys"
+        jwks_url = f"{str(supabase_url).rstrip('/')}/auth/v1/keys"
         try:
             jwks_data = _http_session.get(jwks_url, timeout=HTTP_TIMEOUT).json()
         except RequestsTimeout:

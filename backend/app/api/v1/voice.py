@@ -21,7 +21,7 @@ class VoiceResponse(BaseModel):
 async def generate_voice(payload: VoiceRequest):
     """Generate speech audio from text via Supabase function."""
     settings = get_settings()
-    supabase_url = settings.SUPABASE_URL.rstrip('/')
+    supabase_url = str(settings.SUPABASE_URL).rstrip('/')
     function_url = f"{supabase_url}/functions/v1/nari-dia-tts"
     headers = {
         "Content-Type": "application/json",

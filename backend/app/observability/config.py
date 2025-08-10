@@ -144,7 +144,7 @@ class ObservabilityConfig:
             )
             return False
 
-        if not self.settings.AGENTOPS_API_KEY:
+        if not getattr(self.settings, 'AGENTOPS_API_KEY', None):
             logger.info(
                 "AgentOps API key not configured - set AGENTOPS_API_KEY to enable AgentOps observability"
             )
@@ -174,7 +174,7 @@ class ObservabilityConfig:
                 return False
 
             # AgentOps API updated - remove environment parameter
-            agentops.init(api_key=self.settings.AGENTOPS_API_KEY)
+            agentops.init(api_key=getattr(self.settings, 'AGENTOPS_API_KEY', None))
 
             self.agentops_initialized = True
             logger.info("✅ AgentOps observability initialized successfully")
@@ -241,7 +241,7 @@ class ObservabilityConfig:
                 "client_ready": self.langfuse_client is not None,
             },
             "agentops": {
-                "configured": bool(self.settings.AGENTOPS_API_KEY),
+                "configured": bool(getattr(self.settings, 'AGENTOPS_API_KEY', None)),
                 "initialized": self.agentops_initialized,
             },
         }

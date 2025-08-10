@@ -603,7 +603,7 @@ class SupabaseTTSEngine:
                 logger.warning("⚠️ Supabase TTS not configured (missing URL or key)")
                 return False
                 
-            self.base_url = f"{settings.SUPABASE_URL.rstrip('/')}/functions/v1/nari-dia-tts"
+            self.base_url = f"{str(settings.SUPABASE_URL).rstrip('/')}/functions/v1/nari-dia-tts"
             self.headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {supabase_key}",
