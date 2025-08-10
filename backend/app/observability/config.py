@@ -57,7 +57,7 @@ class ObservabilityConfig:
 
     def is_enabled(self) -> bool:
         """Check if observability is enabled"""
-        return self.settings.OBSERVABILITY_ENABLED
+        return getattr(self.settings, 'OBSERVABILITY_ENABLED', False)
 
     def initialize_tracing(self) -> None:
         """Set up OpenTelemetry tracing if available"""

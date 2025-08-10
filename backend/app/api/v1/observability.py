@@ -252,7 +252,7 @@ async def get_observability_configuration(
         settings = get_settings()
         
         config = {
-            "enabled": settings.OBSERVABILITY_ENABLED,
+            "enabled": getattr(settings, 'OBSERVABILITY_ENABLED', False),
             "environment": settings.ENVIRONMENT,
             "langfuse_host": settings.LANGFUSE_HOST,
             "platforms": {
