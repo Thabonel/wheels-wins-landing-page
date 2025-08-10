@@ -4,7 +4,7 @@
 export const PAM_CONFIG = {
   // Primary PAM WebSocket endpoints (production ready)
   WEBSOCKET_ENDPOINTS: [
-    import.meta.env.VITE_PAM_WEBSOCKET_URL || 'wss://pam-backend.onrender.com',
+    import.meta.env.VITE_PAM_WEBSOCKET_URL || 'wss://wheels-wins-backend-staging.onrender.com',
     'wss://api.wheelsandwins.com/pam',  // Alternate production endpoint
   ],
   

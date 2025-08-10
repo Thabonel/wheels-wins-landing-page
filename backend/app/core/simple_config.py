@@ -18,7 +18,7 @@ class SimpleSettings:
         self.DEBUG = True  # Enable debug for staging
         
         # App URL for staging
-        self.APP_URL = os.getenv("APP_URL", "https://pam-backend.onrender.com")
+        self.APP_URL = os.getenv("APP_URL", "https://wheels-wins-backend-staging.onrender.com")
         
         # Supabase
         self.SUPABASE_URL = os.getenv("SUPABASE_URL", "")
