@@ -84,7 +84,7 @@ class PersonalityMatcher:
     """
     
     def __init__(self):
-        self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY.get_secret_value())
         self.personality_templates = self._initialize_personality_templates()
         self.emotion_patterns = self._initialize_emotion_patterns()
         self.user_profiles = {}  # Cache user personality preferences

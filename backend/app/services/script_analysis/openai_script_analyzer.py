@@ -31,7 +31,7 @@ class OpenAIScriptAnalyzer:
     """Service for analyzing news scripts using OpenAI."""
 
     def __init__(self, client: Optional[AsyncOpenAI] = None, cache: Optional[CacheService] = None):
-        self.client = client or AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = client or AsyncOpenAI(api_key=settings.OPENAI_API_KEY.get_secret_value())
         self.cache = cache or cache_service
 
     async def analyze_script(self, script: str) -> ScriptAnalysis:

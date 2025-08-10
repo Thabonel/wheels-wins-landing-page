@@ -18,7 +18,7 @@ class IntelligentConversationHandler:
                 print("⚠️ OpenAI API key not configured - using fallback analysis only")
                 self.client = None
             else:
-                self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY.get_secret_value())
                 print("✅ OpenAI client initialized for intelligent conversation")
         except Exception as e:
             print(f"❌ Failed to initialize OpenAI client: {e}")

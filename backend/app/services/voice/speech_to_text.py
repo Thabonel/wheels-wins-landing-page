@@ -46,7 +46,7 @@ class OpenAIWhisperSTT(BaseSpeechToText):
                 from app.core.config import settings
                 
                 if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
-                    self.client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                    self.client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY.get_secret_value())
                     self.is_initialized = True
                     logger.info("✅ OpenAI Whisper STT initialized")
                     return True

@@ -160,7 +160,7 @@ async def get_observability_configuration(
             "platforms": {
                 "openai": {
                     "configured": bool(settings.OPENAI_API_KEY),
-                    "key_preview": f"{settings.OPENAI_API_KEY[:8]}..." if settings.OPENAI_API_KEY else None
+                    "key_preview": f"{settings.OPENAI_API_KEY.get_secret_value()[:8]}..." if settings.OPENAI_API_KEY else None
                 },
                 "langfuse": {
                     "configured": bool(settings.LANGFUSE_SECRET_KEY and settings.LANGFUSE_PUBLIC_KEY),
