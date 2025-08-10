@@ -31,7 +31,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtection from './components/admin/AdminProtection';
 import { LazyPamIntegrationProvider } from './components/pam/LazyPamIntegrationProvider';
 import { PamProvider } from './context/PamContext';
-import { PamWidget } from './components/pam/PamWidget';
 import { StagingBanner } from './components/StagingBanner';
 import { logEnvironmentInfo } from './config/environment';
 import { logEnvironmentStatus } from './config/env-validator';
@@ -110,11 +109,6 @@ function App() {
                           </Suspense>
                         </div>
                       </Layout>
-                      
-                      {/* PAM widget with its own error boundary */}
-                      <PAMErrorBoundary>
-                        <PamWidget />
-                      </PAMErrorBoundary>
                       </LazyPamIntegrationProvider>
                     </PamProvider>
                   </WheelsProvider>
