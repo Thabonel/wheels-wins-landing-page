@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { usePamWebSocket as usePamWebSocketConnection } from '@/hooks/usePamWebSocket';
+import { usePamWebSocketConnection } from '@/hooks/usePamWebSocketAdapter';
 
 export default function ExpenseInput() {
   const { user, token } = useAuth();
