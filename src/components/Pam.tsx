@@ -75,24 +75,40 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const errorRecovery = usePamErrorRecovery();
   
   // Enhanced PAM WebSocket integration with voice and error recovery
-  const pamWebSocket = usePamWebSocket({
-    autoConnect: true,
-    onMessage: (message) => {
-      console.log('📨 PAM component received message:', message);
+  // Use the hook with correct parameters
+  const wsHook = usePamWebSocket(
+    user?.id || '', 
+    session?.access_token || ''
+  );
+  
+  // Create a wrapper object that provides the expected interface
+  const pamWebSocket = {
+    isConnected: wsHook.isConnected,
+    messages: wsHook.messages,
+    sendMessage: wsHook.sendMessage,
+    connect: wsHook.connect,
+    disconnect: () => { /* The hook doesn't have disconnect, but we can close via connect */ },
+    connectionStatus: wsHook.isConnected ? 'connected' : 'disconnected',
+    isConnecting: false, // The hook doesn't track this state
+    voiceRecovery: null // Not implemented in the basic hook
+  };
+  
+  // Handle messages from WebSocket
+  useEffect(() => {
+    if (pamWebSocket.messages.length > 0) {
+      const lastMessage = pamWebSocket.messages[pamWebSocket.messages.length - 1];
+      console.log('📨 PAM component received message:', lastMessage);
+      
       // Handle message in the component
-      if ('role' in message && message.role === 'assistant') {
+      if ('role' in lastMessage && lastMessage.role === 'assistant') {
         // New pamService message format
-        addMessage(message.content, "pam");
-      } else if ('message' in message) {
+        addMessage(lastMessage.content, "pam");
+      } else if ('message' in lastMessage) {
         // Legacy message format
-        addMessage(message.message || message.content || '', "pam");
+        addMessage(lastMessage.message || lastMessage.content || '', "pam");
       }
-    },
-    onConnectionChange: (connected) => {
-      console.log('🔌 PAM component connection changed:', connected);
-      // connectionStatus is now derived from pamWebSocket.connectionStatus
     }
-  });
+  }, [pamWebSocket.messages]);
   
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
