@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { pamAgenticService } from '@/services/pamAgenticService';
 import { pamVoiceService } from '@/lib/voiceService';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { flags } from '@/config/featureFlags';
 
 interface Message {
   id: string;
@@ -29,7 +30,7 @@ export const PamInterface: React.FC<PamInterfaceProps> = ({ className, onClose }
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(flags.enableVoiceIntegration);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
