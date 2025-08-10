@@ -53,10 +53,30 @@ async def detailed_health_check():
     else:
         metrics["note"] = "System metrics unavailable (psutil not installed)"
     
+    # Add platform status information
+    platform_status = {}
+    try:
+        from app.core.config import get_settings
+        settings = get_settings()
+        
+        platform_status = {
+            "openai": "configured" if getattr(settings, 'OPENAI_API_KEY', None) else "not_configured",
+            "langfuse": "configured" if (getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)) else "not_configured",  
+            "agentops": "configured" if getattr(settings, 'AGENTOPS_API_KEY', None) else "not_configured"
+        }
+    except Exception as e:
+        platform_status = {
+            "error": f"Could not check platform status: {str(e)}",
+            "openai": "unknown",
+            "langfuse": "unknown", 
+            "agentops": "unknown"
+        }
+
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "pam-backend",
         "metrics": metrics,
+        "platform_status": platform_status,
         "environment": os.getenv("ENVIRONMENT", "development")
     }
