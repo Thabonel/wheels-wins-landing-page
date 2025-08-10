@@ -10,7 +10,7 @@ if os.getenv("RENDER", False) or os.getenv("RENDER_SERVICE_ID"):
     os.environ["ENVIRONMENT"] = "staging"
     os.environ["NODE_ENV"] = "staging"
     os.environ["DEBUG"] = "true"
-    os.environ["APP_URL"] = "https://wheels-wins-backend-staging.onrender.com"
+    os.environ["APP_URL"] = "https://pam-backend.onrender.com"
     cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app"
     os.environ["CORS_ALLOWED_ORIGINS"] = cors_origins
     print("🔧 FORCED STAGING ENVIRONMENT ON RENDER:")
@@ -449,12 +449,19 @@ async def catch_all_options(request: Request, full_path: str):
     
     logger.debug(f"OPTIONS request for /{full_path} from origin: {origin}")
     
-    # Create proper OPTIONS response using our CORS config
-    return cors_config.create_options_response(
-        origin=origin,
-        requested_method=method,
-        requested_headers=headers,
-        cache_bust=True
+    # Create proper OPTIONS response with CORS headers
+    response_headers = {
+        "Access-Control-Allow-Origin": origin or "*",
+        "Access-Control-Allow-Methods": ", ".join(cors_settings.allow_methods),
+        "Access-Control-Allow-Headers": ", ".join(cors_settings.allow_headers),
+        "Access-Control-Allow-Credentials": str(cors_settings.allow_credentials).lower(),
+        "Access-Control-Max-Age": str(cors_settings.max_age),
+    }
+    
+    return Response(
+        content="",
+        status_code=200,
+        headers=response_headers
     )
 
 
@@ -494,14 +501,14 @@ async def cors_debug_info(request: Request):
     return {
         "timestamp": datetime.utcnow().isoformat(),
         "request_origin": origin,
-        "configured_cors_origins": cors_config.origins,
-        "origin_allowed": cors_config.is_origin_allowed(origin) if origin != "No origin header" else False,
+        "configured_cors_origins": cors_settings.get_allowed_origins(),
+        "origin_allowed": origin in cors_settings.get_allowed_origins() if origin != "No origin header" else False,
         "environment": getattr(settings, 'NODE_ENV', 'unknown'),
-        "total_origins": len(cors_config.origins),
+        "total_origins": len(cors_settings.get_allowed_origins()),
         "cors_config": {
-            "allowed_methods": cors_config.allowed_methods,
-            "allowed_headers": cors_config.allowed_headers[:10],  # First 10 for brevity
-            "expose_headers": cors_config.expose_headers,
+            "allowed_methods": cors_settings.allow_methods,
+            "allowed_headers": cors_settings.allow_headers[:10],  # First 10 for brevity
+            "expose_headers": cors_settings.expose_headers,
         },
         "help": "Use this endpoint to verify if your frontend origin is in the CORS allow list"
     }
@@ -514,11 +521,11 @@ async def cors_stats():
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "cors_configuration": {
-                "total_origins": len(cors_config.origins),
-                "origins_sample": cors_config.origins[:5],
-                "methods_count": len(cors_config.allowed_methods),
-                "headers_count": len(cors_config.allowed_headers),
-                "expose_headers_count": len(cors_config.expose_headers),
+                "total_origins": len(cors_settings.get_allowed_origins()),
+                "origins_sample": cors_settings.get_allowed_origins()[:5],
+                "methods_count": len(cors_settings.allow_methods),
+                "headers_count": len(cors_settings.allow_headers),
+                "expose_headers_count": len(cors_settings.expose_headers),
             },
             "system_info": {
                 "environment": getattr(settings, 'NODE_ENV', 'unknown'),
@@ -532,7 +539,7 @@ async def cors_stats():
             "timestamp": datetime.utcnow().isoformat(),
             "error": f"Failed to get CORS stats: {str(e)}",
             "cors_basic_info": {
-                "total_origins": len(cors_config.origins),
+                "total_origins": len(cors_settings.get_allowed_origins()),
                 "status": "CORS config loaded"
             }
         }
