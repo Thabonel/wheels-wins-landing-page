@@ -169,26 +169,32 @@ async def websocket_endpoint(
     WebSocket endpoint for real-time PAM communication with JWT validation.
     
     Security:
-    - Validates JWT token BEFORE accepting WebSocket connection
-    - Verifies that the user_id in the URL matches the JWT token
+    - Accepts WebSocket connection FIRST (required by protocol)
+    - Then validates JWT token and closes if invalid
     - Returns 4001 code for unauthorized connections
     """
     connection_id = str(uuid.uuid4())
     
+    # CRITICAL FIX: Accept WebSocket connection FIRST (required by WebSocket protocol)
+    # This prevents "WebSocket is not connected. Need to call 'accept' first" errors
+    await websocket.accept()
+    logger.info(f"✅ WebSocket connection accepted for user: {user_id}, validating...")
+    
     try:
-        # SECURITY: IP reputation check before accepting connection
+        # SECURITY: IP reputation check after accepting connection
         client_ip = websocket.client.host if websocket.client else "unknown"
         ip_allowed, ip_message = security_middleware.check_ip_reputation(client_ip)
         if not ip_allowed:
             logger.warning(f"🚫 [SECURITY] WebSocket connection rejected for IP {client_ip}: {ip_message}")
-            # Cannot close WebSocket before accepting - just return
+            await websocket.close(code=4003, reason=f"IP blocked: {ip_message}")
             return
-        # SECURITY: Verify JWT token BEFORE accepting the connection
-        # This prevents unauthorized connections from being established
+        
+        # SECURITY: Verify JWT token AFTER accepting the connection
+        # Close with proper code if validation fails
         
         if not token:
             logger.warning(f"❌ WebSocket connection rejected: missing token for user {user_id}")
-            # Cannot close WebSocket before accepting - just return
+            await websocket.close(code=4001, reason="Missing authentication token")
             return
         
         try:
@@ -215,28 +221,26 @@ async def websocket_endpoint(
                     token_user_id = user_data.get('sub') or user_data.get('user_id') or user_data.get('id')
                 except Exception as jwt_error:
                     logger.warning(f"❌ WebSocket JWT verification failed: {str(jwt_error)}")
-                    # Cannot close WebSocket before accepting - just return
+                    await websocket.close(code=4001, reason="Invalid authentication token")
                     return
             
             # Verify that the user_id in the URL matches the token
             if not token_user_id:
                 logger.warning(f"❌ WebSocket connection rejected: no user ID in token")
-                # Cannot close WebSocket before accepting - just return
+                await websocket.close(code=4001, reason="Invalid token: no user ID")
                 return
             
             if str(token_user_id) != str(user_id):
                 logger.warning(f"❌ WebSocket connection rejected: user ID mismatch. Token: {token_user_id}, URL: {user_id}")
-                # Cannot close WebSocket before accepting - just return
+                await websocket.close(code=4002, reason="User ID mismatch")
                 return
             
-            # Authentication successful - NOW we can accept the connection
+            # Authentication successful - connection already accepted
             logger.info(f"🔐 JWT validated successfully for user: {user_id}")
-            await websocket.accept()
-            logger.info(f"✅ WebSocket connection accepted for user: {user_id}")
             
         except Exception as auth_error:
             logger.warning(f"❌ WebSocket authentication failed: {str(auth_error)}")
-            # Cannot close WebSocket before accepting - just return
+            await websocket.close(code=4001, reason=f"Authentication failed: {str(auth_error)}")
             return
         
         # SESSION-BASED TRUST: Once authenticated, trust the connection

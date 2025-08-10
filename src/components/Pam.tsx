@@ -75,23 +75,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const errorRecovery = usePamErrorRecovery();
   
   // Enhanced PAM WebSocket integration with voice and error recovery
-  // Use the hook with correct parameters
-  const wsHook = usePamWebSocket(
+  // Use the hook directly without wrapper - it now has all needed properties
+  const pamWebSocket = usePamWebSocket(
     user?.id || '', 
     session?.access_token || ''
   );
-  
-  // Create a wrapper object that provides the expected interface
-  const pamWebSocket = {
-    isConnected: wsHook.isConnected,
-    messages: wsHook.messages,
-    sendMessage: wsHook.sendMessage,
-    connect: wsHook.connect,
-    disconnect: () => { /* The hook doesn't have disconnect, but we can close via connect */ },
-    connectionStatus: wsHook.isConnected ? 'connected' : 'disconnected',
-    isConnecting: false, // The hook doesn't track this state
-    voiceRecovery: null // Not implemented in the basic hook
-  };
   
   // Handle messages from WebSocket
   useEffect(() => {
@@ -117,8 +105,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [messages, setMessages] = useState<PamMessage[]>([]);
-  // Legacy connectionStatus now derived from pamWebSocket state
-  const connectionStatus = pamWebSocket.connectionStatus;
+  // connectionStatus is already in pamWebSocket, no need for duplicate
   const [userContext, setUserContext] = useState<any>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -2617,8 +2604,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               <h3 className="font-semibold text-gray-800">PAM</h3>
               <div className="text-xs text-gray-500 space-y-0.5">
                 <p>
-                  {connectionStatus === "Connected" ? "🟢 Agentic AI Online" : 
-                   connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
+                  {pamWebSocket.connectionStatus === "connected" ? "🟢 Agentic AI Online" : 
+                   pamWebSocket.connectionStatus === "connecting" ? "🟡 Connecting..." : "🔴 Offline"}
                 </p>
                 {isVADActive && (
                   <p className="text-xs">
@@ -2782,14 +2769,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               onKeyPress={handleKeyPress}
               placeholder="Ask PAM anything..."
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-              disabled={connectionStatus !== "Connected"}
+              disabled={pamWebSocket.connectionStatus !== "connected"}
             />
             <button
               onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
               className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
                 isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
               }`}
-              disabled={connectionStatus !== "Connected"}
+              disabled={pamWebSocket.connectionStatus !== "connected"}
               title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
             >
               <div className="flex flex-col items-center gap-0.5">
@@ -2816,7 +2803,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             )}
             <button
               onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
+              disabled={!inputMessage.trim() || pamWebSocket.connectionStatus !== "connected"}
               className="bg-primary text-white p-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
@@ -2843,8 +2830,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               className="w-8 h-8 rounded-full"
             />
           <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
-            connectionStatus === "Connected" ? "bg-green-500" : 
-            connectionStatus === "Connecting" ? "bg-yellow-500" : "bg-red-500"
+            pamWebSocket.connectionStatus === "connected" ? "bg-green-500" : 
+            pamWebSocket.connectionStatus === "connecting" ? "bg-yellow-500" : "bg-red-500"
           }`} />
         </div>
       </button>
@@ -2864,8 +2851,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 <h3 className="font-semibold text-gray-800">PAM</h3>
                 <div className="text-xs text-gray-500 space-y-0.5">
                   <p>
-                    {connectionStatus === "Connected" ? "🟢 Enhanced PAM Service" : 
-                     connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
+                    {pamWebSocket.connectionStatus === "connected" ? "🟢 Enhanced PAM Service" : 
+                     pamWebSocket.connectionStatus === "connecting" ? "🟡 Connecting..." : "🔴 Offline"}
                   </p>
                   {/* Voice Recovery Status */}
                   {pamWebSocket.voiceRecovery && (
@@ -3052,14 +3039,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 onKeyPress={handleKeyPress}
                 placeholder="Ask PAM anything..."
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-                disabled={connectionStatus !== "Connected"}
+                disabled={pamWebSocket.connectionStatus !== "connected"}
               />
               <button
                 onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
                 className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
                   isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
                 }`}
-                disabled={connectionStatus !== "Connected"}
+                disabled={pamWebSocket.connectionStatus !== "connected"}
                 title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
               >
                 <div className="flex flex-col items-center gap-0.5">
@@ -3086,15 +3073,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               )}
               <button
                 onClick={handleSendMessage}
-                disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
+                disabled={!inputMessage.trim() || pamWebSocket.connectionStatus !== "connected"}
                 className="bg-primary text-white p-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Send className="w-4 h-4" />
               </button>
             </div>
-            {connectionStatus !== "Connected" && (
+            {pamWebSocket.connectionStatus !== "connected" && (
               <p className="text-xs text-red-500 mt-1">
-                {connectionStatus === "Connecting" ? "Connecting to PAM..." : "PAM is offline"}
+                {pamWebSocket.connectionStatus === "connecting" ? "Connecting to PAM..." : "PAM is offline"}
               </p>
             )}
           </div>
