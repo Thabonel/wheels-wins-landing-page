@@ -6,6 +6,8 @@
 import { DomainAgent } from './base';
 import { ConversationContext, AgentResponse, UserProfile, InteractionRecord } from '../architectureTypes';
 import { supabase } from '@/integrations/supabase/client';
+import { getEnhancedPamMemory } from '@/hooks/useEnhancedPamMemory';
+import type { KnowledgeSearchResult } from '@/types/knowledgeTypes';
 
 export class MemoryAgent extends DomainAgent {
   private userMemory: Map<string, UserProfile> = new Map();
@@ -151,6 +153,91 @@ export class MemoryAgent extends DomainAgent {
         };
       },
     });
+
+    // Semantic Memory Search Tool - Uses existing vector RAG infrastructure
+    this.registerTool({
+      id: 'semantic_memory_search',
+      name: 'Semantic Memory Search',
+      description: 'Searches user personal knowledge using vector embeddings',
+      category: 'memory',
+      execute: async (params) => {
+        const { userId, query, limit = 3 } = params;
+        try {
+          // Use existing search-user-knowledge edge function via enhanced memory
+          const enhancedMemory = await getEnhancedPamMemory(userId, '', query);
+          
+          if (enhancedMemory.personal_knowledge) {
+            const results = enhancedMemory.personal_knowledge;
+            return {
+              success: true,
+              results: results.relevant_chunks,
+              summary: results.knowledge_summary,
+              totalDocuments: results.total_documents,
+              searchQuery: query,
+            };
+          } else {
+            return {
+              success: true,
+              results: [],
+              summary: 'No relevant personal knowledge found for this query.',
+              totalDocuments: 0,
+              searchQuery: query,
+            };
+          }
+        } catch (error) {
+          console.error('Semantic search error:', error);
+          return { 
+            success: false, 
+            error: 'Failed to search personal knowledge',
+            results: [],
+            searchQuery: query,
+          };
+        }
+      },
+    });
+
+    // Conversation Context Tool - Integrates preferences with personal knowledge  
+    this.registerTool({
+      id: 'conversation_context',
+      name: 'Conversation Context',
+      description: 'Builds comprehensive conversation context with personal knowledge',
+      category: 'memory',
+      execute: async (params) => {
+        const { userId, currentMessage, region } = params;
+        try {
+          // Get enhanced memory with vector search integration
+          const enhancedMemory = await getEnhancedPamMemory(userId, region || '', currentMessage);
+          
+          // Get basic profile data
+          const profile = this.userMemory.get(userId) || await this.loadUserContext(userId);
+          
+          return {
+            success: true,
+            enhancedContext: {
+              userPreferences: {
+                travelStyle: enhancedMemory.travel_style || profile?.preferences?.travelStyle,
+                vehicleType: enhancedMemory.vehicle_type,
+                preferences: enhancedMemory.preferences || profile?.preferences,
+                communicationStyle: profile?.preferences?.communicationStyle || 'friendly',
+              },
+              personalKnowledge: enhancedMemory.personal_knowledge || null,
+              conversationFlow: {
+                lastInteractions: profile?.tripHistory?.slice(0, 3) || [],
+                interests: this.extractInterests(profile),
+                region: enhancedMemory.region || region,
+              },
+            },
+          };
+        } catch (error) {
+          console.error('Conversation context error:', error);
+          return { 
+            success: false, 
+            error: 'Failed to build conversation context',
+            enhancedContext: null,
+          };
+        }
+      },
+    });
   }
 
   protected async analyzeRequest(message: string, context: ConversationContext): Promise<any> {
@@ -159,6 +246,9 @@ export class MemoryAgent extends DomainAgent {
       hasProfileRequest: /my\s+profile|about\s+me|my\s+preferences|my\s+history/i.test(message),
       hasLearningOpportunity: /remember|don't\s+forget|next\s+time|always|never/i.test(message),
       hasContextRequest: /what\s+do\s+you\s+know|my\s+usual|typically/i.test(message),
+      hasKnowledgeQuery: /find|search|look\s+up|tell\s+me\s+about|document|file|remember\s+when|my\s+notes/i.test(message),
+      hasPersonalReference: /my\s+(document|file|notes|information)|I\s+(wrote|saved|mentioned)|personal|private/i.test(message),
+      needsConversationContext: message.length > 10 && /travel|trip|rv|budget|plan|destination|campground|route/i.test(message),
       extractedPreferences: this.extractPreferences(message),
       sentiment: this.analyzeSentiment(message),
     };
@@ -167,6 +257,7 @@ export class MemoryAgent extends DomainAgent {
   protected async selectTools(analysis: any, context: ConversationContext): Promise<string[]> {
     const tools: string[] = [];
 
+    // High-priority tools for specific user intents
     if (analysis.hasPreferenceUpdate) {
       tools.push('preference_manager');
     }
@@ -176,7 +267,19 @@ export class MemoryAgent extends DomainAgent {
     if (analysis.hasLearningOpportunity) {
       tools.push('learning_engine');
     }
-    if (analysis.hasContextRequest || tools.length === 0) {
+    
+    // RAG-powered semantic search for knowledge queries
+    if (analysis.hasKnowledgeQuery || analysis.hasPersonalReference) {
+      tools.push('semantic_memory_search');
+    }
+    
+    // Enhanced conversation context for travel-related queries
+    if (analysis.needsConversationContext) {
+      tools.push('conversation_context');
+    }
+    
+    // Fallback context builder for basic requests
+    if (analysis.hasContextRequest || (tools.length === 0 && !analysis.hasKnowledgeQuery)) {
       tools.push('context_builder');
     }
 
@@ -191,6 +294,62 @@ export class MemoryAgent extends DomainAgent {
     let response = '';
     const toolsUsed: string[] = [];
     const suggestions: string[] = [];
+
+    // Process semantic memory search results (Priority: RAG integration)
+    if (toolResults.has('semantic_memory_search')) {
+      const searchData = toolResults.get('semantic_memory_search');
+      if (searchData.success && searchData.results?.length > 0) {
+        response += `I found ${searchData.results.length} relevant pieces from your personal knowledge: `;
+        
+        // Include top relevant result
+        const topResult = searchData.results[0] as KnowledgeSearchResult;
+        const preview = topResult.content.length > 150 
+          ? topResult.content.substring(0, 150) + '...' 
+          : topResult.content;
+        response += `"${preview}" (from ${topResult.document_name}). `;
+        
+        if (searchData.totalDocuments > 0) {
+          response += `This is from your collection of ${searchData.totalDocuments} personal documents. `;
+        }
+        suggestions.push('View full document', 'Search more knowledge', 'Add new documents');
+      } else if (searchData.success) {
+        response += 'I searched your personal knowledge but didn\'t find specific information about that. ';
+        if (searchData.totalDocuments === 0) {
+          response += 'You can upload documents to build your personal knowledge base! ';
+          suggestions.push('Upload documents', 'View knowledge manager');
+        } else {
+          suggestions.push('Try different search terms', 'Upload more documents');
+        }
+      }
+      toolsUsed.push('semantic_memory_search');
+    }
+
+    // Process enhanced conversation context (RAG + preferences)
+    if (toolResults.has('conversation_context')) {
+      const contextData = toolResults.get('conversation_context');
+      if (contextData.success && contextData.enhancedContext) {
+        const ctx = contextData.enhancedContext;
+        
+        // Build response using enhanced context
+        if (ctx.userPreferences?.travelStyle) {
+          response += `Given your ${ctx.userPreferences.travelStyle} travel style`;
+          if (ctx.userPreferences?.vehicleType) {
+            response += ` and ${ctx.userPreferences.vehicleType}`;
+          }
+          response += ', ';
+        }
+        
+        // Include personal knowledge insights
+        if (ctx.personalKnowledge?.relevant_chunks?.length > 0) {
+          response += `and based on your personal documents, `;
+        }
+        
+        response += 'I can provide personalized assistance for your trip planning. ';
+        
+        suggestions.push('Get travel recommendations', 'View personal insights', 'Update preferences');
+      }
+      toolsUsed.push('conversation_context');
+    }
 
     // Process preference updates
     if (toolResults.has('preference_manager')) {
@@ -246,20 +405,30 @@ export class MemoryAgent extends DomainAgent {
       toolsUsed.push('context_builder');
     }
 
-    // Fallback response
+    // Enhanced fallback response
     if (response === '') {
-      response = 'I\'m here to learn about your preferences and provide personalized assistance. The more we interact, the better I can help you!';
-      suggestions.push('Tell me your preferences', 'View your profile', 'Update settings');
+      response = 'I\'m here to learn about your preferences and provide personalized assistance using your personal knowledge base. The more we interact, the better I can help you!';
+      suggestions.push('Tell me your preferences', 'Upload personal documents', 'View your profile');
+    }
+
+    // Calculate confidence based on RAG integration
+    let confidence = 0.75;
+    if (toolsUsed.includes('semantic_memory_search') || toolsUsed.includes('conversation_context')) {
+      confidence = 0.95; // High confidence with RAG
+    } else if (toolsUsed.length > 0) {
+      confidence = 0.85;
     }
 
     return {
       response: response.trim(),
-      confidence: toolsUsed.length > 0 ? 0.95 : 0.75,
+      confidence,
       toolsUsed,
       suggestions: suggestions.length > 0 ? suggestions : undefined,
       context: { 
         personalized: true,
         learningActive: toolsUsed.includes('learning_engine'),
+        knowledgeEnhanced: toolsUsed.includes('semantic_memory_search') || toolsUsed.includes('conversation_context'),
+        ragIntegrated: true,
       },
     };
   }
@@ -296,10 +465,11 @@ export class MemoryAgent extends DomainAgent {
   }
 
   /**
-   * Store interaction for learning
+   * Store interaction for learning with enhanced conversation memory
    */
   async storeInteraction(interaction: InteractionRecord): Promise<void> {
     try {
+      // Store traditional interaction record
       await supabase.from('pam_interactions').insert({
         user_id: interaction.userId,
         message: interaction.message,
@@ -308,8 +478,125 @@ export class MemoryAgent extends DomainAgent {
         feedback: interaction.feedback ? JSON.stringify(interaction.feedback) : null,
         created_at: interaction.timestamp.toISOString(),
       });
+
+      // Store conversation memory for important interactions
+      if (this.shouldStoreConversationMemory(interaction)) {
+        await this.storeConversationMemory(interaction);
+      }
     } catch (error) {
       console.error('Failed to store interaction:', error);
+    }
+  }
+
+  /**
+   * Determines if an interaction should be stored as conversation memory
+   */
+  private shouldStoreConversationMemory(interaction: InteractionRecord): boolean {
+    // Store memory for substantive conversations
+    const messageLength = interaction.message?.length || 0;
+    const responseLength = interaction.response?.length || 0;
+    
+    // Skip very short exchanges
+    if (messageLength < 20 || responseLength < 30) {
+      return false;
+    }
+    
+    // Store if contains travel/RV related content
+    const travelKeywords = /travel|trip|rv|campground|destination|route|budget|plan|visit|stay/i;
+    const hasRelevantContent = travelKeywords.test(interaction.message) || travelKeywords.test(interaction.response);
+    
+    // Store positive feedback interactions
+    const hasPositiveFeedback = interaction.feedback && 
+      (typeof interaction.feedback === 'object' && interaction.feedback.rating > 3);
+    
+    return hasRelevantContent || hasPositiveFeedback || false;
+  }
+
+  /**
+   * Store conversation memory as knowledge chunk for future RAG retrieval
+   */
+  private async storeConversationMemory(interaction: InteractionRecord): Promise<void> {
+    try {
+      // Check if user has a "Conversations" bucket, create if not exists
+      let { data: conversationBucket } = await supabase
+        .from('user_knowledge_buckets')
+        .select('id')
+        .eq('user_id', interaction.userId)
+        .eq('name', 'PAM Conversations')
+        .eq('is_active', true)
+        .single();
+
+      if (!conversationBucket) {
+        const { data: newBucket } = await supabase
+          .from('user_knowledge_buckets')
+          .insert({
+            user_id: interaction.userId,
+            name: 'PAM Conversations',
+            description: 'Memorable conversations with PAM assistant',
+            color: '#8B5CF6',
+            is_active: true,
+          })
+          .select('id')
+          .single();
+        conversationBucket = newBucket;
+      }
+
+      if (!conversationBucket) return;
+
+      // Create conversation document
+      const conversationContent = `Conversation on ${interaction.timestamp.toISOString().split('T')[0]}
+
+User: ${interaction.message}
+
+PAM: ${interaction.response}`;
+
+      const { data: document } = await supabase
+        .from('user_knowledge_documents')
+        .insert({
+          bucket_id: conversationBucket.id,
+          user_id: interaction.userId,
+          filename: `conversation_${Date.now()}.txt`,
+          file_path: `conversations/${interaction.userId}/${Date.now()}.txt`,
+          content_type: 'text/plain',
+          extracted_text: conversationContent,
+          processing_status: 'completed',
+          metadata: {
+            source: 'pam_conversation',
+            timestamp: interaction.timestamp.toISOString(),
+            intent: interaction.intent,
+          },
+        })
+        .select('id')
+        .single();
+
+      if (!document) return;
+
+      // Create knowledge chunk directly (skip file processing)
+      await supabase
+        .from('user_knowledge_chunks')
+        .insert({
+          document_id: document.id,
+          user_id: interaction.userId,
+          chunk_index: 0,
+          content: conversationContent,
+          token_count: Math.ceil(conversationContent.length / 4),
+          chunk_metadata: {
+            source: 'pam_conversation',
+            conversation_date: interaction.timestamp.toISOString(),
+            intent: interaction.intent,
+          },
+        });
+
+      // Generate embedding for the conversation (call existing edge function)
+      try {
+        await supabase.functions.invoke('generate-embeddings', {
+          body: { documentId: document.id }
+        });
+      } catch (embeddingError) {
+        console.warn('Failed to generate embedding for conversation:', embeddingError);
+      }
+    } catch (error) {
+      console.error('Failed to store conversation memory:', error);
     }
   }
 
