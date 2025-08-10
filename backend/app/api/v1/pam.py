@@ -1,5 +1,6 @@
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Query, Request
+from starlette.websockets import WebSocketState
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, Response
 from typing import List, Optional, Dict, Any
@@ -678,7 +679,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         logger.info(f"⏱️ [DEBUG] Total processing time: {total_processing_time:.1f}ms")
         
         # Check if WebSocket is still open before sending
-        if websocket.client_state.value == 1:  # WebSocketState.CONNECTED
+        if websocket.client_state == WebSocketState.CONNECTED:  # WebSocketState.CONNECTED
             logger.info(f"📡 [DEBUG] WebSocket still connected, sending response...")
             
             response_payload = {
@@ -711,13 +712,13 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                     logger.info(f"🔍 Regex pattern matched visual action: {visual_action}")
             
             # Send visual action if detected
-            if visual_action and websocket.client_state.value == 1:
+            if visual_action and websocket.client_state == WebSocketState.CONNECTED:
                 logger.info(f"🎨 Sending visual action to frontend: {visual_action}")
                 await websocket.send_json(visual_action)
             
             # Send UI actions if any (currently none from SimplePamService)
             ui_actions = [a for a in actions if a.get("type") in ["navigate", "fill_form", "click", "alert"]]
-            if ui_actions and websocket.client_state.value == 1:
+            if ui_actions and websocket.client_state == WebSocketState.CONNECTED:
                 logger.info(f"🎬 [DEBUG] Sending UI actions: {ui_actions}")
                 await websocket.send_json({
                     "type": "ui_actions",
@@ -728,7 +729,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             
     except Exception as e:
         logger.error(f"❌ [DEBUG] Chat handling error: {str(e)}", exc_info=True)
-        if websocket.client_state.value == 1:  # Only send if connected
+        if websocket.client_state == WebSocketState.CONNECTED:  # Only send if connected
             await websocket.send_json({
                 "type": "error",
                 "message": f"Sorry, I encountered an error: {str(e)}"
@@ -806,7 +807,7 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
         
     except Exception as e:
         logger.error(f"❌ [DEBUG] Streaming chat handling error: {str(e)}", exc_info=True)
-        if websocket.client_state.value == 1:  # Only send if connected
+        if websocket.client_state == WebSocketState.CONNECTED:  # Only send if connected
             await websocket.send_json({
                 "type": "error",
                 "message": f"Sorry, I encountered an error: {str(e)}"
@@ -819,7 +820,7 @@ async def stream_response_to_websocket(websocket: WebSocket, response: str, meta
         chunks = split_response_into_chunks(response)
         
         for chunk in chunks:
-            if websocket.client_state.value != 1:  # Check if still connected
+            if websocket.client_state != WebSocketState.CONNECTED:  # Check if still connected
                 logger.warning("WebSocket disconnected during streaming")
                 break
                 
@@ -833,7 +834,7 @@ async def stream_response_to_websocket(websocket: WebSocket, response: str, meta
             await asyncio.sleep(0.05)  # 50ms between chunks
         
         # Send completion message
-        if websocket.client_state.value == 1:
+        if websocket.client_state == WebSocketState.CONNECTED:
             await websocket.send_json({
                 "type": "chat_response_complete",
                 "metadata": metadata or {},
@@ -853,7 +854,7 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
         full_response = ""
         
         async for chunk in get_streaming_ai_response(message, context, conversation_history):
-            if websocket.client_state.value != 1:  # Check if still connected
+            if websocket.client_state != WebSocketState.CONNECTED:  # Check if still connected
                 logger.warning("WebSocket disconnected during AI streaming")
                 break
                 
@@ -867,7 +868,7 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
         
         # Send completion
         total_processing_time = (time.time() - start_time) * 1000
-        if websocket.client_state.value == 1:
+        if websocket.client_state == WebSocketState.CONNECTED:
             # Check for visual action from AI function call OR regex pattern matching
             visual_action = None
             
@@ -896,7 +897,7 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
             
     except Exception as e:
         logger.error(f"Error streaming AI response: {str(e)}")
-        if websocket.client_state.value == 1:
+        if websocket.client_state == WebSocketState.CONNECTED:
             await websocket.send_json({
                 "type": "error",
                 "message": f"Streaming error: {str(e)}"
