@@ -5,8 +5,7 @@ import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
 import TrialStatusBanner from "@/components/subscription/TrialStatusBanner";
 import SubscriptionStatusWidget from "@/components/subscription/SubscriptionStatusWidget";
-// PAM Savings Guarantee - Phase 5: Enabled
-import PamSavingsSummaryCard from "@/components/pam/PamSavingsSummaryCard";
+// PAM Savings integration removed - will be replaced with simplified approach
 import { EmotionalIntelligence } from "@/components/pam/EmotionalIntelligence";
 import { PamHelpButton } from "@/components/pam/PamHelpButton";
 
@@ -29,8 +28,7 @@ const You = () => {
         {/* Trial Status Banner */}
         <TrialStatusBanner />
 
-        {/* PAM Savings Guarantee - Phase 5: Enabled */}
-        <PamSavingsSummaryCard className="mb-6" />
+        {/* PAM Savings integration will be added back with simplified approach */}
 
         {/* Adjusted for Pam sidebar */}
         <div className="flex flex-col lg:flex-row gap-6">

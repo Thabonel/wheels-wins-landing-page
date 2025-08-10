@@ -1963,241 +1963,147 @@ async def generate_pam_voice(
 
 
 # =====================================================
-# PAM SAVINGS GUARANTEE ENDPOINTS
+# SIMPLIFIED SAVINGS TRACKING - INTEGRATED WITH EXISTING SYSTEMS
 # =====================================================
+# 
+# The complex savings guarantee system has been removed and replaced
+# with a simplified approach that integrates with existing PAM tools.
+# 
+# Savings tracking is now handled through:
+# 1. Enhanced financial tools in the existing tool registry
+# 2. Simple JSONB field addition to existing expenses table  
+# 3. Integration with existing WinsNode financial system
+# 
+# This approach reduces complexity while maintaining savings guarantee functionality.
 
-from decimal import Decimal
-from app.services.savings_calculator import (
-    PAMSavingsCalculator, 
-    SavingsEvent, 
-    SavingsType, 
-    VerificationMethod,
-    GuaranteeStatus
-)
-
-# Initialize savings calculator
-savings_calculator = PAMSavingsCalculator()
-
-
-class RecordSavingsRequest(BaseModel):
-    """Request model for recording a savings event"""
-    savings_type: str
-    predicted_savings: float
-    actual_savings: float
-    baseline_cost: float
-    optimized_cost: float
-    description: str
-    verification_method: str
-    confidence_score: Optional[float] = 0.8
-    location: Optional[List[float]] = None
-    category: Optional[str] = "other"
-    recommendation_id: Optional[str] = None
-
-
-class CreateRecommendationRequest(BaseModel):
-    """Request model for creating a recommendation with savings prediction"""
-    title: str
-    description: str
-    category: str
-    predicted_savings: float
-    confidence: Optional[float] = 0.7
-
-
-class DetectSavingsRequest(BaseModel):
-    """Request model for automatic savings detection"""
-    expense_amount: float
-    category: str
-    location: Optional[List[float]] = None
-    description: Optional[str] = ""
-
-
-@router.post("/savings/record", response_model=SuccessResponse)
-async def record_savings_event(
-    request: RecordSavingsRequest,
+@router.get("/monthly-savings")
+async def get_monthly_savings_status(
+    year: int = Query(default=None, description="Year (defaults to current year)"),
+    month: int = Query(default=None, description="Month (defaults to current month)"),
     current_user = Depends(get_current_user)
 ):
     """
-    Record a PAM savings event when the AI helps a user save money
+    Get monthly PAM savings status and guarantee information
+    
+    This simplified endpoint replaces the complex savings guarantee system
+    with a single, efficient query using database functions.
     """
     try:
-        # Create savings event
-        savings_event = SavingsEvent(
-            user_id=str(current_user.id),
-            savings_type=SavingsType(request.savings_type),
-            predicted_savings=Decimal(str(request.predicted_savings)),
-            actual_savings=Decimal(str(request.actual_savings)),
-            baseline_cost=Decimal(str(request.baseline_cost)),
-            optimized_cost=Decimal(str(request.optimized_cost)),
-            description=request.description,
-            verification_method=VerificationMethod(request.verification_method),
-            confidence_score=request.confidence_score,
-            location=tuple(request.location) if request.location else None,
-            category=request.category,
-            recommendation_id=request.recommendation_id
-        )
+        from app.database.supabase_client import get_supabase_client
         
-        # Record the event
-        success = savings_calculator.record_savings_event(savings_event)
+        # Use current year/month if not specified
+        from datetime import datetime
+        now = datetime.utcnow()
+        target_year = year or now.year
+        target_month = month or now.month
         
-        if success:
-            logger.info(f"Recorded savings event for user {current_user.id}")
-            return SuccessResponse(
-                success=True,
-                message="Savings event recorded successfully"
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to record savings event"
-            )
+        supabase = get_supabase_client()
         
-    except Exception as e:
-        logger.error(f"Failed to record savings event: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to record savings event: {str(e)}"
-        )
-
-
-@router.get("/savings/status")
-async def get_guarantee_status(current_user = Depends(get_current_user)):
-    """
-    Get current guarantee status for the user
-    """
-    try:
-        status_data = savings_calculator.get_current_guarantee_status(str(current_user.id))
+        # Call the database function to calculate monthly savings
+        result = supabase.rpc(
+            "calculate_monthly_pam_savings",
+            {
+                "user_id_param": str(current_user.id),
+                "year_param": target_year,
+                "month_param": target_month
+            }
+        ).execute()
+        
+        if not result.data or len(result.data) == 0:
+            # Return default values if no data
+            return {
+                "success": True,
+                "data": {
+                    "total_savings": 0.0,
+                    "savings_count": 0,
+                    "subscription_cost": 29.99,
+                    "guarantee_met": False,
+                    "percentage_achieved": 0.0,
+                    "savings_shortfall": 29.99,
+                    "period": {
+                        "year": target_year,
+                        "month": target_month
+                    }
+                }
+            }
+        
+        # Extract data from function result
+        savings_data = result.data[0]
+        total_savings = float(savings_data.get("total_savings", 0))
+        subscription_cost = float(savings_data.get("subscription_cost", 29.99))
+        guarantee_met = savings_data.get("guarantee_met", False)
+        percentage_achieved = float(savings_data.get("percentage_achieved", 0))
         
         return {
             "success": True,
             "data": {
-                "guarantee_met": status_data.guarantee_met,
-                "total_savings": float(status_data.total_savings),
-                "subscription_cost": float(status_data.subscription_cost),
-                "savings_shortfall": float(status_data.savings_shortfall),
-                "savings_events_count": status_data.savings_events_count,
-                "billing_period_start": status_data.billing_period_start.isoformat(),
-                "billing_period_end": status_data.billing_period_end.isoformat(),
-                "percentage_achieved": status_data.percentage_achieved
+                "total_savings": total_savings,
+                "savings_count": savings_data.get("savings_count", 0),
+                "subscription_cost": subscription_cost,
+                "guarantee_met": guarantee_met,
+                "percentage_achieved": percentage_achieved,
+                "savings_shortfall": max(0, subscription_cost - total_savings),
+                "period": {
+                    "year": target_year,
+                    "month": target_month
+                }
             }
         }
         
     except Exception as e:
-        logger.error(f"Failed to get guarantee status: {str(e)}")
+        logger.error(f"Failed to get monthly savings status: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get guarantee status: {str(e)}"
+            detail=f"Failed to get monthly savings status: {str(e)}"
         )
 
 
-@router.get("/savings/events")
-async def get_savings_events(
-    limit: int = Query(10, ge=1, le=100),
-    current_user = Depends(get_current_user)
-):
+@router.get("/savings-analytics")  
+async def get_pam_savings_analytics(current_user = Depends(get_current_user)):
     """
-    Get recent savings events for the user
+    Get comprehensive PAM savings analytics using simplified database functions
+    
+    Returns current month, last month, and lifetime savings data.
     """
     try:
-        events = savings_calculator.get_user_savings_events(str(current_user.id), limit)
+        from app.database.supabase_client import get_supabase_client
         
-        return {
-            "success": True,
-            "data": {
-                "events": events,
-                "count": len(events)
+        supabase = get_supabase_client()
+        
+        # Call the analytics database function
+        result = supabase.rpc(
+            "get_pam_savings_analytics", 
+            {"user_id_param": str(current_user.id)}
+        ).execute()
+        
+        if not result.data or len(result.data) == 0:
+            # Return default analytics structure
+            return {
+                "success": True,
+                "data": {
+                    "current_month": {
+                        "total_savings": 0.0,
+                        "savings_count": 0,
+                        "subscription_cost": 29.99,
+                        "guarantee_met": False,
+                        "percentage_achieved": 0.0
+                    },
+                    "last_month": {
+                        "total_savings": 0.0,
+                        "savings_count": 0
+                    },
+                    "lifetime": {
+                        "total_savings": 0.0
+                    },
+                    "generated_at": datetime.utcnow().isoformat()
+                }
             }
-        }
         
-    except Exception as e:
-        logger.error(f"Failed to get savings events: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get savings events: {str(e)}"
-        )
-
-
-@router.post("/savings/recommendation", response_model=SuccessResponse)
-async def create_savings_recommendation(
-    request: CreateRecommendationRequest,
-    current_user = Depends(get_current_user)
-):
-    """
-    Create a new PAM recommendation with savings potential
-    """
-    try:
-        recommendation_id = savings_calculator.create_recommendation(
-            user_id=str(current_user.id),
-            title=request.title,
-            description=request.description,
-            category=request.category,
-            predicted_savings=Decimal(str(request.predicted_savings)),
-            confidence=request.confidence
-        )
-        
-        if recommendation_id:
-            return SuccessResponse(
-                success=True,
-                message="Recommendation created successfully",
-                data={"recommendation_id": recommendation_id}
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to create recommendation"
-            )
-        
-    except Exception as e:
-        logger.error(f"Failed to create recommendation: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create recommendation: {str(e)}"
-        )
-
-
-@router.post("/savings/detect")
-async def detect_savings_opportunity(
-    request: DetectSavingsRequest,
-    current_user = Depends(get_current_user)
-):
-    """
-    Detect potential savings opportunities from expense data
-    """
-    try:
-        opportunity = savings_calculator.detect_savings_opportunity(
-            user_id=str(current_user.id),
-            expense_amount=Decimal(str(request.expense_amount)),
-            category=request.category,
-            location=tuple(request.location) if request.location else None,
-            description=request.description
-        )
+        analytics_data = result.data[0]
         
         return {
             "success": True,
-            "data": {
-                "opportunity_found": opportunity is not None,
-                "opportunity": opportunity
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to detect savings opportunity: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to detect savings opportunity: {str(e)}"
-        )
-
-
-@router.get("/savings/analytics")
-async def get_savings_analytics(current_user = Depends(get_current_user)):
-    """
-    Get comprehensive savings analytics for the user
-    """
-    try:
-        analytics = savings_calculator.get_savings_analytics(str(current_user.id))
-        
-        return {
-            "success": True,
-            "data": analytics
+            "data": analytics_data
         }
         
     except Exception as e:

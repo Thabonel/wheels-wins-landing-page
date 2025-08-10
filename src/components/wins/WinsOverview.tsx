@@ -12,10 +12,9 @@ import { useIncomeData } from "@/components/wins/income/useIncomeData";
 import QuickActions from "./QuickActions";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-// PAM Savings Guarantee - Phase 5: Enabled
+// PAM Savings integration - simplified approach
 import { useQuery } from "@tanstack/react-query";
-import { pamSavingsApi, formatSavingsAmount } from "@/services/pamSavingsService";
-import { Target, Zap } from "lucide-react";
+import { Target, Zap, CheckCircle } from "lucide-react";
 
 const WinsOverview = React.memo(() => {
   const { user, token } = useAuth();
@@ -27,19 +26,22 @@ const WinsOverview = React.memo(() => {
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
-  // PAM Savings Guarantee - Phase 5: Enabled
-  const { data: guaranteeStatus } = useQuery({
-    queryKey: ['guarantee-status'],
-    queryFn: () => pamSavingsApi.getGuaranteeStatus(),
-    refetchInterval: 60000,
-    enabled: !!user
-  });
-
-  const { data: recentSavings } = useQuery({
-    queryKey: ['recent-savings-events'],
-    queryFn: () => pamSavingsApi.getRecentSavingsEvents(10),
-    refetchInterval: 300000,
-    enabled: !!user
+  // PAM Savings - simplified approach using new API
+  const { data: pamSavings, isLoading: savingsLoading } = useQuery({
+    queryKey: ['pam-monthly-savings'],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/pam/monthly-savings', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch PAM savings');
+      return response.json();
+    },
+    refetchInterval: 60000, // Refresh every minute
+    enabled: !!user && !!token,
+    retry: 1 // Minimal retries to avoid overwhelming the API
   });
 
   const handlePamMessage = useCallback((msg: any) => {
@@ -167,23 +169,24 @@ const WinsOverview = React.memo(() => {
         }
       ];
 
-    // PAM Savings Guarantee - Phase 5: Enabled
-    if (guaranteeStatus) {
+    // PAM Savings - simplified integration
+    if (pamSavings?.success && pamSavings?.data && !savingsLoading) {
+      const savingsData = pamSavings.data;
       const pamSavingsStat = {
         title: "PAM Savings",
-        value: formatSavingsAmount(guaranteeStatus.total_savings),
-        description: guaranteeStatus.guarantee_met 
+        value: `$${savingsData.total_savings.toFixed(2)}`,
+        description: savingsData.guarantee_met 
           ? "✅ Guarantee Met!" 
-          : `${Math.round(guaranteeStatus.percentage_achieved)}% to goal`,
-        icon: guaranteeStatus.guarantee_met 
-          ? <Target className="h-5 w-5 text-green-500" />
-          : <Zap className="h-5 w-5 text-orange-500" />
+          : `${Math.round(savingsData.percentage_achieved)}% to goal`,
+        icon: savingsData.guarantee_met 
+          ? <CheckCircle className="h-5 w-5 text-green-500" />
+          : <Target className="h-5 w-5 text-orange-500" />
       };
       baseStats.push(pamSavingsStat);
     }
 
     return baseStats;
-  }, [summary, incomeData, expensesState.expenses, guaranteeStatus]);
+  }, [summary, incomeData, expensesState.expenses, pamSavings, savingsLoading]);
 
   // Quick Actions handlers
   const handleAddExpense = useCallback((preset?: { category?: string }) => {

@@ -448,7 +448,7 @@ class EnhancedPamOrchestrator:
     ) -> Dict[str, Any]:
         """Process message using the AI Service"""
         try:
-            # Prepare context for AI service
+            # Prepare context for AI service with savings awareness
             ai_context = {
                 "user_id": user_id,
                 "session_id": session_id,
@@ -461,7 +461,14 @@ class EnhancedPamOrchestrator:
                     }
                     for name, cap in enhanced_context.service_capabilities.items()
                 },
-                "quality_requirements": enhanced_context.quality_requirements
+                "quality_requirements": enhanced_context.quality_requirements,
+                "pam_mission": {
+                    "primary_goal": "Help users save money through intelligent recommendations",
+                    "savings_guarantee": "Users should save at least their subscription cost ($29.99/month)",
+                    "savings_approach": "Look for cost-saving alternatives, better deals, and smarter spending choices",
+                    "attribution_required": "When suggesting money-saving alternatives, use financial tools with savings attribution"
+                },
+                "savings_context": self._build_savings_context(message)
             }
             
             # Add base context data
@@ -1003,10 +1010,18 @@ Based on these results, please provide a helpful response to the user's original
         capabilities = []
         message_lower = message.lower()
         
-        # Financial capabilities
-        if any(word in message_lower for word in ['spend', 'spent', 'expense', 'cost', 'budget', 'money', 'paid', 'bought', 'purchased']):
+        # Financial capabilities with savings awareness
+        financial_keywords = ['spend', 'spent', 'expense', 'cost', 'budget', 'money', 'paid', 'bought', 'purchased']
+        savings_keywords = ['save', 'saving', 'savings', 'cheaper', 'discount', 'deal', 'bargain', 'budget', 'alternative']
+        
+        if any(word in message_lower for word in financial_keywords + savings_keywords):
             capabilities.append(ToolCapability.USER_DATA)
             capabilities.append(ToolCapability.FINANCIAL)
+        
+        # Enhanced savings detection - look for money-saving opportunities
+        if any(word in message_lower for word in savings_keywords + ['expensive', 'pricey', 'afford', 'cheap']):
+            capabilities.append(ToolCapability.FINANCIAL)
+            capabilities.append(ToolCapability.LOCATION_SEARCH)  # For finding cheaper alternatives
         
         # Trip planning capabilities  
         if any(word in message_lower for word in ['route', 'trip', 'drive', 'navigate', 'campground', 'rv park', 'destination']):
@@ -1027,6 +1042,56 @@ Based on these results, please provide a helpful response to the user's original
             capabilities = [ToolCapability.USER_DATA, ToolCapability.LOCATION_SEARCH, ToolCapability.EXTERNAL_API]
         
         return capabilities
+    
+    def _build_savings_context(self, message: str) -> Dict[str, Any]:
+        """Build savings-specific context for AI processing"""
+        message_lower = message.lower()
+        
+        savings_context = {
+            "savings_opportunity_detected": False,
+            "financial_context": "general",
+            "suggested_approach": "standard",
+            "priority": "normal"
+        }
+        
+        # Detect different types of financial contexts
+        if any(word in message_lower for word in ['expensive', 'costly', 'pricey', 'too much']):
+            savings_context.update({
+                "savings_opportunity_detected": True,
+                "financial_context": "cost_concern",
+                "suggested_approach": "find_alternatives",
+                "priority": "high",
+                "action_hint": "Look for cheaper alternatives and suggest using financial tools with savings attribution"
+            })
+        
+        elif any(word in message_lower for word in ['budget', 'save money', 'saving', 'cheaper']):
+            savings_context.update({
+                "savings_opportunity_detected": True,
+                "financial_context": "budget_conscious",
+                "suggested_approach": "optimize_spending",
+                "priority": "high",
+                "action_hint": "Provide budget-friendly options and track savings with financial tools"
+            })
+        
+        elif any(word in message_lower for word in ['spent', 'paid', 'bought', 'purchased']):
+            savings_context.update({
+                "savings_opportunity_detected": True,
+                "financial_context": "expense_reporting",
+                "suggested_approach": "expense_tracking_with_insights",
+                "priority": "medium",
+                "action_hint": "Help log expense and suggest future savings opportunities in this category"
+            })
+        
+        elif any(word in message_lower for word in ['fuel', 'gas', 'campground', 'food', 'restaurant']):
+            savings_context.update({
+                "savings_opportunity_detected": True,
+                "financial_context": "travel_expense",
+                "suggested_approach": "travel_optimization",
+                "priority": "medium",
+                "action_hint": "Suggest cost-effective travel options and track potential savings"
+            })
+        
+        return savings_context
     
     async def _execute_tool_calls(
         self,

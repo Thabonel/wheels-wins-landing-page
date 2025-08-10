@@ -441,13 +441,38 @@ async def _register_all_tools(registry: ToolRegistry):
                     if not category and description:
                         category = await self.wins_node.categorize_expense(description, amount)
                     
+                    # PAM Savings Attribution - collect PAM influence data
+                    pam_influence = None
+                    if params.get("pam_recommended", False):
+                        original_amount = params.get("original_amount")
+                        savings_amount = params.get("savings_amount", 0)
+                        recommendation_type = params.get("recommendation_type", "general")
+                        confidence = params.get("confidence", 0.8)
+                        
+                        # Only create PAM influence record if there's actual savings
+                        if savings_amount > 0:
+                            pam_influence = {
+                                "recommended_by_pam": True,
+                                "original_amount": original_amount,
+                                "savings_amount": savings_amount,
+                                "recommendation_type": recommendation_type,
+                                "confidence": confidence
+                            }
+                    
+                    # Prepare expense data
+                    expense_data = {
+                        "category": category,
+                        "amount": amount,
+                        "description": description
+                    }
+                    
+                    # Add PAM influence if present
+                    if pam_influence:
+                        expense_data["pam_influence"] = pam_influence
+                    
                     result = await self.wins_node.add_expense(
                         user_id=user_id,
-                        data={
-                            "category": category,
-                            "amount": amount,
-                            "description": description
-                        }
+                        data=expense_data
                     )
                     return result
                     
@@ -485,7 +510,7 @@ async def _register_all_tools(registry: ToolRegistry):
             tool=FinanceToolWrapper(),
             function_definition={
                 "name": "manage_finances",
-                "description": "Manage expenses, budgets, and financial tracking. Use when user mentions spending money, tracking expenses, or managing budgets.",
+                "description": "Manage expenses, budgets, and financial tracking. Use when user mentions spending money, tracking expenses, or managing budgets. Support PAM savings attribution when suggesting cost-saving alternatives.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -505,6 +530,27 @@ async def _register_all_tools(registry: ToolRegistry):
                         "description": {
                             "type": "string",
                             "description": "Optional description of the expense"
+                        },
+                        "pam_recommended": {
+                            "type": "boolean",
+                            "description": "Whether PAM recommended this expense or a money-saving alternative"
+                        },
+                        "original_amount": {
+                            "type": "number",
+                            "description": "Original amount before PAM's money-saving suggestion (if applicable)"
+                        },
+                        "savings_amount": {
+                            "type": "number",
+                            "description": "Amount saved due to PAM's recommendation"
+                        },
+                        "recommendation_type": {
+                            "type": "string",
+                            "enum": ["fuel_optimization", "camping_alternative", "route_optimization", "price_comparison", "timing_optimization", "general"],
+                            "description": "Type of PAM money-saving recommendation"
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "description": "Confidence in savings attribution (0.0-1.0), defaults to 0.8"
                         }
                     },
                     "required": ["action"]
