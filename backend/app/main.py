@@ -10,7 +10,7 @@ if os.getenv("RENDER", False) or os.getenv("RENDER_SERVICE_ID"):
     os.environ["ENVIRONMENT"] = "staging"
     os.environ["NODE_ENV"] = "staging"
     os.environ["DEBUG"] = "true"
-    os.environ["APP_URL"] = "https://pam-backend.onrender.com"
+    os.environ["APP_URL"] = "https://wheels-wins-backend-staging.onrender.com"
     cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app"
     os.environ["CORS_ALLOWED_ORIGINS"] = cors_origins
     print("🔧 FORCED STAGING ENVIRONMENT ON RENDER:")
