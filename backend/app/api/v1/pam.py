@@ -42,10 +42,115 @@ from app.core.exceptions import PAMError
 from app.observability.monitor import global_monitor
 from app.services.voice.edge_processing_service import edge_processing_service
 from app.services.pam_visual_actions import pam_visual_actions
+from app.services.tts.manager import get_tts_manager, synthesize_text, VoiceSettings
+from app.services.tts.redis_optimization import get_redis_tts_manager
 
 router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
+
+# Helper function for safe WebSocket operations
+import base64
+
+async def generate_tts_audio(text: str, user_settings: dict = None, user_id: str = None) -> Optional[dict]:
+    """
+    Generate TTS audio for text response using Redis-optimized system
+    
+    Args:
+        text: Text to synthesize
+        user_settings: User TTS preferences
+        user_id: User ID for rate limiting
+        
+    Returns:
+        Dictionary with TTS data or None if generation fails
+    """
+    if not text or not text.strip():
+        return None
+        
+    try:
+        # Extract user TTS preferences
+        voice = user_settings.get("tts_voice", "en-US-AriaNeural") if user_settings else "en-US-AriaNeural"
+        speed = user_settings.get("tts_speed", 1.0) if user_settings else 1.0
+        
+        # Try Redis-optimized TTS first (with caching and rate limiting)
+        try:
+            redis_tts = await get_redis_tts_manager()
+            logger.debug(f"🎵 Generating TTS with Redis optimization for: '{text[:50]}...'")
+            
+            result = await redis_tts.synthesize_optimized(
+                text=text,
+                voice=voice,
+                speed=speed,
+                user_id=user_id or "anonymous"
+            )
+            
+            # Check for rate limit error
+            if result.get('rate_limit_exceeded'):
+                logger.warning(f"⚠️ TTS rate limit exceeded for user {user_id}: {result.get('error')}")
+                return {
+                    "error": "Rate limit exceeded",
+                    "retry_after": result.get('retry_after', 60)
+                }
+            
+            # Check for other errors
+            if 'error' in result:
+                raise Exception(result['error'])
+            
+            # Log performance metrics
+            from_cache = result.get('from_cache', False)
+            latency = result.get('latency_ms', 0)
+            cache_source = "Redis cache" if from_cache else "Generated"
+            
+            logger.info(
+                f"✅ TTS {cache_source} in {latency:.1f}ms "
+                f"(engine: {result.get('engine_used', 'Unknown')}, "
+                f"cached: {from_cache})"
+            )
+            
+            return {
+                "audio_data": result['audio_data'],
+                "format": result.get('format', 'mp3'),
+                "duration": result.get('duration'),
+                "voice_used": result.get('voice_used', voice),
+                "engine_used": result.get('engine_used', 'EdgeTTS'),
+                "from_cache": from_cache,
+                "compressed": result.get('compressed', True),
+                "latency_ms": latency
+            }
+            
+        except Exception as redis_error:
+            # Fallback to non-Redis TTS if Redis fails
+            logger.warning(f"⚠️ Redis TTS failed, falling back to standard: {redis_error}")
+            
+            # Create voice settings
+            settings = VoiceSettings(
+                voice=voice,
+                speed=speed,
+                volume=user_settings.get("tts_volume", 1.0) if user_settings else 1.0
+            )
+            
+            # Generate TTS using standard manager
+            logger.debug(f"🎵 Generating TTS (fallback) for text: '{text[:50]}...'")
+            tts_result = await synthesize_text(text, voice=voice, speed=speed)
+            
+            # Encode audio as base64 for WebSocket transmission
+            audio_base64 = base64.b64encode(tts_result.audio_data).decode('utf-8')
+            
+            logger.info(f"✅ TTS generated (fallback): {len(tts_result.audio_data)} bytes, engine: {tts_result.engine_used}")
+            
+            return {
+                "audio_data": audio_base64,
+                "format": tts_result.format,
+                "duration": tts_result.duration,
+                "voice_used": tts_result.voice_used,
+                "engine_used": tts_result.engine_used,
+                "from_cache": False,
+                "compressed": False
+            }
+        
+    except Exception as e:
+        logger.warning(f"🚨 TTS generation failed: {e}")
+        return None
 
 # Helper function for safe WebSocket operations
 async def safe_send_json(websocket: WebSocket, data: dict) -> bool:
@@ -651,14 +756,29 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             processing_time = (time.time() - start_time) * 1000
             logger.info(f"⚡ [DEBUG] Edge processed in {processing_time:.1f}ms: '{edge_result.response[:100]}...'")
             
-            await websocket.send_json({
+            edge_response_payload = {
                 "type": "response",
                 "content": edge_result.response,
                 "source": "edge",
                 "processing_time_ms": processing_time,
                 "confidence": edge_result.confidence,
                 "metadata": edge_result.metadata
-            })
+            }
+            
+            # Phase 5A: Generate TTS audio for edge response with Redis optimization
+            tts_start_time = time.time()
+            tts_audio = await generate_tts_audio(
+                edge_result.response, 
+                user_settings=context.get("user_settings"),
+                user_id=user_id
+            )
+            if tts_audio and not tts_audio.get('error'):
+                tts_processing_time = (time.time() - tts_start_time) * 1000
+                edge_response_payload["tts"] = tts_audio
+                edge_response_payload["tts_processing_time_ms"] = tts_processing_time
+                logger.info(f"🎵 Edge TTS generated in {tts_processing_time:.1f}ms, engine: {tts_audio['engine_used']}")
+            
+            await websocket.send_json(edge_response_payload)
             logger.info(f"📤 [DEBUG] Edge response sent successfully to user {user_id}")
             return
         
@@ -714,6 +834,21 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 "processing_time_ms": total_processing_time,
                 "timestamp": datetime.utcnow().isoformat()
             }
+            
+            # Phase 5A: Generate TTS audio for response with Redis optimization
+            tts_start_time = time.time()
+            tts_audio = await generate_tts_audio(
+                response_message, 
+                user_settings=response_context.get("user_settings"),
+                user_id=user_id
+            )
+            if tts_audio and not tts_audio.get('error'):
+                tts_processing_time = (time.time() - tts_start_time) * 1000
+                response_payload["tts"] = tts_audio
+                response_payload["tts_processing_time_ms"] = tts_processing_time
+                logger.info(f"🎵 TTS generated in {tts_processing_time:.1f}ms, engine: {tts_audio['engine_used']}")
+            else:
+                logger.debug("🔇 TTS generation skipped or failed")
             
             logger.info(f"📤 [DEBUG] Sending response payload: {response_payload}")
             

@@ -23,6 +23,7 @@ import {
 import { AuthTestSuite, quickAuthCheck } from "@/utils/authTestSuite";
 import { audioManager } from "@/utils/audioManager";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
+import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { pamAgenticService } from "@/services/pamAgenticService";
@@ -35,6 +36,14 @@ declare global {
   }
 }
 
+interface TTSAudio {
+  audio_data: string;
+  format: string;
+  duration?: number;
+  voice_used?: string;
+  engine_used?: string;
+}
+
 interface PamMessage {
   id: string;
   content: string;
@@ -44,6 +53,7 @@ interface PamMessage {
   shouldSpeak?: boolean;  // Control whether this message should be spoken
   voicePriority?: 'low' | 'normal' | 'high' | 'urgent';
   isStreaming?: boolean;  // Indicates if this message is currently being streamed
+  tts?: TTSAudio;  // Phase 5A: TTS audio data from backend
 }
 
 interface PamProps {
@@ -886,7 +896,33 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             const content = message.content || message.message || message.response;
             console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
             
+            // Phase 5A: Extract TTS data if present
+            const ttsData = message.tts;
+            if (ttsData) {
+              console.log('🎵 TTS data received:', {
+                format: ttsData.format,
+                engine: ttsData.engine_used,
+                voice: ttsData.voice_used,
+                size: ttsData.audio_data?.length
+              });
+            }
+            
             if (content && content.trim()) {
+              // Phase 5A: Add message with TTS data
+              const newMessage = addMessage(content, "pam");
+              
+              // Phase 5A: Update message with TTS data if available
+              if (ttsData) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const messageIndex = updated.findIndex(m => m.id === newMessage.id);
+                  if (messageIndex >= 0) {
+                    updated[messageIndex] = { ...updated[messageIndex], tts: ttsData };
+                  }
+                  return updated;
+                });
+              }
+              
               // Check if PAM is asking for location and offer to get it automatically
               const locationKeywords = [
                 'current location', 'your location', 'where you are', 'share your location',
@@ -899,7 +935,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               
               if (needsLocation && !userContext?.current_location) {
                 console.log('📍 PAM is asking for location, offering automatic request');
-                addMessage(content, "pam");
                 
                 // Add a helpful message with location request button
                 setTimeout(() => {
@@ -2887,19 +2922,27 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   <div className={`max-w-[80%] px-3 py-2 rounded-lg ${
                     msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
                   }`}>
-                    <p className="text-sm">{msg.content}</p>
-                    {/* Streaming indicator */}
-                    {msg.isStreaming && (
-                      <div className="flex items-center mt-1 text-xs text-gray-500">
-                        <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1"></div>
-                        <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1 animation-delay-100"></div>
-                        <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-2 animation-delay-200"></div>
-                        <span>thinking...</span>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm">{msg.content}</p>
+                        {/* Streaming indicator */}
+                        {msg.isStreaming && (
+                          <div className="flex items-center mt-1 text-xs text-gray-500">
+                            <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1"></div>
+                            <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1 animation-delay-100"></div>
+                            <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-2 animation-delay-200"></div>
+                            <span>thinking...</span>
+                          </div>
+                        )}
+                        <p className="text-xs opacity-70 mt-1">
+                          {new Date(msg.timestamp).toLocaleTimeString()}
+                        </p>
                       </div>
-                    )}
-                    <p className="text-xs opacity-70 mt-1">
-                      {new Date(msg.timestamp).toLocaleTimeString()}
-                    </p>
+                      {/* Phase 5A: TTS Controls for PAM messages */}
+                      {msg.sender === "pam" && msg.tts && (
+                        <TTSControls ttsData={msg.tts} size="sm" />
+                      )}
+                    </div>
                   </div>
                 </div>
               ))

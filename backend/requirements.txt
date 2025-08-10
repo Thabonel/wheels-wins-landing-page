@@ -34,6 +34,15 @@ neo4j>=5.14.0,<6.0.0
 textstat==0.7.7
 pyttsx3==2.99
 
+# Phase 5A: TTS Dependencies  
+edge-tts>=6.1.9
+pydub>=0.25.1
+
+# Phase 5A Optimization: Redis-based caching and rate limiting
+aioredis==2.0.1  # Async Redis client (if not using redis[asyncio])
+slowapi==0.1.9  # Rate limiting for FastAPI
+cachetools==5.3.2  # In-memory caching with TTL
+
 # Audio processing for enhanced voice features  
 # Note: Using latest stable version compatible with Python 3.8-3.12
 # For Python 3.13 support, wait for numba dependency updates
