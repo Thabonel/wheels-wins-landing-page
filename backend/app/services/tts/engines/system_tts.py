@@ -31,7 +31,8 @@ class SystemTTSEngine(BaseTTSEngine):
         if self.system == "darwin":  # macOS
             self.tts_command = "say"
             if not shutil.which("say"):
-                raise TTSError("macOS 'say' command not available", engine="SystemTTS")
+                logger.warning("macOS 'say' command not available - System TTS unavailable")
+                self.tts_command = None
                 
         elif self.system == "linux":  # Linux
             # Try different Linux TTS options
@@ -41,17 +42,25 @@ class SystemTTSEngine(BaseTTSEngine):
                 self.tts_command = "festival"
             elif shutil.which("spd-say"):
                 self.tts_command = "spd-say"
+            elif shutil.which("pico2wave"):
+                self.tts_command = "pico2wave"  # Alternative TTS
             else:
-                raise TTSError("No Linux TTS command found (espeak, festival, spd-say)", engine="SystemTTS")
+                # Don't fail - just log warning
+                logger.warning("No Linux TTS command found - System TTS will be unavailable")
+                self.tts_command = None
                 
         elif self.system == "windows":  # Windows
             # Windows will use PowerShell Add-Type for TTS
             self.tts_command = "powershell"
             
         else:
-            raise TTSError(f"Unsupported operating system: {self.system}", engine="SystemTTS")
+            logger.warning(f"Unsupported operating system: {self.system} - System TTS unavailable")
+            self.tts_command = None
         
-        logger.debug(f"✅ System TTS initialized for {self.system} using {self.tts_command}")
+        if self.tts_command:
+            logger.debug(f"✅ System TTS initialized for {self.system} using {self.tts_command}")
+        else:
+            logger.warning(f"⚠️ System TTS not available on {self.system}")
     
     async def synthesize(
         self, 
@@ -142,10 +151,19 @@ class SystemTTSEngine(BaseTTSEngine):
     
     async def _synthesize_linux(self, text: str, output_path: str, settings: VoiceSettings):
         """Synthesize using Linux TTS commands"""
+        if not self.tts_command:
+            raise TTSError("No Linux TTS available", engine="SystemTTS")
+            
         if self.tts_command == "espeak":
             cmd = [
                 "espeak",
                 "-s", str(int(settings.speed * 175)),  # Speed in words per minute
+                "-w", output_path,
+                text
+            ]
+        elif self.tts_command == "pico2wave":
+            cmd = [
+                "pico2wave",
                 "-w", output_path,
                 text
             ]

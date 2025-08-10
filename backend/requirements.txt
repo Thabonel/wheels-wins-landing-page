@@ -16,7 +16,7 @@ opentelemetry-instrumentation-fastapi>=0.41b0
 
 # AI Agent Observability (stable versions)
 langfuse>=2.0.0
-agentops>=0.4.15,<0.5.0
+# agentops>=0.4.15,<0.5.0  # Temporarily disabled - incompatible with OpenAI 1.99.6
 
 # Graph Database (Optional - for Graph RAG)
 neo4j>=5.14.0,<6.0.0
@@ -32,7 +32,7 @@ neo4j>=5.14.0,<6.0.0
 
 # Text analysis and TTS (now installed)
 textstat==0.7.7
-pyttsx3==2.99
+# pyttsx3==2.99  # Removed - using native system commands instead
 
 # Phase 5A: TTS Dependencies  
 edge-tts>=6.1.9

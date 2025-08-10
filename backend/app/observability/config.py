@@ -155,53 +155,80 @@ class ObservabilityConfig:
             )
             return False
         
-        logger.info("✅ AgentOps API key found, initializing client...")
-
-        logger.info(
-            "🔍 Attempting AgentOps initialization with OpenAI compatibility check..."
-        )
+        logger.info("✅ AgentOps API key found, checking compatibility...")
 
         try:
             import openai
-
-            logger.info(f"📋 OpenAI version detected: {openai.__version__}")
-
+            openai_version = openai.__version__
+            logger.info(f"📋 OpenAI version detected: {openai_version}")
+            
+            # Check OpenAI version compatibility
+            # AgentOps 0.3.x and below are incompatible with OpenAI 1.x
+            # AgentOps 0.4.x+ should work with OpenAI 1.x
+            import pkg_resources
             try:
-                import openai.resources.beta.chat
+                agentops_version = pkg_resources.get_distribution("agentops").version
+                logger.info(f"📋 AgentOps version detected: {agentops_version}")
+                
+                # Parse versions
+                openai_major = int(openai_version.split(".")[0])
+                agentops_major = int(agentops_version.split(".")[0])
+                agentops_minor = int(agentops_version.split(".")[1])
+                
+                # Check compatibility
+                if openai_major >= 1 and agentops_major == 0 and agentops_minor < 4:
+                    logger.warning(
+                        f"⚠️ AgentOps {agentops_version} is incompatible with OpenAI {openai_version}"
+                    )
+                    logger.warning(
+                        "   Please upgrade AgentOps to 0.4.15+ for OpenAI 1.x compatibility"
+                    )
+                    logger.warning(
+                        "   Run: pip install 'agentops>=0.4.15,<0.5.0'"
+                    )
+                    self.agentops_initialized = False
+                    return False
+                    
+            except Exception as version_error:
+                logger.warning(f"Could not check AgentOps version: {version_error}")
 
-                logger.info("✅ OpenAI module structure compatible with AgentOps")
-            except ImportError:
-                logger.warning(
-                    "⚠️ OpenAI module structure incompatible with current AgentOps version"
+            # Try to initialize with better error handling
+            try:
+                # Check if OpenAI client structure is compatible
+                from openai import OpenAI as OpenAIClient
+                test_client = OpenAIClient(api_key="test")
+                
+                # Initialize AgentOps with minimal configuration
+                agentops.init(
+                    api_key=self.settings.AGENTOPS_API_KEY,
+                    auto_start_session=False,  # Don't auto-start session
+                    inherited_session_id=None   # No inherited session
                 )
-                logger.warning(
-                    "   AgentOps will be disabled to preserve core OpenAI functionality"
-                )
+                
+                self.agentops_initialized = True
+                logger.info("✅ AgentOps observability initialized successfully")
+                return True
+                
+            except AttributeError as attr_error:
+                if "ChatCompletion" in str(attr_error) or "Completion" in str(attr_error):
+                    logger.warning(
+                        "⚠️ AgentOps incompatible with current OpenAI client structure"
+                    )
+                    logger.warning(f"   Error: {attr_error}")
+                    logger.warning(
+                        "   AgentOps disabled to preserve OpenAI functionality"
+                    )
+                else:
+                    logger.warning(f"AgentOps initialization error: {attr_error}")
                 self.agentops_initialized = False
                 return False
-
-            # AgentOps API updated - remove environment parameter
-            agentops.init(api_key=self.settings.AGENTOPS_API_KEY)
-
-            self.agentops_initialized = True
-            logger.info("✅ AgentOps observability initialized successfully")
-            return True
-
+                
         except ImportError as e:
-            if "openai.resources.beta.chat" in str(e):
-                logger.warning(
-                    "⚠️ AgentOps-OpenAI compatibility issue detected during initialization."
-                )
-                logger.warning(
-                    "   Disabling AgentOps to preserve core OpenAI functionality for PAM."
-                )
-                logger.warning(f"   Error details: {e}")
-                self.agentops_initialized = False
-                return False
-            else:
-                logger.warning(f"Failed to initialize AgentOps observability: {e}")
-                self.agentops_initialized = False
-                return False
+            logger.warning(
+                f"⚠️ AgentOps initialization failed due to import error: {e}"
+            )
+            self.agentops_initialized = False
+            return False
         except Exception as e:
             logger.warning(f"Failed to initialize AgentOps observability: {e}")
             self.agentops_initialized = False
