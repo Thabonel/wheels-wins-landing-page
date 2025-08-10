@@ -243,6 +243,63 @@ async def options_observability_configuration():
         }
     )
 
+@router.options("/config")
+async def options_observability_config():
+    """Handle CORS preflight for public config endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
+@router.get("/config")
+async def get_observability_config_public():
+    """Get observability configuration status (public endpoint for diagnostics)"""
+    try:
+        settings = get_settings()
+        
+        config = {
+            "enabled": getattr(settings, 'OBSERVABILITY_ENABLED', False),
+            "environment": settings.ENVIRONMENT,
+            "platforms": {
+                "openai": {
+                    "configured": bool(settings.OPENAI_API_KEY),
+                },
+                "langfuse": {
+                    "configured": bool(getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)),
+                    "host": getattr(settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
+                },
+                "agentops": {
+                    "configured": bool(getattr(settings, 'AGENTOPS_API_KEY', None)),
+                }
+            }
+        }
+        
+        return {
+            "status": "success",
+            "data": config
+        }
+    except Exception as e:
+        logger.error(f"Failed to get observability config: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "data": {
+                "enabled": False,
+                "environment": "unknown",
+                "platforms": {
+                    "openai": {"configured": False},
+                    "langfuse": {"configured": False},
+                    "agentops": {"configured": False}
+                }
+            }
+        }
+
 @router.get("/configuration")
 async def get_observability_configuration(
     _: Dict[str, Any] = Depends(verify_admin_access)
