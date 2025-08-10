@@ -136,7 +136,11 @@ class CORSSettings(BaseSettings):
             "https://www.wheelsandwins.com",
             "https://wheelz-wins.com",
             "https://www.wheelz-wins.com",
-            "https://wheels-wins-landing-page.netlify.app"
+            "https://wheels-wins-landing-page.netlify.app",
+            "https://charming-figolla-d83b68.netlify.app",  # Current production Netlify URL
+            "https://wheelswins.netlify.app",
+            "https://wheels-wins.netlify.app",
+            "https://wheels-and-wins.netlify.app"
         ],
         description="Production environment origins"
     )
