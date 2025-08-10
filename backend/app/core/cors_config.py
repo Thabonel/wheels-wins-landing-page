@@ -41,8 +41,10 @@ class CORSConfig:
             "https://wheelz-wins.com",
             "https://www.wheelz-wins.com",
             "https://wheels-wins-landing-page.netlify.app",
-            "https://wheels-wins-staging.netlify.app",  # Staging frontend
+            "https://wheels-wins-staging.netlify.app",  # Primary staging frontend
             "https://staging-wheelsandwins.netlify.app",  # Additional staging URL
+            "https://wheelsandwins-staging.netlify.app",  # Another staging variant
+            "https://wheels-wins-test.netlify.app",  # Test environment
             "https://65a8f6b6c9f5d2092be8bfc2--wheels-wins-landing-page.netlify.app",
         ])
         

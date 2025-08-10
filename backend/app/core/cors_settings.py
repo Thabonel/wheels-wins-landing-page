@@ -123,7 +123,9 @@ class CORSSettings(BaseSettings):
     staging_origins: List[str] = Field(
         default=[
             "https://staging-wheelsandwins.netlify.app",
-            "https://wheels-wins-staging.netlify.app"
+            "https://wheels-wins-staging.netlify.app",
+            "https://wheelsandwins-staging.netlify.app",
+            "https://wheels-wins-test.netlify.app"
         ],
         description="Staging environment origins"
     )
