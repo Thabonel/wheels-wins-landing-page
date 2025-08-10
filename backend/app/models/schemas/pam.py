@@ -228,10 +228,9 @@ class SecureWebSocketMessage(BaseModel):
         max_length=100,
         description="Session identifier"
     )
-    timestamp: Optional[str] = Field(
+    timestamp: Optional[Union[str, int, float]] = Field(
         None,
-        pattern=r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$',
-        description="ISO 8601 timestamp"
+        description="Timestamp as ISO 8601 string or Unix timestamp (ms)"
     )
     metadata: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
@@ -260,13 +259,37 @@ class SecureWebSocketMessage(BaseModel):
         except ValueError as e:
             raise ValueError(f'Dictionary validation failed: {str(e)}')
     
+    @validator('timestamp', pre=True)
+    def normalize_timestamp(cls, v):
+        """Convert numeric timestamps to ISO format"""
+        if v is None:
+            return v
+        
+        # If it's already a string in ISO format, return as-is
+        if isinstance(v, str):
+            return v
+        
+        # If it's a number (Unix timestamp in ms), convert to ISO
+        if isinstance(v, (int, float)):
+            try:
+                # Convert from milliseconds to seconds
+                timestamp_seconds = v / 1000
+                dt = datetime.fromtimestamp(timestamp_seconds)
+                return dt.isoformat() + 'Z'
+            except Exception:
+                # If conversion fails, return as string
+                return str(v)
+        
+        return v
+    
     @validator('type')
     def validate_message_type(cls, v):
         """Validate message type against allowed types"""
         allowed_types = {
             'chat', 'user_message', 'system_message', 'heartbeat', 'ping', 'pong',
             'connection_established', 'voice_input', 'text_input', 'error',
-            'status_update', 'typing_indicator', 'conversation_end'
+            'status_update', 'typing_indicator', 'conversation_end',
+            'init', 'auth', 'init_ack', 'context_update', 'test'  # Added missing types
         }
         
         if v not in allowed_types:
