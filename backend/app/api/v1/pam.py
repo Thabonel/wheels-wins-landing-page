@@ -213,8 +213,18 @@ async def websocket_endpoint(
             return
         
         try:
-            # Verify the JWT token using the flexible verification
-            payload = verify_supabase_jwt_flexible(token)
+            # Create a mock request and credentials for JWT verification
+            from fastapi import Request
+            from fastapi.security import HTTPAuthorizationCredentials
+            
+            # Create mock request object
+            mock_request = Request({"type": "http", "headers": {}, "method": "GET", "url": {"scheme": "http", "path": "/"}})
+            
+            # Create mock credentials with the token
+            mock_credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+            
+            # Verify the JWT token using the flexible verification (it's async)
+            payload = await verify_supabase_jwt_flexible(mock_request, mock_credentials)
             
             if not payload:
                 logger.warning(f"❌ WebSocket connection rejected: invalid token for user {user_id}")
