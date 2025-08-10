@@ -101,7 +101,7 @@ class WebSocketKeepalive:
                     
                     # Check WebSocket state
                     if hasattr(websocket, 'client_state'):
-                        from fastapi import WebSocketState
+                        from starlette.websockets import WebSocketState
                         if websocket.client_state != WebSocketState.CONNECTED:
                             logger.warning(f"⚠️ [KEEPALIVE] WebSocket not connected for {connection_id[:8]}...")
                             break

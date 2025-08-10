@@ -36,8 +36,7 @@ from app.core.websocket_manager import manager as websocket_manager
 from app.core.middleware import setup_middleware
 from app.core.monitoring_middleware import MonitoringMiddleware
 from app.guardrails.guardrails_middleware import GuardrailsMiddleware
-from app.core.cors_settings import cors_settings
-from app.core.cors_middleware import EnhancedCORSMiddleware, CORSDebugMiddleware
+# CORS imports removed - using simple FastAPI CORSMiddleware approach
 
 # Import enhanced security setup
 from app.core.enhanced_security_setup import setup_enhanced_security, SecurityConfiguration
@@ -409,60 +408,42 @@ app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
 setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
-# CORS middleware MUST be added LAST so it executes FIRST
-# Using centralized CORS configuration for better maintainability
-
-# Add our enhanced CORS middleware for fallback OPTIONS handling
-app.add_middleware(EnhancedCORSMiddleware)
-
-# Add CORS debugging middleware in development
-try:
-    if getattr(settings, 'NODE_ENV', 'production') == "development" or getattr(settings, 'DEBUG', False):
-        app.add_middleware(CORSDebugMiddleware)
-        logger.info("🔧 CORS debugging middleware enabled")
-except AttributeError:
-    logger.info("🔧 CORS debugging middleware enabled (fallback detection)")
-    app.add_middleware(CORSDebugMiddleware)
-
-# Add the standard FastAPI CORS middleware with our robust configuration
-cors_config_dict = cors_settings.get_cors_middleware_config()
-if cors_config_dict:  # Only add middleware if CORS is enabled
-    app.add_middleware(CORSMiddleware, **cors_config_dict)
-    logger.info("✅ CORS middleware configured successfully")
-else:
-    logger.warning("⚠️ CORS middleware disabled")
-
-# CORS middleware handles OPTIONS requests automatically
-# But we still need a catch-all OPTIONS handler for proper preflight responses
-
-
-# Global OPTIONS handler to ensure all preflight requests get proper responses
-@app.options("/{full_path:path}")
-async def catch_all_options(request: Request, full_path: str):
-    """
-    Global OPTIONS handler for all routes to ensure CORS preflight requests work properly.
-    The CORS middleware adds headers, but we need to return a proper 200 response.
-    """
-    origin = request.headers.get("origin")
-    method = request.headers.get("access-control-request-method")
-    headers = request.headers.get("access-control-request-headers")
+# CORS Configuration - Simple and Proven Approach
+# Using FastAPI's standard CORSMiddleware with comprehensive origins
+allowed_origins = [
+    # Production origins
+    "https://wheelsandwins.com",
+    "https://www.wheelsandwins.com", 
+    "https://wheelz-wins.com",
+    "https://www.wheelz-wins.com",
+    "https://wheels-wins-landing-page.netlify.app",
+    "https://charming-figolla-d83b68.netlify.app",
     
-    logger.debug(f"OPTIONS request for /{full_path} from origin: {origin}")
+    # Staging origins
+    "https://staging-wheelsandwins.netlify.app",
+    "https://wheels-wins-staging.netlify.app",
+    "https://wheelsandwins-staging.netlify.app",
+    "https://wheels-wins-test.netlify.app",
     
-    # Create proper OPTIONS response with CORS headers
-    response_headers = {
-        "Access-Control-Allow-Origin": origin or "*",
-        "Access-Control-Allow-Methods": ", ".join(cors_settings.allow_methods),
-        "Access-Control-Allow-Headers": ", ".join(cors_settings.allow_headers),
-        "Access-Control-Allow-Credentials": str(cors_settings.allow_credentials).lower(),
-        "Access-Control-Max-Age": str(cors_settings.max_age),
-    }
-    
-    return Response(
-        content="",
-        status_code=200,
-        headers=response_headers
-    )
+    # Development origins (only in development)
+    *(["http://localhost:3000", "http://localhost:8080", "http://localhost:5173", 
+       "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://127.0.0.1:5173"] 
+      if getattr(settings, 'NODE_ENV', 'production') == 'development' else [])
+]
+
+# Add CORS middleware - This handles ALL CORS including OPTIONS preflight
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["Content-Type", "Authorization", "X-Request-ID"]
+)
+logger.info(f"✅ CORS middleware configured with {len(allowed_origins)} origins")
+
+# FastAPI's CORSMiddleware handles ALL OPTIONS requests automatically
+# No need for additional OPTIONS handlers - they can cause conflicts
 
 
 # Add root route handler
@@ -501,14 +482,14 @@ async def cors_debug_info(request: Request):
     return {
         "timestamp": datetime.utcnow().isoformat(),
         "request_origin": origin,
-        "configured_cors_origins": cors_settings.get_allowed_origins(),
-        "origin_allowed": origin in cors_settings.get_allowed_origins() if origin != "No origin header" else False,
+        "configured_cors_origins": allowed_origins,
+        "origin_allowed": origin in allowed_origins if origin != "No origin header" else False,
         "environment": getattr(settings, 'NODE_ENV', 'unknown'),
-        "total_origins": len(cors_settings.get_allowed_origins()),
+        "total_origins": len(allowed_origins),
         "cors_config": {
-            "allowed_methods": cors_settings.allow_methods,
-            "allowed_headers": cors_settings.allow_headers[:10],  # First 10 for brevity
-            "expose_headers": cors_settings.expose_headers,
+            "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            "allowed_headers": "*",
+            "expose_headers": ["Content-Type", "Authorization", "X-Request-ID"],
         },
         "help": "Use this endpoint to verify if your frontend origin is in the CORS allow list"
     }
@@ -521,11 +502,11 @@ async def cors_stats():
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "cors_configuration": {
-                "total_origins": len(cors_settings.get_allowed_origins()),
-                "origins_sample": cors_settings.get_allowed_origins()[:5],
-                "methods_count": len(cors_settings.allow_methods),
-                "headers_count": len(cors_settings.allow_headers),
-                "expose_headers_count": len(cors_settings.expose_headers),
+                "total_origins": len(allowed_origins),
+                "origins_sample": allowed_origins[:5],
+                "methods_count": 6,  # GET, POST, PUT, DELETE, OPTIONS, PATCH
+                "headers_count": "*",
+                "expose_headers_count": 3,  # Content-Type, Authorization, X-Request-ID
             },
             "system_info": {
                 "environment": getattr(settings, 'NODE_ENV', 'unknown'),
@@ -539,7 +520,7 @@ async def cors_stats():
             "timestamp": datetime.utcnow().isoformat(),
             "error": f"Failed to get CORS stats: {str(e)}",
             "cors_basic_info": {
-                "total_origins": len(cors_settings.get_allowed_origins()),
+                "total_origins": len(allowed_origins),
                 "status": "CORS config loaded"
             }
         }

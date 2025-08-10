@@ -236,7 +236,8 @@ class DependencyChecker:
             status.dependencies_met = True
             
             # Check if Supabase credentials are configured
-            if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+            supabase_key = getattr(settings, 'SUPABASE_KEY', None) or getattr(settings, 'SUPABASE_SERVICE_ROLE_KEY', None)
+            if settings.SUPABASE_URL and supabase_key:
                 status.available = True
                 status.test_passed = True
                 status.version = "Supabase Function (nari-dia-tts)"
@@ -593,16 +594,20 @@ class SupabaseTTSEngine:
     async def initialize(self) -> bool:
         """Initialize Supabase TTS engine"""
         try:
-            # Check if Supabase is configured
-            if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
+            # Check if Supabase is configured - handle both simple config and Pydantic SecretStr
+            supabase_key = getattr(settings, 'SUPABASE_KEY', None) or getattr(settings, 'SUPABASE_SERVICE_ROLE_KEY', None)
+            if hasattr(supabase_key, 'get_secret_value'):
+                supabase_key = supabase_key.get_secret_value()
+            
+            if not settings.SUPABASE_URL or not supabase_key:
                 logger.warning("⚠️ Supabase TTS not configured (missing URL or key)")
                 return False
                 
             self.base_url = f"{settings.SUPABASE_URL.rstrip('/')}/functions/v1/nari-dia-tts"
             self.headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {settings.SUPABASE_KEY}",
-                "apikey": settings.SUPABASE_KEY,
+                "Authorization": f"Bearer {supabase_key}",
+                "apikey": supabase_key,
             }
             
             self.is_initialized = True
