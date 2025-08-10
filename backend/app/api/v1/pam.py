@@ -1992,61 +1992,65 @@ async def get_monthly_savings_status(
         from app.database.supabase_client import get_supabase_client
         
         # Use current year/month if not specified
-        from datetime import datetime
         now = datetime.utcnow()
         target_year = year or now.year
         target_month = month or now.month
         
         supabase = get_supabase_client()
         
-        # Call the database function to calculate monthly savings
-        result = supabase.rpc(
-            "calculate_monthly_pam_savings",
-            {
-                "user_id_param": str(current_user.id),
-                "year_param": target_year,
-                "month_param": target_month
-            }
-        ).execute()
-        
-        if not result.data or len(result.data) == 0:
-            # Return default values if no data
-            return {
-                "success": True,
-                "data": {
-                    "total_savings": 0.0,
-                    "savings_count": 0,
-                    "subscription_cost": 29.99,
-                    "guarantee_met": False,
-                    "percentage_achieved": 0.0,
-                    "savings_shortfall": 29.99,
-                    "period": {
-                        "year": target_year,
-                        "month": target_month
+        # Try to call the database function - graceful fallback if function doesn't exist
+        try:
+            result = supabase.rpc(
+                "calculate_monthly_pam_savings",
+                {
+                    "user_id_param": str(current_user.id),
+                    "year_param": target_year,
+                    "month_param": target_month
+                }
+            ).execute()
+            
+            if result.data and len(result.data) > 0:
+                # Extract data from function result
+                savings_data = result.data[0]
+                total_savings = float(savings_data.get("total_savings", 0))
+                subscription_cost = float(savings_data.get("subscription_cost", 29.99))
+                guarantee_met = savings_data.get("guarantee_met", False)
+                percentage_achieved = float(savings_data.get("percentage_achieved", 0))
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "total_savings": total_savings,
+                        "savings_count": savings_data.get("savings_count", 0),
+                        "subscription_cost": subscription_cost,
+                        "guarantee_met": guarantee_met,
+                        "percentage_achieved": percentage_achieved,
+                        "savings_shortfall": max(0, subscription_cost - total_savings),
+                        "period": {
+                            "year": target_year,
+                            "month": target_month
+                        }
                     }
                 }
-            }
+            
+        except Exception as db_error:
+            logger.warning(f"Database function 'calculate_monthly_pam_savings' not available: {db_error}")
         
-        # Extract data from function result
-        savings_data = result.data[0]
-        total_savings = float(savings_data.get("total_savings", 0))
-        subscription_cost = float(savings_data.get("subscription_cost", 29.99))
-        guarantee_met = savings_data.get("guarantee_met", False)
-        percentage_achieved = float(savings_data.get("percentage_achieved", 0))
-        
+        # Fallback: Return default values (database function doesn't exist yet or failed)
         return {
             "success": True,
             "data": {
-                "total_savings": total_savings,
-                "savings_count": savings_data.get("savings_count", 0),
-                "subscription_cost": subscription_cost,
-                "guarantee_met": guarantee_met,
-                "percentage_achieved": percentage_achieved,
-                "savings_shortfall": max(0, subscription_cost - total_savings),
+                "total_savings": 0.0,
+                "savings_count": 0,
+                "subscription_cost": 29.99,
+                "guarantee_met": False,
+                "percentage_achieved": 0.0,
+                "savings_shortfall": 29.99,
                 "period": {
                     "year": target_year,
                     "month": target_month
-                }
+                },
+                "note": "PAM savings tracking will be enabled after database migration"
             }
         }
         
@@ -2070,40 +2074,44 @@ async def get_pam_savings_analytics(current_user = Depends(get_current_user)):
         
         supabase = get_supabase_client()
         
-        # Call the analytics database function
-        result = supabase.rpc(
-            "get_pam_savings_analytics", 
-            {"user_id_param": str(current_user.id)}
-        ).execute()
-        
-        if not result.data or len(result.data) == 0:
-            # Return default analytics structure
-            return {
-                "success": True,
-                "data": {
-                    "current_month": {
-                        "total_savings": 0.0,
-                        "savings_count": 0,
-                        "subscription_cost": 29.99,
-                        "guarantee_met": False,
-                        "percentage_achieved": 0.0
-                    },
-                    "last_month": {
-                        "total_savings": 0.0,
-                        "savings_count": 0
-                    },
-                    "lifetime": {
-                        "total_savings": 0.0
-                    },
-                    "generated_at": datetime.utcnow().isoformat()
+        # Try to call the analytics database function - graceful fallback if function doesn't exist
+        try:
+            result = supabase.rpc(
+                "get_pam_savings_analytics", 
+                {"user_id_param": str(current_user.id)}
+            ).execute()
+            
+            if result.data and len(result.data) > 0:
+                analytics_data = result.data[0]
+                return {
+                    "success": True,
+                    "data": analytics_data
                 }
-            }
         
-        analytics_data = result.data[0]
+        except Exception as db_error:
+            logger.warning(f"Database function 'get_pam_savings_analytics' not available: {db_error}")
         
+        # Fallback: Return default analytics structure (database function doesn't exist yet or failed)
         return {
             "success": True,
-            "data": analytics_data
+            "data": {
+                "current_month": {
+                    "total_savings": 0.0,
+                    "savings_count": 0,
+                    "subscription_cost": 29.99,
+                    "guarantee_met": False,
+                    "percentage_achieved": 0.0
+                },
+                "last_month": {
+                    "total_savings": 0.0,
+                    "savings_count": 0
+                },
+                "lifetime": {
+                    "total_savings": 0.0
+                },
+                "generated_at": datetime.utcnow().isoformat(),
+                "note": "PAM savings analytics will be enabled after database migration"
+            }
         }
         
     except Exception as e:
