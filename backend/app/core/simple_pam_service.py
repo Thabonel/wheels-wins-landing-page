@@ -15,6 +15,7 @@ from app.core.logging import get_logger
 from app.services.database import get_database_service
 from app.services.ai_service import get_ai_service, AIService, AIResponse
 from app.services.cache_manager import get_cache_manager, CacheStrategy, cached
+from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator, ResponseMode
 
 logger = get_logger("simple_pam")
 
@@ -36,11 +37,19 @@ class SimplePamService:
     """
     
     def __init__(self):
-        # Initialize the AI service with database connection
+        # Initialize the enhanced orchestrator for comprehensive functionality
+        self.enhanced_orchestrator = None
+        self.orchestrator_initialized = False
+        
+        # Initialize the AI service with database connection (fallback)
         try:
             self.db_service = get_database_service()
             self.ai_service = get_ai_service(self.db_service)
             logger.info("SimplePamService initialized with enhanced AI service")
+            
+            # Initialize enhanced orchestrator asynchronously
+            asyncio.create_task(self._initialize_orchestrator())
+            
         except Exception as e:
             logger.error(f"Failed to initialize AI service: {str(e)}")
             raise PAMServiceError(f"Failed to initialize AI service: {str(e)}")
@@ -52,12 +61,9 @@ class SimplePamService:
         self.max_retries = 3
         self.retry_delay = 1  # seconds
         
-        # Initialize PAM tools - now integrated with AIService
+        # Initialize PAM tools - now integrated with Enhanced Orchestrator
         self.tools_registry = {}
         self.tools_initialized = False
-        
-        # Tool registry integration happens through AIService
-        # Tools are automatically available via function calling
     
     async def health_check(self) -> Dict[str, Any]:
         """Perform comprehensive health check on PAM service"""
@@ -113,6 +119,17 @@ class SimplePamService:
         except Exception as e:
             logger.error(f"Failed to initialize cache manager: {str(e)}")
             self.cache_manager = None
+    
+    async def _initialize_orchestrator(self):
+        """Initialize enhanced orchestrator with tool registry"""
+        try:
+            logger.info("🚀 Initializing Enhanced Orchestrator for SimplePamService...")
+            self.enhanced_orchestrator = await get_enhanced_orchestrator()
+            self.orchestrator_initialized = True
+            logger.info("✅ Enhanced Orchestrator initialized successfully with tool registry")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize enhanced orchestrator: {e}")
+            # Service falls back to AI service without orchestrator
     
     async def _warm_cache_with_common_queries(self):
         """Pre-warm cache with commonly asked questions"""
@@ -270,21 +287,62 @@ class SimplePamService:
                 except Exception as e:
                     logger.warning(f"⚠️ Could not load database context: {e}")
             
-            # Call the AI service
-            logger.info(f"🧠 Calling enhanced AI service (stream={stream})")
-            
-            if stream:
-                # For streaming responses, we need to handle differently
-                return await self._handle_streaming_response(message, enhanced_context, session_id, user_id)
-            else:
-                # Non-streaming response
-                ai_response = await self.ai_service.process_message(
+            # Use enhanced orchestrator if available, otherwise AI service
+            if self.orchestrator_initialized and self.enhanced_orchestrator:
+                logger.info(f"🚀 Using Enhanced Orchestrator with tool registry (stream={stream})")
+                
+                # Use enhanced orchestrator for comprehensive response with tools
+                orchestrator_response = await self.enhanced_orchestrator.process_message(
+                    user_id=user_id,
                     message=message,
-                    user_context=enhanced_context,
-                    temperature=0.7,
-                    max_tokens=2048,
-                    stream=False
+                    session_id=session_id,
+                    context=enhanced_context,
+                    response_mode=ResponseMode.ADAPTIVE
                 )
+                
+                # Extract response content
+                response_text = orchestrator_response.get("content", "")
+                
+                # Log tool usage if any
+                if orchestrator_response.get("capabilities_used"):
+                    logger.info(f"🔧 Tools used: {', '.join(orchestrator_response['capabilities_used'])}")
+                
+                # Save conversation if not anonymous
+                if user_id != "anonymous":
+                    try:
+                        await self.ai_service.save_conversation(
+                            user_id=user_id,
+                            session_id=session_id,
+                            user_message=message,
+                            ai_response=response_text,
+                            intent=self._extract_intent(message),
+                            context_used=enhanced_context
+                        )
+                        logger.info(f"💾 Conversation saved to database")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not save conversation: {e}")
+                
+                logger.info(f"✅ Orchestrator response: {len(response_text)} chars, "
+                          f"processing_time: {orchestrator_response.get('processing_time_ms', 0)}ms")
+                
+                return response_text
+                
+            else:
+                # Fallback to AI service
+                logger.info(f"🧠 Calling enhanced AI service (stream={stream})")
+                
+                if stream:
+                    # For streaming responses, we need to handle differently
+                    return await self._handle_streaming_response(message, enhanced_context, session_id, user_id)
+                else:
+                    # Non-streaming response
+                    ai_response = await self.ai_service.process_message(
+                        message=message,
+                        user_context=enhanced_context,
+                        temperature=0.7,
+                        max_tokens=2048,
+                        stream=False
+                    )
                 
                 if isinstance(ai_response, AIResponse):
                     response_text = ai_response.content

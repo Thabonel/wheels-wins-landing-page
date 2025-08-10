@@ -5,7 +5,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { DollarSign, TrendingUp, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
+import { usePamWebSocket as usePamWebSocketConnection } from "@/hooks/usePamWebSocket";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
