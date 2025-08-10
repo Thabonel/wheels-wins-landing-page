@@ -16,8 +16,8 @@ export const usePamWebSocket = (userId: string, token: string) => {
 
   // Memoize WebSocket URL to prevent unnecessary recalculations
   const wsUrl = useMemo(() => 
-    `${getWebSocketUrl(`/api/v1/pam/ws`)}?token=${encodeURIComponent(token)}`,
-    [token]
+    `${getWebSocketUrl(`/api/v1/pam/ws/${userId}`)}?token=${encodeURIComponent(token)}`,
+    [userId, token]
   );
 
   const sendMessage = useCallback((message: any) => {

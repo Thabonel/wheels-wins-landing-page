@@ -54,7 +54,7 @@ export const flags: FeatureFlags = {
   // Performance and monitoring
   enableAiSdkMetrics: getEnvBoolean('VITE_ENABLE_AI_SDK_METRICS', true),
   enableStreamingResponses: getEnvBoolean('VITE_ENABLE_STREAMING_RESPONSES', true),
-  enableVoiceIntegration: getEnvBoolean('VITE_ENABLE_VOICE_INTEGRATION', true),
+  enableVoiceIntegration: getEnvBoolean('VITE_ENABLE_VOICE_INTEGRATION', false), // Temporarily disabled for Phase 1
   
   // Safety measures
   enableWebSocketFallback: getEnvBoolean('VITE_ENABLE_WEBSOCKET_FALLBACK', true),
