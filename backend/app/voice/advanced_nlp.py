@@ -111,7 +111,7 @@ class AdvancedNLPProcessor:
     """
     
     def __init__(self):
-        self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY.get_secret_value())
         self.nlp = None  # Will load spaCy model
         self.conversation_context = {}
         self.command_patterns = self._initialize_command_patterns()

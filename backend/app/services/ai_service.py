@@ -108,7 +108,7 @@ class AIService:
             
             # Initialize OpenAI client
             self.client = AsyncOpenAI(
-                api_key=self.settings.OPENAI_API_KEY,
+                api_key=self.settings.OPENAI_API_KEY.get_secret_value(),
                 timeout=30.0,
                 max_retries=3
             )

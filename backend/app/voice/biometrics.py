@@ -53,7 +53,7 @@ class VoiceBiometrics:
     """
     
     def __init__(self):
-        self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY.get_secret_value())
         self.voice_profiles = {}  # Cache for voice profiles
         self.verification_threshold = 0.75
         self.min_audio_duration = 2.0  # Minimum seconds for reliable verification

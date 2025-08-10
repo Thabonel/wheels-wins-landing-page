@@ -107,7 +107,7 @@ class OpenAIWhisperEngine(STTEngineBase):
                 logger.warning("❌ OpenAI API key not configured")
                 return False
             
-            self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY.get_secret_value())
             self.is_initialized = True
             self.is_available = await self.health_check()
             

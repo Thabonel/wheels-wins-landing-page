@@ -94,7 +94,7 @@ class ObservabilityConfig:
             return None
 
         try:
-            self.openai_client = OpenAI(api_key=self.settings.OPENAI_API_KEY)
+            self.openai_client = OpenAI(api_key=self.settings.OPENAI_API_KEY.get_secret_value())
 
             # Ensure tracing is configured
             self.initialize_tracing()

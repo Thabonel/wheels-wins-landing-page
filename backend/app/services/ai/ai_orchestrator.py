@@ -81,7 +81,7 @@ class AIOrchestrator:
             try:
                 openai_config = ProviderConfig(
                     name="openai",
-                    api_key=settings.OPENAI_API_KEY,
+                    api_key=settings.OPENAI_API_KEY.get_secret_value(),
                     default_model=getattr(settings, 'OPENAI_DEFAULT_MODEL', 'gpt-4-turbo-preview'),
                     max_retries=3,
                     timeout_seconds=30
