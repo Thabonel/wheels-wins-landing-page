@@ -115,6 +115,17 @@ class ProfileRouter:
             self._cache_decision(cache_key, decision.use_case)
             return decision
         
+        # Empathy detection (second highest priority for emotional well-being)
+        if self._detect_emotional_need(message_lower):
+            decision = RouteDecision(
+                use_case=PamUseCase.EMPATHY_SUPPORT,
+                confidence=0.95,
+                reasoning="Emotional support needed",
+                fallback_options=[PamUseCase.CONVERSATION, PamUseCase.GENERAL]
+            )
+            self._cache_decision(cache_key, decision.use_case)
+            return decision
+        
         # 2. Keyword-based scoring
         keyword_scores = self._score_by_keywords(message_lower)
         for use_case, score in keyword_scores.items():
@@ -191,11 +202,35 @@ class ProfileRouter:
     def _detect_emergency(self, message_lower: str) -> bool:
         """Detect emergency situations"""
         emergency_keywords = [
-            "emergency", "help", "urgent", "accident", "broken down",
+            "emergency", "help!", "urgent", "accident", "broken down",
             "medical", "911", "hospital", "police", "fire",
             "injury", "hurt", "sick", "danger", "stranded"
         ]
         return any(keyword in message_lower for keyword in emergency_keywords)
+    
+    def _detect_emotional_need(self, message_lower: str) -> bool:
+        """Detect when emotional support is needed"""
+        # Strong emotional indicators
+        strong_indicators = [
+            "i feel lonely", "i'm feeling", "been feeling", "can't cope",
+            "need someone to talk", "just need to vent", "having a hard time",
+            "really struggling", "at my wit's end", "don't know what to do",
+            "feeling overwhelmed", "so stressed", "so anxious", "depressed",
+            "crying", "in tears", "breaking down"
+        ]
+        
+        if any(indicator in message_lower for indicator in strong_indicators):
+            return True
+        
+        # Check for multiple emotional keywords (2+ indicates likely need)
+        emotional_keywords = [
+            "lonely", "sad", "anxious", "worried", "stressed", "scared",
+            "frustrated", "overwhelmed", "upset", "homesick", "isolated",
+            "exhausted", "angry", "hurt", "grief", "loss", "alone"
+        ]
+        
+        keyword_count = sum(1 for keyword in emotional_keywords if keyword in message_lower)
+        return keyword_count >= 2
     
     def _score_by_keywords(self, message_lower: str) -> Dict[PamUseCase, float]:
         """Score use cases based on keyword matches"""
@@ -237,6 +272,20 @@ class ProfileRouter:
                 "strong": ["what time", "how far", "where is", "when does"],
                 "moderate": ["quick question", "simple", "just tell me"],
                 "weak": ["?"]  # Question mark alone is weak signal
+            },
+            PamUseCase.EMPATHY_SUPPORT: {
+                "strong": [
+                    "i feel lonely", "i'm so stressed", "feeling overwhelmed", 
+                    "can't cope", "having a hard time", "really struggling",
+                    "need someone to talk", "feeling depressed", "so anxious"
+                ],
+                "moderate": [
+                    "lonely", "sad", "anxious", "worried", "stressed", "frustrated",
+                    "overwhelmed", "upset", "homesick", "tired of this", "fed up"
+                ],
+                "weak": [
+                    "feel", "feeling", "difficult", "hard", "tough", "miss"
+                ]
             }
         }
         

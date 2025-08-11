@@ -27,6 +27,7 @@ class PamUseCase(Enum):
     WEATHER_CHECK = "weather_check"
     CAMPGROUND_SEARCH = "campground_search"
     EMERGENCY_HELP = "emergency_help"
+    EMPATHY_SUPPORT = "empathy_support"  # Emotional support and understanding
     ONBOARDING = "onboarding"
     FEEDBACK = "feedback"
     
@@ -355,6 +356,68 @@ Do NOT provide medical advice beyond basic first aid.""",
             voice_optimized=True
         )
         
+        # EMPATHY SUPPORT - Emotional understanding and support
+        profiles[PamUseCase.EMPATHY_SUPPORT] = UseCaseProfile(
+            name="Empathy Support",
+            description="Emotional support and understanding for difficult situations",
+            model=get_latest_model(ModelPurpose.EMOTIONAL),
+            fallback_models=get_model_with_fallbacks(ModelPurpose.EMOTIONAL),
+            temperature=0.9,  # Higher temperature for more nuanced emotional responses
+            max_tokens=1500,
+            system_instructions="""You are PAM, a deeply empathetic and understanding companion for RV travelers.
+
+Your approach to emotional support:
+🤗 ACTIVE LISTENING:
+- Acknowledge feelings without judgment
+- Reflect back what you hear to show understanding
+- Ask gentle, open-ended questions when appropriate
+- Give people space to express themselves fully
+
+💙 EMOTIONAL VALIDATION:
+- Validate that their feelings are real and important
+- Avoid minimizing or dismissing concerns
+- Recognize the difficulty of their situation
+- Express genuine care and concern
+
+🌟 SUPPORTIVE RESPONSES:
+- Offer comfort without trying to "fix" everything
+- Share understanding without making it about you
+- Provide encouragement that feels authentic
+- Suggest gentle, practical steps only when asked
+
+🛡️ BOUNDARIES:
+- Don't provide medical or professional therapy advice
+- Encourage professional help for serious concerns
+- Maintain appropriate emotional boundaries
+- Focus on being a supportive companion
+
+Common situations you might help with:
+- Loneliness on the road
+- Travel anxiety or fears
+- Relationship stress in confined RV spaces
+- Homesickness or missing family
+- Frustration with RV problems
+- Financial stress from travel costs
+- Health concerns while traveling
+- Grief or loss while away from home
+
+Remember: Sometimes people just need to be heard. Your warmth, understanding, and 
+genuine care can make a real difference in someone's day.""",
+            tools=ToolConfig(
+                enabled=True,
+                allowed_tools=["memory_recall", "user_preferences", "context_awareness"],
+                tool_choice="auto"
+            ),
+            optimize_for="quality",
+            voice_optimized=True,
+            voice_max_length=600,  # Longer responses for emotional support
+            response_format=ResponseFormat(
+                type="text",
+                max_length=2000
+            ),
+            stop_sequences=[]  # No stop sequences - let emotional responses flow naturally
+        )
+        
         # GENERAL - Default fallback
         profiles[PamUseCase.GENERAL] = UseCaseProfile(
             name="General",
@@ -386,9 +449,34 @@ Do NOT provide medical advice beyond basic first aid.""",
                 pass
         
         # Emergency detection (highest priority)
-        emergency_keywords = ["emergency", "help", "urgent", "accident", "broken down", "medical", "911"]
+        emergency_keywords = ["emergency", "urgent", "accident", "broken down", "medical", "911", "help!"]
         if any(keyword in message_lower for keyword in emergency_keywords):
             return PamUseCase.EMERGENCY_HELP
+        
+        # Empathy/emotional support detection (high priority)
+        empathy_keywords = [
+            "feeling", "feel", "lonely", "sad", "anxious", "worried", "stressed",
+            "scared", "afraid", "frustrated", "overwhelmed", "depressed", "upset",
+            "crying", "tears", "miss", "homesick", "struggling", "hard time",
+            "difficult", "tough", "can't cope", "exhausted", "tired of", "fed up",
+            "angry", "hurt", "pain", "grief", "loss", "alone", "isolated",
+            "need someone", "need to talk", "no one understands", "relationship",
+            "fight", "argument", "divorce", "separation", "breakup"
+        ]
+        
+        # Check for emotional phrases
+        emotional_phrases = [
+            "i feel", "i'm feeling", "makes me feel", "been feeling",
+            "don't know what to do", "at my wit's end", "can't take it",
+            "need someone to talk", "just need to vent", "having a hard time",
+            "going through", "dealing with", "cope with", "struggle with"
+        ]
+        
+        if any(keyword in message_lower for keyword in empathy_keywords):
+            return PamUseCase.EMPATHY_SUPPORT
+        
+        if any(phrase in message_lower for phrase in emotional_phrases):
+            return PamUseCase.EMPATHY_SUPPORT
         
         # Expense tracking
         expense_keywords = ["spent", "bought", "paid", "cost", "expense", "$", "dollar", "receipt"]
