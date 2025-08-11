@@ -127,6 +127,12 @@ class SecureChatRequest(BaseModel):
         default_factory=dict,
         description="Additional context data - will be validated and sanitized"
     )
+    use_case: Optional[str] = Field(
+        None,
+        pattern=r'^[a-zA-Z_]+$',
+        max_length=50,
+        description="Specific use case for optimized AI profile selection"
+    )
     voice_input: bool = Field(
         False,
         description="Whether input originated from voice"

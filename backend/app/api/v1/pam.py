@@ -30,6 +30,8 @@ from app.models.schemas.pam import (
     ContextUpdateRequest, PamFeedbackRequest, PamThumbFeedbackRequest,
     SecureWebSocketMessage, SecureChatRequest
 )
+from app.services.pam.usecase_profiles import PamUseCase
+from app.services.pam.profile_router import profile_router
 from pydantic import BaseModel
 from app.models.schemas.common import SuccessResponse, PaginationParams
 from app.core.websocket_manager import manager
@@ -1610,7 +1612,22 @@ async def chat_endpoint(
         context = request.context or {}
         context["user_id"] = str(user_id)
         
-        logger.info(f"Processing chat request for user {user_id}")
+        # Detect use case if not provided
+        use_case = None
+        if request.use_case:
+            try:
+                use_case = PamUseCase(request.use_case)
+                logger.info(f"📊 Using explicit use case: {use_case.value}")
+            except ValueError:
+                logger.warning(f"⚠️ Invalid use case provided: {request.use_case}, using auto-detection")
+        
+        if not use_case:
+            # Use profile router to detect use case
+            route_decision = profile_router.analyze_message(request.message, context)
+            use_case = route_decision.use_case
+            logger.info(f"🎯 Auto-detected use case: {use_case.value} (confidence: {route_decision.confidence:.2f})")
+        
+        logger.info(f"Processing chat request for user {user_id} with use case: {use_case.value}")
         
         # Process through SimplePamService instead of orchestrator
         from app.core.simple_pam_service import simple_pam_service
@@ -1618,12 +1635,13 @@ async def chat_endpoint(
         # Get conversation history if available
         conversation_history = context.get("conversation_history", [])
         
-        # Process through SimplePamService
+        # Process through SimplePamService with use case
         pam_response = await simple_pam_service.process_message(
             str(user_id),
             request.message,
             session_id=request.conversation_id,
-            context=context
+            context=context,
+            use_case=use_case
         )
         actions = pam_response.get("actions", [])
         
@@ -1649,9 +1667,21 @@ async def chat_endpoint(
                 "user_id": user_id,
                 "message_length": len(request.message),
                 "response_length": len(response_text),
-                "has_actions": len(actions) > 0 if actions else False
+                "has_actions": len(actions) > 0 if actions else False,
+                "use_case": use_case.value if use_case else "unknown"
             }
         )
+        
+        # Record profile metrics for performance tracking
+        if use_case and not has_error:
+            profile_router.record_performance(
+                use_case=use_case,
+                latency=processing_time_seconds,
+                tokens=len(request.message) + len(response_text),  # Rough estimate
+                cost=0.0001,  # Rough estimate
+                success=True,
+                cache_hit=pam_response.get("cached", False)
+            )
         
         session_id = request.conversation_id or request.session_id or str(uuid.uuid4())
         
@@ -1662,7 +1692,11 @@ async def chat_endpoint(
             session_id=session_id,  # Required field
             message_id=str(uuid.uuid4()),
             processing_time_ms=processing_time,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            context_updates={
+                "profile_used": use_case.value if use_case else "general",
+                "cached_response": pam_response.get("cached", False)
+            }
         )
         
         # Log successful API response

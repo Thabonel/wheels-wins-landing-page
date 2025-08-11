@@ -21,6 +21,9 @@ from app.core.ai_models_config import (
     get_latest_model, get_model_with_fallbacks
 )
 from app.services.pam.context_manager import ContextManager
+from app.services.pam.usecase_profiles import (
+    PamUseCase, UseCaseProfile, pam_profile_manager
+)
 from app.services.pam.mcp.models.context_manager import ContextManager as MCPContextManager
 from app.services.database import DatabaseService
 from app.core.exceptions import PAMError, ErrorCode
@@ -285,18 +288,21 @@ Remember: Every interaction should help the user have a better, safer, and more 
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stream: bool = False,
-        tools: Optional[List[Dict[str, Any]]] = None
+        tools: Optional[List[Dict[str, Any]]] = None,
+        use_case: Optional[PamUseCase] = None
     ) -> Union[AIResponse, AsyncGenerator[str, None]]:
         """
-        Process a user message with full context awareness
+        Process a user message with full context awareness and use-case profiles
         
         Args:
             message: User's input message
             user_context: User context including location, preferences, history
-            model: OpenAI model to use (defaults to gpt-4o)
-            temperature: Response creativity (0.0-2.0)
-            max_tokens: Maximum tokens in response
+            model: OpenAI model to use (overrides profile)
+            temperature: Response creativity (overrides profile)
+            max_tokens: Maximum tokens in response (overrides profile)
             stream: Whether to stream the response
+            tools: Available tools for function calling
+            use_case: Specific use case for profile selection
             
         Returns:
             AIResponse for non-streaming, AsyncGenerator for streaming
@@ -318,37 +324,100 @@ Remember: Every interaction should help the user have a better, safer, and more 
         start_time = time.time()
         
         try:
+            # Detect or use provided use case
+            if not use_case:
+                use_case = pam_profile_manager.detect_use_case(message, user_context)
+                logger.debug(f"🎯 Detected use case: {use_case.value}")
+            
+            # Get profile for use case
+            profile = pam_profile_manager.get_profile(use_case)
+            
+            # Allow runtime overrides from parameters
+            if model or temperature is not None or max_tokens:
+                override_context = {}
+                if model: override_context["model"] = model
+                if temperature is not None: override_context["temperature"] = temperature
+                if max_tokens: override_context["max_tokens"] = max_tokens
+                profile = pam_profile_manager.merge_with_context(profile, override_context)
+            
             # Consolidate and validate context
             consolidated_context = self.context_manager.validate_and_enrich_context(user_context)
+            consolidated_context["use_case"] = use_case.value
             
-            # Prepare messages for OpenAI
-            messages = self._prepare_context_messages(consolidated_context)
+            # Prepare messages with profile-specific instructions
+            messages = []
+            
+            # Add profile-specific system instructions
+            if profile.system_instructions:
+                messages.append({"role": "system", "content": profile.system_instructions})
+            else:
+                # Fall back to standard system prompt if no profile instructions
+                messages.extend(self._prepare_context_messages(consolidated_context))
+            
+            # Add user message
             messages.append({"role": "user", "content": message})
             
             # Optimize token usage
             messages = self._optimize_token_usage(messages)
             
-            # Configure request parameters
+            # Configure request parameters from profile
             request_params = {
-                "model": model or self.default_model,
+                "model": profile.model,
                 "messages": messages,
-                "temperature": temperature or self.temperature,
-                "max_tokens": max_tokens or self.max_tokens,
+                "temperature": profile.temperature,
+                "max_tokens": profile.max_tokens,
+                "top_p": profile.top_p,
             }
             
-            # Add function calling if available and enabled
-            if tools:
-                # Use provided tools from orchestrator
-                request_params["functions"] = tools
-                request_params["function_call"] = "auto"
-                logger.debug(f"🔧 Added {len(tools)} tools for potential calling")
-            elif self.function_calling_enabled and self.tool_registry:
-                # Use default functions from registry
-                functions = self._get_available_functions(consolidated_context)
-                if functions:
-                    request_params["functions"] = functions
-                    request_params["function_call"] = "auto"
-                    logger.debug(f"🔧 Added {len(functions)} functions for potential calling")
+            # Add stop sequences if defined
+            if profile.stop_sequences:
+                request_params["stop"] = profile.stop_sequences
+            
+            # Handle response format
+            if profile.response_format.type == "json_schema" and profile.response_format.json_schema:
+                request_params["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": profile.response_format.json_schema
+                }
+            
+            # Log profile usage for monitoring
+            logger.info(f"📊 Using profile: {profile.name} | Model: {profile.model} | Temp: {profile.temperature} | Optimize for: {profile.optimize_for}")
+            
+            # Handle tools based on profile configuration
+            if profile.tools.enabled:
+                if tools:
+                    # Use provided tools from orchestrator
+                    # Filter based on profile's allowed tools if specified
+                    if profile.tools.allowed_tools:
+                        filtered_tools = [t for t in tools if any(allowed in str(t) for allowed in profile.tools.allowed_tools)]
+                        if filtered_tools:
+                            request_params["functions"] = filtered_tools
+                            request_params["function_call"] = profile.tools.tool_choice
+                            logger.debug(f"🔧 Added {len(filtered_tools)} profile-filtered tools")
+                    else:
+                        request_params["functions"] = tools
+                        request_params["function_call"] = profile.tools.tool_choice
+                        logger.debug(f"🔧 Added {len(tools)} tools for potential calling")
+                elif self.function_calling_enabled and self.tool_registry:
+                    # Use default functions from registry
+                    functions = self._get_available_functions(consolidated_context)
+                    
+                    # Filter based on profile's allowed tools
+                    if profile.tools.allowed_tools and functions:
+                        filtered_functions = [f for f in functions if any(allowed in str(f) for allowed in profile.tools.allowed_tools)]
+                        if filtered_functions:
+                            request_params["functions"] = filtered_functions
+                            request_params["function_call"] = profile.tools.tool_choice
+                            logger.debug(f"🔧 Added {len(filtered_functions)} profile-filtered functions")
+                    elif functions:
+                        request_params["functions"] = functions
+                        request_params["function_call"] = profile.tools.tool_choice
+                        logger.debug(f"🔧 Added {len(functions)} functions for potential calling")
+                
+                # Handle force tool if specified
+                if profile.tools.force_tool and "functions" in request_params:
+                    request_params["function_call"] = {"name": profile.tools.force_tool}
+                    logger.debug(f"🎯 Forcing tool: {profile.tools.force_tool}")
             
             if stream:
                 return self._stream_response(request_params, start_time)

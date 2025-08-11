@@ -336,12 +336,15 @@ class SimplePamService:
                     return await self._handle_streaming_response(message, enhanced_context, session_id, user_id)
                 else:
                     # Non-streaming response
+                    # Extract use_case from context if present
+                    use_case = enhanced_context.get("use_case")
                     ai_response = await self.ai_service.process_message(
                         message=message,
                         user_context=enhanced_context,
                         temperature=0.7,
                         max_tokens=2048,
-                        stream=False
+                        stream=False,
+                        use_case=use_case
                     )
                 
                 if isinstance(ai_response, AIResponse):
@@ -385,12 +388,15 @@ class SimplePamService:
         """Handle streaming AI response"""
         try:
             # Get streaming response from AI service
+            # Extract use_case from context if present
+            use_case = enhanced_context.get("use_case")
             response_stream = await self.ai_service.process_message(
                 message=message,
                 user_context=enhanced_context,
                 temperature=0.7,
                 max_tokens=2048,
-                stream=True
+                stream=True,
+                use_case=use_case
             )
             
             # Return the stream wrapped in response metadata
@@ -452,7 +458,8 @@ class SimplePamService:
         user_id: str,
         message: str,
         session_id: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        use_case: Optional[Any] = None  # Accept PamUseCase
     ) -> Dict[str, Any]:
         """
         Process a message and return structured response with caching
@@ -484,6 +491,9 @@ class SimplePamService:
                 # Continue without cache
         
         try:
+            # Pass use_case to get_response
+            if use_case:
+                context["use_case"] = use_case
             response = await self.get_response(message, context)
             
             if isinstance(response, dict) and response.get("type") == "stream":
