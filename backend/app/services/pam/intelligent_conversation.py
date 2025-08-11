@@ -16,6 +16,10 @@ import asyncio
 from app.models.domain.pam import PamResponse, PamContext, PamMemory
 from app.core.exceptions import PAMError, ErrorCode
 from app.core.config import settings
+from app.core.ai_models_config import (
+    OpenAIModels, ModelPurpose,
+    get_latest_model, get_model_with_fallbacks
+)
 from app.services.pam.tools import LoadUserProfileTool, LoadRecentMemoryTool, ThinkTool
 from app.services.pam.context_engineering.enhanced_context_engine import EnhancedContextEngine
 from app.observability import observe_llm_call, observe_agent
@@ -106,7 +110,7 @@ Never be robotic or purely functional. Always respond as if you're a caring frie
             logger.error(f"Failed to initialize advanced PAM: {e}")
             raise PAMError(f"Failed to initialize AI conversation: {e}", ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE)
 
-    @observe_llm_call(model="gpt-4o", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.EMOTIONAL), provider="openai")
     async def analyze_intent(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Enhanced intent analysis with emotional awareness"""
         if not self.client:
@@ -153,7 +157,7 @@ Return ONLY a JSON object with:
 }}"""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o",  # Use better model for emotional analysis
+                model=get_latest_model(ModelPurpose.EMOTIONAL),  # Best model for emotional analysis
                 messages=[
                     {"role": "system", "content": "You are an expert at understanding both intent and emotional context in human communication."},
                     {"role": "user", "content": intent_prompt}
@@ -172,7 +176,7 @@ Return ONLY a JSON object with:
             logger.error(f"AI intent analysis failed: {e}")
             return self._fallback_intent_analysis(message)
 
-    @observe_llm_call(model="gpt-4o", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.EMOTIONAL), provider="openai")
     async def generate_response(self, message: str, context: Dict[str, Any], user_data: Optional[Dict] = None) -> Dict[str, Any]:
         """Generate emotionally intelligent, relationship-aware response with tool integration"""
         if not self.client:
@@ -272,7 +276,7 @@ ENHANCED INSTRUCTIONS:
 For complex scenarios, the Think tool insights are integrated into your context above."""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o",  # Use the best model for emotional intelligence
+                model=get_latest_model(ModelPurpose.EMOTIONAL),  # Best model for emotional intelligence
                 messages=[
                     {"role": "system", "content": personalized_prompt},
                     {"role": "user", "content": conversation_prompt}
@@ -303,7 +307,7 @@ For complex scenarios, the Think tool insights are integrated into your context 
             logger.error(f"Advanced AI response generation failed: {e}")
             raise PAMError(f"Failed to generate AI response: {e}", ErrorCode.EXTERNAL_API_ERROR)
 
-    @observe_llm_call(model="gpt-4o", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.EMOTIONAL), provider="openai")
     async def _analyze_emotional_context(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Advanced emotional intelligence analysis"""
         if not self.client:
@@ -336,7 +340,7 @@ Return JSON:
 }}"""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o",
+                model=get_latest_model(ModelPurpose.GENERAL),
                 messages=[
                     {"role": "system", "content": "You are an expert at emotional intelligence and reading between the lines of human communication. You understand the nuances of building AI-human relationships."},
                     {"role": "user", "content": emotion_prompt}
@@ -376,7 +380,7 @@ EMOTIONAL CONTEXT:
                 'response_style': 'friendly'
             }
 
-    @observe_llm_call(model="gpt-4o", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.EMOTIONAL), provider="openai")
     async def _check_proactive_opportunities(self, user_id: str, message: str, relationship_context: str) -> Optional[Dict[str, Any]]:
         """Check for proactive assistance opportunities"""
         if not self.client:
@@ -420,7 +424,7 @@ Return JSON:
 }}"""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o",
+                model=get_latest_model(ModelPurpose.GENERAL),
                 messages=[
                     {"role": "system", "content": "You are an expert at anticipating needs and providing proactive assistance in a caring, friendly way."},
                     {"role": "user", "content": proactive_prompt}
@@ -686,7 +690,7 @@ IMPORTANT: Transform this technical data into warm, conversational advice. Don't
 
 Respond with this full context in mind, showing your genuine care and the depth of your relationship. Use all available information to provide the most helpful, personalized response possible."""
 
-    @observe_llm_call(model="gpt-4o-mini", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.QUICK), provider="openai")
     async def _generate_relationship_aware_suggestions(self, user_message: str, ai_response: str, context: Dict[str, Any], pam_personality: PamPersonality, proactive_items: Optional[Dict]) -> List[str]:
         """Generate suggestions that are aware of the relationship depth"""
         if not self.client:
@@ -712,7 +716,7 @@ Generate suggestions that:
 Return ONLY a JSON array of strings: ["suggestion1", "suggestion2", "suggestion3", "suggestion4"]"""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=get_latest_model(ModelPurpose.QUICK),
                 messages=[
                     {"role": "system", "content": "Generate helpful, relationship-aware follow-up suggestions. Return only a JSON array."},
                     {"role": "user", "content": suggestions_prompt}

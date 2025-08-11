@@ -16,6 +16,14 @@ from pydantic import Field, field_validator, SecretStr, ValidationError
 from pydantic_settings import BaseSettings
 from pydantic.networks import AnyHttpUrl, PostgresDsn, RedisDsn
 
+# Import AI models configuration
+try:
+    from .ai_models_config import DEFAULT_MODEL, FALLBACK_MODELS
+except ImportError:
+    # Fallback if the new config doesn't exist yet
+    DEFAULT_MODEL = "gpt-4o"
+    FALLBACK_MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+
 
 class Environment(str, Enum):
     """Application environments"""
@@ -67,8 +75,13 @@ class Settings(BaseSettings):
     )
     
     OPENAI_MODEL: str = Field(
-        default="gpt-4-turbo-preview",
-        description="OpenAI model to use"
+        default=DEFAULT_MODEL,
+        description="OpenAI model to use (auto-updated to latest)"
+    )
+    
+    OPENAI_FALLBACK_MODELS: List[str] = Field(
+        default_factory=lambda: FALLBACK_MODELS,
+        description="Fallback models in order of preference"
     )
     
     OPENAI_MAX_TOKENS: int = Field(
