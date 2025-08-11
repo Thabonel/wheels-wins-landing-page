@@ -5,6 +5,7 @@
 
 import * as Sentry from '@sentry/react';
 import { flags } from '@/config/featureFlags';
+import { OpenAIModels } from '@/config/aiModels';
 
 interface CostEntry {
   timestamp: Date;
@@ -39,24 +40,35 @@ class AiCostMonitor {
     critical: 0.9, // 90% of budget
   };
   
-  private modelCosts = {
-    'gpt-4-turbo-preview': {
-      input: 0.01,   // per 1K tokens
-      output: 0.03,
-    },
-    'gpt-3.5-turbo': {
-      input: 0.0015,
-      output: 0.002,
-    },
-    'claude-3-sonnet-20240229': {
+  private modelCosts = this.buildModelCosts();
+  
+  private buildModelCosts(): Record<string, { input: number; output: number }> {
+    const costs: Record<string, { input: number; output: number }> = {};
+    
+    // Build from OpenAI models configuration
+    for (const [modelName, modelInfo] of Object.entries(OpenAIModels.LATEST_MODELS)) {
+      costs[modelName] = {
+        input: modelInfo.costPer1kInput,
+        output: modelInfo.costPer1kOutput
+      };
+    }
+    
+    // Add Claude models (not in OpenAI config)
+    costs['claude-3-sonnet-20240229'] = {
       input: 0.003,
       output: 0.015,
-    },
-    'claude-3-haiku-20240307': {
+    };
+    costs['claude-3-haiku-20240307'] = {
       input: 0.00025,
       output: 0.00125,
-    },
-  };
+    };
+    costs['claude-3-opus-20240229'] = {
+      input: 0.015,
+      output: 0.075,
+    };
+    
+    return costs;
+  }
 
   /**
    * Track a completed API request

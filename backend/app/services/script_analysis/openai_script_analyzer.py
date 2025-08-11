@@ -7,6 +7,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.core.ai_models_config import get_latest_model, ModelPurpose
 from app.services.cache_service import cache_service, CacheService
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ class OpenAIScriptAnalyzer:
 
         try:
             response = await self.client.chat.completions.create(
-                model="gpt-4o",
+                model=get_latest_model(ModelPurpose.ANALYSIS),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
             )

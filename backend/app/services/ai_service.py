@@ -16,6 +16,10 @@ from jwt.exceptions import InvalidTokenError
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.ai_models_config import (
+    OpenAIModels, ModelPurpose, 
+    get_latest_model, get_model_with_fallbacks
+)
 from app.services.pam.context_manager import ContextManager
 from app.services.pam.mcp.models.context_manager import ContextManager as MCPContextManager
 from app.services.database import DatabaseService
@@ -74,9 +78,9 @@ class AIService:
         self.tool_registry = None
         self.function_calling_enabled = True
         
-        # Configuration
-        self.default_model = "gpt-4o"  # GPT-4 Omni as default
-        self.fallback_models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo"]
+        # Configuration - use centralized model config
+        self.default_model = get_latest_model(ModelPurpose.GENERAL)
+        self.fallback_models = get_model_with_fallbacks(ModelPurpose.GENERAL)
         self.max_tokens = 4096
         self.temperature = 0.7
         self.max_context_length = 128000  # GPT-4 context window
@@ -162,7 +166,7 @@ class AIService:
                 return False
                 
             response = await self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=get_latest_model(ModelPurpose.QUICK),
                 messages=[{"role": "user", "content": "test"}],
                 max_tokens=1,
                 timeout=10.0
