@@ -55,7 +55,8 @@ openai-whisper>=20240930
 # lxml==4.9.3
 
 # Search APIs (optional)
-# googlemaps==4.10.0
+googlemaps==4.10.0
+yelpapi==2.5.0
 
 # Additional audio processing (optional)
 # transformers==4.36.0

@@ -1073,5 +1073,8 @@ class WebscraperTool(BaseTool):
         if self.scraping_service:
             await self.scraping_service.close()
 
-# Create global instance
+# Create global instance  
 webscraper_tool = WebscraperTool()
+
+# Export both class and instance for different import patterns
+WebScraperTool = WebscraperTool  # Alias for consistency

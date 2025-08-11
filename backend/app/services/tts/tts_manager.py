@@ -101,7 +101,7 @@ class TTSManager:
             engine = EdgeTTS()
             await engine.initialize()
             
-            if engine.is_available():
+            if engine.is_available:
                 self.engines["edge"] = engine
                 self.engine_info["edge"] = TTSEngineInfo(
                     name="Edge TTS",
@@ -132,7 +132,7 @@ class TTSManager:
             engine = CoquiTTS()
             await engine.initialize()
             
-            if engine.is_available():
+            if engine.is_available:
                 self.engines["coqui"] = engine
                 self.engine_info["coqui"] = TTSEngineInfo(
                     name="Coqui TTS",
