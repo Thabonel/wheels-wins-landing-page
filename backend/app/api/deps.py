@@ -174,27 +174,20 @@ def verify_supabase_jwt_token(
         except Exception as e:
             logger.error(f"🔐 JWT decode failed: {str(e)}")
             
-            # TEMPORARY: Check if it's a UUID token during frontend deployment transition
-            from .deps_uuid_compat import check_uuid_token
-            uuid_payload = check_uuid_token(token)
-            if uuid_payload:
-                logger.warning(f"⚠️ TEMPORARY: Accepting UUID token for user {uuid_payload['sub']} - Frontend deployment pending")
-                payload = uuid_payload
-            else:
-                # Fallback: try without any verification for debugging
-                try:
-                    payload = jwt.decode(
-                        token,
-                        options={"verify_signature": False, "verify_exp": False}
-                    )
-                    logger.warning("🔐 JWT decoded with full verification disabled")
-                except Exception as fallback_error:
-                    logger.error(f"🔐 Fallback decode also failed: {str(fallback_error)}")
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail=f"Invalid JWT format: {str(e)}",
-                        headers={"WWW-Authenticate": "Bearer"},
-                    )
+            # Fallback: try without signature verification for development
+            try:
+                payload = jwt.decode(
+                    token,
+                    options={"verify_signature": False, "verify_exp": False}
+                )
+                logger.warning("🔐 JWT decoded with full verification disabled")
+            except Exception as fallback_error:
+                logger.error(f"🔐 Fallback decode also failed: {str(fallback_error)}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid JWT format: {str(e)}",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
         
         # Validate required fields
         user_id = payload.get('sub')

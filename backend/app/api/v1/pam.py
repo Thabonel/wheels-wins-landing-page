@@ -2641,7 +2641,8 @@ async def execute_agentic_plan(
 
 @router.get("/agentic/capabilities")
 async def get_agentic_capabilities(
-    current_user = Depends(get_current_user)
+    request: Request,
+    current_user = Depends(verify_supabase_jwt_token)
 ):
     """
     Get available agentic AI capabilities and system status
