@@ -4,6 +4,12 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { 
+  getBrowserCapabilities, 
+  getBestAudioFormat, 
+  requestMicrophonePermission,
+  isVoiceRecordingSupported 
+} from '@/utils/browserCompatibility';
 
 export interface VoiceRecordingState {
   isRecording: boolean;
@@ -41,14 +47,15 @@ export const useVoiceRecording = (options: VoiceRecordingOptions = {}) => {
   const startTimeRef = useRef<number>(0);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check browser support
+  // Check browser support with compatibility utilities
   useEffect(() => {
-    const isSupported = !!(
-      navigator.mediaDevices &&
-      navigator.mediaDevices.getUserMedia &&
-      window.MediaRecorder
-    );
+    const isSupported = isVoiceRecordingSupported();
     setState(prev => ({ ...prev, isSupported }));
+    
+    if (!isSupported) {
+      const capabilities = getBrowserCapabilities();
+      console.warn('Voice recording not supported:', capabilities);
+    }
   }, []);
 
   // Update duration while recording
@@ -92,6 +99,12 @@ export const useVoiceRecording = (options: VoiceRecordingOptions = {}) => {
         duration: 0,
       }));
 
+      // Request microphone permission first
+      const hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        throw new Error('Microphone permission denied');
+      }
+
       // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -103,11 +116,8 @@ export const useVoiceRecording = (options: VoiceRecordingOptions = {}) => {
 
       streamRef.current = stream;
 
-      // Determine supported mime type
-      const mimeType = options.mimeType || 
-        (MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
-         MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' :
-         'audio/wav');
+      // Use browser compatibility utility to get best format
+      const mimeType = options.mimeType || getBestAudioFormat();
 
       // Create MediaRecorder
       const mediaRecorder = new MediaRecorder(stream, {
@@ -117,9 +127,16 @@ export const useVoiceRecording = (options: VoiceRecordingOptions = {}) => {
 
       mediaRecorderRef.current = mediaRecorder;
 
-      // Handle data available
+      // Handle data available with size limit
+      const MAX_CHUNKS = 600; // ~10 minutes at 1 chunk/second
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
+          // Prevent unbounded growth
+          if (audioChunksRef.current.length >= MAX_CHUNKS) {
+            console.warn('Max recording chunks reached, stopping recording');
+            stopRecording();
+            return;
+          }
           audioChunksRef.current.push(event.data);
           options.onDataAvailable?.(event.data);
         }
@@ -145,7 +162,8 @@ export const useVoiceRecording = (options: VoiceRecordingOptions = {}) => {
 
       // Handle errors
       mediaRecorder.onerror = (event: Event) => {
-        const error = `Recording error: ${(event as any).error}`;
+        const errorEvent = event as ErrorEvent;
+        const error = `Recording error: ${errorEvent.error || errorEvent.message || 'Unknown error'}`;
         setState(prev => ({
           ...prev,
           error,
@@ -203,12 +221,31 @@ export const useVoiceRecording = (options: VoiceRecordingOptions = {}) => {
     }
   }, [state.isRecording, state.isPaused, state.duration]);
 
+  const audioURLRef = useRef<string | null>(null);
+  
   const getAudioURL = useCallback(() => {
+    // Revoke previous URL if exists
+    if (audioURLRef.current) {
+      URL.revokeObjectURL(audioURLRef.current);
+      audioURLRef.current = null;
+    }
+    
     if (state.audioBlob) {
-      return URL.createObjectURL(state.audioBlob);
+      audioURLRef.current = URL.createObjectURL(state.audioBlob);
+      return audioURLRef.current;
     }
     return null;
   }, [state.audioBlob]);
+  
+  // Clean up blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (audioURLRef.current) {
+        URL.revokeObjectURL(audioURLRef.current);
+        audioURLRef.current = null;
+      }
+    };
+  }, []);
 
   const clearRecording = useCallback(() => {
     setState(prev => ({
@@ -223,14 +260,37 @@ export const useVoiceRecording = (options: VoiceRecordingOptions = {}) => {
   // Clean up on unmount
   useEffect(() => {
     return () => {
+      // Clean up stream
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach(track => {
+          track.stop();
+          track.enabled = false;
+        });
+        streamRef.current = null;
       }
-      if (mediaRecorderRef.current && state.isRecording) {
-        mediaRecorderRef.current.stop();
+      
+      // Clean up media recorder
+      if (mediaRecorderRef.current) {
+        if (mediaRecorderRef.current.state !== 'inactive') {
+          try {
+            mediaRecorderRef.current.stop();
+          } catch (e) {
+            console.error('Error stopping media recorder:', e);
+          }
+        }
+        mediaRecorderRef.current = null;
+      }
+      
+      // Clear audio chunks
+      audioChunksRef.current = [];
+      
+      // Clear interval if exists
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+        durationIntervalRef.current = null;
       }
     };
-  }, [state.isRecording]);
+  }, []); // Remove dependency to prevent recreation
 
   return {
     state,

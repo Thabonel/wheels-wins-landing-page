@@ -62,6 +62,14 @@ export const VoicePlaybackControls: React.FC<VoicePlaybackControlsProps> = ({
     setIsLoading(true);
     setError(null);
 
+    // Clean up previous audio element if exists
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current.load();
+      audioRef.current = null;
+    }
+
     const audio = new Audio(audioSource);
     audioRef.current = audio;
 
@@ -93,15 +101,30 @@ export const VoicePlaybackControls: React.FC<VoicePlaybackControlsProps> = ({
     return () => {
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
       }
+      
+      // Properly clean up audio element
       audio.pause();
-      audio.removeEventListener('loadedmetadata', () => {});
-      audio.removeEventListener('ended', () => {});
-      audio.removeEventListener('error', () => {});
+      audio.src = '';
+      audio.load();
+      
+      // Remove all event listeners
+      audio.onloadedmetadata = null;
+      audio.onended = null;
+      audio.onerror = null;
       
       // Clean up blob URL if we created one
       if (audioBlob && audioSource) {
-        URL.revokeObjectURL(audioSource);
+        // Delay revocation to ensure audio is fully cleaned up
+        setTimeout(() => {
+          URL.revokeObjectURL(audioSource);
+        }, 100);
+      }
+      
+      // Clear ref
+      if (audioRef.current === audio) {
+        audioRef.current = null;
       }
     };
   }, [audioSource, audioBlob, autoPlay, volume]);
