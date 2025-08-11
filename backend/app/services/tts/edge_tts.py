@@ -110,6 +110,7 @@ class EdgeTTS(BaseTTSEngine):
         """Initialize Edge TTS engine"""
         if not EDGE_TTS_AVAILABLE:
             logger.warning("⚠️ edge-tts package not available")
+            self.is_available = False
             return False
         
         try:
@@ -117,15 +118,18 @@ class EdgeTTS(BaseTTSEngine):
             health_result = await self.health_check()
             if health_result.get("status") == "healthy":
                 self.is_initialized = True
+                self.is_available = True  # Set is_available when healthy
                 self.available_voices = self.edge_voices
                 logger.info("✅ Edge TTS engine initialized successfully")
                 return True
             else:
                 logger.error("❌ Edge TTS health check failed")
+                self.is_available = False
                 return False
                 
         except Exception as e:
             logger.error(f"❌ Failed to initialize Edge TTS: {e}")
+            self.is_available = False
             return False
     
     async def synthesize(self, request: TTSRequest) -> TTSResponse:

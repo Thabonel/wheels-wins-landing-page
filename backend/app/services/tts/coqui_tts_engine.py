@@ -125,11 +125,13 @@ class CoquiTTS(BaseTTSEngine):
                 
                 if test_result and len(test_result) > 0:
                     self.is_initialized = True
+                    self.is_available = True
                     self.available_voices = self.coqui_voices
                     logger.info("✅ Coqui TTS engine initialized successfully")
                     return True
                 else:
                     logger.error("❌ Coqui TTS test synthesis failed")
+                    self.is_available = False
                     return False
             elif PYTTSX3_AVAILABLE:
                 # Fallback to pyttsx3
@@ -139,6 +141,7 @@ class CoquiTTS(BaseTTSEngine):
                     voices = self.pyttsx3_engine.getProperty('voices')
                     if voices:
                         self.is_initialized = True
+                        self.is_available = True
                         # Create basic voice profiles for pyttsx3
                         self.available_voices = [
                             VoiceProfile(
@@ -154,16 +157,20 @@ class CoquiTTS(BaseTTSEngine):
                         return True
                     else:
                         logger.error("❌ pyttsx3 initialization failed - no voices available")
+                        self.is_available = False
                         return False
                 except Exception as e:
                     logger.error(f"❌ pyttsx3 initialization failed: {e}")
+                    self.is_available = False
                     return False
             else:
                 logger.error("❌ No TTS engines available (neither Coqui TTS nor pyttsx3)")
+                self.is_available = False
                 return False
                 
         except Exception as e:
             logger.error(f"❌ Failed to initialize Coqui TTS: {e}")
+            self.is_available = False
             return False
     
     async def synthesize(self, request: TTSRequest) -> TTSResponse:

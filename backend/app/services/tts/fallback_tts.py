@@ -241,6 +241,7 @@ class SystemTTS(BaseTTSEngine):
         """Initialize system TTS engine"""
         result = await self.fallback_service.initialize()
         self.is_initialized = result
+        self.is_available = result  # Set is_available property
         
         # Set up available voices based on system capabilities
         if "macos_say" in self.fallback_service.available_engines:
@@ -395,10 +396,6 @@ class SystemTTS(BaseTTSEngine):
             "available_voices": len(self.available_voices),
             "supports_streaming": False
         }
-    
-    def is_available(self) -> bool:
-        """Check if system TTS is available"""
-        return self.is_initialized
     
     def supports_streaming(self) -> bool:
         """System TTS supports simulated streaming"""

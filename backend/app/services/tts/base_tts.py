@@ -107,6 +107,7 @@ class BaseTTSEngine(ABC):
     def __init__(self, engine_type: TTSEngine):
         self.engine_type = engine_type
         self.is_initialized = False
+        self.is_available = False  # Add is_available property
         self.available_voices: List[VoiceProfile] = []
         self.rate_limit_delay = 0.1  # Default delay between requests
         
