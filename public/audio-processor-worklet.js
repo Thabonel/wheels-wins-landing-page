@@ -86,10 +86,10 @@ class AudioProcessorWorklet extends AudioWorkletProcessor {
     const chunkData = {
       id: `worklet-${this.chunkCounter++}`,
       data: chunk,
-      timestamp: timestamp,
+      timestamp,
       sampleRate: this.sampleRate,
       duration: (this.bufferSize / this.sampleRate) * 1000,
-      analysis: analysis
+      analysis
     };
     
     // Send chunk to main thread
@@ -141,11 +141,11 @@ class AudioProcessorWorklet extends AudioWorkletProcessor {
     const spectralRolloff = this.calculateSpectralRolloff(data);
     
     return {
-      rms: rms,
-      peak: peak,
-      zcr: zcr,
-      spectralCentroid: spectralCentroid,
-      spectralRolloff: spectralRolloff,
+      rms,
+      peak,
+      zcr,
+      spectralCentroid,
+      spectralRolloff,
       avgRms: this.rmsHistory.reduce((a, b) => a + b, 0) / this.rmsHistory.length,
       avgPeak: this.peakHistory.reduce((a, b) => a + b, 0) / this.peakHistory.length,
       isSpeech: this.detectSpeech(rms, zcr),
@@ -222,9 +222,9 @@ class AudioProcessorWorklet extends AudioWorkletProcessor {
     return {
       isActive: vadScore > 0.6,
       confidence: vadScore,
-      energyScore: energyScore,
-      peakScore: peakScore,
-      zcrScore: zcrScore
+      energyScore,
+      peakScore,
+      zcrScore
     };
   }
   
@@ -257,12 +257,12 @@ class AudioProcessorWorklet extends AudioWorkletProcessor {
     this.port.postMessage({
       type: 'performance',
       metrics: {
-        avgProcessingTime: avgProcessingTime,
-        maxProcessingTime: maxProcessingTime,
-        minProcessingTime: minProcessingTime,
-        cpuUsage: cpuUsage,
-        efficiency: efficiency,
-        stability: stability,
+        avgProcessingTime,
+        maxProcessingTime,
+        minProcessingTime,
+        cpuUsage,
+        efficiency,
+        stability,
         chunksProcessed: this.chunkCounter,
         bufferSize: this.bufferSize,
         sampleRate: this.sampleRate

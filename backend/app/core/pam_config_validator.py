@@ -68,11 +68,14 @@ class PAMConfigValidator:
             self.errors.append("OPENAI_API_KEY environment variable is missing")
             return False
         
-        if not api_key.startswith('sk-'):
+        # Extract the actual key value from SecretStr
+        api_key_value = api_key.get_secret_value() if hasattr(api_key, 'get_secret_value') else str(api_key)
+        
+        if not api_key_value.startswith('sk-'):
             self.errors.append("OPENAI_API_KEY appears to be invalid (should start with 'sk-')")
             return False
         
-        if len(api_key) < 45:  # OpenAI keys are typically 51+ characters
+        if len(api_key_value) < 45:  # OpenAI keys are typically 51+ characters
             self.warnings.append("OPENAI_API_KEY appears to be shorter than expected")
         
         # Test API connectivity
@@ -243,8 +246,9 @@ def get_pam_config_summary() -> Dict[str, any]:
         "openai_api_key_configured": bool(settings.OPENAI_API_KEY),
         "openai_api_key_format_valid": bool(
             settings.OPENAI_API_KEY and 
-            settings.OPENAI_API_KEY.startswith('sk-') and 
-            len(settings.OPENAI_API_KEY) >= 45
+            hasattr(settings.OPENAI_API_KEY, 'get_secret_value') and
+            settings.OPENAI_API_KEY.get_secret_value().startswith('sk-') and 
+            len(settings.OPENAI_API_KEY.get_secret_value()) >= 45
         ),
         "supabase_url_configured": bool(settings.SUPABASE_URL),
         "supabase_key_configured": bool(settings.SUPABASE_KEY),

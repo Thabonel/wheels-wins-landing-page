@@ -20,11 +20,11 @@ if (!dsn) {
   process.exit(1);
 }
 
-console.log('✅ Sentry DSN found:', dsn.substring(0, 30) + '...');
+console.log('✅ Sentry DSN found:', `${dsn.substring(0, 30)  }...`);
 
 // Initialize Sentry
 Sentry.init({
-  dsn: dsn,
+  dsn,
   environment: process.env.VITE_SENTRY_ENVIRONMENT || 'development',
   debug: true, // Enable debug mode for testing
 });

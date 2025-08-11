@@ -1,6 +1,6 @@
 """
-Enhanced PAM Orchestrator - Phase 3 Integration Framework
-Comprehensive service orchestration with knowledge base, TTS, and advanced capabilities
+Enhanced PAM Orchestrator - AI Service Integration Framework
+Comprehensive service orchestration with OpenAI integration, knowledge base, TTS, and advanced capabilities
 """
 
 import asyncio
@@ -19,7 +19,10 @@ from app.services.database import get_database_service
 from app.services.cache import cache_service
 from app.services.pam.orchestrator import PamOrchestrator
 from app.services.pam.context_manager import ContextManager
+from app.services.ai_service import get_ai_service, AIService, AIResponse
 from app.observability import observe_agent, observe_llm_call
+from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry, ToolCapability
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -61,11 +64,27 @@ class EnhancedPamContext:
     quality_requirements: Dict[str, float]
 
 class EnhancedPamOrchestrator:
-    """Enhanced PAM orchestrator with comprehensive service integration"""
+    """Enhanced PAM orchestrator with comprehensive AI service integration"""
     
     def __init__(self):
         # Base orchestrator
         self.base_orchestrator = PamOrchestrator()
+        
+        # AI Service integration
+        self.ai_service: Optional[AIService] = None
+        
+        # Provider management
+        self.providers = {
+            'openai': {
+                'client': None,
+                'health': False,
+                'priority': 1,
+                'fallback_order': 1,
+                'last_health_check': None,
+                'error_count': 0,
+                'success_count': 0
+            }
+        }
         
         # Service integrations
         self.knowledge_service = None
@@ -84,7 +103,9 @@ class EnhancedPamOrchestrator:
             "knowledge_enhanced_responses": 0,
             "voice_responses": 0,
             "multimodal_responses": 0,
-            "service_fallbacks": 0
+            "service_fallbacks": 0,
+            "ai_service_calls": 0,
+            "provider_health_checks": 0
         }
         
         # Configuration
@@ -93,16 +114,24 @@ class EnhancedPamOrchestrator:
             "knowledge_timeout_ms": 3000,
             "tts_timeout_ms": 8000,
             "auto_fallback": True,
-            "quality_monitoring": True
+            "quality_monitoring": True,
+            "provider_health_check_interval": 300,  # 5 minutes
+            "max_provider_errors": 5
         }
     
     async def initialize(self):
         """Initialize enhanced orchestrator and all services"""
         try:
-            logger.info("🚀 Initializing Enhanced PAM Orchestrator...")
+            logger.info("🚀 Initializing Enhanced PAM Orchestrator with AI Service...")
+            
+            # Initialize AI Service first (core dependency)
+            await self._initialize_ai_service()
             
             # Initialize base orchestrator
             await self.base_orchestrator.initialize()
+            
+            # Initialize tool registry for function calling
+            await self._initialize_tool_registry()
             
             # Initialize knowledge service
             await self._initialize_knowledge_service()
@@ -127,6 +156,87 @@ class EnhancedPamOrchestrator:
         except Exception as e:
             logger.error(f"❌ Enhanced PAM Orchestrator initialization failed: {e}")
             raise
+    
+    async def _initialize_ai_service(self):
+        """Initialize AI Service integration"""
+        try:
+            logger.info("🧠 Initializing AI Service...")
+            
+            # Get the global AI service instance
+            self.ai_service = get_ai_service()
+            
+            # Wait for initialization
+            if not self.ai_service.client:
+                await self.ai_service.initialize()
+            
+            # Update provider status
+            if self.ai_service.client:
+                self.providers['openai']['client'] = self.ai_service.client
+                self.providers['openai']['health'] = True
+                self.providers['openai']['last_health_check'] = datetime.utcnow()
+                
+                # Register AI service capability
+                self.service_capabilities["ai_service"] = ServiceCapability(
+                    name="ai_service",
+                    status=ServiceStatus.HEALTHY,
+                    confidence=1.0,
+                    last_check=datetime.utcnow(),
+                    metadata=self.ai_service.get_service_stats()
+                )
+                
+                logger.info("✅ AI Service integrated successfully")
+            else:
+                raise Exception("AI Service client not available")
+                
+        except Exception as e:
+            logger.error(f"❌ AI Service initialization failed: {e}")
+            self.providers['openai']['health'] = False
+            self.providers['openai']['error_count'] += 1
+            
+            self.service_capabilities["ai_service"] = ServiceCapability(
+                name="ai_service",
+                status=ServiceStatus.UNAVAILABLE,
+                confidence=0.0,
+                last_check=datetime.utcnow(),
+                error_message=str(e)
+            )
+    
+    async def _initialize_tool_registry(self):
+        """Initialize tool registry for function calling"""
+        try:
+            logger.info("🔧 Initializing Tool Registry for function calling...")
+            
+            # Initialize the global tool registry
+            self.tool_registry = await initialize_tool_registry()
+            
+            if self.tool_registry.is_initialized:
+                tool_stats = self.tool_registry.get_tool_stats()
+                enabled_tools = tool_stats["registry_stats"]["enabled_tools"]
+                
+                self.service_capabilities["tool_registry"] = ServiceCapability(
+                    name="tool_registry",
+                    status=ServiceStatus.HEALTHY,
+                    confidence=1.0,
+                    last_check=datetime.utcnow(),
+                    metadata={
+                        "total_tools": tool_stats["registry_stats"]["total_tools"],
+                        "enabled_tools": enabled_tools,
+                        "capabilities": tool_stats["registry_stats"]["capabilities"]
+                    }
+                )
+                logger.info(f"✅ Tool Registry initialized with {enabled_tools} tools")
+            else:
+                raise Exception("Tool registry failed to initialize")
+                
+        except Exception as e:
+            logger.error(f"❌ Tool Registry initialization failed: {e}")
+            self.service_capabilities["tool_registry"] = ServiceCapability(
+                name="tool_registry",
+                status=ServiceStatus.UNAVAILABLE,
+                confidence=0.0,
+                last_check=datetime.utcnow(),
+                error_message=str(e)
+            )
     
     async def _initialize_knowledge_service(self):
         """Initialize knowledge service integration"""
@@ -162,21 +272,42 @@ class EnhancedPamOrchestrator:
             )
     
     async def _initialize_tts_service(self):
-        """Initialize TTS service integration"""
+        """Initialize enhanced TTS service integration with multi-engine support"""
         try:
-            from app.services.tts.tts_service import tts_service
+            from app.services.tts.tts_manager import get_tts_manager
             
-            if tts_service.is_initialized:
-                self.tts_service = tts_service
-                self.service_capabilities["tts"] = ServiceCapability(
-                    name="tts",
-                    status=ServiceStatus.HEALTHY,
-                    confidence=1.0,
-                    last_check=datetime.utcnow()
-                )
-                logger.info("✅ TTS service integrated")
+            logger.info("🎤 Initializing enhanced TTS Manager...")
+            self.tts_manager = get_tts_manager()
+            
+            # Wait for TTS manager to initialize all engines
+            await asyncio.sleep(2.0)  # Give engines time to initialize
+            
+            if self.tts_manager.is_initialized:
+                # Get TTS health status
+                tts_health = self.tts_manager.get_health_status()
+                available_engines = tts_health["system_health"]["available_engines"]
+                
+                if available_engines > 0:
+                    self.service_capabilities["tts"] = ServiceCapability(
+                        name="tts",
+                        status=ServiceStatus.HEALTHY,
+                        confidence=min(1.0, available_engines / 3.0),  # Full confidence with all 3 engines
+                        last_check=datetime.utcnow(),
+                        metadata=tts_health
+                    )
+                    logger.info(f"✅ Enhanced TTS Manager integrated with {available_engines} engines")
+                else:
+                    self.service_capabilities["tts"] = ServiceCapability(
+                        name="tts",
+                        status=ServiceStatus.DEGRADED,
+                        confidence=0.3,  # Text-only fallback available
+                        last_check=datetime.utcnow(),
+                        metadata=tts_health,
+                        error_message="No TTS engines available, text-only responses"
+                    )
+                    logger.warning("⚠️ TTS Manager initialized but no engines available")
             else:
-                logger.warning("⚠️ TTS service not available")
+                logger.warning("⚠️ TTS Manager not initialized")
                 self.service_capabilities["tts"] = ServiceCapability(
                     name="tts",
                     status=ServiceStatus.UNAVAILABLE,
@@ -240,15 +371,25 @@ class EnhancedPamOrchestrator:
                 user_id, session_id, context, response_mode, user_location
             )
             
-            # Process through base orchestrator first
-            base_response = await self.base_orchestrator.process_message(
-                user_id, message, session_id, context
-            )
-            
-            # Enhance response with available services
-            enhanced_response = await self._enhance_response(
-                message, base_response, enhanced_context
-            )
+            # Process with AI service if available, otherwise use base orchestrator
+            if self.ai_service and self.providers['openai']['health']:
+                logger.info("🧠 Processing with AI Service")
+                ai_response = await self._process_with_ai_service(
+                    message, enhanced_context, user_id, session_id
+                )
+                enhanced_response = ai_response
+                enhanced_response["capabilities_used"] = ["ai_service"]
+                self.performance_metrics["ai_service_calls"] += 1
+            else:
+                logger.info("🔄 Falling back to base orchestrator")
+                base_response = await self.base_orchestrator.process_message(
+                    user_id, message, session_id, context
+                )
+                
+                # Enhance response with available services
+                enhanced_response = await self._enhance_response(
+                    message, base_response, enhanced_context
+                )
             
             # Update performance metrics
             processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -297,6 +438,132 @@ class EnhancedPamOrchestrator:
                     "error": str(e),
                     "service_status": "unavailable"
                 }
+    
+    async def _process_with_ai_service(
+        self,
+        message: str,
+        enhanced_context: EnhancedPamContext,
+        user_id: str,
+        session_id: str
+    ) -> Dict[str, Any]:
+        """Process message using the AI Service"""
+        try:
+            # Prepare context for AI service with savings awareness
+            ai_context = {
+                "user_id": user_id,
+                "session_id": session_id,
+                "conversation_mode": enhanced_context.conversation_mode,
+                "user_location": enhanced_context.user_location,
+                "service_capabilities": {
+                    name: {
+                        "status": cap.status.value,
+                        "confidence": cap.confidence
+                    }
+                    for name, cap in enhanced_context.service_capabilities.items()
+                },
+                "quality_requirements": enhanced_context.quality_requirements,
+                "pam_mission": {
+                    "primary_goal": "Help users save money through intelligent recommendations",
+                    "savings_guarantee": "Users should save at least their subscription cost ($29.99/month)",
+                    "savings_approach": "Look for cost-saving alternatives, better deals, and smarter spending choices",
+                    "attribution_required": "When suggesting money-saving alternatives, use financial tools with savings attribution"
+                },
+                "savings_context": self._build_savings_context(message)
+            }
+            
+            # Add base context data
+            if hasattr(enhanced_context.base_context, '__dict__'):
+                ai_context.update(enhanced_context.base_context.__dict__)
+            
+            # Get available tools for function calling
+            tools = []
+            if hasattr(self, 'tool_registry') and self.tool_registry:
+                # Get relevant tool capabilities based on context
+                relevant_capabilities = self._determine_relevant_capabilities(message, enhanced_context)
+                tools = self.tool_registry.get_openai_functions(capabilities=relevant_capabilities)
+            
+            # Call AI service with tools for function calling
+            ai_response = await self.ai_service.process_message(
+                message=message,
+                user_context=ai_context,
+                temperature=0.7,
+                max_tokens=2048,
+                stream=False,
+                tools=tools if tools else None
+            )
+            
+            # Handle function calling if present
+            if hasattr(ai_response, 'function_calls') and ai_response.function_calls:
+                tool_results = await self._execute_tool_calls(
+                    ai_response.function_calls,
+                    user_id,
+                    enhanced_context
+                )
+                
+                # Generate final response with tool results
+                tool_context = f"""Tool execution completed. Results:
+{json.dumps(tool_results, indent=2)}
+
+Based on these results, please provide a helpful response to the user's original query: {message}"""
+                
+                ai_response = await self.ai_service.process_message(
+                    message=tool_context,
+                    user_context=ai_context,
+                    temperature=0.7,
+                    max_tokens=2048,
+                    stream=False
+                )
+            
+            if isinstance(ai_response, AIResponse):
+                # Record provider success
+                self.providers['openai']['success_count'] += 1
+                self.providers['openai']['error_count'] = max(0, self.providers['openai']['error_count'] - 1)
+                
+                response = {
+                    "content": ai_response.content,
+                    "confidence": ai_response.confidence_score or 0.9,
+                    "response_mode": enhanced_context.preferred_response_mode.value,
+                    "suggestions": [],
+                    "actions": [],
+                    "knowledge_enhanced": False,
+                    "voice_enabled": enhanced_context.tts_available,
+                    "ai_metadata": {
+                        "model": ai_response.model,
+                        "usage": ai_response.usage,
+                        "latency_ms": ai_response.latency_ms,
+                        "finish_reason": ai_response.finish_reason
+                    }
+                }
+                
+                # Add TTS enhancement if available
+                if enhanced_context.tts_available and enhanced_context.preferred_response_mode != ResponseMode.TEXT_ONLY:
+                    response["audio_data"] = await self._generate_audio(
+                        ai_response.content, enhanced_context
+                    )
+                    response["voice_enabled"] = True
+                    response["capabilities_used"] = response.get("capabilities_used", []) + ["tts"]
+                
+                return response
+            else:
+                raise Exception(f"Unexpected AI service response type: {type(ai_response)}")
+                
+        except Exception as e:
+            logger.error(f"❌ AI service processing failed: {e}")
+            
+            # Record provider failure
+            self.providers['openai']['error_count'] += 1
+            if self.providers['openai']['error_count'] >= self.config['max_provider_errors']:
+                self.providers['openai']['health'] = False
+                logger.warning("⚠️ OpenAI provider marked unhealthy due to errors")
+            
+            # Return fallback error response
+            return {
+                "content": "I'm experiencing some technical difficulties. Let me try a different approach.",
+                "confidence": 0.3,
+                "response_mode": "text_only",
+                "error": str(e),
+                "capabilities_used": ["fallback"]
+            }
     
     async def _build_enhanced_context(
         self,
@@ -494,27 +761,36 @@ class EnhancedPamOrchestrator:
         content: str,
         enhanced_context: EnhancedPamContext
     ) -> Optional[Dict[str, Any]]:
-        """Enhance response with text-to-speech audio"""
+        """Enhance response with text-to-speech audio using enhanced TTS Manager"""
         
         try:
-            # Determine appropriate context for voice
+            # Check if TTS manager is available
+            if not hasattr(self, 'tts_manager') or not self.tts_manager:
+                logger.debug("🔇 TTS Manager not available")
+                return None
+            
+            # Determine appropriate voice context
             voice_context_mapping = {
-                "voice": "voice_conversation",
-                "text": "general_conversation",
-                "mixed": "general_conversation"
+                "voice": "general",
+                "text": "general",
+                "mixed": "general",
+                "emergency": "emergency",
+                "navigation": "navigation"
             }
             
             voice_context = voice_context_mapping.get(
                 enhanced_context.conversation_mode, 
-                "general_conversation"
+                "general"
             )
             
             # Get user ID from base context
             user_id = enhanced_context.base_context.user_id
             
-            # Synthesize speech
+            # Use enhanced TTS Manager with multi-engine fallback
+            logger.debug(f"🎤 Generating TTS for context: {voice_context}, user: {user_id}")
+            
             tts_response = await asyncio.wait_for(
-                self.tts_service.synthesize_for_pam(
+                self.tts_manager.synthesize_for_pam(
                     text=content,
                     user_id=user_id,
                     context=voice_context,
@@ -634,6 +910,240 @@ class EnhancedPamOrchestrator:
             "configuration": self.config,
             "timestamp": datetime.utcnow().isoformat()
         }
+    
+    async def health_check_providers(self) -> Dict[str, Any]:
+        """Perform health checks on all providers"""
+        health_status = {}
+        
+        for provider_name, provider_info in self.providers.items():
+            try:
+                if provider_name == 'openai' and self.ai_service:
+                    # Check AI service health
+                    stats = self.ai_service.get_service_stats()
+                    is_healthy = stats["service_health"] == "healthy" and self.ai_service.client is not None
+                    
+                    health_status[provider_name] = {
+                        "healthy": is_healthy,
+                        "last_check": datetime.utcnow().isoformat(),
+                        "stats": stats,
+                        "error_count": provider_info["error_count"],
+                        "success_count": provider_info["success_count"]
+                    }
+                    
+                    # Update provider status
+                    self.providers[provider_name]["health"] = is_healthy
+                    self.providers[provider_name]["last_health_check"] = datetime.utcnow()
+                    
+                    if is_healthy:
+                        # Reset error count on successful health check
+                        self.providers[provider_name]["error_count"] = max(0, provider_info["error_count"] - 1)
+                        
+                else:
+                    health_status[provider_name] = {
+                        "healthy": False,
+                        "error": "Provider not implemented or unavailable"
+                    }
+                    
+            except Exception as e:
+                health_status[provider_name] = {
+                    "healthy": False,
+                    "error": str(e),
+                    "last_check": datetime.utcnow().isoformat()
+                }
+                
+                # Increment error count
+                self.providers[provider_name]["error_count"] += 1
+                
+        self.performance_metrics["provider_health_checks"] += 1
+        return health_status
+    
+    async def get_provider_status(self) -> Dict[str, Any]:
+        """Get current status of all providers"""
+        return {
+            "providers": {
+                name: {
+                    "health": info["health"],
+                    "priority": info["priority"],
+                    "error_count": info["error_count"],
+                    "success_count": info["success_count"],
+                    "last_health_check": info["last_health_check"].isoformat() if info["last_health_check"] else None
+                }
+                for name, info in self.providers.items()
+            },
+            "active_provider": self._get_active_provider(),
+            "fallback_available": self._has_fallback_provider()
+        }
+    
+    def _get_active_provider(self) -> Optional[str]:
+        """Get the currently active provider"""
+        healthy_providers = [
+            name for name, info in self.providers.items() 
+            if info["health"]
+        ]
+        
+        if not healthy_providers:
+            return None
+            
+        # Return provider with highest priority (lowest number)
+        return min(healthy_providers, key=lambda x: self.providers[x]["priority"])
+    
+    def _has_fallback_provider(self) -> bool:
+        """Check if fallback providers are available"""
+        healthy_count = sum(1 for info in self.providers.values() if info["health"])
+        return healthy_count > 1
+    
+    async def _generate_audio(self, content: str, enhanced_context: EnhancedPamContext) -> Optional[bytes]:
+        """Generate audio using TTS service"""
+        try:
+            if not self.tts_service:
+                return None
+                
+            tts_result = await self._enhance_with_tts(content, enhanced_context)
+            return tts_result.get("audio_data") if tts_result else None
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Audio generation failed: {e}")
+            return None
+    
+    def _determine_relevant_capabilities(self, message: str, context: EnhancedPamContext) -> List[ToolCapability]:
+        """Determine relevant tool capabilities based on message and context"""
+        capabilities = []
+        message_lower = message.lower()
+        
+        # Financial capabilities with savings awareness
+        financial_keywords = ['spend', 'spent', 'expense', 'cost', 'budget', 'money', 'paid', 'bought', 'purchased']
+        savings_keywords = ['save', 'saving', 'savings', 'cheaper', 'discount', 'deal', 'bargain', 'budget', 'alternative']
+        
+        if any(word in message_lower for word in financial_keywords + savings_keywords):
+            capabilities.append(ToolCapability.USER_DATA)
+            capabilities.append(ToolCapability.FINANCIAL)
+        
+        # Enhanced savings detection - look for money-saving opportunities
+        if any(word in message_lower for word in savings_keywords + ['expensive', 'pricey', 'afford', 'cheap']):
+            capabilities.append(ToolCapability.FINANCIAL)
+            capabilities.append(ToolCapability.LOCATION_SEARCH)  # For finding cheaper alternatives
+        
+        # Trip planning capabilities  
+        if any(word in message_lower for word in ['route', 'trip', 'drive', 'navigate', 'campground', 'rv park', 'destination']):
+            capabilities.append(ToolCapability.LOCATION_SEARCH)
+            capabilities.append(ToolCapability.TRIP_PLANNING)
+        
+        # Weather capabilities
+        if any(word in message_lower for word in ['weather', 'forecast', 'rain', 'storm', 'temperature', 'wind']):
+            capabilities.append(ToolCapability.EXTERNAL_API)
+            capabilities.append(ToolCapability.WEATHER)
+        
+        # Location search
+        if any(word in message_lower for word in ['near', 'nearby', 'find', 'search', 'where', 'restaurant', 'gas', 'fuel']):
+            capabilities.append(ToolCapability.LOCATION_SEARCH)
+        
+        # Default to common capabilities if none detected
+        if not capabilities:
+            capabilities = [ToolCapability.USER_DATA, ToolCapability.LOCATION_SEARCH, ToolCapability.EXTERNAL_API]
+        
+        return capabilities
+    
+    def _build_savings_context(self, message: str) -> Dict[str, Any]:
+        """Build savings-specific context for AI processing"""
+        message_lower = message.lower()
+        
+        savings_context = {
+            "savings_opportunity_detected": False,
+            "financial_context": "general",
+            "suggested_approach": "standard",
+            "priority": "normal"
+        }
+        
+        # Detect different types of financial contexts
+        if any(word in message_lower for word in ['expensive', 'costly', 'pricey', 'too much']):
+            savings_context.update({
+                "savings_opportunity_detected": True,
+                "financial_context": "cost_concern",
+                "suggested_approach": "find_alternatives",
+                "priority": "high",
+                "action_hint": "Look for cheaper alternatives and suggest using financial tools with savings attribution"
+            })
+        
+        elif any(word in message_lower for word in ['budget', 'save money', 'saving', 'cheaper']):
+            savings_context.update({
+                "savings_opportunity_detected": True,
+                "financial_context": "budget_conscious",
+                "suggested_approach": "optimize_spending",
+                "priority": "high",
+                "action_hint": "Provide budget-friendly options and track savings with financial tools"
+            })
+        
+        elif any(word in message_lower for word in ['spent', 'paid', 'bought', 'purchased']):
+            savings_context.update({
+                "savings_opportunity_detected": True,
+                "financial_context": "expense_reporting",
+                "suggested_approach": "expense_tracking_with_insights",
+                "priority": "medium",
+                "action_hint": "Help log expense and suggest future savings opportunities in this category"
+            })
+        
+        elif any(word in message_lower for word in ['fuel', 'gas', 'campground', 'food', 'restaurant']):
+            savings_context.update({
+                "savings_opportunity_detected": True,
+                "financial_context": "travel_expense",
+                "suggested_approach": "travel_optimization",
+                "priority": "medium",
+                "action_hint": "Suggest cost-effective travel options and track potential savings"
+            })
+        
+        return savings_context
+    
+    async def _execute_tool_calls(
+        self,
+        tool_calls: List[Dict[str, Any]],
+        user_id: str,
+        context: EnhancedPamContext
+    ) -> Dict[str, Any]:
+        """Execute tool calls from AI response"""
+        results = {}
+        
+        for tool_call in tool_calls:
+            tool_name = tool_call.get('function', {}).get('name')
+            tool_args = tool_call.get('function', {}).get('arguments', {})
+            
+            if isinstance(tool_args, str):
+                import json
+                try:
+                    tool_args = json.loads(tool_args)
+                except:
+                    tool_args = {"query": tool_args}
+            
+            logger.info(f"🔧 Executing tool: {tool_name} with args: {tool_args}")
+            
+            try:
+                # Execute tool through registry
+                execution_result = await self.tool_registry.execute_tool(
+                    tool_name=tool_name,
+                    user_id=user_id,
+                    parameters=tool_args,
+                    timeout=30
+                )
+                
+                if execution_result.success:
+                    results[tool_name] = {
+                        "success": True,
+                        "result": execution_result.result,
+                        "execution_time_ms": execution_result.execution_time_ms
+                    }
+                else:
+                    results[tool_name] = {
+                        "success": False,
+                        "error": execution_result.error
+                    }
+                    
+            except Exception as e:
+                logger.error(f"❌ Tool execution failed for {tool_name}: {e}")
+                results[tool_name] = {
+                    "success": False,
+                    "error": str(e)
+                }
+        
+        return results
     
     async def shutdown(self):
         """Shutdown enhanced orchestrator"""

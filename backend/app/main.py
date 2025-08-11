@@ -3,8 +3,25 @@ PAM Backend Main Application
 High-performance FastAPI application with comprehensive monitoring and security.
 """
 
-import asyncio
+# FORCE STAGING ENVIRONMENT - Must be first before any config imports
 import os
+if os.getenv("RENDER", False) or os.getenv("RENDER_SERVICE_ID"):
+    # Force staging environment on Render deployment
+    os.environ["ENVIRONMENT"] = "staging"
+    os.environ["NODE_ENV"] = "staging"
+    os.environ["DEBUG"] = "true"
+    os.environ["APP_URL"] = "https://pam-backend.onrender.com"
+    cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app"
+    os.environ["CORS_ALLOWED_ORIGINS"] = cors_origins
+    print("🔧 FORCED STAGING ENVIRONMENT ON RENDER:")
+    print(f"   ENVIRONMENT: {os.environ['ENVIRONMENT']}")
+    print(f"   NODE_ENV: {os.environ['NODE_ENV']}")
+    print(f"   DEBUG: {os.environ['DEBUG']}")
+    print(f"   APP_URL: {os.environ['APP_URL']}")
+    print("   ✅ Staging environment forced successfully!")
+    print(f"   📅 Deployed at: {os.environ.get('RENDER_GIT_COMMIT', 'unknown')[:8]}")
+
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 from fastapi import FastAPI, Request, UploadFile, File, Depends
@@ -19,8 +36,7 @@ from app.core.websocket_manager import manager as websocket_manager
 from app.core.middleware import setup_middleware
 from app.core.monitoring_middleware import MonitoringMiddleware
 from app.guardrails.guardrails_middleware import GuardrailsMiddleware
-from app.core.cors_config import cors_config
-from app.core.cors_middleware import EnhancedCORSMiddleware, CORSDebugMiddleware
+# CORS imports removed - using simple FastAPI CORSMiddleware approach
 
 # Import enhanced security setup
 from app.core.enhanced_security_setup import setup_enhanced_security, SecurityConfiguration
@@ -31,7 +47,15 @@ from app.core.enhanced_security_setup import setup_enhanced_security, SecurityCo
 from app.voice.stt_whisper import whisper_stt
 
 # from app.voice.tts_coqui import coqui_tts  # Temporarily disabled due to TTS dependency issues
-from app.core.config import settings
+# Try to import settings with fallback for deployment issues
+try:
+    from app.core.config import settings
+    print("✅ Using full Pydantic configuration")
+except Exception as config_error:
+    print(f"⚠️ Failed to load full config: {config_error}")
+    print("🔄 Using simple config fallback for staging...")
+    from app.core.simple_config import settings
+    print(f"✅ Simple config loaded - Environment: {settings.NODE_ENV}")
 from app.core.logging import setup_logging, get_logger
 from app.core.environment_validator import validate_environment
 
@@ -53,6 +77,7 @@ from app.api.v1 import (
     monitoring,
     receipts,
     pam,
+    pam_ai_sdk,
     auth,
     subscription,
     support,
@@ -102,7 +127,7 @@ def validate_configuration():
     # Validate required settings with defensive access
     required_settings = [
         ("SUPABASE_URL", getattr(settings, 'SUPABASE_URL', None)),
-        ("SUPABASE_KEY", getattr(settings, 'SUPABASE_KEY', None)),
+        ("SUPABASE_SERVICE_ROLE_KEY", getattr(settings, 'SUPABASE_SERVICE_ROLE_KEY', None)),
         ("SECRET_KEY", getattr(settings, 'SECRET_KEY', None)),
     ]
     
@@ -121,7 +146,7 @@ def validate_configuration():
     
     # Validate environment-specific requirements
     try:
-        environment = getattr(settings, 'ENVIRONMENT', 'production')
+        environment = getattr(settings, 'NODE_ENV', 'production')
         debug_mode = getattr(settings, 'DEBUG', False)
         openai_key = getattr(settings, 'OPENAI_API_KEY', None)
         
@@ -131,6 +156,10 @@ def validate_configuration():
             
             if debug_mode:
                 validation_errors.append("DEBUG mode should not be enabled in production")
+        elif environment == "staging":
+            # Staging is allowed to have DEBUG mode enabled
+            if not openai_key:
+                logger.warning("⚠️ OPENAI_API_KEY not set in staging - PAM features may be limited")
     except AttributeError:
         logger.warning("⚠️ Could not access environment configuration - using defaults")
     
@@ -143,7 +172,7 @@ def validate_configuration():
     else:
         logger.info("✅ Configuration validation passed")
         try:
-            logger.info(f"   Environment: {getattr(settings, 'ENVIRONMENT', 'unknown')}")
+            logger.info(f"   Environment: {getattr(settings, 'NODE_ENV', 'unknown')}")
             logger.info(f"   Debug mode: {getattr(settings, 'DEBUG', 'unknown')}")
             logger.info(f"   Site URL: {getattr(settings, 'SITE_URL', 'fallback')}")
         except AttributeError:
@@ -343,8 +372,8 @@ app = FastAPI(
     description="High-performance Personal Assistant Manager Backend with Monitoring",
     version="2.0.0",
     lifespan=lifespan,
-    docs_url="/api/docs" if settings.ENVIRONMENT != "production" else None,
-    redoc_url="/api/redoc" if settings.ENVIRONMENT != "production" else None,
+    docs_url="/api/docs" if settings.NODE_ENV != "production" else None,
+    redoc_url="/api/redoc" if settings.NODE_ENV != "production" else None,
 )
 
 # Enable distributed tracing with OpenTelemetry if available
@@ -379,56 +408,42 @@ app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
 setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
-# CORS middleware MUST be added LAST so it executes FIRST
-# Using centralized CORS configuration for better maintainability
-
-# Add our enhanced CORS middleware for fallback OPTIONS handling
-app.add_middleware(EnhancedCORSMiddleware)
-
-# Add CORS debugging middleware in development
-try:
-    if getattr(settings, 'ENVIRONMENT', 'production') == "development" or getattr(settings, 'DEBUG', False):
-        app.add_middleware(CORSDebugMiddleware)
-        logger.info("🔧 CORS debugging middleware enabled")
-except AttributeError:
-    logger.info("🔧 CORS debugging middleware enabled (fallback detection)")
-    app.add_middleware(CORSDebugMiddleware)
-
-# Add the standard FastAPI CORS middleware with our centralized configuration
-cors_config_dict = cors_config.get_cors_config_dict()
-app.add_middleware(CORSMiddleware, **cors_config_dict)
-
-# Log the final CORS configuration
-logger.info(f"🔒 CORS Configuration Applied:")
-logger.info(f"   Total origins: {len(cors_config.origins)}")
-logger.info(f"   Origins: {cors_config.origins}")
-logger.info(f"   Methods: {cors_config.allowed_methods}")
-logger.info(f"   Headers: {len(cors_config.allowed_headers)} headers configured")
-
-# CORS middleware handles OPTIONS requests automatically
-# But we still need a catch-all OPTIONS handler for proper preflight responses
-
-
-# Global OPTIONS handler to ensure all preflight requests get proper responses
-@app.options("/{full_path:path}")
-async def catch_all_options(request: Request, full_path: str):
-    """
-    Global OPTIONS handler for all routes to ensure CORS preflight requests work properly.
-    The CORS middleware adds headers, but we need to return a proper 200 response.
-    """
-    origin = request.headers.get("origin")
-    method = request.headers.get("access-control-request-method")
-    headers = request.headers.get("access-control-request-headers")
+# CORS Configuration - Simple and Proven Approach
+# Using FastAPI's standard CORSMiddleware with comprehensive origins
+allowed_origins = [
+    # Production origins
+    "https://wheelsandwins.com",
+    "https://www.wheelsandwins.com", 
+    "https://wheelz-wins.com",
+    "https://www.wheelz-wins.com",
+    "https://wheels-wins-landing-page.netlify.app",
+    "https://charming-figolla-d83b68.netlify.app",
     
-    logger.debug(f"OPTIONS request for /{full_path} from origin: {origin}")
+    # Staging origins
+    "https://staging-wheelsandwins.netlify.app",
+    "https://wheels-wins-staging.netlify.app",
+    "https://wheelsandwins-staging.netlify.app",
+    "https://wheels-wins-test.netlify.app",
     
-    # Create proper OPTIONS response using our CORS config
-    return cors_config.create_options_response(
-        origin=origin,
-        requested_method=method,
-        requested_headers=headers,
-        cache_bust=True
-    )
+    # Development origins (only in development)
+    *(["http://localhost:3000", "http://localhost:8080", "http://localhost:5173", 
+       "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://127.0.0.1:5173"] 
+      if getattr(settings, 'NODE_ENV', 'production') == 'development' else [])
+]
+
+# Add CORS middleware - This handles ALL CORS including OPTIONS preflight
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["Content-Type", "Authorization", "X-Request-ID"]
+)
+logger.info(f"✅ CORS middleware configured with {len(allowed_origins)} origins")
+
+# FastAPI's CORSMiddleware handles ALL OPTIONS requests automatically
+# No need for additional OPTIONS handlers - they can cause conflicts
 
 
 # Add root route handler
@@ -467,14 +482,14 @@ async def cors_debug_info(request: Request):
     return {
         "timestamp": datetime.utcnow().isoformat(),
         "request_origin": origin,
-        "configured_cors_origins": cors_config.origins,
-        "origin_allowed": cors_config.is_origin_allowed(origin) if origin != "No origin header" else False,
-        "environment": getattr(settings, 'ENVIRONMENT', 'unknown'),
-        "total_origins": len(cors_config.origins),
+        "configured_cors_origins": allowed_origins,
+        "origin_allowed": origin in allowed_origins if origin != "No origin header" else False,
+        "environment": getattr(settings, 'NODE_ENV', 'unknown'),
+        "total_origins": len(allowed_origins),
         "cors_config": {
-            "allowed_methods": cors_config.allowed_methods,
-            "allowed_headers": cors_config.allowed_headers[:10],  # First 10 for brevity
-            "expose_headers": cors_config.expose_headers,
+            "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            "allowed_headers": "*",
+            "expose_headers": ["Content-Type", "Authorization", "X-Request-ID"],
         },
         "help": "Use this endpoint to verify if your frontend origin is in the CORS allow list"
     }
@@ -487,14 +502,14 @@ async def cors_stats():
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "cors_configuration": {
-                "total_origins": len(cors_config.origins),
-                "origins_sample": cors_config.origins[:5],
-                "methods_count": len(cors_config.allowed_methods),
-                "headers_count": len(cors_config.allowed_headers),
-                "expose_headers_count": len(cors_config.expose_headers),
+                "total_origins": len(allowed_origins),
+                "origins_sample": allowed_origins[:5],
+                "methods_count": 6,  # GET, POST, PUT, DELETE, OPTIONS, PATCH
+                "headers_count": "*",
+                "expose_headers_count": 3,  # Content-Type, Authorization, X-Request-ID
             },
             "system_info": {
-                "environment": getattr(settings, 'ENVIRONMENT', 'unknown'),
+                "environment": getattr(settings, 'NODE_ENV', 'unknown'),
                 "cors_debugging_enabled": True,
                 "enhanced_middleware_active": True,
             },
@@ -505,7 +520,7 @@ async def cors_stats():
             "timestamp": datetime.utcnow().isoformat(),
             "error": f"Failed to get CORS stats: {str(e)}",
             "cors_basic_info": {
-                "total_origins": len(cors_config.origins),
+                "total_origins": len(allowed_origins),
                 "status": "CORS config loaded"
             }
         }
@@ -527,6 +542,7 @@ app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
+app.include_router(pam_ai_sdk.router, prefix="/api/v1/pam-ai-sdk", tags=["PAM AI SDK"])
 app.include_router(profiles.router, prefix="/api/v1", tags=["Profiles"])
 app.include_router(user_settings.router, prefix="/api/v1", tags=["User Settings"])
 app.include_router(products.router, prefix="/api/v1", tags=["Products"])
@@ -1089,9 +1105,9 @@ if __name__ == "__main__":
         "app.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=settings.ENVIRONMENT == "development",
-        workers=1 if settings.ENVIRONMENT == "development" else 4,
+        reload=settings.NODE_ENV == "development",
+        workers=1 if settings.NODE_ENV == "development" else 4,
         loop="uvloop",
         http="httptools",
-        access_log=settings.ENVIRONMENT == "development",
+        access_log=settings.NODE_ENV == "development",
     )

@@ -7,90 +7,198 @@ interface WebSocketMessage {
   message: string;
 }
 
+type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
 export const usePamWebSocket = (userId: string, token: string) => {
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
+  const messageQueue = useRef<any[]>([]);
 
   // Memoize WebSocket URL to prevent unnecessary recalculations
-  const wsUrl = useMemo(() => 
-    `${getWebSocketUrl(`/api/v1/pam/ws`)}?token=${encodeURIComponent(token)}`,
-    [token]
-  );
+  const wsUrl = useMemo(() => {
+    // Ensure userId is a string
+    const userIdString = typeof userId === 'string' ? userId : String(userId);
+    const tokenString = typeof token === 'string' ? token : String(token || '');
+    
+    return `${getWebSocketUrl(`/api/v1/pam/ws/${userIdString}`)}?token=${encodeURIComponent(tokenString)}`;
+  }, [userId, token]);
 
   const sendMessage = useCallback((message: any) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message));
-      return true;
+    if (!message) {
+      console.warn('Attempted to send empty message to PAM WebSocket');
+      return false;
     }
-    return false;
-  }, []);
 
-  const connect = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify(message));
+        console.log('Message sent to PAM:', message);
+        return true;
+      } catch (error) {
+        console.error('Error sending message to PAM:', error);
+        return false;
+      }
+    } else {
+      // Queue message if not connected
+      messageQueue.current.push(message);
+      console.log('Message queued (WebSocket not ready):', message);
+      
+      // Attempt to connect if not already connecting
+      if (connectionStatus === 'disconnected' || connectionStatus === 'error') {
+        connect().catch(console.error);
+      }
+      return false;
+    }
+  }, [connectionStatus]);
 
-    // Clear any existing reconnect timeout
+  const connect = useCallback((): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      // If already connected, resolve immediately
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        setConnectionStatus('connected');
+        resolve();
+        return;
+      }
+
+      // If currently connecting, wait for connection to complete
+      if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
+        const checkConnection = setInterval(() => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            clearInterval(checkConnection);
+            setConnectionStatus('connected');
+            resolve();
+          } else if (wsRef.current?.readyState === WebSocket.CLOSED || wsRef.current?.readyState === WebSocket.CLOSING) {
+            clearInterval(checkConnection);
+            setConnectionStatus('error');
+            reject(new Error('WebSocket connection failed'));
+          }
+        }, 100);
+        return;
+      }
+
+      // Clear any existing reconnect timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
+      try {
+        setConnectionStatus('connecting');
+        console.log('PAM WebSocket connecting to:', wsUrl);
+        wsRef.current = new WebSocket(wsUrl);
+
+        wsRef.current.onopen = () => {
+          console.log('PAM WebSocket connected successfully');
+          setIsConnected(true);
+          setConnectionStatus('connected');
+          reconnectAttempts.current = 0; // Reset on successful connection
+          
+          // Process queued messages
+          if (messageQueue.current.length > 0) {
+            console.log(`Processing ${messageQueue.current.length} queued messages`);
+            const queue = [...messageQueue.current];
+            messageQueue.current = [];
+            
+            queue.forEach(queuedMessage => {
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                try {
+                  wsRef.current.send(JSON.stringify(queuedMessage));
+                  console.log('Queued message sent:', queuedMessage);
+                } catch (error) {
+                  console.error('Error sending queued message:', error);
+                }
+              }
+            });
+          }
+          
+          resolve();
+        };
+
+        wsRef.current.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            setMessages((prev) => [...prev, message]);
+          } catch (error) {
+            console.error('Failed to parse PAM message:', error);
+          }
+        };
+
+        wsRef.current.onclose = (event) => {
+          console.log('PAM WebSocket closed:', event.code, event.reason);
+          setIsConnected(false);
+          setConnectionStatus('disconnected');
+          
+          // Implement exponential backoff for reconnection
+          const maxReconnectAttempts = 5;
+          if (reconnectAttempts.current < maxReconnectAttempts) {
+            const delay = Math.pow(2, reconnectAttempts.current) * 1000; // 1s, 2s, 4s, 8s, 16s
+            reconnectAttempts.current++;
+            console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
+            reconnectTimeoutRef.current = setTimeout(() => {
+              connect().catch(console.error);
+            }, delay);
+          } else {
+            console.log('Max reconnection attempts reached');
+            setConnectionStatus('error');
+          }
+        };
+
+        wsRef.current.onerror = (error) => {
+          console.error('PAM WebSocket error:', error);
+          setIsConnected(false);
+          setConnectionStatus('error');
+          reject(new Error(`WebSocket connection error: ${error}`));
+        };
+      } catch (error) {
+        console.error('Failed to connect to PAM WebSocket:', error);
+        setIsConnected(false);
+        setConnectionStatus('error');
+        reject(error);
+      }
+    });
+  }, [wsUrl]);
+
+  const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-
-    try {
-      wsRef.current = new WebSocket(wsUrl);
-
-      wsRef.current.onopen = () => {
-        setIsConnected(true);
-        reconnectAttempts.current = 0; // Reset on successful connection
-      };
-
-      wsRef.current.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          setMessages((prev) => [...prev, message]);
-        } catch (error) {
-          console.error('Failed to parse PAM message:', error);
-        }
-      };
-
-      wsRef.current.onclose = () => {
-        setIsConnected(false);
-        // Implement exponential backoff for reconnection
-        const maxReconnectAttempts = 5;
-        if (reconnectAttempts.current < maxReconnectAttempts) {
-          const delay = Math.pow(2, reconnectAttempts.current) * 1000; // 1s, 2s, 4s, 8s, 16s
-          reconnectAttempts.current++;
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, delay);
-        }
-      };
-
-      wsRef.current.onerror = () => {
-        setIsConnected(false);
-      };
-    } catch (error) {
-      console.error('Failed to connect to PAM WebSocket:', error);
-      setIsConnected(false);
+    
+    if (wsRef.current) {
+      wsRef.current.close(1000, 'User initiated disconnect');
+      wsRef.current = null;
     }
-  }, [wsUrl]);
+    
+    setIsConnected(false);
+    setConnectionStatus('disconnected');
+    messageQueue.current = []; // Clear any queued messages
+    reconnectAttempts.current = 0;
+  }, []);
 
   useEffect(() => {
-    connect();
+    // Only connect if we have a valid token
+    if (token && token.trim()) {
+      connect().catch(error => {
+        console.error('Initial PAM WebSocket connection failed:', error);
+      });
+    }
     return () => {
       // Clean up on unmount
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      wsRef.current?.close();
+      disconnect();
     };
-  }, [connect]);
+  }, [token]); // Remove connect from dependencies to avoid infinite loop
 
   return {
     isConnected,
     messages,
     sendMessage,
     connect,
+    disconnect,
+    connectionStatus,
+    isConnecting: connectionStatus === 'connecting',
   };
 };

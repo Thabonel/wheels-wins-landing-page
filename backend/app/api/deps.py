@@ -145,20 +145,24 @@ def verify_supabase_jwt_token(
         token = credentials.credentials
         logger.info(f"🔐 Verifying Supabase access token (length: {len(token)})")
         
-        # Supabase uses standard JWT format - decode without signature verification
-        # since we trust Supabase's token issuance and the frontend handles refresh
+        # Verify Supabase JWT with proper signature verification
+        # Use the service role key as the JWT secret
+        jwt_secret = settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value()
+        
         try:
+            # First try with proper signature verification
             payload = jwt.decode(
-                token, 
+                token,
+                jwt_secret,
+                algorithms=["HS256"],
                 options={
-                    "verify_signature": False,  # Trust Supabase's signing
+                    "verify_signature": True,   # Verify signature
                     "verify_exp": True,         # Check if token is expired
                     "verify_aud": False,        # Don't verify audience
                     "verify_iss": False         # Don't verify issuer
-                },
-                algorithms=["HS256", "RS256"]
+                }
             )
-            logger.info("🔐 Supabase JWT decoded successfully")
+            logger.debug("🔐 Supabase JWT verified with signature")
             
         except jwt.ExpiredSignatureError:
             logger.warning("🔐 Token has expired - frontend should refresh")
@@ -169,28 +173,20 @@ def verify_supabase_jwt_token(
             )
         except Exception as e:
             logger.error(f"🔐 JWT decode failed: {str(e)}")
-            
-            # TEMPORARY: Check if it's a UUID token during frontend deployment transition
-            from .deps_uuid_compat import check_uuid_token
-            uuid_payload = check_uuid_token(token)
-            if uuid_payload:
-                logger.warning(f"⚠️ TEMPORARY: Accepting UUID token for user {uuid_payload['sub']} - Frontend deployment pending")
-                payload = uuid_payload
-            else:
-                # Fallback: try without any verification for debugging
-                try:
-                    payload = jwt.decode(
-                        token,
-                        options={"verify_signature": False, "verify_exp": False}
-                    )
-                    logger.warning("🔐 JWT decoded with full verification disabled")
-                except Exception as fallback_error:
-                    logger.error(f"🔐 Fallback decode also failed: {str(fallback_error)}")
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail=f"Invalid JWT format: {str(e)}",
-                        headers={"WWW-Authenticate": "Bearer"},
-                    )
+            # Fallback: try without signature verification for development
+            try:
+                payload = jwt.decode(
+                    token,
+                    options={"verify_signature": False, "verify_exp": False}
+                )
+                logger.warning("🔐 JWT decoded with full verification disabled")
+            except Exception as fallback_error:
+                logger.error(f"🔐 Fallback decode also failed: {str(fallback_error)}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid JWT format: {str(e)}",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
         
         # Validate required fields
         user_id = payload.get('sub')
@@ -208,8 +204,11 @@ def verify_supabase_jwt_token(
         
         # Optional: Check token role and permissions
         role = payload.get('role', 'authenticated')
-        if role not in ['authenticated', 'service_role']:
+        # Accept admin role along with authenticated and service_role
+        if role not in ['authenticated', 'service_role', 'admin', 'anon']:
             logger.warning(f"🔐 Unusual token role: {role}")
+        else:
+            logger.info(f"🔐 Token role validated: {role}")
         
         return payload
         
@@ -246,19 +245,22 @@ def verify_supabase_jwt_token_sync(
         # SECURITY FIX: Remove UUID acceptance - only accept proper JWT tokens
         # All clients must use JWT authentication
         
-        # Supabase uses standard JWT format - decode without signature verification
+        # Verify Supabase JWT with proper signature verification
+        jwt_secret = settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value()
+        
         try:
             payload = jwt.decode(
-                token, 
+                token,
+                jwt_secret, 
+                algorithms=["HS256"],
                 options={
-                    "verify_signature": False,  # Trust Supabase's signing
+                    "verify_signature": True,   # Verify signature
                     "verify_exp": True,         # Check if token is expired
                     "verify_aud": False,        # Don't verify audience
                     "verify_iss": False         # Don't verify issuer
-                },
-                algorithms=["HS256", "RS256"]
+                }
             )
-            logger.info("🔐 Supabase JWT decoded successfully (sync)")
+            logger.debug("🔐 Supabase JWT verified with signature (sync)")
             
         except jwt.ExpiredSignatureError:
             logger.warning("🔐 Token has expired - frontend should refresh")

@@ -11,6 +11,11 @@ import os
 from typing import Optional, Dict, Any
 
 from app.core.logging import get_logger
+from .base_tts import (
+    BaseTTSEngine, TTSEngine, VoiceProfile, VoiceSettings, AudioFormat,
+    TTSRequest, TTSResponse, AudioChunk, VoiceStyle
+)
+from typing import AsyncGenerator, List
 
 logger = get_logger(__name__)
 
@@ -223,5 +228,187 @@ class FallbackTTSService:
         logger.info("✅ Fallback TTS service shutdown")
 
 
-# Global instance
+class SystemTTS(BaseTTSEngine):
+    """
+    System TTS Engine wrapper that integrates FallbackTTSService with BaseTTSEngine interface
+    """
+    
+    def __init__(self):
+        super().__init__(TTSEngine.AZURE)  # Using AZURE as generic system TTS
+        self.fallback_service = FallbackTTSService()
+        
+    async def initialize(self) -> bool:
+        """Initialize system TTS engine"""
+        result = await self.fallback_service.initialize()
+        self.is_initialized = result
+        self.is_available = result  # Set is_available property
+        
+        # Set up available voices based on system capabilities
+        if "macos_say" in self.fallback_service.available_engines:
+            self.available_voices = [
+                VoiceProfile(
+                    voice_id="Alex",
+                    name="Alex",
+                    gender="male",
+                    age="middle",
+                    accent="american",
+                    engine=TTSEngine.AZURE
+                ),
+                VoiceProfile(
+                    voice_id="Samantha",
+                    name="Samantha",
+                    gender="female",
+                    age="young",
+                    accent="american",
+                    engine=TTSEngine.AZURE
+                )
+            ]
+        elif "espeak" in self.fallback_service.available_engines:
+            self.available_voices = [
+                VoiceProfile(
+                    voice_id="en",
+                    name="English Default",
+                    gender="neutral",
+                    age="middle",
+                    accent="british",
+                    engine=TTSEngine.AZURE
+                )
+            ]
+        elif "powershell_tts" in self.fallback_service.available_engines:
+            self.available_voices = [
+                VoiceProfile(
+                    voice_id="Microsoft David Desktop",
+                    name="David",
+                    gender="male",
+                    age="middle",
+                    accent="american",
+                    engine=TTSEngine.AZURE
+                )
+            ]
+        else:
+            # Text-only fallback
+            self.available_voices = [
+                VoiceProfile(
+                    voice_id="text_only",
+                    name="Text Only",
+                    gender="neutral",
+                    age="middle",
+                    accent="neutral",
+                    engine=TTSEngine.AZURE
+                )
+            ]
+        
+        return result
+    
+    async def synthesize(self, request: TTSRequest) -> TTSResponse:
+        """Synthesize speech using system fallback"""
+        if not self.is_initialized:
+            return TTSResponse(
+                request=request,
+                success=False,
+                error="System TTS engine not initialized"
+            )
+        
+        try:
+            result = await self.fallback_service.synthesize_speech(
+                text=request.text,
+                user_id=request.user_id
+            )
+            
+            if result and result.get("success"):
+                return TTSResponse(
+                    request=request,
+                    audio_data=result.get("audio_data"),
+                    duration_ms=int(result.get("duration", 0) * 1000),
+                    generation_time_ms=0,  # Not tracked by fallback service
+                    engine_used=TTSEngine.AZURE,
+                    success=True
+                )
+            else:
+                return TTSResponse(
+                    request=request,
+                    success=False,
+                    error="System TTS synthesis failed",
+                    engine_used=TTSEngine.AZURE
+                )
+        
+        except Exception as e:
+            return TTSResponse(
+                request=request,
+                success=False,
+                error=f"System TTS error: {str(e)}",
+                engine_used=TTSEngine.AZURE
+            )
+    
+    async def synthesize_stream(self, request: TTSRequest) -> AsyncGenerator[AudioChunk, None]:
+        """System TTS doesn't support streaming - synthesize then chunk"""
+        try:
+            response = await self.synthesize(request)
+            
+            if response.success and response.audio_data:
+                # Split audio data into chunks
+                chunk_size = 4096
+                audio_data = response.audio_data
+                total_chunks = (len(audio_data) + chunk_size - 1) // chunk_size
+                
+                for i in range(total_chunks):
+                    start_idx = i * chunk_size
+                    end_idx = min((i + 1) * chunk_size, len(audio_data))
+                    chunk_data = audio_data[start_idx:end_idx]
+                    
+                    yield AudioChunk(
+                        data=chunk_data,
+                        sample_rate=22050,
+                        format=AudioFormat.WAV,
+                        chunk_index=i,
+                        is_final=(i == total_chunks - 1)
+                    )
+            else:
+                yield AudioChunk(
+                    data=b'',
+                    sample_rate=22050,
+                    format=request.format,
+                    chunk_index=0,
+                    is_final=True,
+                    metadata={"error": response.error or "System TTS failed"}
+                )
+                
+        except Exception as e:
+            yield AudioChunk(
+                data=b'',
+                sample_rate=22050,
+                format=request.format,
+                chunk_index=0,
+                is_final=True,
+                metadata={"error": f"System TTS streaming failed: {str(e)}"}
+            )
+    
+    async def get_available_voices(self) -> List[VoiceProfile]:
+        """Get list of available system voices"""
+        return self.available_voices
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Check system TTS health"""
+        return {
+            "status": "healthy" if self.is_initialized else "unhealthy",
+            "engine_available": self.is_initialized,
+            "available_engines": self.fallback_service.available_engines if self.fallback_service else [],
+            "available_voices": len(self.available_voices),
+            "supports_streaming": False
+        }
+    
+    def supports_streaming(self) -> bool:
+        """System TTS supports simulated streaming"""
+        return True
+    
+    def get_supported_formats(self) -> List[AudioFormat]:
+        """System TTS supported formats"""
+        return [AudioFormat.WAV]
+    
+    def get_max_text_length(self) -> int:
+        """System TTS text length limit"""
+        return 5000
+
+
+# Global instances
 fallback_tts_service = FallbackTTSService()

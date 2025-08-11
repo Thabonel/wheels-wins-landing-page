@@ -14,7 +14,7 @@ setup_logging()
 logger = get_logger(__name__)
 
 # Set OpenAI API key
-openai.api_key = settings.OPENAI_API_KEY
+openai.api_key = settings.OPENAI_API_KEY.get_secret_value() if settings.OPENAI_API_KEY else None
 
 class ChatRequest(BaseModel):
     message: str

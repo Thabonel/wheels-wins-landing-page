@@ -9,12 +9,60 @@
       "ai_services": ["OpenAI", "Edge TTS", "Coqui TTS", "PAM Assistant"]
     }
   },
+  "enableSubagents": true,
   "agents": {
     "parallel_limit": 3,
     "timeout_minutes": 10,
     "retry_attempts": 2,
     "context_sharing": true,
-    "verbose_logging": true
+    "verbose_logging": true,
+    "available": {
+      "bugbot": {
+        "description": "Bug detection, analysis, and fixing specialist",
+        "specialization": "Debugging across frontend and backend",
+        "priority": "high"
+      },
+      "test-writer": {
+        "description": "Test suite developer",
+        "specialization": "React Testing Library, Vitest, Playwright",
+        "priority": "high"
+      },
+      "code-analyzer": {
+        "description": "Code quality specialist",
+        "specialization": "TypeScript, React patterns, ESLint",
+        "priority": "medium"
+      },
+      "performance-optimizer": {
+        "description": "Performance engineer",
+        "specialization": "Vite optimization, lazy loading, caching",
+        "priority": "medium"
+      },
+      "security-auditor": {
+        "description": "Security specialist",
+        "specialization": "Authentication, API security, data protection",
+        "priority": "high"
+      },
+      "pam-enhancer": {
+        "description": "PAM AI specialist",
+        "specialization": "Voice integration, WebSocket, AI responses",
+        "priority": "high"
+      },
+      "ui-ux-designer": {
+        "description": "UI/UX developer",
+        "specialization": "Radix UI, Tailwind CSS, accessibility",
+        "priority": "medium"
+      },
+      "database-architect": {
+        "description": "Database specialist",
+        "specialization": "PostgreSQL, Supabase, RLS policies",
+        "priority": "medium"
+      },
+      "docs-writer": {
+        "description": "Documentation specialist",
+        "specialization": "API docs, user guides, technical writing",
+        "priority": "low"
+      }
+    }
   },
   "workflows": {
     "auto_testing": true,

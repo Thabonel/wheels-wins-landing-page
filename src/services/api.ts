@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL || 
   import.meta.env.VITE_BACKEND_URL || 
-  'https://pam-backend.onrender.com';
+  'https://wheels-wins-backend-staging.onrender.com';
 
 // Allow overriding the WebSocket endpoint separately if needed
 const WS_OVERRIDE = import.meta.env.VITE_PAM_WEBSOCKET_URL;
@@ -184,12 +184,13 @@ export function getWebSocketUrl(path: string) {
   // Use explicit WebSocket override if provided
   if (WS_OVERRIDE) {
     console.log('✅ Using WebSocket override:', WS_OVERRIDE);
-    // If override already includes the path, use as-is
-    if (WS_OVERRIDE.includes(path)) {
-      return WS_OVERRIDE;
-    }
-    // Otherwise append the path (shouldn't happen with current config)
-    return WS_OVERRIDE + path;
+    // IMPORTANT: Never use the override as-is if it contains a partial path
+    // We need to properly construct the URL with the user ID
+    // Strip any existing /api/v1/pam/ws from the override
+    const cleanOverride = WS_OVERRIDE.replace(/\/api\/v1\/pam\/ws.*$/, '');
+    const finalUrl = cleanOverride + path;
+    console.log('🔗 Constructed WebSocket URL from override:', finalUrl);
+    return finalUrl;
   }
 
   // Otherwise derive from the HTTP base URL

@@ -126,7 +126,7 @@ export class AuthTestSuite {
       return {
         tokenLength: result.token.length,
         shouldRefresh: result.shouldRefresh,
-        tokenPreview: result.token.substring(0, 30) + '...'
+        tokenPreview: `${result.token.substring(0, 30)  }...`
       };
     });
   }
@@ -242,7 +242,7 @@ export class AuthTestSuite {
       // Import the URL creation function
       const { createAuthenticatedWebSocketUrl } = await import('./websocketAuth');
       
-      const baseUrl = 'wss://pam-backend.onrender.com/api/v1/pam/ws';
+      const baseUrl = 'wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/test-user-id';
       const wsUrl = createAuthenticatedWebSocketUrl(baseUrl, tokenResult.token);
       
       // Validate URL format
@@ -270,7 +270,7 @@ export class AuthTestSuite {
 
   async testBackendConnectivity(): Promise<TestResult> {
     return this.runTest('Backend Connectivity', async () => {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
       
       // Test health endpoint
       const healthResponse = await fetch(`${backendUrl}/health`, {

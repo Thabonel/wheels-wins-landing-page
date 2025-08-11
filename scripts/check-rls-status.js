@@ -63,7 +63,7 @@ async function checkTableStatus() {
   }
 
   // Summary
-  console.log('\n' + '=' .repeat(60));
+  console.log(`\n${  '=' .repeat(60)}`);
   console.log('\n📊 SUMMARY:\n');
   
   if (results.working.length > 0) {
@@ -79,7 +79,7 @@ async function checkTableStatus() {
   }
 
   // Action items
-  console.log('\n' + '=' .repeat(60));
+  console.log(`\n${  '=' .repeat(60)}`);
   console.log('\n🔧 REQUIRED ACTIONS:\n');
   
   if (results.missing.length > 0 || results.failing.length > 0) {
@@ -97,7 +97,7 @@ async function checkTableStatus() {
     console.log('🎉 All tables are working correctly! No action needed.');
   }
   
-  console.log('\n' + '=' .repeat(60));
+  console.log(`\n${  '=' .repeat(60)}`);
 }
 
 // Run the check

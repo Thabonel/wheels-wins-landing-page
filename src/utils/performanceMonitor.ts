@@ -94,11 +94,11 @@ class PerformanceMonitor {
   public logMetrics() {
     const metrics = this.getMetrics();
     console.group('📊 Core Web Vitals');
-    console.log(`FCP (First Contentful Paint): ${metrics.FCP ? metrics.FCP + 'ms' : 'Not measured'}`);
-    console.log(`LCP (Largest Contentful Paint): ${metrics.LCP ? metrics.LCP + 'ms' : 'Not measured'} ${metrics.LCP && metrics.LCP < 2500 ? '✅' : '⚠️'}`);
-    console.log(`FID (First Input Delay): ${metrics.FID ? metrics.FID + 'ms' : 'Not measured'} ${metrics.FID && metrics.FID < 100 ? '✅' : '⚠️'}`);
+    console.log(`FCP (First Contentful Paint): ${metrics.FCP ? `${metrics.FCP  }ms` : 'Not measured'}`);
+    console.log(`LCP (Largest Contentful Paint): ${metrics.LCP ? `${metrics.LCP  }ms` : 'Not measured'} ${metrics.LCP && metrics.LCP < 2500 ? '✅' : '⚠️'}`);
+    console.log(`FID (First Input Delay): ${metrics.FID ? `${metrics.FID  }ms` : 'Not measured'} ${metrics.FID && metrics.FID < 100 ? '✅' : '⚠️'}`);
     console.log(`CLS (Cumulative Layout Shift): ${metrics.CLS || 'Not measured'} ${metrics.CLS && metrics.CLS < 0.1 ? '✅' : '⚠️'}`);
-    console.log(`TTFB (Time to First Byte): ${metrics.TTFB ? metrics.TTFB + 'ms' : 'Not measured'}`);
+    console.log(`TTFB (Time to First Byte): ${metrics.TTFB ? `${metrics.TTFB  }ms` : 'Not measured'}`);
     console.groupEnd();
   }
 

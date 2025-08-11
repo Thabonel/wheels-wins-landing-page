@@ -1,64 +1,14 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-__pycache__/
-*.pyc
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-venv/
-scraper_service/venv/
-backend/venv/
-
-# Node
 node_modules/
-.next/
-
-# IDE
-.vscode/
-.idea/
-.cursor/
-
-# Environment files
-.env*
-!.env.example
-
-# Temporary build files and artifacts
-*.timestamp-*
-vite.config.ts.timestamp-*.mjs
-*.temp
-*.tmp
-
-# Build artifacts
+dist/
 build/
+.git.corrupted.backup/
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
 coverage/
-playwright-report/
-test-results/
-
-# CodeQL analysis
-.codeql-database/
-!rv-trip-extractor/.env
+.env
+.env.local
+.env.production
+.env.staging

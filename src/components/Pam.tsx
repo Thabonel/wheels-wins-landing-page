@@ -23,8 +23,12 @@ import {
 import { AuthTestSuite, quickAuthCheck } from "@/utils/authTestSuite";
 import { audioManager } from "@/utils/audioManager";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
+import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
+import { pamAgenticService } from "@/services/pamAgenticService";
+import { VoiceInterface, VoiceInterfaceHandle } from "@/components/voice/VoiceInterface";
+import { VoiceErrorBoundary } from "@/components/voice/VoiceErrorBoundary";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -32,6 +36,14 @@ declare global {
     SpeechRecognition: any;
     webkitSpeechRecognition: any;
   }
+}
+
+interface TTSAudio {
+  audio_data: string;
+  format: string;
+  duration?: number;
+  voice_used?: string;
+  engine_used?: string;
 }
 
 interface PamMessage {
@@ -43,6 +55,7 @@ interface PamMessage {
   shouldSpeak?: boolean;  // Control whether this message should be spoken
   voicePriority?: 'low' | 'normal' | 'high' | 'urgent';
   isStreaming?: boolean;  // Indicates if this message is currently being streamed
+  tts?: TTSAudio;  // Phase 5A: TTS audio data from backend
 }
 
 interface PamProps {
@@ -183,6 +196,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const voiceInterfaceRef = useRef<VoiceInterfaceHandle>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownWelcomeRef = useRef(false);
   const authManagerRef = useRef<WebSocketAuthManager>(new WebSocketAuthManager({
@@ -731,10 +745,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       }
       
-      // Step 2: Get WebSocket base URL
+      // Step 2: Get WebSocket base URL with user ID
       console.log('🔧 PAM DEBUG: Getting WebSocket base URL...');
-      const baseWebSocketUrl = getWebSocketUrl('/api/v1/pam/ws');
-      console.log('🔧 PAM DEBUG: Base WebSocket URL:', baseWebSocketUrl);
+      // Include user ID in the WebSocket path as backend expects /ws/{user_id}
+      const userId = user?.id || 'anonymous';
+      const baseWebSocketUrl = getWebSocketUrl(`/api/v1/pam/ws/${userId}`);
+      console.log('🔧 PAM DEBUG: Base WebSocket URL with user ID:', baseWebSocketUrl);
       
       // Step 3: Create authenticated WebSocket URL
       console.log('🔧 PAM DEBUG: Creating authenticated WebSocket URL...');
@@ -883,7 +899,33 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             const content = message.content || message.message || message.response;
             console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
             
+            // Phase 5A: Extract TTS data if present
+            const ttsData = message.tts;
+            if (ttsData) {
+              console.log('🎵 TTS data received:', {
+                format: ttsData.format,
+                engine: ttsData.engine_used,
+                voice: ttsData.voice_used,
+                size: ttsData.audio_data?.length
+              });
+            }
+            
             if (content && content.trim()) {
+              // Phase 5A: Add message with TTS data
+              const newMessage = addMessage(content, "pam");
+              
+              // Phase 5A: Update message with TTS data if available
+              if (ttsData) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const messageIndex = updated.findIndex(m => m.id === newMessage.id);
+                  if (messageIndex >= 0) {
+                    updated[messageIndex] = { ...updated[messageIndex], tts: ttsData };
+                  }
+                  return updated;
+                });
+              }
+              
               // Check if PAM is asking for location and offer to get it automatically
               const locationKeywords = [
                 'current location', 'your location', 'where you are', 'share your location',
@@ -896,7 +938,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               
               if (needsLocation && !userContext?.current_location) {
                 console.log('📍 PAM is asking for location, offering automatic request');
-                addMessage(content, "pam");
                 
                 // Add a helpful message with location request button
                 setTimeout(() => {
@@ -981,8 +1022,28 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             wsRef.current?.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
           }
           
+          // Handle voice/STT responses - Phase 5B/5C
+          if (message.type === 'stt_result') {
+            console.log('🎤 STT result received:', message);
+            voiceInterfaceRef.current?.updateTranscript(message.text);
+            voiceInterfaceRef.current?.updateStatus('success');
+          }
+          
+          if (message.type === 'stt_instruction') {
+            console.log('🎤 STT instruction received:', message);
+            if (message.instruction === 'use_browser_stt') {
+              voiceInterfaceRef.current?.updateStatus('processing');
+              // Browser STT would be handled client-side
+            }
+          }
+          
+          if (message.type === 'stt_capabilities') {
+            console.log('🎤 STT capabilities received:', message);
+            // Store capabilities for voice interface if needed
+          }
+          
           // Fallback: Display any message with content that we haven't handled
-          if (!['chat_response', 'response', 'ui_action', 'welcome', 'ping', 'pong'].includes(message.type)) {
+          if (!['chat_response', 'response', 'ui_action', 'welcome', 'ping', 'pong', 'stt_result', 'stt_instruction', 'stt_capabilities'].includes(message.type)) {
             const fallbackContent = message.content || message.message || message.response || message.text;
             if (fallbackContent && typeof fallbackContent === 'string' && fallbackContent.trim()) {
               console.log('🔄 PAM DEBUG: Displaying fallback message:', { type: message.type, content: fallbackContent });
@@ -1130,7 +1191,8 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     // Test 3: URL construction
     console.log('🧪 TEST 3: URL Construction');
-    const testUrl = getWebSocketUrl('/api/v1/pam/ws');
+    const testUserId = user?.id || 'test_user';
+    const testUrl = getWebSocketUrl(`/api/v1/pam/ws/${testUserId}`);
     console.log('- getWebSocketUrl result:', testUrl);
     
     // Test 4: Token preparation
@@ -1186,6 +1248,75 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     const infoMessage = `🧠 **Agentic Analysis Active**\n\n${agenticInfo.capabilities?.join('\n• ') || 'Advanced AI reasoning engaged'}`;
     addMessage(infoMessage, "pam");
   };
+
+  // Voice Interface Handlers - Phase 5C
+  const handleVoiceAudioSend = useCallback(async (audioBlob: Blob, autoSend = false) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket not connected');
+    }
+    
+    // Convert blob to base64
+    const reader = new FileReader();
+    return new Promise<void>((resolve, reject) => {
+      reader.onload = () => {
+        const base64Data = (reader.result as string).split(',')[1];
+        
+        const voiceMessage = {
+          type: 'voice',
+          audio_data: base64Data,
+          format: 'webm',
+          language: 'en',
+          auto_send: autoSend,
+          context: {
+            user_id: user?.id,
+            session_id: sessionId,
+            timestamp: new Date().toISOString()
+          }
+        };
+        
+        wsRef.current?.send(JSON.stringify(voiceMessage));
+        console.log('🎤 Voice message sent via WebSocket');
+        resolve();
+      };
+      
+      reader.onerror = () => reject(new Error('Failed to read audio blob'));
+      reader.readAsDataURL(audioBlob);
+    });
+  }, [user?.id, sessionId]);
+
+  const handleVoiceTextSend = useCallback((text: string) => {
+    setInputMessage(text);
+    // Trigger send message after setting input
+    setTimeout(() => handleSendMessage(), 0);
+  }, []);
+
+  const handleTTSRequest = useCallback(async (text: string): Promise<Blob | null> => {
+    try {
+      const response = await authenticatedFetch('/api/v1/pam/voice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          voice: voiceSettings.voice,
+          rate: voiceSettings.rate,
+          pitch: voiceSettings.pitch,
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        return blob;
+      } else {
+        console.error('TTS request failed:', response.status, response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('TTS request error:', error);
+      return null;
+    }
+  }, [voiceSettings]);
 
   const displayThinkingProcess = (thinkingProcess: any) => {
     console.log('💭 Thinking process:', thinkingProcess);
@@ -2300,6 +2431,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     return newMessage;
   };
 
+  // Determine if message needs agentic planning
+  const needsAgenticPlanning = (message: string): boolean => {
+    const planningKeywords = [
+      'plan', 'autonomously', 'complex', 'multi-step', 'analyze',
+      'strategy', 'comprehensive', 'detailed', 'coordinate', 'optimize',
+      'thinking process', 'reasoning', 'tools', 'execute'
+    ];
+    const lowercaseMsg = message.toLowerCase();
+    return planningKeywords.some(keyword => lowercaseMsg.includes(keyword));
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage?.trim()) {
       console.warn('⚠️ PAM DEBUG: Attempted to send empty message');
@@ -2310,6 +2452,45 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     addMessage(message, "user");
     // Note: PAM backend automatically saves all conversation history
     setInputMessage("");
+    
+    // Check if we should use agentic planning for complex queries
+    if (needsAgenticPlanning(message)) {
+      console.log('🧠 Using agentic planning for complex query');
+      try {
+        // Show planning indicator
+        const planningMsgId = Date.now().toString();
+        addMessage("🧠 Planning your request...", "pam");
+        
+        const result = await pamAgenticService.planAndExecute(message, {
+          conversation_history: messages.slice(-5).map(m => ({
+            content: m.content,
+            role: m.sender === 'user' ? 'user' : 'assistant'
+          })),
+          user_context: userContext,
+          user_preferences: settings
+        });
+        
+        if (result.execution.success && result.execution.execution_result) {
+          // Remove planning message and add result
+          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+          addMessage(result.execution.execution_result.response, "pam");
+          
+          // If voice is enabled, speak the response
+          if (settings?.pam_preferences?.voice_enabled) {
+            await speakText(result.execution.execution_result.response);
+          }
+          return; // Exit early, we've handled the message
+        } else {
+          // Remove planning message
+          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+          console.log('Agentic planning unsuccessful, falling back to WebSocket');
+        }
+      } catch (error) {
+        console.error('Agentic planning error:', error);
+        setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+        // Fall through to WebSocket
+      }
+    }
 
     // Check if user is asking for location-based services and we don't have location
     const locationQueries = [
@@ -2617,6 +2798,20 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         <div className="p-3 border-t">
           <AudioLevelMeter />
           
+          {/* Voice Interface - Phase 5C */}
+          <VoiceErrorBoundary>
+            <VoiceInterface
+              ref={voiceInterfaceRef}
+              onSendAudio={handleVoiceAudioSend}
+              onSendText={handleVoiceTextSend}
+              onTTSRequest={handleTTSRequest}
+              compact={true}
+              showTranscript={false}
+              autoSend={true}
+              className="mb-2"
+            />
+          </VoiceErrorBoundary>
+          
           <div className="flex items-center space-x-2">
             <input
               ref={inputRef}
@@ -2833,19 +3028,27 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   <div className={`max-w-[80%] px-3 py-2 rounded-lg ${
                     msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
                   }`}>
-                    <p className="text-sm">{msg.content}</p>
-                    {/* Streaming indicator */}
-                    {msg.isStreaming && (
-                      <div className="flex items-center mt-1 text-xs text-gray-500">
-                        <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1"></div>
-                        <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1 animation-delay-100"></div>
-                        <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-2 animation-delay-200"></div>
-                        <span>thinking...</span>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm">{msg.content}</p>
+                        {/* Streaming indicator */}
+                        {msg.isStreaming && (
+                          <div className="flex items-center mt-1 text-xs text-gray-500">
+                            <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1"></div>
+                            <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-1 animation-delay-100"></div>
+                            <div className="animate-pulse w-1 h-1 bg-blue-500 rounded-full mr-2 animation-delay-200"></div>
+                            <span>thinking...</span>
+                          </div>
+                        )}
+                        <p className="text-xs opacity-70 mt-1">
+                          {new Date(msg.timestamp).toLocaleTimeString()}
+                        </p>
                       </div>
-                    )}
-                    <p className="text-xs opacity-70 mt-1">
-                      {new Date(msg.timestamp).toLocaleTimeString()}
-                    </p>
+                      {/* Phase 5A: TTS Controls for PAM messages */}
+                      {msg.sender === "pam" && msg.tts && (
+                        <TTSControls ttsData={msg.tts} size="sm" />
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -2856,6 +3059,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           <div className="p-4 border-t">
             <AudioLevelMeter />
             
+            {/* Voice Interface - Phase 5C */}
+            <VoiceErrorBoundary>
+              <VoiceInterface
+                ref={voiceInterfaceRef}
+                onSendAudio={handleVoiceAudioSend}
+                onSendText={handleVoiceTextSend}
+                onTTSRequest={handleTTSRequest}
+                compact={true}
+                showTranscript={false}
+                autoSend={true}
+                className="mb-2"
+              />
+            </VoiceErrorBoundary>
             
             <div className="flex items-center space-x-2">
               <input

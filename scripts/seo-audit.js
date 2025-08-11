@@ -142,25 +142,25 @@ class SEOAuditor {
     console.log('=' .repeat(50));
     
     if (this.issues.length > 0) {
-      console.log('\n❌ CRITICAL ISSUES (' + this.issues.length + '):\n');
-      this.issues.forEach(issue => console.log('  ' + issue));
+      console.log(`\n❌ CRITICAL ISSUES (${  this.issues.length  }):\n`);
+      this.issues.forEach(issue => console.log(`  ${  issue}`));
     }
     
     if (this.warnings.length > 0) {
-      console.log('\n⚠️  WARNINGS (' + this.warnings.length + '):\n');
-      this.warnings.forEach(warning => console.log('  ' + warning));
+      console.log(`\n⚠️  WARNINGS (${  this.warnings.length  }):\n`);
+      this.warnings.forEach(warning => console.log(`  ${  warning}`));
     }
     
     if (this.successes.length > 0) {
-      console.log('\n✅ PASSED CHECKS (' + this.successes.length + '):\n');
-      this.successes.forEach(success => console.log('  ' + success));
+      console.log(`\n✅ PASSED CHECKS (${  this.successes.length  }):\n`);
+      this.successes.forEach(success => console.log(`  ${  success}`));
     }
     
     // Score calculation
     const totalChecks = this.issues.length + this.warnings.length + this.successes.length;
     const score = Math.round((this.successes.length / totalChecks) * 100);
     
-    console.log('\n' + '=' .repeat(50));
+    console.log(`\n${  '=' .repeat(50)}`);
     console.log(`\n📊 SEO SCORE: ${score}% (${this.successes.length}/${totalChecks} checks passed)\n`);
     
     // Recommendations

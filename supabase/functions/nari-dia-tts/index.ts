@@ -96,11 +96,11 @@ serve(async (req) => {
     
     // Prepare request payload for Segmind Dia API
     const requestPayload = {
-      text: text,
-      voice_type: voice_type,
-      sampling_rate: sampling_rate,
-      normalize: normalize,
-      format: format
+      text,
+      voice_type,
+      sampling_rate,
+      normalize,
+      format
     };
 
     console.log('🌐 Calling Segmind API:', segmindUrl);
@@ -167,10 +167,10 @@ serve(async (req) => {
     const ttsResponse: TTSResponse = {
       audio: Array.from(audioArray),
       duration: estimatedDuration,
-      format: format,
+      format,
       cached: false,
       metadata: {
-        sampling_rate: sampling_rate,
+        sampling_rate,
         text_length: text.length,
         processing_time: processingTime
       }
@@ -194,7 +194,7 @@ serve(async (req) => {
     
     // Determine appropriate error status code
     let statusCode = 500;
-    let errorMessage = error.message || 'Unknown error occurred';
+    const errorMessage = error.message || 'Unknown error occurred';
     
     if (errorMessage.includes('Authentication failed') || errorMessage.includes('API key')) {
       statusCode = 401;
@@ -238,8 +238,9 @@ function validateTTSText(text: string): { isValid: boolean; error?: string } {
     return { isValid: false, error: 'Text exceeds maximum length of 5000 characters' };
   }
   
-  // Check for potentially problematic characters
-  const invalidChars = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
+  // Check for potentially problematic characters - properly escaped
+  // This regex matches control characters that should not be in normal text
+  const invalidChars = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
   if (invalidChars.test(text)) {
     return { isValid: false, error: 'Text contains invalid control characters' };
   }

@@ -3,8 +3,8 @@ Admin API endpoints for AI Agent Observability
 Integrated with existing admin authentication system
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, Depends, Response
+from typing import Dict, Any, Optional
 import logging
 
 from app.observability.config import observability
@@ -30,6 +30,20 @@ def verify_admin_access(jwt_payload: Dict[str, Any] = Depends(verify_supabase_jw
     
     return jwt_payload
 
+@router.options("/status")
+async def options_observability_status():
+    """Handle CORS preflight for status endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
 @router.get("/status")
 async def get_observability_status(
     _: Dict[str, Any] = Depends(verify_admin_access)
@@ -52,6 +66,20 @@ async def get_observability_status(
         logger.error(f"Failed to get observability status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.options("/health")
+async def options_observability_health():
+    """Handle CORS preflight for health endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
 @router.get("/health")
 async def get_observability_health(
     _: Dict[str, Any] = Depends(verify_admin_access)
@@ -66,6 +94,20 @@ async def get_observability_health(
     except Exception as e:
         logger.error(f"Failed to get observability health: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.options("/initialize")
+async def options_initialize_observability():
+    """Handle CORS preflight for initialize endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
 
 @router.post("/initialize")
 async def initialize_observability(
@@ -88,6 +130,20 @@ async def initialize_observability(
         logger.error(f"Failed to initialize observability: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.options("/reset-metrics")
+async def options_reset_observability_metrics():
+    """Handle CORS preflight for reset-metrics endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
 @router.post("/reset-metrics")
 async def reset_observability_metrics(
     _: Dict[str, Any] = Depends(verify_admin_access)
@@ -103,6 +159,20 @@ async def reset_observability_metrics(
         logger.error(f"Failed to reset observability metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.options("/metrics")
+async def options_detailed_metrics():
+    """Handle CORS preflight for metrics endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
 @router.get("/metrics")
 async def get_detailed_metrics(
     _: Dict[str, Any] = Depends(verify_admin_access)
@@ -117,6 +187,20 @@ async def get_detailed_metrics(
     except Exception as e:
         logger.error(f"Failed to get detailed metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.options("/dashboard-data")
+async def options_dashboard_data():
+    """Handle CORS preflight for dashboard-data endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
 
 @router.get("/dashboard-data")
 async def get_dashboard_data(
@@ -136,7 +220,7 @@ async def get_dashboard_data(
                 "health": health,
                 "platform_links": {
                     "openai": "https://platform.openai.com/usage",
-                    "langfuse": observability.settings.LANGFUSE_HOST,
+                    "langfuse": getattr(observability.settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
                     "agentops": "https://app.agentops.ai"
                 }
             }
@@ -144,6 +228,77 @@ async def get_dashboard_data(
     except Exception as e:
         logger.error(f"Failed to get dashboard data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.options("/configuration")
+async def options_observability_configuration():
+    """Handle CORS preflight for configuration endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
+@router.options("/config")
+async def options_observability_config():
+    """Handle CORS preflight for public config endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
+@router.get("/config")
+async def get_observability_config_public():
+    """Get observability configuration status (public endpoint for diagnostics)"""
+    try:
+        settings = get_settings()
+        
+        config = {
+            "enabled": getattr(settings, 'OBSERVABILITY_ENABLED', False),
+            "environment": settings.ENVIRONMENT,
+            "platforms": {
+                "openai": {
+                    "configured": bool(settings.OPENAI_API_KEY),
+                },
+                "langfuse": {
+                    "configured": bool(getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)),
+                    "host": getattr(settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
+                },
+                "agentops": {
+                    "configured": bool(getattr(settings, 'AGENTOPS_API_KEY', None)),
+                }
+            }
+        }
+        
+        return {
+            "status": "success",
+            "data": config
+        }
+    except Exception as e:
+        logger.error(f"Failed to get observability config: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "data": {
+                "enabled": False,
+                "environment": "unknown",
+                "platforms": {
+                    "openai": {"configured": False},
+                    "langfuse": {"configured": False},
+                    "agentops": {"configured": False}
+                }
+            }
+        }
 
 @router.get("/configuration")
 async def get_observability_configuration(
@@ -154,22 +309,22 @@ async def get_observability_configuration(
         settings = get_settings()
         
         config = {
-            "enabled": settings.OBSERVABILITY_ENABLED,
+            "enabled": getattr(settings, 'OBSERVABILITY_ENABLED', False),
             "environment": settings.ENVIRONMENT,
             "langfuse_host": settings.LANGFUSE_HOST,
             "platforms": {
                 "openai": {
                     "configured": bool(settings.OPENAI_API_KEY),
-                    "key_preview": f"{settings.OPENAI_API_KEY[:8]}..." if settings.OPENAI_API_KEY else None
+                    "key_preview": f"{settings.OPENAI_API_KEY.get_secret_value()[:8]}..." if settings.OPENAI_API_KEY else None
                 },
                 "langfuse": {
-                    "configured": bool(settings.LANGFUSE_SECRET_KEY and settings.LANGFUSE_PUBLIC_KEY),
-                    "host": settings.LANGFUSE_HOST,
-                    "public_key_preview": f"{settings.LANGFUSE_PUBLIC_KEY[:8]}..." if settings.LANGFUSE_PUBLIC_KEY else None
+                    "configured": bool(getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)),
+                    "host": getattr(settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
+                    "public_key_preview": f"{getattr(settings, 'LANGFUSE_PUBLIC_KEY', '')[:8]}..." if getattr(settings, 'LANGFUSE_PUBLIC_KEY', None) else None
                 },
                 "agentops": {
-                    "configured": bool(settings.AGENTOPS_API_KEY),
-                    "key_preview": f"{settings.AGENTOPS_API_KEY[:8]}..." if settings.AGENTOPS_API_KEY else None
+                    "configured": bool(getattr(settings, 'AGENTOPS_API_KEY', None)),
+                    "key_preview": f"{getattr(settings, 'AGENTOPS_API_KEY', '')[:8]}..." if getattr(settings, 'AGENTOPS_API_KEY', None) else None
                 }
             }
         }
@@ -181,6 +336,20 @@ async def get_observability_configuration(
     except Exception as e:
         logger.error(f"Failed to get observability configuration: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.options("/test-connection/{platform}")
+async def options_test_platform_connection(platform: str):
+    """Handle CORS preflight for test-connection endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
 
 @router.post("/test-connection/{platform}")
 async def test_platform_connection(
@@ -229,6 +398,20 @@ async def test_platform_connection(
         logger.error(f"Failed to test {platform} connection: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.options("/performance")
+async def options_performance_status():
+    """Handle CORS preflight for performance endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
 @router.get("/performance")
 async def get_performance_status(
     _: Dict[str, Any] = Depends(verify_admin_access)
@@ -248,6 +431,20 @@ async def get_performance_status(
     except Exception as e:
         logger.error(f"Failed to get performance status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.options("/performance/optimize")
+async def options_performance_optimization():
+    """Handle CORS preflight for performance/optimize endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
 
 @router.post("/performance/optimize")
 async def trigger_performance_optimization(
@@ -275,6 +472,20 @@ async def trigger_performance_optimization(
     except Exception as e:
         logger.error(f"Failed to trigger performance optimization: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.options("/performance/memory")
+async def options_memory_status():
+    """Handle CORS preflight for performance/memory endpoint"""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
 
 @router.get("/performance/memory")
 async def get_memory_status(

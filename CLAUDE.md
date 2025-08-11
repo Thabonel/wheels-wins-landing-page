@@ -935,3 +935,4 @@ Subagents seamlessly integrate with configured MCP servers:
 **Context Overflow**
 - Break large tasks into smaller chunks
 - Use file-based context sharing between agents
+- when launcing, first look through the docs folder to familiarise yourself with the project

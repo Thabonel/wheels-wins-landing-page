@@ -62,7 +62,7 @@ async function testAuthenticatedScenarios() {
       const options = {
         hostname: 'kycoklimpzkyrecbjecn.supabase.co',
         port: 443,
-        path: path,
+        path,
         method: testCase.method || 'GET',
         headers: {
           'apikey': SUPABASE_ANON_KEY,
@@ -81,7 +81,7 @@ async function testAuthenticatedScenarios() {
               const parsed = data ? JSON.parse(data) : null;
               resolve({ status: res.statusCode, data: parsed, headers: res.headers });
             } catch (e) {
-              resolve({ status: res.statusCode, data: data, headers: res.headers, parseError: e.message });
+              resolve({ status: res.statusCode, data, headers: res.headers, parseError: e.message });
             }
           });
         });
@@ -153,7 +153,7 @@ async function testRLSFilters() {
             try {
               resolve({ status: res.statusCode, data: JSON.parse(data) });
             } catch (e) {
-              resolve({ status: res.statusCode, data: data });
+              resolve({ status: res.statusCode, data });
             }
           });
         });
@@ -189,7 +189,7 @@ async function testRLSFilters() {
             try {
               resolve({ status: res.statusCode, data: JSON.parse(data) });
             } catch (e) {
-              resolve({ status: res.statusCode, data: data });
+              resolve({ status: res.statusCode, data });
             }
           });
         });
@@ -213,7 +213,7 @@ async function main() {
   await testAuthenticatedScenarios();
   await testRLSFilters();
   
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${  '='.repeat(60)}`);
   console.log('ANALYSIS COMPLETE');
   console.log('='.repeat(60));
   

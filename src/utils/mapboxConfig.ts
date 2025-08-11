@@ -70,7 +70,7 @@ export async function initializeMapbox(): Promise<boolean> {
     // Use dynamic import but await it to ensure token is set before proceeding
     const mapboxgl = await import('mapbox-gl');
     mapboxgl.default.accessToken = token;
-    console.log('✅ Mapbox initialized with public token:', token.substring(0, 20) + '...');
+    console.log('✅ Mapbox initialized with public token:', `${token.substring(0, 20)  }...`);
     return true;
   } catch (error) {
     console.error('❌ Failed to load mapbox-gl:', error);
@@ -95,14 +95,14 @@ export function setMapboxToken(): boolean {
     // Use a global check to see if mapboxgl is available
     if (typeof window !== 'undefined' && (window as any).mapboxgl) {
       (window as any).mapboxgl.accessToken = token;
-      console.log('✅ Mapbox token set via global:', token.substring(0, 20) + '...');
+      console.log('✅ Mapbox token set via global:', `${token.substring(0, 20)  }...`);
       return true;
     }
     
     // Direct import attempt (synchronous)
     const mapboxgl = require('mapbox-gl');
     mapboxgl.accessToken = token;
-    console.log('✅ Mapbox token set via require:', token.substring(0, 20) + '...');
+    console.log('✅ Mapbox token set via require:', `${token.substring(0, 20)  }...`);
     return true;
   } catch (error) {
     console.warn('⚠️ Could not set token synchronously, may need async initialization');

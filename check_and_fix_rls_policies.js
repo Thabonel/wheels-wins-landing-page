@@ -28,8 +28,8 @@ function makeRequest(path, method = 'GET', headers = {}, data = null) {
     const options = {
       hostname: 'kycoklimpzkyrecbjecn.supabase.co',
       port: 443,
-      path: path,
-      method: method,
+      path,
+      method,
       headers: defaultHeaders
     };
 
@@ -351,7 +351,7 @@ async function main() {
   }
   
   // Step 2: Show summary
-  console.log('\n' + '=' .repeat(60));
+  console.log(`\n${  '=' .repeat(60)}`);
   console.log('STEP 2: SUMMARY OF CURRENT STATE');
   console.log('=' .repeat(60));
   
@@ -368,7 +368,7 @@ async function main() {
   }
   
   // Step 3: Generate fix SQL
-  console.log('\n' + '=' .repeat(60));
+  console.log(`\n${  '=' .repeat(60)}`);
   console.log('STEP 3: GENERATED SQL FIXES');
   console.log('=' .repeat(60));
   

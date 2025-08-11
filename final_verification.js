@@ -210,7 +210,7 @@ async function main() {
         }
     });
     
-    console.log('\n' + '=' .repeat(60));
+    console.log(`\n${  '=' .repeat(60)}`);
     console.log(`🎯 OVERALL RESULT: ${passed}/${tests.length} tests passed`);
     
     if (failed === 0) {

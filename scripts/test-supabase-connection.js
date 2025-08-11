@@ -63,8 +63,8 @@ for (const config of keys) {
   }
 }
 
-console.log('\n' + '=' .repeat(60));
+console.log(`\n${  '=' .repeat(60)}`);
 console.log('\n✨ CONCLUSION:\n');
 console.log('Use the key that shows "✅ Connection works" or "✅ Connection successful"');
 console.log('Update this in your Netlify environment variables for both sites.');
-console.log('\n' + '=' .repeat(60));
+console.log(`\n${  '=' .repeat(60)}`);

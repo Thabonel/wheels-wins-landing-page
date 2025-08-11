@@ -48,7 +48,7 @@ async function getAustralianTemplates() {
                             console.log(`${index + 1}. "${template.name}"`);
                             console.log(`   📁 Category: ${template.category}`);
                             console.log(`   🏷️  Tags: ${template.tags.join(', ')}`);
-                            console.log(`   📖 Description: ${template.description ? template.description.substring(0, 100) + '...' : 'No description'}`);
+                            console.log(`   📖 Description: ${template.description ? `${template.description.substring(0, 100)  }...` : 'No description'}`);
                             console.log(`   ⏱️  Duration: ${template.estimated_duration_days} days`);
                             console.log(`   👤 Created by: ${template.user_id || 'System'}`);
                             console.log(`   📈 Usage count: ${template.usage_count || 0}`);

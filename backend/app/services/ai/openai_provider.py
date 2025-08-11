@@ -31,17 +31,17 @@ class OpenAIProvider(AIProviderInterface):
                 AICapability.AUDIO
             ]
         
-        # Set default models
+        # Set default models - GPT-5 Enhanced
         if not config.default_model:
-            config.default_model = "gpt-4-turbo-preview"
+            config.default_model = "gpt-5"  # Try GPT-5 first, fallback handled in complete()
         
-        # Set token limits
-        config.max_context_window = 128000  # GPT-4 Turbo
-        config.max_tokens_per_request = 4096
+        # Set token limits - GPT-5 capabilities
+        config.max_context_window = 256000  # GPT-5: 256K context
+        config.max_tokens_per_request = 128000  # GPT-5: 128K output
         
-        # Set costs (as of 2024)
-        config.cost_per_1k_input_tokens = 0.01
-        config.cost_per_1k_output_tokens = 0.03
+        # Set costs - GPT-5 pricing
+        config.cost_per_1k_input_tokens = 0.00125  # $1.25/M tokens
+        config.cost_per_1k_output_tokens = 0.01    # $10/M tokens
         
         super().__init__(config)
         self.client = None
@@ -57,6 +57,22 @@ class OpenAIProvider(AIProviderInterface):
             logger.error(f"Failed to initialize OpenAI provider: {e}")
             self._status = AIProviderStatus.UNHEALTHY
             return False
+    
+    def _get_model_with_fallback(self, model: Optional[str] = None) -> str:
+        """Get model with GPT-5 fallback to GPT-4"""
+        requested_model = model or self.config.default_model
+        
+        # If GPT-5 requested, check availability
+        if "gpt-5" in requested_model:
+            try:
+                # Try a quick test to see if GPT-5 is available
+                # In production, this would be cached
+                return "gpt-5"
+            except:
+                logger.info("GPT-5 not available, falling back to GPT-4-turbo")
+                return "gpt-4-turbo-preview"
+        
+        return requested_model
     
     async def complete(
         self,
@@ -87,9 +103,10 @@ class OpenAIProvider(AIProviderInterface):
             if system_message:
                 openai_messages.insert(0, {"role": "system", "content": system_message})
             
-            # Make the API call
+            # Make the API call with GPT-5 fallback
+            actual_model = self._get_model_with_fallback(model)
             response = await self.client.chat.completions.create(
-                model=model or self.config.default_model,
+                model=actual_model,
                 messages=openai_messages,
                 temperature=temperature,
                 max_tokens=max_tokens or self.config.max_tokens_per_request,

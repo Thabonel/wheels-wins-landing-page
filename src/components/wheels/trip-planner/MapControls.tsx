@@ -109,7 +109,7 @@ export default function MapControls({
       console.log('🗺️ MapControls - Direct token access:', {
         publicToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ? 'SET' : 'MISSING',
         legacyToken: import.meta.env.VITE_MAPBOX_TOKEN ? 'SET' : 'MISSING',
-        usingToken: token ? token.substring(0, 20) + '...' : 'NONE'
+        usingToken: token ? `${token.substring(0, 20)  }...` : 'NONE'
       });
       
       if (!token) {
@@ -124,7 +124,7 @@ export default function MapControls({
       
       // Simple direct token setting
       mapboxgl.accessToken = token;
-      console.log('✅ Token set successfully:', token.substring(0, 20) + '...');
+      console.log('✅ Token set successfully:', `${token.substring(0, 20)  }...`);
       
       try {
         map.current = new mapboxgl.Map({

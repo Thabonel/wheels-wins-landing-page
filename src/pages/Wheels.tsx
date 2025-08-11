@@ -6,6 +6,7 @@ import { TabTransition } from "@/components/common/TabTransition";
 import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
 import { TripPlannerErrorBoundary } from "@/components/common/TripPlannerErrorBoundary";
 import { PAMErrorBoundary } from "@/components/common/PAMErrorBoundary";
+import { PamHelpButton } from "@/components/pam/PamHelpButton";
 
 // Lazy load heavy components to reduce initial bundle size
 const TripPlannerApp = lazy(() => import('@/components/wheels/TripPlannerApp'));
@@ -47,6 +48,15 @@ const Wheels = () => {
         {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4 h-full bg-white rounded-lg shadow-sm border">
           <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Travel Planning</h1>
+              <PamHelpButton 
+                page="wheels" 
+                context={`Currently viewing ${activeTab.replace('-', ' ')}`}
+                variant="default"
+              />
+            </div>
+            
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="w-full justify-start flex-wrap mb-6">
                 {isMobile ? (

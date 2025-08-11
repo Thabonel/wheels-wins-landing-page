@@ -90,7 +90,7 @@ export const getDeployments: Tool = {
             commit: deployments[0].commit.message,
           } : null,
           successRate: deployments.length > 0 
-            ? ((statusCounts.live || 0) / deployments.length * 100).toFixed(1) + '%'
+            ? `${((statusCounts.live || 0) / deployments.length * 100).toFixed(1)  }%`
             : 'N/A',
         },
       };

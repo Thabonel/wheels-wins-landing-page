@@ -5,13 +5,16 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { DollarSign, TrendingUp, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { usePamWebSocketConnection } from "@/hooks/pam/usePamWebSocketConnection";
+import { usePamWebSocketConnection } from "@/hooks/usePamWebSocketAdapter";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
 import QuickActions from "./QuickActions";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+// PAM Savings integration - simplified approach
+import { useQuery } from "@tanstack/react-query";
+import { Target, Zap, CheckCircle } from "lucide-react";
 
 const WinsOverview = React.memo(() => {
   const { user, token } = useAuth();
@@ -23,6 +26,24 @@ const WinsOverview = React.memo(() => {
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
+  // PAM Savings - simplified approach using new API
+  const { data: pamSavings, isLoading: savingsLoading } = useQuery({
+    queryKey: ['pam-monthly-savings'],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/pam/monthly-savings', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch PAM savings');
+      return response.json();
+    },
+    refetchInterval: 60000, // Refresh every minute
+    enabled: !!user && !!token,
+    retry: 1 // Minimal retries to avoid overwhelming the API
+  });
+
   const handlePamMessage = useCallback((msg: any) => {
     if (msg.type === 'chat_response') {
       setPamInsights((prev) => [...prev, msg.message || msg.content]);
@@ -32,7 +53,7 @@ const WinsOverview = React.memo(() => {
   const handleStatusChange = useCallback(() => {}, []);
 
   const { isConnected, sendMessage } = usePamWebSocketConnection({
-    userId: user?.id || 'anonymous',
+    userId: user?.id ? String(user.id) : 'anonymous',
     token,
     onMessage: handlePamMessage,
     onStatusChange: handleStatusChange
@@ -105,27 +126,28 @@ const WinsOverview = React.memo(() => {
     }));
   }, [summary?.expense_categories, expensesState.expenses]);
 
-  const summaryStats = useMemo(() => summary
-    ? [
-        {
-          title: "Total Income",
-          value: `$${summary.total_income.toFixed(2)}`,
-          description: `Last ${summary.period_days} days`,
-          icon: <TrendingUp className="h-5 w-5 text-green-500" />
-        },
-        {
-          title: "Total Expenses",
-          value: `$${summary.total_expenses.toFixed(2)}`,
-          description: `Last ${summary.period_days} days`,
-          icon: <DollarSign className="h-5 w-5 text-purple-500" />
-        },
-        {
-          title: "Net Income",
-          value: `$${summary.net_income.toFixed(2)}`,
-          description: new Date(summary.generated_at).toLocaleDateString(),
-          icon: <Calendar className="h-5 w-5 text-blue-500" />
-        }
-      ]
+  const summaryStats = useMemo(() => {
+    const baseStats = summary
+      ? [
+          {
+            title: "Total Income",
+            value: `$${summary.total_income.toFixed(2)}`,
+            description: `Last ${summary.period_days} days`,
+            icon: <TrendingUp className="h-5 w-5 text-green-500" />
+          },
+          {
+            title: "Total Expenses",
+            value: `$${summary.total_expenses.toFixed(2)}`,
+            description: `Last ${summary.period_days} days`,
+            icon: <DollarSign className="h-5 w-5 text-purple-500" />
+          },
+          {
+            title: "Net Income",
+            value: `$${summary.net_income.toFixed(2)}`,
+            description: new Date(summary.generated_at).toLocaleDateString(),
+            icon: <Calendar className="h-5 w-5 text-blue-500" />
+          }
+        ]
     : [
         {
           title: "Total Expenses",
@@ -145,7 +167,26 @@ const WinsOverview = React.memo(() => {
           description: "All time",
           icon: <Calendar className="h-5 w-5 text-blue-500" />
         }
-      ], [summary, incomeData, expensesState.expenses]);
+      ];
+
+    // PAM Savings - simplified integration
+    if (pamSavings?.success && pamSavings?.data && !savingsLoading) {
+      const savingsData = pamSavings.data;
+      const pamSavingsStat = {
+        title: "PAM Savings",
+        value: `$${savingsData.total_savings.toFixed(2)}`,
+        description: savingsData.guarantee_met 
+          ? "✅ Guarantee Met!" 
+          : `${Math.round(savingsData.percentage_achieved)}% to goal`,
+        icon: savingsData.guarantee_met 
+          ? <CheckCircle className="h-5 w-5 text-green-500" />
+          : <Target className="h-5 w-5 text-orange-500" />
+      };
+      baseStats.push(pamSavingsStat);
+    }
+
+    return baseStats;
+  }, [summary, incomeData, expensesState.expenses, pamSavings, savingsLoading]);
 
   // Quick Actions handlers
   const handleAddExpense = useCallback((preset?: { category?: string }) => {

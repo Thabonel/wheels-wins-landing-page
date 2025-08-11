@@ -99,11 +99,35 @@ def verify_token(token: str):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+async def verify_jwt_token(token: str) -> Dict[str, Any]:
+    """
+    Async function to verify JWT token for WebSocket connections.
+    Returns the decoded payload if valid, raises exception if invalid.
+    
+    This function is specifically designed for WebSocket authentication where
+    we need to verify the token BEFORE accepting the connection.
+    """
+    try:
+        # Decode and verify the JWT token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        
+        # Ensure the token has a subject (user ID)
+        user_id = payload.get("sub")
+        if not user_id:
+            raise ValueError("Token missing user ID (sub)")
+        
+        return payload
+        
+    except jwt.ExpiredSignatureError:
+        raise ValueError("Token has expired")
+    except (InvalidTokenError, DecodeError) as e:
+        raise ValueError(f"Invalid token: {str(e)}")
+
 
 def verify_supabase_token(token: str, supabase_url: str):
     """Verify a Supabase-issued JWT using the project's public JWKS."""
     try:
-        jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/keys"
+        jwks_url = f"{str(supabase_url).rstrip('/')}/auth/v1/keys"
         try:
             jwks_data = _http_session.get(jwks_url, timeout=HTTP_TIMEOUT).json()
         except RequestsTimeout:

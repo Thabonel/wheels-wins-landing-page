@@ -54,7 +54,7 @@ configs.forEach(config => {
   }
 });
 
-console.log('\n' + '=' .repeat(60));
+console.log(`\n${  '=' .repeat(60)}`);
 console.log('\n📝 RECOMMENDATIONS:\n');
 console.log('1. Use the key that matches your Supabase project ID');
 console.log('2. If both keys are for the same project, use the newer one');
@@ -65,4 +65,4 @@ console.log('   - Local .env.local file (for development)');
 console.log('\n4. The correct pair should be:');
 console.log('   VITE_SUPABASE_URL=https://kycoklimpzkyrecbjecn.supabase.co');
 console.log('   VITE_SUPABASE_ANON_KEY=[use the valid key from above]');
-console.log('\n' + '=' .repeat(60));
+console.log(`\n${  '=' .repeat(60)}`);

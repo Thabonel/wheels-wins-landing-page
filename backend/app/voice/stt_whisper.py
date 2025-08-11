@@ -44,7 +44,7 @@ class WhisperSTT:
 
 try:
     from app.core.config import settings
-    whisper_stt = WhisperSTT(api_key=settings.OPENAI_API_KEY)
+    whisper_stt = WhisperSTT(api_key=settings.OPENAI_API_KEY.get_secret_value() if settings.OPENAI_API_KEY else None)
 except Exception as e:
     logger.warning(f"Failed to initialize WhisperSTT with config: {e}")
     # Don't create a dummy instance - let it fail properly

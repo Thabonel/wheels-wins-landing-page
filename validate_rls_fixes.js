@@ -24,8 +24,8 @@ function makeRequest(path, method = 'GET', headers = {}, data = null) {
     const options = {
       hostname: 'kycoklimpzkyrecbjecn.supabase.co',
       port: 443,
-      path: path,
-      method: method,
+      path,
+      method,
       headers: defaultHeaders
     };
 
@@ -116,7 +116,7 @@ async function validateTableAccess(tableName, expectedBehavior) {
 }
 
 async function testSpecificScenarios() {
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${  '='.repeat(60)}`);
   console.log('TESTING SPECIFIC RLS SCENARIOS');
   console.log('='.repeat(60));
   
@@ -205,7 +205,7 @@ async function main() {
   await testSpecificScenarios();
   
   // Summary
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${  '='.repeat(60)}`);
   console.log('VALIDATION SUMMARY');
   console.log('='.repeat(60));
   

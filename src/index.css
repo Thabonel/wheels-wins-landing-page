@@ -223,3 +223,82 @@
   ring-color: #3b82f6 !important;
   border-color: transparent !important;
 }
+
+/* PAM Visual Control Styles */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInOut {
+  0% { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  20% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+  80% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+  100% { 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+}
+
+@keyframes pamHighlight {
+  0% { 
+    box-shadow: 0 0 0 0px rgba(139, 92, 246, 0.4);
+    border: 2px solid transparent;
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.1);
+    border: 2px solid #8B5CF6;
+  }
+  100% { 
+    box-shadow: 0 0 0 0px rgba(139, 92, 246, 0);
+    border: 2px solid transparent;
+  }
+}
+
+.pam-highlight {
+  animation: pamHighlight 1s ease-in-out !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  z-index: 1000 !important;
+}
+
+.pam-typing {
+  border-left: 3px solid #8B5CF6 !important;
+  padding-left: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+@keyframes blink {
+  0%, 50% { border-left-color: #8B5CF6; }
+  51%, 100% { border-left-color: transparent; }
+}
+
+.pam-typing:focus {
+  animation: blink 1s infinite;
+}
+
+/* PAM Action Tooltips */
+.pam-action-tooltip {
+  pointer-events: none;
+}
+
+/* PAM Toast Notifications */
+.pam-success-toast,
+.pam-error-toast {
+  pointer-events: none;
+}

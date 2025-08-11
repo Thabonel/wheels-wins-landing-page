@@ -32,7 +32,7 @@ class AIModelService:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.config = config or AIModelConfig()
-            cls._instance.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            cls._instance.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY.get_secret_value())
             alt_key = os.getenv("ALT_OPENAI_API_KEY")
             cls._instance.fallback_client = (
                 AsyncOpenAI(api_key=alt_key) if alt_key else None

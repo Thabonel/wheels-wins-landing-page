@@ -2,7 +2,7 @@ import asyncio
 import time
 from typing import Dict, Optional
 from fastapi import WebSocket
-from fastapi.websockets import WebSocketState
+from starlette.websockets import WebSocketState
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
