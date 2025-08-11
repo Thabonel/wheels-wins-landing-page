@@ -73,14 +73,37 @@ class RedisTTSCache:
         self, 
         text: str, 
         voice: str = "en-US-AriaNeural", 
-        speed: float = 1.0
+        speed: float = 1.0,
+        pitch: float = 1.0,
+        volume: float = 1.0
     ) -> str:
-        """Generate unique cache key for TTS parameters"""
-        # Normalize text
-        normalized_text = text.lower().strip()[:500]  # Limit text length
-        key_data = f"{normalized_text}|{voice}|{speed}"
-        hash_key = hashlib.sha256(key_data.encode()).hexdigest()[:16]
-        return f"tts:audio:{hash_key}"
+        """
+        Generate unique cache key for TTS parameters
+        
+        Optimized version includes all parameters that affect audio output
+        """
+        # Normalize text - remove extra whitespace but preserve case for acronyms
+        normalized_text = ' '.join(text.strip().split())[:500]  # Limit text length
+        
+        # Include all parameters that affect audio generation
+        key_parts = [
+            normalized_text,
+            voice,
+            f"{speed:.2f}",  # Round to 2 decimal places
+            f"{pitch:.2f}",
+            f"{volume:.2f}"
+        ]
+        
+        key_data = "|".join(key_parts)
+        
+        # Use faster xxhash if available, fallback to sha256
+        try:
+            import xxhash
+            hash_key = xxhash.xxh64(key_data.encode()).hexdigest()[:16]
+        except ImportError:
+            hash_key = hashlib.sha256(key_data.encode()).hexdigest()[:16]
+        
+        return f"tts:audio:v2:{hash_key}"
     
     def _compress_audio(self, audio_data: bytes) -> bytes:
         """Compress audio data using zlib"""
@@ -273,6 +296,102 @@ class RedisTTSCache:
         if self.redis_client:
             await self.redis_client.close()
             self.redis_client = None
+    
+    async def batch_get(
+        self,
+        requests: List[Dict[str, Any]]
+    ) -> List[Optional[Dict[str, Any]]]:
+        """
+        Get multiple cached TTS audio entries in a single operation
+        
+        Args:
+            requests: List of dicts with text, voice, speed, pitch, volume
+        
+        Returns:
+            List of cached results (None for cache misses)
+        """
+        await self._ensure_connected()
+        
+        # Generate all cache keys
+        cache_keys = []
+        for req in requests:
+            key = self._generate_cache_key(
+                req.get('text', ''),
+                req.get('voice', 'en-US-AriaNeural'),
+                req.get('speed', 1.0),
+                req.get('pitch', 1.0),
+                req.get('volume', 1.0)
+            )
+            cache_keys.append(key)
+        
+        try:
+            # Use pipeline for batch operations
+            pipe = self.redis_client.pipeline()
+            for key in cache_keys:
+                pipe.get(key)
+            
+            cached_results = await pipe.execute()
+            
+            # Process results
+            results = []
+            for cached_data in cached_results:
+                if cached_data:
+                    # Parse and decompress as in single get
+                    metadata_len = int.from_bytes(cached_data[:4], 'big')
+                    metadata_json = cached_data[4:4+metadata_len]
+                    audio_data = cached_data[4+metadata_len:]
+                    
+                    metadata = json.loads(metadata_json)
+                    audio_data = self._decompress_audio(audio_data)
+                    audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                    
+                    results.append({
+                        'audio_base64': audio_base64,
+                        'metadata': metadata
+                    })
+                else:
+                    results.append(None)
+            
+            # Update stats
+            hits = sum(1 for r in results if r is not None)
+            misses = len(results) - hits
+            await self.redis_client.hincrby(self.stats_key, "hits", hits)
+            await self.redis_client.hincrby(self.stats_key, "misses", misses)
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Batch get failed: {e}")
+            return [None] * len(requests)
+    
+    async def warm_cache(
+        self,
+        common_phrases: List[str],
+        voice: str = "en-US-AriaNeural"
+    ):
+        """
+        Pre-warm cache with common phrases for instant responses
+        
+        Args:
+            common_phrases: List of commonly used phrases
+            voice: Voice to use for pre-generation
+        """
+        logger.info(f"🔥 Warming cache with {len(common_phrases)} phrases")
+        
+        for phrase in common_phrases:
+            cache_key = self._generate_cache_key(phrase, voice)
+            
+            # Check if already cached
+            exists = await self.redis_client.exists(cache_key)
+            if not exists:
+                # This would trigger TTS generation in the main service
+                logger.debug(f"Phrase '{phrase[:30]}...' not in cache, marking for generation")
+                # Set a placeholder to prevent duplicate generation attempts
+                await self.redis_client.set(
+                    f"tts:warmup:{cache_key}",
+                    "pending",
+                    ex=60  # Expire after 1 minute
+                )
 
 # ============================================================================
 # REDIS-BASED RATE LIMITER

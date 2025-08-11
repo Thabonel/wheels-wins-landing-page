@@ -3,12 +3,13 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPExce
 from starlette.websockets import WebSocketState
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, Response
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 import json
 import uuid
 import logging
 import time
 import asyncio
+import base64
 from datetime import datetime
 
 from app.api.deps import (
@@ -53,6 +54,28 @@ logger = get_logger(__name__)
 
 # Helper function for safe WebSocket operations
 import base64
+
+async def safe_websocket_send(websocket: WebSocket, data: dict) -> bool:
+    """
+    Safely send data through WebSocket with state checking
+    
+    Args:
+        websocket: WebSocket connection
+        data: Data to send
+        
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    try:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.send_json(data)
+            return True
+        else:
+            logger.warning(f"WebSocket not in CONNECTED state: {websocket.client_state}")
+            return False
+    except Exception as e:
+        logger.error(f"Error sending WebSocket message: {e}")
+        return False
 
 async def generate_tts_audio(text: str, user_settings: dict = None, user_id: str = None) -> Optional[dict]:
     """
@@ -274,6 +297,99 @@ def validate_websocket_message_size(data: dict) -> tuple[bool, str]:
         return False, "Missing message type"
     
     return True, "Valid"
+
+def validate_audio_data(audio_data: Union[str, bytes], format: str = None) -> tuple[bool, str, Optional[bytes]]:
+    """
+    Validate and process audio data for safety
+    
+    Args:
+        audio_data: Base64 encoded string or raw bytes
+        format: Expected audio format (e.g., 'webm', 'wav', 'mp3')
+    
+    Returns:
+        Tuple of (is_valid, error_message, processed_bytes)
+    """
+    try:
+        # Convert to bytes if base64 string
+        if isinstance(audio_data, str):
+            try:
+                # Remove data URI prefix if present
+                if audio_data.startswith('data:'):
+                    audio_data = audio_data.split(',', 1)[1]
+                
+                # Decode base64
+                audio_bytes = base64.b64decode(audio_data)
+            except Exception as e:
+                return False, f"Invalid base64 encoding: {str(e)}", None
+        else:
+            audio_bytes = audio_data
+        
+        # Check size limits (max 10MB for audio)
+        MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
+        if len(audio_bytes) > MAX_AUDIO_SIZE:
+            return False, f"Audio too large: {len(audio_bytes)} bytes (max {MAX_AUDIO_SIZE})", None
+        
+        # Validate minimum size
+        if len(audio_bytes) < 100:
+            return False, "Audio data too small to be valid", None
+        
+        # Check magic bytes for format validation
+        if format:
+            format_signatures = {
+                'wav': [b'RIFF', b'WAVE'],
+                'mp3': [b'\xff\xfb', b'\xff\xf3', b'\xff\xf2', b'ID3'],
+                'webm': [b'\x1a\x45\xdf\xa3'],
+                'ogg': [b'OggS'],
+                'flac': [b'fLaC']
+            }
+            
+            if format.lower() in format_signatures:
+                valid_signature = False
+                for signature in format_signatures[format.lower()]:
+                    if audio_bytes[:len(signature)] == signature:
+                        valid_signature = True
+                        break
+                
+                if not valid_signature and format.lower() != 'webm':
+                    # WebM can have variable headers, be more lenient
+                    logger.warning(f"Audio format mismatch: expected {format}, got unknown")
+        
+        return True, "Valid", audio_bytes
+        
+    except Exception as e:
+        logger.error(f"Audio validation error: {str(e)}")
+        return False, f"Audio validation failed: {str(e)}", None
+
+def sanitize_transcript(text: str) -> str:
+    """
+    Sanitize transcript text to prevent XSS and injection attacks
+    
+    Args:
+        text: Raw transcript text
+    
+    Returns:
+        Sanitized text safe for display
+    """
+    if not text:
+        return ""
+    
+    # Use bleach for HTML sanitization
+    import bleach
+    
+    # Allow no HTML tags
+    cleaned = bleach.clean(text, tags=[], strip=True)
+    
+    # Additional sanitization for special characters
+    # Escape potential script injection patterns
+    cleaned = cleaned.replace('<', '&lt;').replace('>', '&gt;')
+    cleaned = cleaned.replace('javascript:', '').replace('vbscript:', '')
+    
+    # Limit length to prevent DOS
+    MAX_TRANSCRIPT_LENGTH = 10000
+    if len(cleaned) > MAX_TRANSCRIPT_LENGTH:
+        cleaned = cleaned[:MAX_TRANSCRIPT_LENGTH] + "... [truncated]"
+    
+    return cleaned
 
 
 
@@ -622,13 +738,29 @@ async def websocket_endpoint(
                 # Handle voice/audio messages for STT
                 logger.info(f"🎤 Voice message received from {user_id}")
                 
+                # Check WebSocket state before processing
+                if websocket.client_state != WebSocketState.CONNECTED:
+                    logger.warning(f"WebSocket not connected for user {user_id}, skipping voice message")
+                    continue
+                
                 # Extract audio data and metadata
                 audio_data_base64 = data.get("audio_data")
                 audio_format = data.get("format", "webm")  # Default to webm (browser recording)
                 language = data.get("language", "en")
                 
+                # Validate audio data using secure validation function
+                if audio_data_base64:
+                    is_valid, error_msg, audio_bytes = validate_audio_data(audio_data_base64, audio_format)
+                    if not is_valid:
+                        await safe_websocket_send(websocket, {
+                            "type": "error",
+                            "message": error_msg,
+                            "error_code": "INVALID_AUDIO_DATA"
+                        })
+                        continue
+                
                 if not audio_data_base64:
-                    await websocket.send_json({
+                    await safe_websocket_send(websocket, {
                         "type": "error",
                         "message": "No audio data provided",
                         "error_code": "MISSING_AUDIO_DATA"
@@ -657,14 +789,14 @@ async def websocket_endpoint(
                     # Check if browser STT is required
                     if stt_result.text == "[BROWSER_STT_REQUIRED]":
                         # Signal client to use browser STT
-                        await websocket.send_json({
+                        await safe_websocket_send(websocket, {
                             "type": "stt_instruction",
                             "instruction": "use_browser_stt",
                             "language": language
                         })
                     else:
-                        # Send transcription result
-                        await websocket.send_json({
+                        # Send transcription result with safe send
+                        await safe_websocket_send(websocket, {
                             "type": "stt_result",
                             "text": stt_result.text,
                             "confidence": stt_result.confidence,
@@ -687,9 +819,9 @@ async def websocket_endpoint(
                             
                 except Exception as stt_error:
                     logger.error(f"❌ STT error for user {user_id}: {str(stt_error)}")
-                    await websocket.send_json({
+                    await safe_websocket_send(websocket, {
                         "type": "error",
-                        "message": f"Speech recognition failed: {str(stt_error)}",
+                        "message": "Speech recognition failed",  # Don't expose internal errors
                         "error_code": "STT_ERROR"
                     })
                 

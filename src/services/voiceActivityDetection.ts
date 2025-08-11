@@ -52,8 +52,10 @@ export class VoiceActivityDetectionService {
     try {
       console.log('🔧 Initializing VAD with audio stream');
       
-      // Create audio context
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Create audio context with proper typing
+      const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) throw new Error('AudioContext not supported');
+      this.audioContext = new AudioCtx();
       
       // Load VAD worklet
       await this.audioContext.audioWorklet.addModule('/vad-processor-worklet.js');
