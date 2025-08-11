@@ -16,7 +16,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Target, Zap, CheckCircle } from "lucide-react";
 
-const WinsOverview = React.memo(() => {
+interface WinsOverviewProps {
+  onTabChange?: (tab: string) => void;
+}
+
+const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
   const { user, token } = useAuth();
   const { summary } = useFinancialSummary();
   const { state: expensesState } = useExpenses();
@@ -196,27 +200,24 @@ const WinsOverview = React.memo(() => {
     }
     // Mark that we want to open the form
     sessionStorage.setItem('openExpenseForm', 'true');
-    // Navigate to expenses tab
-    const winsPage = document.querySelector('[value="expenses"]') as HTMLButtonElement;
-    if (winsPage) {
-      winsPage.click();
+    // Navigate to expenses tab using the prop function
+    if (onTabChange) {
+      onTabChange('expenses');
     } else {
-      // Fallback navigation
-      window.location.hash = '#expenses';
+      console.warn('onTabChange prop not provided to WinsOverview');
     }
-  }, []);
+  }, [onTabChange]);
 
   const handleAddIncome = useCallback(() => {
     // Mark that we want to open the form
     sessionStorage.setItem('openIncomeForm', 'true');
-    // Navigate to income tab
-    const incomePage = document.querySelector('[value="income"]') as HTMLButtonElement;
-    if (incomePage) {
-      incomePage.click();
+    // Navigate to income tab using the prop function
+    if (onTabChange) {
+      onTabChange('income');
     } else {
-      window.location.hash = '#income';
+      console.warn('onTabChange prop not provided to WinsOverview');
     }
-  }, []);
+  }, [onTabChange]);
 
   const handleOpenReceipt = useCallback(() => {
     sessionStorage.setItem('openReceiptUpload', 'true');

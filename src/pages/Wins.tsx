@@ -86,7 +86,7 @@ export default function Wins() {
             <div className="bg-white rounded-lg border p-4 min-h-[600px] mt-2" id="content">
               <TabTransition activeTab={activeTab} tabId="overview">
                 <Suspense fallback={<FinancialModuleLoader moduleName="Overview" />}>
-                  <WinsOverview />
+                  <WinsOverview onTabChange={setActiveTab} />
                 </Suspense>
               </TabTransition>
               <TabTransition activeTab={activeTab} tabId="expenses">
