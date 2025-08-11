@@ -14,12 +14,17 @@ import { WinsAgent } from './agents/WinsAgent';
 import { SocialAgent } from './agents/SocialAgent';
 import { MemoryAgent } from './agents/MemoryAgent';
 import { PauterRouterClient } from './router/PauterRouterClient';
-import { ConversationContext } from './types';
+import { LearningSystem } from './learning/LearningSystem';
+import { ProactiveAssistant } from './learning/ProactiveAssistant';
+import { ConversationContext, UserFeedback, AgentResponse, ProactiveInsight } from './types';
 
 export interface SupervisorConfig {
   userId: string;
   enableLearning?: boolean;
+  enableProactiveAssistant?: boolean;
   maxContextLength?: number;
+  learningConfiguration?: any;
+  proactiveConfiguration?: any;
 }
 
 export interface ProcessResult {
@@ -29,6 +34,7 @@ export interface ProcessResult {
   context?: any;
   tools?: string[];
   executionTime?: number;
+  insights?: ProactiveInsight[]; // Phase 6: Proactive insights
 }
 
 export class PAMSupervisor {
@@ -37,6 +43,10 @@ export class PAMSupervisor {
   private context: ConversationContext;
   private config: SupervisorConfig;
   private isInitialized: boolean = false;
+  
+  // Phase 6: Learning & Intelligence Systems
+  private learningSystem?: LearningSystem;
+  private proactiveAssistant?: ProactiveAssistant;
 
   constructor(config: SupervisorConfig) {
     this.config = config;
@@ -81,6 +91,29 @@ export class PAMSupervisor {
       // Initialize router
       await this.router.initialize();
 
+      // Phase 6: Initialize Learning System (based on OpenAI RLHF patterns)
+      if (this.config.enableLearning !== false) {
+        this.learningSystem = new LearningSystem(
+          this.router,
+          memoryAgent,
+          this.config.learningConfiguration
+        );
+        console.log('✅ Learning System initialized');
+      }
+
+      // Phase 6: Initialize Proactive Assistant (based on MakeMyTrip patterns)
+      if (this.config.enableProactiveAssistant !== false && this.learningSystem) {
+        this.proactiveAssistant = new ProactiveAssistant(
+          memoryAgent,
+          wheelsAgent,
+          winsAgent,
+          socialAgent,
+          this.learningSystem,
+          this.config.proactiveConfiguration
+        );
+        console.log('✅ Proactive Assistant initialized');
+      }
+
       // Load user context from memory agent
       const userContext = await memoryAgent.loadUserContext(this.config.userId);
       if (userContext) {
@@ -88,7 +121,7 @@ export class PAMSupervisor {
       }
 
       this.isInitialized = true;
-      console.log('✅ PAM Supervisor initialized successfully');
+      console.log('✅ PAM Supervisor initialized successfully with Learning & Proactive Systems');
     } catch (error) {
       console.error('❌ Failed to initialize PAM Supervisor:', error);
       throw error;
@@ -129,17 +162,28 @@ export class PAMSupervisor {
       });
 
       // 6. Store interaction in memory for learning
-      if (this.config.enableLearning) {
-        const memoryAgent = this.agents.get('memory') as MemoryAgent;
-        await memoryAgent.storeInteraction({
-          message,
-          response: agentResponse.response,
-          intent,
-          timestamp: new Date(),
-        });
+      const memoryAgent = this.agents.get('memory') as MemoryAgent;
+      await memoryAgent.storeInteraction({
+        message,
+        response: agentResponse.response,
+        intent,
+        timestamp: new Date(),
+      });
+
+      // 7. Phase 6: Generate proactive insights (MakeMyTrip pattern)
+      let insights: ProactiveInsight[] = [];
+      if (this.proactiveAssistant) {
+        try {
+          insights = await this.proactiveAssistant.generateInsights(
+            this.config.userId,
+            this.context
+          );
+        } catch (error) {
+          console.error('Failed to generate proactive insights:', error);
+        }
       }
 
-      // 7. Return processed result
+      // 8. Return processed result with proactive insights
       return {
         response: agentResponse.response,
         agent: intent.category,
@@ -147,6 +191,7 @@ export class PAMSupervisor {
         context: agentResponse.context,
         tools: agentResponse.toolsUsed,
         executionTime: Date.now() - startTime,
+        insights: insights, // Phase 6: Include proactive insights
       };
     } catch (error) {
       console.error('❌ Error processing message:', error);
@@ -251,6 +296,129 @@ export class PAMSupervisor {
     }
 
     return stats;
+  }
+
+  /**
+   * Phase 6: Process user feedback for learning system
+   * Based on OpenAI RLHF and LangChain feedback patterns
+   */
+  async processFeedback(
+    interactionId: string,
+    userFeedback: UserFeedback
+  ): Promise<void> {
+    if (!this.learningSystem) {
+      console.warn('Learning system not initialized - feedback ignored');
+      return;
+    }
+
+    try {
+      // Find the interaction in recent context
+      const interaction = this.findInteractionById(interactionId);
+      if (!interaction) {
+        console.warn(`Interaction ${interactionId} not found for feedback processing`);
+        return;
+      }
+
+      // Create agent response object for learning system
+      const agentResponse: AgentResponse = {
+        text: interaction.content,
+        agent: interaction.metadata?.agent || 'unknown',
+        confidence: interaction.metadata?.confidence || 0.5,
+        category: interaction.metadata?.intent?.category || 'general',
+        processingTime: interaction.metadata?.executionTime || 2000,
+        toolsUsed: interaction.metadata?.tools || []
+      };
+
+      // Process feedback through learning system
+      await this.learningSystem.processFeedback(
+        agentResponse,
+        userFeedback,
+        this.context
+      );
+
+      console.log(`✅ Processed feedback for interaction ${interactionId}`, {
+        rating: userFeedback.rating,
+        agent: agentResponse.agent,
+        helpful: userFeedback.helpful
+      });
+
+    } catch (error) {
+      console.error('Failed to process feedback:', error);
+    }
+  }
+
+  /**
+   * Phase 6: Get learning system performance metrics
+   * Based on LangSmith evaluation dashboard patterns
+   */
+  async getPerformanceMetrics(): Promise<Record<string, any>> {
+    if (!this.learningSystem) {
+      return {
+        error: 'Learning system not initialized'
+      };
+    }
+
+    try {
+      const metrics = await this.learningSystem.getPerformanceMetrics();
+      return {
+        supervisor: {
+          totalInteractions: this.context.messages.length / 2, // User + assistant pairs
+          sessionDuration: Date.now() - this.context.startTime.getTime(),
+          averageResponseTime: this.calculateAverageResponseTime(),
+          sessionStartTime: this.context.startTime.toISOString()
+        },
+        agents: metrics,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Failed to get performance metrics:', error);
+      return {
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Phase 6: Get current proactive insights
+   * Based on MakeMyTrip recommendation patterns
+   */
+  async getCurrentInsights(): Promise<ProactiveInsight[]> {
+    if (!this.proactiveAssistant) {
+      return [];
+    }
+
+    try {
+      return await this.proactiveAssistant.generateInsights(
+        this.config.userId,
+        this.context
+      );
+    } catch (error) {
+      console.error('Failed to get current insights:', error);
+      return [];
+    }
+  }
+
+  // Private helper methods for Phase 6
+  private findInteractionById(interactionId: string): any {
+    // Simple implementation - in production, use proper ID tracking
+    return this.context.messages.find(m => 
+      m.role === 'assistant' && 
+      m.metadata?.interactionId === interactionId
+    );
+  }
+
+  private calculateAverageResponseTime(): number {
+    const assistantMessages = this.context.messages.filter(m => 
+      m.role === 'assistant' && m.metadata?.executionTime
+    );
+    
+    if (assistantMessages.length === 0) return 0;
+    
+    const totalTime = assistantMessages.reduce((sum, msg) => 
+      sum + (msg.metadata?.executionTime || 0), 0
+    );
+    
+    return totalTime / assistantMessages.length;
   }
 
   /**
