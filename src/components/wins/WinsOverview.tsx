@@ -10,6 +10,7 @@ import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
 import QuickActions from "./QuickActions";
+import { QuickActionModal, QuickActionType } from "./QuickActionModal";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 // PAM Savings integration - simplified approach
@@ -29,6 +30,7 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [quickActionModal, setQuickActionModal] = useState<QuickActionType>(null);
 
   // PAM Savings - simplified approach using new API
   const { data: pamSavings, isLoading: savingsLoading } = useQuery({
@@ -192,37 +194,22 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
     return baseStats;
   }, [summary, incomeData, expensesState.expenses, pamSavings, savingsLoading]);
 
-  // Quick Actions handlers
+  // Quick Actions handlers - now open modals instead of changing tabs
   const handleAddExpense = useCallback((preset?: { category?: string }) => {
-    // Store preset in sessionStorage if provided
-    if (preset?.category) {
-      sessionStorage.setItem('expensePreset', JSON.stringify(preset));
-    }
-    // Mark that we want to open the form
-    sessionStorage.setItem('openExpenseForm', 'true');
-    // Navigate to expenses tab using the prop function
-    if (onTabChange) {
-      onTabChange('expenses');
+    if (preset?.category === 'Fuel') {
+      setQuickActionModal('fuel');
     } else {
-      console.warn('onTabChange prop not provided to WinsOverview');
+      setQuickActionModal('expense');
     }
-  }, [onTabChange]);
+  }, []);
 
   const handleAddIncome = useCallback(() => {
-    // Mark that we want to open the form
-    sessionStorage.setItem('openIncomeForm', 'true');
-    // Navigate to income tab using the prop function
-    if (onTabChange) {
-      onTabChange('income');
-    } else {
-      console.warn('onTabChange prop not provided to WinsOverview');
-    }
-  }, [onTabChange]);
+    setQuickActionModal('income');
+  }, []);
 
   const handleOpenReceipt = useCallback(() => {
-    sessionStorage.setItem('openReceiptUpload', 'true');
-    handleAddExpense();
-  }, [handleAddExpense]);
+    setQuickActionModal('receipt');
+  }, []);
 
   const handleVoiceEntry = useCallback(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -233,9 +220,8 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
       });
       return;
     }
-    sessionStorage.setItem('startVoiceEntry', 'true');
-    handleAddExpense();
-  }, [handleAddExpense, toast]);
+    setQuickActionModal('voice');
+  }, [toast]);
 
   // Check if voice is available
   const isVoiceAvailable = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
@@ -250,6 +236,12 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
         onVoiceEntry={handleVoiceEntry}
         isVoiceAvailable={isVoiceAvailable}
         isOffline={isOffline}
+      />
+      
+      {/* Quick Action Modal */}
+      <QuickActionModal
+        open={quickActionModal}
+        onClose={() => setQuickActionModal(null)}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -32,9 +32,11 @@ import { format } from "date-fns";
 interface AddExpenseFormProps {
   onClose?: () => void;
   presetCategory?: string;
+  startWithReceipt?: boolean;
+  startWithVoice?: boolean;
 }
 
-export default function AddExpenseForm({ onClose, presetCategory }: AddExpenseFormProps) {
+export default function AddExpenseForm({ onClose, presetCategory, startWithReceipt, startWithVoice }: AddExpenseFormProps) {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(presetCategory || "");
   const [description, setDescription] = useState('');
@@ -42,15 +44,15 @@ export default function AddExpenseForm({ onClose, presetCategory }: AddExpenseFo
   const [receipt, setReceipt] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [shouldOpenReceipt, setShouldOpenReceipt] = useState(false);
+  const [shouldOpenReceipt, setShouldOpenReceipt] = useState(startWithReceipt || false);
   
   const { addExpense, categories } = useExpenseActions();
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // Check if we should open receipt upload on mount
+  // Check if we should open receipt upload on mount (for backward compatibility)
   useState(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('openReceiptUpload') === 'true') {
+    if (!startWithReceipt && typeof window !== 'undefined' && sessionStorage.getItem('openReceiptUpload') === 'true') {
       setShouldOpenReceipt(true);
       // Don't remove it here as WinsExpenses handles it
     }
