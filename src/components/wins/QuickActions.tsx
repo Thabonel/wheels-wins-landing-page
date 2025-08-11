@@ -115,32 +115,35 @@ const QuickActions: React.FC<QuickActionsProps> = ({
           </Alert>
         )}
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
           {quickActions.map(action => (
             <Button
               key={action.id}
               onClick={() => handleQuickAction(action.id, action.action)}
               disabled={action.disabled || isProcessing !== null}
               className={`
-                h-24 flex-col gap-2 relative overflow-hidden transition-all
+                h-20 md:h-24 flex-col gap-1 md:gap-2 relative overflow-hidden transition-all
                 ${action.color} text-white
                 ${action.disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 ${isProcessing === action.id ? 'scale-95' : ''}
               `}
               variant="ghost"
+              aria-label={action.description}
+              aria-disabled={action.disabled || isProcessing !== null}
             >
               {isProcessing === action.id ? (
                 <Loader2 className="h-8 w-8 animate-spin" />
               ) : (
                 <>
-                  <action.icon className="h-8 w-8" />
-                  <span className="text-sm font-medium">{action.label}</span>
+                  <action.icon className="h-6 w-6 md:h-8 md:w-8" />
+                  <span className="text-xs md:text-sm font-medium">{action.label}</span>
                 </>
               )}
               
-              {/* Tooltip on hover */}
-              <span className="absolute inset-x-0 -bottom-10 bg-black/80 text-white text-xs py-1 px-2 
-                             opacity-0 hover:opacity-100 hover:bottom-0 transition-all duration-200">
+              {/* Tooltip on hover (desktop only) */}
+              <span className="hidden md:block absolute inset-x-0 -bottom-10 bg-black/80 text-white text-xs py-1 px-2 
+                             opacity-0 hover:opacity-100 hover:bottom-0 transition-all duration-200"
+                    role="tooltip">
                 {action.description}
               </span>
             </Button>
@@ -152,6 +155,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
           onClick={() => handleQuickAction('income', onAddIncome)}
           disabled={isProcessing !== null}
           className="w-full mt-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+          aria-label="Add new income entry"
         >
           {isProcessing === 'income' ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
