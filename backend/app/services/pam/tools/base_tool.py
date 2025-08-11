@@ -2,11 +2,25 @@
 Base Tool - Common functionality for all PAM tools
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
+from enum import Enum
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+class ToolCapability(Enum):
+    """Enumeration of tool capabilities for registration and discovery"""
+    LOCATION_SEARCH = "location_search"
+    ROUTE_PLANNING = "route_planning"
+    WEATHER_CHECK = "weather_check"
+    FINANCIAL_TRACKING = "financial_tracking"
+    MEDIA_SEARCH = "media_search"
+    WEB_SCRAPING = "web_scraping"
+    MAP_VISUALIZATION = "map_visualization"
+    EXPENSE_MANAGEMENT = "expense_management"
+    TRIP_PLANNING = "trip_planning"
+    DATA_ANALYSIS = "data_analysis"
 
 @dataclass
 class ToolResult:
@@ -28,9 +42,12 @@ class ToolResult:
 class BaseTool(ABC):
     """Base class for all PAM tools"""
     
-    def __init__(self, tool_name: str):
+    def __init__(self, tool_name: str, description: str = "", capabilities: Optional[List[ToolCapability]] = None):
         self.tool_name = tool_name
+        self.description = description
+        self.capabilities = capabilities or []
         self.logger = get_logger(f"pam.tools.{tool_name}")
+        self.is_initialized = False
     
     @abstractmethod
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> ToolResult:
@@ -66,4 +83,14 @@ class BaseTool(ABC):
     
     async def initialize(self):
         """Initialize tool - override in subclasses if needed"""
+        self.is_initialized = True
         self.logger.info(f"{self.tool_name} tool initialized")
+        return True
+    
+    def get_capabilities(self) -> List[ToolCapability]:
+        """Get tool capabilities"""
+        return self.capabilities.copy()
+    
+    def has_capability(self, capability: ToolCapability) -> bool:
+        """Check if tool has specific capability"""
+        return capability in self.capabilities
