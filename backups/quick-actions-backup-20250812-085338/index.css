@@ -8,9 +8,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import Quick Actions Enhanced Styles */
-@import './components/wins/QuickActionStyles.css';
-
 /* Route container - simplified without animations */
 .route-container {
   position: relative;

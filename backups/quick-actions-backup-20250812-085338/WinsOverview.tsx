@@ -10,8 +10,7 @@ import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
 import QuickActions from "./QuickActions";
-// import { QuickActionModal, QuickActionType } from "./QuickActionModal"; // Deprecated - using new QuickActionFAB
-import { QuickActionFAB } from "./QuickActionFAB";
+import { QuickActionModal, QuickActionType } from "./QuickActionModal";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 // PAM Savings integration - simplified approach
@@ -31,7 +30,7 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  // const [quickActionModal, setQuickActionModal] = useState<QuickActionType>(null); // Deprecated - using new QuickActionFAB
+  const [quickActionModal, setQuickActionModal] = useState<QuickActionType>(null);
 
   // PAM Savings - simplified approach using new API
   const { data: pamSavings, isLoading: savingsLoading } = useQuery({
@@ -198,18 +197,18 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
   // Quick Actions handlers - now open modals instead of changing tabs
   const handleAddExpense = useCallback((preset?: { category?: string }) => {
     if (preset?.category === 'Fuel') {
-      // setQuickActionModal('fuel'); // Deprecated - handled by QuickActionFAB
+      setQuickActionModal('fuel');
     } else {
-      // setQuickActionModal('expense'); // Deprecated - handled by QuickActionFAB
+      setQuickActionModal('expense');
     }
   }, []);
 
   const handleAddIncome = useCallback(() => {
-    // setQuickActionModal('income'); // Deprecated - handled by QuickActionFAB
+    setQuickActionModal('income');
   }, []);
 
   const handleOpenReceipt = useCallback(() => {
-    // setQuickActionModal('receipt'); // Deprecated - handled by QuickActionFAB
+    setQuickActionModal('receipt');
   }, []);
 
   const handleVoiceEntry = useCallback(() => {
@@ -221,7 +220,7 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
       });
       return;
     }
-    // setQuickActionModal('voice'); // Deprecated - handled by QuickActionFAB
+    setQuickActionModal('voice');
   }, [toast]);
 
   // Check if voice is available
@@ -239,7 +238,11 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
         isOffline={isOffline}
       />
       
-      {/* Quick Action Modal - Deprecated, using QuickActionFAB instead */}
+      {/* Quick Action Modal */}
+      <QuickActionModal
+        open={quickActionModal}
+        onClose={() => setQuickActionModal(null)}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {summaryStats.map((stat, index) => (
@@ -343,9 +346,6 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
           </CardContent>
         </Card>
       </div>
-      
-      {/* Floating Action Button for Quick Actions */}
-      <QuickActionFAB />
     </div>
   );
 });
