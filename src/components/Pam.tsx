@@ -27,6 +27,8 @@ import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { pamAgenticService } from "@/services/pamAgenticService";
+import { VoiceInterface, VoiceInterfaceHandle } from "@/components/voice/VoiceInterface";
+import { VoiceErrorBoundary } from "@/components/voice/VoiceErrorBoundary";
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -194,6 +196,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const voiceInterfaceRef = useRef<VoiceInterfaceHandle>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownWelcomeRef = useRef(false);
   const authManagerRef = useRef<WebSocketAuthManager>(new WebSocketAuthManager({
@@ -1019,8 +1022,28 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             wsRef.current?.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
           }
           
+          // Handle voice/STT responses - Phase 5B/5C
+          if (message.type === 'stt_result') {
+            console.log('🎤 STT result received:', message);
+            voiceInterfaceRef.current?.updateTranscript(message.text);
+            voiceInterfaceRef.current?.updateStatus('success');
+          }
+          
+          if (message.type === 'stt_instruction') {
+            console.log('🎤 STT instruction received:', message);
+            if (message.instruction === 'use_browser_stt') {
+              voiceInterfaceRef.current?.updateStatus('processing');
+              // Browser STT would be handled client-side
+            }
+          }
+          
+          if (message.type === 'stt_capabilities') {
+            console.log('🎤 STT capabilities received:', message);
+            // Store capabilities for voice interface if needed
+          }
+          
           // Fallback: Display any message with content that we haven't handled
-          if (!['chat_response', 'response', 'ui_action', 'welcome', 'ping', 'pong'].includes(message.type)) {
+          if (!['chat_response', 'response', 'ui_action', 'welcome', 'ping', 'pong', 'stt_result', 'stt_instruction', 'stt_capabilities'].includes(message.type)) {
             const fallbackContent = message.content || message.message || message.response || message.text;
             if (fallbackContent && typeof fallbackContent === 'string' && fallbackContent.trim()) {
               console.log('🔄 PAM DEBUG: Displaying fallback message:', { type: message.type, content: fallbackContent });
@@ -1225,6 +1248,75 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     const infoMessage = `🧠 **Agentic Analysis Active**\n\n${agenticInfo.capabilities?.join('\n• ') || 'Advanced AI reasoning engaged'}`;
     addMessage(infoMessage, "pam");
   };
+
+  // Voice Interface Handlers - Phase 5C
+  const handleVoiceAudioSend = useCallback(async (audioBlob: Blob, autoSend = false) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket not connected');
+    }
+    
+    // Convert blob to base64
+    const reader = new FileReader();
+    return new Promise<void>((resolve, reject) => {
+      reader.onload = () => {
+        const base64Data = (reader.result as string).split(',')[1];
+        
+        const voiceMessage = {
+          type: 'voice',
+          audio_data: base64Data,
+          format: 'webm',
+          language: 'en',
+          auto_send: autoSend,
+          context: {
+            user_id: user?.id,
+            session_id: sessionId,
+            timestamp: new Date().toISOString()
+          }
+        };
+        
+        wsRef.current?.send(JSON.stringify(voiceMessage));
+        console.log('🎤 Voice message sent via WebSocket');
+        resolve();
+      };
+      
+      reader.onerror = () => reject(new Error('Failed to read audio blob'));
+      reader.readAsDataURL(audioBlob);
+    });
+  }, [user?.id, sessionId]);
+
+  const handleVoiceTextSend = useCallback((text: string) => {
+    setInputMessage(text);
+    // Trigger send message after setting input
+    setTimeout(() => handleSendMessage(), 0);
+  }, []);
+
+  const handleTTSRequest = useCallback(async (text: string): Promise<Blob | null> => {
+    try {
+      const response = await authenticatedFetch('/api/v1/pam/voice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          voice: voiceSettings.voice,
+          rate: voiceSettings.rate,
+          pitch: voiceSettings.pitch,
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        return blob;
+      } else {
+        console.error('TTS request failed:', response.status, response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('TTS request error:', error);
+      return null;
+    }
+  }, [voiceSettings]);
 
   const displayThinkingProcess = (thinkingProcess: any) => {
     console.log('💭 Thinking process:', thinkingProcess);
@@ -2706,6 +2798,20 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         <div className="p-3 border-t">
           <AudioLevelMeter />
           
+          {/* Voice Interface - Phase 5C */}
+          <VoiceErrorBoundary>
+            <VoiceInterface
+              ref={voiceInterfaceRef}
+              onSendAudio={handleVoiceAudioSend}
+              onSendText={handleVoiceTextSend}
+              onTTSRequest={handleTTSRequest}
+              compact={true}
+              showTranscript={false}
+              autoSend={true}
+              className="mb-2"
+            />
+          </VoiceErrorBoundary>
+          
           <div className="flex items-center space-x-2">
             <input
               ref={inputRef}
@@ -2953,6 +3059,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           <div className="p-4 border-t">
             <AudioLevelMeter />
             
+            {/* Voice Interface - Phase 5C */}
+            <VoiceErrorBoundary>
+              <VoiceInterface
+                ref={voiceInterfaceRef}
+                onSendAudio={handleVoiceAudioSend}
+                onSendText={handleVoiceTextSend}
+                onTTSRequest={handleTTSRequest}
+                compact={true}
+                showTranscript={false}
+                autoSend={true}
+                className="mb-2"
+              />
+            </VoiceErrorBoundary>
             
             <div className="flex items-center space-x-2">
               <input
