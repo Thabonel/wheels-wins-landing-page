@@ -4,6 +4,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { useIsMobile } from '@/hooks/use-mobile';
 import AddExpenseForm from './expenses/AddExpenseForm';
 import AddIncomeForm from './income/AddIncomeForm';
+import { useIncomeData } from './income/useIncomeData';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -16,6 +17,7 @@ interface QuickActionModalProps {
 
 export const QuickActionModal: React.FC<QuickActionModalProps> = ({ open, onClose }) => {
   const isMobile = useIsMobile();
+  const { addIncome } = useIncomeData();
   
   if (!open) return null;
 
@@ -51,7 +53,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({ open, onClos
           />
         );
       case 'income':
-        return <AddIncomeForm onClose={onClose} />;
+        return <AddIncomeForm onAddIncome={addIncome} onClose={onClose} />;
       default:
         return null;
     }
@@ -60,9 +62,9 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({ open, onClos
   // Mobile: Use drawer from bottom
   if (isMobile) {
     return (
-      <Drawer open={!!open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DrawerContent className="max-h-[85vh]">
-          <DrawerHeader className="relative pb-2">
+      <Drawer open={!!open} onOpenChange={(isOpen) => !isOpen && onClose()} shouldScaleBackground={true}>
+        <DrawerContent className="max-h-[90vh] flex flex-col">
+          <DrawerHeader className="relative pb-3 flex-shrink-0">
             <DrawerTitle>{getTitle()}</DrawerTitle>
             <Button
               variant="ghost"
@@ -74,7 +76,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({ open, onClos
               <span className="sr-only">Close</span>
             </Button>
           </DrawerHeader>
-          <div className="overflow-y-auto px-4 pb-6 max-h-[calc(85vh-5rem)]">
+          <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ scrollBehavior: 'smooth' }}>
             {getContent()}
           </div>
         </DrawerContent>
@@ -85,11 +87,18 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({ open, onClos
   // Desktop: Use centered dialog
   return (
     <Dialog open={!!open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader className="pb-2">
+      <DialogContent 
+        className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        onPointerDownOutside={onClose}
+        onEscapeKeyDown={onClose}
+      >
+        <DialogHeader className="pb-3 flex-shrink-0">
           <DialogTitle>{getTitle()}</DialogTitle>
         </DialogHeader>
-        <div className="overflow-y-auto flex-1 pr-2 pb-4">
+        <div 
+          className="flex-1 overflow-y-auto pr-2 pb-4" 
+          style={{ scrollBehavior: 'smooth' }}
+        >
           {getContent()}
         </div>
       </DialogContent>

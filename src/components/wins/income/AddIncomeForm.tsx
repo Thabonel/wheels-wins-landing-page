@@ -9,14 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -65,14 +57,7 @@ export default function AddIncomeForm({ onAddIncome, onClose }: AddIncomeFormPro
   };
   
   return (
-    <DrawerContent className="max-h-[90vh]">
-      <DrawerHeader className="px-4 pt-4 pb-2">
-        <DrawerTitle>Add New Income</DrawerTitle>
-        <DrawerDescription>
-          Record money you've earned while traveling
-        </DrawerDescription>
-      </DrawerHeader>
-      <div className="px-4 py-2 overflow-y-auto flex-1">
+    <div className="space-y-4">
         <form className="grid gap-4 py-4">
           <div className="grid gap-2">
             <label htmlFor="amount">Amount ($)</label>
@@ -145,15 +130,24 @@ export default function AddIncomeForm({ onAddIncome, onClose }: AddIncomeFormPro
             </Popover>
           </div>
         </form>
-      </div>
-      <DrawerFooter className="px-4 pt-2 pb-4">
-        <Button onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? "Saving..." : "Save Income"}
-        </Button>
-        <DrawerClose asChild>
-          <Button variant="outline">Cancel</Button>
-        </DrawerClose>
-      </DrawerFooter>
-    </DrawerContent>
+        
+        {/* Form Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting}
+            className="flex-1 sm:flex-initial"
+          >
+            {isSubmitting ? "Saving..." : "Save Income"}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={onClose}
+            className="flex-1 sm:flex-initial"
+          >
+            Cancel
+          </Button>
+        </div>
+    </div>
   );
 }
