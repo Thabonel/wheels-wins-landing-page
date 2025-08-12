@@ -17,15 +17,16 @@ from app.services.ai_service import get_ai_service, AIService, AIResponse
 from app.services.cache_manager import get_cache_manager, CacheStrategy, cached
 from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator, ResponseMode
 
+logger = get_logger("simple_pam")
+
 # Import weather tool for real weather data
 try:
     from app.services.pam.tools.weather_tool import WeatherTool
     WEATHER_TOOL_AVAILABLE = True
-except ImportError:
-    logger.warning("WeatherTool not available - weather queries will use fallback responses")
+    logger.info("WeatherTool imported successfully")
+except ImportError as e:
+    logger.warning(f"WeatherTool not available - weather queries will use fallback responses: {e}")
     WEATHER_TOOL_AVAILABLE = False
-
-logger = get_logger("simple_pam")
 
 class PAMServiceError(Exception):
     """Exception raised when PAM service encounters errors"""
@@ -283,6 +284,7 @@ class SimplePamService:
         try:
             # Check if this is a weather query and handle with WeatherTool
             message_lower = message.lower()
+            logger.info(f"🔍 Checking for weather query. WeatherTool available: {self.weather_tool is not None}")
             if self.weather_tool and any(word in message_lower for word in ["weather", "forecast", "temperature", "rain", "sunny", "cloudy", "snow"]):
                 logger.info(f"🌤️ Weather query detected, using WeatherTool")
                 try:
@@ -303,11 +305,22 @@ class SimplePamService:
                             user_location = location_part.split()[0] if location_part else None
                     
                     if user_location:
-                        # Call weather tool
-                        weather_result = await self.weather_tool.execute({
-                            "location": user_location,
-                            "forecast_days": 3 if "tomorrow" in message_lower or "week" in message_lower else 1
-                        })
+                        # Call weather tool with correct parameters
+                        if "tomorrow" in message_lower or "week" in message_lower or "forecast" in message_lower:
+                            weather_result = await self.weather_tool.execute(
+                                action="get_forecast",
+                                parameters={
+                                    "location": user_location,
+                                    "days": 3
+                                }
+                            )
+                        else:
+                            weather_result = await self.weather_tool.execute(
+                                action="get_current",
+                                parameters={
+                                    "location": user_location
+                                }
+                            )
                         
                         if weather_result.success:
                             # Format weather response in PAM's friendly style
