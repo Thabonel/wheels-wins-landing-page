@@ -33,8 +33,13 @@ class EdgeTTSEngine(BaseTTSEngine):
         if not EDGE_TTS_AVAILABLE:
             raise TTSError("edge-tts package not installed", engine="EdgeTTS")
         
-        # Test basic functionality
-        asyncio.create_task(self._test_connection())
+        # Test basic functionality - defer to async method
+        self._connection_tested = False
+    
+    async def ensure_ready(self):
+        """Ensure connection is tested before use"""
+        if not self._connection_tested:
+            await self._test_connection()
     
     async def _test_connection(self):
         """Test Edge TTS connection"""
@@ -50,8 +55,10 @@ class EdgeTTSEngine(BaseTTSEngine):
                 raise TTSError("No audio data received from Edge TTS")
                 
             logger.debug("✅ Edge TTS connection test successful")
+            self._connection_tested = True
         except Exception as e:
             logger.error(f"❌ Edge TTS connection test failed: {e}")
+            self._connection_tested = True  # Mark as tested even if failed
             raise TTSError(f"Edge TTS connection failed: {e}", engine="EdgeTTS", original_error=e)
     
     async def synthesize(
@@ -71,6 +78,9 @@ class EdgeTTSEngine(BaseTTSEngine):
         """
         if not EDGE_TTS_AVAILABLE:
             raise TTSError("Edge TTS not available", engine="EdgeTTS")
+        
+        # Ensure connection is ready
+        await self.ensure_ready()
         
         if not text or not text.strip():
             raise TTSError("Empty text provided", engine="EdgeTTS")
