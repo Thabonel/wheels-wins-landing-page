@@ -17,6 +17,14 @@ from app.services.ai_service import get_ai_service, AIService, AIResponse
 from app.services.cache_manager import get_cache_manager, CacheStrategy, cached
 from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator, ResponseMode
 
+# Import weather tool for real weather data
+try:
+    from app.services.pam.tools.weather_tool import WeatherTool
+    WEATHER_TOOL_AVAILABLE = True
+except ImportError:
+    logger.warning("WeatherTool not available - weather queries will use fallback responses")
+    WEATHER_TOOL_AVAILABLE = False
+
 logger = get_logger("simple_pam")
 
 class PAMServiceError(Exception):
@@ -40,6 +48,16 @@ class SimplePamService:
         # Initialize the enhanced orchestrator for comprehensive functionality
         self.enhanced_orchestrator = None
         self.orchestrator_initialized = False
+        
+        # Initialize weather tool if available
+        self.weather_tool = None
+        if WEATHER_TOOL_AVAILABLE:
+            try:
+                self.weather_tool = WeatherTool()
+                logger.info("WeatherTool initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize WeatherTool: {e}")
+                self.weather_tool = None
         
         # Initialize the AI service with database connection (fallback)
         try:
@@ -263,6 +281,64 @@ class SimplePamService:
             await self.initialize_tools()
         
         try:
+            # Check if this is a weather query and handle with WeatherTool
+            message_lower = message.lower()
+            if self.weather_tool and any(word in message_lower for word in ["weather", "forecast", "temperature", "rain", "sunny", "cloudy", "snow"]):
+                logger.info(f"🌤️ Weather query detected, using WeatherTool")
+                try:
+                    # Extract location from context or message
+                    user_location = None
+                    if context.get("userLocation"):
+                        loc = context["userLocation"]
+                        if isinstance(loc, dict):
+                            user_location = f"{loc.get('latitude', 0)},{loc.get('longitude', 0)}"
+                        elif isinstance(loc, str):
+                            user_location = loc
+                    
+                    # If no location in context, try to extract from message
+                    if not user_location:
+                        # Simple location extraction (could be improved)
+                        if "in " in message_lower:
+                            location_part = message_lower.split("in ", 1)[1]
+                            user_location = location_part.split()[0] if location_part else None
+                    
+                    if user_location:
+                        # Call weather tool
+                        weather_result = await self.weather_tool.execute({
+                            "location": user_location,
+                            "forecast_days": 3 if "tomorrow" in message_lower or "week" in message_lower else 1
+                        })
+                        
+                        if weather_result.success:
+                            # Format weather response in PAM's friendly style
+                            weather_data = weather_result.data
+                            if "tomorrow" in message_lower and weather_data.get("forecast"):
+                                # Get tomorrow's forecast
+                                tomorrow = weather_data["forecast"][0] if weather_data.get("forecast") else None
+                                if tomorrow:
+                                    response = f"Tomorrow in {weather_data.get('location', 'your area')}, expect {tomorrow.get('conditions', 'variable conditions')} with a high of {tomorrow.get('high_temp', 'N/A')}°F and a low of {tomorrow.get('low_temp', 'N/A')}°F. "
+                                    if tomorrow.get('precipitation_chance', 0) > 30:
+                                        response += f"There's a {tomorrow.get('precipitation_chance')}% chance of precipitation. "
+                                    response += f"Perfect for RV travel: {tomorrow.get('rv_travel_rating', 'Check conditions')}!"
+                                    logger.info(f"✅ Weather tool response: {response}")
+                                    return response
+                            else:
+                                # Current weather
+                                response = f"Currently in {weather_data.get('location', 'your area')}, it's {weather_data.get('temperature', 'N/A')}°F with {weather_data.get('conditions', 'variable conditions')}. "
+                                response += f"Wind speed is {weather_data.get('wind_speed', 'N/A')} mph. "
+                                if weather_data.get('alerts'):
+                                    response += f"⚠️ Weather alert: {weather_data['alerts'][0].get('headline', '')} "
+                                response += "Safe travels!"
+                                logger.info(f"✅ Weather tool response: {response}")
+                                return response
+                    else:
+                        logger.info(f"📍 No location available for weather query")
+                        return "I'd love to check the weather for you! Could you share your location or tell me which city you're interested in?"
+                        
+                except Exception as e:
+                    logger.error(f"❌ Weather tool failed: {e}")
+                    # Fall through to normal processing
+            
             # Prepare enhanced context with conversation history
             enhanced_context = context.copy()
             
@@ -447,7 +523,8 @@ class SimplePamService:
         if "location" in message_lower or "where" in message_lower:
             return "I'm having trouble accessing location services right now. Could you be more specific about the area you're asking about?"
         elif "weather" in message_lower:
-            return "I can't check the weather at the moment. Try checking your local weather app or website for current conditions."
+            # This should rarely be reached now that we have WeatherTool
+            return "I'd love to check the weather for you! Could you share your location or tell me which city you're interested in?"
         elif "route" in message_lower or "directions" in message_lower:
             return "I'm unable to provide routing information right now. You might want to use your GPS navigation app for directions."
         else:
