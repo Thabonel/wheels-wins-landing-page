@@ -130,7 +130,28 @@ export const usePamWebSocket = (userId: string, token: string) => {
               return;
             }
             
-            setMessages((prev) => [...prev, message]);
+            // Prevent duplicate messages
+            setMessages((prev) => {
+              // Check if this exact message already exists (within last 5 messages to avoid memory issues)
+              const recentMessages = prev.slice(-5);
+              const isDuplicate = recentMessages.some(msg => {
+                // Check for duplicate based on content and timestamp (within 1 second)
+                if (msg.content === message.content || msg.message === message.message) {
+                  const msgTime = new Date(msg.timestamp || 0).getTime();
+                  const newTime = new Date(message.timestamp || 0).getTime();
+                  const timeDiff = Math.abs(newTime - msgTime);
+                  return timeDiff < 1000; // Consider duplicate if within 1 second
+                }
+                return false;
+              });
+              
+              if (isDuplicate) {
+                console.log('Duplicate message filtered:', message);
+                return prev;
+              }
+              
+              return [...prev, message];
+            });
           } catch (error) {
             console.error('Failed to parse PAM message:', error);
           }
