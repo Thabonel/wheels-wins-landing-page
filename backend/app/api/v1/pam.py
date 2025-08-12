@@ -725,12 +725,9 @@ async def websocket_endpoint(
                 else:
                     logger.info(f"📍 [DEBUG] No location provided in init message")
                 
-                # Send acknowledgment
-                await websocket.send_json({
-                    "type": "init_ack",
-                    "message": "Context initialized successfully",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
+                # Context initialized silently - no need to send acknowledgment to user
+                # PAM is a travel companion, not a system that reports initialization status
+                logger.info(f"✅ Context initialized for user {user_id}")
                 
             elif data.get("type") == "auth":
                 logger.info(f"🔐 [DEBUG] Auth message received from {user_id} - ignoring (already authenticated)")

@@ -121,6 +121,15 @@ export const usePamWebSocket = (userId: string, token: string) => {
         wsRef.current.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data);
+            
+            // Filter out system messages that shouldn't be shown to users
+            // PAM is a travel companion, not a system reporting status
+            const systemMessageTypes = ['init_ack', 'system', 'debug', 'status'];
+            if (systemMessageTypes.includes(message.type)) {
+              console.log('System message received (not shown to user):', message);
+              return;
+            }
+            
             setMessages((prev) => [...prev, message]);
           } catch (error) {
             console.error('Failed to parse PAM message:', error);
