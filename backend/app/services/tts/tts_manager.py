@@ -70,11 +70,14 @@ class TTSManager:
         self.default_voice_profiles: Dict[str, VoiceProfile] = {}
         self.user_voice_preferences: Dict[str, str] = {}  # user_id -> voice_id
         
-        # Initialize engines
-        asyncio.create_task(self._initialize_engines())
+        # Initialize engines - defer to async method
+        self._engines_initialized = False
     
     async def _initialize_engines(self):
         """Initialize all available TTS engines"""
+        if self._engines_initialized:
+            return
+            
         logger.info("🎤 Initializing TTS engines...")
         
         # Initialize Edge TTS (Primary)
@@ -89,9 +92,17 @@ class TTSManager:
         # Setup default voice profiles
         self._setup_default_voices()
         
+        # Mark as initialized
+        self._engines_initialized = True
+        
         # Log initialization results
         available_engines = [info.name for info in self.engine_info.values() if info.available]
         logger.info(f"✅ TTS Manager initialized with {len(available_engines)} engines: {', '.join(available_engines)}")
+    
+    async def ensure_initialized(self):
+        """Ensure engines are initialized before use"""
+        if not self._engines_initialized:
+            await self._initialize_engines()
     
     async def _initialize_edge_tts(self):
         """Initialize Edge TTS engine"""
@@ -262,6 +273,9 @@ class TTSManager:
         Returns:
             Dictionary with audio data, metadata, and fallback info
         """
+        # Ensure engines are initialized
+        await self.ensure_initialized()
+        
         start_time = time.time()
         self.total_requests += 1
         
