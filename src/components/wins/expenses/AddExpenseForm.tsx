@@ -11,14 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
 import { useExpenseActions } from "@/hooks/useExpenseActions";
 import ReceiptUpload from "./ReceiptUpload";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -155,15 +147,7 @@ export default function AddExpenseForm({ onClose, presetCategory, startWithRecei
   };
 
   return (
-    <DrawerContent className="max-w-xl mx-auto rounded-lg border shadow-md max-h-[90vh] overflow-y-auto">
-      <DrawerHeader>
-        <DrawerTitle>Add New Expense</DrawerTitle>
-        <DrawerDescription>
-          Record your travel expenses here
-        </DrawerDescription>
-      </DrawerHeader>
-      
-      <div className="px-4 py-2">
+    <div className="space-y-4">
         <form className="grid gap-4 py-4">
           {/* Amount Input */}
           <div className="grid gap-2">
@@ -293,29 +277,32 @@ export default function AddExpenseForm({ onClose, presetCategory, startWithRecei
             Pro tip: Take photos of receipts for easy expense tracking and tax purposes!
           </AlertDescription>
         </Alert>
-      </div>
-
-      <DrawerFooter>
-        <Button 
-          onClick={handleSubmit} 
-          disabled={isSubmitting}
-          className="w-full sm:w-auto"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            "Save Expense"
-          )}
-        </Button>
-        <DrawerClose asChild>
-          <Button variant="outline" disabled={isSubmitting} className="w-full sm:w-auto">
+      
+        {/* Form Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting}
+            className="flex-1 sm:flex-initial"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Expense"
+            )}
+          </Button>
+          <Button 
+            variant="outline" 
+            disabled={isSubmitting} 
+            onClick={onClose}
+            className="flex-1 sm:flex-initial"
+          >
             Cancel
           </Button>
-        </DrawerClose>
-      </DrawerFooter>
-    </DrawerContent>
+        </div>
+    </div>
   );
 }
