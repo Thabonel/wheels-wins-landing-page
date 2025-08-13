@@ -84,30 +84,11 @@ export default function WinsExpenses() {
   
   return (
     <div className="space-y-6">
-      {/* Header with proper category navigation */}
+      {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
         <div className="flex-1">
-          <h2 className="text-2xl font-bold mb-4">Expenses</h2>
-          <Tabs 
-            value={selectedCategory} 
-            onValueChange={setSelectedCategory} 
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 gap-1 h-auto p-1">
-              <TabsTrigger value="all" className="text-xs md:text-sm py-2 px-2 md:px-3">
-                All Expenses
-              </TabsTrigger>
-              {categories.map(category => (
-                <TabsTrigger 
-                  key={category} 
-                  value={category.toLowerCase()}
-                  className="text-xs md:text-sm py-2 px-2 md:px-3"
-                >
-                  {category}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <h2 className="text-2xl font-bold mb-2">Expenses</h2>
+          <p className="text-gray-600 dark:text-gray-400">Track and categorize your travel expenses</p>
         </div>
         
         {/* Action buttons */}
@@ -165,36 +146,61 @@ export default function WinsExpenses() {
         </div>
       </div>
 
-      {/* Natural language expense input */}
-      <ExpenseInput />
+      {/* Category Tabs */}
+      <Tabs 
+        value={selectedCategory} 
+        onValueChange={setSelectedCategory} 
+        className="w-full"
+      >
+        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
+          <TabsTrigger value="all">
+            All Expenses
+          </TabsTrigger>
+          {categories.map(category => (
+            <TabsTrigger 
+              key={category} 
+              value={category.toLowerCase()}
+              className="whitespace-nowrap"
+            >
+              {category}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      {/* Voice expense logger for hands-free logging */}
-      <VoiceExpenseLogger className="mb-6" />
+        {/* Tab Content */}
+        <div className="mt-6 space-y-6">
+          {/* Natural language expense input */}
+          <ExpenseInput />
 
-      {/* Bank Statement Upload Section */}
-      {showBankUpload && (
-        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border">
-          <h3 className="text-lg font-semibold mb-4">Import Bank Statement</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Upload your bank statement to automatically import expenses and categorize them.
-          </p>
-          <BankStatementConverter />
+          {/* Voice expense logger for hands-free logging */}
+          <VoiceExpenseLogger className="mb-6" />
+
+          {/* Bank Statement Upload Section */}
+          {showBankUpload && (
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border">
+              <h3 className="text-lg font-semibold mb-4">Import Bank Statement</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Upload your bank statement to automatically import expenses and categorize them.
+              </p>
+              <BankStatementConverter />
+            </div>
+          )}
+
+          {viewMode === "timeline" ? (
+            <ExpenseTable 
+              expenses={filteredExpenses} 
+              categoryColors={categoryColors} 
+              onFilterClick={() => console.log('Filter clicked')}
+            />
+          ) : (
+            <ExpenseChart chartData={filteredChartData} />
+          )}
+
+          <PamInsightCard 
+            content="Your fuel costs are 23% higher than last month. I found three gas stations nearby with prices $0.30 lower than you've been paying. Want me to show you the route?"
+          />
         </div>
-      )}
-
-      {viewMode === "timeline" ? (
-        <ExpenseTable 
-          expenses={filteredExpenses} 
-          categoryColors={categoryColors} 
-          onFilterClick={() => console.log('Filter clicked')}
-        />
-      ) : (
-        <ExpenseChart chartData={filteredChartData} />
-      )}
-
-      <PamInsightCard 
-        content="Your fuel costs are 23% higher than last month. I found three gas stations nearby with prices $0.30 lower than you've been paying. Want me to show you the route?"
-      />
+      </Tabs>
     </div>
   );
 }
