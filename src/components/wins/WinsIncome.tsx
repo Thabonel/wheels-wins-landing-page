@@ -41,6 +41,8 @@ export default function WinsIncome() {
       {/* Header with consistent styling */}
       <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
         <div className="flex-1">
+          <h2 className="text-2xl font-bold mb-2">Income</h2>
+          <p className="text-gray-600 dark:text-gray-400">Track your travel income and earnings</p>
         </div>
         
         {/* Action buttons */}
