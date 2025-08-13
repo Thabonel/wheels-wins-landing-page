@@ -9,6 +9,8 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import aiohttp
+from functools import lru_cache
+import hashlib
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
@@ -66,6 +68,7 @@ class WeatherTool(BaseTool):
     - Severe weather alerts
     - RV travel conditions assessment
     - Route weather planning
+    - Smart caching for improved performance
     """
     
     def __init__(self):
@@ -85,6 +88,14 @@ class WeatherTool(BaseTool):
         
         self.base_url = "https://api.openweathermap.org/data/2.5"
         self.session = None
+        
+        # Cache configuration
+        self._cache: Dict[str, Tuple[Any, datetime]] = {}
+        self._cache_ttl = {
+            'current': timedelta(minutes=1),    # Current weather cached for 1 minute
+            'forecast': timedelta(minutes=10),  # Forecast cached for 10 minutes
+            'alerts': timedelta(minutes=5)      # Alerts cached for 5 minutes
+        }
         
     async def initialize(self) -> bool:
         """Initialize the weather tool"""
@@ -138,8 +149,40 @@ class WeatherTool(BaseTool):
                 error=str(e)
             )
     
+    def _get_cache_key(self, operation: str, params: Dict[str, Any]) -> str:
+        """Generate cache key for weather operation"""
+        # Create a stable hash of the parameters
+        param_str = json.dumps(params, sort_keys=True)
+        hash_obj = hashlib.md5(f"{operation}:{param_str}".encode())
+        return hash_obj.hexdigest()
+    
+    def _get_cached_result(self, cache_key: str, cache_type: str) -> Optional[ToolResult]:
+        """Get cached result if still valid"""
+        if cache_key in self._cache:
+            result, timestamp = self._cache[cache_key]
+            age = datetime.now() - timestamp
+            ttl = self._cache_ttl.get(cache_type, timedelta(minutes=5))
+            
+            if age < ttl:
+                logger.info(f"✅ Cache hit for {cache_type} (age: {age.seconds}s)")
+                return result
+            else:
+                # Remove expired cache entry
+                del self._cache[cache_key]
+        return None
+    
+    def _cache_result(self, cache_key: str, result: ToolResult):
+        """Cache a weather result"""
+        self._cache[cache_key] = (result, datetime.now())
+        # Limit cache size to prevent memory issues
+        if len(self._cache) > 100:
+            # Remove oldest entries
+            sorted_cache = sorted(self._cache.items(), key=lambda x: x[1][1])
+            for key, _ in sorted_cache[:20]:  # Remove 20 oldest
+                del self._cache[key]
+    
     async def _get_current_weather(self, params: Dict[str, Any]) -> ToolResult:
-        """Get current weather for a location"""
+        """Get current weather for a location with caching"""
         location = params.get("location")
         
         if not location:
@@ -148,9 +191,17 @@ class WeatherTool(BaseTool):
                 error="Location required"
             )
         
+        # Check cache first
+        cache_key = self._get_cache_key("current", params)
+        cached = self._get_cached_result(cache_key, "current")
+        if cached:
+            return cached
+        
         # Mock response if no API key
         if not self.api_key:
-            return self._mock_current_weather(location)
+            result = self._mock_current_weather(location)
+            self._cache_result(cache_key, result)
+            return result
         
         try:
             # Handle coordinates or city name
@@ -193,7 +244,7 @@ class WeatherTool(BaseTool):
                         conditions=weather.conditions
                     )
                     
-                    return ToolResult(
+                    result = ToolResult(
                         success=True,
                         result={
                             "current": {
@@ -211,6 +262,8 @@ class WeatherTool(BaseTool):
                                       f"RV travel conditions: {travel_rating}"
                         }
                     )
+                    self._cache_result(cache_key, result)
+                    return result
                 else:
                     return ToolResult(
                         success=False,
@@ -225,7 +278,7 @@ class WeatherTool(BaseTool):
             )
     
     async def _get_forecast(self, params: Dict[str, Any]) -> ToolResult:
-        """Get weather forecast for a location"""
+        """Get weather forecast for a location with caching"""
         location = params.get("location")
         days = params.get("days", 5)
         
@@ -235,9 +288,17 @@ class WeatherTool(BaseTool):
                 error="Location required"
             )
         
+        # Check cache first
+        cache_key = self._get_cache_key("forecast", params)
+        cached = self._get_cached_result(cache_key, "forecast")
+        if cached:
+            return cached
+        
         # Mock response if no API key
         if not self.api_key:
-            return self._mock_forecast(location, days)
+            result = self._mock_forecast(location, days)
+            self._cache_result(cache_key, result)
+            return result
         
         try:
             # Handle coordinates or city name
@@ -265,7 +326,7 @@ class WeatherTool(BaseTool):
                     # Process forecast data into daily summaries
                     daily_forecasts = self._process_forecast_data(data["list"])
                     
-                    return ToolResult(
+                    result = ToolResult(
                         success=True,
                         result={
                             "forecast": [{
@@ -281,6 +342,8 @@ class WeatherTool(BaseTool):
                             "message": f"{days}-day forecast for {data['city']['name']}"
                         }
                     )
+                    self._cache_result(cache_key, result)
+                    return result
                 else:
                     return ToolResult(
                         success=False,
