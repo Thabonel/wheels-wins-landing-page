@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Drawer, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Upload } from "lucide-react";
 import { useScrollReset } from "@/hooks/useScrollReset";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileFormWrapper } from "@/components/common/MobileFormWrapper";
+import { BankStatementConverter } from "@/components/bank-statement/BankStatementConverter";
 
 // Import refactored components
 import ExpenseTable from "./expenses/ExpenseTable";
@@ -21,6 +22,7 @@ export default function WinsExpenses() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState("timeline");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [showBankUpload, setShowBankUpload] = useState(false);
   const { expenses, categories, categoryColors } = useExpenseActions();
   const [presetCategory, setPresetCategory] = useState<string | undefined>();
   const isMobile = useIsMobile();
@@ -82,23 +84,34 @@ export default function WinsExpenses() {
   
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <Tabs 
-          value={selectedCategory} 
-          onValueChange={setSelectedCategory} 
-          className="w-auto"
-        >
-          <TabsList className="overflow-x-auto">
-            <TabsTrigger value="all">All Expenses</TabsTrigger>
-            {categories.map(category => (
-              <TabsTrigger key={category} value={category.toLowerCase()}>
-                {category}
+      {/* Header with proper category navigation */}
+      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
+        <div className="flex-1">
+          <h2 className="text-2xl font-bold mb-4">Expenses</h2>
+          <Tabs 
+            value={selectedCategory} 
+            onValueChange={setSelectedCategory} 
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 gap-1 h-auto p-1">
+              <TabsTrigger value="all" className="text-xs md:text-sm py-2 px-2 md:px-3">
+                All Expenses
               </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+              {categories.map(category => (
+                <TabsTrigger 
+                  key={category} 
+                  value={category.toLowerCase()}
+                  className="text-xs md:text-sm py-2 px-2 md:px-3"
+                >
+                  {category}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
         
-        <div className="flex items-center gap-2">
+        {/* Action buttons */}
+        <div className="flex flex-col gap-2 md:flex-row md:items-center">
           <div className="flex border rounded-md overflow-hidden">
             <Button 
               variant={viewMode === "timeline" ? "default" : "outline"}
@@ -137,9 +150,17 @@ export default function WinsExpenses() {
               />
             )}
           </MobileFormWrapper>
-          <Button onClick={() => setDrawerOpen(true)}>
+          <Button onClick={() => setDrawerOpen(true)} className="w-full md:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Expense
+          </Button>
+          <Button 
+            onClick={() => setShowBankUpload(!showBankUpload)} 
+            variant="outline"
+            className="w-full md:w-auto"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Import Bank Statement
           </Button>
         </div>
       </div>
@@ -149,6 +170,17 @@ export default function WinsExpenses() {
 
       {/* Voice expense logger for hands-free logging */}
       <VoiceExpenseLogger className="mb-6" />
+
+      {/* Bank Statement Upload Section */}
+      {showBankUpload && (
+        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border">
+          <h3 className="text-lg font-semibold mb-4">Import Bank Statement</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Upload your bank statement to automatically import expenses and categorize them.
+          </p>
+          <BankStatementConverter />
+        </div>
+      )}
 
       {viewMode === "timeline" ? (
         <ExpenseTable 
