@@ -1,15 +1,13 @@
 @import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 @import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 @import "mapbox-gl/dist/mapbox-gl.css";
+@import './components/wins/QuickActionStyles.css';
 
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import Quick Actions Enhanced Styles */
-@import './components/wins/QuickActionStyles.css';
 
 /* Route container - simplified without animations */
 .route-container {

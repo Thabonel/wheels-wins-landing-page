@@ -1,5 +1,4 @@
-import React, { useCallback, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
+import React, { useCallback, useState, useRef } from 'react';
 import { Upload, FileText, Shield, Lock, AlertCircle, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -13,6 +12,8 @@ interface UploadStageProps {
 export const UploadStage: React.FC<UploadStageProps> = ({ onFileSelect }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): boolean => {
     // Strict file type validation for security
@@ -62,30 +63,43 @@ export const UploadStage: React.FC<UploadStageProps> = ({ onFileSelect }) => {
     return true;
   };
 
-  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
-    if (rejectedFiles.length > 0) {
-      setError('Invalid file type. Please upload a PDF, CSV, or Excel file.');
-      return;
-    }
-
-    const file = acceptedFiles[0];
-    if (file && validateFile(file)) {
+  const handleFileSelect = useCallback((file: File) => {
+    if (validateFile(file)) {
       setSelectedFile(file);
       setError(null);
     }
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'text/csv': ['.csv'],
-      'application/vnd.ms-excel': ['.xls'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-    },
-    maxFiles: 1,
-    maxSize: 10 * 1024 * 1024, // 10MB
-  });
+  const handleFileInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  }, [handleFileSelect]);
+
+  const handleDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragActive(true);
+  }, []);
+
+  const handleDragLeave = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragActive(false);
+  }, []);
+
+  const handleDrop = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragActive(false);
+    
+    const file = event.dataTransfer.files[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  }, [handleFileSelect]);
+
+  const handleClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
 
   const handleContinue = () => {
     if (selectedFile) {
@@ -121,7 +135,10 @@ export const UploadStage: React.FC<UploadStageProps> = ({ onFileSelect }) => {
         <CardContent>
           {!selectedFile ? (
             <div
-              {...getRootProps()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={handleClick}
               className={`
                 border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
                 transition-colors duration-200
@@ -132,7 +149,13 @@ export const UploadStage: React.FC<UploadStageProps> = ({ onFileSelect }) => {
                 ${error ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : ''}
               `}
             >
-              <input {...getInputProps()} />
+              <input 
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.csv,.xls,.xlsx"
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
               <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
               {isDragActive ? (
                 <p className="text-lg font-medium">Drop your file here...</p>
