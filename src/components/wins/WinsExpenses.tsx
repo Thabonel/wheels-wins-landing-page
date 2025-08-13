@@ -87,8 +87,6 @@ export default function WinsExpenses() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
         <div className="flex-1">
-          <h2 className="text-2xl font-bold mb-2">Expenses</h2>
-          <p className="text-gray-600 dark:text-gray-400">Track and categorize your travel expenses</p>
         </div>
         
         {/* Action buttons */}
@@ -100,7 +98,6 @@ export default function WinsExpenses() {
               onClick={() => setViewMode("timeline")}
               className="rounded-none border-0"
             >
-              Timeline
             </Button>
             <Button 
               variant={viewMode === "chart" ? "default" : "outline"}
@@ -154,7 +151,6 @@ export default function WinsExpenses() {
       >
         <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
           <TabsTrigger value="all">
-            All Expenses
           </TabsTrigger>
           {categories.map(category => (
             <TabsTrigger 

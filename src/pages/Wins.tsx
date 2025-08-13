@@ -33,8 +33,8 @@ export default function Wins() {
   
   const tabs = [
     { id: "overview", label: "Overview" },
-    { id: "expenses", label: "Expenses" },
-    { id: "income", label: "Income" },
+    { id: "expenses", label: "" },
+    { id: "income", label: "" },
     { id: "budgets", label: "Budgets" },
     { id: "tips", label: "Tips" },
     { id: "money-maker", label: "Make Money on the Road" },
