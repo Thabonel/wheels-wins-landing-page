@@ -240,6 +240,18 @@ class SimplePamService:
             logger.warning("⚠️ No PAM tools could be initialized - continuing with base intelligence only")
             # Don't break the service - PAM can still work with base intelligence
     
+    def _needs_location(self, message: str) -> bool:
+        """Check if message requires location context"""
+        location_patterns = [
+            'weather', 'forecast', 'rain', 'temperature', 'sunny', 'cloudy', 'snow',
+            'nearby', 'around me', 'close to me', 'near me',
+            'directions', 'route', 'navigate', 'drive', 'trip',
+            'local', 'restaurant', 'hotel', 'gas station', 'rv park', 'campground',
+            'traffic', 'road conditions'
+        ]
+        message_lower = message.lower()
+        return any(pattern in message_lower for pattern in location_patterns)
+    
     async def get_response(
         self, 
         message: str, 
@@ -282,75 +294,130 @@ class SimplePamService:
             await self.initialize_tools()
         
         try:
-            # Check if this is a weather query and handle with WeatherTool
+            # Check if this is a location-requiring query
             message_lower = message.lower()
-            logger.info(f"🔍 Checking for weather query. WeatherTool available: {self.weather_tool is not None}")
+            needs_location = self._needs_location(message)
+            
+            # Handle weather queries with smart location context
             if self.weather_tool and any(word in message_lower for word in ["weather", "forecast", "temperature", "rain", "sunny", "cloudy", "snow"]):
                 logger.info(f"🌤️ Weather query detected, using WeatherTool")
                 try:
-                    # Extract location from context or message
+                    # Smart location extraction - use context first, never ask for permission
                     user_location = None
-                    if context.get("userLocation"):
-                        loc = context["userLocation"]
+                    
+                    # 1. Check WebSocket connection context (stored on init)
+                    if context.get("user_location"):
+                        loc = context["user_location"]
                         if isinstance(loc, dict):
-                            user_location = f"{loc.get('latitude', 0)},{loc.get('longitude', 0)}"
+                            lat = loc.get('latitude', loc.get('lat'))
+                            lon = loc.get('longitude', loc.get('lon', loc.get('lng')))
+                            if lat and lon:
+                                user_location = f"{lat},{lon}"
+                                logger.info(f"📍 Using location from connection context: {user_location}")
                         elif isinstance(loc, str):
                             user_location = loc
+                            logger.info(f"📍 Using location string from context: {user_location}")
                     
-                    # If no location in context, try to extract from message
+                    # 2. Check userLocation in context (from frontend)
+                    if not user_location and context.get("userLocation"):
+                        loc = context["userLocation"]
+                        if isinstance(loc, dict):
+                            lat = loc.get('latitude', loc.get('lat'))
+                            lon = loc.get('longitude', loc.get('lon', loc.get('lng')))
+                            if lat and lon:
+                                user_location = f"{lat},{lon}"
+                                logger.info(f"📍 Using location from userLocation: {user_location}")
+                    
+                    # 3. Try to extract location from message itself
                     if not user_location:
-                        # Simple location extraction (could be improved)
-                        if "in " in message_lower:
-                            location_part = message_lower.split("in ", 1)[1]
-                            user_location = location_part.split()[0] if location_part else None
+                        # Look for city names or location mentions in the message
+                        if " in " in message_lower:
+                            location_part = message_lower.split(" in ", 1)[1]
+                            # Clean up the location string
+                            location_words = location_part.split()
+                            if location_words:
+                                # Take first 2-3 words as location (city name)
+                                potential_location = " ".join(location_words[:3]).rstrip("?.,!;")
+                                if len(potential_location) > 2:  # Basic validation
+                                    user_location = potential_location
+                                    logger.info(f"📍 Extracted location from message: {user_location}")
                     
-                    if user_location:
-                        # Call weather tool with correct parameters
-                        if "tomorrow" in message_lower or "week" in message_lower or "forecast" in message_lower:
-                            weather_result = await self.weather_tool.execute(
-                                action="get_forecast",
-                                parameters={
-                                    "location": user_location,
-                                    "days": 3
-                                }
-                            )
-                        else:
-                            weather_result = await self.weather_tool.execute(
-                                action="get_current",
-                                parameters={
-                                    "location": user_location
-                                }
-                            )
-                        
-                        if weather_result.success:
-                            # Format weather response in PAM's friendly style
-                            weather_data = weather_result.data
-                            if "tomorrow" in message_lower and weather_data.get("forecast"):
-                                # Get tomorrow's forecast
-                                tomorrow = weather_data["forecast"][0] if weather_data.get("forecast") else None
-                                if tomorrow:
-                                    response = f"Tomorrow in {weather_data.get('location', 'your area')}, expect {tomorrow.get('conditions', 'variable conditions')} with a high of {tomorrow.get('high_temp', 'N/A')}°F and a low of {tomorrow.get('low_temp', 'N/A')}°F. "
-                                    if tomorrow.get('precipitation_chance', 0) > 30:
-                                        response += f"There's a {tomorrow.get('precipitation_chance')}% chance of precipitation. "
-                                    response += f"Perfect for RV travel: {tomorrow.get('rv_travel_rating', 'Check conditions')}!"
-                                    logger.info(f"✅ Weather tool response: {response}")
-                                    return response
-                            else:
-                                # Current weather
-                                response = f"Currently in {weather_data.get('location', 'your area')}, it's {weather_data.get('temperature', 'N/A')}°F with {weather_data.get('conditions', 'variable conditions')}. "
-                                response += f"Wind speed is {weather_data.get('wind_speed', 'N/A')} mph. "
-                                if weather_data.get('alerts'):
-                                    response += f"⚠️ Weather alert: {weather_data['alerts'][0].get('headline', '')} "
-                                response += "Safe travels!"
-                                logger.info(f"✅ Weather tool response: {response}")
-                                return response
+                    # 4. Use default location if still none (never ask for permission)
+                    if not user_location:
+                        # Use a sensible default (US geographic center)
+                        user_location = "39.8283,-98.5795"  # Geographic center of USA
+                        logger.info(f"📍 Using default US location for weather")
+                    
+                    # Always provide weather data - never ask for location
+                    if "tomorrow" in message_lower or "week" in message_lower or "forecast" in message_lower:
+                        days = 7 if "week" in message_lower else 3
+                        weather_result = await self.weather_tool.execute(
+                            action="get_forecast",
+                            parameters={
+                                "location": user_location,
+                                "days": days
+                            }
+                        )
                     else:
-                        logger.info(f"📍 No location available for weather query")
-                        return "I'd love to check the weather for you! Could you share your location or tell me which city you're interested in?"
+                        weather_result = await self.weather_tool.execute(
+                            action="get_current",
+                            parameters={
+                                "location": user_location
+                            }
+                        )
+                    
+                    if weather_result.success:
+                        weather_data = weather_result.data
+                        
+                        # Handle forecast responses
+                        if "forecast" in weather_result.data:
+                            forecast = weather_data["forecast"]
+                            location_name = weather_data.get('location', 'your area')
+                            
+                            if "week" in message_lower and len(forecast) > 1:
+                                # Week forecast
+                                response = f"Here's the weather forecast for {location_name} this week:\n\n"
+                                for i, day in enumerate(forecast[:7]):
+                                    response += f"• {day.get('date', 'Day ' + str(i+1))}: "
+                                    response += f"{day.get('conditions', 'N/A')}, "
+                                    response += f"High {day.get('high', 'N/A')}, Low {day.get('low', 'N/A')}"
+                                    if day.get('rain_chance', '0%') != '0%':
+                                        response += f", {day.get('rain_chance')} chance of rain"
+                                    response += "\n"
+                                response += f"\nOverall RV travel conditions look {forecast[0].get('rv_rating', 'good')}!"
+                            elif "tomorrow" in message_lower and len(forecast) > 0:
+                                # Tomorrow's forecast
+                                tomorrow = forecast[0]
+                                response = f"Tomorrow in {location_name}: {tomorrow.get('conditions', 'N/A')} "
+                                response += f"with a high of {tomorrow.get('high', 'N/A')} and low of {tomorrow.get('low', 'N/A')}. "
+                                if tomorrow.get('rain_chance', '0%') != '0%':
+                                    response += f"There's a {tomorrow.get('rain_chance')} chance of rain. "
+                                response += f"RV travel conditions: {tomorrow.get('rv_rating', 'Good')}!"
+                            else:
+                                # General forecast
+                                response = f"Weather forecast for {location_name}:\n"
+                                for i, day in enumerate(forecast[:3]):
+                                    response += f"• {day.get('date', 'Day ' + str(i+1))}: "
+                                    response += f"{day.get('conditions', 'N/A')}, "
+                                    response += f"High {day.get('high', 'N/A')}, Low {day.get('low', 'N/A')}\n"
+                        else:
+                            # Current weather
+                            current = weather_data.get('current', weather_data)
+                            location_name = current.get('location', 'your area')
+                            response = f"Currently in {location_name}: "
+                            response += f"{current.get('temperature', 'N/A')} with {current.get('conditions', 'N/A')}. "
+                            response += f"Wind: {current.get('wind', 'N/A')}. "
+                            if current.get('rv_travel_rating'):
+                                response += f"RV travel conditions: {current['rv_travel_rating']}. "
+                            response += "Safe travels!"
+                        
+                        logger.info(f"✅ Weather response generated successfully")
+                        return response
                         
                 except Exception as e:
                     logger.error(f"❌ Weather tool failed: {e}")
-                    # Fall through to normal processing
+                    # Provide a helpful response without asking for location
+                    return "I'm having trouble accessing weather data right now. You can check weather.com or your favorite weather app for the latest conditions. Safe travels!"
             
             # Prepare enhanced context with conversation history
             enhanced_context = context.copy()
