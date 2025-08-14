@@ -936,3 +936,86 @@ Subagents seamlessly integrate with configured MCP servers:
 - Break large tasks into smaller chunks
 - Use file-based context sharing between agents
 - when launcing, first look through the docs folder to familiarise yourself with the project
+
+---
+
+## Recent UI/UX Improvements (August 2025)
+
+### ✅ Navigation Hierarchy Simplification
+**Issue**: Expenses and Income pages had 4 levels of navigation causing user confusion
+**Solution**: Reduced to 3 clear levels with improved visual hierarchy
+
+#### Expenses Page Redesign:
+```typescript
+// New structure implemented in WinsExpenses.tsx
+Page Header Section
+├── Title & Description
+├── Primary Actions Bar
+│   ├── View Toggle (Timeline | Chart) - Segmented control
+│   ├── Add Expense button
+│   └── Import Bank Statement button
+├── Category Filter Tabs (horizontal scroll)
+├── Quick Input Section
+│   ├── Natural Language Input
+│   └── Voice Logger
+├── Main Content Area (Timeline or Chart)
+└── PAM Insight Card
+```
+
+**Key Improvements**:
+- **Timeline/Chart Toggle**: Now a prominent segmented control in header (was buried in sub-menu)
+- **Action Buttons**: Elevated to header for better visibility
+- **Visual Sections**: Clear separation between functional areas
+- **Mobile Responsive**: Proper stacking and touch targets
+
+#### Income Page Consistency:
+- Applied same header structure as Expenses
+- Consistent button placement and styling
+- Clear visual hierarchy with proper spacing
+
+### ✅ Bank Statement Converter Implementation
+**Features**:
+- Privacy-first architecture with client-side processing
+- Automatic data redaction and anonymization
+- No personal data storage (GDPR/PCI DSS compliant)
+- Native HTML5 drag-and-drop (removed react-dropzone dependency)
+- Integrated seamlessly into Expenses workflow
+
+**Security Enhancements**:
+- XSS protection with DOMPurify
+- File upload validation (type, size, magic bytes)
+- Account number anonymization (last 4 digits only)
+- Memory cleanup on component unmount
+- Automatic data deletion after processing
+
+### UI/UX Best Practices Learned:
+1. **Reduce Navigation Depth**: Keep to 3 levels maximum
+2. **Prominent Controls**: Primary actions should be immediately visible
+3. **Visual Hierarchy**: Use spacing and backgrounds to create clear sections
+4. **Segmented Controls**: Better than buried toggle buttons for view switching
+5. **Mobile-First**: Always test button placement on mobile viewports
+6. **Consistent Patterns**: Apply same layout structure across similar pages
+
+### CSS Organization:
+- Keep @import statements at the top of index.css
+- QuickActionStyles.css contains animation and mobile optimizations
+- Use Tailwind utility classes for consistent spacing
+- Dark mode support with proper color variables
+
+### Component Structure Guidelines:
+When organizing page components:
+1. Start with clear page header (title, description, primary actions)
+2. Place view controls prominently (not buried in sub-menus)
+3. Group related functionality (e.g., Quick Input section)
+4. Main content area should be clearly defined
+5. Support sections (like PAM insights) at the bottom
+
+### Testing Checklist for UI Changes:
+- [ ] Mobile responsiveness (test at 375px, 768px, 1024px)
+- [ ] Touch target sizes (minimum 44x44px)
+- [ ] Dark mode compatibility
+- [ ] Keyboard navigation
+- [ ] Screen reader accessibility
+- [ ] Loading states
+- [ ] Error states
+- [ ] Empty states
