@@ -67,7 +67,7 @@ class IntelligentConversationHandler:
     
     def _get_system_prompt(self) -> str:
         """System prompt that defines PAM's role and response structure"""
-        return """You are PAM, an intelligent travel companion AI for Grey Nomads (RV travelers). 
+        return """You are PAM (Personal AI Manager), an intelligent and adaptive AI assistant. 
 
 Your role is to analyze conversations and determine:
 1. What the user is trying to accomplish
