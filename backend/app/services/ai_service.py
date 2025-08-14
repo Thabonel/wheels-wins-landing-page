@@ -183,12 +183,16 @@ class AIService:
         """Prepare system and context messages for OpenAI"""
         messages = []
         
-        # System message with PAM personality and capabilities
-        system_prompt = self._build_system_prompt(user_context)
+        # System message with PAM personality and capabilities (context-aware)
+        # Get the current message to determine context
+        conversation_history = user_context.get("conversation_history", [])
+        current_message = ""
+        if conversation_history:
+            current_message = conversation_history[-1].get("content", "")
+        system_prompt = self._build_system_prompt(user_context, current_message)
         messages.append({"role": "system", "content": system_prompt})
         
-        # Add conversation history from context
-        conversation_history = user_context.get("conversation_history", [])
+        # Add conversation history from context (already retrieved above)
         for msg in conversation_history[-10:]:  # Keep last 10 messages for context
             if isinstance(msg, dict):
                 messages.append({
@@ -198,11 +202,40 @@ class AIService:
         
         return messages
     
-    def _build_system_prompt(self, context: Dict[str, Any]) -> str:
-        """Build comprehensive system prompt for PAM"""
+    def _classify_query_context(self, message: str) -> str:
+        """Classify if the query is RV/travel related or general"""
+        rv_keywords = [
+            'rv', 'camper', 'motorhome', 'travel', 'trip', 'route', 'camping', 
+            'campground', 'park', 'drive', 'fuel', 'hookup', 'boondock', 'road',
+            'destination', 'journey', 'vacation', 'explore', 'miles', 'highway'
+        ]
+        
+        message_lower = message.lower()
+        for keyword in rv_keywords:
+            if keyword in message_lower:
+                return "rv_related"
+        
+        # Check for general queries
+        general_indicators = [
+            'weather', 'time', 'date', 'calculate', 'convert', 'define',
+            'what is', 'how to', 'explain', 'tell me about'
+        ]
+        
+        for indicator in general_indicators:
+            if indicator in message_lower:
+                return "general"
+        
+        # Default to minimal context for unclear queries
+        return "general"
+    
+    def _build_system_prompt(self, context: Dict[str, Any], message: str = "") -> str:
+        """Build context-aware system prompt for PAM"""
         user_location = context.get("user_location") or context.get("location", {})
         vehicle_info = context.get("vehicle_info", {})
         travel_preferences = context.get("travel_preferences", {})
+        
+        # Classify the query context
+        query_type = self._classify_query_context(message)
         
         # Extract location information
         location_str = "unknown location"
@@ -214,6 +247,18 @@ class AIService:
         elif isinstance(user_location, str):
             location_str = user_location
         
+        # For general queries, use a minimal prompt
+        if query_type == "general":
+            system_prompt = f"""You are PAM (Personal AI Manager), a helpful assistant.
+
+CURRENT CONTEXT:
+- Current Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}
+- User Location: {location_str}
+
+Please provide clear, concise, and helpful responses. Be friendly and professional."""
+            return system_prompt
+        
+        # For RV-related queries, use the full RV context
         # Extract vehicle information
         vehicle_str = "recreational vehicle"
         if isinstance(vehicle_info, dict) and vehicle_info.get("make"):

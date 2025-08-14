@@ -17,6 +17,11 @@ export const usePamWebSocket = (userId: string, token: string) => {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
   const messageQueue = useRef<any[]>([]);
+  
+  // Deduplication tracking
+  const lastMessageRef = useRef<string>("");
+  const lastMessageTimeRef = useRef<number>(0);
+  const messageIdsRef = useRef<Set<string>>(new Set());
 
   // Memoize WebSocket URL to prevent unnecessary recalculations
   const wsUrl = useMemo(() => {
@@ -130,7 +135,36 @@ export const usePamWebSocket = (userId: string, token: string) => {
               return;
             }
             
-            // Prevent duplicate messages
+            // Enhanced deduplication logic
+            const messageContent = message.content || message.message || JSON.stringify(message);
+            const messageId = message.id || message.message_id || `${message.type}_${Date.now()}`;
+            const currentTime = Date.now();
+            
+            // Check if we've seen this message ID before
+            if (messageIdsRef.current.has(messageId)) {
+              console.log('Duplicate message blocked by ID:', messageId);
+              return;
+            }
+            
+            // Check if this is the same message content within 500ms (duplicate send)
+            if (messageContent === lastMessageRef.current && 
+                currentTime - lastMessageTimeRef.current < 500) {
+              console.log('Duplicate message blocked by content/timing:', messageContent.substring(0, 50));
+              return;
+            }
+            
+            // Update deduplication tracking
+            messageIdsRef.current.add(messageId);
+            lastMessageRef.current = messageContent;
+            lastMessageTimeRef.current = currentTime;
+            
+            // Clean up old message IDs to prevent memory growth
+            if (messageIdsRef.current.size > 100) {
+              const idsArray = Array.from(messageIdsRef.current);
+              messageIdsRef.current = new Set(idsArray.slice(-50));
+            }
+            
+            // Prevent duplicate messages in state
             setMessages((prev) => {
               // Check if this exact message already exists (within last 5 messages to avoid memory issues)
               const recentMessages = prev.slice(-5);
