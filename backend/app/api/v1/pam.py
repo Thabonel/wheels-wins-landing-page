@@ -1099,9 +1099,14 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 if visual_action:
                     logger.info(f"🔍 Regex pattern matched visual action: {visual_action}")
             
-            # Send visual action if detected
+            # Send visual action if detected (but don't duplicate the response)
             if visual_action and websocket.client_state == WebSocketState.CONNECTED:
-                logger.info(f"🎨 Sending visual action to frontend: {visual_action}")
+                # Remove the response text from visual action to avoid duplication
+                if 'response' in visual_action:
+                    del visual_action['response']
+                if 'message' in visual_action:
+                    del visual_action['message']
+                logger.info(f"🎨 Sending visual action to frontend (without duplicating response): {visual_action}")
                 await websocket.send_json(visual_action)
             
             # Send UI actions if any (currently none from SimplePamService)
@@ -1278,9 +1283,16 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
                 "timestamp": datetime.utcnow().isoformat()
             })
             
-            # Send visual action if detected
+            # Send visual action if detected (but don't duplicate the response)
             if visual_action:
-                logger.info(f"🎨 Sending visual action to frontend: {visual_action}")
+                # Remove the response text from visual action to avoid duplication
+                if 'response' in visual_action:
+                    del visual_action['response']
+                if 'message' in visual_action:
+                    del visual_action['message']
+                if 'full_response' in visual_action:
+                    del visual_action['full_response']
+                logger.info(f"🎨 Sending visual action to frontend (without duplicating response): {visual_action}")
                 await websocket.send_json(visual_action)
             
     except Exception as e:
