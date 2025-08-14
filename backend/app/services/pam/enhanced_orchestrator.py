@@ -88,7 +88,7 @@ class EnhancedPamOrchestrator:
         
         # Service integrations
         self.knowledge_service = None
-        self.tts_service = None
+        self.tts_manager = None  # Will be initialized in _initialize_tts_service
         self.voice_streaming_manager = None
         
         # Capability tracking
@@ -279,8 +279,9 @@ class EnhancedPamOrchestrator:
             logger.info("🎤 Initializing enhanced TTS Manager...")
             self.tts_manager = get_tts_manager()
             
-            # Wait for TTS manager to initialize all engines
-            await asyncio.sleep(2.0)  # Give engines time to initialize
+            # Initialize TTS engines if not already done
+            if not self.tts_manager._engines_initialized:
+                await self.tts_manager._initialize_engines()
             
             if self.tts_manager.is_initialized:
                 # Get TTS health status
@@ -833,13 +834,14 @@ Based on these results, please provide a helpful response to the user's original
                 self.service_capabilities["knowledge"].status = ServiceStatus.UNAVAILABLE
                 self.service_capabilities["knowledge"].error_message = str(e)
         
-        # TTS service health check
-        if self.tts_service:
+        # TTS service health check (using tts_manager instead of tts_service)
+        if hasattr(self, 'tts_manager') and self.tts_manager:
             try:
-                health = await self.tts_service.get_service_status()
-                if health.get("initialized", False):
+                health = self.tts_manager.get_health_status()
+                available_engines = health["system_health"]["available_engines"]
+                if available_engines > 0:
                     self.service_capabilities["tts"].status = ServiceStatus.HEALTHY
-                    self.service_capabilities["tts"].confidence = 1.0
+                    self.service_capabilities["tts"].confidence = min(1.0, available_engines / 3.0)
                 else:
                     self.service_capabilities["tts"].status = ServiceStatus.DEGRADED
                     self.service_capabilities["tts"].confidence = 0.5
@@ -995,7 +997,7 @@ Based on these results, please provide a helpful response to the user's original
     async def _generate_audio(self, content: str, enhanced_context: EnhancedPamContext) -> Optional[bytes]:
         """Generate audio using TTS service"""
         try:
-            if not self.tts_service:
+            if not hasattr(self, 'tts_manager') or not self.tts_manager:
                 return None
                 
             tts_result = await self._enhance_with_tts(content, enhanced_context)
