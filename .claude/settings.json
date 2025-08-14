@@ -10,12 +10,15 @@
     }
   },
   "enableSubagents": true,
+  "agentConfig": ".claude/agent-config.yaml",
   "agents": {
+    "enabled": true,
+    "auto_delegate": true,
     "parallel_limit": 3,
     "timeout_minutes": 10,
     "retry_attempts": 2,
     "context_sharing": true,
-    "verbose_logging": true,
+    "verbose_logging": false,
     "available": {
       "bugbot": {
         "description": "Bug detection, analysis, and fixing specialist",

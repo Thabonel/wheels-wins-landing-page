@@ -42,7 +42,16 @@
     "optimize:images": "node scripts/optimize-images.js",
     "postbuild": "npm run seo:sitemap",
     "prepare": "husky install",
-    "postinstall": "husky install && node -e \"try{require.resolve('@esbuild/linux-x64')}catch(e){require('child_process').execSync('npm install @esbuild/linux-x64 --no-save',{stdio:'inherit'})}\" && node -e \"try{require.resolve('@rollup/rollup-linux-x64-gnu')}catch(e){require('child_process').execSync('npm install @rollup/rollup-linux-x64-gnu --no-save',{stdio:'inherit'})}\""
+    "postinstall": "husky install && node -e \"try{require.resolve('@esbuild/linux-x64')}catch(e){require('child_process').execSync('npm install @esbuild/linux-x64 --no-save',{stdio:'inherit'})}\" && node -e \"try{require.resolve('@rollup/rollup-linux-x64-gnu')}catch(e){require('child_process').execSync('npm install @rollup/rollup-linux-x64-gnu --no-save',{stdio:'inherit'})}\"",
+    "ai-agents": "node scripts/ai-agents.js",
+    "ai:status": "npm run ai-agents status",
+    "ai:security": "npm run ai-agents security",
+    "ai:tests": "npm run ai-agents tests",
+    "ai:docs": "npm run ai-agents docs",
+    "ai:pam": "npm run ai-agents pam",
+    "ai:all": "npm run ai-agents all",
+    "agents:init": "./scripts/init-agents.sh",
+    "agents:check": "./scripts/init-agents.sh"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.1",

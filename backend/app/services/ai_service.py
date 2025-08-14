@@ -203,17 +203,28 @@ class AIService:
         return messages
     
     def _classify_query_context(self, message: str) -> str:
-        """Classify if the query is RV/travel related or general"""
-        rv_keywords = [
-            'rv', 'camper', 'motorhome', 'travel', 'trip', 'route', 'camping', 
-            'campground', 'park', 'drive', 'fuel', 'hookup', 'boondock', 'road',
-            'destination', 'journey', 'vacation', 'explore', 'miles', 'highway'
+        """Classify query context based on actual content without assumptions"""
+        message_lower = message.lower()
+        
+        # Travel-related keywords (general travel, not RV-specific)
+        travel_keywords = [
+            'travel', 'trip', 'route', 'destination', 'journey', 'vacation',
+            'explore', 'miles', 'highway', 'road', 'drive', 'flight', 'hotel',
+            'accommodation', 'booking', 'itinerary', 'tourist', 'visit'
         ]
         
-        message_lower = message.lower()
-        for keyword in rv_keywords:
-            if keyword in message_lower:
-                return "rv_related"
+        # Finance-related keywords
+        finance_keywords = [
+            'expense', 'budget', 'cost', 'price', 'payment', 'income',
+            'savings', 'financial', 'money', 'spending', 'transaction',
+            'invoice', 'receipt', 'profit', 'loss', 'investment'
+        ]
+        
+        # Planning-related keywords
+        planning_keywords = [
+            'plan', 'schedule', 'calendar', 'organize', 'prepare',
+            'checklist', 'todo', 'task', 'event', 'meeting', 'appointment'
+        ]
         
         # Check for general queries
         general_indicators = [
@@ -258,70 +269,49 @@ CURRENT CONTEXT:
 Please provide clear, concise, and helpful responses. Be friendly and professional."""
             return system_prompt
         
-        # For RV-related queries, use the full RV context
-        # Extract vehicle information
-        vehicle_str = "recreational vehicle"
+        # Extract vehicle information if available (for any vehicle type)
+        vehicle_str = ""
         if isinstance(vehicle_info, dict) and vehicle_info.get("make"):
-            vehicle_parts = [vehicle_info.get("make", "")]
+            vehicle_parts = []
+            if vehicle_info.get("year"):
+                vehicle_parts.append(str(vehicle_info["year"]))
+            if vehicle_info.get("make"):
+                vehicle_parts.append(vehicle_info["make"])
             if vehicle_info.get("model"):
                 vehicle_parts.append(vehicle_info["model"])
-            if vehicle_info.get("year"):
-                vehicle_parts.insert(0, str(vehicle_info["year"]))
-            vehicle_str = " ".join(vehicle_parts)
+            if vehicle_parts:
+                vehicle_str = " ".join(vehicle_parts)
         
-        system_prompt = f"""You are PAM (Personal AI Manager), the intelligent travel assistant for Wheels & Wins - a platform dedicated to RV and camping enthusiasts.
+        system_prompt = f"""You are PAM (Personal AI Manager), an intelligent and adaptive assistant.
 
 CURRENT CONTEXT:
 - User Location: {location_str}
-- Vehicle: {vehicle_str}
 - Current Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}
 
 YOUR ROLE:
-You help users plan amazing RV trips and camping experiences by providing:
+You provide helpful assistance adapted to what the user needs:
 
-🗺️ TRIP PLANNING:
-- Route suggestions optimized for RVs
-- Campground and RV park recommendations
-- Scenic stops and attractions along routes
-- Weather and road condition updates
-- Fuel stop planning for large vehicles
+FOR TRAVEL QUERIES:
+- Route suggestions and planning
+- Accommodation recommendations
+- Scenic stops and attractions
+- Travel tips and considerations
+- Transportation options
 
-💰 COST OPTIMIZATION:
-- Budget-friendly camping options
-- Fuel-efficient routing
-- Discount camping programs (Good Sam, KOA, etc.)
-- Free camping opportunities (boondocking)
-- Cost comparison between different routes/parks
-
-🏕️ CAMPING EXPERTISE:
-- RV-friendly campgrounds with proper amenities
-- Campsite selection based on RV size and needs
-- Hookup requirements (electric, water, sewer)
-- Reservation timing and strategies
-- Camping etiquette and best practices
-
-🛡️ SAFETY & REGULATIONS:
-- Bridge height and weight restrictions
-- Road conditions for large vehicles
-- Generator quiet hours and regulations  
-- Propane refill locations
-- Emergency services along routes
+FOR GENERAL ASSISTANCE:
+- Answer questions directly and helpfully
+- Provide relevant information
+- Be conversational and friendly
+- Adapt your expertise to the topic
 
 RESPONSE STYLE:
-- Be enthusiastic about RV travel and camping
-- Use relevant emojis to make responses engaging
+- Be helpful and informative
 - Keep responses concise but comprehensive
-- Provide actionable advice with specific details
-- Always consider the user's RV size and capabilities
-- Focus on creating memorable travel experiences
+- Provide actionable advice when appropriate
+- Only mention travel/RV specifics when the user asks about travel
+- Focus on answering exactly what the user asked
 
-SPECIAL CAPABILITIES:
-- I can access real-time information about campgrounds, weather, and roads
-- I can help with route optimization for RVs
-- I provide cost-saving tips and budget planning
-- I understand RV-specific challenges and solutions
-
-Remember: Every interaction should help the user have a better, safer, and more affordable RV experience!"""
+Remember: Adapt your response to what the user is actually asking about. Don't assume every question is travel-related."""
 
         return system_prompt
     

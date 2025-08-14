@@ -54,8 +54,13 @@ router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
 
+# Response deduplication tracking
+response_tracker = {}  # user_id: {message_hash: timestamp}
+DEDUP_WINDOW_SECONDS = 5  # Prevent duplicates within 5 seconds
+
 # Helper function for safe WebSocket operations
 import base64
+import hashlib
 
 async def safe_websocket_send(websocket: WebSocket, data: dict) -> bool:
     """
@@ -78,6 +83,33 @@ async def safe_websocket_send(websocket: WebSocket, data: dict) -> bool:
     except Exception as e:
         logger.error(f"Error sending WebSocket message: {e}")
         return False
+
+def is_duplicate_response(user_id: str, message: str, response: str) -> bool:
+    """Check if this response was recently sent to avoid duplicates"""
+    current_time = time.time()
+    
+    # Create hash of the message + response for deduplication
+    content_hash = hashlib.md5(f"{message.strip().lower()}|{response[:200]}".encode()).hexdigest()
+    
+    # Clean up old entries
+    if user_id in response_tracker:
+        response_tracker[user_id] = {
+            h: t for h, t in response_tracker[user_id].items() 
+            if current_time - t < DEDUP_WINDOW_SECONDS
+        }
+    else:
+        response_tracker[user_id] = {}
+    
+    # Check if this content was recently sent
+    if content_hash in response_tracker[user_id]:
+        time_diff = current_time - response_tracker[user_id][content_hash]
+        if time_diff < DEDUP_WINDOW_SECONDS:
+            logger.warning(f"🚫 Duplicate response blocked for user {user_id} (sent {time_diff:.1f}s ago)")
+            return True
+    
+    # Record this response
+    response_tracker[user_id][content_hash] = current_time
+    return False
 
 async def generate_tts_audio(text: str, user_settings: dict = None, user_id: str = None) -> Optional[dict]:
     """
@@ -1043,6 +1075,11 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         total_processing_time = (time.time() - start_time) * 1000
         logger.info(f"⏱️ [DEBUG] Total processing time: {total_processing_time:.1f}ms")
         
+        # Check for duplicate response before sending
+        if is_duplicate_response(user_id, message, response_message):
+            logger.info(f"🚫 [DEBUG] Duplicate response blocked for user {user_id}")
+            return
+        
         # Check if WebSocket is still open before sending
         if websocket.client_state == WebSocketState.CONNECTED:  # WebSocketState.CONNECTED
             logger.info(f"📡 [DEBUG] WebSocket still connected, sending response...")
@@ -1403,7 +1440,7 @@ def build_pam_system_prompt(context: dict) -> str:
     """Build system prompt for PAM with user context"""
     user_location = context.get("user_location", "unknown location")
     
-    return f"""You are PAM, the Personal AI Manager for Wheels & Wins, a travel planning platform for RV enthusiasts.
+    return f"""You are PAM, the Personal AI Manager for Wheels & Wins, a comprehensive travel and lifestyle planning platform.
 
 Current Context:
 - User Location: {user_location}
@@ -1411,12 +1448,14 @@ Current Context:
 
 You help with:
 - Trip planning and route suggestions
-- RV park and campground recommendations  
-- Weather and road condition updates
+- Accommodation and destination recommendations  
+- Weather and travel condition updates
 - Local attractions and activities
 - Travel tips and safety advice
+- Expense tracking and budget management
+- Community connections and social features
 
-Keep responses concise, helpful, and enthusiastic about RV travel. Use emojis appropriately to make conversations engaging."""
+Keep responses concise, helpful, and adaptable to each user's specific travel style and needs. Use emojis appropriately to make conversations engaging."""
 
 async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, db):
     """Handle context updates over WebSocket"""
@@ -2696,7 +2735,7 @@ async def get_agentic_capabilities(
             },
             "specialized_nodes": {
                 "you_node": "Personal AI companion with emotional intelligence",
-                "wheels_node": "Travel and RV logistics expert",
+                "wheels_node": "Travel and logistics expert",
                 "wins_node": "Financial management specialist",
                 "shop_node": "Product recommendation engine",
                 "social_node": "Community and social features"
