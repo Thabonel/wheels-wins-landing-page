@@ -157,7 +157,7 @@ class SimplePamService:
                 "message": "help",
                 "user_id": "system",
                 "response": {
-                    "content": "I'm PAM, your RV travel assistant! I can help you with:\n• 🗺️ Trip planning and route suggestions\n• 🏕️ RV park and campground recommendations\n• 🌤️ Weather and road conditions\n• 🎯 Local attractions and activities\n• 🛠️ RV maintenance tips\n• 💰 Travel budgeting\n\nWhat would you like to know?",
+                    "content": "I'm PAM, your personal AI assistant! I can help you with:\n• 🌤️ Weather information\n• 🗺️ Trip planning (when needed)\n• 💰 Budget management\n• 📍 Local information\n• 💬 General assistance\n• ❓ Answering questions\n\nWhat can I help you with today?",
                     "actions": []
                 },
                 "ttl": 3600  # Cache for 1 hour
@@ -384,7 +384,7 @@ class SimplePamService:
                                     if day.get('rain_chance', '0%') != '0%':
                                         response += f", {day.get('rain_chance')} chance of rain"
                                     response += "\n"
-                                response += f"\nOverall RV travel conditions look {forecast[0].get('rv_rating', 'good')}!"
+                                # Neutral weather summary without RV bias
                             elif "tomorrow" in message_lower and len(forecast) > 0:
                                 # Tomorrow's forecast
                                 tomorrow = forecast[0]
@@ -392,7 +392,7 @@ class SimplePamService:
                                 response += f"with a high of {tomorrow.get('high', 'N/A')} and low of {tomorrow.get('low', 'N/A')}. "
                                 if tomorrow.get('rain_chance', '0%') != '0%':
                                     response += f"There's a {tomorrow.get('rain_chance')} chance of rain. "
-                                response += f"RV travel conditions: {tomorrow.get('rv_rating', 'Good')}!"
+                                # Provide neutral weather information
                             else:
                                 # General forecast
                                 response = f"Weather forecast for {location_name}:\n"
@@ -407,9 +407,7 @@ class SimplePamService:
                             response = f"Currently in {location_name}: "
                             response += f"{current.get('temperature', 'N/A')} with {current.get('conditions', 'N/A')}. "
                             response += f"Wind: {current.get('wind', 'N/A')}. "
-                            if current.get('rv_travel_rating'):
-                                response += f"RV travel conditions: {current['rv_travel_rating']}. "
-                            response += "Safe travels!"
+                            # Neutral weather response without travel assumptions
                         
                         logger.info(f"✅ Weather response generated successfully")
                         return response
@@ -417,7 +415,7 @@ class SimplePamService:
                 except Exception as e:
                     logger.error(f"❌ Weather tool failed: {e}")
                     # Provide a helpful response without asking for location
-                    return "I'm having trouble accessing weather data right now. You can check weather.com or your favorite weather app for the latest conditions. Safe travels!"
+                    return "I'm having trouble accessing weather data right now. You can check weather.com or your favorite weather app for the latest conditions."
             
             # Prepare enhanced context with conversation history
             enhanced_context = context.copy()
