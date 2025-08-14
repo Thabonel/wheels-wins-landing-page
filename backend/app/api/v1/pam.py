@@ -1015,29 +1015,21 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         # Fallback to full PAM processing
         logger.info(f"🔄 [DEBUG] Falling back to cloud processing (edge confidence: {edge_result.confidence:.2f})")
         
-        # Use SimplePamService instead of orchestrator
-        from app.core.simple_pam_service import simple_pam_service
-        logger.info(f"📥 [DEBUG] Imported SimplePamService, calling get_response...")
+        # Use unified orchestrator for consistent neutral responses
+        logger.info(f"📥 [DEBUG] Using unified orchestrator for consistent responses...")
         
-        # Get conversation history if available
-        conversation_history = context.get("conversation_history", [])
-        logger.info(f"📚 [DEBUG] Conversation history length: {len(conversation_history)}")
-        
-        # Process through SimplePamService
-        logger.info(f"🤖 [DEBUG] Calling SimplePamService.get_response with message: '{message}'")
-        result = await simple_pam_service.get_response(
+        # Process through unified orchestrator
+        logger.info(f"🤖 [DEBUG] Calling orchestrator.process_message with message: '{message}'")
+        result = await orchestrator.process_message(
+            user_id=user_id,
             message=message,
-            context=context,
-            conversation_history=conversation_history
+            session_id=str(uuid.uuid4()),
+            context=context
         )
         
-        # Handle both old string format and new dict format for compatibility
-        if isinstance(result, str):
-            response_message = result
-            response_context = context
-        else:
-            response_message = result["response"]
-            response_context = result["context"]
+        # Extract response from orchestrator result
+        response_message = result.get("content", "")
+        response_context = context
         
         logger.info(f"🎯 [DEBUG] SimplePamService response received: '{response_message[:100]}...'")
         
@@ -1240,8 +1232,8 @@ async def stream_response_to_websocket(websocket: WebSocket, response: str, meta
 async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, context: dict, conversation_history: list, start_time: float):
     """Stream AI response from cloud services to WebSocket"""
     try:
-        # Import SimplePamService for streaming
-        from app.core.simple_pam_service import simple_pam_service
+        # Use unified orchestrator for streaming
+        from app.services.pam.unified_orchestrator import get_unified_orchestrator
         
         # Get streaming response from AI service
         full_response = ""
@@ -1355,10 +1347,11 @@ async def get_streaming_ai_response(message: str, context: dict, conversation_hi
         except Exception as orchestrator_error:
             logger.warning(f"Enhanced orchestrator failed: {orchestrator_error}")
             
-            # Fallback to SimplePamService
-            from app.core.simple_pam_service import simple_pam_service
+            # Fallback to unified orchestrator
+            unified_orch = await get_unified_orchestrator()
             
-            result = await simple_pam_service.get_response(
+            result = await unified_orch.process_message(
+                user_id=context.get("user_id", "anonymous"),
                 message=message,
                 context=context,
                 conversation_history=conversation_history
@@ -1638,8 +1631,8 @@ async def chat_endpoint(
         
         logger.info(f"Processing chat request for user {user_id} with use case: {use_case.value}")
         
-        # Process through SimplePamService instead of orchestrator
-        from app.core.simple_pam_service import simple_pam_service
+        # Process through unified orchestrator
+        from app.services.pam.unified_orchestrator import get_unified_orchestrator
         
         # Get conversation history if available
         conversation_history = context.get("conversation_history", [])
