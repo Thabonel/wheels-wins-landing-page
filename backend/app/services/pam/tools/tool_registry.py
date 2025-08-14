@@ -420,14 +420,17 @@ async def _register_all_tools(registry: ToolRegistry):
         from ..nodes.wins_node import wins_node
         
         # Create wrapper class for WinsNode financial operations
-        class FinanceToolWrapper:
+        class FinanceToolWrapper(BaseTool):
             def __init__(self):
-                self.tool_name = "manage_finances"
+                super().__init__(
+                    tool_name="manage_finances",
+                    description="Manage expenses, budgets, and financial tracking"
+                )
                 self.wins_node = wins_node
             
             async def initialize(self):
                 # WinsNode is already initialized
-                pass
+                self.is_initialized = True
             
             async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
                 action = params.get("action")
