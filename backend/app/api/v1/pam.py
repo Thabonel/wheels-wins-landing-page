@@ -1306,11 +1306,11 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
 async def get_streaming_ai_response(message: str, context: dict, conversation_history: list):
     """Generator for streaming AI responses using Enhanced Orchestrator"""
     try:
-        # Import Enhanced Orchestrator for better AI integration
-        from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator
+        # Import Unified Orchestrator
+        from app.services.pam.unified_orchestrator import get_unified_orchestrator
         
-        # Get enhanced orchestrator instance
-        orchestrator = await get_enhanced_orchestrator()
+        # Get unified orchestrator instance
+        orchestrator = await get_unified_orchestrator()
         
         # Check if streaming is supported
         user_id = context.get("user_id", "anonymous")
@@ -2578,16 +2578,13 @@ async def create_agentic_plan(
         
         # Try to access agentic orchestrator
         try:
-            from app.services.pam.agentic_orchestrator import AgenticOrchestrator
-            from app.core.intelligent_conversation import IntelligentConversationHandler
+            from app.services.pam.unified_orchestrator import get_unified_orchestrator
             
-            # Initialize agentic orchestrator
-            conversation_handler = IntelligentConversationHandler()
-            agentic_orchestrator = AgenticOrchestrator(conversation_handler)
-            await agentic_orchestrator.initialize()
+            # Use unified orchestrator
+            unified_orchestrator = await get_unified_orchestrator()
             
-            # Create execution plan
-            plan = await agentic_orchestrator.process_user_request(
+            # Create execution plan (using process_message for compatibility)
+            plan = await unified_orchestrator.process_message(
                 user_id=str(current_user.id),
                 message=user_goal,
                 context=context
