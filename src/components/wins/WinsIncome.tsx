@@ -38,35 +38,42 @@ export default function WinsIncome() {
   
   return (
     <div className="space-y-6">
-      {/* Header with consistent styling */}
-      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold mb-2">Income</h2>
-          <p className="text-gray-600 dark:text-gray-400">Track your travel income and earnings</p>
+      {/* Page Header Section - Matching Expenses page structure */}
+      <div className="space-y-4">
+        {/* Title and Description */}
+        <div>
+          <h2 className="text-2xl font-bold">Income</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Track your travel income and earnings</p>
         </div>
         
-        {/* Action buttons */}
-        <div className="flex flex-col gap-2 md:flex-row md:items-center">
-          <MobileFormWrapper open={drawerOpen} onOpenChange={setDrawerOpen}>
-            {isMobile ? (
-              <MobileIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
-            ) : (
-              <AddIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
-            )}
-          </MobileFormWrapper>
-          <Button onClick={() => setDrawerOpen(true)} className="w-full md:w-auto">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add Income
-          </Button>
+        {/* Primary Actions Bar */}
+        <div className="flex justify-end">
+          <div className="flex gap-2">
+            <MobileFormWrapper open={drawerOpen} onOpenChange={setDrawerOpen}>
+              {isMobile ? (
+                <MobileIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
+              ) : (
+                <AddIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
+              )}
+            </MobileFormWrapper>
+            <Button onClick={() => setDrawerOpen(true)} className="w-full sm:w-auto">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Income
+            </Button>
+          </div>
         </div>
       </div>
       
+      {/* Summary Cards Section */}
       <IncomeSummaryCards totalIncome={totalIncome} />
       
+      {/* Chart Visualization */}
       <IncomeChart chartData={chartData} />
 
+      {/* Income Table */}
       <IncomeTable incomeData={incomeData} sourceColors={sourceColors} />
       
+      {/* PAM Insight Card */}
       <PamInsightCard />
     </div>
   );
