@@ -12,3 +12,4 @@ coverage/
 .env.local
 .env.production
 .env.staging
+.env.ai-agents.local
