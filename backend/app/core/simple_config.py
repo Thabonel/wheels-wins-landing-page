@@ -20,13 +20,13 @@ class SimpleSettings:
         # App URL for staging
         self.APP_URL = os.getenv("APP_URL", "https://wheels-wins-backend-staging.onrender.com")
         
-        # Supabase
-        self.SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-        self.SUPABASE_KEY = <SUPABASE_ANON_KEY> "")
-        self.SUPABASE_SERVICE_ROLE_KEY = <SUPABASE_SERVICE_ROLE_KEY> "")
+        # Supabase - Use placeholder values if not set (for staging)
+        self.SUPABASE_URL = os.getenv("SUPABASE_URL") or "https://staging-placeholder.supabase.co"
+        self.SUPABASE_KEY = <SUPABASE_ANON_KEY> "staging-placeholder-key")
+        self.SUPABASE_SERVICE_ROLE_KEY = <SUPABASE_SERVICE_ROLE_KEY> or "staging-placeholder-service-key"
         
-        # AI
-        self.OPENAI_API_KEY = <OPENAI_API_KEY> "")
+        # AI - Use placeholder if not set
+        self.OPENAI_API_KEY = <OPENAI_API_KEY> or "<API_TOKEN>"
         
         # Security
         self.SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
