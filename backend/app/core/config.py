@@ -689,7 +689,9 @@ def get_settings() -> Settings:
         if critical_errors:
             print("\n🚨 Critical configuration errors detected!")
             print("💡 Please ensure all required environment variables are set.")
-            sys.exit(1)
+            print("🔄 This will trigger fallback to simple configuration...")
+            # Don't exit here - let main.py handle the fallback
+            raise e  # Re-raise the original ValidationError
         else:
             print("\n⚠️ Non-critical configuration errors - attempting to continue")
             # For non-critical errors, try to create settings with defaults

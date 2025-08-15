@@ -14,10 +14,10 @@ class EmergencySettings:
         self.DEBUG = True
         self.APP_URL = "https://wheels-wins-landing-page.onrender.com"
         
-        # Essential API keys (will be empty if not set, but won't crash)
-        self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-        self.SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-        self.SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+        # Essential API keys (use emergency placeholders to prevent crashes)
+        self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or "sk-emergency-placeholder-key"
+        self.SUPABASE_URL = os.getenv("SUPABASE_URL") or "https://emergency-placeholder.supabase.co" 
+        self.SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or "emergency-placeholder-service-key"
         
         # Security basics
         self.SECRET_KEY = os.getenv("SECRET_KEY", "emergency-secret-key-change-immediately")
