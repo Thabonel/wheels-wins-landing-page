@@ -71,8 +71,37 @@ class Settings(BaseSettings):
     # OpenAI Configuration (Required for PAM)
     OPENAI_API_KEY: SecretStr = Field(
         ...,
-        description="OpenAI API key (required)"
+        description="OpenAI API key (required for PAM AI functionality)"
     )
+    
+    @field_validator("OPENAI_API_KEY", mode="before")
+    @classmethod
+    def validate_openai_api_key(cls, v):
+        """Validate OpenAI API key format and provide helpful error messages"""
+        if not v:
+            raise ValueError(
+                "OpenAI API key is required for PAM functionality. "
+                "Please set OPENAI_API_KEY environment variable. "
+                "Get your API key from https://platform.openai.com/api-keys"
+            )
+        
+        # Convert to string for validation if it's a SecretStr
+        key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+        
+        if not key_str.startswith('sk-'):
+            raise ValueError(
+                "Invalid OpenAI API key format. "
+                "OpenAI API keys should start with 'sk-'. "
+                "Please check your key at https://platform.openai.com/api-keys"
+            )
+        
+        if len(key_str) < 20:
+            raise ValueError(
+                "OpenAI API key appears to be too short. "
+                "Please verify your key is correct and complete."
+            )
+        
+        return v
     
     OPENAI_MODEL: str = Field(
         default=DEFAULT_MODEL,
@@ -392,20 +421,56 @@ class Settings(BaseSettings):
         issues = []
         warnings = []
         
-        # Check required settings
+        # Check required settings with detailed validation
         required_settings = {
-            "OPENAI_API_KEY": "OpenAI API key is required for PAM functionality",
-            "SUPABASE_URL": "Supabase URL is required for authentication",
-            "SUPABASE_SERVICE_ROLE_KEY": "Supabase service role key is required"
+            "OPENAI_API_KEY": {
+                "message": "OpenAI API key is required for PAM functionality",
+                "validation": self._validate_openai_key
+            },
+            "SUPABASE_URL": {
+                "message": "Supabase URL is required for authentication",
+                "validation": None
+            },
+            "SUPABASE_SERVICE_ROLE_KEY": {
+                "message": "Supabase service role key is required",
+                "validation": None
+            }
         }
         
-        for setting, message in required_settings.items():
+        for setting, config in required_settings.items():
             value = getattr(self, setting, None)
             if not value:
-                issues.append(f"{setting}: {message}")
+                issues.append(f"{setting}: {config['message']}")
             elif isinstance(value, SecretStr):
                 if not value.get_secret_value():
-                    issues.append(f"{setting}: {message}")
+                    issues.append(f"{setting}: {config['message']}")
+                else:
+                    # Run additional validation if available
+                    if config.get('validation'):
+                        try:
+                            config['validation'](value)
+                        except Exception as e:
+                            issues.append(f"{setting}: {str(e)}")
+            else:
+                # Run additional validation if available
+                if config.get('validation'):
+                    try:
+                        config['validation'](value)
+                    except Exception as e:
+                        issues.append(f"{setting}: {str(e)}")
+    
+    def _validate_openai_key(self, key_value):
+        """Validate OpenAI key format at runtime"""
+        if isinstance(key_value, SecretStr):
+            key_str = key_value.get_secret_value()
+        else:
+            key_str = str(key_value)
+        
+        if not key_str.startswith('sk-'):
+            raise ValueError("Invalid OpenAI API key format (should start with 'sk-')")
+        
+        if len(key_str) < 20:
+            raise ValueError("OpenAI API key appears to be too short")
         
         # Check production-specific requirements
         if self.NODE_ENV == Environment.PRODUCTION:

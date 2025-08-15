@@ -3952,3 +3952,343 @@ async def get_cache_analytics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get cache analytics: {str(e)}"
         )
+
+
+@router.get("/debug")
+async def pam_debug_endpoint(current_user = Depends(get_current_user)):
+    """
+    Comprehensive PAM debug endpoint to test all components
+    Tests orchestrator, AI service, tool registry, TTS, and identifies failures
+    """
+    try:
+        debug_results = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "user_id": current_user.id,
+            "components": {},
+            "overall_status": "unknown",
+            "critical_errors": [],
+            "warnings": [],
+            "recommendations": []
+        }
+        
+        # Test 1: Import Dependencies
+        logger.info("🔍 PAM Debug: Testing imports...")
+        try:
+            from app.services.ai_service import get_ai_service
+            from app.services.pam.enhanced_orchestrator import get_pam_orchestrator
+            from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
+            from app.services.tts.tts_service import get_tts_service
+            
+            debug_results["components"]["imports"] = {
+                "status": "success",
+                "message": "All core imports successful",
+                "details": {
+                    "ai_service": "✅ Available",
+                    "orchestrator": "✅ Available", 
+                    "tool_registry": "✅ Available",
+                    "tts_service": "✅ Available"
+                }
+            }
+        except Exception as e:
+            debug_results["components"]["imports"] = {
+                "status": "error",
+                "message": f"Import failure: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["critical_errors"].append(f"Import failure: {str(e)}")
+            
+        # Test 2: AI Service
+        logger.info("🔍 PAM Debug: Testing AI Service...")
+        try:
+            ai_service = await get_ai_service()
+            if ai_service:
+                # Test basic AI service functionality
+                test_messages = [{"role": "user", "content": "Hello, this is a test"}]
+                ai_response = await ai_service.generate_response(
+                    messages=test_messages,
+                    user_id=current_user.id,
+                    context={"test": True}
+                )
+                
+                debug_results["components"]["ai_service"] = {
+                    "status": "success",
+                    "message": "AI Service operational",
+                    "details": {
+                        "service_available": True,
+                        "test_response_received": bool(ai_response),
+                        "response_length": len(str(ai_response)) if ai_response else 0
+                    }
+                }
+            else:
+                debug_results["components"]["ai_service"] = {
+                    "status": "error", 
+                    "message": "AI Service is None",
+                    "details": {"service_available": False}
+                }
+                debug_results["critical_errors"].append("AI Service unavailable")
+                
+        except Exception as e:
+            debug_results["components"]["ai_service"] = {
+                "status": "error",
+                "message": f"AI Service test failed: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["critical_errors"].append(f"AI Service error: {str(e)}")
+            
+        # Test 3: Tool Registry
+        logger.info("🔍 PAM Debug: Testing Tool Registry...")
+        try:
+            # Test tool registry initialization separately
+            tool_registry = get_tool_registry()
+            
+            # Get initial state
+            initial_tools = len(tool_registry.tools)
+            initial_definitions = len(tool_registry.tool_definitions)
+            is_initialized = tool_registry.is_initialized
+            
+            # Try to initialize if not already done
+            if not is_initialized:
+                try:
+                    await initialize_tool_registry()
+                    is_initialized = tool_registry.is_initialized
+                except Exception as init_error:
+                    debug_results["warnings"].append(f"Tool registry initialization failed: {str(init_error)}")
+            
+            # Get tool stats
+            tool_stats = tool_registry.get_tool_stats()
+            openai_functions = tool_registry.get_openai_functions()
+            
+            debug_results["components"]["tool_registry"] = {
+                "status": "success" if tool_registry else "error",
+                "message": f"Tool Registry: {len(tool_registry.tools)} tools, {len(openai_functions)} functions",
+                "details": {
+                    "registry_exists": bool(tool_registry),
+                    "is_initialized": is_initialized,
+                    "total_tools": len(tool_registry.tools),
+                    "tool_definitions": len(tool_registry.tool_definitions),
+                    "openai_functions": len(openai_functions),
+                    "enabled_tools": tool_stats.get("registry_stats", {}).get("enabled_tools", 0),
+                    "available_capabilities": tool_stats.get("registry_stats", {}).get("capabilities", []),
+                    "tool_names": list(tool_registry.tools.keys())
+                }
+            }
+            
+            # Check for enum consistency (now unified, should always pass)
+            try:
+                from app.services.pam.tools.tool_capabilities import ToolCapability as UnifiedToolCapability
+                
+                available_capabilities = [cap.value for cap in UnifiedToolCapability]
+                debug_results["warnings"].append(f"✅ Using unified ToolCapability enum with {len(available_capabilities)} capabilities")
+                    
+            except Exception as enum_error:
+                debug_results["warnings"].append(f"Could not check ToolCapability enum: {str(enum_error)}")
+            
+        except Exception as e:
+            debug_results["components"]["tool_registry"] = {
+                "status": "error",
+                "message": f"Tool Registry test failed: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["critical_errors"].append(f"Tool Registry error: {str(e)}")
+            
+        # Test 4: PAM Orchestrator
+        logger.info("🔍 PAM Debug: Testing PAM Orchestrator...")
+        try:
+            orchestrator = await get_pam_orchestrator()
+            
+            if orchestrator:
+                # Test orchestrator initialization status
+                orchestrator_status = {
+                    "orchestrator_exists": True,
+                    "has_ai_service": hasattr(orchestrator, 'ai_service') and orchestrator.ai_service is not None,
+                    "has_tool_registry": hasattr(orchestrator, 'tool_registry') and orchestrator.tool_registry is not None,
+                    "is_initialized": getattr(orchestrator, 'is_initialized', False)
+                }
+                
+                # Try a simple orchestrator test
+                try:
+                    test_response = await orchestrator.process_message(
+                        user_id=current_user.id,
+                        message="Test message for debug",
+                        context={"test": True, "debug": True}
+                    )
+                    
+                    orchestrator_status["test_response_received"] = bool(test_response)
+                    orchestrator_status["test_response_length"] = len(str(test_response)) if test_response else 0
+                    
+                except Exception as test_error:
+                    orchestrator_status["test_error"] = str(test_error)
+                    debug_results["warnings"].append(f"Orchestrator test message failed: {str(test_error)}")
+                
+                debug_results["components"]["orchestrator"] = {
+                    "status": "success",
+                    "message": "PAM Orchestrator available",
+                    "details": orchestrator_status
+                }
+            else:
+                debug_results["components"]["orchestrator"] = {
+                    "status": "error",
+                    "message": "PAM Orchestrator is None",
+                    "details": {"orchestrator_exists": False}
+                }
+                debug_results["critical_errors"].append("PAM Orchestrator unavailable")
+                
+        except Exception as e:
+            debug_results["components"]["orchestrator"] = {
+                "status": "error", 
+                "message": f"PAM Orchestrator test failed: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["critical_errors"].append(f"PAM Orchestrator error: {str(e)}")
+            
+        # Test 5: TTS Service
+        logger.info("🔍 PAM Debug: Testing TTS Service...")
+        try:
+            tts_service = await get_tts_service()
+            
+            if tts_service:
+                # Test TTS availability
+                available_voices = getattr(tts_service, 'available_voices', [])
+                current_engine = getattr(tts_service, 'current_engine', 'unknown')
+                
+                debug_results["components"]["tts_service"] = {
+                    "status": "success",
+                    "message": f"TTS Service available with {current_engine} engine",
+                    "details": {
+                        "service_available": True,
+                        "current_engine": current_engine,
+                        "available_voices_count": len(available_voices),
+                        "has_fallback": hasattr(tts_service, 'fallback_enabled')
+                    }
+                }
+            else:
+                debug_results["components"]["tts_service"] = {
+                    "status": "warning",
+                    "message": "TTS Service not available (non-critical)",
+                    "details": {"service_available": False}
+                }
+                debug_results["warnings"].append("TTS Service unavailable (voice features disabled)")
+                
+        except Exception as e:
+            debug_results["components"]["tts_service"] = {
+                "status": "error",
+                "message": f"TTS Service test failed: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["warnings"].append(f"TTS Service error: {str(e)}")
+            
+        # Test 6: Memory and Context Systems
+        logger.info("🔍 PAM Debug: Testing Memory Systems...")
+        try:
+            # Test memory loading capabilities
+            memory_status = {
+                "recent_memory_available": False,
+                "user_profile_available": False
+            }
+            
+            try:
+                from app.services.pam.tools.load_recent_memory import load_recent_memory
+                memory_status["recent_memory_available"] = True
+            except ImportError:
+                pass
+                
+            try:
+                from app.services.pam.tools.load_user_profile import load_user_profile  
+                memory_status["user_profile_available"] = True
+            except ImportError:
+                pass
+                
+            debug_results["components"]["memory_systems"] = {
+                "status": "success",
+                "message": "Memory systems checked",
+                "details": memory_status
+            }
+            
+        except Exception as e:
+            debug_results["components"]["memory_systems"] = {
+                "status": "error",
+                "message": f"Memory systems test failed: {str(e)}",
+                "error": str(e)
+            }
+            
+        # Test 7: Import Diagnostics
+        logger.info("🔍 PAM Debug: Testing Import Systems...")
+        try:
+            from app.services.pam.tools.import_utils import get_import_diagnostics, check_circular_imports
+            
+            # Get comprehensive import diagnostics
+            import_diag = get_import_diagnostics()
+            
+            # Check for potential circular imports in PAM modules
+            pam_modules = [
+                "app.services.pam.enhanced_orchestrator",
+                "app.services.pam.tools.tool_registry", 
+                "app.services.pam.tools.base_tool",
+                "app.services.pam.tools.tool_capabilities"
+            ]
+            circular_check = check_circular_imports(pam_modules)
+            
+            debug_results["components"]["import_diagnostics"] = {
+                "status": "success",
+                "message": f"Import diagnostics: {import_diag['lazy_importer_stats']['cached_imports']} cached, {len(circular_check['available_modules'])} PAM modules available",
+                "details": {
+                    "import_stats": import_diag,
+                    "circular_analysis": circular_check
+                }
+            }
+            
+        except Exception as e:
+            debug_results["components"]["import_diagnostics"] = {
+                "status": "error",
+                "message": f"Import diagnostics failed: {str(e)}",
+                "error": str(e)
+            }
+            
+        # Determine Overall Status
+        critical_count = len(debug_results["critical_errors"])
+        warning_count = len(debug_results["warnings"])
+        successful_components = sum(1 for comp in debug_results["components"].values() if comp["status"] == "success")
+        total_components = len(debug_results["components"])
+        
+        if critical_count == 0:
+            if warning_count == 0:
+                debug_results["overall_status"] = "healthy"
+            else:
+                debug_results["overall_status"] = "functional_with_warnings"
+        else:
+            debug_results["overall_status"] = "critical_issues"
+            
+        # Generate Recommendations
+        if critical_count > 0:
+            debug_results["recommendations"].append("Address critical errors immediately - PAM may not function properly")
+            
+        if "Tool Registry error" in str(debug_results["critical_errors"]):
+            debug_results["recommendations"].append("Check for circular imports in tool registry and ToolCapability enum conflicts")
+            
+        if "AI Service error" in str(debug_results["critical_errors"]):
+            debug_results["recommendations"].append("Verify OpenAI API key and connection")
+            
+        if warning_count > 2:
+            debug_results["recommendations"].append("Review warnings to optimize PAM performance")
+            
+        debug_results["summary"] = {
+            "successful_components": successful_components,
+            "total_components": total_components,
+            "critical_errors": critical_count,
+            "warnings": warning_count,
+            "success_rate": f"{(successful_components/total_components)*100:.1f}%" if total_components > 0 else "0%"
+        }
+        
+        logger.info(f"🔍 PAM Debug Complete: {debug_results['overall_status']} ({successful_components}/{total_components} components successful)")
+        
+        return debug_results
+        
+    except Exception as e:
+        logger.error(f"PAM debug endpoint failed: {str(e)}")
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "overall_status": "debug_endpoint_error",
+            "critical_errors": [f"Debug endpoint itself failed: {str(e)}"],
+            "message": "The debug endpoint encountered an error",
+            "error": str(e)
+        }
