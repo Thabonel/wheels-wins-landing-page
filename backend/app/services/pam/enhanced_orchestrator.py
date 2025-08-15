@@ -17,7 +17,6 @@ from app.models.domain.pam import (
 )
 from app.services.database import get_database_service
 from app.services.cache import cache_service
-from app.services.pam.orchestrator import PamOrchestrator
 from app.services.pam.context_manager import ContextManager
 from app.services.ai_service import get_ai_service, AIService, AIResponse
 from app.observability import observe_agent, observe_llm_call
@@ -67,9 +66,6 @@ class EnhancedPamOrchestrator:
     """Enhanced PAM orchestrator with comprehensive AI service integration"""
     
     def __init__(self):
-        # Base orchestrator
-        self.base_orchestrator = PamOrchestrator()
-        
         # AI Service integration
         self.ai_service: Optional[AIService] = None
         
@@ -126,9 +122,6 @@ class EnhancedPamOrchestrator:
             
             # Initialize AI Service first (core dependency)
             await self._initialize_ai_service()
-            
-            # Initialize base orchestrator
-            await self.base_orchestrator.initialize()
             
             # Initialize tool registry for function calling
             await self._initialize_tool_registry()
@@ -382,15 +375,12 @@ class EnhancedPamOrchestrator:
                 enhanced_response["capabilities_used"] = ["ai_service"]
                 self.performance_metrics["ai_service_calls"] += 1
             else:
-                logger.info("🔄 Falling back to base orchestrator")
-                base_response = await self.base_orchestrator.process_message(
-                    user_id, message, session_id, context
+                logger.info("🔄 Using direct AI processing without tools")
+                # Process directly with AI service without going through base orchestrator
+                direct_response = await self._process_direct_ai_response(
+                    message, enhanced_context, user_id, session_id
                 )
-                
-                # Enhance response with available services
-                enhanced_response = await self._enhance_response(
-                    message, base_response, enhanced_context
-                )
+                enhanced_response = direct_response
             
             # Update performance metrics
             processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -415,30 +405,73 @@ class EnhancedPamOrchestrator:
             logger.error(f"❌ Enhanced message processing failed: {e}")
             self.performance_metrics["service_fallbacks"] += 1
             
-            # Fallback to base orchestrator
-            try:
-                fallback_response = await self.base_orchestrator.process_message(
-                    user_id, message, session_id, context
-                )
-                
+            # Fallback to simple response
+            return {
+                "content": "I apologize, but I'm experiencing some technical difficulties. Please try again in a moment.",
+                "confidence": 0.3,
+                "response_mode": "text_only",
+                "error": "Services unavailable",
+                "service_status": "degraded"
+            }
+    
+    async def _process_direct_ai_response(
+        self,
+        message: str,
+        enhanced_context: EnhancedPamContext,
+        user_id: str,
+        session_id: str
+    ) -> Dict[str, Any]:
+        """Process message directly with AI service when tools aren't needed"""
+        try:
+            if not self.ai_service:
                 return {
-                    "content": fallback_response.content,
-                    "confidence": fallback_response.confidence * 0.7,  # Reduced confidence
+                    "content": "I'm currently unable to process your request. Please try again.",
+                    "confidence": 0.3,
                     "response_mode": "text_only",
-                    "error": "Some services unavailable, using fallback response",
-                    "service_status": "degraded"
+                    "capabilities_used": ["fallback"]
                 }
-                
-            except Exception as fallback_error:
-                logger.error(f"❌ Fallback processing also failed: {fallback_error}")
-                
+            
+            # Simple AI context without tools
+            ai_context = {
+                "user_id": user_id,
+                "session_id": session_id,
+                "conversation_mode": enhanced_context.conversation_mode,
+                "user_location": enhanced_context.user_location
+            }
+            
+            # Get response from AI service
+            ai_response = await self.ai_service.process_message(
+                message=message,
+                user_context=ai_context,
+                temperature=0.7,
+                max_tokens=2048,
+                stream=False
+            )
+            
+            if isinstance(ai_response, AIResponse):
                 return {
-                    "content": "I apologize, but I'm experiencing technical difficulties. Please try again in a moment.",
-                    "confidence": 0.1,
-                    "response_mode": "text_only",
-                    "error": str(e),
-                    "service_status": "unavailable"
+                    "content": ai_response.content,
+                    "confidence": ai_response.confidence_score or 0.8,
+                    "response_mode": enhanced_context.preferred_response_mode.value,
+                    "capabilities_used": ["ai_service_direct"]
                 }
+            
+            return {
+                "content": str(ai_response),
+                "confidence": 0.7,
+                "response_mode": "text_only",
+                "capabilities_used": ["ai_service_direct"]
+            }
+            
+        except Exception as e:
+            logger.error(f"Direct AI processing failed: {e}")
+            return {
+                "content": "I apologize, but I couldn't process your request. Please try again.",
+                "confidence": 0.2,
+                "response_mode": "text_only",
+                "error": str(e),
+                "capabilities_used": ["fallback"]
+            }
     
     async def _process_with_ai_service(
         self,
@@ -576,9 +609,16 @@ Based on these results, please provide a helpful response to the user's original
     ) -> EnhancedPamContext:
         """Build enhanced context with all available service information"""
         
-        # Get base context from base orchestrator
-        base_context = await self.base_orchestrator._get_enhanced_context(
-            user_id, session_id, context
+        # Build base context directly
+        base_context = PamContext(
+            user_id=user_id,
+            session_id=session_id,
+            conversation_history=[],
+            user_preferences={},
+            current_location=context.get('user_location') if context else None,
+            active_trip=None,
+            emotional_state="neutral",
+            engagement_level="normal"
         )
         
         # Determine service availability

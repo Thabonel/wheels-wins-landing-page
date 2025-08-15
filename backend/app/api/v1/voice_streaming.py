@@ -18,7 +18,7 @@ from app.core.logging import setup_logging, get_logger
 from app.core.auth import verify_token_websocket
 from app.services.stt.multi_engine_stt import multi_engine_stt
 from app.services.voice.audio_processor import AudioStreamProcessor, AudioChunk, AudioFormat, ProcessingStage
-from app.services.pam.orchestrator import get_orchestrator
+from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator as get_orchestrator
 from app.api.v1.voice import router as voice_router
 
 router = APIRouter()
