@@ -277,6 +277,35 @@ class Settings(BaseSettings):
     CORS_ALLOWED_ORIGINS: Optional[List[str]] = Field(default=None)
     CORS_ALLOW_CREDENTIALS: bool = Field(default=True)
     
+    @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from string or list"""
+        if v is None:
+            return None
+        
+        # If it's already a list, return as-is
+        if isinstance(v, list):
+            return v
+        
+        # If it's a string, split by comma and clean up
+        if isinstance(v, str):
+            # Handle empty string
+            if not v.strip():
+                return []
+            
+            # Split by comma and clean whitespace
+            origins = [origin.strip() for origin in v.split(",")]
+            # Filter out empty strings
+            origins = [origin for origin in origins if origin]
+            return origins
+        
+        # For any other type, try to convert to string first
+        try:
+            return cls.parse_cors_origins(str(v))
+        except Exception:
+            return []
+    
     # Session
     SESSION_SECRET_KEY: SecretStr = Field(
         default_factory=lambda: SecretStr(secrets.token_urlsafe(32))
@@ -458,19 +487,6 @@ class Settings(BaseSettings):
                         config['validation'](value)
                     except Exception as e:
                         issues.append(f"{setting}: {str(e)}")
-    
-    def _validate_openai_key(self, key_value):
-        """Validate OpenAI key format at runtime"""
-        if isinstance(key_value, SecretStr):
-            key_str = key_value.get_secret_value()
-        else:
-            key_str = str(key_value)
-        
-        if not key_str.startswith('sk-'):
-            raise ValueError("Invalid OpenAI API key format (should start with 'sk-')")
-        
-        if len(key_str) < 20:
-            raise ValueError("OpenAI API key appears to be too short")
         
         # Check production-specific requirements
         if self.NODE_ENV == Environment.PRODUCTION:
@@ -491,8 +507,10 @@ class Settings(BaseSettings):
             if "localhost" in self.APP_URL:
                 issues.append("Production APP_URL should not contain localhost")
             
-            if any("localhost" in origin for origin in self.CORS_ALLOWED_ORIGINS):
-                warnings.append("CORS allows localhost origins in production")
+            # Safe CORS check
+            if self.CORS_ALLOWED_ORIGINS and isinstance(self.CORS_ALLOWED_ORIGINS, list):
+                if any("localhost" in origin for origin in self.CORS_ALLOWED_ORIGINS):
+                    warnings.append("CORS allows localhost origins in production")
         
         # Check optional but recommended services
         if self.PAM_CACHE_ENABLED and not self.REDIS_URL:
@@ -527,6 +545,19 @@ class Settings(BaseSettings):
                 "mapbox": bool(self.VITE_MAPBOX_PUBLIC_TOKEN or self.VITE_MAPBOX_TOKEN)
             }
         }
+    
+    def _validate_openai_key(self, key_value):
+        """Validate OpenAI key format at runtime"""
+        if isinstance(key_value, SecretStr):
+            key_str = key_value.get_secret_value()
+        else:
+            key_str = str(key_value)
+        
+        if not key_str.startswith('sk-'):
+            raise ValueError("Invalid OpenAI API key format (should start with 'sk-')")
+        
+        if len(key_str) < 20:
+            raise ValueError("OpenAI API key appears to be too short")
     
     def print_startup_info(self):
         """Print configuration info at startup"""
