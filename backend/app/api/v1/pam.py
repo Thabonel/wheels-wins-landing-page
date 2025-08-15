@@ -1047,21 +1047,50 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         # Fallback to full PAM processing
         logger.info(f"🔄 [DEBUG] Falling back to cloud processing (edge confidence: {edge_result.confidence:.2f})")
         
-        # Use unified orchestrator for consistent neutral responses
-        logger.info(f"📥 [DEBUG] Using unified orchestrator for consistent responses...")
+        # Use enhanced orchestrator for consistent neutral responses
+        logger.info(f"📥 [DEBUG] Using enhanced orchestrator for consistent responses...")
         
-        # Process through unified orchestrator
-        logger.info(f"🤖 [DEBUG] Calling orchestrator.process_message with message: '{message}'")
-        result = await orchestrator.process_message(
-            user_id=user_id,
-            message=message,
-            session_id=str(uuid.uuid4()),
-            context=context
-        )
-        
-        # Extract response from orchestrator result
-        response_message = result.get("content", "")
-        response_context = context
+        # Process through orchestrator with error handling
+        try:
+            logger.info(f"🤖 [DEBUG] Calling orchestrator.process_message with message: '{message}'")
+            result = await orchestrator.process_message(
+                user_id=user_id,
+                message=message,
+                session_id=str(uuid.uuid4()),
+                context=context
+            )
+            
+            # Extract response from orchestrator result
+            response_message = result.get("content", "")
+            response_context = context
+            
+            # Check if this is an error response
+            if result.get("error") or "technical difficulties" in response_message.lower():
+                logger.warning(f"⚠️ [DEBUG] Orchestrator returned error response: {response_message[:100]}")
+                # Don't send duplicate error messages
+                if "technical difficulties" in response_message.lower():
+                    # This is already an error message from the orchestrator
+                    await websocket.send_json({
+                        "type": "chat_response",
+                        "message": response_message,
+                        "content": response_message,
+                        "source": "cloud",
+                        "error": True,
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    return
+        except Exception as e:
+            logger.error(f"❌ [DEBUG] Orchestrator processing failed: {e}")
+            # Send a single error response
+            await websocket.send_json({
+                "type": "chat_response",
+                "message": "I apologize, but I'm having trouble processing your request right now. Please try again.",
+                "content": "I apologize, but I'm having trouble processing your request right now. Please try again.",
+                "source": "cloud",
+                "error": True,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            return
         
         logger.info(f"🎯 [DEBUG] SimplePamService response received: '{response_message[:100]}...'")
         
