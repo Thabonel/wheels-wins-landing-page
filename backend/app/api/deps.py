@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.services.database import DatabaseService
 from app.services.cache import CacheService
-from app.services.pam.unified_orchestrator import unified_orchestrator as orchestrator
+from app.services.pam.enhanced_orchestrator import enhanced_orchestrator as orchestrator, get_enhanced_orchestrator
 from app.core.exceptions import PAMError, AuthenticationError, PermissionError, ErrorCode
 from app.core.logging import get_logger
 
@@ -78,10 +78,8 @@ async def get_cache() -> Generator[CacheService, None, None]:
 async def get_pam_orchestrator():
     """Get PAM orchestrator instance"""
     try:
-        # Initialize orchestrator if not already initialized
-        if not orchestrator.database_service:
-            await orchestrator.initialize()
-        return orchestrator
+        # Get the enhanced orchestrator with full tool support
+        return await get_enhanced_orchestrator()
     except Exception as e:
         logger.error(f"PAM orchestrator dependency error: {str(e)}")
         raise PAMError(f"PAM service error: {str(e)}", ErrorCode.NODE_INITIALIZATION_ERROR)
