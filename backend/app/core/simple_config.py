@@ -38,7 +38,10 @@ class SimpleSettings:
         
         # CORS - Only staging frontend URLs, no localhost
         cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app")
-        self.CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(",") if not "localhost" in origin]
+        if cors_origins:
+            self.CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(",") if origin.strip() and "localhost" not in origin]
+        else:
+            self.CORS_ALLOWED_ORIGINS = ["https://staging-wheelsandwins.netlify.app", "https://wheels-wins-staging.netlify.app"]
         
         # TTS
         self.TTS_ENABLED = os.getenv("TTS_ENABLED", "true").lower() == "true"

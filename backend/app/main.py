@@ -54,8 +54,14 @@ try:
 except Exception as config_error:
     print(f"⚠️ Failed to load full config: {config_error}")
     print("🔄 Using simple config fallback for staging...")
-    from app.core.simple_config import settings
-    print(f"✅ Simple config loaded - Environment: {settings.NODE_ENV}")
+    try:
+        from app.core.simple_config import settings
+        print(f"✅ Simple config loaded - Environment: {settings.NODE_ENV}")
+    except Exception as simple_config_error:
+        print(f"⚠️ Simple config also failed: {simple_config_error}")
+        print("🚨 Using emergency config - minimal functionality!")
+        from app.core.emergency_config import settings
+        print("✅ Emergency config loaded - service will start with basic features")
 from app.core.logging import setup_logging, get_logger
 from app.core.environment_validator import validate_environment
 
