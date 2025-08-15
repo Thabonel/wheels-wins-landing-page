@@ -839,6 +839,25 @@ async def get_current_user_optional(
         return None
 
 
+# PAM Orchestrator Dependency
+async def get_pam_orchestrator():
+    """Get PAM orchestrator instance"""
+    try:
+        # Get the enhanced orchestrator instance
+        orchestrator_instance = await get_enhanced_orchestrator()
+        
+        # Ensure it's initialized
+        if not orchestrator_instance.is_initialized:
+            logger.info("🚀 Initializing Enhanced PAM Orchestrator...")
+            await orchestrator_instance.initialize()
+        
+        return orchestrator_instance
+    except Exception as e:
+        logger.error(f"❌ Failed to get PAM orchestrator: {e}")
+        # Return the global instance as fallback
+        return orchestrator
+
+
 # Utility Dependencies
 def get_user_context(current_user: CurrentUser = Depends(get_current_user)) -> Dict[str, Any]:
     """Get user context for requests"""
