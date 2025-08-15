@@ -102,8 +102,8 @@ class AIService:
         self.circuit_breaker_timeout = 300  # 5 minutes
         self.circuit_breaker_last_failure = 0
         
-        # Initialize the service
-        asyncio.create_task(self.initialize())
+        # Service will be initialized explicitly by the orchestrator
+        # Removed asyncio.create_task to avoid race conditions
     
     async def initialize(self) -> bool:
         """Initialize the AI service with OpenAI client"""
