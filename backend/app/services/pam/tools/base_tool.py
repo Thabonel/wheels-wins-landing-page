@@ -4,23 +4,12 @@ Base Tool - Common functionality for all PAM tools
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
-from enum import Enum
 from app.core.logging import get_logger
 
-logger = get_logger(__name__)
+# Import unified capabilities to prevent conflicts
+from .tool_capabilities import ToolCapability, normalize_capability
 
-class ToolCapability(Enum):
-    """Enumeration of tool capabilities for registration and discovery"""
-    LOCATION_SEARCH = "location_search"
-    ROUTE_PLANNING = "route_planning"
-    WEATHER_CHECK = "weather_check"
-    FINANCIAL_TRACKING = "financial_tracking"
-    MEDIA_SEARCH = "media_search"
-    WEB_SCRAPING = "web_scraping"
-    MAP_VISUALIZATION = "map_visualization"
-    EXPENSE_MANAGEMENT = "expense_management"
-    TRIP_PLANNING = "trip_planning"
-    DATA_ANALYSIS = "data_analysis"
+logger = get_logger(__name__)
 
 @dataclass
 class ToolResult:

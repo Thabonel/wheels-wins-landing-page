@@ -27,7 +27,8 @@ from app.services.pam.usecase_profiles import (
 from app.services.pam.mcp.models.context_manager import ContextManager as MCPContextManager
 from app.services.database import DatabaseService
 from app.core.exceptions import PAMError, ErrorCode
-from app.services.pam.tools.tool_registry import get_tool_registry, ToolCapability
+from app.services.pam.tools.tool_registry import get_tool_registry
+from app.services.pam.tools.tool_capabilities import ToolCapability
 
 logger = get_logger(__name__)
 
@@ -102,26 +103,59 @@ class AIService:
         self.circuit_breaker_timeout = 300  # 5 minutes
         self.circuit_breaker_last_failure = 0
         
+        # Health check tracking
+        self.last_health_check = None
+        
         # Service will be initialized explicitly by the orchestrator
         # Removed asyncio.create_task to avoid race conditions
     
     async def initialize(self) -> bool:
-        """Initialize the AI service with OpenAI client"""
+        """Initialize the AI service with OpenAI client with detailed error reporting"""
         try:
             # Check if OpenAI API key is available
             if not self.settings.OPENAI_API_KEY:
-                logger.warning("OpenAI API key not configured. AI service will be limited.")
+                logger.error(
+                    "❌ OpenAI API key not configured. "
+                    "PAM AI functionality will be disabled. "
+                    "Please set OPENAI_API_KEY environment variable."
+                )
                 return False
             
-            # Initialize OpenAI client
-            self.client = AsyncOpenAI(
-                api_key=self.settings.OPENAI_API_KEY.get_secret_value(),
-                timeout=30.0,
-                max_retries=3
-            )
+            # Validate API key format
+            api_key = self.settings.OPENAI_API_KEY.get_secret_value()
+            if not api_key.startswith('sk-'):
+                logger.error(
+                    "❌ Invalid OpenAI API key format. "
+                    "API keys should start with 'sk-'. "
+                    "Please check your key at https://platform.openai.com/api-keys"
+                )
+                return False
             
-            # Test the connection
-            await self._health_check()
+            # Initialize OpenAI client with enhanced error handling
+            try:
+                self.client = AsyncOpenAI(
+                    api_key=api_key,
+                    timeout=30.0,
+                    max_retries=3
+                )
+                logger.info("✅ OpenAI client initialized successfully")
+            except Exception as client_error:
+                logger.error(
+                    f"❌ Failed to initialize OpenAI client: {str(client_error)}. "
+                    "Please verify your API key is valid and has sufficient credits."
+                )
+                return False
+            
+            # Test the connection with detailed error reporting
+            health_result = await self._health_check()
+            if not health_result:
+                logger.error(
+                    "❌ OpenAI API health check failed. "
+                    "PAM will operate in limited mode without AI responses."
+                )
+                return False
+            
+            logger.info("✅ OpenAI API health check passed")
             
             # Initialize tool registry for function calling
             try:
@@ -132,11 +166,14 @@ class AIService:
                 logger.warning(f"⚠️ Could not initialize tool registry: {e}")
                 self.function_calling_enabled = False
             
-            logger.info("AI service initialized successfully with OpenAI")
+            logger.info("🚀 AI service initialized successfully with full OpenAI integration")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to initialize AI service: {str(e)}")
+            logger.error(
+                f"❌ Critical error during AI service initialization: {str(e)}. "
+                "PAM will operate in fallback mode without AI responses."
+            )
             return False
     
     def _is_circuit_breaker_open(self) -> bool:
@@ -163,20 +200,73 @@ class AIService:
         logger.error(f"AI service failure recorded: {str(error)}")
     
     async def _health_check(self) -> bool:
-        """Perform a quick health check on OpenAI API"""
+        """Perform a comprehensive health check on OpenAI API with detailed error reporting"""
+        if not self.client:
+            logger.error("❌ Health check failed: OpenAI client not initialized")
+            return False
+        
         try:
-            if not self.client:
-                return False
-                
+            logger.info("🔍 Performing OpenAI API health check...")
+            
+            # Use a simple, fast model for health check
+            model = get_latest_model(ModelPurpose.QUICK)
+            logger.debug(f"Using model for health check: {model}")
+            
             response = await self.client.chat.completions.create(
-                model=get_latest_model(ModelPurpose.QUICK),
+                model=model,
                 messages=[{"role": "user", "content": "test"}],
                 max_tokens=1,
                 timeout=10.0
             )
+            
+            # Validate response structure
+            if not response or not response.choices:
+                logger.error("❌ Health check failed: Invalid response structure from OpenAI")
+                return False
+            
+            # Check if we have usage information (indicates successful billing)
+            if hasattr(response, 'usage') and response.usage:
+                logger.info(f"✅ Health check passed - Tokens used: {response.usage.total_tokens}")
+            else:
+                logger.warning("⚠️ Health check passed but no usage data available")
+            
+            # Record successful health check
+            self.last_health_check = datetime.now()
+            
             return True
+            
         except Exception as e:
-            logger.warning(f"AI service health check failed: {str(e)}")
+            error_msg = str(e).lower()
+            
+            # Provide specific error messages based on common OpenAI errors
+            if "api key" in error_msg or "authentication" in error_msg:
+                logger.error(
+                    "❌ Health check failed: Invalid API key. "
+                    "Please verify your OpenAI API key is correct and active."
+                )
+            elif "quota" in error_msg or "billing" in error_msg:
+                logger.error(
+                    "❌ Health check failed: OpenAI quota exceeded or billing issue. "
+                    "Please check your OpenAI account billing and usage limits."
+                )
+            elif "rate limit" in error_msg:
+                logger.error(
+                    "❌ Health check failed: Rate limit exceeded. "
+                    "Please wait before retrying."
+                )
+            elif "timeout" in error_msg:
+                logger.error(
+                    "❌ Health check failed: Request timeout. "
+                    "OpenAI API may be experiencing high load."
+                )
+            elif "model" in error_msg:
+                logger.error(
+                    f"❌ Health check failed: Model '{model}' not available. "
+                    "The requested model may be deprecated or unavailable."
+                )
+            else:
+                logger.error(f"❌ Health check failed: {str(e)}")
+            
             return False
     
     def _prepare_context_messages(self, user_context: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -461,24 +551,57 @@ Remember: Adapt your response to what the user is actually asking about. Don't a
                 
         except OpenAIError as e:
             self._record_failure(e)
+            error_msg = str(e).lower()
             
-            # Try fallback model
+            # Provide specific error messages for common OpenAI issues
+            if "api key" in error_msg or "authentication" in error_msg:
+                raise PAMError(
+                    "OpenAI API authentication failed. Please verify your API key is valid and active.",
+                    ErrorCode.EXTERNAL_SERVICE_ERROR
+                )
+            elif "quota" in error_msg or "billing" in error_msg:
+                raise PAMError(
+                    "OpenAI quota exceeded or billing issue. Please check your OpenAI account.",
+                    ErrorCode.EXTERNAL_SERVICE_ERROR
+                )
+            elif "rate limit" in error_msg:
+                raise PAMError(
+                    "OpenAI rate limit exceeded. Please wait before retrying.",
+                    ErrorCode.EXTERNAL_SERVICE_ERROR
+                )
+            elif "timeout" in error_msg:
+                raise PAMError(
+                    "OpenAI API request timed out. The service may be experiencing high load.",
+                    ErrorCode.EXTERNAL_SERVICE_ERROR
+                )
+            
+            # Try fallback model for other errors
             if model is None or model == self.default_model:
-                logger.warning(f"Primary model failed, trying fallback: {str(e)}")
+                logger.warning(f"🔄 Primary model failed, trying fallback models: {str(e)}")
                 for fallback_model in self.fallback_models:
                     try:
+                        logger.info(f"🔄 Attempting fallback with model: {fallback_model}")
                         request_params["model"] = fallback_model
                         if stream:
                             return self._stream_response(request_params, start_time)
                         else:
-                            return await self._get_complete_response(request_params, start_time)
-                    except Exception:
+                            return await self._get_complete_response(request_params, start_time, consolidated_context)
+                    except Exception as fallback_error:
+                        logger.warning(f"⚠️ Fallback model {fallback_model} failed: {str(fallback_error)}")
                         continue
             
             raise PAMError(f"OpenAI API error: {str(e)}", ErrorCode.EXTERNAL_SERVICE_ERROR)
         
+        except asyncio.TimeoutError:
+            self._record_failure(Exception("Timeout"))
+            raise PAMError(
+                "AI request timed out. The service may be experiencing high load.",
+                ErrorCode.EXTERNAL_SERVICE_ERROR
+            )
+        
         except Exception as e:
             self._record_failure(e)
+            logger.error(f"❌ Unexpected AI processing error: {str(e)}")
             raise PAMError(f"AI processing error: {str(e)}", ErrorCode.PROCESSING_ERROR)
     
     def _get_available_functions(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -738,24 +861,72 @@ Remember: Adapt your response to what the user is actually asking about. Don't a
         )
     
     def get_service_stats(self) -> Dict[str, Any]:
-        """Get service performance statistics"""
+        """Get comprehensive service performance statistics and health information"""
         function_call_success_rate = 0.0
         if self.function_calls_made > 0:
             function_call_success_rate = self.successful_function_calls / self.function_calls_made
         
+        # Calculate error rate
+        error_rate = 0.0
+        if self.request_count > 0:
+            error_rate = self.error_count / self.request_count
+        
+        # Determine overall service status
+        service_status = "healthy"
+        status_details = []
+        
+        if not self.client:
+            service_status = "unavailable"
+            status_details.append("OpenAI client not initialized")
+        elif self._is_circuit_breaker_open():
+            service_status = "degraded"
+            status_details.append("Circuit breaker open due to errors")
+        elif error_rate > 0.1:  # More than 10% error rate
+            service_status = "degraded"
+            status_details.append(f"High error rate: {error_rate:.1%}")
+        elif not self.settings.OPENAI_API_KEY:
+            service_status = "unavailable"
+            status_details.append("OpenAI API key not configured")
+        
         return {
+            # Performance metrics
             "requests_processed": self.request_count,
-            "average_latency_ms": self.avg_latency,
-            "total_cost_usd": self.total_cost,
+            "successful_requests": self.request_count - self.error_count,
             "error_count": self.error_count,
+            "error_rate": error_rate,
+            "average_latency_ms": round(self.avg_latency, 2),
+            "total_cost_usd": round(self.total_cost, 4),
+            
+            # Circuit breaker status
             "circuit_breaker_failures": self.circuit_breaker_failures,
+            "circuit_breaker_open": self._is_circuit_breaker_open(),
+            
+            # Function calling metrics
             "function_calls_made": self.function_calls_made,
             "successful_function_calls": self.successful_function_calls,
-            "function_call_success_rate": function_call_success_rate,
+            "function_call_success_rate": round(function_call_success_rate, 3),
             "function_calling_enabled": self.function_calling_enabled,
             "tool_registry_available": self.tool_registry is not None,
-            "service_health": "healthy" if not self._is_circuit_breaker_open() else "degraded",
-            "api_configured": self.client is not None
+            
+            # Service configuration
+            "api_configured": self.client is not None,
+            "openai_key_configured": bool(self.settings.OPENAI_API_KEY),
+            "default_model": self.default_model,
+            "fallback_models": self.fallback_models,
+            
+            # Overall health
+            "service_status": service_status,
+            "status_details": status_details,
+            "last_health_check": getattr(self, 'last_health_check', None),
+            
+            # Capabilities
+            "capabilities": {
+                "text_generation": self.client is not None,
+                "streaming": self.client is not None,
+                "function_calling": self.function_calling_enabled and self.tool_registry is not None,
+                "context_management": True,
+                "fallback_models": len(self.fallback_models) > 0
+            }
         }
     
     async def cleanup(self):

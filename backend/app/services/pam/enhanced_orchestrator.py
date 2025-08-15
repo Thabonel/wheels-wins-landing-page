@@ -20,7 +20,8 @@ from app.services.cache import cache_service
 from app.services.pam.context_manager import ContextManager
 from app.services.ai_service import get_ai_service, AIService, AIResponse
 from app.observability import observe_agent, observe_llm_call
-from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry, ToolCapability
+from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
+from app.services.pam.tools.tool_capabilities import ToolCapability
 import json
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,7 @@ class EnhancedPamOrchestrator:
             "multimodal_responses": 0,
             "service_fallbacks": 0,
             "ai_service_calls": 0,
+            "simple_responses": 0,
             "provider_health_checks": 0
         }
         
@@ -427,7 +429,7 @@ class EnhancedPamOrchestrator:
             )
             logger.debug("✅ Step 2: Enhanced context built")
             
-            # Process with AI service if available, otherwise use base orchestrator
+            # Process based on service availability
             if self.ai_service and self.providers['openai']['health']:
                 logger.info("🧠 Processing with AI Service")
                 logger.debug("Step 3: Processing with AI Service...")
@@ -438,16 +440,33 @@ class EnhancedPamOrchestrator:
                 enhanced_response["capabilities_used"] = ["ai_service"]
                 self.performance_metrics["ai_service_calls"] += 1
                 logger.debug("✅ Step 3: AI Service processing completed")
-            else:
-                logger.info("🔄 Using direct AI processing without tools")
+            elif self.ai_service:
+                # AI service exists but OpenAI is unhealthy - try direct processing
+                logger.info("🔄 Attempting direct AI processing (OpenAI degraded)")
                 logger.debug(f"AI service status: {self.ai_service}, OpenAI health: {self.providers['openai']['health']}")
                 logger.debug("Step 3: Processing with direct AI response...")
-                # Process directly with AI service without going through base orchestrator
-                direct_response = await self._process_direct_ai_response(
-                    message, enhanced_context, user_id, session_id
-                )
-                enhanced_response = direct_response
-                logger.debug("✅ Step 3: Direct AI processing completed")
+                try:
+                    direct_response = await self._process_direct_ai_response(
+                        message, enhanced_context, user_id, session_id
+                    )
+                    enhanced_response = direct_response
+                    logger.debug("✅ Step 3: Direct AI processing completed")
+                except Exception as direct_error:
+                    logger.warning(f"⚠️ Direct AI processing failed: {direct_error}")
+                    # Fall back to simple responses
+                    logger.info("📝 Falling back to simple response mode")
+                    simple_response = self._generate_simple_response(message, context)
+                    enhanced_response = simple_response
+                    enhanced_response["capabilities_used"] = ["simple_response"]
+                    self.performance_metrics["simple_responses"] += 1
+            else:
+                # No AI service available - use simple responses
+                logger.info("📝 Using simple response mode (AI service unavailable)")
+                simple_response = self._generate_simple_response(message, context)
+                enhanced_response = simple_response
+                enhanced_response["capabilities_used"] = ["simple_response"]
+                self.performance_metrics["simple_responses"] += 1
+                logger.debug("✅ Step 3: Simple response generated")
             
             # Update performance metrics
             processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -486,14 +505,18 @@ class EnhancedPamOrchestrator:
             
             self.performance_metrics["service_fallbacks"] += 1
             
-            # Fallback to simple response
+            # Generate specific fallback response based on error type
+            fallback_response = self._generate_fallback_response(e, message)
+            
             return {
-                "content": "I apologize, but I'm experiencing some technical difficulties. Please try again in a moment.",
-                "confidence": 0.3,
+                "content": fallback_response["content"],
+                "confidence": fallback_response["confidence"],
                 "response_mode": "text_only",
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "service_status": "degraded"
+                "service_status": fallback_response["service_status"],
+                "capabilities_disabled": fallback_response["capabilities_disabled"],
+                "user_guidance": fallback_response["user_guidance"]
             }
     
     async def _process_direct_ai_response(
@@ -735,14 +758,19 @@ Based on these results, please provide a helpful response to the user's original
                 self.providers['openai']['health'] = False
                 logger.warning("⚠️ OpenAI provider marked unhealthy due to errors")
             
-            # Return fallback error response
+            # Generate specific fallback response
+            fallback_response = self._generate_fallback_response(e, message)
+            
             return {
-                "content": "I'm experiencing some technical difficulties. Let me try a different approach.",
-                "confidence": 0.3,
+                "content": fallback_response["content"],
+                "confidence": fallback_response["confidence"],
                 "response_mode": "text_only",
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "capabilities_used": ["fallback"]
+                "capabilities_used": ["fallback"],
+                "service_status": fallback_response["service_status"],
+                "capabilities_disabled": fallback_response["capabilities_disabled"],
+                "user_guidance": fallback_response["user_guidance"]
             }
     
     async def _build_enhanced_context(
@@ -1201,6 +1229,188 @@ Based on these results, please provide a helpful response to the user's original
         """Check if fallback providers are available"""
         healthy_count = sum(1 for info in self.providers.values() if info["health"])
         return healthy_count > 1
+    
+    def _generate_fallback_response(self, error: Exception, message: str) -> Dict[str, Any]:
+        """Generate specific fallback response based on error type and user message"""
+        error_str = str(error).lower()
+        error_type = type(error).__name__
+        
+        # Check for OpenAI-specific errors
+        if "openai" in error_str or "api key" in error_str:
+            if "authentication" in error_str or "api key" in error_str:
+                return {
+                    "content": (
+                        "I'm currently unable to access my AI capabilities due to an authentication issue. "
+                        "This means I can't provide intelligent responses right now, but I can still help with basic information. "
+                        "Please contact support if this persists."
+                    ),
+                    "confidence": 0.2,
+                    "service_status": "degraded",
+                    "capabilities_disabled": ["ai_responses", "intelligent_suggestions", "context_awareness"],
+                    "user_guidance": "Basic text responses available. AI features temporarily disabled."
+                }
+            elif "quota" in error_str or "billing" in error_str:
+                return {
+                    "content": (
+                        "I'm currently unable to provide AI-powered responses due to service limits. "
+                        "I can still help with basic information and navigation. "
+                        "Please try again later or contact support."
+                    ),
+                    "confidence": 0.2,
+                    "service_status": "degraded",
+                    "capabilities_disabled": ["ai_responses", "intelligent_analysis", "personalized_suggestions"],
+                    "user_guidance": "Basic functionality available. AI responses temporarily limited."
+                }
+            elif "rate limit" in error_str:
+                return {
+                    "content": (
+                        "I'm currently experiencing high demand and need to slow down my responses. "
+                        "Please wait a moment and try again. I'll be back to full capacity shortly."
+                    ),
+                    "confidence": 0.4,
+                    "service_status": "throttled",
+                    "capabilities_disabled": ["real_time_responses"],
+                    "user_guidance": "Please wait 30 seconds before trying again."
+                }
+        
+        # Check for timeout errors
+        if "timeout" in error_str:
+            return {
+                "content": (
+                    "I'm taking longer than usual to process your request due to high server load. "
+                    "Please try asking your question again. I'll try to respond more quickly."
+                ),
+                "confidence": 0.3,
+                "service_status": "slow",
+                "capabilities_disabled": ["real_time_responses"],
+                "user_guidance": "Service is slower than normal. Please retry your request."
+            }
+        
+        # Check for network/connection errors
+        if any(term in error_str for term in ["connection", "network", "unreachable"]):
+            return {
+                "content": (
+                    "I'm having trouble connecting to my AI services right now. "
+                    "I can still provide basic responses, but my advanced capabilities are temporarily limited. "
+                    "Please try again in a few minutes."
+                ),
+                "confidence": 0.2,
+                "service_status": "offline",
+                "capabilities_disabled": ["ai_responses", "external_data", "real_time_info"],
+                "user_guidance": "Offline mode active. Limited functionality available."
+            }
+        
+        # Provide contextual responses based on user's message
+        message_lower = message.lower() if message else ""
+        
+        if any(word in message_lower for word in ["expense", "cost", "budget", "money"]):
+            return {
+                "content": (
+                    "I'm currently unable to access my smart expense analysis features. "
+                    "You can still manually track expenses in the Wins section. "
+                    "My AI-powered insights will return once the service is restored."
+                ),
+                "confidence": 0.3,
+                "service_status": "degraded",
+                "capabilities_disabled": ["expense_analysis", "budget_insights", "smart_categorization"],
+                "user_guidance": "Manual expense tracking still available in the Wins section."
+            }
+        
+        if any(word in message_lower for word in ["route", "trip", "navigate", "direction"]):
+            return {
+                "content": (
+                    "I'm temporarily unable to provide intelligent route planning. "
+                    "You can still use the map features and I'll help with basic navigation once my services are restored."
+                ),
+                "confidence": 0.3,
+                "service_status": "degraded",
+                "capabilities_disabled": ["smart_routing", "personalized_recommendations", "real_time_traffic"],
+                "user_guidance": "Basic map functionality still available in the Wheels section."
+            }
+        
+        # Default fallback response
+        return {
+            "content": (
+                "I'm experiencing some technical difficulties with my AI capabilities right now. "
+                "The core app features are still available, but my intelligent responses are temporarily limited. "
+                "Please try again in a few minutes, or use the manual features in the meantime."
+            ),
+            "confidence": 0.3,
+            "service_status": "degraded",
+            "capabilities_disabled": ["ai_responses", "intelligent_suggestions"],
+            "user_guidance": "Core app features remain available. AI assistance temporarily limited."
+        }
+    
+    def _generate_simple_response(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate simple responses without AI when OpenAI is unavailable"""
+        message_lower = message.lower() if message else ""
+        
+        # Common greeting responses
+        if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon"]):
+            return {
+                "content": (
+                    "Hello! I'm currently running in limited mode, but I'm still here to help. "
+                    "You can use all the manual features in the Wheels & Wins app, and I'll provide better assistance once my AI services are restored."
+                ),
+                "confidence": 0.6,
+                "response_mode": "text_only",
+                "service_status": "limited"
+            }
+        
+        # Help requests
+        if any(word in message_lower for word in ["help", "assist", "guide", "how to"]):
+            return {
+                "content": (
+                    "I'm currently in limited mode, but here's how you can use the app:\n\n"
+                    "🚐 **Wheels**: Use the map to plan trips and find RV parks\n"
+                    "💰 **Wins**: Track expenses and manage your budget\n"
+                    "👥 **Social**: Connect with other travelers\n\n"
+                    "My AI-powered suggestions will return once service is restored."
+                ),
+                "confidence": 0.7,
+                "response_mode": "text_only",
+                "service_status": "limited"
+            }
+        
+        # Expense/money related queries
+        if any(word in message_lower for word in ["expense", "cost", "budget", "money", "spent", "spend"]):
+            return {
+                "content": (
+                    "You can manually track expenses in the Wins section of the app. "
+                    "While my smart categorization and insights aren't available right now, "
+                    "you can still add expenses, view your spending, and manage your budget. "
+                    "AI-powered expense analysis will return once my services are restored."
+                ),
+                "confidence": 0.5,
+                "response_mode": "text_only",
+                "service_status": "limited"
+            }
+        
+        # Trip/travel related queries
+        if any(word in message_lower for word in ["trip", "travel", "route", "drive", "destination", "navigate"]):
+            return {
+                "content": (
+                    "You can use the Wheels section to view maps and search for RV parks and destinations. "
+                    "While I can't provide personalized route suggestions right now, "
+                    "the basic map functionality is fully available. "
+                    "Smart route planning will return once my AI services are restored."
+                ),
+                "confidence": 0.5,
+                "response_mode": "text_only",
+                "service_status": "limited"
+            }
+        
+        # Default response for other queries
+        return {
+            "content": (
+                "I'm currently running in limited mode and can't provide intelligent responses to your specific question. "
+                "However, all the core app features in Wheels, Wins, and Social sections are fully functional. "
+                "Please try using the manual features, or check back in a few minutes when my AI capabilities return."
+            ),
+            "confidence": 0.3,
+            "response_mode": "text_only",
+            "service_status": "limited"
+        }
     
     async def _generate_audio(self, content: str, enhanced_context: EnhancedPamContext) -> Optional[bytes]:
         """Generate audio using TTS service"""
