@@ -43,6 +43,7 @@ const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
 // Temporarily disabled - AI SDK not configured
 // const PamAiSdkTest = lazy(() => import('./pages/PamAiSdkTest'));
 const PamVoiceTest = lazy(() => import('./pages/PamVoiceTest'));
+const SiteQALog = lazy(() => import('./pages/SiteQALog'));
 
 
 const queryClient = new QueryClient();
@@ -104,6 +105,7 @@ function App() {
                                 <Route path="/cookies" element={<CookiePolicy />} />
                                 {/* <Route path="/pam-ai-sdk-test" element={<PamAiSdkTest />} /> */}
                                 <Route path="/pam-voice-test" element={<PamVoiceTest />} />
+                                <Route path="/qa" element={<SiteQALog />} />
                                 <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                               </Routes>
                           </Suspense>
