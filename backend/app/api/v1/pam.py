@@ -1053,12 +1053,33 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         # Process through orchestrator with error handling
         try:
             logger.info(f"🤖 [DEBUG] Calling orchestrator.process_message with message: '{message}'")
+            logger.debug(f"📋 [DEBUG] Context: {context}")
+            logger.debug(f"👤 [DEBUG] User ID: {user_id}")
+            
+            # Check orchestrator initialization status
+            if not hasattr(orchestrator, 'is_initialized') or not orchestrator.is_initialized:
+                logger.error("❌ [DEBUG] Enhanced orchestrator not initialized")
+                raise Exception("Enhanced orchestrator not initialized")
+            
+            # Log orchestrator health before processing
+            try:
+                orchestrator_status = await orchestrator.get_comprehensive_status()
+                logger.debug(f"🔍 [DEBUG] Orchestrator status: {orchestrator_status['enhanced_orchestrator']['initialized']}")
+                logger.debug(f"🔍 [DEBUG] Available capabilities: {orchestrator_status['enhanced_orchestrator']['capabilities']['capabilities_available']}")
+            except Exception as status_e:
+                logger.warning(f"⚠️ [DEBUG] Could not get orchestrator status: {status_e}")
+            
+            # Process message with detailed logging
             result = await orchestrator.process_message(
                 user_id=user_id,
                 message=message,
                 session_id=str(uuid.uuid4()),
                 context=context
             )
+            
+            logger.info(f"✅ [DEBUG] Orchestrator processing completed")
+            logger.debug(f"📤 [DEBUG] Orchestrator result keys: {list(result.keys())}")
+            logger.debug(f"📤 [DEBUG] Orchestrator result: {result}")
             
             # Extract response from orchestrator result
             response_message = result.get("content", "")
@@ -1067,6 +1088,10 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             # Check if this is an error response
             if result.get("error") or "technical difficulties" in response_message.lower():
                 logger.warning(f"⚠️ [DEBUG] Orchestrator returned error response: {response_message[:100]}")
+                logger.warning(f"⚠️ [DEBUG] Error details: {result.get('error', 'No error details')}")
+                logger.warning(f"⚠️ [DEBUG] Error type: {result.get('error_type', 'Unknown')}")
+                logger.warning(f"⚠️ [DEBUG] Service status: {result.get('service_status', 'Unknown')}")
+                
                 # Don't send duplicate error messages
                 if "technical difficulties" in response_message.lower():
                     # This is already an error message from the orchestrator
@@ -1076,18 +1101,46 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                         "content": response_message,
                         "source": "cloud",
                         "error": True,
+                        "error_details": result.get("error", "Service error"),
+                        "error_type": result.get("error_type", "Unknown"),
+                        "service_status": result.get("service_status", "degraded"),
                         "timestamp": datetime.utcnow().isoformat()
                     })
                     return
         except Exception as e:
             logger.error(f"❌ [DEBUG] Orchestrator processing failed: {e}")
-            # Send a single error response
+            logger.error(f"❌ [DEBUG] Exception type: {type(e).__name__}")
+            logger.error(f"❌ [DEBUG] Exception details: {str(e)}")
+            
+            # Get detailed traceback for debugging
+            import traceback
+            logger.error(f"❌ [DEBUG] Full traceback: {traceback.format_exc()}")
+            
+            # Try to get orchestrator status for debugging
+            try:
+                if hasattr(orchestrator, '_get_service_status_summary'):
+                    service_status = orchestrator._get_service_status_summary()
+                    logger.error(f"❌ [DEBUG] Service status at failure: {service_status}")
+                else:
+                    logger.error(f"❌ [DEBUG] Orchestrator type: {type(orchestrator)}")
+                    logger.error(f"❌ [DEBUG] Orchestrator attributes: {dir(orchestrator)}")
+            except Exception as status_e:
+                logger.error(f"❌ [DEBUG] Could not get service status: {status_e}")
+            
+            # Send a single error response with more details
             await websocket.send_json({
                 "type": "chat_response",
                 "message": "I apologize, but I'm having trouble processing your request right now. Please try again.",
                 "content": "I apologize, but I'm having trouble processing your request right now. Please try again.",
                 "source": "cloud",
                 "error": True,
+                "error_details": str(e),
+                "error_type": type(e).__name__,
+                "debug_info": {
+                    "orchestrator_initialized": hasattr(orchestrator, 'is_initialized') and orchestrator.is_initialized,
+                    "message_length": len(message),
+                    "user_id_provided": bool(user_id)
+                },
                 "timestamp": datetime.utcnow().isoformat()
             })
             return

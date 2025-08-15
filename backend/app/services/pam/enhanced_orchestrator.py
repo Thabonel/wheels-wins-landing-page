@@ -121,22 +121,34 @@ class EnhancedPamOrchestrator:
             logger.info("🚀 Initializing Enhanced PAM Orchestrator with AI Service...")
             
             # Initialize AI Service first (core dependency)
+            logger.info("Step 1/6: Initializing AI Service...")
             await self._initialize_ai_service()
+            logger.info("✅ Step 1/6: AI Service initialization completed")
             
             # Initialize tool registry for function calling
+            logger.info("Step 2/6: Initializing Tool Registry...")
             await self._initialize_tool_registry()
+            logger.info("✅ Step 2/6: Tool Registry initialization completed")
             
             # Initialize knowledge service
+            logger.info("Step 3/6: Initializing Knowledge Service...")
             await self._initialize_knowledge_service()
+            logger.info("✅ Step 3/6: Knowledge Service initialization completed")
             
             # Initialize TTS service
+            logger.info("Step 4/6: Initializing TTS Service...")
             await self._initialize_tts_service()
+            logger.info("✅ Step 4/6: TTS Service initialization completed")
             
             # Initialize voice streaming
+            logger.info("Step 5/6: Initializing Voice Streaming...")
             await self._initialize_voice_streaming()
+            logger.info("✅ Step 5/6: Voice Streaming initialization completed")
             
             # Assess initial capabilities
+            logger.info("Step 6/6: Assessing Service Capabilities...")
             await self._assess_service_capabilities()
+            logger.info("✅ Step 6/6: Service Capabilities assessment completed")
             
             self.is_initialized = True
             logger.info("✅ Enhanced PAM Orchestrator initialized successfully")
@@ -147,7 +159,11 @@ class EnhancedPamOrchestrator:
             logger.info(f"🎯 Available services: {', '.join(available_services)}")
             
         except Exception as e:
-            logger.error(f"❌ Enhanced PAM Orchestrator initialization failed: {e}")
+            logger.error(f"❌ Enhanced PAM Orchestrator initialization failed at step: {e}")
+            logger.error(f"❌ Exception type: {type(e).__name__}")
+            logger.error(f"❌ Exception details: {str(e)}")
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
             raise
     
     async def _initialize_ai_service(self):
@@ -156,17 +172,32 @@ class EnhancedPamOrchestrator:
             logger.info("🧠 Initializing AI Service...")
             
             # Get the global AI service instance
+            logger.debug("Getting global AI service instance...")
             self.ai_service = get_ai_service()
+            logger.debug(f"AI service instance obtained: {self.ai_service}")
             
             # Wait for initialization
             if not self.ai_service.client:
+                logger.debug("AI service client not initialized, initializing...")
                 await self.ai_service.initialize()
+                logger.debug(f"AI service initialization completed, client: {self.ai_service.client}")
+            else:
+                logger.debug("AI service client already initialized")
             
             # Update provider status
             if self.ai_service.client:
+                logger.debug("Updating provider status and capabilities...")
                 self.providers['openai']['client'] = self.ai_service.client
                 self.providers['openai']['health'] = True
                 self.providers['openai']['last_health_check'] = datetime.utcnow()
+                
+                # Get service stats safely
+                try:
+                    service_stats = self.ai_service.get_service_stats()
+                    logger.debug(f"AI service stats: {service_stats}")
+                except Exception as stats_e:
+                    logger.warning(f"Failed to get AI service stats: {stats_e}")
+                    service_stats = {"error": "stats_unavailable"}
                 
                 # Register AI service capability
                 self.service_capabilities["ai_service"] = ServiceCapability(
@@ -174,15 +205,19 @@ class EnhancedPamOrchestrator:
                     status=ServiceStatus.HEALTHY,
                     confidence=1.0,
                     last_check=datetime.utcnow(),
-                    metadata=self.ai_service.get_service_stats()
+                    metadata=service_stats
                 )
                 
                 logger.info("✅ AI Service integrated successfully")
             else:
-                raise Exception("AI Service client not available")
+                raise Exception("AI Service client not available after initialization")
                 
         except Exception as e:
             logger.error(f"❌ AI Service initialization failed: {e}")
+            logger.error(f"❌ AI service initialization exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"❌ AI service initialization traceback: {traceback.format_exc()}")
+            
             self.providers['openai']['health'] = False
             self.providers['openai']['error_count'] += 1
             
@@ -193,6 +228,7 @@ class EnhancedPamOrchestrator:
                 last_check=datetime.utcnow(),
                 error_message=str(e)
             )
+            raise  # Re-raise to stop initialization
     
     async def _initialize_tool_registry(self):
         """Initialize tool registry for function calling"""
@@ -200,29 +236,41 @@ class EnhancedPamOrchestrator:
             logger.info("🔧 Initializing Tool Registry for function calling...")
             
             # Initialize the global tool registry
+            logger.debug("Calling initialize_tool_registry()...")
             self.tool_registry = await initialize_tool_registry()
+            logger.debug(f"Tool registry instance obtained: {self.tool_registry}")
             
             if self.tool_registry.is_initialized:
-                tool_stats = self.tool_registry.get_tool_stats()
-                enabled_tools = tool_stats["registry_stats"]["enabled_tools"]
-                
-                self.service_capabilities["tool_registry"] = ServiceCapability(
-                    name="tool_registry",
-                    status=ServiceStatus.HEALTHY,
-                    confidence=1.0,
-                    last_check=datetime.utcnow(),
-                    metadata={
-                        "total_tools": tool_stats["registry_stats"]["total_tools"],
-                        "enabled_tools": enabled_tools,
-                        "capabilities": tool_stats["registry_stats"]["capabilities"]
-                    }
-                )
-                logger.info(f"✅ Tool Registry initialized with {enabled_tools} tools")
+                logger.debug("Tool registry is initialized, getting stats...")
+                try:
+                    tool_stats = self.tool_registry.get_tool_stats()
+                    logger.debug(f"Tool stats: {tool_stats}")
+                    enabled_tools = tool_stats["registry_stats"]["enabled_tools"]
+                    
+                    self.service_capabilities["tool_registry"] = ServiceCapability(
+                        name="tool_registry",
+                        status=ServiceStatus.HEALTHY,
+                        confidence=1.0,
+                        last_check=datetime.utcnow(),
+                        metadata={
+                            "total_tools": tool_stats["registry_stats"]["total_tools"],
+                            "enabled_tools": enabled_tools,
+                            "capabilities": tool_stats["registry_stats"]["capabilities"]
+                        }
+                    )
+                    logger.info(f"✅ Tool Registry initialized with {enabled_tools} tools")
+                except Exception as stats_e:
+                    logger.error(f"❌ Failed to get tool registry stats: {stats_e}")
+                    raise Exception(f"Tool registry stats retrieval failed: {stats_e}")
             else:
-                raise Exception("Tool registry failed to initialize")
+                raise Exception(f"Tool registry failed to initialize - is_initialized: {getattr(self.tool_registry, 'is_initialized', 'unknown')}")
                 
         except Exception as e:
             logger.error(f"❌ Tool Registry initialization failed: {e}")
+            logger.error(f"❌ Tool registry exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"❌ Tool registry traceback: {traceback.format_exc()}")
+            
             self.service_capabilities["tool_registry"] = ServiceCapability(
                 name="tool_registry",
                 status=ServiceStatus.UNAVAILABLE,
@@ -230,6 +278,7 @@ class EnhancedPamOrchestrator:
                 last_check=datetime.utcnow(),
                 error_message=str(e)
             )
+            raise  # Re-raise to stop initialization
     
     async def _initialize_knowledge_service(self):
         """Initialize knowledge service integration"""
@@ -356,35 +405,55 @@ class EnhancedPamOrchestrator:
         start_time = datetime.utcnow()
         self.performance_metrics["total_requests"] += 1
         
+        logger.info(f"🎯 Processing message: '{message[:100]}...' for user: {user_id}")
+        logger.debug(f"🔍 Input context: {context}")
+        logger.debug(f"🔍 Response mode: {response_mode}")
+        
         try:
+            # Check if orchestrator is initialized
+            if not self.is_initialized:
+                logger.error("❌ Enhanced orchestrator not initialized")
+                raise Exception("Enhanced orchestrator not initialized")
+            
             # Assess current service capabilities
+            logger.debug("Step 1: Assessing service capabilities...")
             await self._assess_service_capabilities()
+            logger.debug("✅ Step 1: Service capabilities assessed")
             
             # Build enhanced context
+            logger.debug("Step 2: Building enhanced context...")
             enhanced_context = await self._build_enhanced_context(
                 user_id, session_id, context, response_mode, user_location
             )
+            logger.debug("✅ Step 2: Enhanced context built")
             
             # Process with AI service if available, otherwise use base orchestrator
             if self.ai_service and self.providers['openai']['health']:
                 logger.info("🧠 Processing with AI Service")
+                logger.debug("Step 3: Processing with AI Service...")
                 ai_response = await self._process_with_ai_service(
                     message, enhanced_context, user_id, session_id
                 )
                 enhanced_response = ai_response
                 enhanced_response["capabilities_used"] = ["ai_service"]
                 self.performance_metrics["ai_service_calls"] += 1
+                logger.debug("✅ Step 3: AI Service processing completed")
             else:
                 logger.info("🔄 Using direct AI processing without tools")
+                logger.debug(f"AI service status: {self.ai_service}, OpenAI health: {self.providers['openai']['health']}")
+                logger.debug("Step 3: Processing with direct AI response...")
                 # Process directly with AI service without going through base orchestrator
                 direct_response = await self._process_direct_ai_response(
                     message, enhanced_context, user_id, session_id
                 )
                 enhanced_response = direct_response
+                logger.debug("✅ Step 3: Direct AI processing completed")
             
             # Update performance metrics
             processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             self._update_performance_metrics(enhanced_response, processing_time)
+            
+            logger.info(f"✅ Message processing completed in {processing_time:.2f}ms")
             
             # Return comprehensive response
             return {
@@ -403,6 +472,18 @@ class EnhancedPamOrchestrator:
             
         except Exception as e:
             logger.error(f"❌ Enhanced message processing failed: {e}")
+            logger.error(f"❌ Processing exception type: {type(e).__name__}")
+            logger.error(f"❌ Processing exception details: {str(e)}")
+            import traceback
+            logger.error(f"❌ Processing full traceback: {traceback.format_exc()}")
+            
+            # Log service statuses for debugging
+            try:
+                service_status = self._get_service_status_summary()
+                logger.error(f"❌ Service status at failure: {service_status}")
+            except Exception as status_e:
+                logger.error(f"❌ Failed to get service status: {status_e}")
+            
             self.performance_metrics["service_fallbacks"] += 1
             
             # Fallback to simple response
@@ -410,7 +491,8 @@ class EnhancedPamOrchestrator:
                 "content": "I apologize, but I'm experiencing some technical difficulties. Please try again in a moment.",
                 "confidence": 0.3,
                 "response_mode": "text_only",
-                "error": "Services unavailable",
+                "error": str(e),
+                "error_type": type(e).__name__,
                 "service_status": "degraded"
             }
     
@@ -423,12 +505,27 @@ class EnhancedPamOrchestrator:
     ) -> Dict[str, Any]:
         """Process message directly with AI service when tools aren't needed"""
         try:
+            logger.debug(f"🔄 Starting direct AI processing for message: '{message[:50]}...'")
+            
             if not self.ai_service:
+                logger.error("❌ AI service not available for direct processing")
                 return {
                     "content": "I'm currently unable to process your request. Please try again.",
                     "confidence": 0.3,
                     "response_mode": "text_only",
-                    "capabilities_used": ["fallback"]
+                    "capabilities_used": ["fallback"],
+                    "error": "ai_service_unavailable"
+                }
+            
+            logger.debug(f"✅ AI service available, checking client...")
+            if not self.ai_service.client:
+                logger.error("❌ AI service client not available")
+                return {
+                    "content": "I'm currently unable to process your request. Please try again.",
+                    "confidence": 0.3,
+                    "response_mode": "text_only",
+                    "capabilities_used": ["fallback"],
+                    "error": "ai_client_unavailable"
                 }
             
             # Simple AI context without tools
@@ -439,6 +536,9 @@ class EnhancedPamOrchestrator:
                 "user_location": enhanced_context.user_location
             }
             
+            logger.debug(f"📋 Direct AI context: {ai_context}")
+            logger.debug(f"🤖 Calling AI service process_message...")
+            
             # Get response from AI service
             ai_response = await self.ai_service.process_message(
                 message=message,
@@ -448,7 +548,11 @@ class EnhancedPamOrchestrator:
                 stream=False
             )
             
+            logger.debug(f"📤 AI service response type: {type(ai_response)}")
+            logger.debug(f"📤 AI service response: {ai_response}")
+            
             if isinstance(ai_response, AIResponse):
+                logger.debug(f"✅ Valid AIResponse received, content length: {len(ai_response.content) if ai_response.content else 0}")
                 return {
                     "content": ai_response.content,
                     "confidence": ai_response.confidence_score or 0.8,
@@ -456,6 +560,7 @@ class EnhancedPamOrchestrator:
                     "capabilities_used": ["ai_service_direct"]
                 }
             
+            logger.debug(f"⚠️ Non-AIResponse received, converting to string")
             return {
                 "content": str(ai_response),
                 "confidence": 0.7,
@@ -464,12 +569,16 @@ class EnhancedPamOrchestrator:
             }
             
         except Exception as e:
-            logger.error(f"Direct AI processing failed: {e}")
+            logger.error(f"❌ Direct AI processing failed: {e}")
+            logger.error(f"❌ Direct AI processing exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"❌ Direct AI processing traceback: {traceback.format_exc()}")
             return {
                 "content": "I apologize, but I couldn't process your request. Please try again.",
                 "confidence": 0.2,
                 "response_mode": "text_only",
                 "error": str(e),
+                "error_type": type(e).__name__,
                 "capabilities_used": ["fallback"]
             }
     
@@ -482,7 +591,21 @@ class EnhancedPamOrchestrator:
     ) -> Dict[str, Any]:
         """Process message using the AI Service"""
         try:
+            logger.debug(f"🧠 Starting AI service processing for message: '{message[:50]}...'")
+            
+            # Check AI service availability
+            if not self.ai_service:
+                logger.error("❌ AI service not available for enhanced processing")
+                raise Exception("AI service not available")
+            
+            if not self.ai_service.client:
+                logger.error("❌ AI service client not available for enhanced processing")
+                raise Exception("AI service client not available")
+                
+            logger.debug("✅ AI service and client available")
+            
             # Prepare context for AI service with savings awareness
+            logger.debug("📋 Building AI context...")
             ai_context = {
                 "user_id": user_id,
                 "session_id": session_id,
@@ -507,16 +630,29 @@ class EnhancedPamOrchestrator:
             
             # Add base context data
             if hasattr(enhanced_context.base_context, '__dict__'):
+                logger.debug("📋 Adding base context data...")
                 ai_context.update(enhanced_context.base_context.__dict__)
+            
+            logger.debug(f"📋 AI context prepared with {len(ai_context)} keys")
             
             # Get available tools for function calling
             tools = []
             if hasattr(self, 'tool_registry') and self.tool_registry:
-                # Get relevant tool capabilities based on context
-                relevant_capabilities = self._determine_relevant_capabilities(message, enhanced_context)
-                tools = self.tool_registry.get_openai_functions(capabilities=relevant_capabilities)
+                logger.debug("🔧 Getting tools from registry...")
+                try:
+                    # Get relevant tool capabilities based on context
+                    relevant_capabilities = self._determine_relevant_capabilities(message, enhanced_context)
+                    logger.debug(f"🔧 Relevant capabilities: {relevant_capabilities}")
+                    tools = self.tool_registry.get_openai_functions(capabilities=relevant_capabilities)
+                    logger.debug(f"🔧 Retrieved {len(tools)} tools")
+                except Exception as tool_e:
+                    logger.warning(f"⚠️ Failed to get tools: {tool_e}")
+                    tools = []
+            else:
+                logger.debug("🔧 No tool registry available")
             
             # Call AI service with tools for function calling
+            logger.debug(f"🤖 Calling AI service with {len(tools)} tools...")
             ai_response = await self.ai_service.process_message(
                 message=message,
                 user_context=ai_context,
@@ -525,6 +661,9 @@ class EnhancedPamOrchestrator:
                 stream=False,
                 tools=tools if tools else None
             )
+            
+            logger.debug(f"📤 AI service response received: {type(ai_response)}")
+            logger.debug(f"📤 AI response content length: {len(str(ai_response)) if ai_response else 0}")
             
             # Handle function calling if present
             if hasattr(ai_response, 'function_calls') and ai_response.function_calls:
@@ -583,9 +722,15 @@ Based on these results, please provide a helpful response to the user's original
                 
         except Exception as e:
             logger.error(f"❌ AI service processing failed: {e}")
+            logger.error(f"❌ AI service exception type: {type(e).__name__}")
+            logger.error(f"❌ AI service exception details: {str(e)}")
+            import traceback
+            logger.error(f"❌ AI service full traceback: {traceback.format_exc()}")
             
             # Record provider failure
             self.providers['openai']['error_count'] += 1
+            logger.warning(f"⚠️ OpenAI error count increased to: {self.providers['openai']['error_count']}")
+            
             if self.providers['openai']['error_count'] >= self.config['max_provider_errors']:
                 self.providers['openai']['health'] = False
                 logger.warning("⚠️ OpenAI provider marked unhealthy due to errors")
@@ -596,6 +741,7 @@ Based on these results, please provide a helpful response to the user's original
                 "confidence": 0.3,
                 "response_mode": "text_only",
                 "error": str(e),
+                "error_type": type(e).__name__,
                 "capabilities_used": ["fallback"]
             }
     
@@ -609,38 +755,60 @@ Based on these results, please provide a helpful response to the user's original
     ) -> EnhancedPamContext:
         """Build enhanced context with all available service information"""
         
-        # Build base context directly
-        base_context = PamContext(
-            user_id=user_id,
-            session_id=session_id,
-            conversation_history=[],
-            user_preferences={},
-            current_location=context.get('user_location') if context else None,
-            active_trip=None,
-            emotional_state="neutral",
-            engagement_level="normal"
-        )
+        logger.debug(f"📋 Building enhanced context for user: {user_id}")
+        logger.debug(f"📋 Input context: {context}")
+        logger.debug(f"📋 Response mode: {response_mode}")
+        logger.debug(f"📋 User location: {user_location}")
         
-        # Determine service availability
-        knowledge_available = (
-            self.service_capabilities.get("knowledge", {}).status == ServiceStatus.HEALTHY
-        )
-        tts_available = (
-            self.service_capabilities.get("tts", {}).status == ServiceStatus.HEALTHY
-        )
-        voice_streaming_available = (
-            self.service_capabilities.get("voice_streaming", {}).status == ServiceStatus.HEALTHY
-        )
+        try:
+            # Build base context directly
+            logger.debug("📋 Creating base PamContext...")
+            base_context = PamContext(
+                user_id=user_id,
+                session_id=session_id,
+                conversation_history=[],
+                user_preferences={},
+                current_location=context.get('user_location') if context else None,
+                active_trip=None,
+                emotional_state="neutral",
+                engagement_level="normal"
+            )
+            logger.debug("✅ Base PamContext created")
+            
+            # Determine service availability
+            logger.debug("📋 Checking service availability...")
+            logger.debug(f"📋 Available service capabilities: {list(self.service_capabilities.keys())}")
+            
+            knowledge_available = (
+                self.service_capabilities.get("knowledge", type('obj', (object,), {'status': ServiceStatus.UNAVAILABLE})()).status == ServiceStatus.HEALTHY
+            )
+            tts_available = (
+                self.service_capabilities.get("tts", type('obj', (object,), {'status': ServiceStatus.UNAVAILABLE})()).status == ServiceStatus.HEALTHY
+            )
+            voice_streaming_available = (
+                self.service_capabilities.get("voice_streaming", type('obj', (object,), {'status': ServiceStatus.UNAVAILABLE})()).status == ServiceStatus.HEALTHY
+            )
+            
+            logger.debug(f"📋 Service availability - Knowledge: {knowledge_available}, TTS: {tts_available}, Voice Streaming: {voice_streaming_available}")
+            
+            # Determine conversation mode from context
+            conversation_mode = context.get("input_type", "text") if context else "text"
+            logger.debug(f"📋 Conversation mode: {conversation_mode}")
+            
+            # Set quality requirements based on mode
+            quality_requirements = {
+                "response_time_ms": 3000 if conversation_mode == "voice" else 5000,
+                "knowledge_depth": 0.8 if response_mode == ResponseMode.ADAPTIVE else 0.6,
+                "voice_quality": 0.9 if tts_available else 0.0
+            }
+            logger.debug(f"📋 Quality requirements: {quality_requirements}")
         
-        # Determine conversation mode from context
-        conversation_mode = context.get("input_type", "text") if context else "text"
-        
-        # Set quality requirements based on mode
-        quality_requirements = {
-            "response_time_ms": 3000 if conversation_mode == "voice" else 5000,
-            "knowledge_depth": 0.8 if response_mode == ResponseMode.ADAPTIVE else 0.6,
-            "voice_quality": 0.9 if tts_available else 0.0
-        }
+        except Exception as e:
+            logger.error(f"❌ Failed to build enhanced context: {e}")
+            logger.error(f"❌ Context building exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"❌ Context building traceback: {traceback.format_exc()}")
+            raise
         
         return EnhancedPamContext(
             base_context=base_context,
