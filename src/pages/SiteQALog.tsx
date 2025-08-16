@@ -1,4 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 type Priority = "Critical" | "High" | "Medium" | "Low";
 type Category = "UI/Design" | "Functionality" | "Content" | "Performance" | "Integration" | "Other";
@@ -12,12 +16,14 @@ type Issue = {
   priority: Priority;
   category: Category;
   status: Status;
-  createdAt: string; // ISO
+  created_at: string;
+  updated_at: string;
   notes: string;
-  screenshot?: string; // data URL
+  screenshot_url?: string;
+  created_by?: string;
+  updated_by?: string;
+  creator_email?: string;
 };
-
-const STORAGE_KEY = "qa_issues_v1";
 
 const priorities: Priority[] = ["Critical", "High", "Medium", "Low"];
 const categories: Category[] = ["UI/Design", "Functionality", "Content", "Performance", "Integration", "Other"];
@@ -47,23 +53,11 @@ function Badge({ children, variant }: { children: React.ReactNode; variant: Prio
   );
 }
 
-function useLocalStorage<T>(key: string, initial: T) {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as T) : initial;
-    } catch {
-      return initial;
-    }
-  });
-  useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(value));
-  }, [key, value]);
-  return [value, setValue] as const;
-}
-
 export default function SiteQALog() {
-  const [issues, setIssues] = useLocalStorage<Issue[]>(STORAGE_KEY, []);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<Status | "All">("All");
   const [filterPriority, setFilterPriority] = useState<Priority | "All">("All");
@@ -79,20 +73,78 @@ export default function SiteQALog() {
   const [category, setCategory] = useState<Category>("Functionality");
   const [status, setStatus] = useState<Status>("Open");
   const [notes, setNotes] = useState("");
-  const [screenshot, setScreenshot] = useState<string | undefined>(undefined);
+  const [screenshot, setScreenshot] = useState<File | undefined>(undefined);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch issues from Supabase
+  const fetchIssues = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('qa_issues')
+        .select(`
+          *,
+          creator:created_by(email)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedIssues = data?.map(issue => ({
+        ...issue,
+        creator_email: issue.creator?.email
+      })) || [];
+
+      setIssues(formattedIssues);
+    } catch (error) {
+      console.error('Error fetching issues:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load issues",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Set up real-time subscription
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    fetchIssues();
+
+    // Subscribe to real-time changes
+    const subscription = supabase
+      .channel('qa_issues_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'qa_issues' },
+        (payload) => {
+          // Refresh issues when any change occurs
+          fetchIssues();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user]);
 
   useEffect(() => {
     // Prefill URL with current location if running client-side
     if (typeof window !== "undefined" && !url) {
-      setUrl(window.location.href);
+      setUrl(window.location.href.replace('/qa', ''));
     }
-  }, []); // eslint-disable-line
+  }, []);
 
   function resetForm() {
     setTitle("");
     setDescription("");
-    setUrl(typeof window !== "undefined" ? window.location.href : "");
+    setUrl(typeof window !== "undefined" ? window.location.href.replace('/qa', '') : "");
     setPriority("High");
     setCategory("Functionality");
     setStatus("Open");
@@ -101,45 +153,162 @@ export default function SiteQALog() {
     fileInputRef.current && (fileInputRef.current.value = "");
   }
 
-  function addIssue(e: React.FormEvent) {
+  async function uploadScreenshot(file: File): Promise<string | null> {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('qa-screenshots')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('qa-screenshots')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading screenshot:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload screenshot",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }
+
+  async function addIssue(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const issue: Issue = {
-      id,
-      title: title.trim(),
-      description: description.trim(),
-      url: url.trim(),
-      priority,
-      category,
-      status,
-      notes: notes.trim(),
-      createdAt: new Date().toISOString(),
-      screenshot,
-    };
-    setIssues([issue, ...issues]);
-    resetForm();
+    if (!title.trim() || !user) return;
+
+    setUploading(true);
+    try {
+      let screenshot_url = null;
+      if (screenshot) {
+        screenshot_url = await uploadScreenshot(screenshot);
+      }
+
+      const { error } = await supabase
+        .from('qa_issues')
+        .insert({
+          title: title.trim(),
+          description: description.trim(),
+          url: url.trim(),
+          priority,
+          category,
+          status,
+          notes: notes.trim(),
+          screenshot_url,
+          created_by: user.id,
+          updated_by: user.id
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Issue added successfully",
+      });
+
+      resetForm();
+    } catch (error) {
+      console.error('Error adding issue:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add issue",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
   }
 
-  function toggleStatus(id: string) {
-    setIssues(
-      issues.map((i) => (i.id === id ? { ...i, status: i.status === "Open" ? "Closed" : "Open" } : i))
-    );
+  async function toggleStatus(id: string, currentStatus: Status) {
+    if (!user) return;
+
+    try {
+      const newStatus = currentStatus === "Open" ? "Closed" : "Open";
+      const { error } = await supabase
+        .from('qa_issues')
+        .update({ 
+          status: newStatus,
+          updated_by: user.id
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Status updated",
+        description: `Issue marked as ${newStatus}`,
+      });
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update status",
+        variant: "destructive",
+      });
+    }
   }
 
-  function updateNotes(id: string, newNotes: string) {
-    setIssues(issues.map((i) => (i.id === id ? { ...i, notes: newNotes } : i)));
+  async function updateNotes(id: string, newNotes: string) {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('qa_issues')
+        .update({ 
+          notes: newNotes,
+          updated_by: user.id
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating notes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update notes",
+        variant: "destructive",
+      });
+    }
   }
 
-  function removeIssue(id: string) {
-    setIssues(issues.filter((i) => i.id !== id));
+  async function removeIssue(id: string) {
+    if (!user) return;
+
+    if (!confirm("Are you sure you want to delete this issue?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('qa_issues')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Issue deleted",
+        description: "The issue has been removed",
+      });
+    } catch (error) {
+      console.error('Error deleting issue:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete issue",
+        variant: "destructive",
+      });
+    }
   }
 
   function handleScreenshotUpload(file?: File | null) {
     if (!file) return setScreenshot(undefined);
-    const reader = new FileReader();
-    reader.onload = () => setScreenshot(reader.result as string);
-    reader.readAsDataURL(file);
+    setScreenshot(file);
   }
 
   function priorityRank(p: Priority) {
@@ -154,9 +323,10 @@ export default function SiteQALog() {
       list = list.filter(
         (i) =>
           i.title.toLowerCase().includes(q) ||
-          i.description.toLowerCase().includes(q) ||
-          i.url.toLowerCase().includes(q) ||
-          i.notes.toLowerCase().includes(q)
+          i.description?.toLowerCase().includes(q) ||
+          i.url?.toLowerCase().includes(q) ||
+          i.notes?.toLowerCase().includes(q) ||
+          i.creator_email?.toLowerCase().includes(q)
       );
     }
     if (filterStatus !== "All") list = list.filter((i) => i.status === filterStatus);
@@ -169,7 +339,7 @@ export default function SiteQALog() {
         return sortDir === "asc" ? diff : -diff;
       }
       if (sortBy === "date") {
-        const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         return sortDir === "asc" ? diff : -diff;
       }
       if (sortBy === "category") {
@@ -195,20 +365,22 @@ export default function SiteQALog() {
       "priority",
       "category",
       "status",
-      "createdAt",
+      "created_at",
+      "created_by",
       "notes",
     ];
     const rows = filtered.map((i) =>
       [
         i.id,
         i.title,
-        i.description.replace(/\n/g, "\\n"),
+        i.description?.replace(/\n/g, "\\n"),
         i.url,
         i.priority,
         i.category,
         i.status,
-        i.createdAt,
-        i.notes.replace(/\n/g, "\\n"),
+        i.created_at,
+        i.creator_email || 'Unknown',
+        i.notes?.replace(/\n/g, "\\n"),
       ]
         .map((v) => `"${(v ?? "").toString().replace(/"/g, '""')}"`)
         .join(",")
@@ -223,36 +395,29 @@ export default function SiteQALog() {
     URL.revokeObjectURL(url);
   }
 
-  function exportJSON() {
-    const blob = new Blob([JSON.stringify(issues, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `site_qa_log_backup.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-white text-zinc-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-4">Login Required</h2>
+          <p className="text-zinc-600">Please log in to access the QA tracking system.</p>
+          <a href="/login" className="mt-4 inline-block rounded-lg bg-black text-white px-6 py-2 hover:opacity-90">
+            Go to Login
+          </a>
+        </div>
+      </div>
+    );
   }
 
-  function importJSON(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string) as Issue[];
-        if (Array.isArray(data)) {
-          // Basic shape check
-          const cleaned = data
-            .filter((i) => i && typeof i.id === "string" && typeof i.title === "string")
-            .map((i) => ({ ...i, createdAt: i.createdAt ?? new Date().toISOString() }));
-          setIssues(cleaned);
-        }
-      } catch {
-        // ignore
-      }
-      e.target.value = "";
-    };
-    reader.readAsText(file);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white text-zinc-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-zinc-600">Loading issues...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -262,19 +427,15 @@ export default function SiteQALog() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold">Website QA & Fix Log</h1>
-              <p className="text-sm text-zinc-600">Record and track all site issues in one place.</p>
+              <p className="text-sm text-zinc-600">
+                Team issue tracking - {issues.length} total issues, {issues.filter(i => i.status === 'Open').length} open
+              </p>
             </div>
             <div className="flex items-center gap-2">
+              <span className="text-sm text-zinc-600">Logged in as: {user.email}</span>
               <button onClick={exportCSV} className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50">
                 Export CSV
               </button>
-              <button onClick={exportJSON} className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50">
-                Backup JSON
-              </button>
-              <label className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50 cursor-pointer">
-                Import JSON
-                <input type="file" accept="application/json" className="hidden" onChange={importJSON} />
-              </label>
             </div>
           </div>
         </div>
@@ -354,16 +515,19 @@ export default function SiteQALog() {
                 />
               </label>
               {screenshot && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setScreenshot(undefined);
-                    if (fileInputRef.current) fileInputRef.current.value = "";
-                  }}
-                  className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50"
-                >
-                  Remove Screenshot
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-zinc-600">{screenshot.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScreenshot(undefined);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50"
+                  >
+                    Remove
+                  </button>
+                </div>
               )}
             </div>
             <div className="lg:col-span-4 flex items-center justify-end gap-2">
@@ -372,9 +536,10 @@ export default function SiteQALog() {
               </button>
               <button
                 type="submit"
-                className="rounded-lg bg-black text-white px-4 py-2 text-sm hover:opacity-90"
+                disabled={uploading}
+                className="rounded-lg bg-black text-white px-4 py-2 text-sm hover:opacity-90 disabled:opacity-50"
               >
-                Add Issue
+                {uploading ? "Adding..." : "Add Issue"}
               </button>
             </div>
           </div>
@@ -461,7 +626,7 @@ export default function SiteQALog() {
                 <th className="px-4 py-3">Location</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Priority</th>
-                <th className="px-4 py-3">Date Added</th>
+                <th className="px-4 py-3">Date / Reporter</th>
                 <th className="px-4 py-3">Notes</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -478,7 +643,7 @@ export default function SiteQALog() {
                 <tr key={i.id} className="align-top">
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => toggleStatus(i.id)}
+                      onClick={() => toggleStatus(i.id, i.status)}
                       className={clsx(
                         "rounded-lg border px-2 py-1 text-xs hover:bg-zinc-50",
                         i.status === "Open" ? "border-blue-200" : "border-zinc-200"
@@ -491,9 +656,9 @@ export default function SiteQALog() {
                   <td className="px-4 py-3">
                     <div className="font-medium">{i.title}</div>
                     {i.description && <div className="mt-1 text-sm text-zinc-600 whitespace-pre-wrap">{i.description}</div>}
-                    {i.screenshot && (
+                    {i.screenshot_url && (
                       <a
-                        href={i.screenshot}
+                        href={i.screenshot_url}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-2 inline-block text-xs underline text-zinc-600"
@@ -517,16 +682,22 @@ export default function SiteQALog() {
                   <td className="px-4 py-3">
                     <Badge variant={i.priority}>{i.priority}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-700">
-                    {new Date(i.createdAt).toLocaleString()}
+                  <td className="px-4 py-3">
+                    <div className="text-sm text-zinc-700">
+                      {format(new Date(i.created_at), 'MMM d, h:mm a')}
+                    </div>
+                    <div className="text-xs text-zinc-500">
+                      {i.creator_email || 'Unknown user'}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <textarea
                       className="w-64 rounded-lg border px-2 py-1 text-sm"
                       rows={3}
                       placeholder="Add notes…"
-                      value={i.notes}
+                      value={i.notes || ''}
                       onChange={(e) => updateNotes(i.id, e.target.value)}
+                      onBlur={(e) => updateNotes(i.id, e.target.value)}
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -534,6 +705,7 @@ export default function SiteQALog() {
                       onClick={() => removeIssue(i.id)}
                       className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50"
                       title="Delete"
+                      disabled={i.created_by !== user.id}
                     >
                       Delete
                     </button>
