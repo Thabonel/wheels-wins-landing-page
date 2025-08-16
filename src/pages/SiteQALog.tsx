@@ -29,6 +29,44 @@ const priorities: Priority[] = ["Critical", "High", "Medium", "Low"];
 const categories: Category[] = ["UI/Design", "Functionality", "Content", "Performance", "Integration", "Other"];
 const statuses: Status[] = ["Open", "Closed"];
 
+// Page routes configuration
+const pageRoutes = [
+  { value: "custom", label: "Custom URL (Enter manually)", group: "Custom" },
+  // Main Pages
+  { value: "/", label: "Home", group: "Main" },
+  { value: "/wheels", label: "Wheels - Trip Planning", group: "Main" },
+  { value: "/you", label: "You - Profile & Settings", group: "Main" },
+  { value: "/wins", label: "Wins - Financial Overview", group: "Main" },
+  { value: "/social", label: "Social - Community", group: "Main" },
+  { value: "/shop", label: "Shop - Store", group: "Main" },
+  { value: "/profile", label: "Profile", group: "Main" },
+  // Wins Sub-pages
+  { value: "/wins#expenses", label: "Wins - Expenses", group: "Financial" },
+  { value: "/wins#income", label: "Wins - Income", group: "Financial" },
+  { value: "/wins#budgets", label: "Wins - Budgets", group: "Financial" },
+  { value: "/wins#tips", label: "Wins - Tips & Tricks", group: "Financial" },
+  { value: "/wins#money-maker", label: "Wins - Money Maker", group: "Financial" },
+  // Authentication
+  { value: "/login", label: "Login", group: "Authentication" },
+  { value: "/signup", label: "Sign Up", group: "Authentication" },
+  { value: "/onboarding", label: "Onboarding", group: "Authentication" },
+  { value: "/reset-password", label: "Password Reset", group: "Authentication" },
+  { value: "/update-password", label: "Update Password", group: "Authentication" },
+  // Payment
+  { value: "/payment-success", label: "Payment Success", group: "Payment" },
+  { value: "/payment-canceled", label: "Payment Canceled", group: "Payment" },
+  { value: "/cancel-trial", label: "Cancel Trial", group: "Payment" },
+  { value: "/thank-you/digistore24", label: "Thank You", group: "Payment" },
+  // Legal
+  { value: "/terms", label: "Terms of Service", group: "Legal" },
+  { value: "/privacy", label: "Privacy Policy", group: "Legal" },
+  { value: "/cookies", label: "Cookie Policy", group: "Legal" },
+  // Admin & Testing
+  { value: "/admin", label: "Admin Dashboard", group: "Admin" },
+  { value: "/qa", label: "QA Tracking", group: "Admin" },
+  { value: "/pam-voice-test", label: "PAM Voice Test", group: "Testing" },
+];
+
 function clsx(...cn: (string | false | null | undefined)[]) {
   return cn.filter(Boolean).join(" ");
 }
@@ -74,7 +112,8 @@ export default function SiteQALog() {
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [url, setUrl] = useState("");
+  const [selectedPage, setSelectedPage] = useState("custom");
+  const [customUrl, setCustomUrl] = useState("");
   const [priority, setPriority] = useState<Priority>("High");
   const [category, setCategory] = useState<Category>("Functionality");
   const [status, setStatus] = useState<Status>("Open");
@@ -248,17 +287,25 @@ export default function SiteQALog() {
     };
   }, [user]);
 
-  useEffect(() => {
-    // Prefill URL with current location if running client-side
-    if (typeof window !== "undefined" && !url) {
-      setUrl(window.location.href.replace('/qa', ''));
+  // Helper function to generate full URL based on selected page
+  const getFullUrl = () => {
+    if (selectedPage === "custom") {
+      return customUrl;
     }
-  }, []);
+    if (typeof window !== "undefined") {
+      const baseUrl = window.location.origin;
+      return baseUrl + selectedPage;
+    }
+    return selectedPage;
+  };
 
   function resetForm() {
     setTitle("");
     setDescription("");
-    setUrl(typeof window !== "undefined" ? window.location.href.replace('/qa', '') : "");
+    // Keep the selected page but clear custom URL if it was custom
+    if (selectedPage === "custom") {
+      setCustomUrl("");
+    }
     setPriority("High");
     setCategory("Functionality");
     setStatus("Open");
@@ -311,7 +358,7 @@ export default function SiteQALog() {
         .insert({
           title: title.trim(),
           description: description.trim(),
-          url: url.trim(),
+          url: getFullUrl().trim(),
           priority,
           category,
           status,
@@ -689,12 +736,34 @@ export default function SiteQALog() {
               onChange={(e) => setTitle(e.target.value)}
               required
             />
-            <input
-              className="lg:col-span-3 w-full rounded-lg border px-3 py-2 text-sm"
-              placeholder="Location / URL"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
+            <div className="lg:col-span-3 flex gap-2">
+              <select
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+                value={selectedPage}
+                onChange={(e) => setSelectedPage(e.target.value)}
+              >
+                {/* Group pages by category */}
+                {Array.from(new Set(pageRoutes.map(p => p.group))).map(group => (
+                  <optgroup key={group} label={group}>
+                    {pageRoutes
+                      .filter(page => page.group === group)
+                      .map(page => (
+                        <option key={page.value} value={page.value}>
+                          {page.label}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+              </select>
+              {selectedPage === "custom" && (
+                <input
+                  className="flex-1 rounded-lg border px-3 py-2 text-sm"
+                  placeholder="Enter custom URL"
+                  value={customUrl}
+                  onChange={(e) => setCustomUrl(e.target.value)}
+                />
+              )}
+            </div>
             <select
               className="lg:col-span-2 w-full rounded-lg border px-3 py-2 text-sm"
               value={priority}
