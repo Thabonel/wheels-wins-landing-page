@@ -108,6 +108,9 @@ export default function SiteQALog() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [jsonImportFile, setJsonImportFile] = useState<File | null>(null);
+  const [showJsonImportDialog, setShowJsonImportDialog] = useState(false);
+  const jsonInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -556,6 +559,122 @@ export default function SiteQALog() {
     URL.revokeObjectURL(url);
   }
 
+  function exportJSON() {
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      issueCount: filtered.length,
+      issues: filtered.map(issue => ({
+        id: issue.id,
+        title: issue.title,
+        description: issue.description,
+        url: issue.url,
+        priority: issue.priority,
+        category: issue.category,
+        status: issue.status,
+        notes: issue.notes,
+        screenshot_url: issue.screenshot_url,
+        created_at: issue.created_at,
+        updated_at: issue.updated_at,
+        created_by: issue.creator_email || 'Unknown'
+      }))
+    };
+    
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `qa_issues_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importJSON(file: File) {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (!data.issues || !Array.isArray(data.issues)) {
+        throw new Error("Invalid JSON format: missing 'issues' array");
+      }
+
+      setImporting(true);
+      setImportProgress(0);
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < data.issues.length; i++) {
+        const issue = data.issues[i];
+        setImportProgress(Math.round(((i + 1) / data.issues.length) * 100));
+
+        try {
+          // Check for duplicates
+          const { data: existing } = await supabase
+            .from('qa_issues')
+            .select('id')
+            .eq('title', issue.title)
+            .eq('description', issue.description || '')
+            .single();
+
+          if (existing) {
+            console.log(`Skipping duplicate: ${issue.title}`);
+            continue;
+          }
+
+          // Import the issue
+          const { error } = await supabase
+            .from('qa_issues')
+            .insert({
+              title: issue.title,
+              description: issue.description || '',
+              url: issue.url || '',
+              priority: issue.priority || 'Medium',
+              category: issue.category || 'Other',
+              status: issue.status || 'Open',
+              notes: issue.notes || '',
+              screenshot_url: issue.screenshot_url || null,
+              created_by: user?.id,
+              updated_by: user?.id,
+              created_at: issue.created_at || new Date().toISOString(),
+              updated_at: issue.updated_at || new Date().toISOString()
+            });
+
+          if (error) throw error;
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to import issue: ${issue.title}`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "JSON import successful",
+          description: `Imported ${successCount} issue${successCount > 1 ? 's' : ''}${errorCount > 0 ? ` (${errorCount} failed)` : ''}`,
+        });
+        fetchIssues();
+      } else {
+        toast({
+          title: "Import failed",
+          description: `Could not import any issues from JSON`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("JSON import error:", error);
+      toast({
+        title: "Import error",
+        description: error instanceof Error ? error.message : "Invalid JSON file",
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+      setImportProgress(0);
+      setShowJsonImportDialog(false);
+      setJsonImportFile(null);
+    }
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen bg-white text-zinc-900 flex items-center justify-center">
@@ -675,6 +794,83 @@ export default function SiteQALog() {
         </div>
       )}
 
+      {/* JSON Import Dialog */}
+      {showJsonImportDialog && jsonImportFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-semibold">Import JSON File</h2>
+              <p className="text-sm text-zinc-600 mt-1">
+                Ready to import issues from: {jsonImportFile.name}
+              </p>
+            </div>
+            
+            <div className="p-6">
+              {importing ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-sm text-zinc-600">Importing... {importProgress}%</p>
+                  <div className="w-full bg-zinc-200 rounded-full h-2 mt-4">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      style={{ width: `${importProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      <strong>Import Features:</strong>
+                      <ul className="mt-2 space-y-1 list-disc list-inside">
+                        <li>Duplicate detection - existing issues won't be re-imported</li>
+                        <li>Preserves original dates and metadata</li>
+                        <li>Validates data format before import</li>
+                        <li>Shows progress during import</li>
+                      </ul>
+                    </p>
+                  </div>
+                  
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-sm text-amber-800">
+                      <strong>Note:</strong> Make sure the JSON file was exported from this QA system or follows the same format.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {!importing && (
+              <div className="p-6 border-t bg-zinc-50">
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setShowJsonImportDialog(false);
+                      setJsonImportFile(null);
+                    }}
+                    className="rounded-lg border px-4 py-2 text-sm hover:bg-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (jsonImportFile) {
+                        await importJSON(jsonImportFile);
+                        setShowJsonImportDialog(false);
+                        setJsonImportFile(null);
+                      }
+                    }}
+                    className="rounded-lg bg-black text-white px-4 py-2 text-sm hover:opacity-90"
+                  >
+                    Start Import
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Legacy Data Banner */}
       {legacyIssues.length > 0 && !showImportDialog && (
         <div className="bg-blue-50 border-b border-blue-200">
@@ -719,9 +915,31 @@ export default function SiteQALog() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-zinc-600">Logged in as: {user.email}</span>
-              <button onClick={exportCSV} className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50">
-                Export CSV
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={exportCSV} className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50">
+                  Export CSV
+                </button>
+                <button onClick={exportJSON} className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50">
+                  Export JSON
+                </button>
+                <label className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50 cursor-pointer">
+                  Import JSON
+                  <input
+                    ref={jsonInputRef}
+                    type="file"
+                    accept=".json,application/json"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setJsonImportFile(file);
+                        setShowJsonImportDialog(true);
+                        e.target.value = ''; // Reset input
+                      }
+                    }}
+                  />
+                </label>
+              </div>
             </div>
           </div>
         </div>
