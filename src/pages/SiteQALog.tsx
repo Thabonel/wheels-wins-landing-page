@@ -64,6 +64,12 @@ export default function SiteQALog() {
   const [filterCategory, setFilterCategory] = useState<Category | "All">("All");
   const [sortBy, setSortBy] = useState<"priority" | "date" | "category" | "status">("priority");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  
+  // Import feature state
+  const [legacyIssues, setLegacyIssues] = useState<Issue[]>([]);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -108,6 +114,113 @@ export default function SiteQALog() {
     }
   };
 
+  // Check for legacy localStorage data
+  const checkLegacyData = () => {
+    try {
+      const stored = localStorage.getItem("qa_issues");
+      if (stored) {
+        const parsedIssues = JSON.parse(stored);
+        if (Array.isArray(parsedIssues) && parsedIssues.length > 0) {
+          setLegacyIssues(parsedIssues);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error("Error reading legacy data:", error);
+    }
+    return false;
+  };
+
+  // Import legacy issues to Supabase
+  const importLegacyIssues = async (deleteAfterImport: boolean = false) => {
+    if (!user || legacyIssues.length === 0) return;
+
+    setImporting(true);
+    setImportProgress(0);
+    
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (let i = 0; i < legacyIssues.length; i++) {
+        const legacyIssue = legacyIssues[i];
+        setImportProgress(Math.round(((i + 1) / legacyIssues.length) * 100));
+
+        try {
+          // Skip if issue might already exist (check by title and description)
+          const { data: existing } = await supabase
+            .from('qa_issues')
+            .select('id')
+            .eq('title', legacyIssue.title)
+            .eq('description', legacyIssue.description || '')
+            .single();
+
+          if (existing) {
+            console.log(`Skipping duplicate: ${legacyIssue.title}`);
+            continue;
+          }
+
+          // Import the issue
+          const { error } = await supabase
+            .from('qa_issues')
+            .insert({
+              title: legacyIssue.title,
+              description: legacyIssue.description || '',
+              url: legacyIssue.url || '',
+              priority: legacyIssue.priority || 'Medium',
+              category: legacyIssue.category || 'Other',
+              status: legacyIssue.status || 'Open',
+              notes: legacyIssue.notes || '',
+              created_by: user.id,
+              updated_by: user.id,
+              created_at: legacyIssue.created_at || new Date().toISOString(),
+              updated_at: legacyIssue.updated_at || new Date().toISOString()
+            });
+
+          if (error) throw error;
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to import issue: ${legacyIssue.title}`, error);
+          errorCount++;
+        }
+      }
+
+      // Show results
+      if (successCount > 0) {
+        toast({
+          title: "Import successful",
+          description: `Imported ${successCount} issue${successCount > 1 ? 's' : ''}${errorCount > 0 ? ` (${errorCount} failed)` : ''}`,
+        });
+
+        // Clean up localStorage if requested
+        if (deleteAfterImport && successCount > 0) {
+          localStorage.removeItem("qa_issues");
+          setLegacyIssues([]);
+        }
+
+        // Refresh the issues list
+        fetchIssues();
+      } else if (errorCount > 0) {
+        toast({
+          title: "Import failed",
+          description: `Could not import any issues. ${errorCount} failed.`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Import failed:", error);
+      toast({
+        title: "Import error",
+        description: "An error occurred during import",
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+      setShowImportDialog(false);
+      setImportProgress(0);
+    }
+  };
+
   // Set up real-time subscription
   useEffect(() => {
     if (!user) {
@@ -116,6 +229,7 @@ export default function SiteQALog() {
     }
 
     fetchIssues();
+    checkLegacyData();
 
     // Subscribe to real-time changes
     const subscription = supabase
@@ -422,6 +536,131 @@ export default function SiteQALog() {
 
   return (
     <div className="min-h-screen bg-white text-zinc-900">
+      {/* Import Dialog Modal */}
+      {showImportDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-semibold">Import Legacy Issues</h2>
+              <p className="text-sm text-zinc-600 mt-1">
+                Found {legacyIssues.length} issue{legacyIssues.length > 1 ? 's' : ''} in your browser storage
+              </p>
+            </div>
+            
+            <div className="p-6 max-h-[50vh] overflow-y-auto">
+              {importing ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-sm text-zinc-600">Importing... {importProgress}%</p>
+                  <div className="w-full bg-zinc-200 rounded-full h-2 mt-4">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      style={{ width: `${importProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2 mb-4">
+                    {legacyIssues.slice(0, 5).map((issue, idx) => (
+                      <div key={idx} className="p-3 border rounded-lg">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium">{issue.title}</p>
+                            {issue.description && (
+                              <p className="text-sm text-zinc-600 mt-1">{issue.description}</p>
+                            )}
+                          </div>
+                          <Badge variant={issue.priority}>{issue.priority}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                    {legacyIssues.length > 5 && (
+                      <p className="text-sm text-zinc-600 text-center">
+                        ...and {legacyIssues.length - 5} more
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-sm text-amber-800">
+                      <strong>Note:</strong> Screenshots cannot be imported automatically. 
+                      You'll need to re-add them manually if needed.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {!importing && (
+              <div className="p-6 border-t bg-zinc-50">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      id="deleteAfterImport"
+                      className="rounded border-zinc-300"
+                    />
+                    <span className="text-sm">Delete browser storage after import</span>
+                  </label>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowImportDialog(false)}
+                      className="rounded-lg border px-4 py-2 text-sm hover:bg-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        const deleteAfter = (document.getElementById('deleteAfterImport') as HTMLInputElement)?.checked;
+                        importLegacyIssues(deleteAfter);
+                      }}
+                      className="rounded-lg bg-black text-white px-4 py-2 text-sm hover:opacity-90"
+                    >
+                      Import All Issues
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Legacy Data Banner */}
+      {legacyIssues.length > 0 && !showImportDialog && (
+        <div className="bg-blue-50 border-b border-blue-200">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-blue-800">
+                  Found {legacyIssues.length} issue{legacyIssues.length > 1 ? 's' : ''} in browser storage from your previous session. 
+                  Import them to the cloud for team collaboration?
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setLegacyIssues([])}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Dismiss
+                </button>
+                <button
+                  onClick={() => setShowImportDialog(true)}
+                  className="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm hover:bg-blue-700"
+                >
+                  Import to Cloud
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-30 border-b bg-white/85 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
