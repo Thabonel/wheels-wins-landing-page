@@ -55,10 +55,10 @@ export default defineConfig(({ mode }) => {
         return false;
       },
       output: {
-        // Add environment to chunk names for better debugging
-        chunkFileNames: `assets/[name]-${mode}.[hash].js`,
-        entryFileNames: `assets/[name]-${mode}.[hash].js`,
-        assetFileNames: `assets/[name]-${mode}.[hash].[ext]`,
+        // Use consistent chunk names across environments to avoid import errors
+        chunkFileNames: `assets/[name].[hash].js`,
+        entryFileNames: `assets/[name].[hash].js`,
+        assetFileNames: `assets/[name].[hash].[ext]`,
         // Optimized manual chunks for better performance and caching
         manualChunks: isProduction ? {
           // Core React ecosystem - loaded on every page
