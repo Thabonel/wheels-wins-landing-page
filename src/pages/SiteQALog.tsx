@@ -594,69 +594,113 @@ export default function SiteQALog() {
       const text = await file.text();
       const data = JSON.parse(text);
       
-      if (!data.issues || !Array.isArray(data.issues)) {
-        throw new Error("Invalid JSON format: missing 'issues' array");
+      // Handle different JSON formats
+      let issuesToImport = [];
+      
+      if (data.issues && Array.isArray(data.issues)) {
+        // Standard export format
+        issuesToImport = data.issues;
+      } else if (Array.isArray(data)) {
+        // Direct array of issues
+        issuesToImport = data;
+      } else if (data.qa_issues) {
+        // Possible localStorage format
+        issuesToImport = data.qa_issues;
+      } else {
+        throw new Error("Invalid JSON format: couldn't find issues array");
       }
 
+      if (issuesToImport.length === 0) {
+        throw new Error("No issues found in JSON file");
+      }
+
+      console.log(`Starting import of ${issuesToImport.length} issues...`);
       setImporting(true);
       setImportProgress(0);
       let successCount = 0;
       let errorCount = 0;
+      let skipCount = 0;
 
-      for (let i = 0; i < data.issues.length; i++) {
-        const issue = data.issues[i];
-        setImportProgress(Math.round(((i + 1) / data.issues.length) * 100));
+      for (let i = 0; i < issuesToImport.length; i++) {
+        const issue = issuesToImport[i];
+        setImportProgress(Math.round(((i + 1) / issuesToImport.length) * 100));
 
         try {
-          // Check for duplicates
-          const { data: existing } = await supabase
-            .from('qa_issues')
-            .select('id')
-            .eq('title', issue.title)
-            .eq('description', issue.description || '')
-            .single();
-
-          if (existing) {
-            console.log(`Skipping duplicate: ${issue.title}`);
+          // Validate required fields
+          if (!issue.title) {
+            console.warn(`Skipping issue without title at index ${i}`);
+            skipCount++;
             continue;
           }
 
-          // Import the issue
-          const { error } = await supabase
+          // Check for duplicates - simplified check
+          const { data: existing, error: checkError } = await supabase
+            .from('qa_issues')
+            .select('id')
+            .eq('title', issue.title)
+            .maybeSingle();
+
+          if (checkError) {
+            console.error('Error checking for duplicate:', checkError);
+          }
+
+          if (existing) {
+            console.log(`Skipping duplicate: ${issue.title}`);
+            skipCount++;
+            continue;
+          }
+
+          // Import the issue with better error handling
+          const { data: inserted, error } = await supabase
             .from('qa_issues')
             .insert({
-              title: issue.title,
+              title: issue.title.substring(0, 255), // Ensure title isn't too long
               description: issue.description || '',
               url: issue.url || '',
-              priority: issue.priority || 'Medium',
-              category: issue.category || 'Other',
-              status: issue.status || 'Open',
+              priority: ['Critical', 'High', 'Medium', 'Low'].includes(issue.priority) ? issue.priority : 'Medium',
+              category: ['UI/Design', 'Functionality', 'Content', 'Performance', 'Integration', 'Other'].includes(issue.category) ? issue.category : 'Other',
+              status: ['Open', 'Closed'].includes(issue.status) ? issue.status : 'Open',
               notes: issue.notes || '',
               screenshot_url: issue.screenshot_url || null,
               created_by: user?.id,
               updated_by: user?.id,
               created_at: issue.created_at || new Date().toISOString(),
               updated_at: issue.updated_at || new Date().toISOString()
-            });
+            })
+            .select();
 
-          if (error) throw error;
-          successCount++;
+          if (error) {
+            console.error(`Failed to import issue "${issue.title}":`, error);
+            errorCount++;
+          } else {
+            console.log(`Successfully imported: ${issue.title}`, inserted);
+            successCount++;
+          }
         } catch (error) {
           console.error(`Failed to import issue: ${issue.title}`, error);
           errorCount++;
         }
       }
 
+      // Show detailed results
+      console.log(`Import complete: ${successCount} imported, ${skipCount} skipped, ${errorCount} failed`);
+      
       if (successCount > 0) {
         toast({
-          title: "JSON import successful",
-          description: `Imported ${successCount} issue${successCount > 1 ? 's' : ''}${errorCount > 0 ? ` (${errorCount} failed)` : ''}`,
+          title: "JSON import completed",
+          description: `Imported ${successCount} issue${successCount > 1 ? 's' : ''}${skipCount > 0 ? `, ${skipCount} skipped (duplicates)` : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
         });
         fetchIssues();
+      } else if (skipCount > 0) {
+        toast({
+          title: "All issues already exist",
+          description: `Skipped ${skipCount} duplicate${skipCount > 1 ? 's' : ''}. No new issues to import.`,
+          variant: "default",
+        });
       } else {
         toast({
           title: "Import failed",
-          description: `Could not import any issues from JSON`,
+          description: `Could not import any issues. Check browser console for details.`,
           variant: "destructive",
         });
       }
