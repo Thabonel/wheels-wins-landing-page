@@ -2,11 +2,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Bell } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Bell, AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const NotificationSettings = () => {
-  const { settings, updateSettings, updating, loading } = useUserSettings();
+  const { settings, updateSettings, updating, loading, syncError, retryCount } = useUserSettings();
   
   console.log('NotificationSettings render:', { settings, loading, updating });
 
@@ -62,6 +64,21 @@ export const NotificationSettings = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {syncError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>{syncError}</span>
+              {retryCount > 0 && (
+                <span className="text-sm ml-2">
+                  <RefreshCw className="inline h-3 w-3 mr-1 animate-spin" />
+                  Retrying...
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {(
           [
             ['email_notifications', 'Email Notifications'],
@@ -76,12 +93,20 @@ export const NotificationSettings = () => {
             <Label htmlFor={key} className="text-sm font-medium">
               {label}
             </Label>
-            <Switch
-              id={key}
-              checked={settings.notification_preferences[key]}
-              onCheckedChange={() => handleToggle(key)}
-              disabled={updating}
-            />
+            <div className="flex items-center gap-2">
+              <Switch
+                id={key}
+                checked={settings.notification_preferences[key]}
+                onCheckedChange={() => handleToggle(key)}
+                disabled={updating || !!syncError}
+              />
+              {updating && key === Object.keys(settings.notification_preferences).find(k => 
+                settings.notification_preferences[k as keyof typeof settings.notification_preferences] !== 
+                settings.notification_preferences[key]
+              ) && (
+                <RefreshCw className="h-3 w-3 animate-spin text-gray-500" />
+              )}
+            </div>
           </div>
         ))}
       </CardContent>
