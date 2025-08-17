@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { authenticatedFetch } from '@/services/api';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UserSettings {
   notification_preferences: {
@@ -63,30 +63,75 @@ export const useUserSettings = () => {
     console.log('User found, fetching settings for user ID:', user.id);
     setLoading(true);
     try {
-      // Use backend API with authentication
-      const response = await authenticatedFetch(`/api/v1/users/${user.id}/settings`);
+      // Use Supabase directly for better reliability
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          // Settings don't exist, create defaults
-          const createResponse = await authenticatedFetch(`/api/v1/users/${user.id}/settings`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No settings found, create defaults
+          const defaultSettings = {
+            user_id: user.id,
+            notification_preferences: {
+              email_notifications: true,
+              push_notifications: false,
+              marketing_emails: false,
+              trip_reminders: true,
+              maintenance_alerts: true,
+              weather_warnings: true,
             },
-          });
+            privacy_preferences: {
+              profile_visibility: 'public',
+              location_sharing: false,
+              activity_tracking: true,
+              data_collection: false,
+            },
+            display_preferences: {
+              theme: 'light',
+              font_size: 'medium',
+              high_contrast: false,
+              reduced_motion: false,
+              language: 'en',
+            },
+            regional_preferences: {
+              currency: 'USD',
+              units: 'imperial',
+              timezone: 'America/New_York',
+              date_format: 'MM/DD/YYYY',
+            },
+            pam_preferences: {
+              voice_enabled: true,
+              proactive_suggestions: true,
+              response_style: 'helpful',
+              expertise_level: 'intermediate',
+              knowledge_sources: true,
+            },
+            integration_preferences: {
+              shop_travel_integration: true,
+              auto_add_purchases_to_storage: false,
+            }
+          };
           
-          if (!createResponse.ok) {
-            throw new Error('Failed to create default settings');
+          const { data: newSettings, error: createError } = await supabase
+            .from('user_settings')
+            .insert(defaultSettings)
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('Error creating default settings:', createError);
+            // Use defaults even if insert fails
+            setSettings(defaultSettings as UserSettings);
+          } else {
+            setSettings(newSettings as UserSettings);
           }
-          
-          const defaultSettings = await createResponse.json();
-          setSettings(defaultSettings as UserSettings);
         } else {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw error;
         }
       } else {
-        const data = await response.json();
         setSettings(data as UserSettings);
       }
     } catch (err: any) {
@@ -153,39 +198,58 @@ export const useUserSettings = () => {
   };
 
   const updateSettings = async (newSettings: Partial<UserSettings>) => {
-    if (!user) return;
+    if (!user || !settings) return;
     setUpdating(true);
     try {
-      // Use backend API for settings update with authentication
-      const response = await authenticatedFetch(`/api/v1/users/${user.id}/settings`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newSettings),
-      });
+      // Merge with existing settings
+      const updatedData = {
+        ...settings,
+        ...newSettings,
+        user_id: user.id // Ensure user_id is always present
+      };
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Use Supabase directly for better reliability
+      const { data, error } = await supabase
+        .from('user_settings')
+        .update(updatedData)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        // If update fails because record doesn't exist, try to insert
+        if (error.code === 'PGRST116') {
+          const { data: insertData, error: insertError } = await supabase
+            .from('user_settings')
+            .insert(updatedData)
+            .select()
+            .single();
+          
+          if (insertError) {
+            throw insertError;
+          }
+          setSettings(insertData as UserSettings);
+        } else {
+          throw error;
+        }
+      } else {
+        setSettings(data as UserSettings);
       }
-
-      const updatedSettings = await response.json();
-      setSettings(updatedSettings as UserSettings);
-      toast.success('Settings updated');
+      
+      toast.success('Settings updated successfully');
     } catch (err: any) {
       console.error('Error updating settings:', err);
       
-      // Update local settings as fallback and show appropriate message
-      if (settings) {
-        setSettings({ ...settings, ...newSettings });
-        toast.success('Settings updated locally (backend sync will retry)');
+      // Still update locally for immediate feedback
+      setSettings({ ...settings, ...newSettings });
+      
+      // Show appropriate error message
+      if (err.code === '42501') {
+        toast.error('Permission denied. Please check your authentication.');
+      } else if (err.code === '42P01') {
+        toast.error('Settings table not found. Please contact support.');
       } else {
-        // Provide user-friendly error messages only for critical issues
-        if (err.message.includes('401')) {
-          toast.error('Authentication failed. Please log in again.');
-        } else {
-          toast.warning('Settings updated locally - sync will retry when connection is restored');
-        }
+        toast.error('Failed to save settings. Please try again.');
       }
     } finally {
       setUpdating(false);
