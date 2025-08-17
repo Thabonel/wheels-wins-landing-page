@@ -50,6 +50,8 @@ export const useUserSettings = () => {
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const fetchSettings = async () => {
     console.log('fetchSettings called, user:', user);
@@ -197,18 +199,30 @@ export const useUserSettings = () => {
     }
   };
 
-  const updateSettings = async (newSettings: Partial<UserSettings>) => {
-    if (!user || !settings) return;
+  const updateSettings = async (newSettings: Partial<UserSettings>, isRetry = false): Promise<boolean> => {
+    if (!user || !settings) return false;
+    
+    // Clear sync error when starting new update
+    if (!isRetry) {
+      setSyncError(null);
+      setRetryCount(0);
+    }
+    
     setUpdating(true);
+    
+    // Store original settings for rollback on failure
+    const originalSettings = { ...settings };
+    
+    // Optimistically update UI
+    const updatedData = {
+      ...settings,
+      ...newSettings,
+      user_id: user.id // Ensure user_id is always present
+    };
+    setSettings(updatedData);
+    
     try {
-      // Merge with existing settings
-      const updatedData = {
-        ...settings,
-        ...newSettings,
-        user_id: user.id // Ensure user_id is always present
-      };
-
-      // Use Supabase directly for better reliability
+      // Try to update in Supabase
       const { data, error } = await supabase
         .from('user_settings')
         .update(updatedData)
@@ -218,7 +232,7 @@ export const useUserSettings = () => {
 
       if (error) {
         // If update fails because record doesn't exist, try to insert
-        if (error.code === 'PGRST116') {
+        if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
           const { data: insertData, error: insertError } = await supabase
             .from('user_settings')
             .insert(updatedData)
@@ -229,28 +243,68 @@ export const useUserSettings = () => {
             throw insertError;
           }
           setSettings(insertData as UserSettings);
+          toast.success('Settings saved successfully');
+          setSyncError(null);
+          setRetryCount(0);
         } else {
           throw error;
         }
       } else {
         setSettings(data as UserSettings);
+        toast.success('Settings saved successfully');
+        setSyncError(null);
+        setRetryCount(0);
       }
-      
-      toast.success('Settings updated successfully');
+      return true;
     } catch (err: any) {
       console.error('Error updating settings:', err);
       
-      // Still update locally for immediate feedback
-      setSettings({ ...settings, ...newSettings });
+      // Rollback to original settings on error
+      setSettings(originalSettings);
       
-      // Show appropriate error message
-      if (err.code === '42501') {
-        toast.error('Permission denied. Please check your authentication.');
-      } else if (err.code === '42P01') {
-        toast.error('Settings table not found. Please contact support.');
-      } else {
-        toast.error('Failed to save settings. Please try again.');
+      // Determine error message
+      let errorMessage = 'Failed to save settings to server.';
+      
+      if (err.code === '42501' || err.message?.includes('permission denied')) {
+        errorMessage = 'Permission denied. Settings not saved.';
+      } else if (err.code === '42P01' || err.message?.includes('relation')) {
+        errorMessage = 'Database table not found. Please contact support.';
+      } else if (err.message?.includes('Failed to fetch') || err.message?.includes('network')) {
+        errorMessage = 'Network error. Settings will be saved when connection is restored.';
       }
+      
+      setSyncError(errorMessage);
+      
+      // Auto-retry with exponential backoff for network errors
+      const isNetworkError = err.message?.includes('Failed to fetch') || err.message?.includes('network');
+      const shouldRetry = isNetworkError && retryCount < 3;
+      
+      if (shouldRetry) {
+        const retryDelay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        setRetryCount(prev => prev + 1);
+        
+        toast.info(`Retrying in ${retryDelay / 1000} seconds...`, {
+          duration: retryDelay
+        });
+        
+        setTimeout(() => {
+          updateSettings(newSettings, true);
+        }, retryDelay);
+      } else {
+        // Show error with manual retry action
+        toast.error(errorMessage, {
+          action: {
+            label: 'Retry',
+            onClick: () => {
+              setRetryCount(0);
+              updateSettings(newSettings);
+            }
+          },
+          duration: 5000
+        });
+      }
+      
+      return false;
     } finally {
       setUpdating(false);
     }
@@ -265,5 +319,7 @@ export const useUserSettings = () => {
     updateSettings,
     updating,
     loading,
+    syncError,
+    retryCount
   };
 };

@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Shield, AlertCircle, RefreshCw } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const PrivacySettings = () => {
-  const { settings, updateSettings, updating, loading } = useUserSettings();
+  const { settings, updateSettings, updating, loading, syncError, retryCount } = useUserSettings();
 
   if (loading) {
     return (
@@ -70,12 +71,27 @@ export const PrivacySettings = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {syncError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>{syncError}</span>
+              {retryCount > 0 && (
+                <span className="text-sm ml-2">
+                  <RefreshCw className="inline h-3 w-3 mr-1 animate-spin" />
+                  Retrying...
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="space-y-2">
           <Label>Profile Visibility</Label>
           <Select
             value={settings.privacy_preferences.profile_visibility}
             onValueChange={handleSelect}
-            disabled={updating}
+            disabled={updating || !!syncError}
           >
             <SelectTrigger>
               <SelectValue />
@@ -99,12 +115,17 @@ export const PrivacySettings = () => {
             <Label htmlFor={key} className="text-sm font-medium">
               {label}
             </Label>
-            <Switch
-              id={key}
-              checked={Boolean(settings.privacy_preferences[key])}
-              onCheckedChange={() => handleToggle(key)}
-              disabled={updating}
-            />
+            <div className="flex items-center gap-2">
+              <Switch
+                id={key}
+                checked={Boolean(settings.privacy_preferences[key])}
+                onCheckedChange={() => handleToggle(key)}
+                disabled={updating || !!syncError}
+              />
+              {updating && (
+                <RefreshCw className="h-3 w-3 animate-spin text-gray-500" />
+              )}
+            </div>
           </div>
         ))}
       </CardContent>
