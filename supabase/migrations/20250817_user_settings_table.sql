@@ -47,29 +47,42 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
 -- Create index on user_id for faster lookups
 CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON public.user_settings(user_id);
 
--- Enable Row Level Security
-ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+-- Enable Row Level Security (if not already enabled)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_tables 
+    WHERE schemaname = 'public' 
+    AND tablename = 'user_settings'
+    AND rowsecurity = true
+  ) THEN
+    ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
--- Policy: Users can view their own settings
+-- Drop existing policies if they exist (to avoid conflicts)
+DROP POLICY IF EXISTS "Users can view own settings" ON public.user_settings;
+DROP POLICY IF EXISTS "Users can insert own settings" ON public.user_settings;
+DROP POLICY IF EXISTS "Users can update own settings" ON public.user_settings;
+DROP POLICY IF EXISTS "Users can delete own settings" ON public.user_settings;
+
+-- Create policies (safe to run even if they already exist)
 CREATE POLICY "Users can view own settings" ON public.user_settings
   FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
--- Policy: Users can insert their own settings
 CREATE POLICY "Users can insert own settings" ON public.user_settings
   FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
--- Policy: Users can update their own settings
 CREATE POLICY "Users can update own settings" ON public.user_settings
   FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- Policy: Users can delete their own settings
 CREATE POLICY "Users can delete own settings" ON public.user_settings
   FOR DELETE
   TO authenticated
@@ -84,7 +97,8 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Trigger to update updated_at on row update
+-- Drop trigger if exists and recreate
+DROP TRIGGER IF EXISTS update_user_settings_updated_at ON public.user_settings;
 CREATE TRIGGER update_user_settings_updated_at 
   BEFORE UPDATE ON public.user_settings
   FOR EACH ROW 
