@@ -356,7 +356,7 @@ export default function SiteQALog() {
         screenshot_url = await uploadScreenshot(screenshot);
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('qa_issues')
         .insert({
           title: title.trim(),
@@ -369,9 +369,15 @@ export default function SiteQALog() {
           screenshot_url,
           created_by: user.id,
           updated_by: user.id
-        });
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
+      
+      console.log('Issue added successfully:', data);
 
       toast({
         title: "Success",
@@ -379,11 +385,21 @@ export default function SiteQALog() {
       });
 
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding issue:', error);
+      
+      let errorMessage = "Failed to add issue";
+      if (error.code === '42P01') {
+        errorMessage = "QA issues table not found. Please run the database migration.";
+      } else if (error.code === '42501') {
+        errorMessage = "Permission denied. Please check your authentication.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to add issue",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

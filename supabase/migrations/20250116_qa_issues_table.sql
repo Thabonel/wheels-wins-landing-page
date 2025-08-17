@@ -16,14 +16,20 @@ CREATE TABLE IF NOT EXISTS public.qa_issues (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_qa_issues_status ON public.qa_issues(status);
-CREATE INDEX idx_qa_issues_priority ON public.qa_issues(priority);
-CREATE INDEX idx_qa_issues_category ON public.qa_issues(category);
-CREATE INDEX idx_qa_issues_created_by ON public.qa_issues(created_by);
-CREATE INDEX idx_qa_issues_created_at ON public.qa_issues(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_qa_issues_status ON public.qa_issues(status);
+CREATE INDEX IF NOT EXISTS idx_qa_issues_priority ON public.qa_issues(priority);
+CREATE INDEX IF NOT EXISTS idx_qa_issues_category ON public.qa_issues(category);
+CREATE INDEX IF NOT EXISTS idx_qa_issues_created_by ON public.qa_issues(created_by);
+CREATE INDEX IF NOT EXISTS idx_qa_issues_created_at ON public.qa_issues(created_at DESC);
 
 -- Enable Row Level Security
 ALTER TABLE public.qa_issues ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (to avoid conflicts)
+DROP POLICY IF EXISTS "Authenticated users can view qa_issues" ON public.qa_issues;
+DROP POLICY IF EXISTS "Authenticated users can insert qa_issues" ON public.qa_issues;
+DROP POLICY IF EXISTS "Users can update qa_issues" ON public.qa_issues;
+DROP POLICY IF EXISTS "Users can delete their own qa_issues" ON public.qa_issues;
 
 -- Policy: Anyone authenticated can view all issues
 CREATE POLICY "Authenticated users can view qa_issues" ON public.qa_issues
