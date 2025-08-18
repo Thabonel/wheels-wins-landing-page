@@ -57,13 +57,13 @@ export const isValidBankTransaction = (obj: any): obj is BankTransaction => {
   
   const checks = {
     isObject: typeof obj === 'object' && obj !== null,
-    hasId: typeof obj.id === 'string',
+    hasId: typeof obj.id === 'string' && obj.id.length > 0,
     hasDate: obj.date instanceof Date,
     validDate: obj.date instanceof Date && !isNaN(obj.date.getTime()),
     recentDate: obj.date instanceof Date && obj.date.getFullYear() > 1900,
     hasDescription: typeof obj.description === 'string',
     hasAmount: typeof obj.amount === 'number',
-    validAmount: typeof obj.amount === 'number' && obj.amount > 0, // Changed from >= to > to exclude 0
+    validAmount: typeof obj.amount === 'number' && obj.amount >= 0 && !isNaN(obj.amount), // Allow 0 amounts and check for NaN
     validType: ['debit', 'credit'].includes(obj.type),
     hasRecurring: typeof obj.isRecurring === 'boolean',
     hasRedactedFields: Array.isArray(obj.redactedFields)
@@ -99,12 +99,16 @@ export const validateTransactionArray = (transactions: any[]): BankTransaction[]
   transactions.forEach((transaction, index) => {
     console.log(`\n🔍 VALIDATING TRANSACTION ${index + 1}/${transactions.length}:`);
     
-    if (isValidBankTransaction(transaction)) {
-      validTransactions.push(transaction);
+    // Try to fix common issues before validation
+    const fixed = attemptTransactionFix(transaction);
+    
+    if (isValidBankTransaction(fixed)) {
+      validTransactions.push(fixed);
       console.log('✅ Added to valid transactions');
     } else {
-      invalidTransactions.push({ index, transaction });
+      invalidTransactions.push({ index, transaction: fixed });
       console.log('❌ Added to invalid transactions');
+      console.log('❌ Transaction that failed:', fixed);
     }
   });
   
@@ -122,6 +126,59 @@ export const validateTransactionArray = (transactions: any[]): BankTransaction[]
   }
   
   return validTransactions;
+};
+
+// Attempt to fix common transaction issues
+const attemptTransactionFix = (transaction: any): any => {
+  const fixed = { ...transaction };
+  
+  // Fix date if it's a string
+  if (typeof fixed.date === 'string') {
+    try {
+      fixed.date = new Date(fixed.date);
+      console.log('🔧 Fixed date from string to Date object');
+    } catch (e) {
+      console.log('❌ Could not fix date');
+    }
+  }
+  
+  // Ensure amount is a number
+  if (typeof fixed.amount === 'string') {
+    fixed.amount = parseFloat(fixed.amount) || 0;
+    console.log('🔧 Fixed amount from string to number');
+  }
+  
+  // Ensure type is valid
+  if (!['debit', 'credit'].includes(fixed.type)) {
+    fixed.type = fixed.amount < 0 ? 'debit' : 'credit';
+    console.log('🔧 Fixed transaction type');
+  }
+  
+  // Ensure isRecurring exists
+  if (typeof fixed.isRecurring !== 'boolean') {
+    fixed.isRecurring = false;
+    console.log('🔧 Fixed isRecurring flag');
+  }
+  
+  // Ensure redactedFields is an array
+  if (!Array.isArray(fixed.redactedFields)) {
+    fixed.redactedFields = [];
+    console.log('🔧 Fixed redactedFields array');
+  }
+  
+  // Ensure description is a string
+  if (typeof fixed.description !== 'string') {
+    fixed.description = String(fixed.description || 'Unknown');
+    console.log('🔧 Fixed description to string');
+  }
+  
+  // Ensure id exists
+  if (!fixed.id || typeof fixed.id !== 'string') {
+    fixed.id = `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log('🔧 Generated missing ID');
+  }
+  
+  return fixed;
 };
 
 // Type guards for debugging

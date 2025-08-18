@@ -57,10 +57,10 @@ const SENSITIVE_PATTERNS = {
 };
 
 export const anonymizeTransactions = async (
-  transactions: Transaction[]
+  transactions: BankTransaction[]
 ): Promise<AnonymizedResult> => {
   const redactedFields = new Set<string>();
-  const anonymized: Transaction[] = [];
+  const anonymized: BankTransaction[] = [];
   
   for (const transaction of transactions) {
     const cleaned = await anonymizeTransaction(transaction, redactedFields);
@@ -74,9 +74,9 @@ export const anonymizeTransactions = async (
 };
 
 const anonymizeTransaction = async (
-  transaction: Transaction,
+  transaction: BankTransaction,
   redactedFields: Set<string>
-): Promise<Transaction> => {
+): Promise<BankTransaction> => {
   const cleaned = { ...transaction };
   
   // Ensure date is properly preserved

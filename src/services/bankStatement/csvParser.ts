@@ -426,10 +426,11 @@ const parseTransaction = (row: RawTransaction, columnMap: Record<string, string>
     }
   }
   
+  // Allow 0 amounts but still log a warning
   if (amount === 0) {
-    console.error('No amount found in row:', row);
+    console.warn('⚠️ Zero amount found in row:', row);
     console.log('All values:', Object.entries(row).map(([k, v]) => `${k}: ${v}`));
-    return null;
+    // Don't return null - continue processing with 0 amount
   }
   
   const transaction = {
@@ -528,41 +529,56 @@ const parseDate = (dateValue: any): Date | null => {
 
 const parseAmount = (value: any): number => {
   if (typeof value === 'number') {
+    console.log(`parseAmount: Already a number: ${value}`);
     return value;
   }
   
   if (typeof value === 'string') {
+    console.log(`parseAmount: Parsing string value: "${value}"`);
+    
     // Remove currency symbols, spaces, and commas
     let cleaned = value.replace(/[$£€¥,\s]/g, '').trim();
+    console.log(`parseAmount: After cleaning: "${cleaned}"`);
     
     // Handle empty strings
     if (!cleaned || cleaned === '-' || cleaned === '') {
+      console.log(`parseAmount: Empty or dash, returning 0`);
       return 0;
     }
     
     // Handle parentheses for negative numbers (e.g., "(100.00)")
     if (cleaned.startsWith('(') && cleaned.endsWith(')')) {
       cleaned = '-' + cleaned.slice(1, -1);
+      console.log(`parseAmount: Converted parentheses to negative: "${cleaned}"`);
     }
     
     // Handle CR/DR notation (Credit/Debit)
     const isCR = cleaned.toUpperCase().includes('CR');
     const isDR = cleaned.toUpperCase().includes('DR');
+    if (isCR || isDR) {
+      console.log(`parseAmount: Found CR/DR notation - CR:${isCR}, DR:${isDR}`);
+    }
     cleaned = cleaned.replace(/[CDR]/gi, '').trim();
     
     const parsed = parseFloat(cleaned);
+    console.log(`parseAmount: Parsed float result: ${parsed}`);
+    
     if (isNaN(parsed)) {
+      console.log(`parseAmount: NaN result, returning 0`);
       return 0;
     }
     
     // Apply CR/DR sign convention (CR is usually positive/credit, DR is negative/debit)
     if (isDR && parsed > 0) {
+      console.log(`parseAmount: Applying DR sign convention, making negative`);
       return -parsed;
     }
     
+    console.log(`parseAmount: Final result: ${parsed}`);
     return parsed;
   }
   
+  console.log(`parseAmount: Unexpected type ${typeof value}, returning 0`);
   return 0;
 };
 
