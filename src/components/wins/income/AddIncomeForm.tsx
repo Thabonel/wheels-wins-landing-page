@@ -58,7 +58,12 @@ export default function AddIncomeForm({ onAddIncome, onClose }: AddIncomeFormPro
   
   return (
     <div className="space-y-4">
-        <form className="grid gap-4 py-4">
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold">Add Income</h2>
+          <p className="text-sm text-muted-foreground">Record a new income entry for your travel budget</p>
+        </div>
+        
+        <form className="grid gap-4">
           <div className="grid gap-2">
             <label htmlFor="amount">Amount ($)</label>
             <Input 

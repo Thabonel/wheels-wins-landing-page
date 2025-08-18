@@ -283,6 +283,11 @@ export default function AddExpenseForm({ onClose, presetCategory, startWithRecei
 
   return (
     <div className="space-y-4">
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">Add Expense</h2>
+        <p className="text-sm text-muted-foreground">Track your travel expenses and keep your budget on track</p>
+      </div>
+      
       {/* Voice Controls - Show when startWithVoice is true */}
       {startWithVoice && (
         <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
