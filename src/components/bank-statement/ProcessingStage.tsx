@@ -89,14 +89,19 @@ export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session,
 
       // Step 3: Anonymize data
       updateStep('anonymize', 'processing');
+      console.log('Anonymizing transactions. Input:', rawTransactions);
       const { transactions, redactedFields } = await anonymizeTransactions(rawTransactions);
+      console.log('Anonymized transactions:', transactions);
+      console.log('Redacted fields:', redactedFields);
       setRedactedInfo(redactedFields);
       updateStep('anonymize', 'completed', `Redacted ${redactedFields.length} sensitive fields`);
       setProgress(60);
 
       // Step 4: Categorize transactions
       updateStep('categorize', 'processing');
+      console.log('Categorizing transactions. Input:', transactions);
       const categorizedTransactions = await categorizeTransactions(transactions);
+      console.log('Categorized transactions:', categorizedTransactions);
       updateStep('categorize', 'completed');
       setProgress(80);
 
@@ -108,6 +113,7 @@ export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session,
 
       // Wait a moment before transitioning
       setTimeout(() => {
+        console.log('Passing to onComplete:', categorizedTransactions);
         onComplete(categorizedTransactions);
       }, 1000);
 
