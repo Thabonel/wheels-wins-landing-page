@@ -23,7 +23,7 @@ export const MobileFormWrapper: React.FC<MobileFormWrapperProps> = ({
     // Full-screen modal for mobile with safe padding
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="h-screen w-screen max-w-none m-0 p-4 rounded-none">
+        <DialogContent className="h-screen w-screen max-w-none m-0 p-6 rounded-none">
           <div className="h-full w-full overflow-y-auto">
             <div className="space-y-4">
               {children}
@@ -37,8 +37,8 @@ export const MobileFormWrapper: React.FC<MobileFormWrapperProps> = ({
   // Centered dialog for desktop
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-6">
-        <div className="flex-1 overflow-y-auto pr-2">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto px-1">
           <div className="space-y-4">
             {children}
           </div>
