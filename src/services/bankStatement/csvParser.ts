@@ -168,16 +168,26 @@ const parseTransactions = (rawData: RawTransaction[]): ParsedTransaction[] => {
     console.log('Available columns:', Object.keys(rawData[0]));
   }
   
+  console.log(`🔄 Processing ${rawData.length} raw data rows`);
+  
   for (const row of rawData) {
     try {
       const transaction = parseTransaction(row, columnMap);
       if (transaction) {
         transactions.push(transaction);
+        console.log(`✅ Successfully parsed transaction ${transactions.length}`);
+      } else {
+        console.warn('❌ parseTransaction returned null for row:', row);
       }
     } catch (error) {
-      console.warn('Failed to parse transaction row:', row, error);
+      console.warn('❌ Failed to parse transaction row:', row, error);
     }
   }
+  
+  console.log(`📊 CSV PARSING COMPLETE:`);
+  console.log(`📊 Input rows: ${rawData.length}`);
+  console.log(`📊 Parsed transactions: ${transactions.length}`);
+  console.log(`📊 Success rate: ${((transactions.length / rawData.length) * 100).toFixed(1)}%`);
   
   return transactions;
 };
@@ -422,7 +432,7 @@ const parseTransaction = (row: RawTransaction, columnMap: Record<string, string>
     return null;
   }
   
-  return {
+  const transaction = {
     id: generateTransactionId(date, description, amount),
     date,
     description: cleanDescription(description),
@@ -436,6 +446,13 @@ const parseTransaction = (row: RawTransaction, columnMap: Record<string, string>
     confidence_score: 1.0,
     originalData: row,
   };
+  
+  console.log('🏗️ CSV Parser created transaction:', transaction);
+  console.log('🏗️ Date type:', typeof transaction.date, 'Is Date?', transaction.date instanceof Date);
+  console.log('🏗️ Amount type:', typeof transaction.amount, 'Value:', transaction.amount);
+  console.log('🏗️ Description type:', typeof transaction.description, 'Value:', transaction.description);
+  
+  return transaction;
 };
 
 const parseDate = (dateValue: any): Date | null => {

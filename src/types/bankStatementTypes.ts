@@ -53,40 +53,72 @@ export interface ReviewStageProps {
 
 // Validation functions
 export const isValidBankTransaction = (obj: any): obj is BankTransaction => {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof obj.id === 'string' &&
-    obj.date instanceof Date &&
-    !isNaN(obj.date.getTime()) &&
-    obj.date.getFullYear() > 1900 &&
-    typeof obj.description === 'string' &&
-    typeof obj.amount === 'number' &&
-    obj.amount >= 0 &&
-    ['debit', 'credit'].includes(obj.type) &&
-    typeof obj.isRecurring === 'boolean' &&
-    Array.isArray(obj.redactedFields)
-  );
+  console.log('🔍 VALIDATING TRANSACTION:', obj);
+  
+  const checks = {
+    isObject: typeof obj === 'object' && obj !== null,
+    hasId: typeof obj.id === 'string',
+    hasDate: obj.date instanceof Date,
+    validDate: obj.date instanceof Date && !isNaN(obj.date.getTime()),
+    recentDate: obj.date instanceof Date && obj.date.getFullYear() > 1900,
+    hasDescription: typeof obj.description === 'string',
+    hasAmount: typeof obj.amount === 'number',
+    validAmount: typeof obj.amount === 'number' && obj.amount > 0, // Changed from >= to > to exclude 0
+    validType: ['debit', 'credit'].includes(obj.type),
+    hasRecurring: typeof obj.isRecurring === 'boolean',
+    hasRedactedFields: Array.isArray(obj.redactedFields)
+  };
+  
+  console.log('📊 Validation checks:', checks);
+  
+  const isValid = Object.values(checks).every(check => check === true);
+  console.log(isValid ? '✅ Transaction VALID' : '❌ Transaction INVALID');
+  
+  if (!isValid) {
+    const failedChecks = Object.entries(checks)
+      .filter(([key, value]) => !value)
+      .map(([key]) => key);
+    console.log('❌ Failed checks:', failedChecks);
+  }
+  
+  return isValid;
 };
 
 export const validateTransactionArray = (transactions: any[]): BankTransaction[] => {
+  console.log('🔍 STARTING TRANSACTION ARRAY VALIDATION');
+  console.log('📊 Input array length:', transactions.length);
+  console.log('📊 Input array:', transactions);
+  
   if (!Array.isArray(transactions)) {
     throw new Error('Expected array of transactions');
   }
   
   const validTransactions: BankTransaction[] = [];
-  const errors: string[] = [];
+  const invalidTransactions: any[] = [];
   
   transactions.forEach((transaction, index) => {
+    console.log(`\n🔍 VALIDATING TRANSACTION ${index + 1}/${transactions.length}:`);
+    
     if (isValidBankTransaction(transaction)) {
       validTransactions.push(transaction);
+      console.log('✅ Added to valid transactions');
     } else {
-      errors.push(`Transaction at index ${index} is invalid: ${JSON.stringify(transaction)}`);
+      invalidTransactions.push({ index, transaction });
+      console.log('❌ Added to invalid transactions');
     }
   });
   
-  if (errors.length > 0) {
-    console.warn('Transaction validation errors:', errors);
+  console.log('\n📊 VALIDATION SUMMARY:');
+  console.log('✅ Valid transactions:', validTransactions.length);
+  console.log('❌ Invalid transactions:', invalidTransactions.length);
+  
+  if (invalidTransactions.length > 0) {
+    console.log('❌ Invalid transaction details:', invalidTransactions);
+  }
+  
+  if (validTransactions.length > 0) {
+    console.log('✅ Sample valid transaction:', validTransactions[0]);
+    console.table(validTransactions.slice(0, 3)); // Show first 3 in table format
   }
   
   return validTransactions;
