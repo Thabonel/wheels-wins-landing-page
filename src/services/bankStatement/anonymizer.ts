@@ -1,17 +1,8 @@
 // Using Web Crypto API instead of crypto-js for better compatibility
-
-interface Transaction {
-  id: string;
-  date: Date;
-  description: string;
-  amount: number;
-  type: 'debit' | 'credit';
-  merchantName?: string;
-  originalData?: Record<string, any>;
-}
+import { BankTransaction } from '@/types/bankStatementTypes';
 
 interface AnonymizedResult {
-  transactions: Transaction[];
+  transactions: BankTransaction[];
   redactedFields: string[];
 }
 

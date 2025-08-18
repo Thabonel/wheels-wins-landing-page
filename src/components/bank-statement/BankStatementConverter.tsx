@@ -9,33 +9,18 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { pamBankStatementIntegration } from '@/services/pamSavingsService';
-
-interface Transaction {
-  id: string;
-  date: Date;
-  description: string;
-  amount: number;
-  type: 'debit' | 'credit';
-  category?: string;
-  merchantName?: string;
-  isRecurring: boolean;
-  redactedFields: string[];
-}
-
-interface ProcessingSession {
-  id: string;
-  fileName: string;
-  fileSize: number;
-  fileType: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  transactionCount: number;
-}
+import { 
+  BankTransaction, 
+  ProcessingSession,
+  validateTransactionArray,
+  debugTransactionData 
+} from '@/types/bankStatementTypes';
 
 export const BankStatementConverter: React.FC = () => {
   const [stage, setStage] = useState<'upload' | 'processing' | 'review'>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [session, setSession] = useState<ProcessingSession | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [showPrivacyModal, setShowPrivacyModal] = useState(true);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -147,7 +132,15 @@ export const BankStatementConverter: React.FC = () => {
     }, 3000);
   }, [toast]);
 
-  const handleProcessingComplete = useCallback((processedTransactions: Transaction[]) => {
+  const handleProcessingComplete = useCallback((processedTransactions: BankTransaction[]) => {
+    console.log('=== PROCESSING COMPLETE HANDLER ===');
+    console.log('Received transactions:', processedTransactions);
+    
+    // Debug each transaction
+    processedTransactions.forEach((transaction, index) => {
+      debugTransactionData(transaction, `Transaction ${index + 1} from ProcessingStage`);
+    });
+    
     // Validate transactions before proceeding
     if (!processedTransactions || processedTransactions.length === 0) {
       console.error('No valid transactions processed');
@@ -162,30 +155,44 @@ export const BankStatementConverter: React.FC = () => {
       return;
     }
     
-    // Check if transactions have valid data
-    const hasValidData = processedTransactions.some(t => 
-      t.amount > 0 && 
-      t.date && 
-      t.date instanceof Date && 
-      !isNaN(t.date.getTime()) &&
-      t.date.getFullYear() > 1970
-    );
-    
-    if (!hasValidData) {
-      console.error('Transactions have invalid data');
+    try {
+      // Validate and clean transactions
+      const validatedTransactions = validateTransactionArray(processedTransactions);
+      console.log('Validated transactions:', validatedTransactions);
+      
+      if (validatedTransactions.length === 0) {
+        console.error('No valid transactions after validation');
+        toast({
+          title: 'Invalid Data',
+          description: 'The transactions could not be properly parsed. Please ensure your file is in the correct format.',
+          variant: 'destructive',
+        });
+        setStage('upload');
+        setFile(null);
+        setSession(null);
+        return;
+      }
+      
+      // Debug validated transactions before setting state
+      validatedTransactions.forEach((transaction, index) => {
+        debugTransactionData(transaction, `Validated Transaction ${index + 1} before setState`);
+      });
+      
+      console.log('Setting transactions in state and moving to review stage');
+      setTransactions(validatedTransactions);
+      setStage('review');
+      
+    } catch (error) {
+      console.error('Error validating transactions:', error);
       toast({
-        title: 'Invalid Data',
-        description: 'The transactions could not be properly parsed. Please ensure your file is in the correct format.',
+        title: 'Validation Failed',
+        description: 'Failed to validate transaction data. Please try again.',
         variant: 'destructive',
       });
       setStage('upload');
       setFile(null);
       setSession(null);
-      return;
     }
-    
-    setTransactions(processedTransactions);
-    setStage('review');
   }, [toast]);
 
   const handleImportToWins = useCallback(async () => {

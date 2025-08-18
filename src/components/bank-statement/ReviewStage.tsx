@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Eye, EyeOff, CheckCircle, AlertCircle, TrendingUp, TrendingDown, DollarSign, Calendar, Tag } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatCurrency, formatDate } from '@/utils/format';
+import { ReviewStageProps, debugTransactionData } from '@/types/bankStatementTypes';
 
 // XSS protection utility
 const sanitizeText = (text: string | undefined): string => {
@@ -23,25 +24,18 @@ const sanitizeText = (text: string | undefined): string => {
     .trim();
 };
 
-interface Transaction {
-  id: string;
-  date: Date;
-  description: string;
-  amount: number;
-  type: 'debit' | 'credit';
-  category?: string;
-  merchantName?: string;
-  isRecurring: boolean;
-  redactedFields: string[];
-}
-
-interface ReviewStageProps {
-  transactions: Transaction[];
-  onImport: () => void;
-  onCancel: () => void;
-}
-
 export const ReviewStage: React.FC<ReviewStageProps> = ({ transactions, onImport, onCancel }) => {
+  // Debug received transactions
+  console.log('=== REVIEW STAGE RECEIVED DATA ===');
+  console.log('Total transactions received:', transactions.length);
+  
+  transactions.forEach((transaction, index) => {
+    debugTransactionData(transaction, `ReviewStage received transaction ${index + 1}`);
+  });
+  
+  useEffect(() => {
+    console.log('ReviewStage mounted/updated with transactions:', transactions.length);
+  }, [transactions]);
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(
     new Set(transactions.map(t => t.id))
   );
