@@ -129,6 +129,8 @@ export const BankStatementConverter: React.FC = () => {
   }, [toast]);
 
   const handleProcessingComplete = useCallback((processedTransactions: Transaction[]) => {
+    console.log('BankStatementConverter: handleProcessingComplete called with:', processedTransactions);
+    console.log('Transaction count:', processedTransactions?.length || 0);
     setTransactions(processedTransactions);
     setStage('review');
   }, []);

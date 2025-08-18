@@ -42,6 +42,13 @@ interface ReviewStageProps {
 }
 
 export const ReviewStage: React.FC<ReviewStageProps> = ({ transactions, onImport, onCancel }) => {
+  // Debug logging
+  console.log('ReviewStage received transactions:', transactions);
+  console.log('Transaction count:', transactions?.length || 0);
+  if (transactions?.length > 0) {
+    console.log('First transaction:', transactions[0]);
+  }
+  
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(
     new Set(transactions.map(t => t.id))
   );
