@@ -36,7 +36,9 @@ export const MobileFormWrapper: React.FC<MobileFormWrapperProps> = ({
   // Drawer for desktop
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      {children}
+      <DrawerContent>
+        {children}
+      </DrawerContent>
     </Drawer>
   );
 };
