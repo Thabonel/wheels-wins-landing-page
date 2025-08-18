@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
 import CommentSection from "./CommentSection";
+import { getUserAvatarUrl } from "@/utils/avatar";
 
 interface SocialPost {
   id: string;
@@ -111,20 +112,23 @@ export default function SocialFeed() {
         return;
       }
 
-      const formatted = data?.map((post) => ({
-        id: post.id.toString(), // Ensure ID is string
-        author: `User ${post.user_id?.substring(0, 5) || "Unknown"}`,
-        authorAvatar: supabase.storage.from("public-assets").getPublicUrl("avatar-placeholder.png").data.publicUrl,
-        date: new Date(post.created_at).toLocaleDateString(),
-        content: post.content,
-        image: post.image_url || undefined,
-        likes: post.upvotes ?? 0,
-        comments: post.comment_count ?? 0,
-        status: post.status,
-        location: "feed",
-        groupId: post.group_id,
-        isOwnPost: user?.id === post.user_id,
-      })) || [];
+      const formatted = data?.map((post) => {
+        const authorName = `User ${post.user_id?.substring(0, 5) || "Unknown"}`;
+        return {
+          id: post.id.toString(), // Ensure ID is string
+          author: authorName,
+          authorAvatar: getUserAvatarUrl(null, authorName, post.user_id),
+          date: new Date(post.created_at).toLocaleDateString(),
+          content: post.content,
+          image: post.image_url || undefined,
+          likes: post.upvotes ?? 0,
+          comments: post.comment_count ?? 0,
+          status: post.status,
+          location: "feed",
+          groupId: post.group_id,
+          isOwnPost: user?.id === post.user_id,
+        };
+      }) || [];
 
       setPosts(formatted);
     } catch (err) {
