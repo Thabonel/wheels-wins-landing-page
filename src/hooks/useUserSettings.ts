@@ -66,11 +66,23 @@ export const useUserSettings = () => {
     setLoading(true);
     try {
       // Use Supabase directly for better reliability
-      const { data, error } = await supabase
+      // Try both approaches - with and without explicit user_id filter
+      let { data, error } = await supabase
         .from('user_settings')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
+      
+      // If permission denied, try without the filter (RLS will handle it)
+      if (error?.code === '42501') {
+        console.log('Permission denied with explicit filter, trying without...');
+        const result = await supabase
+          .from('user_settings')
+          .select('*')
+          .maybeSingle();
+        data = result.data;
+        error = result.error;
+      }
       
       if (error) {
         if (error.code === 'PGRST116') {
