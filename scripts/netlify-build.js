@@ -70,13 +70,26 @@ try {
   console.log('🔍 Running debug diagnostics...');
   execSync('node scripts/build-debug.js', { stdio: 'inherit' });
 
-  // 3. Run Vite build
-  console.log('🏗️ Running Vite build...');
-  execSync('vite build', { 
+  // 3. Determine build mode based on environment
+  // Check for staging indicators in Netlify environment
+  const isStaging = 
+    process.env.CONTEXT === 'branch-deploy' ||
+    process.env.BRANCH === 'staging' ||
+    process.env.DEPLOY_URL?.includes('staging') ||
+    process.env.URL?.includes('staging') ||
+    process.env.VITE_ENVIRONMENT === 'staging';
+  
+  const buildMode = isStaging ? 'staging' : 'production';
+  console.log(`🏗️ Running Vite build in ${buildMode} mode...`);
+  console.log(`📍 Build context: ${process.env.CONTEXT || 'unknown'}`);
+  console.log(`📍 Branch: ${process.env.BRANCH || 'unknown'}`);
+  console.log(`📍 Deploy URL: ${process.env.DEPLOY_URL || 'unknown'}`);
+  
+  execSync(`vite build --mode ${buildMode}`, { 
     stdio: 'inherit',
     env: {
       ...process.env,
-      NODE_ENV: 'production'
+      NODE_ENV: buildMode === 'staging' ? 'development' : 'production'
     }
   });
 
