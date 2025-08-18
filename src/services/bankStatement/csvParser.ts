@@ -25,20 +25,49 @@ export const parseCsvFile = (file: File): Promise<ParsedTransaction[]> => {
     reader.onload = (e) => {
       try {
         const text = e.target?.result as string;
-        const lines = text.split('\n').filter(line => line.trim());
+        console.log('=== CSV PARSER DEBUG ===');
+        console.log('File content length:', text.length);
+        console.log('First 500 chars:', text.substring(0, 500));
+        
+        // Handle different line endings (Windows CRLF vs Unix LF)
+        const lines = text.split(/\r?\n/).filter(line => line.trim());
+        console.log('Total lines found:', lines.length);
+        console.log('First 3 lines:', lines.slice(0, 3));
         
         if (lines.length < 2) {
           reject(new Error('CSV file must have at least a header and one data row'));
           return;
         }
         
+        // Detect delimiter
+        const delimiter = detectDelimiter(lines[0]);
+        console.log('Detected delimiter:', delimiter === ',' ? 'comma' : delimiter === ';' ? 'semicolon' : delimiter);
+        
         // Parse header row
-        const headers = parseCSVLine(lines[0]);
+        const headers = parseCSVLine(lines[0], delimiter);
+        console.log('Headers found:', headers);
+        console.log('Header count:', headers.length);
         
         // Parse data rows
         const rawData: RawTransaction[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const values = parseCSVLine(lines[i]);
+        for (let i = 1; i < Math.min(lines.length, 5); i++) { // Log first few rows
+          const values = parseCSVLine(lines[i], delimiter);
+          console.log(`Row ${i} values:`, values);
+          if (values.length === headers.length) {
+            const row: any = {};
+            headers.forEach((header, index) => {
+              row[header.trim()] = values[index]?.trim() || '';
+            });
+            console.log(`Row ${i} object:`, row);
+            rawData.push(row);
+          } else {
+            console.warn(`Row ${i} skipped: ${values.length} values vs ${headers.length} headers`);
+          }
+        }
+        
+        // Parse remaining rows without logging
+        for (let i = 5; i < lines.length; i++) {
+          const values = parseCSVLine(lines[i], delimiter);
           if (values.length === headers.length) {
             const row: any = {};
             headers.forEach((header, index) => {
@@ -48,9 +77,15 @@ export const parseCsvFile = (file: File): Promise<ParsedTransaction[]> => {
           }
         }
         
+        console.log('Total raw transactions:', rawData.length);
+        console.log('Sample raw transaction:', rawData[0]);
+        
         const transactions = parseTransactions(rawData);
+        console.log('Parsed transactions:', transactions.length);
+        console.log('Sample parsed transaction:', transactions[0]);
         resolve(transactions);
       } catch (error) {
+        console.error('CSV parsing error:', error);
         reject(new Error(`CSV parsing failed: ${error}`));
       }
     };
@@ -63,34 +98,88 @@ export const parseCsvFile = (file: File): Promise<ParsedTransaction[]> => {
   });
 };
 
-// Simple CSV line parser
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
+// Detect the delimiter used in the CSV
+function detectDelimiter(headerLine: string): string {
+  const delimiters = [',', ';', '\t', '|'];
+  let maxCount = 0;
+  let bestDelimiter = ',';
   
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
-    } else {
-      current += char;
+  for (const delimiter of delimiters) {
+    const count = (headerLine.match(new RegExp(`\\${delimiter}`, 'g')) || []).length;
+    if (count > maxCount) {
+      maxCount = count;
+      bestDelimiter = delimiter;
     }
   }
   
-  result.push(current);
-  return result;
+  return bestDelimiter;
+}
+
+// Enhanced CSV line parser that handles quotes properly
+function parseCSVLine(line: string, delimiter: string = ','): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  let i = 0;
+  
+  while (i < line.length) {
+    const char = line[i];
+    
+    if (char === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        // Escaped quote ("")
+        current += '"';
+        i += 2;
+      } else {
+        // Toggle quote state
+        inQuotes = !inQuotes;
+        i++;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+      i++;
+    } else {
+      current += char;
+      i++;
+    }
+  }
+  
+  // Add the last field
+  result.push(current.trim());
+  
+  // Remove surrounding quotes from fields
+  return result.map(field => {
+    if (field.startsWith('"') && field.endsWith('"')) {
+      return field.slice(1, -1).replace(/""/g, '"');
+    }
+    return field;
+  });
 }
 
 const parseTransactions = (rawData: RawTransaction[]): ParsedTransaction[] => {
   const transactions: ParsedTransaction[] = [];
   
+  if (rawData.length === 0) {
+    console.error('No raw data to parse');
+    return [];
+  }
+  
   // Detect column mapping
   const columnMap = detectColumns(rawData[0]);
+  console.log('=== COLUMN DETECTION ===');
+  console.log('Detected column mapping:', columnMap);
+  console.log('Available columns:', Object.keys(rawData[0]));
+  
+  // Validate required columns
+  if (!columnMap.date && !columnMap.Date) {
+    console.error('ERROR: No date column detected!');
+    console.log('Available columns:', Object.keys(rawData[0]));
+  }
+  if (!columnMap.amount && !columnMap.debit && !columnMap.credit) {
+    console.error('ERROR: No amount column detected!');
+    console.log('Available columns:', Object.keys(rawData[0]));
+  }
   
   for (const row of rawData) {
     try {
@@ -110,35 +199,91 @@ const detectColumns = (sampleRow: RawTransaction): Record<string, string> => {
   const columnMap: Record<string, string> = {};
   const keys = Object.keys(sampleRow);
   
-  // Common date column names
-  const datePatterns = ['date', 'transaction date', 'trans date', 'posting date', 'value date'];
-  // Common description column names
-  const descriptionPatterns = ['description', 'memo', 'narrative', 'details', 'transaction description'];
-  // Common amount column names
-  const amountPatterns = ['amount', 'value', 'debit', 'credit', 'transaction amount'];
-  // Common balance column names
-  const balancePatterns = ['balance', 'running balance', 'closing balance'];
+  console.log('Detecting columns from keys:', keys);
   
+  // Extended patterns for better matching
+  const datePatterns = [
+    'date', 'transaction date', 'trans date', 'posting date', 'value date',
+    'transaction_date', 'trans_date', 'txn date', 'txn_date', 'payment date',
+    'process date', 'effective date', 'posted', 'posted date'
+  ];
+  
+  const descriptionPatterns = [
+    'description', 'memo', 'narrative', 'details', 'transaction description',
+    'trans_description', 'merchant', 'payee', 'transaction', 'particulars',
+    'reference', 'remarks', 'comment', 'transaction_details', 'payment_details'
+  ];
+  
+  const amountPatterns = [
+    'amount', 'value', 'debit', 'credit', 'transaction amount',
+    'trans_amount', 'payment', 'withdrawal', 'deposit', 'charge',
+    'transaction_value', 'money', 'sum', 'total', 'payment_amount'
+  ];
+  
+  const balancePatterns = [
+    'balance', 'running balance', 'closing balance', 'available balance',
+    'current balance', 'ending balance', 'final balance', 'account balance'
+  ];
+  
+  // Try exact match first, then partial match
   for (const key of keys) {
-    const lowerKey = key.toLowerCase().trim();
+    const lowerKey = key.toLowerCase().trim().replace(/[_\-\s]+/g, ' ');
     
-    if (datePatterns.some(p => lowerKey.includes(p))) {
-      columnMap.date = key;
-    }
-    if (descriptionPatterns.some(p => lowerKey.includes(p))) {
-      columnMap.description = key;
-    }
-    if (amountPatterns.some(p => lowerKey.includes(p))) {
-      if (lowerKey.includes('debit')) {
-        columnMap.debit = key;
-      } else if (lowerKey.includes('credit')) {
-        columnMap.credit = key;
-      } else {
-        columnMap.amount = key;
+    // Date detection
+    if (!columnMap.date) {
+      if (datePatterns.some(p => lowerKey === p)) {
+        columnMap.date = key;
+        console.log(`Found exact date column: ${key}`);
+      } else if (datePatterns.some(p => lowerKey.includes(p))) {
+        columnMap.date = key;
+        console.log(`Found partial date column: ${key}`);
       }
     }
-    if (balancePatterns.some(p => lowerKey.includes(p))) {
-      columnMap.balance = key;
+    
+    // Description detection
+    if (!columnMap.description) {
+      if (descriptionPatterns.some(p => lowerKey === p)) {
+        columnMap.description = key;
+        console.log(`Found exact description column: ${key}`);
+      } else if (descriptionPatterns.some(p => lowerKey.includes(p))) {
+        columnMap.description = key;
+        console.log(`Found partial description column: ${key}`);
+      }
+    }
+    
+    // Amount detection
+    if (lowerKey.includes('debit') || lowerKey === 'dr' || lowerKey.includes('withdrawal')) {
+      columnMap.debit = key;
+      console.log(`Found debit column: ${key}`);
+    } else if (lowerKey.includes('credit') || lowerKey === 'cr' || lowerKey.includes('deposit')) {
+      columnMap.credit = key;
+      console.log(`Found credit column: ${key}`);
+    } else if (!columnMap.amount) {
+      if (amountPatterns.some(p => lowerKey === p)) {
+        columnMap.amount = key;
+        console.log(`Found exact amount column: ${key}`);
+      } else if (amountPatterns.some(p => lowerKey.includes(p))) {
+        columnMap.amount = key;
+        console.log(`Found partial amount column: ${key}`);
+      }
+    }
+    
+    // Balance detection
+    if (!columnMap.balance) {
+      if (balancePatterns.some(p => lowerKey === p || lowerKey.includes(p))) {
+        columnMap.balance = key;
+        console.log(`Found balance column: ${key}`);
+      }
+    }
+  }
+  
+  // Fallback: If no columns detected, try to guess based on position and content
+  if (!columnMap.date && keys.length > 0) {
+    // Check if first column looks like a date
+    const firstValue = String(sampleRow[keys[0]]);
+    if (firstValue.match(/\d{1,4}[\/-]\d{1,2}[\/-]\d{1,4}/)) {
+      columnMap.date = keys[0];
+      console.log(`Guessed date column by format: ${keys[0]}`);
     }
   }
   
@@ -146,25 +291,82 @@ const detectColumns = (sampleRow: RawTransaction): Record<string, string> => {
 };
 
 const parseTransaction = (row: RawTransaction, columnMap: Record<string, string>): ParsedTransaction | null => {
-  // Extract date
-  const dateValue = row[columnMap.date] || row.date || row.Date;
-  if (!dateValue) return null;
+  // Try multiple fallbacks for date
+  let dateValue = null;
+  if (columnMap.date) {
+    dateValue = row[columnMap.date];
+  }
+  
+  // Fallback: try common date field names
+  if (!dateValue) {
+    const dateFallbacks = ['Date', 'date', 'Transaction Date', 'Trans Date', 'Posted Date'];
+    for (const fallback of dateFallbacks) {
+      if (row[fallback]) {
+        dateValue = row[fallback];
+        console.log(`Using fallback date column: ${fallback}`);
+        break;
+      }
+    }
+  }
+  
+  // If still no date, try to find any column that looks like a date
+  if (!dateValue) {
+    for (const [key, value] of Object.entries(row)) {
+      if (value && String(value).match(/\d{1,4}[\/-]\d{1,2}[\/-]\d{1,4}/)) {
+        dateValue = value;
+        console.log(`Found date-like value in column: ${key}`);
+        break;
+      }
+    }
+  }
+  
+  if (!dateValue) {
+    console.warn('No date value found in row:', row);
+    return null;
+  }
   
   const date = parseDate(dateValue);
-  if (!date) return null;
+  if (!date) {
+    console.warn('Failed to parse date:', dateValue);
+    return null;
+  }
   
-  // Extract description
-  const description = row[columnMap.description] || 
-                     row.description || 
-                     row.Description || 
-                     row.memo || 
-                     row.Memo || 
-                     'Unknown Transaction';
+  // Extract description with fallbacks
+  let description = '';
+  if (columnMap.description) {
+    description = row[columnMap.description];
+  }
+  
+  if (!description) {
+    const descFallbacks = ['Description', 'description', 'Memo', 'memo', 'Details', 'Merchant', 'Payee'];
+    for (const fallback of descFallbacks) {
+      if (row[fallback]) {
+        description = row[fallback];
+        break;
+      }
+    }
+  }
+  
+  // If still no description, use any non-numeric, non-date column
+  if (!description) {
+    for (const [key, value] of Object.entries(row)) {
+      if (value && 
+          !String(value).match(/^\d+\.?\d*$/) && 
+          !String(value).match(/\d{1,4}[\/-]\d{1,2}[\/-]\d{1,4}/) &&
+          String(value).length > 3) {
+        description = String(value);
+        break;
+      }
+    }
+  }
+  
+  description = description || 'Unknown Transaction';
   
   // Extract amount and determine type
   let amount = 0;
   let type: 'debit' | 'credit' = 'debit';
   
+  // Try mapped columns first
   if (columnMap.debit && columnMap.credit) {
     // Separate debit/credit columns
     const debitAmount = parseAmount(row[columnMap.debit]);
@@ -173,33 +375,63 @@ const parseTransaction = (row: RawTransaction, columnMap: Record<string, string>
     if (debitAmount > 0) {
       amount = debitAmount;
       type = 'debit';
+      console.log(`Found debit amount: ${amount}`);
     } else if (creditAmount > 0) {
       amount = creditAmount;
       type = 'credit';
+      console.log(`Found credit amount: ${amount}`);
     }
   } else if (columnMap.amount) {
     // Single amount column
     amount = parseAmount(row[columnMap.amount]);
     type = amount < 0 ? 'debit' : 'credit';
     amount = Math.abs(amount);
-  } else {
-    // Try to find amount in any column that looks like it contains amounts
+    if (amount > 0) {
+      console.log(`Found amount in single column: ${amount} (${type})`);
+    }
+  }
+  
+  // Fallback: try common amount field names
+  if (amount === 0) {
+    const amountFallbacks = ['Amount', 'amount', 'Value', 'Payment', 'Debit', 'Credit', 'Withdrawal', 'Deposit'];
+    for (const fallback of amountFallbacks) {
+      if (row[fallback]) {
+        const parsedAmount = parseAmount(row[fallback]);
+        if (parsedAmount !== 0) {
+          amount = Math.abs(parsedAmount);
+          type = parsedAmount < 0 ? 'debit' : 'credit';
+          console.log(`Using fallback amount column '${fallback}': ${amount}`);
+          break;
+        }
+      }
+    }
+  }
+  
+  // Last resort: find any numeric column that's not balance or date
+  if (amount === 0) {
+    console.log('Searching for amount in all columns...');
     for (const [key, value] of Object.entries(row)) {
       const lowerKey = key.toLowerCase();
-      // Skip balance columns and date columns
-      if (lowerKey.includes('balance') || lowerKey.includes('date')) continue;
+      // Skip balance, date, and ID columns
+      if (lowerKey.includes('balance') || 
+          lowerKey.includes('date') || 
+          lowerKey.includes('id') ||
+          lowerKey.includes('reference') ||
+          lowerKey.includes('check')) continue;
       
       const parsedAmount = parseAmount(value);
       if (parsedAmount !== 0) {
         amount = Math.abs(parsedAmount);
         type = parsedAmount < 0 ? 'debit' : 'credit';
+        console.log(`Found amount in column '${key}': ${amount}`);
         break;
       }
     }
   }
   
   if (amount === 0) {
-    console.warn('No amount found in row:', row);
+    console.error('No amount found in row:', row);
+    console.log('All values:', Object.entries(row).map(([k, v]) => `${k}: ${v}`));
     return null;
   }
   
