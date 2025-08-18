@@ -88,8 +88,19 @@ const anonymizeTransaction = async (
 ): Promise<Transaction> => {
   const cleaned = { ...transaction };
   
+  // Ensure date is properly preserved
+  if (transaction.date) {
+    cleaned.date = transaction.date instanceof Date ? transaction.date : new Date(transaction.date);
+  }
+  
+  // Ensure amount is a valid number
+  cleaned.amount = typeof transaction.amount === 'number' ? transaction.amount : 0;
+  
+  // Ensure type is valid
+  cleaned.type = transaction.type || 'debit';
+  
   // Anonymize description
-  const descResult = anonymizeText(transaction.description);
+  const descResult = anonymizeText(transaction.description || '');
   cleaned.description = descResult.text;
   descResult.redacted.forEach(field => redactedFields.add(field));
   
@@ -99,14 +110,11 @@ const anonymizeTransaction = async (
   // Check for recurring patterns
   cleaned.isRecurring = detectRecurringTransaction(cleaned.description);
   
-  // Generate hash signature for duplicate detection
-  cleaned.hash_signature = generateTransactionHash(transaction);
-  
   // Add redacted fields to transaction
   cleaned.redactedFields = descResult.redacted;
   
-  // Remove original data to prevent leakage
-  delete cleaned.originalData;
+  // Keep the ID
+  cleaned.id = transaction.id;
   
   return cleaned;
 };
