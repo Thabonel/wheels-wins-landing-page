@@ -1,41 +1,68 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/common/AnimatedDialog";
-import { Badge } from '@/components/ui/badge';
-import { Plus, Upload, Trash2, Edit3, FileText, Loader2 } from 'lucide-react';
+import { FileText, Upload, Trash2, Loader2, FileCheck, AlertCircle } from 'lucide-react';
 import { useUserKnowledge } from '@/hooks/useUserKnowledge';
-import { DocumentUploader } from './DocumentUploader';
-import { KnowledgeBucketCard } from './KnowledgeBucketCard';
+import { formatDate } from '@/utils/format';
+import { toast } from 'sonner';
 
 export const UserKnowledgeManager = () => {
-  const { buckets, documents, loading, createBucket, updateBucket, deleteBucket } = useUserKnowledge();
-  const [selectedBucketId, setSelectedBucketId] = useState<string | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newBucketName, setNewBucketName] = useState('');
-  const [newBucketDescription, setNewBucketDescription] = useState('');
-  const [newBucketColor, setNewBucketColor] = useState('#3B82F6');
+  const { documents, loading, uploadDocument, deleteDocument } = useUserKnowledge();
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  const handleCreateBucket = async () => {
-    if (!newBucketName.trim()) return;
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`File "${file.name}" is too large. Maximum size is 10MB.`);
+        continue;
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        'application/pdf',
+        'text/plain',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/markdown',
+        'text/html',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/csv'
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`File type not supported for "${file.name}"`);
+        continue;
+      }
+
+      await uploadDocument(file);
+      setUploadProgress(((i + 1) / files.length) * 100);
+    }
+
+    setIsUploading(false);
+    setUploadProgress(0);
     
-    const bucket = await createBucket(newBucketName, newBucketDescription, newBucketColor);
-    if (bucket) {
-      setIsCreateDialogOpen(false);
-      setNewBucketName('');
-      setNewBucketDescription('');
-      setNewBucketColor('#3B82F6');
+    // Reset file input
+    event.target.value = '';
+  };
+
+  const handleDeleteDocument = async (documentId: string, fileName: string) => {
+    if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
+      await deleteDocument(documentId);
     }
   };
 
-  const selectedDocuments = selectedBucketId 
-    ? documents.filter(doc => doc.bucket_id === selectedBucketId)
-    : documents;
-
-  if (loading && buckets.length === 0) {
+  if (loading && documents.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -47,103 +74,140 @@ export const UserKnowledgeManager = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Personal Knowledge</h2>
+          <h2 className="text-2xl font-bold">Document Library</h2>
           <p className="text-muted-foreground">
-            Upload documents to help Pam understand your specific context and preferences
+            Upload documents to help PAM provide better, personalized assistance
           </p>
         </div>
         
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Bucket
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Knowledge Bucket</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Name</label>
-                <Input
-                  value={newBucketName}
-                  onChange={(e) => setNewBucketName(e.target.value)}
-                  placeholder="e.g., Travel Preferences, Business Info"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <Textarea
-                  value={newBucketDescription}
-                  onChange={(e) => setNewBucketDescription(e.target.value)}
-                  placeholder="What kind of knowledge will this contain?"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Color</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={newBucketColor}
-                    onChange={(e) => setNewBucketColor(e.target.value)}
-                    className="w-12 h-8 rounded border cursor-pointer"
-                  />
-                  <span className="text-sm text-gray-600">{newBucketColor}</span>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateBucket} disabled={!newBucketName.trim()}>
-                  Create Bucket
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {buckets.map((bucket) => (
-          <KnowledgeBucketCard
-            key={bucket.id}
-            bucket={bucket}
-            documentCount={documents.filter(doc => doc.bucket_id === bucket.id).length}
-            onUpdate={updateBucket}
-            onDelete={deleteBucket}
-            onSelect={() => setSelectedBucketId(selectedBucketId === bucket.id ? null : bucket.id)}
-            isSelected={selectedBucketId === bucket.id}
+        <div>
+          <input
+            type="file"
+            id="document-upload"
+            className="hidden"
+            multiple
+            accept=".pdf,.txt,.doc,.docx,.md,.html,.csv,.xls,.xlsx"
+            onChange={handleFileUpload}
+            disabled={isUploading}
           />
-        ))}
+          <label htmlFor="document-upload">
+            <Button asChild disabled={isUploading}>
+              <span>
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Uploading... {Math.round(uploadProgress)}%
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Documents
+                  </>
+                )}
+              </span>
+            </Button>
+          </label>
+        </div>
       </div>
 
-      {buckets.length === 0 && (
+      {/* Info Card */}
+      <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
+        <CardContent className="pt-6">
+          <div className="flex gap-3">
+            <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+            <div className="space-y-1 text-sm">
+              <p className="font-medium text-blue-900 dark:text-blue-100">
+                How it works:
+              </p>
+              <ul className="text-blue-800 dark:text-blue-200 space-y-1">
+                <li>• Upload travel plans, preferences, business documents, or any relevant information</li>
+                <li>• PAM will automatically analyze and learn from your documents</li>
+                <li>• Get personalized recommendations based on your uploaded content</li>
+                <li>• All documents are securely stored and only accessible by you</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Document List */}
+      {documents.length > 0 ? (
+        <div className="grid gap-3">
+          {documents.map((doc) => (
+            <Card key={doc.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="flex items-center justify-between py-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                    {doc.processing_status === 'completed' ? (
+                      <FileCheck className="h-5 w-5 text-green-600" />
+                    ) : doc.processing_status === 'processing' ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-gray-600" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium">{doc.filename}</p>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>Uploaded {formatDate(doc.created_at)}</span>
+                      <span>{(doc.file_size / 1024).toFixed(1)} KB</span>
+                      {doc.processing_status === 'processing' && (
+                        <span className="text-blue-600">Processing...</span>
+                      )}
+                      {doc.processing_status === 'completed' && (
+                        <span className="text-green-600">Ready</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeleteDocument(doc.id, doc.filename)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium mb-2">No knowledge buckets yet</h3>
+            <h3 className="text-lg font-medium mb-2">No documents uploaded yet</h3>
             <p className="text-muted-foreground text-center mb-4">
-              Create your first knowledge bucket to start uploading documents that will help Pam understand your context.
+              Start uploading documents to help PAM understand your preferences and provide better assistance.
             </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Bucket
-            </Button>
+            <label htmlFor="document-upload-empty">
+              <input
+                type="file"
+                id="document-upload-empty"
+                className="hidden"
+                multiple
+                accept=".pdf,.txt,.doc,.docx,.md,.html,.csv,.xls,.xlsx"
+                onChange={handleFileUpload}
+                disabled={isUploading}
+              />
+              <Button asChild>
+                <span>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Your First Document
+                </span>
+              </Button>
+            </label>
           </CardContent>
         </Card>
       )}
 
-      {selectedBucketId && (
-        <DocumentUploader 
-          bucketId={selectedBucketId}
-          bucketName={buckets.find(b => b.id === selectedBucketId)?.name || ''}
-          documents={selectedDocuments}
-        />
-      )}
+      {/* Supported Formats */}
+      <div className="text-sm text-muted-foreground">
+        <p className="font-medium mb-1">Supported formats:</p>
+        <p>PDF, Word (.doc, .docx), Text (.txt), Markdown (.md), HTML, Excel (.xls, .xlsx), CSV</p>
+        <p className="mt-1">Maximum file size: 10MB per document</p>
+      </div>
     </div>
   );
 };

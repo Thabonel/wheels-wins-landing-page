@@ -1,27 +1,15 @@
-
-export interface UserKnowledgeBucket {
-  id: string;
-  user_id: string;
-  name: string;
-  description?: string;
-  color: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface UserKnowledgeDocument {
   id: string;
-  bucket_id: string;
   user_id: string;
   filename: string;
   file_path: string;
   content_type?: string;
-  file_size?: number;
+  file_size: number;
   extracted_text?: string;
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
   metadata: Record<string, any>;
   created_at: string;
+  updated_at: string;
 }
 
 export interface UserKnowledgeChunk {
@@ -54,4 +42,16 @@ export interface EnhancedPamMemory {
     knowledge_summary: string;
     total_documents: number;
   };
+}
+
+// Legacy type for backward compatibility (will be removed)
+export interface UserKnowledgeBucket {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  color: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
