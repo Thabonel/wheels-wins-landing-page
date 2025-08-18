@@ -116,25 +116,6 @@ export default function WinsExpenses() {
           
           {/* Action Buttons */}
           <div className="flex gap-2 flex-col sm:flex-row">
-            <MobileFormWrapper open={drawerOpen} onOpenChange={setDrawerOpen}>
-              {isMobile ? (
-                <MobileExpenseForm 
-                  onClose={() => {
-                    setDrawerOpen(false);
-                    setPresetCategory(undefined);
-                  }} 
-                  presetCategory={presetCategory}
-                />
-              ) : (
-                <AddExpenseForm 
-                  onClose={() => {
-                    setDrawerOpen(false);
-                    setPresetCategory(undefined);
-                  }} 
-                  presetCategory={presetCategory}
-                />
-              )}
-            </MobileFormWrapper>
             <Button onClick={() => setDrawerOpen(true)} className="w-full sm:w-auto">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Expense
@@ -222,6 +203,27 @@ export default function WinsExpenses() {
       <PamInsightCard 
         content="Your fuel costs are 23% higher than last month. I found three gas stations nearby with prices $0.30 lower than you've been paying. Want me to show you the route?"
       />
+      
+      {/* Expense Form Modal/Drawer */}
+      <MobileFormWrapper open={drawerOpen} onOpenChange={setDrawerOpen}>
+        {isMobile ? (
+          <MobileExpenseForm 
+            onClose={() => {
+              setDrawerOpen(false);
+              setPresetCategory(undefined);
+            }} 
+            presetCategory={presetCategory}
+          />
+        ) : (
+          <AddExpenseForm 
+            onClose={() => {
+              setDrawerOpen(false);
+              setPresetCategory(undefined);
+            }} 
+            presetCategory={presetCategory}
+          />
+        )}
+      </MobileFormWrapper>
     </div>
   );
 }
