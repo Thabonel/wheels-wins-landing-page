@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { parseDocument } from './documentParser';
 
 interface ParsedTransaction {
   id: string;
@@ -10,13 +10,8 @@ interface ParsedTransaction {
 }
 
 export const parsePdfFile = async (file: File, sessionId: string): Promise<ParsedTransaction[]> => {
-  // PDFs require server-side processing which is not yet implemented
-  // For now, throw a user-friendly error suggesting CSV format
-  
-  throw new Error(
-    'PDF processing is currently unavailable. Please export your bank statement as CSV format instead. ' +
-    'Most banks offer CSV export in their download options.'
-  );
+  // Use the universal document parser which handles PDFs, images, and invoices
+  return parseDocument(file, sessionId);
 };
 
 const generateTransactionId = (date: Date, description: string, amount: number): string => {

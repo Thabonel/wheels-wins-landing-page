@@ -16,9 +16,21 @@ export const UploadStage: React.FC<UploadStageProps> = ({ onFileSelect }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): boolean => {
-    // Strict file type validation for security
-    const allowedTypes = ['application/pdf', 'text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
-    const allowedExtensions = ['pdf', 'csv', 'xls', 'xlsx'];
+    // Strict file type validation for security - now includes images
+    const allowedTypes = [
+      'application/pdf', 
+      'text/csv', 
+      'application/vnd.ms-excel', 
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/tiff',
+      'image/bmp'
+    ];
+    const allowedExtensions = ['pdf', 'csv', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'tiff', 'tif', 'bmp'];
     const maxSize = 10 * 1024 * 1024; // 10MB
     const minSize = 1; // Prevent empty files
 
@@ -33,16 +45,19 @@ export const UploadStage: React.FC<UploadStageProps> = ({ onFileSelect }) => {
       return false;
     }
 
+    // Get file extension first for validation
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    
     // Validate MIME type (primary security check)
-    if (!allowedTypes.includes(file.type)) {
-      setError('Invalid file type. Please upload a PDF, CSV, or Excel file');
+    // For images, also check if type is empty (some browsers don't set MIME for images)
+    if (!allowedTypes.includes(file.type) && !(file.type === '' && extension && allowedExtensions.includes(extension))) {
+      setError('Invalid file type. Please upload a PDF, CSV, Excel file, or an image (JPG, PNG)');
       return false;
     }
 
     // Validate file extension (secondary check)
-    const extension = file.name.split('.').pop()?.toLowerCase();
     if (!extension || !allowedExtensions.includes(extension)) {
-      setError('Invalid file extension. Please upload a PDF, CSV, or Excel file');
+      setError('Invalid file extension. Please upload a PDF, CSV, Excel file, or an image');
       return false;
     }
 
@@ -118,18 +133,18 @@ export const UploadStage: React.FC<UploadStageProps> = ({ onFileSelect }) => {
       <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
         <Shield className="w-4 h-4 text-green-600" />
         <AlertDescription className="text-green-800 dark:text-green-200">
-          <strong>100% Private:</strong> Your bank statement is processed locally in your browser. 
-          No data is sent to our servers until you explicitly approve it, and even then, 
-          all personal information is automatically removed.
+          <strong>100% Private:</strong> Your documents are processed locally in your browser. 
+          No data is sent to our servers until you explicitly approve it. Works with bank statements, 
+          invoices, receipts, and even photos taken with your phone camera!
         </AlertDescription>
       </Alert>
 
       {/* Upload Area */}
       <Card>
         <CardHeader>
-          <CardTitle>Upload Your Bank Statement</CardTitle>
+          <CardTitle>Upload Your Document</CardTitle>
           <CardDescription>
-            Drag and drop your statement or click to browse. We support PDF, CSV, and Excel formats.
+            Drag and drop your bank statement, invoice, or receipt. We support PDF, CSV, Excel, and image formats (photos of documents work too!).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -152,7 +167,7 @@ export const UploadStage: React.FC<UploadStageProps> = ({ onFileSelect }) => {
               <input 
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.csv,.xls,.xlsx"
+                accept=".pdf,.csv,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.tiff,.tif,.bmp,image/*"
                 onChange={handleFileInputChange}
                 className="hidden"
               />
@@ -162,16 +177,17 @@ export const UploadStage: React.FC<UploadStageProps> = ({ onFileSelect }) => {
               ) : (
                 <>
                   <p className="text-lg font-medium mb-2">
-                    Drag & drop your bank statement here
+                    Drag & drop your document here
                   </p>
                   <p className="text-sm text-gray-500 mb-4">
-                    or click to browse from your computer
+                    Bank statements, invoices, receipts, or photos of documents
                   </p>
                   <div className="flex justify-center gap-2 flex-wrap">
                     <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">PDF</span>
                     <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">CSV</span>
-                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">XLS</span>
-                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">XLSX</span>
+                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">Excel</span>
+                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">JPG/PNG</span>
+                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">📷 Photos</span>
                   </div>
                 </>
               )}
