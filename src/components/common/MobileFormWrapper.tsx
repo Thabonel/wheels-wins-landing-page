@@ -1,7 +1,6 @@
 import React from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Drawer, DrawerContent } from '@/components/ui/drawer';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface MobileFormWrapperProps {
   open: boolean;
@@ -21,24 +20,30 @@ export const MobileFormWrapper: React.FC<MobileFormWrapperProps> = ({
   const isMobile = useIsMobile();
 
   if (isMobile) {
-    // Full-screen modal for mobile
+    // Full-screen modal for mobile with safe padding
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="h-screen w-screen max-w-none m-0 p-0 rounded-none">
+        <DialogContent className="h-screen w-screen max-w-none m-0 p-4 rounded-none">
           <div className="h-full w-full overflow-y-auto">
-            {children}
+            <div className="space-y-4">
+              {children}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  // Drawer for desktop
+  // Centered dialog for desktop
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        {children}
-      </DrawerContent>
-    </Drawer>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-6">
+        <div className="flex-1 overflow-y-auto pr-2">
+          <div className="space-y-4">
+            {children}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
