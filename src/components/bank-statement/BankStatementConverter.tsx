@@ -103,11 +103,24 @@ export const BankStatementConverter: React.FC = () => {
       .single();
 
     if (error) {
+      console.error('Session creation error:', error);
+      // Continue with a local session instead of blocking
+      const localSession: ProcessingSession = {
+        id: `local-${Date.now()}`,
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.name.split('.').pop()?.toLowerCase() || 'unknown',
+        status: 'pending',
+        transactionCount: 0
+      };
+      
       toast({
-        title: 'Error',
-        description: 'Failed to create processing session',
-        variant: 'destructive',
+        title: 'Note',
+        description: 'Processing in offline mode. Your data is still secure.',
       });
+      
+      setSession(localSession);
+      setStage('processing');
       return;
     }
 
@@ -127,15 +140,17 @@ export const BankStatementConverter: React.FC = () => {
       // Use the integrated PAM savings service to import transactions
       const result = await pamBankStatementIntegration.importTransactions(transactions);
 
-      // Update session status
-      await supabase
-        .from('bank_processing_sessions')
-        .update({
-          processing_status: 'completed',
-          transaction_count: result.imported,
-          processed_at: new Date().toISOString(),
-        })
-        .eq('id', session.id);
+      // Update session status (only if it's not a local session)
+      if (!session.id.startsWith('local-')) {
+        await supabase
+          .from('bank_processing_sessions')
+          .update({
+            processing_status: 'completed',
+            transaction_count: result.imported,
+            processed_at: new Date().toISOString(),
+          })
+          .eq('id', session.id);
+      }
 
       toast({
         title: 'Success!',
