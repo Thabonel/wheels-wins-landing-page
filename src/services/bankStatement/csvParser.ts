@@ -183,17 +183,25 @@ const parseTransaction = (row: RawTransaction, columnMap: Record<string, string>
     type = amount < 0 ? 'debit' : 'credit';
     amount = Math.abs(amount);
   } else {
-    // Try to find amount in any numeric column
+    // Try to find amount in any column that looks like it contains amounts
     for (const [key, value] of Object.entries(row)) {
-      if (typeof value === 'number' && value !== 0 && !key.toLowerCase().includes('balance')) {
-        amount = Math.abs(value);
-        type = value < 0 ? 'debit' : 'credit';
+      const lowerKey = key.toLowerCase();
+      // Skip balance columns and date columns
+      if (lowerKey.includes('balance') || lowerKey.includes('date')) continue;
+      
+      const parsedAmount = parseAmount(value);
+      if (parsedAmount !== 0) {
+        amount = Math.abs(parsedAmount);
+        type = parsedAmount < 0 ? 'debit' : 'credit';
         break;
       }
     }
   }
   
-  if (amount === 0) return null;
+  if (amount === 0) {
+    console.warn('No amount found in row:', row);
+    return null;
+  }
   
   return {
     id: generateTransactionId(date, description, amount),
@@ -209,39 +217,70 @@ const parseDate = (dateValue: any): Date | null => {
   if (!dateValue) return null;
   
   // If already a Date object
-  if (dateValue instanceof Date) {
+  if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
     return dateValue;
   }
   
   // Try to parse string date
-  const dateStr = String(dateValue);
+  const dateStr = String(dateValue).trim();
   
-  // Common date formats
-  const formats = [
-    /^\d{4}-\d{2}-\d{2}$/,        // YYYY-MM-DD
-    /^\d{2}\/\d{2}\/\d{4}$/,      // MM/DD/YYYY or DD/MM/YYYY
-    /^\d{2}-\d{2}-\d{4}$/,        // MM-DD-YYYY or DD-MM-YYYY
-    /^\d{1,2}\/\d{1,2}\/\d{4}$/,  // M/D/YYYY
-    /^\d{4}\/\d{2}\/\d{2}$/,      // YYYY/MM/DD
-  ];
+  // Try manual parsing for common formats first
+  const parts = dateStr.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    const [p1, p2, p3] = parts.map(p => parseInt(p));
+    
+    // Check if all parts are valid numbers
+    if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
+      let year, month, day;
+      
+      // YYYY-MM-DD or YYYY/MM/DD
+      if (p1 > 1900 && p1 < 2100) {
+        year = p1;
+        month = p2;
+        day = p3;
+      }
+      // DD/MM/YYYY or DD-MM-YYYY (if day > 12, it must be DD/MM/YYYY)
+      else if (p1 > 12 && p1 <= 31) {
+        day = p1;
+        month = p2;
+        year = p3;
+      }
+      // MM/DD/YYYY or MM-DD-YYYY (if month > 12, swap)
+      else if (p2 > 12 && p2 <= 31) {
+        month = p1;
+        day = p2;
+        year = p3;
+      }
+      // Default to MM/DD/YYYY for ambiguous cases
+      else {
+        month = p1;
+        day = p2;
+        year = p3;
+      }
+      
+      // Adjust 2-digit years
+      if (year < 100) {
+        year = year > 50 ? 1900 + year : 2000 + year;
+      }
+      
+      // Create date and validate it
+      const date = new Date(year, month - 1, day);
+      if (!isNaN(date.getTime()) && 
+          date.getFullYear() === year && 
+          date.getMonth() === month - 1 && 
+          date.getDate() === day) {
+        return date;
+      }
+    }
+  }
   
-  // Try to parse with Date constructor
+  // Try parsing with Date constructor as fallback
   const parsed = new Date(dateStr);
-  if (!isNaN(parsed.getTime())) {
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900) {
     return parsed;
   }
   
-  // Try manual parsing for DD/MM/YYYY format
-  const parts = dateStr.split(/[\/\-]/);
-  if (parts.length === 3) {
-    // Assume DD/MM/YYYY if day > 12
-    if (parseInt(parts[0]) > 12) {
-      return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-    }
-    // Otherwise assume MM/DD/YYYY
-    return new Date(`${parts[2]}-${parts[0]}-${parts[1]}`);
-  }
-  
+  console.warn('Failed to parse date:', dateStr);
   return null;
 };
 
@@ -251,15 +290,35 @@ const parseAmount = (value: any): number => {
   }
   
   if (typeof value === 'string') {
-    // Remove currency symbols and commas
-    const cleaned = value.replace(/[$£€¥,]/g, '').trim();
+    // Remove currency symbols, spaces, and commas
+    let cleaned = value.replace(/[$£€¥,\s]/g, '').trim();
     
-    // Handle parentheses for negative numbers
-    if (cleaned.startsWith('(') && cleaned.endsWith(')')) {
-      return -parseFloat(cleaned.slice(1, -1));
+    // Handle empty strings
+    if (!cleaned || cleaned === '-' || cleaned === '') {
+      return 0;
     }
     
-    return parseFloat(cleaned) || 0;
+    // Handle parentheses for negative numbers (e.g., "(100.00)")
+    if (cleaned.startsWith('(') && cleaned.endsWith(')')) {
+      cleaned = '-' + cleaned.slice(1, -1);
+    }
+    
+    // Handle CR/DR notation (Credit/Debit)
+    const isCR = cleaned.toUpperCase().includes('CR');
+    const isDR = cleaned.toUpperCase().includes('DR');
+    cleaned = cleaned.replace(/[CDR]/gi, '').trim();
+    
+    const parsed = parseFloat(cleaned);
+    if (isNaN(parsed)) {
+      return 0;
+    }
+    
+    // Apply CR/DR sign convention (CR is usually positive/credit, DR is negative/debit)
+    if (isDR && parsed > 0) {
+      return -parsed;
+    }
+    
+    return parsed;
   }
   
   return 0;

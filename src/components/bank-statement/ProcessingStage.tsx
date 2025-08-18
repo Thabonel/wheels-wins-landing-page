@@ -17,6 +17,7 @@ interface ProcessingStageProps {
     fileType: string;
   };
   onComplete: (transactions: any[]) => void;
+  onError?: (error: string) => void;
 }
 
 interface ProcessingStep {
@@ -26,7 +27,7 @@ interface ProcessingStep {
   message?: string;
 }
 
-export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session, onComplete }) => {
+export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session, onComplete, onError }) => {
   const [progress, setProgress] = useState(0);
   const [steps, setSteps] = useState<ProcessingStep[]>([
     { id: 'validate', name: 'Validating file format', status: 'pending' },
@@ -89,19 +90,14 @@ export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session,
 
       // Step 3: Anonymize data
       updateStep('anonymize', 'processing');
-      console.log('Anonymizing transactions. Input:', rawTransactions);
       const { transactions, redactedFields } = await anonymizeTransactions(rawTransactions);
-      console.log('Anonymized transactions:', transactions);
-      console.log('Redacted fields:', redactedFields);
       setRedactedInfo(redactedFields);
       updateStep('anonymize', 'completed', `Redacted ${redactedFields.length} sensitive fields`);
       setProgress(60);
 
       // Step 4: Categorize transactions
       updateStep('categorize', 'processing');
-      console.log('Categorizing transactions. Input:', transactions);
       const categorizedTransactions = await categorizeTransactions(transactions);
-      console.log('Categorized transactions:', categorizedTransactions);
       updateStep('categorize', 'completed');
       setProgress(80);
 
@@ -113,7 +109,6 @@ export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session,
 
       // Wait a moment before transitioning
       setTimeout(() => {
-        console.log('Passing to onComplete:', categorizedTransactions);
         onComplete(categorizedTransactions);
       }, 1000);
 
@@ -131,11 +126,12 @@ export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session,
         step.status === 'pending' ? { ...step, status: 'pending' } : step
       ));
       
-      // Show error state for 3 seconds before allowing retry
-      setTimeout(() => {
-        // Return empty array to allow going back
-        onComplete([]);
-      }, 3000);
+      // Call error handler if provided, otherwise just log
+      if (onError) {
+        setTimeout(() => {
+          onError(errorMessage);
+        }, 2000);
+      }
     }
   };
 

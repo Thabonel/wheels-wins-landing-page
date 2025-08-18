@@ -42,13 +42,6 @@ interface ReviewStageProps {
 }
 
 export const ReviewStage: React.FC<ReviewStageProps> = ({ transactions, onImport, onCancel }) => {
-  // Debug logging
-  console.log('ReviewStage received transactions:', transactions);
-  console.log('Transaction count:', transactions?.length || 0);
-  if (transactions?.length > 0) {
-    console.log('First transaction:', transactions[0]);
-  }
-  
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(
     new Set(transactions.map(t => t.id))
   );
@@ -246,7 +239,9 @@ export const ReviewStage: React.FC<ReviewStageProps> = ({ transactions, onImport
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        {formatDate(transaction.date)}
+                        {transaction.date instanceof Date && !isNaN(transaction.date.getTime()) 
+                          ? formatDate(transaction.date)
+                          : 'Invalid date'}
                       </span>
                       {showRedacted && transaction.redactedFields.length > 0 && (
                         <span className="flex items-center gap-1">

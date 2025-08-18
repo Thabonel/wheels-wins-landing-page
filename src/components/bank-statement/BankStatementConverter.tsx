@@ -37,6 +37,7 @@ export const BankStatementConverter: React.FC = () => {
   const [session, setSession] = useState<ProcessingSession | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showPrivacyModal, setShowPrivacyModal] = useState(true);
+  const [processingError, setProcessingError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Memory cleanup on component unmount
@@ -128,12 +129,64 @@ export const BankStatementConverter: React.FC = () => {
     setStage('processing');
   }, [toast]);
 
+  const handleProcessingError = useCallback((error: string) => {
+    console.error('Processing error:', error);
+    setProcessingError(error);
+    toast({
+      title: 'Processing Failed',
+      description: error,
+      variant: 'destructive',
+    });
+    
+    // Reset to upload stage after showing error
+    setTimeout(() => {
+      setStage('upload');
+      setFile(null);
+      setSession(null);
+      setProcessingError(null);
+    }, 3000);
+  }, [toast]);
+
   const handleProcessingComplete = useCallback((processedTransactions: Transaction[]) => {
-    console.log('BankStatementConverter: handleProcessingComplete called with:', processedTransactions);
-    console.log('Transaction count:', processedTransactions?.length || 0);
+    // Validate transactions before proceeding
+    if (!processedTransactions || processedTransactions.length === 0) {
+      console.error('No valid transactions processed');
+      toast({
+        title: 'Processing Failed',
+        description: 'No transactions could be extracted from the file. Please check the file format.',
+        variant: 'destructive',
+      });
+      setStage('upload');
+      setFile(null);
+      setSession(null);
+      return;
+    }
+    
+    // Check if transactions have valid data
+    const hasValidData = processedTransactions.some(t => 
+      t.amount > 0 && 
+      t.date && 
+      t.date instanceof Date && 
+      !isNaN(t.date.getTime()) &&
+      t.date.getFullYear() > 1970
+    );
+    
+    if (!hasValidData) {
+      console.error('Transactions have invalid data');
+      toast({
+        title: 'Invalid Data',
+        description: 'The transactions could not be properly parsed. Please ensure your file is in the correct format.',
+        variant: 'destructive',
+      });
+      setStage('upload');
+      setFile(null);
+      setSession(null);
+      return;
+    }
+    
     setTransactions(processedTransactions);
     setStage('review');
-  }, []);
+  }, [toast]);
 
   const handleImportToWins = useCallback(async () => {
     if (!session || transactions.length === 0) return;
@@ -293,6 +346,7 @@ export const BankStatementConverter: React.FC = () => {
           file={file}
           session={session}
           onComplete={handleProcessingComplete}
+          onError={handleProcessingError}
         />
       )}
       
