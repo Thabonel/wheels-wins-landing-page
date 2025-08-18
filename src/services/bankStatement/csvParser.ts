@@ -1,21 +1,8 @@
 // Using built-in CSV parsing to avoid external dependencies
+import { BankTransaction, RawTransaction } from '@/types/bankStatementTypes';
 
-interface RawTransaction {
-  date: string;
-  description: string;
-  amount: string | number;
-  balance?: string | number;
-  type?: string;
-  [key: string]: any;
-}
-
-interface ParsedTransaction {
-  id: string;
-  date: Date;
-  description: string;
-  amount: number;
-  type: 'debit' | 'credit';
-  originalData: Record<string, any>;
+interface ParsedTransaction extends BankTransaction {
+  originalData?: Record<string, any>;
 }
 
 export const parseCsvFile = (file: File): Promise<ParsedTransaction[]> => {
@@ -441,6 +428,12 @@ const parseTransaction = (row: RawTransaction, columnMap: Record<string, string>
     description: cleanDescription(description),
     amount,
     type,
+    category: undefined,
+    merchantName: undefined,
+    isRecurring: false,
+    redactedFields: [],
+    hash_signature: generateTransactionId(date, description, amount),
+    confidence_score: 1.0,
     originalData: row,
   };
 };

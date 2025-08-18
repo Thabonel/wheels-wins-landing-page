@@ -7,18 +7,7 @@ import { parseCsvFile } from '@/services/bankStatement/csvParser';
 import { parseExcelFile } from '@/services/bankStatement/excelParser';
 import { parsePdfFile } from '@/services/bankStatement/pdfParser';
 import { anonymizeTransactions } from '@/services/bankStatement/anonymizer';
-
-interface ProcessingStageProps {
-  file: File;
-  session: {
-    id: string;
-    fileName: string;
-    fileSize: number;
-    fileType: string;
-  };
-  onComplete: (transactions: any[]) => void;
-  onError?: (error: string) => void;
-}
+import { ProcessingStageProps, debugTransactionData } from '@/types/bankStatementTypes';
 
 interface ProcessingStep {
   id: string;
@@ -85,19 +74,46 @@ export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session,
         throw new Error('No transactions found in the file. Please check the file format.');
       }
       
+      console.log('=== STEP 2: PARSE COMPLETED ===');
+      console.log('Raw transactions from parser:', rawTransactions.length);
+      rawTransactions.slice(0, 2).forEach((transaction, index) => {
+        debugTransactionData(transaction, `Raw Transaction ${index + 1}`);
+      });
+      
       updateStep('parse', 'completed', `Found ${rawTransactions.length} transactions`);
       setProgress(40);
 
       // Step 3: Anonymize data
       updateStep('anonymize', 'processing');
       const { transactions, redactedFields } = await anonymizeTransactions(rawTransactions);
+      
+      console.log('=== STEP 3: ANONYMIZE COMPLETED ===');
+      console.log('Anonymized transactions:', transactions.length);
+      transactions.slice(0, 2).forEach((transaction, index) => {
+        debugTransactionData(transaction, `Anonymized Transaction ${index + 1}`);
+      });
+      
       setRedactedInfo(redactedFields);
       updateStep('anonymize', 'completed', `Redacted ${redactedFields.length} sensitive fields`);
       setProgress(60);
 
-      // Step 4: Categorize transactions
+      // Step 4: Categorize transactions  
       updateStep('categorize', 'processing');
-      const categorizedTransactions = await categorizeTransactions(transactions);
+      console.log('=== STEP 4: STARTING CATEGORIZATION ===');
+      console.log('Transactions before categorization:', transactions.length);
+      
+      // Simple categorization - just pass through the transactions unchanged for now
+      const categorizedTransactions = transactions.map(transaction => ({
+        ...transaction,
+        category: transaction.category || 'Other'
+      }));
+      
+      console.log('=== STEP 4: CATEGORIZATION COMPLETED ===');
+      console.log('Categorized transactions:', categorizedTransactions.length);
+      categorizedTransactions.slice(0, 2).forEach((transaction, index) => {
+        debugTransactionData(transaction, `Categorized Transaction ${index + 1}`);
+      });
+      
       updateStep('categorize', 'completed');
       setProgress(80);
 
@@ -106,6 +122,12 @@ export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session,
       await new Promise(resolve => setTimeout(resolve, 500));
       updateStep('complete', 'completed');
       setProgress(100);
+
+      console.log('=== STEP 5: FINAL OUTPUT ===');
+      console.log('Final transactions to pass to onComplete:', categorizedTransactions.length);
+      categorizedTransactions.forEach((transaction, index) => {
+        debugTransactionData(transaction, `Final Transaction ${index + 1}`);
+      });
 
       // Wait a moment before transitioning
       setTimeout(() => {
