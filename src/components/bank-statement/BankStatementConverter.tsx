@@ -156,15 +156,30 @@ export const BankStatementConverter: React.FC = () => {
     }
     
     try {
-      // Validate and clean transactions
-      const validatedTransactions = validateTransactionArray(processedTransactions);
-      console.log('Validated transactions:', validatedTransactions);
+      // TEMPORARY: Try validation but always proceed with raw data for debugging
+      console.log('🔍 ATTEMPTING VALIDATION (but will proceed with raw data if needed)');
+      let finalTransactions = processedTransactions;
       
-      if (validatedTransactions.length === 0) {
-        console.error('No valid transactions after validation');
+      try {
+        const validatedTransactions = validateTransactionArray(processedTransactions);
+        console.log('Validated transactions:', validatedTransactions.length);
+        
+        if (validatedTransactions.length > 0) {
+          console.log('✅ Using validated transactions');
+          finalTransactions = validatedTransactions;
+        } else {
+          console.log('⚠️ No valid transactions, using raw data for debugging');
+          console.log('Raw transactions that will be used:', processedTransactions);
+        }
+      } catch (validationError) {
+        console.error('❌ Validation failed, using raw data:', validationError);
+      }
+      
+      if (finalTransactions.length === 0) {
+        console.error('No transactions to process at all');
         toast({
-          title: 'Invalid Data',
-          description: 'The transactions could not be properly parsed. Please ensure your file is in the correct format.',
+          title: 'Processing Failed',
+          description: 'No transactions could be extracted from the file. Check the console for detailed debug info.',
           variant: 'destructive',
         });
         setStage('upload');
@@ -173,13 +188,16 @@ export const BankStatementConverter: React.FC = () => {
         return;
       }
       
-      // Debug validated transactions before setting state
-      validatedTransactions.forEach((transaction, index) => {
-        debugTransactionData(transaction, `Validated Transaction ${index + 1} before setState`);
+      // Debug final transactions before setting state
+      finalTransactions.forEach((transaction, index) => {
+        debugTransactionData(transaction, `FINAL Transaction ${index + 1} (about to set in state)`);
       });
       
       console.log('Setting transactions in state and moving to review stage');
-      setTransactions(validatedTransactions);
+      console.log('Final transaction count:', finalTransactions.length);
+      console.table(finalTransactions); // Table view for easy debugging
+      
+      setTransactions(finalTransactions);
       setStage('review');
       
     } catch (error) {
