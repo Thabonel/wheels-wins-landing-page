@@ -61,14 +61,27 @@ export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session,
       let rawTransactions: any[] = [];
       
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      console.log('Processing file:', file.name, 'Extension:', fileExtension);
       
       if (fileExtension === 'csv') {
+        console.log('Parsing CSV file...');
         rawTransactions = await parseCsvFile(file);
+        console.log('CSV parsing complete. Transactions found:', rawTransactions.length);
       } else if (fileExtension === 'xls' || fileExtension === 'xlsx') {
+        console.log('Parsing Excel file...');
         rawTransactions = await parseExcelFile(file);
+        console.log('Excel parsing complete. Transactions found:', rawTransactions.length);
       } else if (fileExtension === 'pdf') {
+        console.log('Parsing PDF file...');
         // For PDF, we'll need server-side processing
         rawTransactions = await parsePdfFile(file, session.id);
+        console.log('PDF parsing complete. Transactions found:', rawTransactions.length);
+      } else {
+        throw new Error(`Unsupported file type: ${fileExtension}`);
+      }
+      
+      if (!rawTransactions || rawTransactions.length === 0) {
+        throw new Error('No transactions found in the file. Please check the file format.');
       }
       
       updateStep('parse', 'completed', `Found ${rawTransactions.length} transactions`);
@@ -100,10 +113,23 @@ export const ProcessingStage: React.FC<ProcessingStageProps> = ({ file, session,
 
     } catch (error) {
       console.error('Processing error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
       const currentStep = steps.find(s => s.status === 'processing');
       if (currentStep) {
-        updateStep(currentStep.id, 'error', 'Processing failed');
+        updateStep(currentStep.id, 'error', errorMessage);
       }
+      
+      // Set all remaining steps to pending
+      setSteps(prev => prev.map(step => 
+        step.status === 'pending' ? { ...step, status: 'pending' } : step
+      ));
+      
+      // Show error state for 3 seconds before allowing retry
+      setTimeout(() => {
+        // Return empty array to allow going back
+        onComplete([]);
+      }, 3000);
     }
   };
 
