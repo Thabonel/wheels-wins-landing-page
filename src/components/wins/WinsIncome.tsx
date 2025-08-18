@@ -48,19 +48,10 @@ export default function WinsIncome() {
         
         {/* Primary Actions Bar */}
         <div className="flex justify-end">
-          <div className="flex gap-2">
-            <MobileFormWrapper open={drawerOpen} onOpenChange={setDrawerOpen}>
-              {isMobile ? (
-                <MobileIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
-              ) : (
-                <AddIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
-              )}
-            </MobileFormWrapper>
-            <Button onClick={() => setDrawerOpen(true)} className="w-full sm:w-auto">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Income
-            </Button>
-          </div>
+          <Button onClick={() => setDrawerOpen(true)} className="w-full sm:w-auto">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Income
+          </Button>
         </div>
       </div>
       
@@ -75,6 +66,15 @@ export default function WinsIncome() {
       
       {/* PAM Insight Card */}
       <PamInsightCard />
+      
+      {/* Income Form Modal/Drawer */}
+      <MobileFormWrapper open={drawerOpen} onOpenChange={setDrawerOpen}>
+        {isMobile ? (
+          <MobileIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
+        ) : (
+          <AddIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
+        )}
+      </MobileFormWrapper>
     </div>
   );
 }
