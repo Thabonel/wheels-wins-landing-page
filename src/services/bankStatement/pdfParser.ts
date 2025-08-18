@@ -10,55 +10,13 @@ interface ParsedTransaction {
 }
 
 export const parsePdfFile = async (file: File, sessionId: string): Promise<ParsedTransaction[]> => {
-  // PDFs require server-side processing due to complexity
-  // We'll upload the file securely and process it on the backend
+  // PDFs require server-side processing which is not yet implemented
+  // For now, throw a user-friendly error suggesting CSV format
   
-  try {
-    // Create a FormData object
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('sessionId', sessionId);
-    
-    // Get the current user's token
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      throw new Error('Authentication required');
-    }
-    
-    // Send to backend for processing
-    const response = await fetch('/api/bank-statements/parse-pdf', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      throw new Error(`PDF parsing failed: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    
-    // Convert the result to our transaction format
-    return result.transactions.map((t: any) => ({
-      id: t.id || generateTransactionId(new Date(t.date), t.description, t.amount),
-      date: new Date(t.date),
-      description: t.description,
-      amount: Math.abs(t.amount),
-      type: t.type || (t.amount < 0 ? 'debit' : 'credit'),
-      originalData: t,
-    }));
-  } catch (error) {
-    console.error('PDF parsing error:', error);
-    
-    // Fallback to mock data for development
-    if (process.env.NODE_ENV === 'development') {
-      return generateMockTransactions();
-    }
-    
-    throw error;
-  }
+  throw new Error(
+    'PDF processing is currently unavailable. Please export your bank statement as CSV format instead. ' +
+    'Most banks offer CSV export in their download options.'
+  );
 };
 
 const generateTransactionId = (date: Date, description: string, amount: number): string => {
