@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ChevronDown, ChevronUp, RefreshCw, AlertCircle } from "lucide-react";
+import { RefreshCw, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useTripStatus } from "@/hooks/useTripStatus";
 import { useBudgetSummary } from "@/hooks/useBudgetSummary";
@@ -91,8 +91,10 @@ const DashboardCards = () => {
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 )}
-                <CollapsibleTrigger className="hover:bg-muted p-1 rounded-full">
-                  {openCards.tripStatus ? <ChevronUp /> : <ChevronDown />}
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-sm">
+                    {openCards.tripStatus ? "Hide Details" : "Show Details"}
+                  </Button>
                 </CollapsibleTrigger>
               </div>
             </div>
@@ -184,8 +186,10 @@ const DashboardCards = () => {
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 )}
-                <CollapsibleTrigger className="hover:bg-muted p-1 rounded-full">
-                  {openCards.budgetSummary ? <ChevronUp /> : <ChevronDown />}
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-sm">
+                    {openCards.budgetSummary ? "Hide Details" : "Show Details"}
+                  </Button>
                 </CollapsibleTrigger>
               </div>
             </div>
@@ -282,8 +286,10 @@ const DashboardCards = () => {
           <CardHeader className="pb-2">
             <div className="flex justify-between items-center">
               <CardTitle className="text-xl">To-Dos</CardTitle>
-              <CollapsibleTrigger className="hover:bg-muted p-1 rounded-full">
-                {openCards.todos ? <ChevronUp /> : <ChevronDown />}
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-sm">
+                  {openCards.todos ? "Show Less" : "Show More"}
+                </Button>
               </CollapsibleTrigger>
             </div>
           </CardHeader>
@@ -327,8 +333,10 @@ const DashboardCards = () => {
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 )}
-                <CollapsibleTrigger className="hover:bg-muted p-1 rounded-full">
-                  {openCards.pamSuggestions ? <ChevronUp /> : <ChevronDown />}
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-sm">
+                    {openCards.pamSuggestions ? "Show Less" : "Show More"}
+                  </Button>
                 </CollapsibleTrigger>
               </div>
             </div>

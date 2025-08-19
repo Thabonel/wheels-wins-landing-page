@@ -5,8 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Calendar, 
   Share, 
-  ChevronDown, 
-  ChevronUp,
   MapPin,
   Clock
 } from 'lucide-react';
@@ -76,10 +74,7 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
 
   return (
     <Card className={cn("w-full", className)}>
-      <CardHeader 
-        className="pb-3 cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-lg">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
@@ -88,8 +83,13 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
               {mockPastTrips.length}
             </Badge>
           </div>
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-sm"
+          >
+            {isExpanded ? "Hide Trips" : "Show Trips"}
           </Button>
         </CardTitle>
       </CardHeader>

@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface ErrorAnalysisProps {
@@ -239,8 +239,9 @@ const ErrorAnalysis: React.FC<ErrorAnalysisProps> = ({ data, isLoading }) => {
                           variant="ghost"
                           size="sm"
                           onClick={() => setExpandedError(expandedError === index ? null : index)}
+                          className="text-xs"
                         >
-                          {expandedError === index ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          {expandedError === index ? "Hide" : "Show"}
                         </Button>
                       </TableCell>
                     </TableRow>

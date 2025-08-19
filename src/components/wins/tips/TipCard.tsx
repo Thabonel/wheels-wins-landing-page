@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ThumbsUp, Send } from "lucide-react";
+import { ThumbsUp, Send } from "lucide-react";
 import { TipData } from "./types";
 
 interface TipCardProps {
@@ -30,11 +30,15 @@ export default function TipCard({ tip }: TipCardProps) {
             </CardDescription>
           </div>
           <Collapsible>
-            <CollapsibleTrigger 
-              onClick={() => setIsExpanded(!isExpanded)} 
-              className="rounded-full h-6 w-6 flex items-center justify-center hover:bg-muted"
-            >
-              <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'transform rotate-180' : ''}`} />
+            <CollapsibleTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-sm"
+              >
+                {isExpanded ? "Hide Details" : "Show Details"}
+              </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="pt-0 pb-3">

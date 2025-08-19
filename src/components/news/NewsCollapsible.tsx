@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import NewsList from "./NewsList";
 import { NewsItem } from "./types";
@@ -23,8 +23,10 @@ const NewsCollapsible = ({ newsItems, loading, onRetry }: NewsCollapsibleProps) 
           <CardTitle className="text-lg">
             Latest News {loading ? "(Loading...)" : newsItems.length > 0 ? `(${newsItems.length} articles)` : ""}
           </CardTitle>
-          <CollapsibleTrigger className="hover:bg-muted p-1 rounded-full">
-            {open ? <ChevronUp /> : <ChevronDown />}
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="text-sm">
+              {open ? "Hide Articles" : "Show Articles"}
+            </Button>
           </CollapsibleTrigger>
         </div>
       </CardHeader>
