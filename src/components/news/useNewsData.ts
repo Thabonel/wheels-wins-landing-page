@@ -9,31 +9,64 @@ export const useNewsData = (selectedSources: string[]) => {
   const [loading, setLoading] = useState(false);
 
   const fetchWithProxy = async (url: string): Promise<string> => {
-    const corsProxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    // Multiple CORS proxy fallbacks
+    const corsProxies = [
+      `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+      `https://corsproxy.io/?${encodeURIComponent(url)}`,
+      `https://cors-anywhere.herokuapp.com/${url}`
+    ];
     
-    try {
-      console.log(`Fetching from: ${url}`);
-      const response = await fetch(corsProxy, {
-        headers: {
-          'Accept': 'application/json'
+    for (let i = 0; i < corsProxies.length; i++) {
+      const corsProxy = corsProxies[i];
+      
+      try {
+        console.log(`Fetching from: ${url} via proxy ${i + 1}/${corsProxies.length}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        
+        const response = await fetch(corsProxy, {
+          headers: i === 0 ? {
+            'Accept': 'application/json'
+          } : {
+            'Accept': 'text/xml, application/xml, application/rss+xml, */*'
+          },
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        
+        // Handle different proxy response formats
+        let content = '';
+        if (i === 0) {
+          // allorigins format - returns JSON with contents field
+          const data = await response.json();
+          content = data.contents || '';
+        } else {
+          // corsproxy.io and cors-anywhere return direct XML content
+          content = await response.text();
+        }
+        
+        if (!content) {
+          throw new Error('No content returned from proxy');
+        }
+        
+        return content;
+      } catch (error) {
+        console.warn(`Proxy ${i + 1} failed for ${url}:`, error);
+        
+        // If this was the last proxy, throw the error
+        if (i === corsProxies.length - 1) {
+          throw error;
+        }
       }
-      
-      const data = await response.json();
-      
-      if (!data.contents) {
-        throw new Error('No content returned from proxy');
-      }
-      
-      return data.contents;
-    } catch (error) {
-      console.error(`Fetch error for ${url}:`, error);
-      throw error;
     }
+    
+    throw new Error('All CORS proxies failed');
   };
 
   const parseRSSFeed = (xmlContent: string, sourceName: string): NewsItem[] => {
@@ -159,9 +192,15 @@ export const useNewsData = (selectedSources: string[]) => {
         
         setNewsItems(sortedNews);
         console.log(`Successfully loaded ${sortedNews.length} news items from ${successCount} sources`);
+        
+        // Show partial success message if some sources failed
+        if (successCount < selectedSources.length) {
+          const failedCount = selectedSources.length - successCount;
+          toast.warning(`Loaded news from ${successCount} sources. ${failedCount} sources failed to load.`);
+        }
       } else {
         console.warn('No news items loaded from any source');
-        toast.error('Unable to load news from selected sources');
+        toast.error(`Unable to load news from any of the ${selectedSources.length} selected sources. Please check your internet connection and try again.`);
         setNewsItems([]);
       }
     } catch (error) {
@@ -177,5 +216,9 @@ export const useNewsData = (selectedSources: string[]) => {
     fetchNews();
   }, [selectedSources]);
 
-  return { newsItems, loading };
+  const retryFetch = () => {
+    fetchNews();
+  };
+
+  return { newsItems, loading, retryFetch };
 };
