@@ -11,7 +11,7 @@ if os.getenv("RENDER", False) or os.getenv("RENDER_SERVICE_ID"):
     os.environ["NODE_ENV"] = "staging"
     os.environ["DEBUG"] = "true"
     os.environ["APP_URL"] = "https://wheels-wins-backend-staging.onrender.com"
-    cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app,https://wheelsandwins-staging.netlify.app"
+    cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app,https://wheelsandwins-staging.netlify.app,https://staging--wheels-wins-landing-page.netlify.app,https://staging--charming-figolla-d83b68.netlify.app"
     os.environ["CORS_ALLOWED_ORIGINS"] = cors_origins
     print("🔧 FORCED STAGING ENVIRONMENT ON RENDER:")
     print(f"   ENVIRONMENT: {os.environ['ENVIRONMENT']}")
@@ -417,6 +417,12 @@ app.add_middleware(GuardrailsMiddleware)
 # CORS Configuration - Simple and Proven Approach
 # Using FastAPI's standard CORSMiddleware with comprehensive origins
 allowed_origins = [
+    # Development origins
+    "http://localhost:8080",
+    "http://localhost:3000",
+    "http://127.0.0.1:8080",
+    "http://127.0.0.1:3000",
+    
     # Production origins
     "https://wheelsandwins.com",
     "https://www.wheelsandwins.com", 
@@ -431,6 +437,8 @@ allowed_origins = [
     "https://wheelsandwins-staging.netlify.app",
     "https://wheels-wins-test.netlify.app",
     "https://staging--wheels-wins.netlify.app",  # Additional Netlify preview format
+    "https://staging--wheels-wins-landing-page.netlify.app",  # Netlify branch deploy format
+    "https://staging--charming-figolla-d83b68.netlify.app",  # Specific site ID format
     
     # Development origins (only in development)
     *(["http://localhost:3000", "http://localhost:8080", "http://localhost:5173", 
