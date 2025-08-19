@@ -3,10 +3,16 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, TrendingUp, PlusCircle, ExternalLink } from "lucide-react";
+import { Star, TrendingUp, PlusCircle, ExternalLink, HelpCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface HustleIdea {
   id: string;
@@ -92,6 +98,16 @@ export default function HustleBoardSuggestions({ onAddToIncome }: HustleBoardSug
         <CardTitle className="flex items-center gap-2">
           <TrendingUp size={20} className="text-purple-600" />
           Trending Hustle Ideas
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>These are proven income ideas shared by other travelers. Click "Add to Income" to start tracking any idea you want to try.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Popular opportunities from the community you might want to try
