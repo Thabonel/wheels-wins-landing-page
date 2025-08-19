@@ -10,8 +10,8 @@ if os.getenv("RENDER", False) or os.getenv("RENDER_SERVICE_ID"):
     os.environ["ENVIRONMENT"] = "staging"
     os.environ["NODE_ENV"] = "staging"
     os.environ["DEBUG"] = "true"
-    os.environ["APP_URL"] = "https://pam-backend.onrender.com"
-    cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app"
+    os.environ["APP_URL"] = "https://wheels-wins-backend-staging.onrender.com"
+    cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app,https://wheelsandwins-staging.netlify.app"
     os.environ["CORS_ALLOWED_ORIGINS"] = cors_origins
     print("🔧 FORCED STAGING ENVIRONMENT ON RENDER:")
     print(f"   ENVIRONMENT: {os.environ['ENVIRONMENT']}")
@@ -430,6 +430,7 @@ allowed_origins = [
     "https://wheels-wins-staging.netlify.app",
     "https://wheelsandwins-staging.netlify.app",
     "https://wheels-wins-test.netlify.app",
+    "https://staging--wheels-wins.netlify.app",  # Additional Netlify preview format
     
     # Development origins (only in development)
     *(["http://localhost:3000", "http://localhost:8080", "http://localhost:5173", 
