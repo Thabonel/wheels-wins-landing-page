@@ -168,7 +168,7 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
     return fetchWithTimeout(url, retryOptions);
   }
   
-  return refreshedResponse || response;
+  return response;
 }
 
 /**
