@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
-import { PamErrorBoundary } from '@/components/common/PamErrorBoundary';
+import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
 import { getPamToken } from '@/services/pam/auth';
 import { buildPamWsUrl, connectPamWs } from '@/services/pam/wsClient';
 
@@ -3204,9 +3204,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   // Render with error boundary
   return (
-    <PamErrorBoundary>
+    <PAMErrorBoundary>
       <PamImplementation mode={mode} />
-    </PamErrorBoundary>
+    </PAMErrorBoundary>
   );
 };
 
