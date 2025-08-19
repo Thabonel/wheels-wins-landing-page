@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { cookieAuth } from './auth/cookieAuth';
 import { logger } from '../lib/logger';
 
 
@@ -129,10 +128,8 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
   logger.debug('🔐 API: Response headers:', Object.fromEntries(response.headers.entries()));
   
   // Handle 401/440 responses with automatic token refresh
-  const refreshedResponse = await cookieAuth.handleUnauthorizedResponse(response);
-  
-  if (refreshedResponse === null) {
-    // Token was refreshed, retry the original request
+  if (response.status === 401 || response.status === 440) {
+    // Token expired, attempt to refresh
     logger.debug('🔄 Retrying request with refreshed token');
     
     // Get the new session after refresh
