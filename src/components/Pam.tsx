@@ -1,10 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
 
-// Check if PAM is enabled
-const pamEnabled = import.meta.env.VITE_PAM_ENABLED === 'true';
-
-// Regular imports - these will be tree-shaken if PAM is disabled
+// Regular imports
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
@@ -3192,14 +3189,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   );
 };
 
-// Main exported component with error boundary and conditional rendering
+// Main exported component with error boundary
 const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
-  // If PAM is disabled, return placeholder
-  if (!pamEnabled) {
-    return <div>PAM is disabled in staging</div>;
-  }
-
-  // Render with error boundary
+  // Always render PAM with error boundary
   return (
     <PAMErrorBoundary>
       <PamImplementation mode={mode} />
