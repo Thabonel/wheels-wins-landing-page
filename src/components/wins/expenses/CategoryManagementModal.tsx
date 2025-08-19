@@ -88,7 +88,7 @@ export default function CategoryManagementModal({
           <DialogHeader>
             <DialogTitle>Manage Budget Categories</DialogTitle>
             <DialogDescription>
-              Add or remove budget categories to better organize your planning.
+              Add new categories for different expense types (e.g., Fuel, Camping, Food) or remove unused ones. Each category will appear in your monthly budget where you can set spending limits.
             </DialogDescription>
           </DialogHeader>
 
