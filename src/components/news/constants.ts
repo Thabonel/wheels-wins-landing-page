@@ -5,11 +5,9 @@ import { NewsSource } from './types';
 export const globalNewsSources: NewsSource[] = [
   { id: "bbc", name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml" },
   { id: "reuters", name: "Reuters", url: "https://www.reutersagency.com/feed/?best-regions=asia&post_type=best" },
-  { id: "ap", name: "Associated Press", url: "https://feeds.apnews.com/rss/apf-topnews" },
   { id: "npr", name: "NPR News", url: "https://feeds.npr.org/1001/rss.xml" },
   { id: "guardian", name: "The Guardian", url: "https://www.theguardian.com/world/rss" },
   { id: "cnn", name: "CNN International", url: "https://rss.cnn.com/rss/edition_world.rss" },
-  { id: "wsj", name: "Wall Street Journal", url: "https://feeds.a.dj.com/rss/RSSWorldNews.xml" },
   { id: "nyt", name: "New York Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml" },
   { id: "bloomberg", name: "Bloomberg", url: "https://feeds.bloomberg.com/politics/news.rss" }
 ];
@@ -29,7 +27,6 @@ export const australianNewsSources: NewsSource[] = [
 // US news sources
 export const usNewsSources: NewsSource[] = [
   { id: "cnn-us", name: "CNN US", url: "https://rss.cnn.com/rss/cnn_us.rss" },
-  { id: "fox", name: "Fox News", url: "https://moxie.foxnews.com/google-publisher/latest.xml" },
   { id: "abc-us", name: "ABC News US", url: "https://abcnews.go.com/abcnews/topstories" },
   { id: "usa-today", name: "USA Today", url: "https://rssfeeds.usatoday.com/usatoday-NewsTopStories" },
   { id: "politico", name: "Politico", url: "https://www.politico.com/rss/politicopicks.xml" }
