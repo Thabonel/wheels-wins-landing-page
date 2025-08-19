@@ -12,6 +12,7 @@ import { useSocialPosts } from "@/hooks/useSocialPosts";
 import GroupCard from "./groups/GroupCard";
 import GroupDetailView from "./groups/GroupDetailView";
 import CreateGroupForm from "./groups/CreateGroupForm";
+import { generateAvatarUrl } from "@/utils/avatarUtils";
 
 export default function SocialGroups() {
   const [groups, setGroups] = useState<SocialGroup[]>([]);
@@ -154,7 +155,7 @@ export default function SocialGroups() {
           id: post.id,
           author: `User ${post.user_id?.substring(0, 5) || 'Unknown'}`,
           authorId: post.user_id || '',
-          authorAvatar: getPublicAssetUrl('avatar-placeholder.png'),
+          authorAvatar: generateAvatarUrl(post.user_id || 'unknown', `User ${post.user_id?.substring(0, 5) || 'Unknown'}`),
           date: new Date(post.created_at).toLocaleDateString(),
           content: post.content,
           image: post.image_url || undefined,
