@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
 
+// Always enable PAM as a core feature
+const pamEnabled = true;
+
 // Regular imports
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
