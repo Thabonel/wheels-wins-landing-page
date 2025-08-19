@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
-import { getPamToken } from '@/services/pam/auth';
-import { buildPamWsUrl, connectPamWs } from '@/services/pam/wsClient';
 
 // Check if PAM is enabled
 const pamEnabled = import.meta.env.VITE_PAM_ENABLED === 'true';
@@ -743,23 +741,21 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Step 1: Get valid JWT token from Supabase session
       logger.debug('🔧 PAM DEBUG: Getting valid JWT token for WebSocket...');
       
-      const pamToken = await getPamToken();
+      // Get current session and token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (!pamToken) {
+      if (sessionError || !session || !session.access_token) {
         logger.error('❌ PAM DEBUG: Failed to get valid token - no active session');
         setConnectionStatus("Disconnected");
         addMessage(`🤖 Hi! I'm PAM. Authentication failed - no valid session. Please try logging out and back in.`, "pam");
         return;
       }
       
-      // Validate token expiry
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !session) {
-        logger.error('❌ PAM DEBUG: Session validation failed:', sessionError);
-        setConnectionStatus("Disconnected");
-        addMessage(`🤖 Hi! I'm PAM. Session validation failed. Please try logging out and back in.`, "pam");
-        return;
-      }
+      // Create pamToken object with the expected format
+      const pamToken = {
+        value: session.access_token,
+        kind: 'jwt'
+      };
       
       // Check if token is expired or will expire soon (within 5 minutes)
       const expiresAt = session.expires_at ? new Date(session.expires_at * 1000) : null;
@@ -805,7 +801,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       // Step 3: Create authenticated WebSocket URL
       logger.debug('🔧 PAM DEBUG: Creating authenticated WebSocket URL...');
-      const wsUrl = buildPamWsUrl(baseWebSocketUrl, pamToken);
+      // Add token as query parameter for WebSocket authentication
+      const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(pamToken.value)}`;
       
       // Step 4: Validate URL format
       logger.debug('✅ PAM DEBUG: URL validation:');
