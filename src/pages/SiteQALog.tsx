@@ -65,6 +65,7 @@ const pageRoutes = [
   { value: "/admin", label: "Admin Dashboard", group: "Admin" },
   { value: "/qa", label: "QA Tracking", group: "Admin" },
   { value: "/pam-voice-test", label: "PAM Voice Test", group: "Testing" },
+  { value: "/pam-websocket-test", label: "PAM WebSocket Test", group: "Testing" },
 ];
 
 function clsx(...cn: (string | false | null | undefined)[]) {
