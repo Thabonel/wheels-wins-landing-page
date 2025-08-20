@@ -19,6 +19,15 @@ from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator, Re
 
 logger = get_logger("simple_pam")
 
+# Import weather tool for real weather data
+try:
+    from app.services.pam.tools.weather_tool import WeatherTool
+    WEATHER_TOOL_AVAILABLE = True
+    logger.info("WeatherTool imported successfully")
+except ImportError as e:
+    logger.warning(f"WeatherTool not available - weather queries will use fallback responses: {e}")
+    WEATHER_TOOL_AVAILABLE = False
+
 class PAMServiceError(Exception):
     """Exception raised when PAM service encounters errors"""
     pass
@@ -40,6 +49,16 @@ class SimplePamService:
         # Initialize the enhanced orchestrator for comprehensive functionality
         self.enhanced_orchestrator = None
         self.orchestrator_initialized = False
+        
+        # Initialize weather tool if available
+        self.weather_tool = None
+        if WEATHER_TOOL_AVAILABLE:
+            try:
+                self.weather_tool = WeatherTool()
+                logger.info("WeatherTool initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize WeatherTool: {e}")
+                self.weather_tool = None
         
         # Initialize the AI service with database connection (fallback)
         try:
@@ -138,7 +157,7 @@ class SimplePamService:
                 "message": "help",
                 "user_id": "system",
                 "response": {
-                    "content": "I'm PAM, your RV travel assistant! I can help you with:\n• 🗺️ Trip planning and route suggestions\n• 🏕️ RV park and campground recommendations\n• 🌤️ Weather and road conditions\n• 🎯 Local attractions and activities\n• 🛠️ RV maintenance tips\n• 💰 Travel budgeting\n\nWhat would you like to know?",
+                    "content": "I'm PAM, your personal AI assistant! I can help you with:\n• 🌤️ Weather information\n• 🗺️ Trip planning (when needed)\n• 💰 Budget management\n• 📍 Local information\n• 💬 General assistance\n• ❓ Answering questions\n\nWhat can I help you with today?",
                     "actions": []
                 },
                 "ttl": 3600  # Cache for 1 hour
@@ -221,6 +240,18 @@ class SimplePamService:
             logger.warning("⚠️ No PAM tools could be initialized - continuing with base intelligence only")
             # Don't break the service - PAM can still work with base intelligence
     
+    def _needs_location(self, message: str) -> bool:
+        """Check if message requires location context"""
+        location_patterns = [
+            'weather', 'forecast', 'rain', 'temperature', 'sunny', 'cloudy', 'snow',
+            'nearby', 'around me', 'close to me', 'near me',
+            'directions', 'route', 'navigate', 'drive', 'trip',
+            'local', 'restaurant', 'hotel', 'gas station', 'rv park', 'campground',
+            'traffic', 'road conditions'
+        ]
+        message_lower = message.lower()
+        return any(pattern in message_lower for pattern in location_patterns)
+    
     async def get_response(
         self, 
         message: str, 
@@ -263,6 +294,129 @@ class SimplePamService:
             await self.initialize_tools()
         
         try:
+            # Check if this is a location-requiring query
+            message_lower = message.lower()
+            needs_location = self._needs_location(message)
+            
+            # Handle weather queries with smart location context
+            if self.weather_tool and any(word in message_lower for word in ["weather", "forecast", "temperature", "rain", "sunny", "cloudy", "snow"]):
+                logger.info(f"🌤️ Weather query detected, using WeatherTool")
+                try:
+                    # Smart location extraction - use context first, never ask for permission
+                    user_location = None
+                    
+                    # 1. Check WebSocket connection context (stored on init)
+                    if context.get("user_location"):
+                        loc = context["user_location"]
+                        if isinstance(loc, dict):
+                            lat = loc.get('latitude', loc.get('lat'))
+                            lon = loc.get('longitude', loc.get('lon', loc.get('lng')))
+                            if lat and lon:
+                                user_location = f"{lat},{lon}"
+                                logger.info(f"📍 Using location from connection context: {user_location}")
+                        elif isinstance(loc, str):
+                            user_location = loc
+                            logger.info(f"📍 Using location string from context: {user_location}")
+                    
+                    # 2. Check userLocation in context (from frontend)
+                    if not user_location and context.get("userLocation"):
+                        loc = context["userLocation"]
+                        if isinstance(loc, dict):
+                            lat = loc.get('latitude', loc.get('lat'))
+                            lon = loc.get('longitude', loc.get('lon', loc.get('lng')))
+                            if lat and lon:
+                                user_location = f"{lat},{lon}"
+                                logger.info(f"📍 Using location from userLocation: {user_location}")
+                    
+                    # 3. Try to extract location from message itself
+                    if not user_location:
+                        # Look for city names or location mentions in the message
+                        if " in " in message_lower:
+                            location_part = message_lower.split(" in ", 1)[1]
+                            # Clean up the location string
+                            location_words = location_part.split()
+                            if location_words:
+                                # Take first 2-3 words as location (city name)
+                                potential_location = " ".join(location_words[:3]).rstrip("?.,!;")
+                                if len(potential_location) > 2:  # Basic validation
+                                    user_location = potential_location
+                                    logger.info(f"📍 Extracted location from message: {user_location}")
+                    
+                    # 4. Use default location if still none (never ask for permission)
+                    if not user_location:
+                        # Use a sensible default (US geographic center)
+                        user_location = "39.8283,-98.5795"  # Geographic center of USA
+                        logger.info(f"📍 Using default US location for weather")
+                    
+                    # Always provide weather data - never ask for location
+                    if "tomorrow" in message_lower or "week" in message_lower or "forecast" in message_lower:
+                        days = 7 if "week" in message_lower else 3
+                        weather_result = await self.weather_tool.execute(
+                            action="get_forecast",
+                            parameters={
+                                "location": user_location,
+                                "days": days
+                            }
+                        )
+                    else:
+                        weather_result = await self.weather_tool.execute(
+                            action="get_current",
+                            parameters={
+                                "location": user_location
+                            }
+                        )
+                    
+                    if weather_result.success:
+                        weather_data = weather_result.data
+                        
+                        # Handle forecast responses
+                        if "forecast" in weather_result.data:
+                            forecast = weather_data["forecast"]
+                            location_name = weather_data.get('location', 'your area')
+                            
+                            if "week" in message_lower and len(forecast) > 1:
+                                # Week forecast
+                                response = f"Here's the weather forecast for {location_name} this week:\n\n"
+                                for i, day in enumerate(forecast[:7]):
+                                    response += f"• {day.get('date', 'Day ' + str(i+1))}: "
+                                    response += f"{day.get('conditions', 'N/A')}, "
+                                    response += f"High {day.get('high', 'N/A')}, Low {day.get('low', 'N/A')}"
+                                    if day.get('rain_chance', '0%') != '0%':
+                                        response += f", {day.get('rain_chance')} chance of rain"
+                                    response += "\n"
+                                # Neutral weather summary without RV bias
+                            elif "tomorrow" in message_lower and len(forecast) > 0:
+                                # Tomorrow's forecast
+                                tomorrow = forecast[0]
+                                response = f"Tomorrow in {location_name}: {tomorrow.get('conditions', 'N/A')} "
+                                response += f"with a high of {tomorrow.get('high', 'N/A')} and low of {tomorrow.get('low', 'N/A')}. "
+                                if tomorrow.get('rain_chance', '0%') != '0%':
+                                    response += f"There's a {tomorrow.get('rain_chance')} chance of rain. "
+                                # Provide neutral weather information
+                            else:
+                                # General forecast
+                                response = f"Weather forecast for {location_name}:\n"
+                                for i, day in enumerate(forecast[:3]):
+                                    response += f"• {day.get('date', 'Day ' + str(i+1))}: "
+                                    response += f"{day.get('conditions', 'N/A')}, "
+                                    response += f"High {day.get('high', 'N/A')}, Low {day.get('low', 'N/A')}\n"
+                        else:
+                            # Current weather
+                            current = weather_data.get('current', weather_data)
+                            location_name = current.get('location', 'your area')
+                            response = f"Currently in {location_name}: "
+                            response += f"{current.get('temperature', 'N/A')} with {current.get('conditions', 'N/A')}. "
+                            response += f"Wind: {current.get('wind', 'N/A')}. "
+                            # Neutral weather response without travel assumptions
+                        
+                        logger.info(f"✅ Weather response generated successfully")
+                        return response
+                        
+                except Exception as e:
+                    logger.error(f"❌ Weather tool failed: {e}")
+                    # Provide a helpful response without asking for location
+                    return "I'm having trouble accessing weather data right now. You can check weather.com or your favorite weather app for the latest conditions."
+            
             # Prepare enhanced context with conversation history
             enhanced_context = context.copy()
             
@@ -336,12 +490,15 @@ class SimplePamService:
                     return await self._handle_streaming_response(message, enhanced_context, session_id, user_id)
                 else:
                     # Non-streaming response
+                    # Extract use_case from context if present
+                    use_case = enhanced_context.get("use_case")
                     ai_response = await self.ai_service.process_message(
                         message=message,
                         user_context=enhanced_context,
                         temperature=0.7,
                         max_tokens=2048,
-                        stream=False
+                        stream=False,
+                        use_case=use_case
                     )
                 
                 if isinstance(ai_response, AIResponse):
@@ -385,12 +542,15 @@ class SimplePamService:
         """Handle streaming AI response"""
         try:
             # Get streaming response from AI service
+            # Extract use_case from context if present
+            use_case = enhanced_context.get("use_case")
             response_stream = await self.ai_service.process_message(
                 message=message,
                 user_context=enhanced_context,
                 temperature=0.7,
                 max_tokens=2048,
-                stream=True
+                stream=True,
+                use_case=use_case
             )
             
             # Return the stream wrapped in response metadata
@@ -441,7 +601,8 @@ class SimplePamService:
         if "location" in message_lower or "where" in message_lower:
             return "I'm having trouble accessing location services right now. Could you be more specific about the area you're asking about?"
         elif "weather" in message_lower:
-            return "I can't check the weather at the moment. Try checking your local weather app or website for current conditions."
+            # This should rarely be reached now that we have WeatherTool
+            return "I'd love to check the weather for you! Could you share your location or tell me which city you're interested in?"
         elif "route" in message_lower or "directions" in message_lower:
             return "I'm unable to provide routing information right now. You might want to use your GPS navigation app for directions."
         else:
@@ -452,7 +613,8 @@ class SimplePamService:
         user_id: str,
         message: str,
         session_id: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        use_case: Optional[Any] = None  # Accept PamUseCase
     ) -> Dict[str, Any]:
         """
         Process a message and return structured response with caching
@@ -484,6 +646,9 @@ class SimplePamService:
                 # Continue without cache
         
         try:
+            # Pass use_case to get_response
+            if use_case:
+                context["use_case"] = use_case
             response = await self.get_response(message, context)
             
             if isinstance(response, dict) and response.get("type") == "stream":

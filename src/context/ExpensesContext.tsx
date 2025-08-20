@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
 import { ExpenseItem } from "@/components/wins/expenses/ExpenseTable";
 import { useAuth } from "@/context/AuthContext";
+import { logger } from '../lib/logger';
 import {
   fetchExpenses,
   createExpense,
@@ -96,7 +97,7 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "SET_EXPENSES", payload: expenses });
       dispatch({ type: "SET_ERROR", payload: null });
     } catch (err: any) {
-      console.error("Failed to load expenses", err);
+      logger.error("Failed to load expenses", err);
       dispatch({ type: "SET_ERROR", payload: "Failed to load expenses" });
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
@@ -114,7 +115,7 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
       const newExpense = await createExpense(user.id, expense);
       dispatch({ type: "ADD_EXPENSE", payload: newExpense });
     } catch (err) {
-      console.error("Failed to add expense", err);
+      logger.error("Failed to add expense", err);
     }
   };
 
@@ -125,7 +126,7 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "SET_LOADING", payload: true });
       await loadExpenses();
     } catch (err) {
-      console.error("Failed to update expense", err);
+      logger.error("Failed to update expense", err);
     }
   };
 
@@ -135,7 +136,7 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
       await deleteExpenseApi(user.id, id);
       dispatch({ type: "DELETE_EXPENSE", payload: id });
     } catch (err) {
-      console.error("Failed to delete expense", err);
+      logger.error("Failed to delete expense", err);
     }
   };
 

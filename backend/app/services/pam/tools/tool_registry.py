@@ -9,26 +9,13 @@ import json
 from typing import Dict, List, Any, Optional, Union, Callable
 from datetime import datetime
 from dataclasses import dataclass, asdict
-from enum import Enum
 
 from app.core.logging import get_logger
+from .tool_capabilities import ToolCapability, normalize_capability
 from .base_tool import BaseTool
+from .import_utils import lazy_import
 
 logger = get_logger(__name__)
-
-
-class ToolCapability(Enum):
-    """Tool capability types"""
-    LOCATION_SEARCH = "location_search"
-    WEB_SCRAPING = "web_scraping" 
-    MEDIA_SEARCH = "media_search"
-    USER_DATA = "user_data"
-    MEMORY = "memory"
-    CALCULATION = "calculation"
-    EXTERNAL_API = "external_api"
-    FINANCIAL = "financial"
-    TRIP_PLANNING = "trip_planning"
-    WEATHER = "weather"
 
 
 @dataclass
@@ -98,21 +85,34 @@ class ToolRegistry:
             raise
     
     async def _initialize_tool(self, tool_name: str, tool: BaseTool):
-        """Initialize a single tool with error handling"""
+        """Initialize a single tool with error handling and graceful degradation"""
         try:
-            await tool.initialize()
+            # Set a timeout for tool initialization to prevent hanging
+            await asyncio.wait_for(tool.initialize(), timeout=10.0)
             logger.info(f"✅ Tool '{tool_name}' initialized successfully")
-        except Exception as e:
-            logger.error(f"❌ Tool '{tool_name}' initialization failed: {e}")
-            # Disable tool if initialization fails
+            return True
+        except asyncio.TimeoutError:
+            logger.warning(f"⏱️ Tool '{tool_name}' initialization timed out - disabling")
             if tool_name in self.tool_definitions:
                 self.tool_definitions[tool_name].enabled = False
+            return False
+        except ImportError as e:
+            logger.warning(f"📦 Tool '{tool_name}' dependencies missing: {e} - skipping")
+            if tool_name in self.tool_definitions:
+                self.tool_definitions[tool_name].enabled = False
+            return False
+        except Exception as e:
+            logger.error(f"❌ Tool '{tool_name}' initialization failed: {e}")
+            # Disable tool if initialization fails, but don't crash the registry
+            if tool_name in self.tool_definitions:
+                self.tool_definitions[tool_name].enabled = False
+            return False
     
     def register_tool(
         self, 
         tool: BaseTool, 
         function_definition: Optional[Dict[str, Any]] = None,
-        capability: ToolCapability = ToolCapability.EXTERNAL_API,
+        capability: Union[ToolCapability, str] = ToolCapability.EXTERNAL_API,
         priority: int = 1,
         max_execution_time: int = 30
     ):
@@ -130,6 +130,9 @@ class ToolRegistry:
         
         if tool_name in self.tools:
             logger.warning(f"⚠️ Tool '{tool_name}' already registered, overwriting")
+        
+        # Normalize capability to prevent enum conflicts
+        normalized_capability = normalize_capability(capability)
         
         # Register the tool instance
         self.tools[tool_name] = tool
@@ -161,7 +164,7 @@ class ToolRegistry:
             name=tool_name,
             description=description,
             parameters=parameters,
-            capability=capability,
+            capability=normalized_capability,
             priority=priority,
             max_execution_time=max_execution_time,
             requires_user_context=hasattr(tool, 'requires_user_context') and tool.requires_user_context
@@ -176,7 +179,7 @@ class ToolRegistry:
             "last_execution": None
         }
         
-        logger.info(f"📝 Registered tool: {tool_name} ({capability.value})")
+        logger.info(f"📝 Registered tool: {tool_name} ({normalized_capability.value})")
     
     def get_openai_functions(
         self, 
@@ -398,36 +401,56 @@ async def initialize_tool_registry() -> ToolRegistry:
         return registry
     
     try:
-        # Import and register all available tools
-        await _register_all_tools(registry)
+        # Import and register all available tools with graceful error handling
+        registered_count, failed_count = await _register_all_tools(registry)
         
-        # Initialize the registry
-        await registry.initialize()
+        # Initialize the registry (this should not fail even if some tools are missing)
+        try:
+            await registry.initialize()
+            logger.info(f"🎯 Tool registry initialization complete: {registered_count} tools active")
+        except Exception as init_error:
+            logger.error(f"❌ Tool registry initialization failed: {init_error}")
+            # Don't re-raise - return a partially functional registry
+            logger.warning("⚠️ Returning partially functional tool registry")
         
         return registry
         
     except Exception as e:
         logger.error(f"❌ Failed to initialize tool registry: {e}")
-        raise
+        # Return an empty but functional registry instead of crashing
+        logger.warning("🆘 Returning empty tool registry as fallback")
+        empty_registry = ToolRegistry()
+        empty_registry.is_initialized = True
+        return empty_registry
 
 
 async def _register_all_tools(registry: ToolRegistry):
-    """Register all available PAM tools"""
+    """Register all available PAM tools with graceful error handling"""
     logger.info("📋 Registering PAM tools...")
+    
+    registered_count = 0
+    failed_count = 0
     
     # Financial Tools - Core expense and budget management using WinsNode
     try:
-        from ..nodes.wins_node import wins_node
+        logger.debug("🔄 Attempting to register Financial tools...")
+        wins_node = lazy_import("app.services.pam.nodes.wins_node", "wins_node")
+        
+        if wins_node is None:
+            raise ImportError("WinsNode not available")
         
         # Create wrapper class for WinsNode financial operations
-        class FinanceToolWrapper:
+        class FinanceToolWrapper(BaseTool):
             def __init__(self):
-                self.tool_name = "manage_finances"
+                super().__init__(
+                    "manage_finances",
+                    "Manage expenses, budgets, and financial tracking"
+                )
                 self.wins_node = wins_node
             
             async def initialize(self):
                 # WinsNode is already initialized
-                pass
+                self.is_initialized = True
             
             async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
                 action = params.get("action")
@@ -561,13 +584,22 @@ async def _register_all_tools(registry: ToolRegistry):
             priority=1
         )
         logger.info("✅ Financial tools registered")
+        registered_count += 1
         
     except ImportError as e:
         logger.warning(f"⚠️ Could not register Financial tools: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Financial tools registration failed: {e}")
+        failed_count += 1
     
     # Mapbox Tool for trip planning
     try:
-        from .mapbox_tool import MapboxTool
+        logger.debug("🔄 Attempting to register Mapbox tool...")
+        MapboxTool = lazy_import("app.services.pam.tools.mapbox_tool", "MapboxTool")
+        
+        if MapboxTool is None:
+            raise ImportError("MapboxTool not available")
         
         registry.register_tool(
             tool=MapboxTool(),
@@ -607,13 +639,22 @@ async def _register_all_tools(registry: ToolRegistry):
             priority=1
         )
         logger.info("✅ Mapbox tool registered")
+        registered_count += 1
         
     except ImportError as e:
         logger.warning(f"⚠️ Could not register Mapbox tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Mapbox tool registration failed: {e}")
+        failed_count += 1
     
     # Weather Tool for travel safety
     try:
-        from .weather_tool import WeatherTool
+        logger.debug("🔄 Attempting to register Weather tool...")
+        WeatherTool = lazy_import("app.services.pam.tools.weather_tool", "WeatherTool")
+        
+        if WeatherTool is None:
+            raise ImportError("WeatherTool not available")
         
         registry.register_tool(
             tool=WeatherTool(),
@@ -644,13 +685,22 @@ async def _register_all_tools(registry: ToolRegistry):
             priority=2
         )
         logger.info("✅ Weather tool registered")
+        registered_count += 1
         
     except ImportError as e:
         logger.warning(f"⚠️ Could not register Weather tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Weather tool registration failed: {e}")
+        failed_count += 1
     
     # Google Places Tool (existing)
     try:
-        from .google_places_tool import GooglePlacesTool
+        logger.debug("🔄 Attempting to register Google Places tool...")
+        GooglePlacesTool = lazy_import("app.services.pam.tools.google_places_tool", "GooglePlacesTool")
+        
+        if GooglePlacesTool is None:
+            raise ImportError("GooglePlacesTool not available")
         
         registry.register_tool(
             tool=GooglePlacesTool(),
@@ -689,13 +739,22 @@ async def _register_all_tools(registry: ToolRegistry):
             capability=ToolCapability.LOCATION_SEARCH,
             priority=2
         )
+        registered_count += 1
         
     except ImportError as e:
         logger.warning(f"⚠️ Could not register Google Places tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Google Places tool registration failed: {e}")
+        failed_count += 1
     
     # YouTube Trip Tool
     try:
-        from .youtube_trip_tool import YouTubeTripTool
+        logger.debug("🔄 Attempting to register YouTube Trip tool...")
+        YouTubeTripTool = lazy_import("app.services.pam.tools.youtube_trip_tool", "YouTubeTripTool")
+        
+        if YouTubeTripTool is None:
+            raise ImportError("YouTubeTripTool not available")
         
         registry.register_tool(
             tool=YouTubeTripTool(),
@@ -725,13 +784,22 @@ async def _register_all_tools(registry: ToolRegistry):
             capability=ToolCapability.MEDIA_SEARCH,
             priority=2
         )
+        registered_count += 1
         
     except ImportError as e:
         logger.warning(f"⚠️ Could not register YouTube Trip tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ YouTube Trip tool registration failed: {e}")
+        failed_count += 1
     
     # Web Scraper Tool
     try:
-        from .webscraper_tool import WebScraperTool
+        logger.debug("🔄 Attempting to register Web Scraper tool...")
+        WebScraperTool = lazy_import("app.services.pam.tools.webscraper_tool", "WebScraperTool")
+        
+        if WebScraperTool is None:
+            raise ImportError("WebScraperTool not available")
         
         registry.register_tool(
             tool=WebScraperTool(),
@@ -761,14 +829,20 @@ async def _register_all_tools(registry: ToolRegistry):
             capability=ToolCapability.WEB_SCRAPING,
             priority=2
         )
+        registered_count += 1
         
     except ImportError as e:
         logger.warning(f"⚠️ Could not register Web Scraper tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Web Scraper tool registration failed: {e}")
+        failed_count += 1
     
     # Memory Tools
     try:
-        from .load_recent_memory import load_recent_memory
-        from .load_user_profile import load_user_profile
+        logger.debug("🔄 Attempting to register Memory tools...")
+        load_recent_memory = lazy_import("app.services.pam.tools.load_recent_memory", "load_recent_memory")
+        load_user_profile = lazy_import("app.services.pam.tools.load_user_profile", "load_user_profile")
         
         # Note: These are functions, not classes, so we need wrapper tools
         # This would require creating wrapper tool classes or converting them
@@ -776,4 +850,13 @@ async def _register_all_tools(registry: ToolRegistry):
     except ImportError as e:
         logger.debug(f"Memory tools not available: {e}")
     
-    logger.info("✅ PAM tool registration completed")
+    # Registration summary
+    total_attempted = registered_count + failed_count
+    success_rate = (registered_count / total_attempted * 100) if total_attempted > 0 else 0
+    
+    logger.info(f"✅ PAM tool registration completed: {registered_count}/{total_attempted} tools registered ({success_rate:.1f}% success rate)")
+    
+    if failed_count > 0:
+        logger.warning(f"⚠️ {failed_count} tools failed to register - PAM will function with reduced capabilities")
+    
+    return registered_count, failed_count

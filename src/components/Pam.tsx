@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
+
+// Always enable PAM as a core feature
+const pamEnabled = true;
+
+// Regular imports
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
@@ -10,25 +16,14 @@ import { pamFeedbackService } from "@/services/pamFeedbackService";
 import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
-import { 
-  WebSocketAuthManager, 
-  getValidAccessToken, 
-  createAuthenticatedWebSocketUrl 
-} from "@/utils/websocketAuth";
-import { 
-  AuthErrorHandler, 
-  mapWebSocketCloseCodeToAuthError,
-  mapHttpStatusToAuthError 
-} from "@/utils/authErrorHandler";
-import { AuthTestSuite, quickAuthCheck } from "@/utils/authTestSuite";
 import { audioManager } from "@/utils/audioManager";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { pamAgenticService } from "@/services/pamAgenticService";
-import { VoiceInterface, VoiceInterfaceHandle } from "@/components/voice/VoiceInterface";
-import { VoiceErrorBoundary } from "@/components/voice/VoiceErrorBoundary";
+import { logger } from '../lib/logger';
+
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -62,7 +57,8 @@ interface PamProps {
   mode?: "floating" | "sidebar" | "modal";
 }
 
-const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
+// The actual PAM implementation
+const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const { user, session } = useAuth();
   const { settings, updateSettings } = useUserSettings();
   const [isOpen, setIsOpen] = useState(false);
@@ -122,7 +118,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     ttsQueueRef.current = new TTSQueueManager(
       (isSpeaking) => setIsSpeaking(isSpeaking),
-      () => console.log('🔇 Speech interrupted')
+      () => logger.debug('🔇 Speech interrupted')
     );
     
     return () => {
@@ -150,12 +146,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     // User speech start - interrupt PAM if speaking
     vadService.onSpeechStart((result) => {
-      console.log('🎤 VAD detected user speech start:', result);
+      logger.debug('🎤 VAD detected user speech start:', result);
       setConversationState(prev => ({ ...prev, userSpeaking: true }));
       
       // Interrupt PAM if currently speaking
       if (isSpeaking && currentAudio && !currentAudio.paused) {
-        console.log('🔇 VAD interrupting PAM speech due to user speaking');
+        logger.debug('🔇 VAD interrupting PAM speech due to user speaking');
         currentAudio.pause();
         currentAudio.currentTime = 0;
         setIsSpeaking(false);
@@ -165,7 +161,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     // User speech end - update conversation state
     vadService.onSpeechEnd((result) => {
-      console.log('🔇 VAD detected user speech end:', result);
+      logger.debug('🔇 VAD detected user speech end:', result);
       setConversationState(prev => ({ 
         ...prev, 
         userSpeaking: false,
@@ -196,39 +192,74 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const voiceInterfaceRef = useRef<VoiceInterfaceHandle>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownWelcomeRef = useRef(false);
-  const authManagerRef = useRef<WebSocketAuthManager>(new WebSocketAuthManager({
-    maxRetries: 3,
-    retryDelay: 1000,
-    refreshThreshold: 5 // Refresh if token expires in 5 minutes
-  }));
-  const authErrorHandler = new AuthErrorHandler();
+  const tokenRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const connectionStartTimeRef = useRef<number>(0);
+  const reconnectAttemptsRef = useRef<number>(0);
   
   const sessionToken = session?.access_token;
 
+  // Set up periodic JWT token refresh to prevent expiry during long sessions
+  useEffect(() => {
+    if (!pamEnabled || !user?.id) return;
+    
+    // Clear any existing refresh interval
+    if (tokenRefreshIntervalRef.current) {
+      clearInterval(tokenRefreshIntervalRef.current);
+    }
+    
+    // Set up token refresh every 30 minutes (tokens typically expire in 1 hour)
+    tokenRefreshIntervalRef.current = setInterval(async () => {
+      logger.debug('🔄 PAM: Refreshing JWT token proactively...');
+      
+      const { data: { session: newSession }, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        logger.error('❌ PAM: Failed to refresh token:', error);
+        // If refresh fails, try to reconnect which will handle auth properly
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.close();
+        }
+        connectToBackend();
+      } else if (newSession) {
+        logger.debug('✅ PAM: Token refreshed successfully');
+        
+        // If WebSocket is open, send a token update message (if backend supports it)
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            type: 'token_refresh',
+            token: newSession.access_token
+          }));
+        }
+      }
+    }, 30 * 60 * 1000); // 30 minutes
+    
+    return () => {
+      if (tokenRefreshIntervalRef.current) {
+        clearInterval(tokenRefreshIntervalRef.current);
+        tokenRefreshIntervalRef.current = null;
+      }
+    };
+  }, [user?.id, pamEnabled]);
+  
   // Load user context and memory when component mounts
   useEffect(() => {
-    console.log('🚀 PAM useEffect triggered with user:', { userId: user?.id, hasUser: !!user, hasSession: !!session });
+    // Guard: Don't run side effects if PAM is disabled
+    if (!pamEnabled) return;
+    
+    logger.debug('🚀 PAM useEffect triggered with user:', { userId: user?.id, hasUser: !!user, hasSession: !!session });
     
     // Expose test functions to window for debugging (development only)
     if (import.meta.env.DEV) {
       (window as any).testPamConnection = testMinimalConnection;
-      (window as any).runAuthTests = async () => {
-        const testSuite = new AuthTestSuite();
-        return await testSuite.runFullTestSuite();
-      };
-      (window as any).quickAuthCheck = quickAuthCheck;
       
-      console.log('🧪 PAM DEBUG: Test functions exposed:');
-      console.log('  - window.testPamConnection() - Original connection test');
-      console.log('  - window.runAuthTests() - Full authentication test suite');
-      console.log('  - window.quickAuthCheck() - Quick auth health check');
+      logger.debug('🧪 PAM DEBUG: Test functions exposed:');
+      logger.debug('  - window.testPamConnection() - Original connection test');
     }
     
     if (user?.id) {
-      console.log('📋 PAM: Loading user context and connecting...');
+      logger.debug('📋 PAM: Loading user context and connecting...');
       
       // Persist session ID for conversation continuity
       localStorage.setItem('pam_session_id', sessionId);
@@ -237,7 +268,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       loadConversationMemory();
       connectToBackend();
     } else {
-      console.log('❌ PAM: No user ID, skipping connection');
+      logger.debug('❌ PAM: No user ID, skipping connection');
     }
     // eslint-disable-next-line
   }, [user?.id, sessionId]);
@@ -256,10 +287,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               current_location: locationString,
               location_source: 'trip_planner'
             }));
-            console.log('📍 Updated PAM location context from trip planner:', locationString);
+            logger.debug('📍 Updated PAM location context from trip planner:', locationString);
           }
         } catch (error) {
-          console.warn('⚠️ Failed to update location context:', error);
+          logger.warn('⚠️ Failed to update location context:', error);
         }
       }
     };
@@ -271,7 +302,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     const handleOpenWithMessage = (event: CustomEvent) => {
       const { message } = event.detail;
-      console.log('🎯 PAM: Opening with message:', message);
+      logger.debug('🎯 PAM: Opening with message:', message);
       setIsOpen(true);
       setInputMessage(message);
       // Focus input after a brief delay to ensure component is rendered
@@ -281,7 +312,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     };
 
     const handleOpen = () => {
-      console.log('🎯 PAM: Opening');
+      logger.debug('🎯 PAM: Opening');
       setIsOpen(true);
       setTimeout(() => {
         inputRef.current?.focus();
@@ -290,7 +321,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     const handleSendMessageEvent = (event: CustomEvent) => {
       const { message } = event.detail;
-      console.log('🎯 PAM: Sending message:', message);
+      logger.debug('🎯 PAM: Sending message:', message);
       if (isOpen) {
         setInputMessage(message);
         // Auto-send the message
@@ -336,7 +367,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       let contextData = {};
       if (response.ok) {
         const data = await response.json();
-        console.log('📋 Loaded user context:', data);
+        logger.debug('📋 Loaded user context:', data);
         contextData = data?.context_updates || data?.actions || data;
       }
 
@@ -355,17 +386,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               current_location: locationString,
               location_source: 'trip_planner'
             };
-            console.log('📍 Added location from trip planner:', locationString);
+            logger.debug('📍 Added location from trip planner:', locationString);
             locationObtained = true;
           }
         } catch (error) {
-          console.warn('⚠️ Failed to fetch location from trip planner:', error);
+          logger.warn('⚠️ Failed to fetch location from trip planner:', error);
         }
       }
       
       // Second try: If no location from trip planner, request fresh location
       if (!locationObtained) {
-        console.log('📍 No location from trip planner, requesting fresh location for PAM');
+        logger.debug('📍 No location from trip planner, requesting fresh location for PAM');
         const location = await requestUserLocation();
         if (location) {
           const locationString = `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
@@ -374,24 +405,24 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             current_location: locationString,
             location_source: 'geolocation'
           };
-          console.log('📍 Got fresh location for PAM:', locationString);
+          logger.debug('📍 Got fresh location for PAM:', locationString);
         }
       }
 
       setUserContext(contextData);
     } catch (error) {
-      console.error('Failed to load user context:', error);
+      logger.error('Failed to load user context:', error);
     }
   };
 
   const requestUserLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
     if (isRequestingLocation) {
-      console.log('📍 Location request already in progress');
+      logger.debug('📍 Location request already in progress');
       return null;
     }
 
     if (!navigator.geolocation) {
-      console.error('❌ Geolocation not supported');
+      logger.error('❌ Geolocation not supported');
       addMessage("I'm sorry, but location services are not available in your browser. You can tell me your location manually for better assistance.", "pam");
       return null;
     }
@@ -401,7 +432,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     try {
       // First, check if we already have location from the tracking service
       if (locationState?.isTracking && user?.id) {
-        console.log('📍 Using existing location from tracking service');
+        logger.debug('📍 Using existing location from tracking service');
         const userLocation = await locationService.getUserLocation(user.id);
         if (userLocation && userLocation.current_latitude && userLocation.current_longitude) {
           const { current_latitude, current_longitude } = userLocation;
@@ -420,7 +451,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
             const { latitude, longitude } = position.coords;
-            console.log('📍 Successfully got user location:', { latitude, longitude });
+            logger.debug('📍 Successfully got user location:', { latitude, longitude });
             
             // Update user context with fresh location
             const locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
@@ -438,9 +469,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   current_longitude: longitude,
                   status: 'active'
                 });
-                console.log('✅ Location stored in database');
+                logger.debug('✅ Location stored in database');
               } catch (error) {
-                console.warn('⚠️ Failed to update location in database:', error);
+                logger.warn('⚠️ Failed to update location in database:', error);
               }
             }
             
@@ -448,7 +479,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             resolve({ latitude, longitude });
           },
           (error) => {
-            console.error('❌ Failed to get location:', error);
+            logger.error('❌ Failed to get location:', error);
             setIsRequestingLocation(false);
             
             let errorMessage = "I couldn't access your location. ";
@@ -478,7 +509,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         );
       });
     } catch (error) {
-      console.error('❌ Location request error:', error);
+      logger.error('❌ Location request error:', error);
       setIsRequestingLocation(false);
       return null;
     }
@@ -488,7 +519,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     try {
       // Try to get rough location from timezone
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      console.log('🌍 Detected timezone:', timezone);
+      logger.debug('🌍 Detected timezone:', timezone);
       
       // Map common timezones to general locations
       const timezoneLocations: { [key: string]: string } = {
@@ -507,17 +538,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       const approximateLocation = timezoneLocations[timezone];
       if (approximateLocation) {
-        console.log('🌍 Approximate location detected:', approximateLocation);
+        logger.debug('🌍 Approximate location detected:', approximateLocation);
         return approximateLocation;
       }
       
       // Extract region from timezone as fallback
       const region = timezone.split('/')[1]?.replace('_', ' ') || timezone;
-      console.log('🌍 Region fallback:', region);
+      logger.debug('🌍 Region fallback:', region);
       return region;
       
     } catch (error) {
-      console.warn('⚠️ Failed to detect fallback location:', error);
+      logger.warn('⚠️ Failed to detect fallback location:', error);
       return null;
     }
   };
@@ -531,7 +562,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           const parsed = JSON.parse(savedState);
           if (parsed.messages && Array.isArray(parsed.messages)) {
             setMessages(parsed.messages);
-            console.log('📚 PAM: Restored conversation from localStorage:', parsed.messages.length, 'messages');
+            logger.debug('📚 PAM: Restored conversation from localStorage:', parsed.messages.length, 'messages');
             
             // Restore session ID if available
             if (parsed.sessionId) {
@@ -540,7 +571,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             return; // Successfully restored from localStorage
           }
         } catch (parseError) {
-          console.warn('⚠️ Could not parse saved conversation state:', parseError);
+          logger.warn('⚠️ Could not parse saved conversation state:', parseError);
         }
       }
       
@@ -565,10 +596,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           context: m.context
         })) || [];
         setMessages(memoryMessages);
-        console.log('📚 PAM: Loaded conversation from backend:', memoryMessages.length, 'messages');
+        logger.debug('📚 PAM: Loaded conversation from backend:', memoryMessages.length, 'messages');
       }
     } catch (error) {
-      console.error('Failed to load conversation memory:', error);
+      logger.error('Failed to load conversation memory:', error);
     }
   };
 
@@ -576,27 +607,28 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     try {
       // Use PAM's built-in memory system instead of generic actions endpoint
       // The PAM chat endpoint automatically saves conversation history
-      console.log('💾 Saving to PAM memory:', { message: message.substring(0, 100), sender, user_id: user?.id });
+      logger.debug('💾 Saving to PAM memory:', { message: message.substring(0, 100), sender, user_id: user?.id });
       
       // PAM automatically saves messages when processing them through the chat endpoint
       // No need for explicit memory saving as it's handled by the agentic orchestrator
       
     } catch (error) {
-      console.error('Failed to save to memory:', error);
+      logger.error('Failed to save to memory:', error);
     }
   };
 
   const testRestApiConnection = async () => {
     try {
-      console.log('🔄 Testing REST API connection...');
+      logger.debug('🔄 Testing REST API connection...');
       
       // First try the health endpoint (no auth required)
-      const healthResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}/health`);
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      const healthResponse = await fetch(`${backendUrl}/health`);
       if (!healthResponse.ok) {
         throw new Error('Backend health check failed');
       }
       
-      console.log('✅ Backend health check passed');
+      logger.debug('✅ Backend health check passed');
       
       // Try PAM chat endpoint with authentication
       const response = await authenticatedFetch('/api/v1/pam/chat', {
@@ -612,13 +644,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ REST API connection successful:', data);
+        logger.debug('✅ REST API connection successful:', data);
         const pamResponse = data.response || data.message || data.content || "Hello! I'm PAM and I'm working properly now!";
         addMessage(pamResponse, "pam");
         setConnectionStatus("Connected");
       } else {
         const errorText = await response.text();
-        console.error('❌ REST API connection failed:', response.status, response.statusText, errorText);
+        logger.error('❌ REST API connection failed:', response.status, response.statusText, errorText);
         
         // Try to parse error details
         let errorDetail = 'Unknown error';
@@ -632,15 +664,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         addMessage(`❌ Connection issue: ${errorDetail}. I'm working on reconnecting...`, "pam");
       }
     } catch (error) {
-      console.error('❌ REST API test failed:', error);
+      logger.error('❌ REST API test failed:', error);
       addMessage("❌ Backend services are currently unavailable. Please try again later. In the meantime, I can help you with general travel advice!", "pam");
     }
   };
 
   const connectToBackend = useCallback(async () => {
-    console.log('🚀 PAM DEBUG: ==================== CONNECTION START ====================');
-    console.log('🚀 PAM DEBUG: connectToBackend called');
-    console.log('🚀 PAM DEBUG: User context:', { 
+    logger.debug('🚀 PAM DEBUG: ==================== CONNECTION START ====================');
+    logger.debug('🚀 PAM DEBUG: connectToBackend called');
+    logger.debug('🚀 PAM DEBUG: User context:', { 
       userId: user?.id, 
       userEmail: user?.email,
       hasUser: !!user,
@@ -650,21 +682,21 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     });
     
     if (!user?.id) {
-      console.error('❌ PAM DEBUG: No user ID available, cannot connect');
-      console.log('❌ PAM DEBUG: User object:', user);
-      console.log('❌ PAM DEBUG: Session object:', session);
+      logger.error('❌ PAM DEBUG: No user ID available, cannot connect');
+      logger.debug('❌ PAM DEBUG: User object:', user);
+      logger.debug('❌ PAM DEBUG: Session object:', session);
       return;
     }
 
-    console.log('🏥 PAM DEBUG: ==================== HEALTH CHECK ====================');
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
-    console.log('🏥 PAM DEBUG: Backend URL:', backendUrl);
-    console.log('🏥 PAM DEBUG: Health check URL:', `${backendUrl}/health`);
+    logger.debug('🏥 PAM DEBUG: ==================== HEALTH CHECK ====================');
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+    logger.debug('🏥 PAM DEBUG: Backend URL:', backendUrl);
+    logger.debug('🏥 PAM DEBUG: Health check URL:', `${backendUrl}/health`);
     
     // Health check with enhanced logging
     try {
       const healthStartTime = Date.now();
-      console.log('🏥 PAM DEBUG: Starting health check at:', new Date().toISOString());
+      logger.debug('🏥 PAM DEBUG: Starting health check at:', new Date().toISOString());
       
       const healthResponse = await fetch(`${backendUrl}/health`, {
         method: 'GET',
@@ -672,14 +704,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       });
       
       const healthTime = Date.now() - healthStartTime;
-      console.log('🏥 PAM DEBUG: Health check completed in:', healthTime + 'ms');
-      console.log('🏥 PAM DEBUG: Health response status:', healthResponse.status);
-      console.log('🏥 PAM DEBUG: Health response ok:', healthResponse.ok);
+      logger.debug('🏥 PAM DEBUG: Health check completed in:', healthTime + 'ms');
+      logger.debug('🏥 PAM DEBUG: Health response status:', healthResponse.status);
+      logger.debug('🏥 PAM DEBUG: Health response ok:', healthResponse.ok);
       
       if (!healthResponse.ok) {
-        console.warn('⚠️ PAM DEBUG: Backend health check failed');
-        console.warn('⚠️ PAM DEBUG: Response status:', healthResponse.status);
-        console.warn('⚠️ PAM DEBUG: Response statusText:', healthResponse.statusText);
+        logger.warn('⚠️ PAM DEBUG: Backend health check failed');
+        logger.warn('⚠️ PAM DEBUG: Response status:', healthResponse.status);
+        logger.warn('⚠️ PAM DEBUG: Response statusText:', healthResponse.statusText);
         
         setConnectionStatus("Disconnected");
         addMessage("🤖 Hi! I'm PAM. Backend health check failed. Let me try to establish a connection...", "pam");
@@ -688,114 +720,129 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
       
       const healthData = await healthResponse.json();
-      console.log('✅ PAM DEBUG: Health check successful:', healthData);
+      logger.debug('✅ PAM DEBUG: Health check successful:', healthData);
       
     } catch (error) {
-      console.error('❌ PAM DEBUG: Health check error:', error);
-      console.error('❌ PAM DEBUG: Error type:', error.constructor.name);
-      console.error('❌ PAM DEBUG: Error message:', error.message);
-      console.error('❌ PAM DEBUG: Error stack:', error.stack);
+      logger.error('❌ PAM DEBUG: Health check error:', error);
+      logger.error('❌ PAM DEBUG: Error type:', error.constructor.name);
+      logger.error('❌ PAM DEBUG: Error message:', error.message);
+      logger.error('❌ PAM DEBUG: Error stack:', error.stack);
       
       setConnectionStatus("Disconnected");
       addMessage("🤖 Hi! I'm PAM. Backend health check failed, but I can still help using REST API.", "pam");
       return;
     }
 
-    console.log('🔧 PAM DEBUG: ==================== WEBSOCKET SETUP ====================');
+    logger.debug('🔧 PAM DEBUG: ==================== WEBSOCKET SETUP ====================');
     
     try {
-      // Step 1: Get valid JWT token using new authentication manager
-      console.log('🔧 PAM DEBUG: Getting valid JWT token for WebSocket...');
-      const tokenResult = await authManagerRef.current.getValidTokenWithRetry();
+      // Step 1: Get valid JWT token from Supabase session
+      logger.debug('🔧 PAM DEBUG: Getting valid JWT token for WebSocket...');
       
-      if (!tokenResult.isValid || !tokenResult.token) {
-        console.error('❌ PAM DEBUG: Failed to get valid token:', tokenResult.error);
+      // Get current session and token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session || !session.access_token) {
+        logger.error('❌ PAM DEBUG: Failed to get valid token - no active session');
         setConnectionStatus("Disconnected");
-        addMessage(`🤖 Hi! I'm PAM. Authentication failed: ${tokenResult.error}. Please try logging out and back in.`, "pam");
+        addMessage(`🤖 Hi! I'm PAM. Authentication failed - no valid session. Please try logging out and back in.`, "pam");
         return;
       }
       
-      console.log('✅ PAM DEBUG: Valid JWT token obtained:', {
-        tokenLength: tokenResult.token.length,
-        tokenPreview: tokenResult.token.substring(0, 30) + '...',
-        expiresAt: tokenResult.expiresAt,
-        needsRefresh: tokenResult.needsRefresh
-      });
+      // Create pamToken object with the expected format
+      const pamToken = {
+        value: session.access_token,
+        kind: 'jwt'
+      };
       
-      // CRITICAL: Verify this is actually a JWT, not a UUID
-      if (tokenResult.token.includes('-') && tokenResult.token.length === 36) {
-        console.error('❌ PAM DEBUG: ERROR - Token appears to be a UUID, not a JWT!');
-        console.error('❌ PAM DEBUG: Token value:', tokenResult.token);
-        console.error('❌ PAM DEBUG: This will cause authentication to fail');
+      // Check if token is expired or will expire soon (within 5 minutes)
+      const expiresAt = session.expires_at ? new Date(session.expires_at * 1000) : null;
+      const now = new Date();
+      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+      
+      if (expiresAt && expiresAt < fiveMinutesFromNow) {
+        logger.warn('⚠️ PAM DEBUG: Token expired or expiring soon, refreshing session...');
+        const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
         
-        // Try to get the actual JWT from session
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          console.log('🔄 PAM DEBUG: Found JWT in session, using that instead');
-          tokenResult.token = session.access_token;
-          console.log('✅ PAM DEBUG: JWT token from session:', {
-            tokenLength: session.access_token.length,
-            tokenPreview: session.access_token.substring(0, 30) + '...'
-          });
-        } else {
-          console.error('❌ PAM DEBUG: No JWT found in session either!');
+        if (refreshError || !newSession) {
+          logger.error('❌ PAM DEBUG: Failed to refresh session:', refreshError);
           setConnectionStatus("Disconnected");
-          addMessage("🤖 Hi! I'm PAM. Authentication failed - no valid JWT token found. Please try logging out and back in.", "pam");
+          addMessage(`🤖 Hi! I'm PAM. Session refresh failed. Please try logging out and back in.`, "pam");
           return;
         }
+        
+        logger.debug('✅ PAM DEBUG: Session refreshed successfully');
+      }
+      
+      logger.debug('✅ PAM DEBUG: Valid JWT token obtained:', {
+        tokenLength: pamToken.value.length,
+        tokenPreview: pamToken.value.substring(0, 30) + '...',
+        tokenKind: pamToken.kind,
+        expiresAt: expiresAt?.toISOString()
+      });
+      
+      // Verify this is actually a JWT (3 parts separated by dots)
+      const tokenParts = pamToken.value.split('.');
+      if (tokenParts.length !== 3) {
+        logger.error('❌ PAM DEBUG: Invalid JWT format - expected 3 parts, got', tokenParts.length);
+        setConnectionStatus("Disconnected");
+        addMessage("🤖 Hi! I'm PAM. Invalid token format. Please try logging out and back in.", "pam");
+        return;
       }
       
       // Step 2: Get WebSocket base URL with user ID
-      console.log('🔧 PAM DEBUG: Getting WebSocket base URL...');
+      logger.debug('🔧 PAM DEBUG: Getting WebSocket base URL...');
       // Include user ID in the WebSocket path as backend expects /ws/{user_id}
       const userId = user?.id || 'anonymous';
       const baseWebSocketUrl = getWebSocketUrl(`/api/v1/pam/ws/${userId}`);
-      console.log('🔧 PAM DEBUG: Base WebSocket URL with user ID:', baseWebSocketUrl);
+      logger.debug('🔧 PAM DEBUG: Base WebSocket URL with user ID:', baseWebSocketUrl);
       
       // Step 3: Create authenticated WebSocket URL
-      console.log('🔧 PAM DEBUG: Creating authenticated WebSocket URL...');
-      const wsUrl = createAuthenticatedWebSocketUrl(baseWebSocketUrl, tokenResult.token);
+      logger.debug('🔧 PAM DEBUG: Creating authenticated WebSocket URL...');
+      // Add token as query parameter for WebSocket authentication
+      const wsUrl = `${baseWebSocketUrl}?token=${encodeURIComponent(pamToken.value)}`;
       
       // Step 4: Validate URL format
-      console.log('✅ PAM DEBUG: URL validation:');
-      console.log('✅ PAM DEBUG: - Contains endpoint:', wsUrl.includes('/api/v1/pam/ws'));
-      console.log('✅ PAM DEBUG: - Uses secure protocol:', wsUrl.startsWith('wss://'));
-      console.log('✅ PAM DEBUG: - Contains token parameter:', wsUrl.includes('token='));
+      logger.debug('✅ PAM DEBUG: URL validation:');
+      logger.debug('✅ PAM DEBUG: - Contains endpoint:', wsUrl.includes('/api/v1/pam/ws'));
+      logger.debug('✅ PAM DEBUG: - Uses secure protocol:', wsUrl.startsWith('wss://'));
+      logger.debug('✅ PAM DEBUG: - Using subprotocol authentication');
       
       if (!wsUrl.includes('/api/v1/pam/ws')) {
-        console.error('❌ PAM DEBUG: URL validation failed!');
-        console.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
-        console.error('❌ PAM DEBUG: Actual URL:', wsUrl.substring(0, 100) + '...');
+        logger.error('❌ PAM DEBUG: URL validation failed!');
+        logger.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
+        logger.error('❌ PAM DEBUG: Actual URL:', wsUrl.substring(0, 100) + '...');
         throw new Error('WebSocket endpoint validation failed');
       }
       
-      console.log('🔄 PAM DEBUG: ==================== WEBSOCKET CONNECTION ====================');
+      logger.debug('🔄 PAM DEBUG: ==================== WEBSOCKET CONNECTION ====================');
       setConnectionStatus("Connecting");
-      console.log('🔄 PAM DEBUG: Status set to Connecting');
-      console.log('🔄 PAM DEBUG: Creating WebSocket with URL:', wsUrl);
+      logger.debug('🔄 PAM DEBUG: Status set to Connecting');
+      logger.debug('🔄 PAM DEBUG: Creating WebSocket with URL:', wsUrl);
       
-      const connectionStartTime = Date.now();
+      connectionStartTimeRef.current = Date.now();
       wsRef.current = new WebSocket(wsUrl);
       
-      console.log('🔄 PAM DEBUG: WebSocket created, initial readyState:', wsRef.current.readyState);
-      console.log('🔄 PAM DEBUG: WebSocket URL property:', wsRef.current.url);
-      console.log('🔄 PAM DEBUG: Connection timestamp:', new Date().toISOString());
+      logger.debug('🔄 PAM DEBUG: WebSocket created, initial readyState:', wsRef.current.readyState);
+      logger.debug('🔄 PAM DEBUG: WebSocket URL property:', wsRef.current.url);
+      logger.debug('🔄 PAM DEBUG: Connection timestamp:', new Date().toISOString());
 
       wsRef.current.onopen = (event) => {
-        const connectionTime = Date.now() - connectionStartTime;
-        console.log('✅ PAM DEBUG: ==================== CONNECTION SUCCESS ====================');
-        console.log('✅ PAM DEBUG: WebSocket OPENED successfully!');
-        console.log('✅ PAM DEBUG: Connection time:', connectionTime + 'ms');
-        console.log('✅ PAM DEBUG: Event:', event);
-        console.log('✅ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
-        console.log('✅ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
-        console.log('✅ PAM DEBUG: WebSocket protocol:', wsRef.current?.protocol);
+        const connectionTime = Date.now() - connectionStartTimeRef.current;
+        logger.debug('✅ PAM DEBUG: ==================== CONNECTION SUCCESS ====================');
+        logger.debug('✅ PAM DEBUG: WebSocket OPENED successfully!');
+        logger.debug('✅ PAM DEBUG: Connection time:', connectionTime + 'ms');
+        logger.debug('✅ PAM DEBUG: Event:', event);
+        logger.debug('✅ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
+        logger.debug('✅ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
+        logger.debug('✅ PAM DEBUG: WebSocket protocol:', wsRef.current?.protocol);
         
         setConnectionStatus("Connected");
         setReconnectAttempts(0);
+        reconnectAttemptsRef.current = 0;
         
-        console.log('✅ PAM DEBUG: Connection status updated to Connected');
-        console.log('✅ PAM DEBUG: WebSocket ready state:', wsRef.current?.readyState);
+        logger.debug('✅ PAM DEBUG: Connection status updated to Connected');
+        logger.debug('✅ PAM DEBUG: WebSocket ready state:', wsRef.current?.readyState);
         
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
@@ -815,26 +862,26 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           }
         };
         
-        console.log('📍 PAM DEBUG: Sending init message with location:', initMessage);
+        logger.debug('📍 PAM DEBUG: Sending init message with location:', initMessage);
         wsRef.current.send(JSON.stringify(initMessage));
         
         if (messages.length === 0 && !hasShownWelcomeRef.current) {
-          console.log('💬 PAM DEBUG: Adding greeting message');
+          logger.debug('💬 PAM DEBUG: Adding greeting message');
           addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
           hasShownWelcomeRef.current = true;
         } else {
-          console.log('📚 PAM DEBUG: Restoring existing conversation');
+          logger.debug('📚 PAM DEBUG: Restoring existing conversation');
         }
       };
 
       wsRef.current.onmessage = async (event) => {
-        console.log('📨 PAM DEBUG: Message received:', event.data);
+        logger.debug('📨 PAM DEBUG: Message received:', event.data);
         try {
           const message = JSON.parse(event.data);
-          console.log('📨 PAM DEBUG: Parsed message:', message);
-          console.log('📨 PAM DEBUG: Message type:', message.type);
-          console.log('📨 PAM DEBUG: Message keys:', Object.keys(message));
-          console.log('📨 PAM DEBUG: Content fields:', {
+          logger.debug('📨 PAM DEBUG: Parsed message:', message);
+          logger.debug('📨 PAM DEBUG: Message type:', message.type);
+          logger.debug('📨 PAM DEBUG: Message keys:', Object.keys(message));
+          logger.debug('📨 PAM DEBUG: Content fields:', {
             content: message.content,
             message: message.message,
             response: message.response,
@@ -843,14 +890,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           
           // Handle streaming chat responses
           if (message.type === 'chat_response_start') {
-            console.log('🌊 PAM DEBUG: Streaming response started');
+            logger.debug('🌊 PAM DEBUG: Streaming response started');
             // Show immediate processing indicator
             addMessage(message.message || "🔍 Processing your request...", "pam", undefined, false, 'normal');
             return;
           }
           
           if (message.type === 'chat_response_delta') {
-            console.log('🌊 PAM DEBUG: Streaming delta received:', message.content);
+            logger.debug('🌊 PAM DEBUG: Streaming delta received:', message.content);
             // Update the last PAM message with new content
             setMessages(prev => {
               const lastPamIndex = prev.length - 1;
@@ -877,7 +924,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           }
           
           if (message.type === 'chat_response_complete') {
-            console.log('🌊 PAM DEBUG: Streaming response completed');
+            logger.debug('🌊 PAM DEBUG: Streaming response completed');
             // Mark the last PAM message as complete
             setMessages(prev => {
               const lastPamIndex = prev.length - 1;
@@ -897,12 +944,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           // Handle traditional chat responses (non-streaming fallback)
           if (message.type === 'chat_response' || message.type === 'response') {
             const content = message.content || message.message || message.response;
-            console.log('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
+            logger.debug('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
             
             // Phase 5A: Extract TTS data if present
             const ttsData = message.tts;
             if (ttsData) {
-              console.log('🎵 TTS data received:', {
+              logger.debug('🎵 TTS data received:', {
                 format: ttsData.format,
                 engine: ttsData.engine_used,
                 voice: ttsData.voice_used,
@@ -937,7 +984,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               );
               
               if (needsLocation && !userContext?.current_location) {
-                console.log('📍 PAM is asking for location, offering automatic request');
+                logger.debug('📍 PAM is asking for location, offering automatic request');
                 
                 // Add a helpful message with location request button
                 setTimeout(() => {
@@ -948,7 +995,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                   
                   // Auto-request location after a brief delay
                   setTimeout(async () => {
-                    console.log('📍 Auto-requesting location for better assistance');
+                    logger.debug('📍 Auto-requesting location for better assistance');
                     const location = await requestUserLocation();
                     
                     if (location) {
@@ -985,7 +1032,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 addMessage(content, "pam");
               }
             } else {
-              console.warn('⚠️ Empty content in response:', message);
+              logger.warn('⚠️ Empty content in response:', message);
               addMessage("I received your message but couldn't generate a proper response.", "pam");
             }
             
@@ -1007,38 +1054,37 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           
           // Handle UI action commands
           if (message.type === 'ui_action') {
-            console.log('🎛️ PAM DEBUG: UI action received:', message);
+            logger.debug('🎛️ PAM DEBUG: UI action received:', message);
             handleUIAction(message);
           }
           
           // Handle welcome messages
           if (message.type === 'welcome') {
-            console.log('👋 PAM DEBUG: Welcome message received:', message.message);
+            logger.debug('👋 PAM DEBUG: Welcome message received:', message.message);
           }
           
           // Handle ping/pong for connection health
           if (message.type === 'ping') {
-            console.log('🏓 PAM DEBUG: Ping received, sending pong');
+            logger.debug('🏓 PAM DEBUG: Ping received, sending pong');
             wsRef.current?.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
           }
           
           // Handle voice/STT responses - Phase 5B/5C
           if (message.type === 'stt_result') {
-            console.log('🎤 STT result received:', message);
-            voiceInterfaceRef.current?.updateTranscript(message.text);
-            voiceInterfaceRef.current?.updateStatus('success');
+            logger.debug('🎤 STT result received:', message);
+            // Voice interface removed - transcript handled inline
           }
           
           if (message.type === 'stt_instruction') {
-            console.log('🎤 STT instruction received:', message);
+            logger.debug('🎤 STT instruction received:', message);
             if (message.instruction === 'use_browser_stt') {
-              voiceInterfaceRef.current?.updateStatus('processing');
+              // Voice processing status handled inline
               // Browser STT would be handled client-side
             }
           }
           
           if (message.type === 'stt_capabilities') {
-            console.log('🎤 STT capabilities received:', message);
+            logger.debug('🎤 STT capabilities received:', message);
             // Store capabilities for voice interface if needed
           }
           
@@ -1046,14 +1092,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           if (!['chat_response', 'response', 'ui_action', 'welcome', 'ping', 'pong', 'stt_result', 'stt_instruction', 'stt_capabilities'].includes(message.type)) {
             const fallbackContent = message.content || message.message || message.response || message.text;
             if (fallbackContent && typeof fallbackContent === 'string' && fallbackContent.trim()) {
-              console.log('🔄 PAM DEBUG: Displaying fallback message:', { type: message.type, content: fallbackContent });
+              logger.debug('🔄 PAM DEBUG: Displaying fallback message:', { type: message.type, content: fallbackContent });
               addMessage(fallbackContent, "pam");
             }
           }
           
         } catch (error) {
-          console.error('❌ PAM DEBUG: Error parsing message:', error);
-          console.error('❌ PAM DEBUG: Raw message data:', event.data);
+          logger.error('❌ PAM DEBUG: Error parsing message:', error);
+          logger.error('❌ PAM DEBUG: Raw message data:', event.data);
           
           // Try to display raw message if JSON parsing fails
           if (typeof event.data === 'string' && event.data.trim()) {
@@ -1063,29 +1109,30 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       };
 
       wsRef.current.onclose = (event) => {
-        console.log('🔌 PAM DEBUG: ==================== CONNECTION CLOSED ====================');
-        console.log('🔌 PAM DEBUG: WebSocket closed');
-        console.log('🔌 PAM DEBUG: Close code:', event.code);
-        console.log('🔌 PAM DEBUG: Close reason:', event.reason);
-        console.log('🔌 PAM DEBUG: Was clean:', event.wasClean);
-        console.log('🔌 PAM DEBUG: Close event:', event);
+        wsRef.current = null;
+        setConnectionStatus("Disconnected");
         
-        // Common close codes and their meanings
-        const closeCodeMeanings = {
-          1000: 'Normal closure',
-          1001: 'Going away',
-          1002: 'Protocol error',
-          1003: 'Unsupported data',
-          1006: 'Abnormal closure (no close frame)',
-          1007: 'Invalid frame payload data',
-          1008: 'Policy violation',
-          1009: 'Message too big',
-          1010: 'Missing extension',
-          1011: 'Internal server error',
-          1015: 'TLS handshake failure'
+        // Check if this is an auth failure
+        const connectionDuration = Date.now() - connectionStartTimeRef.current;
+        if (event.code === 1008 || event.code === 401 || connectionDuration < 1000) {
+          addMessage("Session expired. Please sign in again.", "pam");
+          reconnectAttemptsRef.current = 0;
+          return;
+        }
+        
+        // Schedule reconnect with backoff if PAM is enabled
+        if (pamEnabled && reconnectAttemptsRef.current < 4) {
+          const delays = [500, 2000, 5000, 10000];
+          const delay = delays[Math.min(reconnectAttemptsRef.current, delays.length - 1)];
+          reconnectAttemptsRef.current++;
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connectToBackend();
+          }, delay);
+          return;
         };
         
-        console.log('🔌 PAM DEBUG: Close code meaning:', closeCodeMeanings[event.code] || 'Unknown');
+        logger.debug('🔌 PAM DEBUG: Close code meaning:', closeCodeMeanings[event.code] || 'Unknown');
         
         setConnectionStatus("Disconnected");
         
@@ -1096,79 +1143,89 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             sessionId: sessionId,
             timestamp: new Date().toISOString()
           }));
-          console.log('💾 PAM DEBUG: Conversation state saved');
+          logger.debug('💾 PAM DEBUG: Conversation state saved');
         } catch (error) {
-          console.warn('⚠️ PAM DEBUG: Could not save conversation state:', error);
+          logger.warn('⚠️ PAM DEBUG: Could not save conversation state:', error);
         }
         
-        // Enhanced reconnection logic with comprehensive authentication error handling
-        // Stop reconnecting if we're getting authentication errors repeatedly
-        if (event.code === 1008 && reconnectAttempts >= 2) {
-          console.error('🔐 PAM DEBUG: Authentication failing repeatedly, stopping reconnection');
-          setConnectionStatus("Disconnected");
-          if (!hasShownWelcomeRef.current) {
-            addMessage("🤖 I'm having trouble connecting. Please try refreshing the page.", "pam");
-            hasShownWelcomeRef.current = true;
-          }
+        // Enhanced reconnection logic with JWT authentication error handling
+        const authFailureCodes = [1008, 3000, 4000, 4001, 4401, 4403];
+        const isAuthError = authFailureCodes.includes(event.code) || 
+                           event.reason?.toLowerCase().includes('auth') ||
+                           event.reason?.toLowerCase().includes('token');
+        
+        if (isAuthError) {
+          logger.error('🔐 PAM DEBUG: Authentication error detected, attempting to refresh session');
+          
+          // Try to refresh the JWT token (wrapped in async function)
+          (async () => {
+            const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+            
+            if (refreshError || !session) {
+              logger.error('🔐 PAM DEBUG: Session refresh failed:', refreshError);
+              setConnectionStatus("Disconnected");
+              addMessage("🔖 Your session has expired. Please sign out and sign back in to continue.", "pam");
+              setReconnectAttempts(0);
+              return;
+            }
+            
+            logger.debug('✅ PAM DEBUG: Session refreshed successfully');
+            
+            // Retry connection with fresh token after a short delay
+            if (reconnectAttempts < 3) {
+              const delay = 1000 * (reconnectAttempts + 1);
+              logger.debug(`🔄 PAM DEBUG: Retrying with new token in ${delay}ms`);
+              
+              reconnectTimeoutRef.current = setTimeout(() => {
+                setReconnectAttempts(prev => prev + 1);
+                connectToBackend();
+              }, delay);
+            } else {
+              logger.error('🔐 PAM DEBUG: Max auth retry attempts reached');
+              addMessage("🤖 I'm having trouble authenticating. Please refresh the page.", "pam");
+            }
+          })();
           return;
         }
         
-        if (event.code !== 1000 && reconnectAttempts < 5) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
-          console.log(`🔄 PAM DEBUG: Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/5)`);
-          
-          // Check if disconnection was due to authentication issues
-          const authError = mapWebSocketCloseCodeToAuthError(event.code, event.reason);
-          
-          if (authError) {
-            console.log('🔐 PAM DEBUG: Authentication error detected:', authError);
+        // Normal disconnection handling with exponential backoff
+        if (event.code !== 1000 && event.code !== 1001) { // 1000 = Normal, 1001 = Going Away
+          if (reconnectAttempts < 5) {
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
+            logger.debug(`🔄 PAM DEBUG: Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/5)`);
             
-            reconnectTimeoutRef.current = setTimeout(async () => {
-              console.log('🔄 PAM DEBUG: Executing auth-aware reconnect attempt');
-              
-              // Handle the authentication error appropriately
-              const handled = await authErrorHandler.handleAuthError(authError);
-              
-              if (handled) {
-                console.log('🔐 PAM DEBUG: Auth error handled successfully, attempting reconnection');
-                setReconnectAttempts(prev => prev + 1);
-                connectToBackend();
-              } else {
-                console.error('🔐 PAM DEBUG: Failed to handle auth error, stopping reconnection attempts');
-                setConnectionStatus("Disconnected");
-                addMessage("🤖 Unable to resolve authentication issue. Please refresh the page or contact support.", "pam");
-              }
-            }, delay);
-          } else {
-            // Non-authentication related disconnection
             reconnectTimeoutRef.current = setTimeout(() => {
-              console.log('🔄 PAM DEBUG: Executing standard reconnect attempt');
+              logger.debug('🔄 PAM DEBUG: Executing standard reconnect attempt');
               setReconnectAttempts(prev => prev + 1);
               connectToBackend();
             }, delay);
+          } else {
+            logger.debug('🔄 PAM DEBUG: Max reconnection attempts reached');
+            setConnectionStatus("Disconnected");
+            addMessage("🤖 I'm having trouble connecting. Please try refreshing the page.", "pam");
           }
         } else {
-          console.log('🔄 PAM DEBUG: Not reconnecting - max attempts reached or normal close');
+          logger.debug('✅ PAM DEBUG: WebSocket closed normally');
         }
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('❌ PAM DEBUG: ==================== CONNECTION ERROR ====================');
-        console.error('❌ PAM DEBUG: WebSocket error occurred');
-        console.error('❌ PAM DEBUG: Error event:', error);
-        console.error('❌ PAM DEBUG: Error type:', error.type);
-        console.error('❌ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
-        console.error('❌ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
+        logger.error('❌ PAM DEBUG: ==================== CONNECTION ERROR ====================');
+        logger.error('❌ PAM DEBUG: WebSocket error occurred');
+        logger.error('❌ PAM DEBUG: Error event:', error);
+        logger.error('❌ PAM DEBUG: Error type:', error.type);
+        logger.error('❌ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
+        logger.error('❌ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
         
         setConnectionStatus("Disconnected");
       };
     } catch (error) {
-      console.error('❌ PAM DEBUG: ==================== SETUP ERROR ====================');
-      console.error('❌ PAM DEBUG: WebSocket setup failed');
-      console.error('❌ PAM DEBUG: Error type:', error.constructor.name);
-      console.error('❌ PAM DEBUG: Error message:', error.message);
-      console.error('❌ PAM DEBUG: Error stack:', error.stack);
-      console.error('❌ PAM DEBUG: Full error:', error);
+      logger.error('❌ PAM DEBUG: ==================== SETUP ERROR ====================');
+      logger.error('❌ PAM DEBUG: WebSocket setup failed');
+      logger.error('❌ PAM DEBUG: Error type:', error.constructor.name);
+      logger.error('❌ PAM DEBUG: Error message:', error.message);
+      logger.error('❌ PAM DEBUG: Error stack:', error.stack);
+      logger.error('❌ PAM DEBUG: Full error:', error);
       
       setConnectionStatus("Disconnected");
       addMessage("🤖 Hi! I'm PAM. I encountered an error setting up the WebSocket connection. I'll try to help you using the REST API instead.", "pam");
@@ -1177,74 +1234,73 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   // Minimal test function for debugging WebSocket connection
   const testMinimalConnection = useCallback(async () => {
-    console.log('🧪 PAM MINIMAL TEST: ==================== STARTING ====================');
+    logger.debug('🧪 PAM MINIMAL TEST: ==================== STARTING ====================');
     
     // Test 1: Basic environment variables
-    console.log('🧪 TEST 1: Environment Variables');
-    console.log('- VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL);
-    console.log('- VITE_PAM_WEBSOCKET_URL:', import.meta.env.VITE_PAM_WEBSOCKET_URL);
+    logger.debug('🧪 TEST 1: Environment Variables');
+    logger.debug('- VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL);
+    logger.debug('- VITE_PAM_WEBSOCKET_URL:', import.meta.env.VITE_PAM_WEBSOCKET_URL);
     
     // Test 2: User context
-    console.log('🧪 TEST 2: User Context');
-    console.log('- User ID:', user?.id);
-    console.log('- Has session:', !!session);
+    logger.debug('🧪 TEST 2: User Context');
+    logger.debug('- User ID:', user?.id);
+    logger.debug('- Has session:', !!session);
     
     // Test 3: URL construction
-    console.log('🧪 TEST 3: URL Construction');
+    logger.debug('🧪 TEST 3: URL Construction');
     const testUserId = user?.id || 'test_user';
     const testUrl = getWebSocketUrl(`/api/v1/pam/ws/${testUserId}`);
-    console.log('- getWebSocketUrl result:', testUrl);
+    logger.debug('- getWebSocketUrl result:', testUrl);
     
-    // Test 4: Token preparation
-    console.log('🧪 TEST 4: Token Preparation');
-    const testToken = user?.id || 'test_user';
-    console.log('- Test token:', testToken);
+    // Test 4: Cookie auth check
+    logger.debug('🧪 TEST 4: Cookie Auth Check');
+    logger.debug('- Using cookie-based authentication');
     
     // Test 5: Final URL
-    console.log('🧪 TEST 5: Final URL');
-    const finalUrl = `${testUrl}?token=${encodeURIComponent(testToken)}`;
-    console.log('- Final WebSocket URL:', finalUrl);
+    logger.debug('🧪 TEST 5: Final URL');
+    const finalUrl = testUrl; // No token in URL - using cookies
+    logger.debug('- Final WebSocket URL (no token):', finalUrl);
     
     // Test 6: WebSocket creation (minimal)
-    console.log('🧪 TEST 6: WebSocket Creation');
+    logger.debug('🧪 TEST 6: WebSocket Creation');
     try {
       const testWs = new WebSocket(finalUrl);
-      console.log('- WebSocket created successfully');
-      console.log('- Initial readyState:', testWs.readyState);
-      console.log('- URL property:', testWs.url);
+      logger.debug('- WebSocket created successfully');
+      logger.debug('- Initial readyState:', testWs.readyState);
+      logger.debug('- URL property:', testWs.url);
       
       // Set up basic event handlers for testing
       testWs.onopen = (event) => {
-        console.log('🧪 TEST SUCCESS: WebSocket opened!', event);
+        logger.debug('🧪 TEST SUCCESS: WebSocket opened!', event);
         testWs.close(1000, 'Test completed');
       };
       
       testWs.onerror = (error) => {
-        console.error('🧪 TEST ERROR: WebSocket error:', error);
+        logger.error('🧪 TEST ERROR: WebSocket error:', error);
       };
       
       testWs.onclose = (event) => {
-        console.log('🧪 TEST CLOSE: WebSocket closed:', event.code, event.reason);
+        logger.debug('🧪 TEST CLOSE: WebSocket closed:', event.code, event.reason);
       };
       
       // Timeout after 10 seconds
       setTimeout(() => {
         if (testWs.readyState !== WebSocket.OPEN) {
-          console.log('🧪 TEST TIMEOUT: Connection did not open within 10 seconds');
-          console.log('🧪 TEST TIMEOUT: Final readyState:', testWs.readyState);
+          logger.debug('🧪 TEST TIMEOUT: Connection did not open within 10 seconds');
+          logger.debug('🧪 TEST TIMEOUT: Final readyState:', testWs.readyState);
           testWs.close();
         }
       }, 10000);
       
     } catch (error) {
-      console.error('🧪 TEST FAILED: Could not create WebSocket:', error);
+      logger.error('🧪 TEST FAILED: Could not create WebSocket:', error);
     }
     
-    console.log('🧪 PAM MINIMAL TEST: ==================== COMPLETED ====================');
+    logger.debug('🧪 PAM MINIMAL TEST: ==================== COMPLETED ====================');
   }, [user?.id, session]);
 
   const displayAgenticInfo = (agenticInfo: any) => {
-    console.log('🧠 Agentic capabilities displayed:', agenticInfo);
+    logger.debug('🧠 Agentic capabilities displayed:', agenticInfo);
     const infoMessage = `🧠 **Agentic Analysis Active**\n\n${agenticInfo.capabilities?.join('\n• ') || 'Advanced AI reasoning engaged'}`;
     addMessage(infoMessage, "pam");
   };
@@ -1275,7 +1331,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         };
         
         wsRef.current?.send(JSON.stringify(voiceMessage));
-        console.log('🎤 Voice message sent via WebSocket');
+        logger.debug('🎤 Voice message sent via WebSocket');
         resolve();
       };
       
@@ -1309,23 +1365,23 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         const blob = await response.blob();
         return blob;
       } else {
-        console.error('TTS request failed:', response.status, response.statusText);
+        logger.error('TTS request failed:', response.status, response.statusText);
         return null;
       }
     } catch (error) {
-      console.error('TTS request error:', error);
+      logger.error('TTS request error:', error);
       return null;
     }
   }, [voiceSettings]);
 
   const displayThinkingProcess = (thinkingProcess: any) => {
-    console.log('💭 Thinking process:', thinkingProcess);
+    logger.debug('💭 Thinking process:', thinkingProcess);
     const thinkingMessage = `💭 **PAM's Thinking Process**\n\n${thinkingProcess.process?.join('\n') || 'Processing complex request...'}`;
     addMessage(thinkingMessage, "pam");
   };
 
   const handleAutonomousActions = (autonomousActions: any[]) => {
-    console.log('🚀 Autonomous actions triggered:', autonomousActions);
+    logger.debug('🚀 Autonomous actions triggered:', autonomousActions);
     autonomousActions.forEach((action, index) => {
       setTimeout(() => {
         const actionMessage = `🚀 **Autonomous Action ${index + 1}**: ${action.description || action.action}\n${action.result || 'Action completed successfully'}`;
@@ -1376,14 +1432,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           break;
           
         default:
-          console.warn('Unknown UI action:', action);
+          logger.warn('Unknown UI action:', action);
       }
       
       // Add message about the action
       addMessage(`🔧 ${action.replace('_', ' ')} action completed`, "pam");
       
     } catch (error) {
-      console.error('Error handling UI action:', error);
+      logger.error('Error handling UI action:', error);
       pamUIController.showToast('Failed to perform UI action', 'destructive');
     }
   };
@@ -1402,9 +1458,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       };
       
-      console.log('🎤 Requesting microphone with constraints:', constraints);
+      logger.debug('🎤 Requesting microphone with constraints:', constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('✅ Microphone access granted');
+      logger.debug('✅ Microphone access granted');
       
       if (keepStream) {
         // Return the stream for use
@@ -1415,7 +1471,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         return true;
       }
     } catch (error: any) {
-      console.error('⚠️ Microphone access failed:', {
+      logger.error('⚠️ Microphone access failed:', {
         name: error.name,
         message: error.message,
         constraint: error.constraint,
@@ -1452,12 +1508,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       
       if (!SpeechRecognition) {
-        console.warn('⚠️ SpeechRecognition not supported in this browser');
+        logger.warn('⚠️ SpeechRecognition not supported in this browser');
         return;
       }
 
       // Don't automatically request microphone permission - wait for user action
-      console.log('🎙️ Wake word detection available, waiting for user to enable...');
+      logger.debug('🎙️ Wake word detection available, waiting for user to enable...');
 
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
@@ -1472,7 +1528,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         const currentIsWakeWordListening = isWakeWordListeningRef.current;
         const currentIsContinuousMode = isContinuousModeRef.current;
         
-        console.log('🎙️ Speech detected:', {
+        logger.debug('🎙️ Speech detected:', {
           transcript: transcript,
           isFinal: latest.isFinal,
           confidence: latest[0].confidence,
@@ -1481,13 +1537,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         });
         
         if (latest.isFinal) {
-          console.log('🎙️ Final speech result:', transcript);
+          logger.debug('🎙️ Final speech result:', transcript);
           
           // Check for wake word patterns and process the entire message
           if (transcript.includes('hi pam') || transcript.includes('hey pam') || 
               transcript.includes('hello pam') || transcript.includes('hi palm') ||
               transcript.includes('hi bam') || transcript.includes('hey bam')) {
-            console.log('✅ Wake word detected - activating PAM!');
+            logger.debug('✅ Wake word detected - activating PAM!');
             handleWakeWordDetected();
             
             // If there's more after the wake word, process it as a question
@@ -1495,7 +1551,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             const questionAfterWakeWord = transcript.replace(wakeWordPattern, '').trim();
             
             if (questionAfterWakeWord.length > 0 && currentIsContinuousMode) {
-              console.log('🎯 Processing question after wake word:', questionAfterWakeWord);
+              logger.debug('🎯 Processing question after wake word:', questionAfterWakeWord);
               // Small delay to ensure PAM is open first
               setTimeout(() => {
                 handleContinuousConversation(questionAfterWakeWord);
@@ -1507,22 +1563,22 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             transcript.startsWith('pam ') || transcript.startsWith('palm ') || transcript.startsWith('bam ') ||
             transcript.includes(' pam ') || transcript.includes(' palm ') || transcript.includes(' bam ')
           )) {
-            console.log('✅ PAM conversation detected in continuous mode!');
+            logger.debug('✅ PAM conversation detected in continuous mode!');
             handleContinuousConversation(transcript);
           }
           // Log when no match is found for debugging
           else {
-            console.log('🔍 Speech detected but no wake word match:', transcript);
+            logger.debug('🔍 Speech detected but no wake word match:', transcript);
           }
         }
       };
 
       recognition.onstart = () => {
-        console.log('🎤 Speech recognition started successfully');
+        logger.debug('🎤 Speech recognition started successfully');
       };
 
       recognition.onerror = (event) => {
-        console.error('⚠️ Speech recognition error:', {
+        logger.error('⚠️ Speech recognition error:', {
           error: event.error,
           message: event.message,
           isWakeWordListening: isWakeWordListening,
@@ -1530,15 +1586,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         });
         
         if (event.error === 'not-allowed') {
-          console.warn('⚠️ Microphone permission denied for speech recognition');
+          logger.warn('⚠️ Microphone permission denied for speech recognition');
           addMessage("🚫 Microphone permission denied. Please allow microphone access for voice features.", "pam");
         } else if (event.error === 'no-speech') {
-          console.log('🔇 No speech detected, will restart automatically');
+          logger.debug('🔇 No speech detected, will restart automatically');
         } else if (event.error === 'audio-capture') {
-          console.warn('⚠️ Audio capture error - check microphone');
+          logger.warn('⚠️ Audio capture error - check microphone');
           addMessage("🎤 Microphone error. Please check your audio device.", "pam");
         } else if (event.error === 'network') {
-          console.warn('⚠️ Network error in speech recognition');
+          logger.warn('⚠️ Network error in speech recognition');
           addMessage("🌐 Network error during speech recognition.", "pam");
         }
       };
@@ -1549,7 +1605,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         const currentIsContinuousMode = isContinuousModeRef.current;
         const currentIsListening = isListeningRef.current;
         
-        console.log('🔚 Speech recognition ended, checking restart conditions:', {
+        logger.debug('🔚 Speech recognition ended, checking restart conditions:', {
           isWakeWordListening: currentIsWakeWordListening,
           isContinuousMode: currentIsContinuousMode,
           isListening: currentIsListening
@@ -1560,9 +1616,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           setTimeout(() => {
             try {
               recognition.start();
-              console.log('🔄 Restarting speech recognition...');
+              logger.debug('🔄 Restarting speech recognition...');
             } catch (error) {
-              console.warn('⚠️ Could not restart speech recognition:', error);
+              logger.warn('⚠️ Could not restart speech recognition:', error);
             }
           }, 100);
         }
@@ -1572,9 +1628,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       // Don't auto-start wake word detection - only start when user clicks continuous button
       // Remove automatic startup based on localStorage
-      console.log('✅ Wake word detection initialized, but not started. User must click Continuous button to activate.');
+      logger.debug('✅ Wake word detection initialized, but not started. User must click Continuous button to activate.');
     } catch (error) {
-      console.warn('⚠️ Could not initialize wake word detection:', error);
+      logger.warn('⚠️ Could not initialize wake word detection:', error);
     }
   };
 
@@ -1582,7 +1638,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Request microphone permission first
     const hasPermission = await requestMicrophonePermission();
     if (!hasPermission) {
-      console.warn('⚠️ Cannot start wake word detection without microphone permission');
+      logger.warn('⚠️ Cannot start wake word detection without microphone permission');
       // Error message already shown by requestMicrophonePermission
       return;
     }
@@ -1598,10 +1654,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       recognizer.start();
       setIsWakeWordListening(true);
       localStorage.setItem('pam_wake_word_enabled', 'true');
-      console.log('👂 Wake word detection started - say "Hi PAM" to activate');
+      logger.debug('👂 Wake word detection started - say "Hi PAM" to activate');
       addMessage("👂 Wake word detection enabled. Say 'Hi PAM' to activate voice chat.", "pam");
     } catch (error) {
-      console.warn('⚠️ Could not start wake word detection:', error);
+      logger.warn('⚠️ Could not start wake word detection:', error);
       addMessage("❌ Could not start wake word detection. Please try again.", "pam");
     }
   };
@@ -1611,7 +1667,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       wakeWordRecognition.stop();
       setIsWakeWordListening(false);
       localStorage.setItem('pam_wake_word_enabled', 'false');
-      console.log('🔇 Wake word detection stopped');
+      logger.debug('🔇 Wake word detection stopped');
     }
   };
 
@@ -1619,16 +1675,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Open PAM if not already open
     if (!isOpen) {
       setIsOpen(true);
-      console.log('📱 PAM opened by wake word');
+      logger.debug('📱 PAM opened by wake word');
     }
     
     // Don't automatically start continuous mode when wake word detected
     // The user should explicitly choose to start continuous mode via the button
-    console.log('👂 Wake word "PAM" detected - PAM is now open and ready');
+    logger.debug('👂 Wake word "PAM" detected - PAM is now open and ready');
   };
 
   const handleContinuousConversation = async (transcript: string) => {
-    console.log('🎙️ Processing continuous conversation transcript:', transcript);
+    logger.debug('🎙️ Processing continuous conversation transcript:', transcript);
     
     // If the transcript is already cleaned (passed from wake word detection), use it as-is
     // Otherwise, extract the actual question after "PAM/BAM" and clean it up
@@ -1637,11 +1693,11 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       question = transcript.replace(/^.*?\b(pam|palm|bam)\s+/i, '').trim();
     }
     
-    console.log('🎯 Extracted question:', question);
+    logger.debug('🎯 Extracted question:', question);
     
     if (question.length > 0) {
       // Set the input message and send it
-      console.log('🚀 Sending voice question to PAM...');
+      logger.debug('🚀 Sending voice question to PAM...');
       setInputMessage(question);
       
       // Use a small delay to ensure state update before sending
@@ -1649,17 +1705,17 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         handleSendMessage();
       }, 50);
     } else {
-      console.log('⚠️ No question extracted from transcript after wake word');
+      logger.debug('⚠️ No question extracted from transcript after wake word');
     }
   };
 
   // Add a new handler for direct speech input (without wake word in continuous mode)
   const handleDirectSpeechInput = async (transcript: string) => {
-    console.log('🎙️ Processing direct speech input:', transcript);
+    logger.debug('🎙️ Processing direct speech input:', transcript);
     
     if (transcript.trim().length > 0) {
       // Set the input message and send it
-      console.log('🚀 Processing speech input through text chat...');
+      logger.debug('🚀 Processing speech input through text chat...');
       setInputMessage(transcript);
       
       // Use a small delay to ensure state update before sending
@@ -1672,12 +1728,12 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   // Voice settings handlers removed - using default settings
 
   const startContinuousVoiceMode = async () => {
-    console.log('🔄 Starting continuous voice mode');
+    logger.debug('🔄 Starting continuous voice mode');
     
     // Request microphone permission and get the stream
     const permissionResult = await requestMicrophonePermission(true);
     if (!permissionResult || typeof permissionResult === 'boolean') {
-      console.warn('⚠️ Cannot start continuous mode without microphone permission');
+      logger.warn('⚠️ Cannot start continuous mode without microphone permission');
       // Error message already shown by requestMicrophonePermission
       return;
     }
@@ -1696,10 +1752,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       try {
         await vadService.initialize(stream);
         setIsVADActive(true);
-        console.log('✅ VAD initialized for continuous mode - advanced conversation management enabled');
+        logger.debug('✅ VAD initialized for continuous mode - advanced conversation management enabled');
       } catch (vadError) {
-        console.warn('⚠️ VAD initialization failed, continuing without advanced conversation management:', vadError);
-        console.log('ℹ️ Continuous mode will work normally, but without sophisticated turn-taking');
+        logger.warn('⚠️ VAD initialization failed, continuing without advanced conversation management:', vadError);
+        logger.debug('ℹ️ Continuous mode will work normally, but without sophisticated turn-taking');
         setIsVADActive(false);
       }
       
@@ -1707,7 +1763,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Store stream reference for cleanup later
       audioStreamRef.current = stream;
     } catch (error) {
-      console.warn('⚠️ Could not start audio level monitoring for continuous mode:', error);
+      logger.warn('⚠️ Could not start audio level monitoring for continuous mode:', error);
       addMessage("❌ Could not access microphone for continuous mode. Please check permissions.", "pam");
       setIsContinuousMode(false);
       setVoiceStatus("idle");
@@ -1726,7 +1782,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const stopContinuousVoiceMode = async () => {
-    console.log('🔇 Stopping continuous voice mode');
+    logger.debug('🔇 Stopping continuous voice mode');
     setIsContinuousMode(false);
     setVoiceStatus("idle");
     
@@ -1736,7 +1792,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Stop VAD
     await vadService.cleanup();
     setIsVADActive(false);
-    console.log('🔇 VAD stopped and cleaned up');
+    logger.debug('🔇 VAD stopped and cleaned up');
     
     // Stop wake word listening when continuous mode is turned off
     stopWakeWordListening();
@@ -1758,7 +1814,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         // Request microphone permission first
         const hasPermission = await requestMicrophonePermission();
         if (!hasPermission) {
-          console.warn('⚠️ Cannot start voice recording without microphone permission');
+          logger.warn('⚠️ Cannot start voice recording without microphone permission');
           addMessage("🚫 Microphone permission needed for voice recording. Please allow microphone access.", "pam");
           return;
         }
@@ -1766,15 +1822,15 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         if (wakeWordRecognition) {
           try {
             wakeWordRecognition.stop();
-            console.log('🔇 Stopped speech recognition for voice recording');
+            logger.debug('🔇 Stopped speech recognition for voice recording');
           } catch (error) {
-            console.warn('⚠️ Could not stop speech recognition:', error);
+            logger.warn('⚠️ Could not stop speech recognition:', error);
           }
         }
         
         // Start recording
         setVoiceStatus("listening");
-        console.log('🎤 Requesting microphone access...');
+        logger.debug('🎤 Requesting microphone access...');
         
         const stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
@@ -1796,18 +1852,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         };
 
         recorder.onstop = async () => {
-          console.log('🛑 Recording stopped, processing audio...');
+          logger.debug('🛑 Recording stopped, processing audio...');
           setVoiceStatus("processing");
           
           const audioBlob = new Blob(chunks, { type: recorder.mimeType });
-          console.log('📦 Audio blob created:', audioBlob.size, 'bytes');
+          logger.debug('📦 Audio blob created:', audioBlob.size, 'bytes');
           
           await handleVoiceSubmission(audioBlob);
           
           // Stop all tracks to release microphone
           stream.getTracks().forEach(track => {
             track.stop();
-            console.log('🔌 Audio track stopped');
+            logger.debug('🔌 Audio track stopped');
           });
           
           // Stop audio level monitoring
@@ -1817,7 +1873,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         };
 
         recorder.onerror = (event) => {
-          console.error('❌ MediaRecorder error:', event);
+          logger.error('❌ MediaRecorder error:', event);
           setVoiceStatus("error");
           addMessage("Recording error occurred. Please try again.", "pam");
         };
@@ -1830,13 +1886,13 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         // Setup audio level monitoring
         await setupAudioLevelMonitoring(stream);
         
-        console.log('🎤 Started voice recording');
+        logger.debug('🎤 Started voice recording');
         addMessage("🟢 Recording... Click the green microphone to stop recording.", "pam");
         
         // Auto-stop after 30 seconds to prevent infinite recording
         setTimeout(() => {
           if (isListening && recorder.state === 'recording') {
-            console.log('⏰ Auto-stopping recording after 30 seconds');
+            logger.debug('⏰ Auto-stopping recording after 30 seconds');
             recorder.stop();
             setIsListening(false);
           }
@@ -1844,7 +1900,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         
       } else {
         // Stop recording
-        console.log('🛑 Stopping voice recording...');
+        logger.debug('🛑 Stopping voice recording...');
         if (mediaRecorder && mediaRecorder.state === 'recording') {
           mediaRecorder.stop();
           setIsListening(false);
@@ -1853,7 +1909,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         stopAudioLevelMonitoring();
       }
     } catch (error) {
-      console.error('❌ Voice recording error:', error);
+      logger.error('❌ Voice recording error:', error);
       setVoiceStatus("error");
       setIsListening(false);
       
@@ -1869,7 +1925,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const handleVoiceSubmission = async (audioBlob: Blob) => {
     try {
-      console.log('🎤 Processing voice message...', `${audioBlob.size} bytes`);
+      logger.debug('🎤 Processing voice message...', `${audioBlob.size} bytes`);
       setIsProcessingVoice(true);
       
       // Remove the temporary processing message and add a better one
@@ -1878,19 +1934,19 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       const formData = new FormData();
       formData.append('audio', audioBlob, `recording.${audioBlob.type.includes('webm') ? 'webm' : 'mp4'}`);
 
-      console.log('📤 Sending audio to backend via /api/v1/pam/voice...');
-      console.log('📦 FormData contains:', formData.get('audio'));
+      logger.debug('📤 Sending audio to backend via /api/v1/pam/voice...');
+      logger.debug('📦 FormData contains:', formData.get('audio'));
       
       const response = await authenticatedFetch('/api/v1/pam/voice', {
         method: 'POST',
         body: formData
       });
       
-      console.log('📥 Voice API response status:', response.status, response.statusText);
+      logger.debug('📥 Voice API response status:', response.status, response.statusText);
 
       if (response.ok) {
         const contentType = response.headers.get('content-type');
-        console.log('📥 Response received, content-type:', contentType);
+        logger.debug('📥 Response received, content-type:', contentType);
         
         if (contentType && contentType.startsWith('audio/')) {
           // Backend returned audio - play it
@@ -1904,9 +1960,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           const responseText = response.headers.get('X-Response-Text') || 'PAM responded with audio';
           const pipeline = response.headers.get('X-Pipeline') || 'STT→LLM→TTS';
           
-          console.log(`✅ Voice response received via ${pipeline}`);
-          console.log('📝 Transcription:', transcription);
-          console.log('🤖 Response:', responseText);
+          logger.debug(`✅ Voice response received via ${pipeline}`);
+          logger.debug('📝 Transcription:', transcription);
+          logger.debug('🤖 Response:', responseText);
           
           // Remove processing message
           setMessages(prev => prev.filter(msg => msg.id !== processingMessage.id));
@@ -1926,39 +1982,39 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             // Wait for natural conversation pause before speaking (preserves VAD intelligence)
             vadService.waitForPause(2000).then(() => {
               if (vadService.canPAMSpeak()) {
-                console.log('🔊 Playing audio response in continuous mode...');
+                logger.debug('🔊 Playing audio response in continuous mode...');
                 audio.oncanplaythrough = () => {
                   audio.play().catch(err => {
-                    console.warn('⚠️ Could not play audio:', err);
+                    logger.warn('⚠️ Could not play audio:', err);
                     addMessage("(Audio response ready but playback failed)", "pam");
                   });
                 };
                 vadService.setPAMSpeaking(true);
               } else {
-                console.log('🔇 VAD determined not appropriate time to speak - audio ready for manual play');
+                logger.debug('🔇 VAD determined not appropriate time to speak - audio ready for manual play');
               }
             });
           } else {
-            console.log('🔇 Auto-play disabled - audio ready for manual activation');
+            logger.debug('🔇 Auto-play disabled - audio ready for manual activation');
             // Store audio for manual playback but don't auto-play
             setCurrentAudio(audio);
           }
           
           audio.onerror = (err) => {
-            console.warn('⚠️ Audio playback error:', err);
+            logger.warn('⚠️ Audio playback error:', err);
             addMessage("(Audio response received but playback failed)", "pam");
           };
           
           // Cleanup audio URL after playback
           audio.onended = () => {
             URL.revokeObjectURL(audioUrl);
-            console.log('🔄 Audio playback completed');
+            logger.debug('🔄 Audio playback completed');
           };
           
         } else {
           // Backend returned JSON (fallback or error)
           const data = await response.json();
-          console.log('📝 Voice response received as JSON:', data);
+          logger.debug('📝 Voice response received as JSON:', data);
           
           // Remove processing message
           setMessages(prev => prev.filter(msg => msg.id !== processingMessage.id));
@@ -1992,23 +2048,23 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           
           // Log technical details for debugging
           if (data.pipeline) {
-            console.log(`🔧 Voice pipeline: ${data.pipeline}`);
+            logger.debug(`🔧 Voice pipeline: ${data.pipeline}`);
           }
           if (data.technical_details) {
-            console.log(`🔍 Technical details: ${data.technical_details}`);
+            logger.debug(`🔍 Technical details: ${data.technical_details}`);
           }
         }
       } else {
         const errorText = await response.text();
-        console.error('❌ Voice API response error:', response.status, response.statusText);
-        console.error('❌ Voice API error details:', errorText);
+        logger.error('❌ Voice API response error:', response.status, response.statusText);
+        logger.error('❌ Voice API error details:', errorText);
         
         // Remove processing message
         setMessages(prev => prev.filter(msg => msg.id !== processingMessage.id));
         addMessage("Sorry, I had trouble processing your voice message. Please try again.", "pam");
       }
     } catch (error) {
-      console.error('❌ Voice submission error:', error);
+      logger.error('❌ Voice submission error:', error);
       setIsProcessingVoice(false);
       addMessage("Sorry, there was an error processing your voice message.", "pam");
     } finally {
@@ -2038,14 +2094,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       analyserRef.current = analyser;
       dataArrayRef.current = dataArray;
       
-      console.log('🎵 Audio level monitoring setup successful');
+      logger.debug('🎵 Audio level monitoring setup successful');
       setIsShowingAudioLevel(true);
       
       // Start monitoring loop
       monitorAudioLevel();
       
     } catch (error) {
-      console.warn('⚠️ Audio level monitoring setup failed:', error);
+      logger.warn('⚠️ Audio level monitoring setup failed:', error);
     }
   };
 
@@ -2083,7 +2139,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (audioStreamRef.current) {
       audioStreamRef.current.getTracks().forEach(track => {
         track.stop();
-        console.log('🔌 Audio stream track stopped');
+        logger.debug('🔌 Audio stream track stopped');
       });
       audioStreamRef.current = null;
     }
@@ -2102,7 +2158,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     setAudioLevel(0);
     setIsShowingAudioLevel(false);
     
-    console.log('🔇 Audio level monitoring stopped');
+    logger.debug('🔇 Audio level monitoring stopped');
   };
 
   // Audio Level Meter Component
@@ -2164,7 +2220,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         lowerContent.includes("added");
         
       if (hasCalendarKeywords && pamConfirmsCalendar) {
-        console.log('📅 Processing calendar request:', { userMessage, pamResponse: content });
+        logger.debug('📅 Processing calendar request:', { userMessage, pamResponse: content });
         
         // Simple extraction: get appointment title and basic details
         let title = "New Appointment";
@@ -2197,35 +2253,35 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           type: "reminder" as const
         };
         
-        console.log('📅 Creating calendar event:', eventData);
+        logger.debug('📅 Creating calendar event:', eventData);
         
         const result = await pamCalendarService.createCalendarEvent(eventData);
         
         if (result.success) {
-          console.log('✅ Calendar event created successfully:', result);
+          logger.debug('✅ Calendar event created successfully:', result);
           setTimeout(() => {
             addMessage(`✅ **Done!** I've created "${title}" in your calendar for ${date} at ${time}. Check the Calendar tab to see it!`, "pam");
           }, 1000);
         } else {
-          console.error('❌ Calendar event creation failed:', result);
+          logger.error('❌ Calendar event creation failed:', result);
           setTimeout(() => {
             addMessage(`⚠️ I had trouble creating the calendar event: ${result.message}`, "pam");
           }, 1000);
         }
       }
     } catch (error) {
-      console.error('❌ Calendar processing error:', error);
+      logger.error('❌ Calendar processing error:', error);
     }
   };
 
   // Process PAM responses for feedback and issue reporting
   const processFeedbackActions = async (content: string, userMessage: string) => {
     try {
-      console.log('🔧 Checking for feedback intent in message:', userMessage);
+      logger.debug('🔧 Checking for feedback intent in message:', userMessage);
       
       // Check if this is feedback-related using the service
       if (pamFeedbackService.detectFeedbackIntent(userMessage)) {
-        console.log('📝 Feedback intent detected, processing...');
+        logger.debug('📝 Feedback intent detected, processing...');
         
         // Process feedback through the service
         const result = await pamFeedbackService.processFeedbackFromConversation(userMessage, content);
@@ -2238,7 +2294,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       }
     } catch (error) {
-      console.error('❌ Feedback processing error:', error);
+      logger.error('❌ Feedback processing error:', error);
     }
   };
 
@@ -2246,28 +2302,28 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   const speakMessage = async (content: string, priority: 'low' | 'normal' | 'high' | 'urgent' = 'normal', forceSpeak: boolean = false) => {
     // STRICT VOICE CONTROL: Only speak when explicitly triggered by user action
     // Do not speak automatically regardless of settings
-    console.log('🔊 Voice request - Priority:', priority, 'Force speak:', forceSpeak, 'Activation mode:', voiceActivationMode);
+    logger.debug('🔊 Voice request - Priority:', priority, 'Force speak:', forceSpeak, 'Activation mode:', voiceActivationMode);
     
     // CRITICAL: Never auto-speak unless forceSpeak is true AND user explicitly triggered it
     if (!forceSpeak) {
-      console.log('🔇 Auto-speaking disabled - PAM will not speak automatically');
+      logger.debug('🔇 Auto-speaking disabled - PAM will not speak automatically');
       return;
     }
 
     // Additional safety check: Only speak in manual mode when explicitly forced
     if (voiceActivationMode === 'manual' && !forceSpeak) {
-      console.log('🔇 Manual voice mode - no auto-speaking allowed');
+      logger.debug('🔇 Manual voice mode - no auto-speaking allowed');
       return;
     }
 
     // Check if voice is enabled in user settings (but still require explicit trigger)
     const isVoiceEnabled = settings?.pam_preferences?.voice_enabled ?? false;
     if (!isVoiceEnabled) {
-      console.log('🔇 Voice is disabled in user settings');
+      logger.debug('🔇 Voice is disabled in user settings');
       return;
     }
 
-    console.log('🎵 Speaking PAM response with priority:', priority);
+    logger.debug('🎵 Speaking PAM response with priority:', priority);
 
     try {
       // Clean the content for TTS (remove emojis and markdown)
@@ -2279,7 +2335,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         .trim();
 
       if (cleanContent.length === 0) {
-        console.log('🔇 No content to speak after cleaning');
+        logger.debug('🔇 No content to speak after cleaning');
         return;
       }
 
@@ -2290,18 +2346,18 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           priority,
           context: 'general',
           onComplete: () => {
-            console.log('✅ Speech completed');
+            logger.debug('✅ Speech completed');
             vadService.setPAMSpeaking(false);
           },
           onError: (error) => {
-            console.error('❌ Speech error:', error);
+            logger.error('❌ Speech error:', error);
             vadService.setPAMSpeaking(false);
           }
         });
         
         vadService.setPAMSpeaking(true);
       } else {
-        console.error('❌ TTS Queue Manager not initialized');
+        logger.error('❌ TTS Queue Manager not initialized');
       }
       
       // Generate voice using pamVoiceService with user settings
@@ -2316,7 +2372,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         volume: voiceSettings.volume
       });
 
-      console.log('🎵 Voice response received:', voiceResponse);
+      logger.debug('🎵 Voice response received:', voiceResponse);
 
       // Use audio manager to prevent WebMediaPlayer overflow
       const audio = audioManager.getAudio(voiceResponse.audioUrl);
@@ -2324,7 +2380,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       // Set up audio event listeners
       audio.addEventListener('ended', () => {
-        console.log('✅ Voice playback completed');
+        logger.debug('✅ Voice playback completed');
         setIsSpeaking(false);
         vadService.setPAMSpeaking(false);
         setCurrentAudio(null);
@@ -2332,7 +2388,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       });
 
       audio.addEventListener('error', (error) => {
-        console.warn('🔊 Voice playback error:', error);
+        logger.warn('🔊 Voice playback error:', error);
         setIsSpeaking(false);
         vadService.setPAMSpeaking(false);
         setCurrentAudio(null);
@@ -2345,9 +2401,9 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         await vadService.waitForPause(2000);
         if (vadService.canPAMSpeak()) {
           await audio.play();
-          console.log('✅ Voice playback started (VAD-controlled)');
+          logger.debug('✅ Voice playback started (VAD-controlled)');
         } else {
-          console.log('🔇 VAD determined not appropriate time to speak - skipping TTS playback');
+          logger.debug('🔇 VAD determined not appropriate time to speak - skipping TTS playback');
           setIsSpeaking(false);
           vadService.setPAMSpeaking(false);
           setCurrentAudio(null);
@@ -2356,25 +2412,25 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       } else {
         // Normal manual TTS playback (user clicked a voice button)
         await audio.play();
-        console.log('✅ Voice playback started (manual)');
+        logger.debug('✅ Voice playback started (manual)');
       }
 
     } catch (error) {
-      console.warn('🔊 Voice synthesis failed:', error);
+      logger.warn('🔊 Voice synthesis failed:', error);
       setIsSpeaking(false);
       vadService.setPAMSpeaking(false);
       setCurrentAudio(null);
       
       // Show user-friendly error notification for voice failures
       if (error instanceof Error && error.message.includes('generate')) {
-        console.log('ℹ️ Voice generation temporarily unavailable - continuing with text response');
+        logger.debug('ℹ️ Voice generation temporarily unavailable - continuing with text response');
       }
     }
   };
 
   const stopSpeaking = () => {
     if (currentAudio && !currentAudio.paused) {
-      console.log('🔇 User stopped PAM voice playback');
+      logger.debug('🔇 User stopped PAM voice playback');
       currentAudio.pause();
       currentAudio.currentTime = 0;
       setIsSpeaking(false);
@@ -2408,10 +2464,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       // 🔊 VOICE OUTPUT: Controlled voice activation for PAM responses
       // CRITICAL: Only speak when explicitly requested by user action
       if (sender === "pam" && newMessage.shouldSpeak) {
-        console.log('🔊 PAM message marked for speech - shouldSpeak:', newMessage.shouldSpeak, 'priority:', newMessage.voicePriority);
+        logger.debug('🔊 PAM message marked for speech - shouldSpeak:', newMessage.shouldSpeak, 'priority:', newMessage.voicePriority);
         speakMessage(content, newMessage.voicePriority || 'normal', true);
       } else if (sender === "pam") {
-        console.log('🔇 PAM message added without voice - shouldSpeak:', newMessage.shouldSpeak);
+        logger.debug('🔇 PAM message added without voice - shouldSpeak:', newMessage.shouldSpeak);
       }
       
       // ROBUST MEMORY: Save to localStorage on every message
@@ -2422,7 +2478,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           timestamp: new Date().toISOString()
         }));
       } catch (error) {
-        console.warn('⚠️ Could not save message to localStorage:', error);
+        logger.warn('⚠️ Could not save message to localStorage:', error);
       }
       
       return updatedMessages;
@@ -2444,7 +2500,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const handleSendMessage = async () => {
     if (!inputMessage?.trim()) {
-      console.warn('⚠️ PAM DEBUG: Attempted to send empty message');
+      logger.warn('⚠️ PAM DEBUG: Attempted to send empty message');
       return;
     }
     
@@ -2455,7 +2511,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     // Check if we should use agentic planning for complex queries
     if (needsAgenticPlanning(message)) {
-      console.log('🧠 Using agentic planning for complex query');
+      logger.debug('🧠 Using agentic planning for complex query');
       try {
         // Show planning indicator
         const planningMsgId = Date.now().toString();
@@ -2483,10 +2539,10 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         } else {
           // Remove planning message
           setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-          console.log('Agentic planning unsuccessful, falling back to WebSocket');
+          logger.debug('Agentic planning unsuccessful, falling back to WebSocket');
         }
       } catch (error) {
-        console.error('Agentic planning error:', error);
+        logger.error('Agentic planning error:', error);
         setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
         // Fall through to WebSocket
       }
@@ -2505,7 +2561,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     // If it's a location-based query and we don't have location, request it proactively
     if (isLocationQuery && !userContext?.current_location) {
-      console.log('📍 Location-based query detected, requesting location proactively');
+      logger.debug('📍 Location-based query detected, requesting location proactively');
       const location = await requestUserLocation();
       
       if (location) {
@@ -2516,7 +2572,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         }));
       } else {
         // Fallback to approximate location detection
-        console.log('📍 Precise location failed, trying fallback detection');
+        logger.debug('📍 Precise location failed, trying fallback detection');
         const fallbackLocation = await detectFallbackLocation();
         if (fallbackLocation) {
           setUserContext(prev => ({
@@ -2554,7 +2610,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         wsRef.current.send(JSON.stringify(messageData));
         return;
       } catch (error) {
-        console.error('❌ Failed to send via WebSocket:', error);
+        logger.error('❌ Failed to send via WebSocket:', error);
       }
     }
 
@@ -2582,7 +2638,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         addMessage("I'm having trouble connecting to the server. Please try again later.", "pam");
       }
     } catch (error) {
-      console.error('❌ Failed to send message via REST API:', error);
+      logger.error('❌ Failed to send message via REST API:', error);
       addMessage("I'm experiencing connection issues. Please check your internet connection and try again.", "pam");
     }
   };
@@ -2614,7 +2670,7 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log('🧹 PAM component unmounting - cleaning up resources...');
+      logger.debug('🧹 PAM component unmounting - cleaning up resources...');
       
       // Clear timeouts
       if (reconnectTimeoutRef.current) {
@@ -2632,14 +2688,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       // Clean up audio manager
       audioManager.stopAll();
-      console.log('🎵 Audio manager stats:', audioManager.getStats());
+      logger.debug('🎵 Audio manager stats:', audioManager.getStats());
       
       // Stop any active media recording
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
       }
       
-      console.log('✅ PAM cleanup completed - microphone released');
+      logger.debug('✅ PAM cleanup completed - microphone released');
     };
   }, []);
 
@@ -2719,24 +2775,24 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                 </button>
                 <button 
                   onClick={async () => {
-                    console.log('🧪 PAM DIAGNOSTIC: Starting full diagnostic...');
+                    logger.debug('🧪 PAM DIAGNOSTIC: Starting full diagnostic...');
                     
                     // Check authentication
                     const { data: { session } } = await supabase.auth.getSession();
-                    console.log('🧪 Session details:');
-                    console.log('  - Has session:', !!session);
-                    console.log('  - Has access_token:', !!session?.access_token);
-                    console.log('  - Token preview:', session?.access_token?.substring(0, 30));
-                    console.log('  - Token parts:', session?.access_token?.split('.').length);
-                    console.log('  - User email:', user?.email);
-                    console.log('  - User ID:', user?.id);
+                    logger.debug('🧪 Session details:');
+                    logger.debug('  - Has session:', !!session);
+                    logger.debug('  - Has access_token:', !!session?.access_token);
+                    logger.debug('  - Token length:', session?.access_token?.length || 0);
+                    logger.debug('  - Token parts:', session?.access_token?.split('.').length);
+                    logger.debug('  - User email:', user?.email);
+                    logger.debug('  - User ID:', user?.id);
                     
                     // Test backend health
                     try {
-                      const healthResponse = await fetch('https://pam-backend.onrender.com/health');
-                      console.log('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
+                      const healthResponse = await fetch('https://wheels-wins-backend-staging.onrender.com/health');
+                      logger.debug('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
                     } catch (error) {
-                      console.log('🧪 Backend health: ERROR', error);
+                      logger.debug('🧪 Backend health: ERROR', error);
                     }
                     
                     // Test PAM connection
@@ -2749,16 +2805,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
                             context: { user_id: user?.id, debug: true }
                           })
                         });
-                        console.log('🧪 PAM API test:', testResponse.ok ? 'SUCCESS' : 'FAILED');
+                        logger.debug('🧪 PAM API test:', testResponse.ok ? 'SUCCESS' : 'FAILED');
                         if (!testResponse.ok) {
                           const errorText = await testResponse.text();
-                          console.log('🧪 PAM API error:', errorText);
+                          logger.debug('🧪 PAM API error:', errorText);
                         } else {
                           const data = await testResponse.json();
-                          console.log('🧪 PAM API response:', data);
+                          logger.debug('🧪 PAM API response:', data);
                         }
                       } catch (apiError) {
-                        console.log('🧪 PAM API exception:', apiError);
+                        logger.debug('🧪 PAM API exception:', apiError);
                       }
                     }
                     
@@ -2798,20 +2854,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         <div className="p-3 border-t">
           <AudioLevelMeter />
           
-          {/* Voice Interface - Phase 5C */}
-          <VoiceErrorBoundary>
-            <VoiceInterface
-              ref={voiceInterfaceRef}
-              onSendAudio={handleVoiceAudioSend}
-              onSendText={handleVoiceTextSend}
-              onTTSRequest={handleTTSRequest}
-              compact={true}
-              showTranscript={false}
-              autoSend={true}
-              className="mb-2"
-            />
-          </VoiceErrorBoundary>
-          
           <div className="flex items-center space-x-2">
             <input
               ref={inputRef}
@@ -2825,33 +2867,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
             />
             <button
               onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
-              className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+              className={`p-2 rounded-lg transition-colors ${
+                isContinuousMode ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-600 hover:bg-gray-100"
               }`}
               disabled={connectionStatus !== "Connected"}
-              title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
+              title={isContinuousMode ? "Stop voice mode" : "Start voice mode"}
             >
-              <div className="flex flex-col items-center gap-0.5">
-                <Mic className="w-4 h-4" />
-                <span className="text-xs font-medium">Live</span>
-              </div>
-              {isContinuousMode && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
-                     title="Live mode active - Say 'Hey PAM'" />
-              )}
+              {isContinuousMode ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
-            {isSpeaking && (
-              <button
-                onClick={stopSpeaking}
-                className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100"
-                title="🔇 Stop PAM voice"
-              >
-                <div className="flex flex-col items-center gap-0.5">
-                  <VolumeX className="w-4 h-4" />
-                  <span className="text-xs font-medium">Stop</span>
-                </div>
-              </button>
-            )}
             <button
               onClick={handleSendMessage}
               disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
@@ -2928,98 +2951,27 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 ? (
               <div className="text-center text-gray-500 text-sm">
-                <p>{getPersonalizedGreeting()}</p>
-                <div className="mt-4 space-y-2">
-                  <button 
-                    onClick={() => setInputMessage("Autonomously plan a complex trip from Sydney to Hobart with ferry logistics")}
-                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                <p className="mb-3">{getPersonalizedGreeting()}</p>
+                <p className="text-xs text-gray-500 mb-2">Try asking:</p>
+                <div className="space-y-1">
+                  <p 
+                    onClick={() => setInputMessage("Plan a trip from Sydney to Hobart")}
+                    className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
                   >
-                    <MapPin className="w-4 h-4" />
-                    🧠 Autonomous Complex Trip Planning
-                  </button>
-                  <button 
-                    onClick={() => setInputMessage("Show me your thinking process for planning a budget-friendly 3-week road trip")}
-                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                    "Plan a trip from Sydney to Hobart"
+                  </p>
+                  <p 
+                    onClick={() => setInputMessage("Help me budget for a 3-week road trip")}
+                    className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
                   >
-                    <Calendar className="w-4 h-4" />
-                    💭 Show AI Reasoning Process
-                  </button>
-                  <button 
-                    onClick={() => setInputMessage("Use your agentic tools to analyze my profile and suggest improvements")}
-                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                    "Help me budget for a 3-week road trip"
+                  </p>
+                  <p 
+                    onClick={() => setInputMessage("What can you help me with?")}
+                    className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
                   >
-                    <DollarSign className="w-4 h-4" />
-                    🚀 Proactive Profile Analysis
-                  </button>
-                  <button 
-                    onClick={() => isWakeWordListening ? stopWakeWordListening() : startWakeWordListening()}
-                    className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
-                      isWakeWordListening ? "bg-green-100 text-green-800 hover:bg-green-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    <Mic className="w-4 h-4" />
-                    {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word (Needs Mic)"}
-                  </button>
-                  <button 
-                    onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
-                    className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
-                      isContinuousMode ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    <Mic className="w-4 h-4" />
-                    {isContinuousMode ? "🔄 Continuous Mode ON - Say 'PAM'" : "🎙️ Start Continuous Voice Chat (Needs Mic)"}
-                  </button>
-                  <button 
-                    onClick={async () => {
-                      console.log('🧪 PAM DIAGNOSTIC: Starting full diagnostic...');
-                      
-                      // Check authentication  
-                      const { data: { session } } = await supabase.auth.getSession();
-                      console.log('🧪 Session details:');
-                      console.log('  - Has session:', !!session);
-                      console.log('  - Has access_token:', !!session?.access_token);
-                      console.log('  - Token preview:', session?.access_token?.substring(0, 30));
-                      console.log('  - Token parts:', session?.access_token?.split('.').length);
-                      console.log('  - User email:', user?.email);
-                      console.log('  - User ID:', user?.id);
-                      
-                      // Test backend health
-                      try {
-                        const healthResponse = await fetch('https://pam-backend.onrender.com/health');
-                        console.log('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
-                      } catch (error) {
-                        console.log('🧪 Backend health: ERROR', error);
-                      }
-                      
-                      // Test PAM connection
-                      if (session?.access_token) {
-                        try {
-                          const testResponse = await authenticatedFetch('/api/v1/pam/chat', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                              message: 'Debug test message',
-                              context: { user_id: user?.id, debug: true }
-                            })
-                          });
-                          console.log('🧪 PAM API test:', testResponse.ok ? 'SUCCESS' : 'FAILED');
-                          if (!testResponse.ok) {
-                            const errorText = await testResponse.text();
-                            console.log('🧪 PAM API error:', errorText);
-                          } else {
-                            const data = await testResponse.json();
-                            console.log('🧪 PAM API response:', data);
-                          }
-                        } catch (apiError) {
-                          console.log('🧪 PAM API exception:', apiError);
-                        }
-                      }
-                      
-                      addMessage("🧪 Diagnostic completed - check browser console for details", "pam");
-                    }}
-                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-blue-100 rounded-lg hover:bg-blue-200"
-                  >
-                    🧪 Run Full Diagnostic
-                  </button>
+                    "What can you help me with?"
+                  </p>
                 </div>
               </div>
             ) : (
@@ -3059,20 +3011,6 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
           <div className="p-4 border-t">
             <AudioLevelMeter />
             
-            {/* Voice Interface - Phase 5C */}
-            <VoiceErrorBoundary>
-              <VoiceInterface
-                ref={voiceInterfaceRef}
-                onSendAudio={handleVoiceAudioSend}
-                onSendText={handleVoiceTextSend}
-                onTTSRequest={handleTTSRequest}
-                compact={true}
-                showTranscript={false}
-                autoSend={true}
-                className="mb-2"
-              />
-            </VoiceErrorBoundary>
-            
             <div className="flex items-center space-x-2">
               <input
                 ref={inputRef}
@@ -3086,33 +3024,14 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
               />
               <button
                 onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
-                className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                  isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                className={`p-2 rounded-lg transition-colors ${
+                  isContinuousMode ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-600 hover:bg-gray-100"
                 }`}
                 disabled={connectionStatus !== "Connected"}
-                title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
+                title={isContinuousMode ? "Stop voice mode" : "Start voice mode"}
               >
-                <div className="flex flex-col items-center gap-0.5">
-                  <Mic className="w-4 h-4" />
-                  <span className="text-xs font-medium">Live</span>
-                </div>
-                {isContinuousMode && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
-                       title="Live mode active - Say 'Hey PAM'" />
-                )}
+                {isContinuousMode ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
-              {isSpeaking && (
-                <button
-                  onClick={stopSpeaking}
-                  className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100"
-                  title="🔇 Stop PAM voice"
-                >
-                  <div className="flex flex-col items-center gap-0.5">
-                    <VolumeX className="w-4 h-4" />
-                    <span className="text-xs font-medium">Stop</span>
-                  </div>
-                </button>
-              )}
               <button
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
@@ -3130,6 +3049,16 @@ const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
         </div>
       )}
     </>
+  );
+};
+
+// Main exported component with error boundary
+const Pam: React.FC<PamProps> = ({ mode = "floating" }) => {
+  // Always render PAM with error boundary
+  return (
+    <PAMErrorBoundary>
+      <PamImplementation mode={mode} />
+    </PAMErrorBoundary>
   );
 };
 

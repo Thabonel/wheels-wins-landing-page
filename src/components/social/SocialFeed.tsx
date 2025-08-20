@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
 import CommentSection from "./CommentSection";
+import { generateAvatarUrl } from "@/utils/avatarUtils";
 
 interface SocialPost {
   id: string;
@@ -114,7 +115,7 @@ export default function SocialFeed() {
       const formatted = data?.map((post) => ({
         id: post.id.toString(), // Ensure ID is string
         author: `User ${post.user_id?.substring(0, 5) || "Unknown"}`,
-        authorAvatar: supabase.storage.from("public-assets").getPublicUrl("avatar-placeholder.png").data.publicUrl,
+        authorAvatar: generateAvatarUrl(post.user_id || 'unknown', `User ${post.user_id?.substring(0, 5) || "Unknown"}`),
         date: new Date(post.created_at).toLocaleDateString(),
         content: post.content,
         image: post.image_url || undefined,

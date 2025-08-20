@@ -30,6 +30,8 @@ from app.models.schemas.pam import (
     ContextUpdateRequest, PamFeedbackRequest, PamThumbFeedbackRequest,
     SecureWebSocketMessage, SecureChatRequest
 )
+from app.services.pam.usecase_profiles import PamUseCase
+from app.services.pam.profile_router import profile_router
 from pydantic import BaseModel
 from app.models.schemas.common import SuccessResponse, PaginationParams
 from app.core.websocket_manager import manager
@@ -52,8 +54,13 @@ router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
 
+# Response deduplication tracking
+response_tracker = {}  # user_id: {message_hash: timestamp}
+DEDUP_WINDOW_SECONDS = 5  # Prevent duplicates within 5 seconds
+
 # Helper function for safe WebSocket operations
 import base64
+import hashlib
 
 async def safe_websocket_send(websocket: WebSocket, data: dict) -> bool:
     """
@@ -76,6 +83,33 @@ async def safe_websocket_send(websocket: WebSocket, data: dict) -> bool:
     except Exception as e:
         logger.error(f"Error sending WebSocket message: {e}")
         return False
+
+def is_duplicate_response(user_id: str, message: str, response: str) -> bool:
+    """Check if this response was recently sent to avoid duplicates"""
+    current_time = time.time()
+    
+    # Create hash of the message + response for deduplication
+    content_hash = hashlib.md5(f"{message.strip().lower()}|{response[:200]}".encode()).hexdigest()
+    
+    # Clean up old entries
+    if user_id in response_tracker:
+        response_tracker[user_id] = {
+            h: t for h, t in response_tracker[user_id].items() 
+            if current_time - t < DEDUP_WINDOW_SECONDS
+        }
+    else:
+        response_tracker[user_id] = {}
+    
+    # Check if this content was recently sent
+    if content_hash in response_tracker[user_id]:
+        time_diff = current_time - response_tracker[user_id][content_hash]
+        if time_diff < DEDUP_WINDOW_SECONDS:
+            logger.warning(f"🚫 Duplicate response blocked for user {user_id} (sent {time_diff:.1f}s ago)")
+            return True
+    
+    # Record this response
+    response_tracker[user_id][content_hash] = current_time
+    return False
 
 async def generate_tts_audio(text: str, user_settings: dict = None, user_id: str = None) -> Optional[dict]:
     """
@@ -723,12 +757,9 @@ async def websocket_endpoint(
                 else:
                     logger.info(f"📍 [DEBUG] No location provided in init message")
                 
-                # Send acknowledgment
-                await websocket.send_json({
-                    "type": "init_ack",
-                    "message": "Context initialized successfully",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
+                # Context initialized silently - no need to send acknowledgment to user
+                # PAM is a travel companion, not a system that reports initialization status
+                logger.info(f"✅ Context initialized for user {user_id}")
                 
             elif data.get("type") == "auth":
                 logger.info(f"🔐 [DEBUG] Auth message received from {user_id} - ignoring (already authenticated)")
@@ -1016,29 +1047,103 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         # Fallback to full PAM processing
         logger.info(f"🔄 [DEBUG] Falling back to cloud processing (edge confidence: {edge_result.confidence:.2f})")
         
-        # Use SimplePamService instead of orchestrator
-        from app.core.simple_pam_service import simple_pam_service
-        logger.info(f"📥 [DEBUG] Imported SimplePamService, calling get_response...")
+        # Use enhanced orchestrator for consistent neutral responses
+        logger.info(f"📥 [DEBUG] Using enhanced orchestrator for consistent responses...")
         
-        # Get conversation history if available
-        conversation_history = context.get("conversation_history", [])
-        logger.info(f"📚 [DEBUG] Conversation history length: {len(conversation_history)}")
-        
-        # Process through SimplePamService
-        logger.info(f"🤖 [DEBUG] Calling SimplePamService.get_response with message: '{message}'")
-        result = await simple_pam_service.get_response(
-            message=message,
-            context=context,
-            conversation_history=conversation_history
-        )
-        
-        # Handle both old string format and new dict format for compatibility
-        if isinstance(result, str):
-            response_message = result
+        # Process through orchestrator with error handling
+        try:
+            logger.info(f"🤖 [DEBUG] Calling orchestrator.process_message with message: '{message}'")
+            logger.debug(f"📋 [DEBUG] Context: {context}")
+            logger.debug(f"👤 [DEBUG] User ID: {user_id}")
+            
+            # Check orchestrator initialization status
+            if not hasattr(orchestrator, 'is_initialized') or not orchestrator.is_initialized:
+                logger.error("❌ [DEBUG] Enhanced orchestrator not initialized")
+                raise Exception("Enhanced orchestrator not initialized")
+            
+            # Log orchestrator health before processing
+            try:
+                orchestrator_status = await orchestrator.get_comprehensive_status()
+                logger.debug(f"🔍 [DEBUG] Orchestrator status: {orchestrator_status['enhanced_orchestrator']['initialized']}")
+                logger.debug(f"🔍 [DEBUG] Available capabilities: {orchestrator_status['enhanced_orchestrator']['capabilities']['capabilities_available']}")
+            except Exception as status_e:
+                logger.warning(f"⚠️ [DEBUG] Could not get orchestrator status: {status_e}")
+            
+            # Process message with detailed logging
+            result = await orchestrator.process_message(
+                user_id=user_id,
+                message=message,
+                session_id=str(uuid.uuid4()),
+                context=context
+            )
+            
+            logger.info(f"✅ [DEBUG] Orchestrator processing completed")
+            logger.debug(f"📤 [DEBUG] Orchestrator result keys: {list(result.keys())}")
+            logger.debug(f"📤 [DEBUG] Orchestrator result: {result}")
+            
+            # Extract response from orchestrator result
+            response_message = result.get("content", "")
             response_context = context
-        else:
-            response_message = result["response"]
-            response_context = result["context"]
+            
+            # Check if this is an error response
+            if result.get("error") or "technical difficulties" in response_message.lower():
+                logger.warning(f"⚠️ [DEBUG] Orchestrator returned error response: {response_message[:100]}")
+                logger.warning(f"⚠️ [DEBUG] Error details: {result.get('error', 'No error details')}")
+                logger.warning(f"⚠️ [DEBUG] Error type: {result.get('error_type', 'Unknown')}")
+                logger.warning(f"⚠️ [DEBUG] Service status: {result.get('service_status', 'Unknown')}")
+                
+                # Don't send duplicate error messages
+                if "technical difficulties" in response_message.lower():
+                    # This is already an error message from the orchestrator
+                    await websocket.send_json({
+                        "type": "chat_response",
+                        "message": response_message,
+                        "content": response_message,
+                        "source": "cloud",
+                        "error": True,
+                        "error_details": result.get("error", "Service error"),
+                        "error_type": result.get("error_type", "Unknown"),
+                        "service_status": result.get("service_status", "degraded"),
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    return
+        except Exception as e:
+            logger.error(f"❌ [DEBUG] Orchestrator processing failed: {e}")
+            logger.error(f"❌ [DEBUG] Exception type: {type(e).__name__}")
+            logger.error(f"❌ [DEBUG] Exception details: {str(e)}")
+            
+            # Get detailed traceback for debugging
+            import traceback
+            logger.error(f"❌ [DEBUG] Full traceback: {traceback.format_exc()}")
+            
+            # Try to get orchestrator status for debugging
+            try:
+                if hasattr(orchestrator, '_get_service_status_summary'):
+                    service_status = orchestrator._get_service_status_summary()
+                    logger.error(f"❌ [DEBUG] Service status at failure: {service_status}")
+                else:
+                    logger.error(f"❌ [DEBUG] Orchestrator type: {type(orchestrator)}")
+                    logger.error(f"❌ [DEBUG] Orchestrator attributes: {dir(orchestrator)}")
+            except Exception as status_e:
+                logger.error(f"❌ [DEBUG] Could not get service status: {status_e}")
+            
+            # Send a single error response with more details
+            await websocket.send_json({
+                "type": "chat_response",
+                "message": "I apologize, but I'm having trouble processing your request right now. Please try again.",
+                "content": "I apologize, but I'm having trouble processing your request right now. Please try again.",
+                "source": "cloud",
+                "error": True,
+                "error_details": str(e),
+                "error_type": type(e).__name__,
+                "debug_info": {
+                    "orchestrator_initialized": hasattr(orchestrator, 'is_initialized') and orchestrator.is_initialized,
+                    "message_length": len(message),
+                    "user_id_provided": bool(user_id)
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            return
         
         logger.info(f"🎯 [DEBUG] SimplePamService response received: '{response_message[:100]}...'")
         
@@ -1051,6 +1156,11 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         # Calculate total processing time
         total_processing_time = (time.time() - start_time) * 1000
         logger.info(f"⏱️ [DEBUG] Total processing time: {total_processing_time:.1f}ms")
+        
+        # Check for duplicate response before sending
+        if is_duplicate_response(user_id, message, response_message):
+            logger.info(f"🚫 [DEBUG] Duplicate response blocked for user {user_id}")
+            return
         
         # Check if WebSocket is still open before sending
         if websocket.client_state == WebSocketState.CONNECTED:  # WebSocketState.CONNECTED
@@ -1100,9 +1210,14 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 if visual_action:
                     logger.info(f"🔍 Regex pattern matched visual action: {visual_action}")
             
-            # Send visual action if detected
+            # Send visual action if detected (but don't duplicate the response)
             if visual_action and websocket.client_state == WebSocketState.CONNECTED:
-                logger.info(f"🎨 Sending visual action to frontend: {visual_action}")
+                # Remove the response text from visual action to avoid duplication
+                if 'response' in visual_action:
+                    del visual_action['response']
+                if 'message' in visual_action:
+                    del visual_action['message']
+                logger.info(f"🎨 Sending visual action to frontend (without duplicating response): {visual_action}")
                 await websocket.send_json(visual_action)
             
             # Send UI actions if any (currently none from SimplePamService)
@@ -1236,8 +1351,8 @@ async def stream_response_to_websocket(websocket: WebSocket, response: str, meta
 async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, context: dict, conversation_history: list, start_time: float):
     """Stream AI response from cloud services to WebSocket"""
     try:
-        # Import SimplePamService for streaming
-        from app.core.simple_pam_service import simple_pam_service
+        # Use unified orchestrator for streaming
+        from app.services.pam.unified_orchestrator import get_unified_orchestrator
         
         # Get streaming response from AI service
         full_response = ""
@@ -1279,9 +1394,16 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
                 "timestamp": datetime.utcnow().isoformat()
             })
             
-            # Send visual action if detected
+            # Send visual action if detected (but don't duplicate the response)
             if visual_action:
-                logger.info(f"🎨 Sending visual action to frontend: {visual_action}")
+                # Remove the response text from visual action to avoid duplication
+                if 'response' in visual_action:
+                    del visual_action['response']
+                if 'message' in visual_action:
+                    del visual_action['message']
+                if 'full_response' in visual_action:
+                    del visual_action['full_response']
+                logger.info(f"🎨 Sending visual action to frontend (without duplicating response): {visual_action}")
                 await websocket.send_json(visual_action)
             
     except Exception as e:
@@ -1295,11 +1417,11 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
 async def get_streaming_ai_response(message: str, context: dict, conversation_history: list):
     """Generator for streaming AI responses using Enhanced Orchestrator"""
     try:
-        # Import Enhanced Orchestrator for better AI integration
-        from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator
+        # Import Unified Orchestrator
+        from app.services.pam.unified_orchestrator import get_unified_orchestrator
         
-        # Get enhanced orchestrator instance
-        orchestrator = await get_enhanced_orchestrator()
+        # Get unified orchestrator instance
+        orchestrator = await get_unified_orchestrator()
         
         # Check if streaming is supported
         user_id = context.get("user_id", "anonymous")
@@ -1344,10 +1466,11 @@ async def get_streaming_ai_response(message: str, context: dict, conversation_hi
         except Exception as orchestrator_error:
             logger.warning(f"Enhanced orchestrator failed: {orchestrator_error}")
             
-            # Fallback to SimplePamService
-            from app.core.simple_pam_service import simple_pam_service
+            # Fallback to unified orchestrator
+            unified_orch = await get_unified_orchestrator()
             
-            result = await simple_pam_service.get_response(
+            result = await unified_orch.process_message(
+                user_id=context.get("user_id", "anonymous"),
                 message=message,
                 context=context,
                 conversation_history=conversation_history
@@ -1399,7 +1522,7 @@ def build_pam_system_prompt(context: dict) -> str:
     """Build system prompt for PAM with user context"""
     user_location = context.get("user_location", "unknown location")
     
-    return f"""You are PAM, the Personal AI Manager for Wheels & Wins, a travel planning platform for RV enthusiasts.
+    return f"""You are PAM, the Personal AI Manager for Wheels & Wins, a comprehensive travel and lifestyle planning platform.
 
 Current Context:
 - User Location: {user_location}
@@ -1407,12 +1530,14 @@ Current Context:
 
 You help with:
 - Trip planning and route suggestions
-- RV park and campground recommendations  
-- Weather and road condition updates
+- Accommodation and destination recommendations  
+- Weather and travel condition updates
 - Local attractions and activities
 - Travel tips and safety advice
+- Expense tracking and budget management
+- Community connections and social features
 
-Keep responses concise, helpful, and enthusiastic about RV travel. Use emojis appropriately to make conversations engaging."""
+Keep responses concise, helpful, and adaptable to each user's specific travel style and needs. Use emojis appropriately to make conversations engaging."""
 
 async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, db):
     """Handle context updates over WebSocket"""
@@ -1610,20 +1735,36 @@ async def chat_endpoint(
         context = request.context or {}
         context["user_id"] = str(user_id)
         
-        logger.info(f"Processing chat request for user {user_id}")
+        # Detect use case if not provided
+        use_case = None
+        if request.use_case:
+            try:
+                use_case = PamUseCase(request.use_case)
+                logger.info(f"📊 Using explicit use case: {use_case.value}")
+            except ValueError:
+                logger.warning(f"⚠️ Invalid use case provided: {request.use_case}, using auto-detection")
         
-        # Process through SimplePamService instead of orchestrator
-        from app.core.simple_pam_service import simple_pam_service
+        if not use_case:
+            # Use profile router to detect use case
+            route_decision = profile_router.analyze_message(request.message, context)
+            use_case = route_decision.use_case
+            logger.info(f"🎯 Auto-detected use case: {use_case.value} (confidence: {route_decision.confidence:.2f})")
+        
+        logger.info(f"Processing chat request for user {user_id} with use case: {use_case.value}")
+        
+        # Process through unified orchestrator
+        from app.services.pam.unified_orchestrator import get_unified_orchestrator
         
         # Get conversation history if available
         conversation_history = context.get("conversation_history", [])
         
-        # Process through SimplePamService
+        # Process through SimplePamService with use case
         pam_response = await simple_pam_service.process_message(
             str(user_id),
             request.message,
             session_id=request.conversation_id,
-            context=context
+            context=context,
+            use_case=use_case
         )
         actions = pam_response.get("actions", [])
         
@@ -1649,9 +1790,21 @@ async def chat_endpoint(
                 "user_id": user_id,
                 "message_length": len(request.message),
                 "response_length": len(response_text),
-                "has_actions": len(actions) > 0 if actions else False
+                "has_actions": len(actions) > 0 if actions else False,
+                "use_case": use_case.value if use_case else "unknown"
             }
         )
+        
+        # Record profile metrics for performance tracking
+        if use_case and not has_error:
+            profile_router.record_performance(
+                use_case=use_case,
+                latency=processing_time_seconds,
+                tokens=len(request.message) + len(response_text),  # Rough estimate
+                cost=0.0001,  # Rough estimate
+                success=True,
+                cache_hit=pam_response.get("cached", False)
+            )
         
         session_id = request.conversation_id or request.session_id or str(uuid.uuid4())
         
@@ -1662,7 +1815,11 @@ async def chat_endpoint(
             session_id=session_id,  # Required field
             message_id=str(uuid.uuid4()),
             processing_time_ms=processing_time,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            context_updates={
+                "profile_used": use_case.value if use_case else "general",
+                "cached_response": pam_response.get("cached", False)
+            }
         )
         
         # Log successful API response
@@ -2535,16 +2692,13 @@ async def create_agentic_plan(
         
         # Try to access agentic orchestrator
         try:
-            from app.services.pam.agentic_orchestrator import AgenticOrchestrator
-            from app.core.intelligent_conversation import IntelligentConversationHandler
+            from app.services.pam.unified_orchestrator import get_unified_orchestrator
             
-            # Initialize agentic orchestrator
-            conversation_handler = IntelligentConversationHandler()
-            agentic_orchestrator = AgenticOrchestrator(conversation_handler)
-            await agentic_orchestrator.initialize()
+            # Use unified orchestrator
+            unified_orchestrator = await get_unified_orchestrator()
             
-            # Create execution plan
-            plan = await agentic_orchestrator.process_user_request(
+            # Create execution plan (using process_message for compatibility)
+            plan = await unified_orchestrator.process_message(
                 user_id=str(current_user.id),
                 message=user_goal,
                 context=context
@@ -2663,7 +2817,7 @@ async def get_agentic_capabilities(
             },
             "specialized_nodes": {
                 "you_node": "Personal AI companion with emotional intelligence",
-                "wheels_node": "Travel and RV logistics expert",
+                "wheels_node": "Travel and logistics expert",
                 "wins_node": "Financial management specialist",
                 "shop_node": "Product recommendation engine",
                 "social_node": "Community and social features"
@@ -3798,3 +3952,343 @@ async def get_cache_analytics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get cache analytics: {str(e)}"
         )
+
+
+@router.get("/debug")
+async def pam_debug_endpoint(current_user = Depends(get_current_user)):
+    """
+    Comprehensive PAM debug endpoint to test all components
+    Tests orchestrator, AI service, tool registry, TTS, and identifies failures
+    """
+    try:
+        debug_results = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "user_id": current_user.id,
+            "components": {},
+            "overall_status": "unknown",
+            "critical_errors": [],
+            "warnings": [],
+            "recommendations": []
+        }
+        
+        # Test 1: Import Dependencies
+        logger.info("🔍 PAM Debug: Testing imports...")
+        try:
+            from app.services.ai_service import get_ai_service
+            from app.services.pam.enhanced_orchestrator import get_pam_orchestrator
+            from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
+            from app.services.tts.tts_service import get_tts_service
+            
+            debug_results["components"]["imports"] = {
+                "status": "success",
+                "message": "All core imports successful",
+                "details": {
+                    "ai_service": "✅ Available",
+                    "orchestrator": "✅ Available", 
+                    "tool_registry": "✅ Available",
+                    "tts_service": "✅ Available"
+                }
+            }
+        except Exception as e:
+            debug_results["components"]["imports"] = {
+                "status": "error",
+                "message": f"Import failure: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["critical_errors"].append(f"Import failure: {str(e)}")
+            
+        # Test 2: AI Service
+        logger.info("🔍 PAM Debug: Testing AI Service...")
+        try:
+            ai_service = await get_ai_service()
+            if ai_service:
+                # Test basic AI service functionality
+                test_messages = [{"role": "user", "content": "Hello, this is a test"}]
+                ai_response = await ai_service.generate_response(
+                    messages=test_messages,
+                    user_id=current_user.id,
+                    context={"test": True}
+                )
+                
+                debug_results["components"]["ai_service"] = {
+                    "status": "success",
+                    "message": "AI Service operational",
+                    "details": {
+                        "service_available": True,
+                        "test_response_received": bool(ai_response),
+                        "response_length": len(str(ai_response)) if ai_response else 0
+                    }
+                }
+            else:
+                debug_results["components"]["ai_service"] = {
+                    "status": "error", 
+                    "message": "AI Service is None",
+                    "details": {"service_available": False}
+                }
+                debug_results["critical_errors"].append("AI Service unavailable")
+                
+        except Exception as e:
+            debug_results["components"]["ai_service"] = {
+                "status": "error",
+                "message": f"AI Service test failed: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["critical_errors"].append(f"AI Service error: {str(e)}")
+            
+        # Test 3: Tool Registry
+        logger.info("🔍 PAM Debug: Testing Tool Registry...")
+        try:
+            # Test tool registry initialization separately
+            tool_registry = get_tool_registry()
+            
+            # Get initial state
+            initial_tools = len(tool_registry.tools)
+            initial_definitions = len(tool_registry.tool_definitions)
+            is_initialized = tool_registry.is_initialized
+            
+            # Try to initialize if not already done
+            if not is_initialized:
+                try:
+                    await initialize_tool_registry()
+                    is_initialized = tool_registry.is_initialized
+                except Exception as init_error:
+                    debug_results["warnings"].append(f"Tool registry initialization failed: {str(init_error)}")
+            
+            # Get tool stats
+            tool_stats = tool_registry.get_tool_stats()
+            openai_functions = tool_registry.get_openai_functions()
+            
+            debug_results["components"]["tool_registry"] = {
+                "status": "success" if tool_registry else "error",
+                "message": f"Tool Registry: {len(tool_registry.tools)} tools, {len(openai_functions)} functions",
+                "details": {
+                    "registry_exists": bool(tool_registry),
+                    "is_initialized": is_initialized,
+                    "total_tools": len(tool_registry.tools),
+                    "tool_definitions": len(tool_registry.tool_definitions),
+                    "openai_functions": len(openai_functions),
+                    "enabled_tools": tool_stats.get("registry_stats", {}).get("enabled_tools", 0),
+                    "available_capabilities": tool_stats.get("registry_stats", {}).get("capabilities", []),
+                    "tool_names": list(tool_registry.tools.keys())
+                }
+            }
+            
+            # Check for enum consistency (now unified, should always pass)
+            try:
+                from app.services.pam.tools.tool_capabilities import ToolCapability as UnifiedToolCapability
+                
+                available_capabilities = [cap.value for cap in UnifiedToolCapability]
+                debug_results["warnings"].append(f"✅ Using unified ToolCapability enum with {len(available_capabilities)} capabilities")
+                    
+            except Exception as enum_error:
+                debug_results["warnings"].append(f"Could not check ToolCapability enum: {str(enum_error)}")
+            
+        except Exception as e:
+            debug_results["components"]["tool_registry"] = {
+                "status": "error",
+                "message": f"Tool Registry test failed: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["critical_errors"].append(f"Tool Registry error: {str(e)}")
+            
+        # Test 4: PAM Orchestrator
+        logger.info("🔍 PAM Debug: Testing PAM Orchestrator...")
+        try:
+            orchestrator = await get_pam_orchestrator()
+            
+            if orchestrator:
+                # Test orchestrator initialization status
+                orchestrator_status = {
+                    "orchestrator_exists": True,
+                    "has_ai_service": hasattr(orchestrator, 'ai_service') and orchestrator.ai_service is not None,
+                    "has_tool_registry": hasattr(orchestrator, 'tool_registry') and orchestrator.tool_registry is not None,
+                    "is_initialized": getattr(orchestrator, 'is_initialized', False)
+                }
+                
+                # Try a simple orchestrator test
+                try:
+                    test_response = await orchestrator.process_message(
+                        user_id=current_user.id,
+                        message="Test message for debug",
+                        context={"test": True, "debug": True}
+                    )
+                    
+                    orchestrator_status["test_response_received"] = bool(test_response)
+                    orchestrator_status["test_response_length"] = len(str(test_response)) if test_response else 0
+                    
+                except Exception as test_error:
+                    orchestrator_status["test_error"] = str(test_error)
+                    debug_results["warnings"].append(f"Orchestrator test message failed: {str(test_error)}")
+                
+                debug_results["components"]["orchestrator"] = {
+                    "status": "success",
+                    "message": "PAM Orchestrator available",
+                    "details": orchestrator_status
+                }
+            else:
+                debug_results["components"]["orchestrator"] = {
+                    "status": "error",
+                    "message": "PAM Orchestrator is None",
+                    "details": {"orchestrator_exists": False}
+                }
+                debug_results["critical_errors"].append("PAM Orchestrator unavailable")
+                
+        except Exception as e:
+            debug_results["components"]["orchestrator"] = {
+                "status": "error", 
+                "message": f"PAM Orchestrator test failed: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["critical_errors"].append(f"PAM Orchestrator error: {str(e)}")
+            
+        # Test 5: TTS Service
+        logger.info("🔍 PAM Debug: Testing TTS Service...")
+        try:
+            tts_service = await get_tts_service()
+            
+            if tts_service:
+                # Test TTS availability
+                available_voices = getattr(tts_service, 'available_voices', [])
+                current_engine = getattr(tts_service, 'current_engine', 'unknown')
+                
+                debug_results["components"]["tts_service"] = {
+                    "status": "success",
+                    "message": f"TTS Service available with {current_engine} engine",
+                    "details": {
+                        "service_available": True,
+                        "current_engine": current_engine,
+                        "available_voices_count": len(available_voices),
+                        "has_fallback": hasattr(tts_service, 'fallback_enabled')
+                    }
+                }
+            else:
+                debug_results["components"]["tts_service"] = {
+                    "status": "warning",
+                    "message": "TTS Service not available (non-critical)",
+                    "details": {"service_available": False}
+                }
+                debug_results["warnings"].append("TTS Service unavailable (voice features disabled)")
+                
+        except Exception as e:
+            debug_results["components"]["tts_service"] = {
+                "status": "error",
+                "message": f"TTS Service test failed: {str(e)}",
+                "error": str(e)
+            }
+            debug_results["warnings"].append(f"TTS Service error: {str(e)}")
+            
+        # Test 6: Memory and Context Systems
+        logger.info("🔍 PAM Debug: Testing Memory Systems...")
+        try:
+            # Test memory loading capabilities
+            memory_status = {
+                "recent_memory_available": False,
+                "user_profile_available": False
+            }
+            
+            try:
+                from app.services.pam.tools.load_recent_memory import load_recent_memory
+                memory_status["recent_memory_available"] = True
+            except ImportError:
+                pass
+                
+            try:
+                from app.services.pam.tools.load_user_profile import load_user_profile  
+                memory_status["user_profile_available"] = True
+            except ImportError:
+                pass
+                
+            debug_results["components"]["memory_systems"] = {
+                "status": "success",
+                "message": "Memory systems checked",
+                "details": memory_status
+            }
+            
+        except Exception as e:
+            debug_results["components"]["memory_systems"] = {
+                "status": "error",
+                "message": f"Memory systems test failed: {str(e)}",
+                "error": str(e)
+            }
+            
+        # Test 7: Import Diagnostics
+        logger.info("🔍 PAM Debug: Testing Import Systems...")
+        try:
+            from app.services.pam.tools.import_utils import get_import_diagnostics, check_circular_imports
+            
+            # Get comprehensive import diagnostics
+            import_diag = get_import_diagnostics()
+            
+            # Check for potential circular imports in PAM modules
+            pam_modules = [
+                "app.services.pam.enhanced_orchestrator",
+                "app.services.pam.tools.tool_registry", 
+                "app.services.pam.tools.base_tool",
+                "app.services.pam.tools.tool_capabilities"
+            ]
+            circular_check = check_circular_imports(pam_modules)
+            
+            debug_results["components"]["import_diagnostics"] = {
+                "status": "success",
+                "message": f"Import diagnostics: {import_diag['lazy_importer_stats']['cached_imports']} cached, {len(circular_check['available_modules'])} PAM modules available",
+                "details": {
+                    "import_stats": import_diag,
+                    "circular_analysis": circular_check
+                }
+            }
+            
+        except Exception as e:
+            debug_results["components"]["import_diagnostics"] = {
+                "status": "error",
+                "message": f"Import diagnostics failed: {str(e)}",
+                "error": str(e)
+            }
+            
+        # Determine Overall Status
+        critical_count = len(debug_results["critical_errors"])
+        warning_count = len(debug_results["warnings"])
+        successful_components = sum(1 for comp in debug_results["components"].values() if comp["status"] == "success")
+        total_components = len(debug_results["components"])
+        
+        if critical_count == 0:
+            if warning_count == 0:
+                debug_results["overall_status"] = "healthy"
+            else:
+                debug_results["overall_status"] = "functional_with_warnings"
+        else:
+            debug_results["overall_status"] = "critical_issues"
+            
+        # Generate Recommendations
+        if critical_count > 0:
+            debug_results["recommendations"].append("Address critical errors immediately - PAM may not function properly")
+            
+        if "Tool Registry error" in str(debug_results["critical_errors"]):
+            debug_results["recommendations"].append("Check for circular imports in tool registry and ToolCapability enum conflicts")
+            
+        if "AI Service error" in str(debug_results["critical_errors"]):
+            debug_results["recommendations"].append("Verify OpenAI API key and connection")
+            
+        if warning_count > 2:
+            debug_results["recommendations"].append("Review warnings to optimize PAM performance")
+            
+        debug_results["summary"] = {
+            "successful_components": successful_components,
+            "total_components": total_components,
+            "critical_errors": critical_count,
+            "warnings": warning_count,
+            "success_rate": f"{(successful_components/total_components)*100:.1f}%" if total_components > 0 else "0%"
+        }
+        
+        logger.info(f"🔍 PAM Debug Complete: {debug_results['overall_status']} ({successful_components}/{total_components} components successful)")
+        
+        return debug_results
+        
+    except Exception as e:
+        logger.error(f"PAM debug endpoint failed: {str(e)}")
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "overall_status": "debug_endpoint_error",
+            "critical_errors": [f"Debug endpoint itself failed: {str(e)}"],
+            "message": "The debug endpoint encountered an error",
+            "error": str(e)
+        }

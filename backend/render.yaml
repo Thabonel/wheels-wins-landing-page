@@ -36,7 +36,7 @@ services:
         sync: false  # Set manually in dashboard if needed
       # CORS Configuration for staging
       - key: CORS_ALLOWED_ORIGINS
-        value: https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app
+        value: https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app,https://wheelsandwins-staging.netlify.app,https://staging--wheels-wins-landing-page.netlify.app,https://staging--charming-figolla-d83b68.netlify.app
       # TTS Configuration
       - key: TTS_ENABLED
         value: true

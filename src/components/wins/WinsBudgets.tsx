@@ -30,8 +30,10 @@ export default function WinsBudgets() {
   const startDate = new Date(selectedYear, selectedMonth, 1).toISOString();
   const endDate = new Date(selectedYear, selectedMonth + 1, 0).toISOString();
 
-  const months = Array.from({ length: 12 }).map((_, i) => {
-    const date = new Date(currentYear, currentMonth - i, 1);
+  // Generate months for past 2 years and next year (36 months total)
+  const months = Array.from({ length: 36 }).map((_, i) => {
+    // Start from 12 months in the future and go back 24 months
+    const date = new Date(currentYear, currentMonth + 12 - i, 1);
     return {
       value: `${date.getMonth()}-${date.getFullYear()}`,
       label: date.toLocaleString("default", { month: "long", year: "numeric" }),
@@ -58,9 +60,12 @@ export default function WinsBudgets() {
       
       <TotalBudgetsHeader onEditClick={handleEditClick} />
 
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        <p className="text-sm text-muted-foreground">
+          View and edit budgets for any month
+        </p>
         <Select onValueChange={handleMonthChange} defaultValue={`${selectedMonth}-${selectedYear}`} disabled={isOffline}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Select a month" />
           </SelectTrigger>
           <SelectContent>

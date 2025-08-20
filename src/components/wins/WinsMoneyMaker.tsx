@@ -11,6 +11,8 @@ import ArchivedIdeasSection from "./moneymaker/ArchivedIdeasSection";
 import IncomeIdeaForm from "./moneymaker/IncomeIdeaForm";
 import PamSuggestions from "./moneymaker/PamSuggestions";
 import HustleBoardSuggestions from "./moneymaker/HustleBoardSuggestions";
+import MoneyMakerOnboarding from "./moneymaker/MoneyMakerOnboarding";
+import MoneyMakerInfoTooltip from "./moneymaker/MoneyMakerInfoTooltip";
 import { useMoneyMakerData } from "./moneymaker/useMoneyMakerData";
 
 export default function WinsMoneyMaker() {
@@ -30,9 +32,17 @@ export default function WinsMoneyMaker() {
   
   return (
     <div className="space-y-6">
+      {/* Onboarding for first-time users */}
+      <MoneyMakerOnboarding />
+      
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-medium">Money Makers</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-medium">Money Makers</h2>
+            <MoneyMakerInfoTooltip 
+              content="Track and discover income opportunities while traveling. Add your current income sources and explore new ideas from the community." 
+            />
+          </div>
           <p className="text-sm text-muted-foreground">Track your income sources on the road</p>
         </div>
         

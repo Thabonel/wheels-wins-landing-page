@@ -16,6 +16,14 @@ from pydantic import Field, field_validator, SecretStr, ValidationError
 from pydantic_settings import BaseSettings
 from pydantic.networks import AnyHttpUrl, PostgresDsn, RedisDsn
 
+# Import AI models configuration
+try:
+    from .ai_models_config import DEFAULT_MODEL, FALLBACK_MODELS
+except ImportError:
+    # Fallback if the new config doesn't exist yet
+    DEFAULT_MODEL = "gpt-4o"
+    FALLBACK_MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+
 
 class Environment(str, Enum):
     """Application environments"""
@@ -63,12 +71,46 @@ class Settings(BaseSettings):
     # OpenAI Configuration (Required for PAM)
     OPENAI_API_KEY: SecretStr = Field(
         ...,
-        description="OpenAI API key (required)"
+        description="OpenAI API key (required for PAM AI functionality)"
     )
     
+    @field_validator("OPENAI_API_KEY", mode="before")
+    @classmethod
+    def validate_openai_api_key(cls, v):
+        """Validate OpenAI API key format and provide helpful error messages"""
+        if not v:
+            raise ValueError(
+                "OpenAI API key is required for PAM functionality. "
+                "Please set OPENAI_API_KEY environment variable. "
+                "Get your API key from https://platform.openai.com/api-keys"
+            )
+        
+        # Convert to string for validation if it's a SecretStr
+        key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+        
+        if not key_str.startswith('sk-'):
+            raise ValueError(
+                "Invalid OpenAI API key format. "
+                "OpenAI API keys should start with 'sk-'. "
+                "Please check your key at https://platform.openai.com/api-keys"
+            )
+        
+        if len(key_str) < 20:
+            raise ValueError(
+                "OpenAI API key appears to be too short. "
+                "Please verify your key is correct and complete."
+            )
+        
+        return v
+    
     OPENAI_MODEL: str = Field(
-        default="gpt-4-turbo-preview",
-        description="OpenAI model to use"
+        default=DEFAULT_MODEL,
+        description="OpenAI model to use (auto-updated to latest)"
+    )
+    
+    OPENAI_FALLBACK_MODELS: List[str] = Field(
+        default_factory=lambda: FALLBACK_MODELS,
+        description="Fallback models in order of preference"
     )
     
     OPENAI_MAX_TOKENS: int = Field(
@@ -235,6 +277,35 @@ class Settings(BaseSettings):
     CORS_ALLOWED_ORIGINS: Optional[List[str]] = Field(default=None)
     CORS_ALLOW_CREDENTIALS: bool = Field(default=True)
     
+    @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from string or list"""
+        if v is None:
+            return None
+        
+        # If it's already a list, return as-is
+        if isinstance(v, list):
+            return v
+        
+        # If it's a string, split by comma and clean up
+        if isinstance(v, str):
+            # Handle empty string
+            if not v.strip():
+                return []
+            
+            # Split by comma and clean whitespace
+            origins = [origin.strip() for origin in v.split(",")]
+            # Filter out empty strings
+            origins = [origin for origin in origins if origin]
+            return origins
+        
+        # For any other type, try to convert to string first
+        try:
+            return cls.parse_cors_origins(str(v))
+        except Exception:
+            return []
+    
     # Session
     SESSION_SECRET_KEY: SecretStr = Field(
         default_factory=lambda: SecretStr(secrets.token_urlsafe(32))
@@ -379,20 +450,43 @@ class Settings(BaseSettings):
         issues = []
         warnings = []
         
-        # Check required settings
+        # Check required settings with detailed validation
         required_settings = {
-            "OPENAI_API_KEY": "OpenAI API key is required for PAM functionality",
-            "SUPABASE_URL": "Supabase URL is required for authentication",
-            "SUPABASE_SERVICE_ROLE_KEY": "Supabase service role key is required"
+            "OPENAI_API_KEY": {
+                "message": "OpenAI API key is required for PAM functionality",
+                "validation": self._validate_openai_key
+            },
+            "SUPABASE_URL": {
+                "message": "Supabase URL is required for authentication",
+                "validation": None
+            },
+            "SUPABASE_SERVICE_ROLE_KEY": {
+                "message": "Supabase service role key is required",
+                "validation": None
+            }
         }
         
-        for setting, message in required_settings.items():
+        for setting, config in required_settings.items():
             value = getattr(self, setting, None)
             if not value:
-                issues.append(f"{setting}: {message}")
+                issues.append(f"{setting}: {config['message']}")
             elif isinstance(value, SecretStr):
                 if not value.get_secret_value():
-                    issues.append(f"{setting}: {message}")
+                    issues.append(f"{setting}: {config['message']}")
+                else:
+                    # Run additional validation if available
+                    if config.get('validation'):
+                        try:
+                            config['validation'](value)
+                        except Exception as e:
+                            issues.append(f"{setting}: {str(e)}")
+            else:
+                # Run additional validation if available
+                if config.get('validation'):
+                    try:
+                        config['validation'](value)
+                    except Exception as e:
+                        issues.append(f"{setting}: {str(e)}")
         
         # Check production-specific requirements
         if self.NODE_ENV == Environment.PRODUCTION:
@@ -413,8 +507,10 @@ class Settings(BaseSettings):
             if "localhost" in self.APP_URL:
                 issues.append("Production APP_URL should not contain localhost")
             
-            if any("localhost" in origin for origin in self.CORS_ALLOWED_ORIGINS):
-                warnings.append("CORS allows localhost origins in production")
+            # Safe CORS check
+            if self.CORS_ALLOWED_ORIGINS and isinstance(self.CORS_ALLOWED_ORIGINS, list):
+                if any("localhost" in origin for origin in self.CORS_ALLOWED_ORIGINS):
+                    warnings.append("CORS allows localhost origins in production")
         
         # Check optional but recommended services
         if self.PAM_CACHE_ENABLED and not self.REDIS_URL:
@@ -449,6 +545,19 @@ class Settings(BaseSettings):
                 "mapbox": bool(self.VITE_MAPBOX_PUBLIC_TOKEN or self.VITE_MAPBOX_TOKEN)
             }
         }
+    
+    def _validate_openai_key(self, key_value):
+        """Validate OpenAI key format at runtime"""
+        if isinstance(key_value, SecretStr):
+            key_str = key_value.get_secret_value()
+        else:
+            key_str = str(key_value)
+        
+        if not key_str.startswith('sk-'):
+            raise ValueError("Invalid OpenAI API key format (should start with 'sk-')")
+        
+        if len(key_str) < 20:
+            raise ValueError("OpenAI API key appears to be too short")
     
     def print_startup_info(self):
         """Print configuration info at startup"""
@@ -580,7 +689,9 @@ def get_settings() -> Settings:
         if critical_errors:
             print("\n🚨 Critical configuration errors detected!")
             print("💡 Please ensure all required environment variables are set.")
-            sys.exit(1)
+            print("🔄 This will trigger fallback to simple configuration...")
+            # Don't exit here - let main.py handle the fallback
+            raise e  # Re-raise the original ValidationError
         else:
             print("\n⚠️ Non-critical configuration errors - attempting to continue")
             # For non-critical errors, try to create settings with defaults

@@ -248,7 +248,7 @@ Ensure the JSON is valid and properly formatted."""
 
             # Call OpenAI
             response = await asyncio.to_thread(
-                self.openai_client.ChatCompletion.create,
+                self.openai_client.chat.completions.create,
                 model="gpt-3.5-turbo-16k",  # Use 16k for longer transcripts
                 messages=[
                     {"role": "system", "content": "You are an expert at extracting structured travel information from video transcripts."},

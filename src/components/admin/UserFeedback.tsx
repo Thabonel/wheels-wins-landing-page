@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { RefreshCw, MessageSquare, Bug, Lightbulb, AlertTriangle, Star, ChevronDown, ChevronRight } from 'lucide-react';
+import { RefreshCw, MessageSquare, Bug, Lightbulb, AlertTriangle, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from "@/integrations/supabase/client";
 import { format } from 'date-fns';
@@ -348,10 +348,9 @@ const UserFeedback = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3 flex-1">
                         <div className="flex-shrink-0">
-                          {expandedRow === item.id ? 
-                            <ChevronDown className="h-4 w-4" /> : 
-                            <ChevronRight className="h-4 w-4" />
-                          }
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-xs">
+                            {expandedRow === item.id ? "Hide" : "Show"}
+                          </Button>
                         </div>
                         
                         <div className="flex-shrink-0">

@@ -10,8 +10,8 @@ if os.getenv("RENDER", False) or os.getenv("RENDER_SERVICE_ID"):
     os.environ["ENVIRONMENT"] = "staging"
     os.environ["NODE_ENV"] = "staging"
     os.environ["DEBUG"] = "true"
-    os.environ["APP_URL"] = "https://pam-backend.onrender.com"
-    cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app"
+    os.environ["APP_URL"] = "https://wheels-wins-backend-staging.onrender.com"
+    cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app,https://wheelsandwins-staging.netlify.app,https://staging--wheels-wins-landing-page.netlify.app,https://staging--charming-figolla-d83b68.netlify.app"
     os.environ["CORS_ALLOWED_ORIGINS"] = cors_origins
     print("🔧 FORCED STAGING ENVIRONMENT ON RENDER:")
     print(f"   ENVIRONMENT: {os.environ['ENVIRONMENT']}")
@@ -54,8 +54,14 @@ try:
 except Exception as config_error:
     print(f"⚠️ Failed to load full config: {config_error}")
     print("🔄 Using simple config fallback for staging...")
-    from app.core.simple_config import settings
-    print(f"✅ Simple config loaded - Environment: {settings.NODE_ENV}")
+    try:
+        from app.core.simple_config import settings
+        print(f"✅ Simple config loaded - Environment: {settings.NODE_ENV}")
+    except Exception as simple_config_error:
+        print(f"⚠️ Simple config also failed: {simple_config_error}")
+        print("🚨 Using emergency config - minimal functionality!")
+        from app.core.emergency_config import settings
+        print("✅ Emergency config loaded - service will start with basic features")
 from app.core.logging import setup_logging, get_logger
 from app.core.environment_validator import validate_environment
 
@@ -411,6 +417,12 @@ app.add_middleware(GuardrailsMiddleware)
 # CORS Configuration - Simple and Proven Approach
 # Using FastAPI's standard CORSMiddleware with comprehensive origins
 allowed_origins = [
+    # Development origins
+    "http://localhost:8080",
+    "http://localhost:3000",
+    "http://127.0.0.1:8080",
+    "http://127.0.0.1:3000",
+    
     # Production origins
     "https://wheelsandwins.com",
     "https://www.wheelsandwins.com", 
@@ -424,6 +436,9 @@ allowed_origins = [
     "https://wheels-wins-staging.netlify.app",
     "https://wheelsandwins-staging.netlify.app",
     "https://wheels-wins-test.netlify.app",
+    "https://staging--wheels-wins.netlify.app",  # Additional Netlify preview format
+    "https://staging--wheels-wins-landing-page.netlify.app",  # Netlify branch deploy format
+    "https://staging--charming-figolla-d83b68.netlify.app",  # Specific site ID format
     
     # Development origins (only in development)
     *(["http://localhost:3000", "http://localhost:8080", "http://localhost:5173", 

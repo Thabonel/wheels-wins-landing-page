@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.services.database import DatabaseService
 from app.services.cache import CacheService
-from app.services.pam.agentic_orchestrator import agentic_orchestrator as orchestrator
+from app.services.pam.enhanced_orchestrator import enhanced_orchestrator as orchestrator, get_enhanced_orchestrator
 from app.core.exceptions import PAMError, AuthenticationError, PermissionError, ErrorCode
 from app.core.logging import get_logger
 
@@ -78,10 +78,8 @@ async def get_cache() -> Generator[CacheService, None, None]:
 async def get_pam_orchestrator():
     """Get PAM orchestrator instance"""
     try:
-        # Initialize orchestrator if not already initialized
-        if not orchestrator.database_service:
-            await orchestrator.initialize()
-        return orchestrator
+        # Get the enhanced orchestrator with full tool support
+        return await get_enhanced_orchestrator()
     except Exception as e:
         logger.error(f"PAM orchestrator dependency error: {str(e)}")
         raise PAMError(f"PAM service error: {str(e)}", ErrorCode.NODE_INITIALIZATION_ERROR)
@@ -838,6 +836,25 @@ async def get_current_user_optional(
         return await get_current_user(payload, db)
     except Exception:
         return None
+
+
+# PAM Orchestrator Dependency
+async def get_pam_orchestrator():
+    """Get PAM orchestrator instance"""
+    try:
+        # Get the enhanced orchestrator instance
+        orchestrator_instance = await get_enhanced_orchestrator()
+        
+        # Ensure it's initialized
+        if not orchestrator_instance.is_initialized:
+            logger.info("🚀 Initializing Enhanced PAM Orchestrator...")
+            await orchestrator_instance.initialize()
+        
+        return orchestrator_instance
+    except Exception as e:
+        logger.error(f"❌ Failed to get PAM orchestrator: {e}")
+        # Return the global instance as fallback
+        return orchestrator
 
 
 # Utility Dependencies

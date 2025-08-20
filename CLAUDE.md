@@ -1,32 +1,72 @@
 # Claude Code Instructions for Wheels & Wins Project
 
-## Project Overview
-Wheels & Wins is a comprehensive travel planning and RV community platform built with React/TypeScript frontend and Python FastAPI backend. The application features intelligent trip planning with Mapbox integration, PAM AI assistant with voice capabilities, financial management, social networking, and progressive web app functionality.
+## 🌟 Project Overview
+Wheels & Wins is a comprehensive travel planning and RV community platform that revolutionizes how travelers plan, manage, and share their adventures. Built with React/TypeScript frontend and Python FastAPI backend, the platform combines intelligent trip planning, financial management, social networking, and voice-enabled AI assistance into a unified progressive web application.
+
+**Key Statistics:**
+- 50+ specialized components across 15 major feature areas
+- Multi-engine voice processing with 3-tier fallback system
+- Real-time WebSocket communication with PAM AI assistant
+- Progressive Web App with offline capabilities
+- Multi-service deployment architecture on Render + Netlify
+
+**Development Server**: http://localhost:8080 (runs on port 8080, not 3000)
 
 ## Architecture Overview
 
-### Frontend Stack
-- **React 18** + **TypeScript** - Modern React with strict typing
-- **Vite** - Fast build tool with optimized code splitting
-- **Tailwind CSS** - Utility-first styling framework
-- **Radix UI** - Accessible component primitives
-- **Tanstack Query** - Server state management
-- **Mapbox GL JS** - Interactive mapping and route planning
+### System Architecture
+```
+┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
+│     Frontend        │    │   Backend Services  │    │   External Services │
+│   (React/TS/PWA)    │◄──►│   Multi-Service     │◄──►│   & Integrations    │
+│                     │    │   (FastAPI/Redis)   │    │                     │
+│ • React 18.3.1      │    │ • pam-backend       │    │ • Supabase DB       │
+│ • TypeScript (Dev)  │    │ • pam-redis         │    │ • Mapbox GL JS      │
+│ • Vite 5.4.19       │    │ • celery-worker     │    │ • OpenAI GPT-4      │
+│ • Tailwind 3.4.11   │    │ • celery-beat       │    │ • Edge/Coqui TTS    │
+│ • Radix UI (25+)    │    │ • WebSocket         │    │ • Whisper STT       │
+│ • PWA Manifest      │    │ • Background Tasks  │    │ • Sentry Monitoring │
+└─────────────────────┘    └─────────────────────┘    └─────────────────────┘
+```
 
-### Backend Stack
-- **FastAPI** - High-performance Python API framework
-- **PostgreSQL** - Primary database via Supabase
-- **Redis** - Caching and session management
+### Frontend Stack
+- **React 18.3.1** + **TypeScript** (Development Mode: `"strict": false`)
+- **Vite 5.4.19** - Lightning-fast build with 12-chunk optimization
+- **Tailwind CSS 3.4.11** - Utility-first styling
+- **Radix UI** - 25+ accessible component primitives
+- **Tanstack Query 5.80.10** - Server state management
+- **Mapbox GL JS 3.11.1** - Interactive mapping
+- **Framer Motion** - Advanced animations
+- **PWA** - Service worker, offline support, app manifest
+
+### Backend Stack (Render Multi-Service)
+- **FastAPI (Python 3.11)** - High-performance async framework
+- **PostgreSQL via Supabase** - Managed database with RLS
+- **Redis** - Caching, sessions, and task queuing
 - **WebSocket** - Real-time PAM communication
-- **Multi-Engine TTS** - Edge TTS, Coqui TTS, system TTS fallbacks
+- **Celery** - Distributed task queue with workers
+- **Multi-Engine TTS/STT** - Voice processing pipeline
+
+### AI & Voice Technologies
+- **OpenAI GPT-4** - PAM conversational AI
+- **Multi-TTS Engine Stack**:
+  - Edge TTS (Primary) - Microsoft cloud TTS
+  - Coqui TTS (Secondary) - Open-source neural TTS
+  - System TTS (Fallback) - pyttsx3 offline
+- **Multi-STT Engine Stack**:
+  - OpenAI Whisper (Cloud)
+  - Local Whisper (Offline)
+  - Web Speech API (Browser)
 
 ### Key Features
-- 🗺️ **Trip Planning**: Interactive maps with real-time overlays
-- 🤖 **PAM AI Assistant**: Voice-enabled conversational AI
-- 💰 **Financial Management**: Expense tracking and budgeting
-- 👥 **Social Features**: Community networking and sharing
-- 📱 **PWA**: Mobile-optimized progressive web app
-- 🔊 **Voice Integration**: TTS/STT with multiple engine fallbacks
+- 🗺️ **Trip Planning**: Interactive maps with NASA FIRMS, NOAA, USDA overlays
+- 🤖 **PAM AI Assistant**: Location-aware, voice-enabled conversational AI
+- 💰 **Financial Management**: Expense tracking, budgets, income analytics
+- 🛍️ **Shopping & Marketplace**: Digistore24 integration, affiliate tracking
+- 👥 **Social Features**: Groups, forums, hustle board, user marketplace
+- 📱 **PWA**: Mobile-first with offline functionality
+- 🔊 **Voice Integration**: Complete STT→LLM→TTS pipeline
+- 🏕️ **Camping Features**: Pain point tracking, specialized budgets
 
 ## Development Commands
 
@@ -278,26 +318,71 @@ REDIS_URL=redis://localhost:6379
 
 ## Deployment Architecture
 
-### Frontend Deployment (Netlify)
-- **Auto-deployment**: From main branch
-- **Environment Variables**: Set in Netlify dashboard
-- **Build Optimization**: Vite production build
-- **CDN Distribution**: Global content delivery
-- **Preview Deployments**: Branch-based previews
+### Multi-Service Production Architecture
 
-### Backend Deployment (Render)
-- **Docker Deployment**: Containerized Python app
-- **Auto-scaling**: Based on traffic
-- **Health Monitoring**: Automated health checks
-- **Environment Management**: Secure variable handling
-- **Background Workers**: Celery task processing
+```
+┌─────────────────┐    ┌─────────────────────────────────────────────┐
+│   Netlify CDN   │    │            Render Services                  │
+│                 │    │                                             │
+│ Frontend App    │    │  ┌─────────────┐  ┌───────────────────┐   │
+│ • React/TS      │◄──►│  │ pam-backend │  │    pam-redis      │   │
+│ • Global CDN    │    │  │ (Web Service)│◄─┤  (Redis Service)  │   │
+│ • Auto Deploy   │    │  └─────────────┘  └───────────────────┘   │
+│                 │    │                                             │
+└─────────────────┘    │  ┌─────────────┐  ┌───────────────────┐   │
+                       │  │pam-celery-  │  │ pam-celery-beat   │   │
+┌─────────────────┐    │  │worker       │  │   (Scheduler)     │   │
+│  Supabase Cloud │◄───┤  │(Background) │  │                   │   │
+│ • PostgreSQL    │    │  └─────────────┘  └───────────────────┘   │
+│ • Auth System   │    └─────────────────────────────────────────────┘
+│ • Row Level Sec │    
+└─────────────────┘    
+```
+
+### Frontend Deployment (Netlify)
+- **Production URL**: Your main domain
+- **Staging URL**: `https://staging--[site-id].netlify.app`
+- **Auto-deployment**: From `main` branch (production), `staging` branch (staging)
+- **Build Command**: `npm run build`
+- **Environment Variables**: Set in Netlify dashboard with `VITE_` prefix
+- **CDN**: Global distribution with edge functions
+- **Security Headers**: X-Frame-Options, CSP, HSTS configured
+
+### Backend Deployment (Render - 4 Services)
+
+#### 1. Main Backend (pam-backend)
+- **URL**: `https://pam-backend.onrender.com`
+- **Type**: Web Service
+- **Runtime**: Python 3.11
+- **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **Health Check**: `/api/health`
+- **WebSocket**: `wss://pam-backend.onrender.com/api/v1/pam/ws`
+
+#### 2. Redis Cache (pam-redis)
+- **Type**: Redis Database
+- **Access**: Private network only
+- **Usage**: Session storage, caching, task queue
+- **Memory**: 25MB (Free tier)
+
+#### 3. Background Worker (pam-celery-worker)
+- **Type**: Background Worker
+- **Tasks**: Email processing, analytics, file processing
+- **Start Command**: `celery -A app.workers.celery worker`
+
+#### 4. Task Scheduler (pam-celery-beat)
+- **Type**: Background Worker
+- **Purpose**: Periodic task scheduling
+- **Start Command**: `celery -A app.workers.celery beat`
 
 ### Database (Supabase)
-- **PostgreSQL**: Managed database service
-- **Real-time Features**: WebSocket subscriptions
-- **Row Level Security**: Database-level authorization
-- **Automatic Backups**: Point-in-time recovery
-- **Edge Functions**: Serverless compute
+- **Production Project**: Separate from staging
+- **Features**: PostgreSQL, Auth, Real-time, RLS
+- **Critical Tables**: 
+  - `profiles`, `user_settings`, `pam_conversations`
+  - `social_posts`, `expenses`, `budgets`
+  - `affiliate_sales`, `user_wishlists`
+- **Backups**: Automatic daily backups
+- **RLS**: Row Level Security on all tables
 
 ## Development Workflow
 
@@ -359,30 +444,104 @@ REDIS_URL=redis://localhost:6379
 
 ---
 
+## Staging Environment
+
+### Environment Isolation
+The project has **two completely separate environments**:
+
+#### Staging Environment 🧪
+- **URL**: `https://staging--[site-id].netlify.app`
+- **Branch**: `staging` or `develop`
+- **Database**: Separate Supabase project with test data
+- **APIs**: Sandbox/test versions (Stripe test mode, etc.)
+- **Visual Indicator**: Yellow banner "⚠️ STAGING ENVIRONMENT"
+- **Features**: Debug tools enabled, test data available
+
+#### Production Environment 🚀
+- **URL**: Main domain
+- **Branch**: `main`
+- **Database**: Production Supabase with real user data
+- **APIs**: Live APIs with real transactions
+- **Features**: Only stable, tested features
+
+### Safe Testing Process
+1. Create feature branch → 2. Test locally → 3. Deploy to staging → 4. Test thoroughly → 5. Deploy to production
+
+### Test Payment Cards (Staging)
+- Success: `4242 4242 4242 4242`
+- Declined: `4000 0000 0000 0002`
+- Insufficient funds: `4000 0000 0000 9995`
+
+## PAM AI Assistant Details
+
+### Current State & Known Issues
+PAM has evolved through multiple iterations, resulting in technical debt:
+
+#### Architecture Problems
+1. **Multiple WebSocket Implementations** (4 different versions):
+   - `pamService.ts` - Class-based singleton
+   - `usePamWebSocket.ts` - React hook wrapper
+   - `usePamWebSocketConnection.ts` - Lower-level connection
+   - `usePamWebSocketV2.ts` - "Enhanced" version
+   
+2. **Duplicate Components**:
+   - `Pam.tsx` AND `PamAssistant.tsx` both exist
+   - Different hooks used in each
+   - Incompatible message formats
+
+3. **WebSocket URL Issues**:
+   ```typescript
+   // WRONG (missing user_id):
+   const wsUrl = `${baseUrl}/api/v1/pam/ws?token=${token}`;
+   
+   // CORRECT:
+   const wsUrl = `${baseUrl}/api/v1/pam/ws/${userId}?token=${token}`;
+   ```
+
+### PAM Backend Connection
+- **Production URL**: `https://pam-backend.onrender.com`
+- **WebSocket Endpoint**: `wss://pam-backend.onrender.com/api/v1/pam/ws/{user_id}?token={jwt}`
+- **Health Check**: `https://pam-backend.onrender.com/api/health`
+- **Demo Mode**: Activates when backend unavailable
+
+### Enhanced PAM Features (2025)
+- **Location Awareness**: GPS context for recommendations
+- **AI Provider Orchestration**: Multi-provider with failover
+- **Isolation Architecture**: Hardened security
+- **Shopping Intelligence**: Digistore24 integration
+
 ## Important Notes for Claude Code
 
-### Always Remember
-- **Test First**: Write tests for new features
-- **Mobile First**: Design for mobile users
-- **Performance First**: Optimize for speed and efficiency
-- **Security First**: Follow security best practices
-- **User First**: Prioritize user experience
+### Critical Project-Specific Details
+- **Dev Server Port**: 8080 (NOT 3000) - http://localhost:8080
+- **TypeScript**: `"strict": false` for development velocity
+- **Environment Variables**: Must prefix with `VITE_` for frontend
+- **Bundle Strategy**: 12 manual chunks configured in vite.config.ts
+- **Voice System**: Complex multi-engine with fallbacks - treat carefully
+- **PAM WebSocket**: Always include user_id in path
+
+### Common Pitfalls to Avoid
+1. **Don't assume port 3000** - Always use 8080
+2. **Don't create new PAM implementations** - Clean up existing ones first
+3. **Don't forget VITE_ prefix** for environment variables
+4. **Don't skip staging deployment** - Always test there first
+5. **Don't modify RLS policies** without testing recursion
 
 ### When Making Changes
-1. Run quality checks before committing
-2. Update tests for modified functionality
-3. Verify mobile responsiveness
-4. Check performance impact
-5. Update documentation as needed
+1. Check if staging environment is needed
+2. Run quality checks: `npm run quality:check:full`
+3. Test on mobile devices (primary target)
+4. Verify PAM WebSocket connectivity
+5. Check bundle size impact
 
 ### Key Files to Understand
-- `vite.config.ts`: Build configuration and optimization
-- `src/test/mocks/supabase.ts`: Test mocking infrastructure
-- `backend/app/core/config.py`: Backend configuration
-- `backend/setup_tts.py`: TTS service initialization
-- `public/manifest.json`: PWA configuration
+- `vite.config.ts`: Build config with 12-chunk strategy
+- `src/hooks/useUserSettings.ts`: Settings sync with retry logic
+- `backend/app/api/v1/pam.py`: PAM WebSocket handler
+- `docs/pam-current-state-breakdown.md`: PAM technical debt details
+- `docs/STAGING_ENVIRONMENT_MANUAL.md`: Deployment guide
 
-This project represents a mature, production-ready application with comprehensive testing, security, and performance optimization. Always maintain these high standards when contributing to the codebase.
+This project represents a mature, production-ready application with significant technical complexity. Be aware of existing technical debt, especially in PAM implementation, and prioritize cleanup over adding new features.
 
 ---
 
@@ -936,3 +1095,175 @@ Subagents seamlessly integrate with configured MCP servers:
 - Break large tasks into smaller chunks
 - Use file-based context sharing between agents
 - when launcing, first look through the docs folder to familiarise yourself with the project
+
+---
+
+## Current QA Issues Being Fixed (August 2025)
+
+### Priority Issues List
+Based on QA testing, the following issues are being addressed:
+
+1. **✅ Profile & Notification Switches** (FIXED)
+   - Issue: "Locally updated, will retry backend sync"
+   - Fix: Enhanced error handling with retry logic in `useUserSettings`
+   - Status: Settings now properly sync with rollback on failure
+
+2. **Income Page Layout Issues**
+   - Problem: Duplicate "Add Income" buttons, confusing layout
+   - Location: `src/components/wins/WinsIncome.tsx`
+   - Fix: Remove duplicate button, keep MobileFormWrapper only
+
+3. **Broken Avatars in Social**
+   - Problem: Missing avatar URLs in feed and groups
+   - Location: Social feed and groups components
+   - Fix: Add proper avatar generation/fallback system
+
+4. **Join Savings Challenge Button**
+   - Problem: Button has no functionality
+   - Location: `src/components/wins/tips/TipsLeaderboard.tsx`
+   - Fix: Add onClick handler with challenge modal
+
+5. **Edit Budgets Clarity**
+   - Problem: Unclear functionality, date range limited to current year
+   - Location: Budget management components
+   - Fix: Add tooltips and extend date range options
+
+6. **Make Money on the Road Guidance**
+   - Problem: Users don't understand the feature
+   - Location: `src/components/wins/WinsMoneyMaker.tsx`
+   - Fix: Add onboarding tooltip or info card
+
+7. **Knowledge Bucket Architecture**
+   - Problem: Scalability concerns about per-user buckets
+   - Location: Knowledge management system
+   - Fix: Review and possibly implement shared bucket system
+
+## Recent UI/UX Improvements (August 2025)
+
+### ✅ Navigation Hierarchy Simplification
+**Issue**: Expenses and Income pages had 4 levels of navigation causing user confusion
+**Solution**: Reduced to 3 clear levels with improved visual hierarchy
+
+#### Expenses Page Redesign:
+```typescript
+// New structure implemented in WinsExpenses.tsx
+Page Header Section
+├── Title & Description
+├── Primary Actions Bar
+│   ├── View Toggle (Timeline | Chart) - Segmented control
+│   ├── Add Expense button
+│   └── Import Bank Statement button
+├── Category Filter Tabs (horizontal scroll)
+├── Quick Input Section
+│   ├── Natural Language Input
+│   └── Voice Logger
+├── Main Content Area (Timeline or Chart)
+└── PAM Insight Card
+```
+
+**Key Improvements**:
+- **Timeline/Chart Toggle**: Now a prominent segmented control in header (was buried in sub-menu)
+- **Action Buttons**: Elevated to header for better visibility
+- **Visual Sections**: Clear separation between functional areas
+- **Mobile Responsive**: Proper stacking and touch targets
+
+#### Income Page Consistency:
+- Applied same header structure as Expenses
+- Consistent button placement and styling
+- Clear visual hierarchy with proper spacing
+
+### ✅ Bank Statement Converter Implementation (Completed August 2025)
+**Overview**: Comprehensive bank statement import system with privacy-first architecture and intelligent transaction processing.
+
+**Component Architecture**:
+```
+BankStatementConverter (Main Component)
+├── UploadStage - File selection and validation
+├── ProcessingStage - Parsing and anonymization
+└── ReviewStage - Transaction review and import
+```
+
+**Key Features**:
+- **Privacy-First Design**: All processing happens locally in browser
+- **Multi-Format Support**: CSV, Excel (XLS/XLSX), PDF
+- **Automatic Data Redaction**: Removes all sensitive information
+- **Smart Categorization**: AI-powered expense categorization
+- **PAM Integration**: Intelligent insights and savings recommendations
+- **Duplicate Detection**: Prevents duplicate transaction imports
+- **Session Tracking**: Audit trail for compliance
+
+**File Format Support**:
+- **CSV**: Direct client-side parsing with auto-detection
+- **Excel**: XLSX/XLS parsing using SheetJS library
+- **PDF**: Server-side processing with OCR capabilities
+- **Universal Parser**: Fallback for various bank formats
+
+**Security & Privacy Measures**:
+- **Client-Side Processing**: Data never leaves the browser unencrypted
+- **Automatic Anonymization**:
+  - Account numbers (shows last 4 digits only)
+  - Social Security Numbers (complete removal)
+  - Phone numbers and emails (redacted)
+  - Physical addresses (removed)
+  - Personal names (anonymized)
+- **Memory Management**:
+  - Automatic cleanup on component unmount
+  - File references cleared after processing
+  - Transaction data overwritten in memory
+  - Garbage collection hints for browser
+- **Compliance**:
+  - GDPR compliant (no data retention)
+  - PCI DSS compliant (no card storage)
+  - SOC 2 aligned security practices
+
+**Integration Points**:
+- **PAM Savings Service**: `pamBankStatementIntegration.importTransactions()`
+- **Supabase Backend**: Session tracking in `bank_processing_sessions` table
+- **Expense System**: Direct import to Wins expense tracker
+- **Budget Analytics**: Automatic budget category assignment
+
+**Implementation Files**:
+- Components: `src/components/bank-statement/`
+  - `BankStatementConverter.tsx` - Main component
+  - `UploadStage.tsx` - File upload interface
+  - `ProcessingStage.tsx` - Processing pipeline
+  - `ReviewStage.tsx` - Transaction review
+- Services: `src/services/bankStatement/`
+  - `anonymizer.ts` - Data redaction engine
+  - `csvParser.ts` - CSV file parser
+  - `excelParser.ts` - Excel file parser
+  - `pdfParser.ts` - PDF file parser
+  - `documentParser.ts` - Universal parser
+- Integration: `src/services/pamSavingsService.ts`
+
+### UI/UX Best Practices Learned:
+1. **Reduce Navigation Depth**: Keep to 3 levels maximum
+2. **Prominent Controls**: Primary actions should be immediately visible
+3. **Visual Hierarchy**: Use spacing and backgrounds to create clear sections
+4. **Segmented Controls**: Better than buried toggle buttons for view switching
+5. **Mobile-First**: Always test button placement on mobile viewports
+6. **Consistent Patterns**: Apply same layout structure across similar pages
+
+### CSS Organization:
+- Keep @import statements at the top of index.css
+- QuickActionStyles.css contains animation and mobile optimizations
+- Use Tailwind utility classes for consistent spacing
+- Dark mode support with proper color variables
+
+### Component Structure Guidelines:
+When organizing page components:
+1. Start with clear page header (title, description, primary actions)
+2. Place view controls prominently (not buried in sub-menus)
+3. Group related functionality (e.g., Quick Input section)
+4. Main content area should be clearly defined
+5. Support sections (like PAM insights) at the bottom
+
+### Testing Checklist for UI Changes:
+- [ ] Mobile responsiveness (test at 375px, 768px, 1024px)
+- [ ] Touch target sizes (minimum 44x44px)
+- [ ] Dark mode compatibility
+- [ ] Keyboard navigation
+- [ ] Screen reader accessibility
+- [ ] Loading states
+- [ ] Error states
+- [ ] Empty states

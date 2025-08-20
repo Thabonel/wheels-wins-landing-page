@@ -2,9 +2,12 @@
 Base Tool - Common functionality for all PAM tools
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from app.core.logging import get_logger
+
+# Import unified capabilities to prevent conflicts
+from .tool_capabilities import ToolCapability, normalize_capability
 
 logger = get_logger(__name__)
 
@@ -28,9 +31,12 @@ class ToolResult:
 class BaseTool(ABC):
     """Base class for all PAM tools"""
     
-    def __init__(self, tool_name: str):
+    def __init__(self, tool_name: str, description: str = "", capabilities: Optional[List[ToolCapability]] = None):
         self.tool_name = tool_name
+        self.description = description
+        self.capabilities = capabilities or []
         self.logger = get_logger(f"pam.tools.{tool_name}")
+        self.is_initialized = False
     
     @abstractmethod
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> ToolResult:
@@ -66,4 +72,14 @@ class BaseTool(ABC):
     
     async def initialize(self):
         """Initialize tool - override in subclasses if needed"""
+        self.is_initialized = True
         self.logger.info(f"{self.tool_name} tool initialized")
+        return True
+    
+    def get_capabilities(self) -> List[ToolCapability]:
+        """Get tool capabilities"""
+        return self.capabilities.copy()
+    
+    def has_capability(self, capability: ToolCapability) -> bool:
+        """Check if tool has specific capability"""
+        return capability in self.capabilities

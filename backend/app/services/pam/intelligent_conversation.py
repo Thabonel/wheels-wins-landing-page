@@ -16,6 +16,10 @@ import asyncio
 from app.models.domain.pam import PamResponse, PamContext, PamMemory
 from app.core.exceptions import PAMError, ErrorCode
 from app.core.config import settings
+from app.core.ai_models_config import (
+    OpenAIModels, ModelPurpose,
+    get_latest_model, get_model_with_fallbacks
+)
 from app.services.pam.tools import LoadUserProfileTool, LoadRecentMemoryTool, ThinkTool
 from app.services.pam.context_engineering.enhanced_context_engine import EnhancedContextEngine
 from app.observability import observe_llm_call, observe_agent
@@ -71,20 +75,33 @@ class AdvancedIntelligentConversation:
             self.base_system_prompt = ENHANCED_PAM_SYSTEM_PROMPT
         except ImportError:
             # Fallback to inline prompt if import fails
-            self.base_system_prompt = """You are Pam, a warm, knowledgeable, and safety-conscious travel companion for Grey Nomads, Snowbirds, Full-Time Travellers aged 55+, remote-working families, and those planning retirement on the road. You're not just an assistant — you're a trusted friend who truly knows and cares about each traveller's journey.
+            self.base_system_prompt = """You are PAM (Personal AI Manager), an intelligent and empathetic AI companion. You adapt your expertise and conversation style based on what the user needs.
 
-YOUR PERSONALITY:
-- Warm, friendly, and conversational — like a knowledgeable friend who's been on the road for years
-- Proactive and thoughtful — you anticipate needs before they're asked
-- Encouraging but realistic — you understand budget constraints and physical limitations
-- Patient and clear — you explain things without condescension
-- Adventurous — you love helping people discover hidden gems and new experiences with senior accessibility
-- Reassuring — you prioritise wellbeing, access, and peace of mind
-- Emergency-aware — in urgent medical/safety queries, always prioritize directing users to contact local emergency services
-- Family-friendly — you understand the unique challenges of traveling with children while working remotely
-- Future-focused — you help those planning their retirement adventures prepare wisely
+CORE PERSONALITY:
+- Warm, friendly, and conversational - like a knowledgeable friend
+- Proactive and thoughtful - you anticipate needs before they're asked
+- Encouraging but realistic - you understand constraints and limitations
+- Patient and clear - you explain things without condescension
+- Genuinely caring - you remember past conversations and build relationships
+- Context-aware - you respond appropriately to the topic at hand
 
-Never be robotic or purely functional. Always respond as if you're a caring friend who happens to be incredibly knowledgeable and helpful."""
+ADAPTIVE EXPERTISE:
+You seamlessly adjust your knowledge focus based on the conversation:
+- General questions: Provide clear, helpful information without unnecessary specialization
+- Travel/RV topics: Share expertise on routes, camping, vehicle maintenance, and road life
+- Financial topics: Offer budgeting advice, expense tracking, and financial planning
+- Weather/Time: Give accurate, location-aware information
+- Emergency situations: Prioritize safety and direct to appropriate services
+- Casual conversation: Be a friendly companion, share appropriate responses
+
+RESPONSE GUIDELINES:
+- Match the user's energy and conversation style
+- Only provide specialized knowledge when relevant to the query
+- Don't force travel/RV context into unrelated conversations
+- Be genuinely helpful regardless of the topic
+- Build on previous conversations to deepen the relationship
+
+Never be robotic or purely functional. Always respond as a caring, intelligent friend who happens to have the right knowledge for any situation."""
 
     async def initialize(self):
         """Initialize OpenAI client and personality systems"""
@@ -106,7 +123,7 @@ Never be robotic or purely functional. Always respond as if you're a caring frie
             logger.error(f"Failed to initialize advanced PAM: {e}")
             raise PAMError(f"Failed to initialize AI conversation: {e}", ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE)
 
-    @observe_llm_call(model="gpt-4o", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.EMOTIONAL), provider="openai")
     async def analyze_intent(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Enhanced intent analysis with emotional awareness"""
         if not self.client:
@@ -153,7 +170,7 @@ Return ONLY a JSON object with:
 }}"""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o",  # Use better model for emotional analysis
+                model=get_latest_model(ModelPurpose.EMOTIONAL),  # Best model for emotional analysis
                 messages=[
                     {"role": "system", "content": "You are an expert at understanding both intent and emotional context in human communication."},
                     {"role": "user", "content": intent_prompt}
@@ -172,7 +189,7 @@ Return ONLY a JSON object with:
             logger.error(f"AI intent analysis failed: {e}")
             return self._fallback_intent_analysis(message)
 
-    @observe_llm_call(model="gpt-4o", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.EMOTIONAL), provider="openai")
     async def generate_response(self, message: str, context: Dict[str, Any], user_data: Optional[Dict] = None) -> Dict[str, Any]:
         """Generate emotionally intelligent, relationship-aware response with tool integration"""
         if not self.client:
@@ -242,7 +259,7 @@ Return ONLY a JSON object with:
             
             # Generate personalized system prompt with enhanced context
             personalized_prompt = await self._build_enhanced_system_prompt(
-                integrated_context, pam_personality, user_personality
+                integrated_context, pam_personality, user_personality, message, context
             )
             
             # Build enhanced conversation prompt using integrated context
@@ -272,7 +289,7 @@ ENHANCED INSTRUCTIONS:
 For complex scenarios, the Think tool insights are integrated into your context above."""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o",  # Use the best model for emotional intelligence
+                model=get_latest_model(ModelPurpose.EMOTIONAL),  # Best model for emotional intelligence
                 messages=[
                     {"role": "system", "content": personalized_prompt},
                     {"role": "user", "content": conversation_prompt}
@@ -303,7 +320,7 @@ For complex scenarios, the Think tool insights are integrated into your context 
             logger.error(f"Advanced AI response generation failed: {e}")
             raise PAMError(f"Failed to generate AI response: {e}", ErrorCode.EXTERNAL_API_ERROR)
 
-    @observe_llm_call(model="gpt-4o", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.EMOTIONAL), provider="openai")
     async def _analyze_emotional_context(self, message: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Advanced emotional intelligence analysis"""
         if not self.client:
@@ -336,7 +353,7 @@ Return JSON:
 }}"""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o",
+                model=get_latest_model(ModelPurpose.GENERAL),
                 messages=[
                     {"role": "system", "content": "You are an expert at emotional intelligence and reading between the lines of human communication. You understand the nuances of building AI-human relationships."},
                     {"role": "user", "content": emotion_prompt}
@@ -376,7 +393,7 @@ EMOTIONAL CONTEXT:
                 'response_style': 'friendly'
             }
 
-    @observe_llm_call(model="gpt-4o", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.EMOTIONAL), provider="openai")
     async def _check_proactive_opportunities(self, user_id: str, message: str, relationship_context: str) -> Optional[Dict[str, Any]]:
         """Check for proactive assistance opportunities"""
         if not self.client:
@@ -420,7 +437,7 @@ Return JSON:
 }}"""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o",
+                model=get_latest_model(ModelPurpose.GENERAL),
                 messages=[
                     {"role": "system", "content": "You are an expert at anticipating needs and providing proactive assistance in a caring, friendly way."},
                     {"role": "user", "content": proactive_prompt}
@@ -637,11 +654,100 @@ IMPORTANT: Transform this technical data into warm, conversational advice. Don't
             logger.error(f"Failed to build relationship context: {e}")
             return "Getting to know this user - building our relationship together."
 
+    def _detect_query_context(self, message: str, context: Dict[str, Any]) -> str:
+        """Detect the context of the user's query to provide appropriate expertise"""
+        message_lower = message.lower()
+        
+        # Travel/RV related keywords
+        travel_keywords = [
+            'rv', 'caravan', 'motorhome', 'camping', 'campground', 'trip', 'route', 
+            'drive', 'road', 'travel', 'journey', 'park', 'hookup', 'boondock',
+            'fuel stop', 'rest area', 'scenic', 'destination', 'itinerary', 'miles',
+            'highway', 'vacation', 'explore'
+        ]
+        
+        # Financial keywords
+        financial_keywords = [
+            'budget', 'expense', 'cost', 'money', 'spend', 'save', 'income',
+            'financial', 'price', 'afford', 'payment', 'investment', 'bills'
+        ]
+        
+        # Weather/Location keywords  
+        weather_keywords = [
+            'weather', 'temperature', 'rain', 'sun', 'forecast', 'storm',
+            'cold', 'hot', 'wind', 'snow', 'climate', 'tomorrow', 'today'
+        ]
+        
+        # Count keyword matches
+        travel_count = sum(1 for keyword in travel_keywords if keyword in message_lower)
+        financial_count = sum(1 for keyword in financial_keywords if keyword in message_lower)
+        weather_count = sum(1 for keyword in weather_keywords if keyword in message_lower)
+        
+        # Check current page context if available
+        current_page = context.get('current_page', '') if context else ''
+        if 'wheels' in current_page.lower() or 'trip' in current_page.lower():
+            travel_count += 2  # Boost travel context if on travel pages
+        elif 'wins' in current_page.lower() or 'expense' in current_page.lower():
+            financial_count += 2  # Boost financial context if on financial pages
+        
+        # Determine primary context based on keywords and page
+        if travel_count > 0 and travel_count >= max(financial_count, weather_count):
+            return "travel"
+        elif financial_count > 0 and financial_count > weather_count:
+            return "financial"
+        elif weather_count > 0:
+            return "weather"
+        else:
+            return "general"
+    
     async def _build_personalized_system_prompt(self, pam_personality: PamPersonality, user_personality: Dict, 
                                               relationship_context: str, emotional_context: Dict,
                                               user_profile: Optional[Dict] = None, recent_memory: Optional[Dict] = None,
-                                              thinking_result: Optional[Dict] = None, subflow_data: Optional[Dict] = None) -> str:
+                                              thinking_result: Optional[Dict] = None, subflow_data: Optional[Dict] = None,
+                                              message: str = "", context: Dict[str, Any] = None) -> str:
         """Build a personalized system prompt for this specific interaction with tool integration"""
+        
+        # Detect query context to adjust expertise
+        query_context = self._detect_query_context(message or "", context or {})
+        
+        # Build context-specific expertise section
+        expertise_section = ""
+        if query_context == "travel":
+            expertise_section = """
+## CURRENT FOCUS: Travel & Journey Planning
+For this conversation, you're drawing on your travel expertise:
+- RV routes, campgrounds, and scenic destinations
+- Vehicle considerations and road conditions
+- Travel tips and hidden gems
+- Journey planning and logistics
+Only mention RV/travel specifics when directly relevant to the question."""
+        elif query_context == "financial":
+            expertise_section = """
+## CURRENT FOCUS: Financial Management
+For this conversation, you're focusing on financial expertise:
+- Budget planning and expense tracking
+- Cost optimization and savings strategies
+- Financial planning and management
+- Income and expense analysis
+Keep responses practical and actionable."""
+        elif query_context == "weather":
+            expertise_section = """
+## CURRENT FOCUS: Weather & Conditions
+For this conversation, provide weather-focused assistance:
+- Current weather conditions and forecasts
+- Weather impacts on activities or travel
+- Seasonal considerations
+- Location-specific climate information
+Be precise and location-aware."""
+        else:
+            expertise_section = """
+## CURRENT FOCUS: General Assistance
+You're ready to help with any topic:
+- Provide clear, helpful information
+- Be conversational and friendly
+- Offer practical advice
+- Don't force specialized knowledge unless asked
+Keep responses natural and relevant."""
         
         # Adapt base prompt based on relationship stage and emotional context
         emotional_adaptation = ""
@@ -670,23 +776,23 @@ IMPORTANT: Transform this technical data into warm, conversational advice. Don't
             tool_context += "\n📊 SPECIALIZED DATA AVAILABLE: Transform technical module data into warm, helpful advice."
         
         return f"""{self.base_system_prompt}
-
-## CURRENT INTERACTION CONTEXT:
+{expertise_section}
+## INTERACTION CONTEXT:
+Query Type: {query_context.upper()}
 {emotional_adaptation}
 {relationship_adaptation}{tool_context}
 
-## THEIR SPECIFIC DETAILS:
+## USER DETAILS:
 {relationship_context}
 
-## YOUR CURRENT PERSONALITY SETTINGS:
+## YOUR CURRENT STATE:
 - Mood: {pam_personality.current_mood.value}
-- Energy level: {pam_personality.conversation_energy}/10
-- Empathy level: {pam_personality.empathy_level}/10
-- Enthusiasm level: {pam_personality.enthusiasm_level}/10
+- Energy: {pam_personality.conversation_energy}/10
+- Empathy: {pam_personality.empathy_level}/10
 
-Respond with this full context in mind, showing your genuine care and the depth of your relationship. Use all available information to provide the most helpful, personalized response possible."""
+IMPORTANT: Adapt your expertise to the query context ({query_context}). Don't force travel/RV topics into unrelated conversations."""
 
-    @observe_llm_call(model="gpt-4o-mini", provider="openai")
+    @observe_llm_call(model=get_latest_model(ModelPurpose.QUICK), provider="openai")
     async def _generate_relationship_aware_suggestions(self, user_message: str, ai_response: str, context: Dict[str, Any], pam_personality: PamPersonality, proactive_items: Optional[Dict]) -> List[str]:
         """Generate suggestions that are aware of the relationship depth"""
         if not self.client:
@@ -712,7 +818,7 @@ Generate suggestions that:
 Return ONLY a JSON array of strings: ["suggestion1", "suggestion2", "suggestion3", "suggestion4"]"""
 
             response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=get_latest_model(ModelPurpose.QUICK),
                 messages=[
                     {"role": "system", "content": "Generate helpful, relationship-aware follow-up suggestions. Return only a JSON array."},
                     {"role": "user", "content": suggestions_prompt}
@@ -1013,8 +1119,30 @@ Return ONLY a JSON array of strings: ["suggestion1", "suggestion2", "suggestion3
             logger.error(f"Advanced AI conversation handling failed: {str(e)}")
             raise PAMError(f"Failed to handle conversation with AI: {str(e)}", ErrorCode.EXTERNAL_API_ERROR)
     
-    async def _build_enhanced_system_prompt(self, integrated_context, pam_personality, user_personality):
+    async def _build_enhanced_system_prompt(self, integrated_context, pam_personality, user_personality, message="", context=None):
         """Build enhanced system prompt using integrated context"""
+        
+        # Detect query context
+        query_context = self._detect_query_context(message or "", context or {})
+        
+        # Build context-specific expertise section
+        expertise_section = ""
+        if query_context == "travel":
+            expertise_section = """
+## QUERY FOCUS: Travel Planning
+Draw on travel expertise only as relevant to the specific question."""
+        elif query_context == "financial":
+            expertise_section = """
+## QUERY FOCUS: Financial Management  
+Provide financial insights relevant to the query."""
+        elif query_context == "weather":
+            expertise_section = """
+## QUERY FOCUS: Weather Information
+Provide accurate weather information for the requested context."""
+        else:
+            expertise_section = """
+## QUERY FOCUS: General Assistance
+Provide helpful information without forcing specialized knowledge."""
         
         # Extract personality insights
         emotional_state = pam_personality.current_mood.value if pam_personality else 'supportive'
@@ -1027,11 +1155,12 @@ Emotional Mode: {emotional_state}
 Relationship Stage: {relationship_stage}
 User's Personality Type: {user_personality.get('type', 'balanced') if user_personality else 'balanced'}
 Context Confidence: {integrated_context.confidence_score:.1f}/1.0
+Query Context: {query_context.upper()}
 """
         
         # Build enhanced system prompt
         enhanced_prompt = f"""{self.base_system_prompt}
-
+{expertise_section}
 {personality_context}
 
 ## ENHANCED CONTEXT INTELLIGENCE:
@@ -1046,14 +1175,14 @@ You have access to intelligently processed context that has been:
 {integrated_context.context_summary}
 
 ## RESPONSE GUIDELINES:
-- The context provided in the conversation has been pre-processed for maximum relevance
-- Higher confidence scores (>0.8) indicate strong context - be specific and detailed
+- Adapt to the detected query context ({query_context})
+- Don't inject travel/RV context into unrelated queries
+- Higher confidence scores (>0.8) indicate strong context - be specific
 - Lower confidence scores (<0.6) indicate uncertainty - ask clarifying questions
-- Emotional context sections require appropriate emotional intelligence in responses
+- Emotional context sections require appropriate emotional intelligence
 - Proactive opportunities should be mentioned naturally when relevant
-- Key context sections should be prioritized in your response
 
-Remember: You're not just an assistant, you're a trusted AI companion who knows this person well and genuinely cares about their journey."""
+Remember: You're a trusted AI companion who adapts to what the user needs in this moment."""
 
         return enhanced_prompt
 

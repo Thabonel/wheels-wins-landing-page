@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { authenticatedFetch } from '@/services/api';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UserSettings {
   notification_preferences: {
@@ -50,6 +50,8 @@ export const useUserSettings = () => {
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const fetchSettings = async () => {
     console.log('fetchSettings called, user:', user);
@@ -63,30 +65,87 @@ export const useUserSettings = () => {
     console.log('User found, fetching settings for user ID:', user.id);
     setLoading(true);
     try {
-      // Use backend API with authentication
-      const response = await authenticatedFetch(`/api/v1/users/${user.id}/settings`);
+      // Use Supabase directly for better reliability
+      // Try both approaches - with and without explicit user_id filter
+      let { data, error } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          // Settings don't exist, create defaults
-          const createResponse = await authenticatedFetch(`/api/v1/users/${user.id}/settings`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
+      // If permission denied, try without the filter (RLS will handle it)
+      if (error?.code === '42501') {
+        console.log('Permission denied with explicit filter, trying without...');
+        const result = await supabase
+          .from('user_settings')
+          .select('*')
+          .maybeSingle();
+        data = result.data;
+        error = result.error;
+      }
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No settings found, create defaults
+          const defaultSettings = {
+            user_id: user.id,
+            notification_preferences: {
+              email_notifications: true,
+              push_notifications: false,
+              marketing_emails: false,
+              trip_reminders: true,
+              maintenance_alerts: true,
+              weather_warnings: true,
             },
-          });
+            privacy_preferences: {
+              profile_visibility: 'public',
+              location_sharing: false,
+              activity_tracking: true,
+              data_collection: false,
+            },
+            display_preferences: {
+              theme: 'light',
+              font_size: 'medium',
+              high_contrast: false,
+              reduced_motion: false,
+              language: 'en',
+            },
+            regional_preferences: {
+              currency: 'USD',
+              units: 'imperial',
+              timezone: 'America/New_York',
+              date_format: 'MM/DD/YYYY',
+            },
+            pam_preferences: {
+              voice_enabled: true,
+              proactive_suggestions: true,
+              response_style: 'helpful',
+              expertise_level: 'intermediate',
+              knowledge_sources: true,
+            },
+            integration_preferences: {
+              shop_travel_integration: true,
+              auto_add_purchases_to_storage: false,
+            }
+          };
           
-          if (!createResponse.ok) {
-            throw new Error('Failed to create default settings');
+          const { data: newSettings, error: createError } = await supabase
+            .from('user_settings')
+            .insert(defaultSettings)
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('Error creating default settings:', createError);
+            // Use defaults even if insert fails
+            setSettings(defaultSettings as UserSettings);
+          } else {
+            setSettings(newSettings as UserSettings);
           }
-          
-          const defaultSettings = await createResponse.json();
-          setSettings(defaultSettings as UserSettings);
         } else {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw error;
         }
       } else {
-        const data = await response.json();
         setSettings(data as UserSettings);
       }
     } catch (err: any) {
@@ -152,41 +211,112 @@ export const useUserSettings = () => {
     }
   };
 
-  const updateSettings = async (newSettings: Partial<UserSettings>) => {
-    if (!user) return;
+  const updateSettings = async (newSettings: Partial<UserSettings>, isRetry = false): Promise<boolean> => {
+    if (!user || !settings) return false;
+    
+    // Clear sync error when starting new update
+    if (!isRetry) {
+      setSyncError(null);
+      setRetryCount(0);
+    }
+    
     setUpdating(true);
+    
+    // Store original settings for rollback on failure
+    const originalSettings = { ...settings };
+    
+    // Optimistically update UI
+    const updatedData = {
+      ...settings,
+      ...newSettings,
+      user_id: user.id // Ensure user_id is always present
+    };
+    setSettings(updatedData);
+    
     try {
-      // Use backend API for settings update with authentication
-      const response = await authenticatedFetch(`/api/v1/users/${user.id}/settings`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newSettings),
-      });
+      // Try to update in Supabase
+      const { data, error } = await supabase
+        .from('user_settings')
+        .update(updatedData)
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (error) {
+        // If update fails because record doesn't exist, try to insert
+        if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
+          const { data: insertData, error: insertError } = await supabase
+            .from('user_settings')
+            .insert(updatedData)
+            .select()
+            .single();
+          
+          if (insertError) {
+            throw insertError;
+          }
+          setSettings(insertData as UserSettings);
+          toast.success('Settings saved successfully');
+          setSyncError(null);
+          setRetryCount(0);
+        } else {
+          throw error;
+        }
+      } else {
+        setSettings(data as UserSettings);
+        toast.success('Settings saved successfully');
+        setSyncError(null);
+        setRetryCount(0);
       }
-
-      const updatedSettings = await response.json();
-      setSettings(updatedSettings as UserSettings);
-      toast.success('Settings updated');
+      return true;
     } catch (err: any) {
       console.error('Error updating settings:', err);
       
-      // Update local settings as fallback and show appropriate message
-      if (settings) {
-        setSettings({ ...settings, ...newSettings });
-        toast.success('Settings updated locally (backend sync will retry)');
-      } else {
-        // Provide user-friendly error messages only for critical issues
-        if (err.message.includes('401')) {
-          toast.error('Authentication failed. Please log in again.');
-        } else {
-          toast.warning('Settings updated locally - sync will retry when connection is restored');
-        }
+      // Rollback to original settings on error
+      setSettings(originalSettings);
+      
+      // Determine error message
+      let errorMessage = 'Failed to save settings to server.';
+      
+      if (err.code === '42501' || err.message?.includes('permission denied')) {
+        errorMessage = 'Permission denied. Settings not saved.';
+      } else if (err.code === '42P01' || err.message?.includes('relation')) {
+        errorMessage = 'Database table not found. Please contact support.';
+      } else if (err.message?.includes('Failed to fetch') || err.message?.includes('network')) {
+        errorMessage = 'Network error. Settings will be saved when connection is restored.';
       }
+      
+      setSyncError(errorMessage);
+      
+      // Auto-retry with exponential backoff for network errors
+      const isNetworkError = err.message?.includes('Failed to fetch') || err.message?.includes('network');
+      const shouldRetry = isNetworkError && retryCount < 3;
+      
+      if (shouldRetry) {
+        const retryDelay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        setRetryCount(prev => prev + 1);
+        
+        toast.info(`Retrying in ${retryDelay / 1000} seconds...`, {
+          duration: retryDelay
+        });
+        
+        setTimeout(() => {
+          updateSettings(newSettings, true);
+        }, retryDelay);
+      } else {
+        // Show error with manual retry action
+        toast.error(errorMessage, {
+          action: {
+            label: 'Retry',
+            onClick: () => {
+              setRetryCount(0);
+              updateSettings(newSettings);
+            }
+          },
+          duration: 5000
+        });
+      }
+      
+      return false;
     } finally {
       setUpdating(false);
     }
@@ -201,5 +331,7 @@ export const useUserSettings = () => {
     updateSettings,
     updating,
     loading,
+    syncError,
+    retryCount
   };
 };

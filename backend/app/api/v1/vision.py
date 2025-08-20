@@ -9,7 +9,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from fastapi.responses import JSONResponse
 
 from app.api.deps import get_current_user_optional
-from app.services.pam.orchestrator import get_orchestrator
+from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator as get_orchestrator
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

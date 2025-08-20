@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerTrigger } from "@/components/ui/drawer";
 import { PlusCircle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileFormWrapper } from "@/components/common/MobileFormWrapper";
@@ -38,29 +37,43 @@ export default function WinsIncome() {
   
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium">Your Income</h2>
+      {/* Page Header Section - Matching Expenses page structure */}
+      <div className="space-y-4">
+        {/* Title and Description */}
+        <div>
+          <h2 className="text-2xl font-bold">Income</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Track your travel income and earnings</p>
+        </div>
         
-        <MobileFormWrapper open={drawerOpen} onOpenChange={setDrawerOpen}>
-          {isMobile ? (
-            <MobileIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
-          ) : (
-            <AddIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
-          )}
-        </MobileFormWrapper>
-        <Button onClick={() => setDrawerOpen(true)}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add Income
-        </Button>
+        {/* Primary Actions Bar */}
+        <div className="flex justify-end">
+          <Button onClick={() => setDrawerOpen(true)} className="w-full sm:w-auto">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Income
+          </Button>
+        </div>
       </div>
       
+      {/* Summary Cards Section */}
       <IncomeSummaryCards totalIncome={totalIncome} />
       
+      {/* Chart Visualization */}
       <IncomeChart chartData={chartData} />
 
+      {/* Income Table */}
       <IncomeTable incomeData={incomeData} sourceColors={sourceColors} />
       
+      {/* PAM Insight Card */}
       <PamInsightCard />
+      
+      {/* Income Form Modal/Drawer */}
+      <MobileFormWrapper open={drawerOpen} onOpenChange={setDrawerOpen}>
+        {isMobile ? (
+          <MobileIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
+        ) : (
+          <AddIncomeForm onAddIncome={addIncome} onClose={() => setDrawerOpen(false)} />
+        )}
+      </MobileFormWrapper>
     </div>
   );
 }

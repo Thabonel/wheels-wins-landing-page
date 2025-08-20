@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LeaderboardUser } from "./types";
+import SavingsChallengeModal from "./SavingsChallengeModal";
 
 interface LeaderboardProps {
   leaderboardData: LeaderboardUser[];
 }
 
 export default function TipsLeaderboard({ leaderboardData }: LeaderboardProps) {
+  const [challengeModalOpen, setChallengeModalOpen] = useState(false);
   return (
     <Card className="mt-6">
       <CardHeader>
@@ -46,8 +49,19 @@ export default function TipsLeaderboard({ leaderboardData }: LeaderboardProps) {
         </div>
       </CardContent>
       <CardFooter>
-        <Button variant="outline" className="w-full">Join Savings Challenge</Button>
+        <Button 
+          variant="outline" 
+          className="w-full"
+          onClick={() => setChallengeModalOpen(true)}
+        >
+          Join Savings Challenge
+        </Button>
       </CardFooter>
+      
+      <SavingsChallengeModal 
+        open={challengeModalOpen} 
+        onOpenChange={setChallengeModalOpen} 
+      />
     </Card>
   );
 }

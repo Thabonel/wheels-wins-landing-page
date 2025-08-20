@@ -13,6 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { logger } from '../../lib/logger';
 import {
   Popover,
   PopoverContent,
@@ -48,7 +49,7 @@ export const PamHelpButton: React.FC<PamHelpButtonProps> = ({
       setHelpText(help);
       setIsOpen(true);
     } catch (error) {
-      console.error('Failed to get help:', error);
+      logger.error('Failed to get help:', error);
       setHelpText("I'm having trouble providing help right now. Please try again later.");
       setIsOpen(true);
     } finally {

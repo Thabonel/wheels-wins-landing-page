@@ -133,14 +133,31 @@ class AgenticOrchestrator:
     async def process_message(self, user_id: str, message: str, 
                             session_id: str = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process incoming message through agentic PAM system - API compatibility method"""
-        # Convert context dict to PamContext if needed
+        # Convert context dict to PamContext if needed, preserving location data
         if isinstance(context, dict):
+            # Extract location data specifically
+            user_location = context.get('user_location') or context.get('location')
+            
+            # Build preferences with all context data INCLUDING location
+            preferences = dict(context)  # Keep ALL context data
+            
+            # Ensure location is properly included
+            if user_location:
+                preferences['user_location'] = user_location
+                preferences['location'] = user_location  # Duplicate for compatibility
+            
             pam_context = PamContext(
                 user_id=user_id,
-                preferences=context,
-                conversation_history=[],
+                preferences=preferences,
+                conversation_history=context.get('conversation_history', []),
                 timestamp=datetime.now()
             )
+            
+            # Log what we're passing
+            if user_location:
+                logger.info(f"📍 Location preserved in PAM context: {user_location}")
+            else:
+                logger.warning(f"⚠️ No location data in context for user {user_id}")
         else:
             pam_context = context or PamContext(
                 user_id=user_id,
@@ -242,14 +259,29 @@ class AgenticOrchestrator:
             if any(greeting in message_lower for greeting in simple_greetings + simple_questions):
                 logger.info(f"💬 Simple conversational message detected, using fast response")
                 
-                # For very simple greetings, use a fast predefined response to avoid OpenAI delays
+                # Extract location for context-aware responses
+                user_location = None
+                if hasattr(context, 'preferences') and context.preferences:
+                    user_location = context.preferences.get('user_location') or context.preferences.get('location')
+                
+                # For very simple greetings, use context-aware responses
+                location_str = ""
+                if user_location:
+                    if isinstance(user_location, dict):
+                        if user_location.get('address'):
+                            location_str = f" I see you're in {user_location['address']}."
+                        elif user_location.get('city'):
+                            location_str = f" I see you're in {user_location['city']}."
+                    elif isinstance(user_location, str):
+                        location_str = f" I see you're in {user_location}."
+                
                 quick_responses = {
-                    'hi': "Hello! I'm PAM, your AI travel companion. Ready to help you explore, plan your next adventure, or manage your travel budget!",
-                    'hello': "Hello there! I'm PAM, here to assist with your RV travels. What can I help you with today?",
-                    'hey': "Hey! I'm PAM, your intelligent travel assistant. How can I make your journey better?",
-                    'how are you': "I'm doing great and ready to help! I'm PAM, your AI travel companion for Grey Nomads. What adventure are we planning today?",
-                    'what can you do': "I can help you with travel planning, route optimization, budget tracking, finding campgrounds, checking weather, and much more! What would you like to explore?",
-                    'help': "I'm here to help! I can assist with travel planning, budget management, finding campgrounds, route planning, and answering questions about RV life. What do you need help with?"
+                    'hi': f"Hello! I'm PAM, your personal AI assistant.{location_str} How can I help you today?",
+                    'hello': f"Hello there! I'm PAM, here to assist you.{location_str} What can I help you with?",
+                    'hey': f"Hey! I'm PAM, your intelligent assistant.{location_str} How can I help?",
+                    'how are you': f"I'm doing great and ready to help!{location_str} What can I assist you with today?",
+                    'what can you do': "I can help you with a wide variety of tasks - from answering questions to helping with planning, research, calculations, and more. What would you like to know?",
+                    'help': "I'm here to help! I can assist with information, planning, calculations, weather updates, and answering your questions. What do you need help with?"
                 }
                 
                 # Find the best matching response
@@ -260,7 +292,7 @@ class AgenticOrchestrator:
                         break
                 
                 if not response_content:
-                    response_content = "Hello! I'm PAM, your AI travel companion. How can I help you today?"
+                    response_content = f"Hello! I'm PAM, your personal AI assistant.{location_str} How can I help you today?"
                 
                 logger.info(f"🎯 Returning simple response: {response_content}")
                 
