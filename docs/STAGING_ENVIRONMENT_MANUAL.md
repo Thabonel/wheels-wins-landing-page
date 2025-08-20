@@ -3,11 +3,13 @@
 ## Table of Contents
 1. [Overview](#overview)
 2. [Environment Isolation](#environment-isolation)
-3. [Automated Testing & CI/CD Pipeline](#automated-testing--cicd-pipeline)
-4. [Visual Indicators](#visual-indicators)
-5. [Safe Testing Procedures](#safe-testing-procedures)
-6. [Easy Rollback & Deployment Management](#easy-rollback--deployment-management)
-7. [Troubleshooting](#troubleshooting)
+3. [Backend Service Architecture](#backend-service-architecture)
+4. [Staging to Production Workflow](#staging-to-production-workflow)
+5. [Automated Testing & CI/CD Pipeline](#automated-testing--cicd-pipeline)
+6. [Visual Indicators](#visual-indicators)
+7. [Safe Testing Procedures](#safe-testing-procedures)
+8. [Easy Rollback & Deployment Management](#easy-rollback--deployment-management)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -98,6 +100,176 @@ VITE_ENABLE_DEBUG_TOOLS=false
 VITE_ENABLE_TEST_DATA=false
 VITE_SKIP_EMAIL_VERIFICATION=false
 ```
+
+---
+
+## Backend Service Architecture
+
+### 🖥️ Dual Backend System
+
+Your project uses **two separate backend services** for complete environment isolation:
+
+#### **Staging Backend** 🧪
+- **Service**: `wheels-wins-backend-staging.onrender.com`
+- **Purpose**: Testing backend changes safely
+- **Git Branch**: Deploys from `staging` branch
+- **Database**: Staging Supabase project
+- **Status**: Should always be working and stable
+
+#### **Production Backend** 🚀
+- **Service**: `pam-backend.onrender.com` 
+- **Purpose**: Live backend for production users
+- **Git Branch**: Deploys from `main` branch
+- **Database**: Production Supabase project
+- **Status**: Must be completely stable
+
+### 🔧 Critical Environment Variables
+
+Both backends need these **5 critical environment variables** to function properly:
+
+```bash
+# Required for proper initialization
+APP_URL=https://[backend-service].onrender.com
+DEBUG=false  # true for staging, false for production
+NODE_ENV=production  # staging for staging, production for production
+ENVIRONMENT=production  # staging for staging, production for production
+VITE_USE_AI_SDK_PAM=true
+```
+
+**⚠️ Important**: Missing any of these variables will cause backend initialization errors.
+
+### 🔄 Backend Health Monitoring
+
+#### Healthy Backend Logs:
+```
+✅ Application startup complete
+✅ All performance optimizations active
+✅ Enhanced security system active
+✅ PAM service operational
+```
+
+#### Broken Backend Logs:
+```
+❌ PAMServiceError: Failed to initialize AI service: no running event loop
+❌ RuntimeWarning: coroutine 'AIService.initialize' was never awaited
+⚠️ PAM running in emergency mode with basic functionality
+```
+
+---
+
+## Staging to Production Workflow
+
+### 🎯 When to Sync Staging to Production
+
+Sync your staging branch to main when:
+- ✅ **Backend fixes are needed** (initialization errors, crashes)
+- ✅ **New features are fully tested** on staging
+- ✅ **Critical bugs need immediate production deployment**
+- ✅ **Environment variables are mismatched** between backends
+
+### 📋 Pre-Sync Checklist
+
+Before syncing staging to production:
+
+#### **1. Verify Staging is Working**
+- [ ] Staging backend starts without errors
+- [ ] PAM chat functionality works
+- [ ] No "emergency mode" warnings in logs
+- [ ] All new features function properly
+
+#### **2. Create Safety Backup**
+```bash
+# Always create backup branch before major changes
+git checkout main
+git pull origin main
+git checkout -b backup/main-before-sync-$(date +%Y%m%d-%H%M%S)
+git push origin backup/main-before-sync-$(date +%Y%m%d-%H%M%S)
+```
+
+#### **3. Test Environment Variables**
+- [ ] Verify staging backend has all 5 critical variables
+- [ ] Confirm production backend environment variable setup
+- [ ] Check CORS origins include both staging and production domains
+
+### 🚀 Step-by-Step Sync Process
+
+#### **Step 1: Create Backup**
+```bash
+git checkout main
+git pull origin main
+git checkout -b backup/main-before-sync-$(date +%Y%m%d-%H%M%S)
+git push origin backup/main-before-sync-$(date +%Y%m%d-%H%M%S)
+```
+
+#### **Step 2: Merge Staging to Main**
+```bash
+git checkout main
+git merge staging --no-ff -m "feat: sync staging to main - [brief description]
+
+- [List key changes being deployed]
+- [Mention any critical fixes]
+- [Note environment variable updates needed]
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+#### **Step 3: Push and Monitor**
+```bash
+git push origin main
+```
+
+This triggers:
+- **Frontend**: Netlify auto-deploys `wheelsandwins.com` from main
+- **Backend**: Render auto-deploys `pam-backend.onrender.com` from main
+
+#### **Step 4: Add Missing Environment Variables**
+If production backend is missing variables, add them in Render dashboard:
+```bash
+APP_URL=https://pam-backend.onrender.com
+DEBUG=false
+NODE_ENV=production
+ENVIRONMENT=production
+VITE_USE_AI_SDK_PAM=true
+```
+
+#### **Step 5: Validate Deployment**
+- [ ] Production backend starts without event loop errors
+- [ ] Health endpoint returns healthy status
+- [ ] PAM chat functionality works on production site
+- [ ] No emergency mode warnings
+
+### 🛡️ Rollback Strategy
+
+If something goes wrong:
+
+#### **Quick Git Rollback**
+```bash
+# Revert to backup branch
+git checkout main
+git reset --hard backup/main-before-sync-[timestamp]
+git push --force-with-lease origin main
+```
+
+#### **Service-Level Rollback**
+- **Netlify**: Use deployment history to restore previous version
+- **Render**: Use deployment history to restore previous backend version
+- **Environment Variables**: Restore from backup documentation
+
+### ⚠️ Common Issues During Sync
+
+#### **Backend Won't Start After Sync**
+**Symptoms**: Event loop errors, emergency mode
+**Solution**: Add missing environment variables to production backend
+
+#### **CORS Errors on Production Site**
+**Symptoms**: "Access-Control-Allow-Origin" errors
+**Solution**: Verify `CORS_ORIGINS` includes production domain
+
+#### **Authentication Failures**
+**Symptoms**: JWT signature verification errors
+**Solution**: Check Supabase URL and keys match between frontend and backend
 
 ---
 
