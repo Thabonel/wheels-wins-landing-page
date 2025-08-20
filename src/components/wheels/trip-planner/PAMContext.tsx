@@ -66,7 +66,33 @@ const PAMContext = createContext<PAMContextType | null>(null);
 export const usePAMContext = () => {
   const context = useContext(PAMContext);
   if (!context) {
-    throw new Error('usePAMContext must be used within a PAMProvider');
+    // Return mock PAM context when provider is not available
+    return {
+      context: {
+        currentTrip: {
+          origin: '',
+          destination: '',
+          waypoints: [],
+          budget: 0,
+          dates: { start: '', end: '' }
+        },
+        userProfile: {
+          rvSpecs: { length: 0, mpg: 0, fuelType: '' },
+          preferences: { maxDailyDistance: 0, campgroundType: '' },
+          budget: { dailyLimit: 0, totalBudget: 0 }
+        },
+        friends: [],
+        currentSuggestions: [],
+        isPlanning: false,
+        chatHistory: []
+      },
+      updateContext: () => {},
+      addMessage: () => {},
+      suggestions: [],
+      setSuggestions: () => {},
+      isConnected: false,
+      sendMessage: async () => {}
+    };
   }
   return context;
 };
