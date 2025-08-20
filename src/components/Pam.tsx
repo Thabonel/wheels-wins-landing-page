@@ -22,8 +22,6 @@ import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { pamAgenticService } from "@/services/pamAgenticService";
-import { VoiceInterface, VoiceInterfaceHandle } from "@/components/voice/VoiceInterface";
-import { VoiceErrorBoundary } from "@/components/voice/VoiceErrorBoundary";
 import { logger } from '../lib/logger';
 
 
@@ -194,7 +192,6 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const voiceInterfaceRef = useRef<VoiceInterfaceHandle>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownWelcomeRef = useRef(false);
   const tokenRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -1074,14 +1071,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           // Handle voice/STT responses - Phase 5B/5C
           if (message.type === 'stt_result') {
             logger.debug('🎤 STT result received:', message);
-            voiceInterfaceRef.current?.updateTranscript(message.text);
-            voiceInterfaceRef.current?.updateStatus('success');
+            // Voice interface removed - transcript handled inline
           }
           
           if (message.type === 'stt_instruction') {
             logger.debug('🎤 STT instruction received:', message);
             if (message.instruction === 'use_browser_stt') {
-              voiceInterfaceRef.current?.updateStatus('processing');
+              // Voice processing status handled inline
               // Browser STT would be handled client-side
             }
           }
@@ -2857,20 +2853,6 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         <div className="p-3 border-t">
           <AudioLevelMeter />
           
-          {/* Voice Interface - Phase 5C */}
-          <VoiceErrorBoundary>
-            <VoiceInterface
-              ref={voiceInterfaceRef}
-              onSendAudio={handleVoiceAudioSend}
-              onSendText={handleVoiceTextSend}
-              onTTSRequest={handleTTSRequest}
-              compact={true}
-              showTranscript={false}
-              autoSend={true}
-              className="mb-2"
-            />
-          </VoiceErrorBoundary>
-          
           <div className="flex items-center space-x-2">
             <input
               ref={inputRef}
@@ -2884,33 +2866,14 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             />
             <button
               onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
-              className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+              className={`p-2 rounded-lg transition-colors ${
+                isContinuousMode ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-600 hover:bg-gray-100"
               }`}
               disabled={connectionStatus !== "Connected"}
-              title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
+              title={isContinuousMode ? "Stop voice mode" : "Start voice mode"}
             >
-              <div className="flex flex-col items-center gap-0.5">
-                <Mic className="w-4 h-4" />
-                <span className="text-xs font-medium">Live</span>
-              </div>
-              {isContinuousMode && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
-                     title="Live mode active - Say 'Hey PAM'" />
-              )}
+              {isContinuousMode ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
-            {isSpeaking && (
-              <button
-                onClick={stopSpeaking}
-                className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100"
-                title="🔇 Stop PAM voice"
-              >
-                <div className="flex flex-col items-center gap-0.5">
-                  <VolumeX className="w-4 h-4" />
-                  <span className="text-xs font-medium">Stop</span>
-                </div>
-              </button>
-            )}
             <button
               onClick={handleSendMessage}
               disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
@@ -2987,98 +2950,27 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 ? (
               <div className="text-center text-gray-500 text-sm">
-                <p>{getPersonalizedGreeting()}</p>
-                <div className="mt-4 space-y-2">
-                  <button 
-                    onClick={() => setInputMessage("Autonomously plan a complex trip from Sydney to Hobart with ferry logistics")}
-                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                <p className="mb-3">{getPersonalizedGreeting()}</p>
+                <p className="text-xs text-gray-500 mb-2">Try asking:</p>
+                <div className="space-y-1">
+                  <p 
+                    onClick={() => setInputMessage("Plan a trip from Sydney to Hobart")}
+                    className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
                   >
-                    <MapPin className="w-4 h-4" />
-                    🧠 Autonomous Complex Trip Planning
-                  </button>
-                  <button 
-                    onClick={() => setInputMessage("Show me your thinking process for planning a budget-friendly 3-week road trip")}
-                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                    "Plan a trip from Sydney to Hobart"
+                  </p>
+                  <p 
+                    onClick={() => setInputMessage("Help me budget for a 3-week road trip")}
+                    className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
                   >
-                    <Calendar className="w-4 h-4" />
-                    💭 Show AI Reasoning Process
-                  </button>
-                  <button 
-                    onClick={() => setInputMessage("Use your agentic tools to analyze my profile and suggest improvements")}
-                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-primary/10 rounded-lg hover:bg-primary/20"
+                    "Help me budget for a 3-week road trip"
+                  </p>
+                  <p 
+                    onClick={() => setInputMessage("What can you help me with?")}
+                    className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
                   >
-                    <DollarSign className="w-4 h-4" />
-                    🚀 Proactive Profile Analysis
-                  </button>
-                  <button 
-                    onClick={() => isWakeWordListening ? stopWakeWordListening() : startWakeWordListening()}
-                    className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
-                      isWakeWordListening ? "bg-green-100 text-green-800 hover:bg-green-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    <Mic className="w-4 h-4" />
-                    {isWakeWordListening ? "👂 Wake Word Active - Say 'Hi PAM'" : "🎙️ Enable 'Hi PAM' Wake Word (Needs Mic)"}
-                  </button>
-                  <button 
-                    onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
-                    className={`flex items-center gap-2 w-full p-2 text-left text-xs rounded-lg ${
-                      isContinuousMode ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    <Mic className="w-4 h-4" />
-                    {isContinuousMode ? "🔄 Continuous Mode ON - Say 'PAM'" : "🎙️ Start Continuous Voice Chat (Needs Mic)"}
-                  </button>
-                  <button 
-                    onClick={async () => {
-                      logger.debug('🧪 PAM DIAGNOSTIC: Starting full diagnostic...');
-                      
-                      // Check authentication  
-                      const { data: { session } } = await supabase.auth.getSession();
-                      logger.debug('🧪 Session details:');
-                      logger.debug('  - Has session:', !!session);
-                      logger.debug('  - Has access_token:', !!session?.access_token);
-                      logger.debug('  - Token length:', session?.access_token?.length || 0);
-                      logger.debug('  - Token parts:', session?.access_token?.split('.').length);
-                      logger.debug('  - User email:', user?.email);
-                      logger.debug('  - User ID:', user?.id);
-                      
-                      // Test backend health
-                      try {
-                        const healthResponse = await fetch('https://pam-backend.onrender.com/health');
-                        logger.debug('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
-                      } catch (error) {
-                        logger.debug('🧪 Backend health: ERROR', error);
-                      }
-                      
-                      // Test PAM connection
-                      if (session?.access_token) {
-                        try {
-                          const testResponse = await authenticatedFetch('/api/v1/pam/chat', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                              message: 'Debug test message',
-                              context: { user_id: user?.id, debug: true }
-                            })
-                          });
-                          logger.debug('🧪 PAM API test:', testResponse.ok ? 'SUCCESS' : 'FAILED');
-                          if (!testResponse.ok) {
-                            const errorText = await testResponse.text();
-                            logger.debug('🧪 PAM API error:', errorText);
-                          } else {
-                            const data = await testResponse.json();
-                            logger.debug('🧪 PAM API response:', data);
-                          }
-                        } catch (apiError) {
-                          logger.debug('🧪 PAM API exception:', apiError);
-                        }
-                      }
-                      
-                      addMessage("🧪 Diagnostic completed - check browser console for details", "pam");
-                    }}
-                    className="flex items-center gap-2 w-full p-2 text-left text-xs bg-blue-100 rounded-lg hover:bg-blue-200"
-                  >
-                    🧪 Run Full Diagnostic
-                  </button>
+                    "What can you help me with?"
+                  </p>
                 </div>
               </div>
             ) : (
@@ -3118,20 +3010,6 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           <div className="p-4 border-t">
             <AudioLevelMeter />
             
-            {/* Voice Interface - Phase 5C */}
-            <VoiceErrorBoundary>
-              <VoiceInterface
-                ref={voiceInterfaceRef}
-                onSendAudio={handleVoiceAudioSend}
-                onSendText={handleVoiceTextSend}
-                onTTSRequest={handleTTSRequest}
-                compact={true}
-                showTranscript={false}
-                autoSend={true}
-                className="mb-2"
-              />
-            </VoiceErrorBoundary>
-            
             <div className="flex items-center space-x-2">
               <input
                 ref={inputRef}
@@ -3145,33 +3023,14 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               />
               <button
                 onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
-                className={`p-2 rounded-lg transition-colors relative flex-shrink-0 ${
-                  isContinuousMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                className={`p-2 rounded-lg transition-colors ${
+                  isContinuousMode ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-600 hover:bg-gray-100"
                 }`}
                 disabled={connectionStatus !== "Connected"}
-                title={isContinuousMode ? "🔄 Stop Live mode" : "🎙️ Live mode - Say 'Hey PAM'"}
+                title={isContinuousMode ? "Stop voice mode" : "Start voice mode"}
               >
-                <div className="flex flex-col items-center gap-0.5">
-                  <Mic className="w-4 h-4" />
-                  <span className="text-xs font-medium">Live</span>
-                </div>
-                {isContinuousMode && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-300 rounded-full animate-pulse" 
-                       title="Live mode active - Say 'Hey PAM'" />
-                )}
+                {isContinuousMode ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
-              {isSpeaking && (
-                <button
-                  onClick={stopSpeaking}
-                  className="p-2 rounded-lg transition-colors relative flex-shrink-0 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100"
-                  title="🔇 Stop PAM voice"
-                >
-                  <div className="flex flex-col items-center gap-0.5">
-                    <VolumeX className="w-4 h-4" />
-                    <span className="text-xs font-medium">Stop</span>
-                  </div>
-                </button>
-              )}
               <button
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || connectionStatus !== "Connected"}
