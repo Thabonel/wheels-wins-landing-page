@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTripPlannerState } from "./useTripPlannerState";
 import { useSocialTripState } from "./useSocialTripState";
-import { usePAMContext } from "../PAMContext";
+// PAM made optional - will return mock if not available
+import { usePAMContextSafe } from "./usePAMContextSafe";
 import { Waypoint, Suggestion } from "../types";
 
 export interface BudgetData {
@@ -35,7 +36,7 @@ export interface IntegratedTripState {
   };
   budget: BudgetData;
   social: ReturnType<typeof useSocialTripState>;
-  pam: ReturnType<typeof usePAMContext>;
+  pam: ReturnType<typeof usePAMContextSafe>;
   export: ExportData;
   ui: {
     showBudgetSidebar: boolean;
@@ -51,7 +52,7 @@ export interface IntegratedTripState {
 export function useIntegratedTripState(isOffline: boolean) {
   const tripState = useTripPlannerState(isOffline);
   const socialState = useSocialTripState();
-  const pamState = usePAMContext();
+  const pamState = usePAMContextSafe();
 
   // Budget state
   const [budget, setBudget] = useState<BudgetData>({
