@@ -622,7 +622,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       logger.debug('🔄 Testing REST API connection...');
       
       // First try the health endpoint (no auth required)
-      const healthResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com'}/health`);
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      const healthResponse = await fetch(`${backendUrl}/health`);
       if (!healthResponse.ok) {
         throw new Error('Backend health check failed');
       }
@@ -688,7 +689,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
 
     logger.debug('🏥 PAM DEBUG: ==================== HEALTH CHECK ====================');
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
     logger.debug('🏥 PAM DEBUG: Backend URL:', backendUrl);
     logger.debug('🏥 PAM DEBUG: Health check URL:', `${backendUrl}/health`);
     
@@ -2788,7 +2789,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                     
                     // Test backend health
                     try {
-                      const healthResponse = await fetch('https://pam-backend.onrender.com/health');
+                      const healthResponse = await fetch('https://wheels-wins-backend-staging.onrender.com/health');
                       logger.debug('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
                     } catch (error) {
                       logger.debug('🧪 Backend health: ERROR', error);
