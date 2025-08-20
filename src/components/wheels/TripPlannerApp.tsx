@@ -1,16 +1,13 @@
 /**
- * IMPORTANT: This Trip Planner component is SACROSANCT and must NOT be modified
- * without explicit permission from the project owner. Any optimizations, 
- * refactoring, or changes require direct approval.
+ * Trip Planner App - Enhanced with robust Unimog-based architecture
  * 
- * DO NOT:
- * - Add performance optimizations
- * - Refactor the code structure
- * - Add lazy loading
- * - Modify the UI/UX
- * - Change any functionality
+ * Features:
+ * - Clean, maintainable trip planning core
+ * - Integrated Budget and Social sidebars (preserved from original)
+ * - Template system with enhanced integration
+ * - Robust error handling and map integration
  * 
- * This component works exactly as intended.
+ * Architecture: Unimog trip planner core + Wheels & Wins integration layer
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,8 +27,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-// Import existing components
-import IntegratedTripPlanner from './trip-planner/IntegratedTripPlanner';
+// Import enhanced trip planner (replaces old IntegratedTripPlanner)
+import EnhancedTripPlanner from './trip-planner/enhanced/TripPlanner';
+import { useTripPlannerIntegration } from './trip-planner/enhanced/hooks/useTripPlannerIntegration';
 import BudgetSidebar from './trip-planner/BudgetSidebar';
 import SocialSidebar from './trip-planner/SocialSidebar';
 import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
@@ -60,6 +58,9 @@ export default function TripPlannerApp() {
   
   // Initialize integrated state
   const integratedState = useIntegratedTripState(false);
+  
+  // Initialize trip planner integration
+  const tripIntegration = useTripPlannerIntegration(integratedState);
 
   useEffect(() => {
     if (user && showWelcome) {
@@ -266,7 +267,12 @@ export default function TripPlannerApp() {
           </TabsContent>
 
           <TabsContent value="plan-trip" className="mt-0">
-            <IntegratedTripPlanner templateData={selectedTemplate} />
+            <EnhancedTripPlanner 
+              templateData={selectedTemplate}
+              integratedState={integratedState}
+              onRouteUpdate={tripIntegration.handleRouteUpdate}
+              onBudgetUpdate={tripIntegration.handleBudgetUpdate}
+            />
           </TabsContent>
         </Tabs>
 
