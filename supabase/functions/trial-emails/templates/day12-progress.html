@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You're Building Great Habits - Day 12</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }
+        .container { max-width: 600px; margin: 0 auto; background: white; }
+        .header { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 40px 20px; text-align: center; }
+        .header h1 { color: white; margin: 0; font-size: 28px; }
+        .header p { color: #ddd6fe; margin: 10px 0 0 0; font-size: 16px; }
+        .content { padding: 40px 20px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 25px 0; }
+        .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-number { font-size: 28px; font-weight: 700; color: #8b5cf6; margin: 0; }
+        .stat-label { font-size: 14px; color: #64748b; margin: 5px 0 0 0; }
+        .achievement { background: #fef7ff; border: 1px solid #f3e8ff; border-radius: 12px; padding: 25px; margin: 25px 0; }
+        .cta { background: #8b5cf6; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; display: inline-block; margin: 20px 0; font-weight: 600; }
+        .progress-bar { background: #e5e7eb; height: 8px; border-radius: 4px; margin: 15px 0; }
+        .progress-fill { background: #8b5cf6; height: 100%; border-radius: 4px; width: {{progress_percent}}%; }
+        .milestone { display: flex; align-items: center; padding: 10px 0; }
+        .milestone-status { width: 20px; height: 20px; border-radius: 50%; margin-right: 15px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .milestone-complete { background: #10b981; color: white; }
+        .milestone-pending { background: #e5e7eb; color: #64748b; }
+        .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 You're Building Momentum</h1>
+            <p>Day 12 progress check-in</p>
+        </div>
+        
+        <div class="content">
+            <h2>Hey {{user_name}},</h2>
+            <p>Amazing work! You're nearly halfway through your trial and we can see you're building some great habits. Let's look at your progress:</p>
+            
+            <div class="achievement">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="display: inline-block; background: #8b5cf6; color: white; width: 60px; height: 60px; border-radius: 50%; line-height: 60px; font-size: 24px; margin-bottom: 15px;">🏆</div>
+                    <h3 style="margin: 0; color: #7c3aed;">Habit Builder Achievement Unlocked!</h3>
+                    <p style="margin: 10px 0 0 0; color: #8b5cf6;">You're {{progress_percent}}% through your trial milestones</p>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">{{routes_saved}}</div>
+                    <div class="stat-label">Routes Saved</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${{expenses_tracked}}</div>
+                    <div class="stat-label">Expenses Tracked</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{days_active}}</div>
+                    <div class="stat-label">Days Active</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{fuel_insights}}</div>
+                    <div class="stat-label">Fuel Insights</div>
+                </div>
+            </div>
+            
+            <h3>Your Milestones Progress:</h3>
+            <div style="margin: 20px 0;">
+                {{#milestones}}
+                <div class="milestone">
+                    <div class="milestone-status {{#completed}}milestone-complete{{/completed}}{{^completed}}milestone-pending{{/completed}}">
+                        {{#completed}}✓{{/completed}}{{^completed}}{{order}}{{/completed}}
+                    </div>
+                    <div>
+                        <strong>{{title}}</strong>
+                        {{#completed}}<span style="color: #10b981; font-size: 14px; margin-left: 10px;">Completed!</span>{{/completed}}
+                    </div>
+                </div>
+                {{/milestones}}
+            </div>
+            
+            <div style="background: #dbeafe; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                <h3 style="margin: 0 0 10px 0; color: #1e40af;">💡 Ready for the Next Level?</h3>
+                <p style="margin: 0; color: #1e3a8a;">You've built great momentum! Set your monthly budget to unlock powerful spending insights and see projected savings for your trips.</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{app_url}}/budget" class="cta">Set My Budget</a>
+            </div>
+            
+            <div style="margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0;">👥 Join the Community</h3>
+                <p style="margin: 0 0 10px 0;">Share your progress with other adventurers in our community forum:</p>
+                <p style="margin: 0; font-style: italic; color: #64748b;">"Day 12 update: Saved $180 on my last trip by tracking fuel costs! This app is a game-changer." - Mike T.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>{{days_left}} days left in your trial • Questions? <a href="{{help_url}}" style="color: #8b5cf6;">Get help</a></p>
+            <p style="margin: 10px 0 0 0;">Keep up the great work! 🎉<br>The Wheels & Wins Team</p>
+        </div>
+    </div>
+</body>
+</html>
