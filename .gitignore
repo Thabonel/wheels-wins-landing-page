@@ -13,3 +13,17 @@ coverage/
 .env.production
 .env.staging
 .env.ai-agents.local
+
+# Cloud sync duplicates prevention
+* 2.*
+* 3.*
+* 4.*
+*conflicted*
+*.icloud
+.DS_Store
+._*
+*.nosync
+
+# NPM cache issues
+.npm/
+
