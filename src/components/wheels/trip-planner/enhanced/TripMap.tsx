@@ -1,7 +1,6 @@
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMemo, useCallback, memo } from 'react';
-import { Button } from '@/components/ui/button';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import EnhancedMap from './map/EnhancedMap';
 
 interface TripMapProps {
   startLocation?: string;
@@ -12,6 +11,7 @@ interface TripMapProps {
     latitude: number;
     longitude: number;
   };
+  currentRoute?: any;
 }
 
 
@@ -20,7 +20,8 @@ const TripMap = ({
   endLocation,
   waypoints = [],
   onMapClick,
-  userLocation
+  userLocation,
+  currentRoute
 }: TripMapProps) => {
   
   // Helper function to create a valid tuple
@@ -37,26 +38,16 @@ const TripMap = ({
     return [-98.5795, 39.8283] as [number, number];
   }, [userLocation, createLocationTuple]);
   
-  // For now, show a placeholder since we need to integrate with existing Wheels & Wins map system
-  // This will be replaced with the actual map component integration
+  // Use the enhanced map with all the UI elements
   return (
-    <div className="w-full h-[400px] bg-muted rounded-lg flex items-center justify-center border">
-      <div className="text-center space-y-2">
-        <div className="text-lg font-medium">Trip Route Map</div>
-        <div className="text-sm text-muted-foreground">
-          {startLocation && endLocation ? (
-            `Route: ${startLocation} → ${endLocation}`
-          ) : (
-            'Enter start and end locations to see route'
-          )}
-        </div>
-        {waypoints && waypoints.length > 0 && (
-          <div className="text-sm text-muted-foreground">
-            {waypoints.length} waypoint{waypoints.length > 1 ? 's' : ''} planned
-          </div>
-        )}
-      </div>
-    </div>
+    <EnhancedMap
+      startLocation={startLocation}
+      endLocation={endLocation}
+      waypoints={waypoints}
+      onMapClick={onMapClick}
+      userLocation={userLocation}
+      currentRoute={currentRoute}
+    />
   );
 };
 

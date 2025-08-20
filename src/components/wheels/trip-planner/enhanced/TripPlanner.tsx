@@ -190,6 +190,8 @@ const TripPlanner = ({
             startLocation={startLocation}
             endLocation={endLocation}
             userLocation={userCoordinates}
+            waypoints={tripPlan?.waypoints}
+            currentRoute={tripPlan?.route}
           />
         </div>
 

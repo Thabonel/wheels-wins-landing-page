@@ -27,6 +27,7 @@ const CancelTrial = lazy(() => import("@/pages/CancelTrial"));
 const PasswordResetRequest = lazy(() => import("@/pages/PasswordResetRequest"));
 const UpdatePassword = lazy(() => import("@/pages/UpdatePassword"));
 const ThankYouDigistore24 = lazy(() => import("@/pages/ThankYouDigistore24"));
+const Trips = lazy(() => import("@/pages/Trips"));
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtection from './components/admin/AdminProtection';
 import { LazyPamIntegrationProvider } from './components/pam/LazyPamIntegrationProvider';
@@ -82,6 +83,7 @@ function App() {
                               <Routes>
                                 <Route path="/" element={<Index />} />
                                 <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
+                                <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
                                 <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
                                 <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                                 <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
