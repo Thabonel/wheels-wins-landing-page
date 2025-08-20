@@ -31,7 +31,12 @@ const Trips = lazy(() => import("@/pages/Trips"));
 const TripsPublic = lazy(() => import("@/pages/TripsPublic"));
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtection from './components/admin/AdminProtection';
-import { LazyPamIntegrationProvider } from './components/pam/LazyPamIntegrationProvider';
+// Conditionally load PAM based on environment variable
+const ENABLE_PAM = import.meta.env.VITE_ENABLE_PAM === 'true';
+const PamWrapper = ENABLE_PAM 
+  ? lazy(() => import('./components/pam/LazyPamIntegrationProvider').then(m => ({ default: m.LazyPamIntegrationProvider })))
+  : lazy(() => import('./components/pam/DisabledPamProvider'));
+  
 import { PamProvider } from './context/PamContext';
 import { StagingBanner } from './components/StagingBanner';
 import { logEnvironmentInfo } from './config/environment';
@@ -70,10 +75,11 @@ function App() {
                 <ExpensesProvider>
                   <WheelsProvider>
                     <PamProvider>
-                      <LazyPamIntegrationProvider>
-                        <ScrollToTop />
-                        <RouteMonitor />
-                        <Layout>
+                      <Suspense fallback={<div />}>
+                        <PamWrapper>
+                          <ScrollToTop />
+                          <RouteMonitor />
+                          <Layout>
                         <div className="route-container">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-64 space-x-2">
@@ -117,7 +123,8 @@ function App() {
                           </Suspense>
                         </div>
                       </Layout>
-                      </LazyPamIntegrationProvider>
+                        </PamWrapper>
+                      </Suspense>
                     </PamProvider>
                   </WheelsProvider>
                 </ExpensesProvider>

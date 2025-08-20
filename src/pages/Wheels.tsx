@@ -3,9 +3,9 @@ import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TabTransition } from "@/components/common/TabTransition";
-import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
+// PAM removed - now conditionally loaded via App.tsx
 import { TripPlannerErrorBoundary } from "@/components/common/TripPlannerErrorBoundary";
-import { PAMErrorBoundary } from "@/components/common/PAMErrorBoundary";
+// PAMErrorBoundary removed - PAM is disabled by default
 import { PamHelpButton } from "@/components/pam/PamHelpButton";
 
 // Lazy load heavy components to reduce initial bundle size
@@ -85,18 +85,14 @@ const Wheels = () => {
               <div className="min-h-[600px]">
                 <TabTransition activeTab={activeTab} tabId="trip-planner" className="mt-0">
                   <TripPlannerErrorBoundary>
-                    <PAMErrorBoundary>
-                      <PAMProvider>
-                        <Suspense fallback={
-                          <div className="flex items-center justify-center h-96">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                            <span className="ml-3 text-gray-600">Loading Trip Planner...</span>
-                          </div>
-                        }>
-                          <TripPlannerApp />
-                        </Suspense>
-                      </PAMProvider>
-                    </PAMErrorBoundary>
+                    <Suspense fallback={
+                      <div className="flex items-center justify-center h-96">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                        <span className="ml-3 text-gray-600">Loading Trip Planner...</span>
+                      </div>
+                    }>
+                      <TripPlannerApp />
+                    </Suspense>
                   </TripPlannerErrorBoundary>
                 </TabTransition>
                 
