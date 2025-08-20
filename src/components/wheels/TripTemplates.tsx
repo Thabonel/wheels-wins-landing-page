@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRegion } from '@/context/RegionContext';
 import { useToast } from '@/hooks/use-toast';
-import { getLocationBasedTripTemplates, TripTemplate, incrementTemplateUsage } from '@/services/tripTemplateService';
+import { tripTemplateServiceSafe } from '@/services/tripTemplateServiceSafe';
+import { TripTemplate, incrementTemplateUsage } from '@/services/tripTemplateService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -56,7 +57,8 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
         setError(null);
         
         console.log(`Loading trip templates for region: ${region}`);
-        const templates = await getLocationBasedTripTemplates(region);
+        const result = await tripTemplateServiceSafe.getLocationBasedTripTemplates(region);
+        const templates = result.templates || [];
         
         setTripTemplates(templates);
         setFilteredTemplates(templates);
