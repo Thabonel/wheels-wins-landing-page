@@ -122,6 +122,28 @@ export default function MapControls({
         return;
       }
       
+      // Check WebGL support before initializing map
+      const checkWebGLSupport = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+          return !!(gl && gl instanceof WebGLRenderingContext);
+        } catch (error) {
+          console.warn('WebGL detection failed:', error);
+          return false;
+        }
+      };
+
+      if (!checkWebGLSupport()) {
+        console.error('❌ WebGL is not supported in MapControls');
+        toast({
+          title: "Map Unavailable",
+          description: "Your browser doesn't support WebGL, which is required for maps. Please try a modern browser.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Simple direct token setting
       mapboxgl.accessToken = token;
       console.log('✅ Token set successfully:', `${token.substring(0, 20)  }...`);
@@ -133,15 +155,32 @@ export default function MapControls({
           center,
           zoom: 3.5,
           hash: true, // Enable URL hash for sharing map state
-          projection: 'mercator'
+          projection: 'mercator',
+          // Add WebGL-specific options for better compatibility
+          preserveDrawingBuffer: true,
+          antialias: true
         });
         
         console.log('✅ Map initialized successfully');
+        
+        // Add error handler for map runtime errors
+        map.current.on('error', (error) => {
+          console.error('❌ Map runtime error:', error);
+          // Don't show toast for every error to avoid spamming
+          if (error.error?.message?.includes('WebGL')) {
+            toast({
+              title: "Map Rendering Issue",
+              description: "Map encountered a rendering issue. Please refresh the page.",
+              variant: "destructive",
+            });
+          }
+        });
+        
       } catch (error) {
         console.error('❌ Failed to initialize map:', error);
         toast({
-          title: "Map Error",
-          description: "Failed to initialize map. Please check your internet connection and try again.",
+          title: "Map Initialization Failed",
+          description: `Failed to initialize map: ${error.message}. Please check your browser compatibility.`,
           variant: "destructive",
         });
         return;
