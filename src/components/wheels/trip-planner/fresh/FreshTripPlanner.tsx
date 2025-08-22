@@ -7,9 +7,8 @@ import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 
 // Map styles configuration
-// Note: Replace 'your-username' with your actual Mapbox username for custom styles
 const MAP_STYLES = {
-  AUSTRALIA_OFFROAD: 'mapbox://styles/your-username/australia-offroad-89gicc', // Custom style - update username
+  AUSTRALIA_OFFROAD: 'mapbox://styles/thabonel/australia-offroad-89gicc',
   OUTDOORS: 'mapbox://styles/mapbox/outdoors-v12',
   SATELLITE: 'mapbox://styles/mapbox/satellite-streets-v12',
   NAVIGATION: 'mapbox://styles/mapbox/navigation-day-v1',
