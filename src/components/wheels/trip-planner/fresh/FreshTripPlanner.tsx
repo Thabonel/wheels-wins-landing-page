@@ -69,13 +69,14 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     
-    // Check for Mapbox token
+    // Check for Mapbox token - try multiple env vars
+    const mainToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN;
     const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
     const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
-    const token = publicToken || legacyToken;
+    const token = mainToken || publicToken || legacyToken;
     
     if (!token) {
-      toast.error('Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN in Netlify environment variables.');
+      toast.error('Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN_MAIN in Netlify environment variables.');
       return;
     }
     
