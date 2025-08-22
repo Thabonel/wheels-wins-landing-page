@@ -8,7 +8,6 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
   private isFullscreen: boolean = false;
   private originalParent: HTMLElement | null = null;
   private originalNextSibling: Node | null = null;
-  private backButton: HTMLDivElement | undefined;
 
   onAdd(map: mapboxgl.Map): HTMLElement {
     this.map = map;
@@ -72,9 +71,6 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
         height: 100% !important;
       `;
 
-      // Create and add back button
-      this.createBackButton(mapWrapper);
-
       // Update button icon
       this.button!.innerHTML = `
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -96,22 +92,6 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
     }
   }
 
-  private createBackButton(container: HTMLElement): void {
-    this.backButton = document.createElement('div');
-    this.backButton.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 z-50';
-    this.backButton.innerHTML = `
-      <button class="bg-white/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg hover:bg-white transition-colors flex items-center gap-2 border border-gray-200">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 12H5M12 19l-7-7 7-7"/>
-        </svg>
-        <span class="font-medium">Exit Fullscreen</span>
-      </button>
-    `;
-
-    this.backButton.querySelector('button')!.onclick = () => this.exitFullscreen();
-    container.appendChild(this.backButton);
-  }
-
   private exitFullscreen(): void {
     if (!this.map) return;
 
@@ -119,12 +99,6 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
     const mapWrapper = mapContainer.parentElement;
 
     if (!mapWrapper || !this.originalParent) return;
-
-    // Remove back button
-    if (this.backButton && this.backButton.parentElement) {
-      this.backButton.parentElement.removeChild(this.backButton);
-      this.backButton = undefined;
-    }
 
     // Restore original position
     if (this.originalNextSibling) {
