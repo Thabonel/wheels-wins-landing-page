@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keep Everything You've Built - 2 Days Left</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }
+        .container { max-width: 600px; margin: 0 auto; background: white; }
+        .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 40px 20px; text-align: center; }
+        .header h1 { color: white; margin: 0; font-size: 28px; }
+        .header p { color: #fed7aa; margin: 10px 0 0 0; font-size: 16px; }
+        .content { padding: 40px 20px; }
+        .urgency-banner { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; padding: 25px; margin: 25px 0; text-align: center; }
+        .achievement-summary { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 25px; margin: 25px 0; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0; }
+        .stat-card { background: white; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-number { font-size: 24px; font-weight: 700; color: #0ea5e9; margin: 0; }
+        .stat-label { font-size: 12px; color: #64748b; margin: 5px 0 0 0; }
+        .cta-primary { background: #f59e0b; color: white; padding: 18px 35px; border-radius: 8px; text-decoration: none; display: inline-block; margin: 20px 10px; font-weight: 600; font-size: 16px; }
+        .cta-secondary { background: transparent; color: #f59e0b; padding: 18px 35px; border: 2px solid #f59e0b; border-radius: 8px; text-decoration: none; display: inline-block; margin: 20px 10px; font-weight: 600; font-size: 16px; }
+        .feature-list { margin: 20px 0; }
+        .feature { display: flex; align-items: center; padding: 8px 0; }
+        .feature-icon { background: #10b981; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 14px; }
+        .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+        .price { font-size: 32px; font-weight: 700; color: #f59e0b; }
+        .countdown { background: #dc2626; color: white; padding: 10px 20px; border-radius: 20px; display: inline-block; font-weight: 600; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="countdown">⏰ 2 Days Left</div>
+            <h1>Keep Everything You've Built</h1>
+            <p>Your trial ends soon, but your progress is safe</p>
+        </div>
+        
+        <div class="content">
+            <h2>Hey {{user_name}},</h2>
+            <p>In just 2 days, your trial will end. But here's the good news: <strong>all your progress is safely stored</strong> and ready for you to continue.</p>
+            
+            <div class="urgency-banner">
+                <h3 style="margin: 0 0 15px 0; color: #92400e;">🏆 Look What You've Accomplished</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">{{routes_saved}}</div>
+                        <div class="stat-label">Routes Planned</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${{total_expenses}}</div>
+                        <div class="stat-label">Expenses Tracked</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{completed_milestones}}/5</div>
+                        <div class="stat-label">Milestones</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{days_active}}</div>
+                        <div class="stat-label">Active Days</div>
+                    </div>
+                </div>
+                <p style="margin: 15px 0 0 0; color: #b45309; font-weight: 600;">This data is yours forever - we never delete it!</p>
+            </div>
+            
+            <div class="achievement-summary">
+                <h3 style="margin: 0 0 15px 0; color: #0369a1;">✨ What You Get When You Upgrade</h3>
+                <div class="feature-list">
+                    <div class="feature">
+                        <div class="feature-icon">∞</div>
+                        <span>Unlimited routes, storage, and devices</span>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🛡️</div>
+                        <span>Secure cloud backup of all your data</span>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">👨‍👩‍👧‍👦</div>
+                        <span>Family sharing for up to 5 people</span>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">⚡</div>
+                        <span>Advanced fuel optimization and insights</span>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">💬</div>
+                        <span>Priority support from real humans</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0; padding: 25px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px;">
+                <div style="margin-bottom: 15px;">
+                    <span style="text-decoration: line-through; color: #92400e; font-size: 18px;">$119.99/year</span>
+                    <div class="price">$99.99/year</div>
+                    <p style="margin: 5px 0 0 0; color: #92400e;">Save $20 with annual billing</p>
+                </div>
+                <p style="margin: 15px 0; color: #78350f; font-weight: 600;">30-day money-back guarantee • Cancel anytime</p>
+                <div>
+                    <a href="{{upgrade_url}}" class="cta-primary">Keep My Data & Upgrade</a>
+                </div>
+                <div>
+                    <a href="{{export_url}}" class="cta-secondary">Download My Data First</a>
+                </div>
+            </div>
+            
+            <div style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                <h3 style="margin: 0 0 10px 0;">❤️ From Other Adventurers</h3>
+                <p style="margin: 0 0 10px 0; font-style: italic;">"I upgraded on day 26 and it was the best decision. All my routes and expenses were there waiting for me, plus the unlimited features opened up so many possibilities!"</p>
+                <p style="margin: 0; font-size: 14px; color: #64748b;">- Jennifer K., upgraded after trial</p>
+            </div>
+            
+            <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 20px; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; color: #dc2626;">🔒 Your Data is Safe</h3>
+                <p style="margin: 0; color: #7f1d1d;">Even if your trial expires, we keep your data secure for 90 days. You can upgrade anytime and pick up exactly where you left off.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Questions about upgrading? <a href="{{help_url}}" style="color: #f59e0b;">Contact our support team</a></p>
+            <p style="margin: 10px 0 0 0;">Thanks for an amazing 26 days! 🙏<br>The Wheels & Wins Team</p>
+        </div>
+    </div>
+</body>
+</html>

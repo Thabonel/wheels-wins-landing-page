@@ -162,7 +162,8 @@ export default function TripTemplateCard({
     return `https://api.mapbox.com/styles/v1/mapbox/${mapStyle}/static/${marker}/${centerLon},${centerLat},${zoom},0/400x200@2x?access_token=${mapboxToken}`;
   };
   
-  const mapUrl = template.route?.mapPreview || getTemplateImage();
+  // Prioritize database images over generated maps
+  const mapUrl = template.image_url || template.imageUrl || template.route?.mapPreview || getTemplateImage();
 
   return (
     <Card className="hover:shadow-lg transition-all duration-200 overflow-hidden group">

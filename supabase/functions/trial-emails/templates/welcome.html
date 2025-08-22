@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Your 28-Day Adventure</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }
+        .container { max-width: 600px; margin: 0 auto; background: white; }
+        .header { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 40px 20px; text-align: center; }
+        .header h1 { color: white; margin: 0; font-size: 28px; }
+        .header p { color: #bfdbfe; margin: 10px 0 0 0; font-size: 16px; }
+        .content { padding: 40px 20px; }
+        .milestone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 30px 0; }
+        .milestone { background: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; }
+        .milestone-icon { background: #e2e8f0; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-size: 20px; }
+        .milestone h3 { margin: 0 0 5px 0; font-size: 14px; font-weight: 600; }
+        .milestone p { margin: 0; font-size: 12px; color: #64748b; }
+        .cta { background: #3b82f6; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; display: inline-block; margin: 20px 0; font-weight: 600; }
+        .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+        .progress-bar { background: #e5e7eb; height: 6px; border-radius: 3px; margin: 20px 0; }
+        .progress-fill { background: #3b82f6; height: 100%; border-radius: 3px; width: 0%; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚐 Welcome to Wheels & Wins!</h1>
+            <p>Your 28-day adventure starts now</p>
+        </div>
+        
+        <div class="content">
+            <h2>Hey {{user_name}},</h2>
+            <p>Welcome to your free trial! We're excited to help you plan amazing trips and manage your adventure budget over the next 28 days.</p>
+            
+            <div style="background: #dbeafe; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin: 0 0 10px 0; color: #1e40af;">🎯 Your Trial Goals</h3>
+                <p style="margin: 0; color: #1e3a8a;">Complete these 5 milestones to build lasting habits and get the most from Wheels & Wins:</p>
+            </div>
+            
+            <div class="milestone-grid">
+                <div class="milestone">
+                    <div class="milestone-icon">📋</div>
+                    <h3>Import Expenses</h3>
+                    <p>Track your spending</p>
+                </div>
+                <div class="milestone">
+                    <div class="milestone-icon">🗺️</div>
+                    <h3>Save First Route</h3>
+                    <p>Plan your journey</p>
+                </div>
+                <div class="milestone">
+                    <div class="milestone-icon">💰</div>
+                    <h3>Set Budget</h3>
+                    <p>Control your costs</p>
+                </div>
+                <div class="milestone">
+                    <div class="milestone-icon">⛽</div>
+                    <h3>Link Fuel Data</h3>
+                    <p>Optimize fuel costs</p>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{app_url}}" class="cta">Start Your Journey</a>
+            </div>
+            
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                <h3 style="margin: 0 0 10px 0;">💡 Pro Tip</h3>
+                <p style="margin: 0;">Start with importing a few expenses today. It takes just 2 minutes and helps you see immediate value!</p>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <p style="text-align: center; color: #64748b; font-size: 14px;">Day 1 of 28 • 0/5 milestones complete</p>
+        </div>
+        
+        <div class="footer">
+            <p>Questions? Reply to this email or visit our <a href="{{help_url}}" style="color: #3b82f6;">help center</a></p>
+            <p style="margin: 10px 0 0 0;">Happy travels! 🛣️<br>The Wheels & Wins Team</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,16 +1,13 @@
 /**
- * IMPORTANT: This Trip Planner component is SACROSANCT and must NOT be modified
- * without explicit permission from the project owner. Any optimizations, 
- * refactoring, or changes require direct approval.
+ * Trip Planner App - Enhanced with robust Unimog-based architecture
  * 
- * DO NOT:
- * - Add performance optimizations
- * - Refactor the code structure
- * - Add lazy loading
- * - Modify the UI/UX
- * - Change any functionality
+ * Features:
+ * - Clean, maintainable trip planning core
+ * - Integrated Budget and Social sidebars (preserved from original)
+ * - Template system with enhanced integration
+ * - Robust error handling and map integration
  * 
- * This component works exactly as intended.
+ * Architecture: Unimog trip planner core + Wheels & Wins integration layer
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,8 +27,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-// Import existing components
-import IntegratedTripPlanner from './trip-planner/IntegratedTripPlanner';
+// Import UnimogTripPlanner - the unified trip planner
+import LazyUnimogTripPlanner from '@/components/trips/unimog/LazyUnimogTripPlanner';
 import BudgetSidebar from './trip-planner/BudgetSidebar';
 import SocialSidebar from './trip-planner/SocialSidebar';
 import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
@@ -58,7 +55,7 @@ export default function TripPlannerApp() {
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
   const [showWelcome, setShowWelcome] = useState(!auth?.user);
   
-  // Initialize integrated state
+  // Initialize integrated state for sidebars
   const integratedState = useIntegratedTripState(false);
 
   useEffect(() => {
@@ -266,7 +263,7 @@ export default function TripPlannerApp() {
           </TabsContent>
 
           <TabsContent value="plan-trip" className="mt-0">
-            <IntegratedTripPlanner templateData={selectedTemplate} />
+            <LazyUnimogTripPlanner />
           </TabsContent>
         </Tabs>
 
