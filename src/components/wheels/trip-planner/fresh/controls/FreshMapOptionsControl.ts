@@ -28,8 +28,8 @@ export class FreshMapOptionsControl implements mapboxgl.IControl {
   private isOpen: boolean = false;
 
   private styles: MapStyle[] = [
-    { name: 'Australia Offroad', value: 'mapbox://styles/thabonel/cm5ddi89k002301s552zx2fyc', icon: '🗺️' },
     { name: 'Outdoors', value: 'mapbox://styles/mapbox/outdoors-v12', icon: '🏔️' },
+    { name: 'Australia Offroad', value: 'mapbox://styles/thabonel/cm5ddi89k002301s552zx2fyc', icon: '🗺️' },
     { name: 'Satellite', value: 'mapbox://styles/mapbox/satellite-streets-v12', icon: '🛰️' },
     { name: 'Navigation', value: 'mapbox://styles/mapbox/navigation-day-v1', icon: '🧭' },
     { name: 'Streets', value: 'mapbox://styles/mapbox/streets-v12', icon: '🏙️' },
