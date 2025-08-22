@@ -38,6 +38,7 @@ import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
+const AuthTest = lazy(() => import('./pages/AuthTest'));
 
 
 const queryClient = new QueryClient();
@@ -95,6 +96,7 @@ function App() {
                                   <Route path="/terms" element={<TermsOfService />} />
                                   <Route path="/privacy" element={<PrivacyPolicy />} />
                                   <Route path="/cookies" element={<CookiePolicy />} />
+                                  <Route path="/auth-test" element={<ProtectedRoute><AuthTest /></ProtectedRoute>} />
                                   <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                                 </Routes>
                             </Suspense>
