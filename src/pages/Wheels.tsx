@@ -137,7 +137,7 @@ const Wheels = () => {
                         <span className="ml-3 text-gray-600">Loading Fresh Trip Planner...</span>
                       </div>
                     }>
-                      <div className="h-[600px] bg-white rounded-lg overflow-hidden">
+                      <div className="h-[600px] relative rounded-lg overflow-hidden">
                         <FreshTripPlanner 
                           onSaveTrip={async (tripData) => {
                             console.log('Saving trip:', tripData);

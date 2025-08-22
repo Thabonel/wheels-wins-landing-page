@@ -1,0 +1,34 @@
+/* Ensure Mapbox map container is visible */
+.mapboxgl-map {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure map canvas is visible */
+.mapboxgl-canvas {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Remove any potential white overlays */
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib {
+  z-index: 1;
+}
+
+/* Ensure map container has proper dimensions */
+.mapboxgl-canvas-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Debug: Add border to see if container is rendering */
+.map-container-debug {
+  border: 2px solid red;
+}
