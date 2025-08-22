@@ -356,14 +356,6 @@ const UnimogTripPlanner: React.FC<UnimogTripPlannerProps> = ({
     }
   };
 
-  // Undo/Redo functionality (placeholder for now)
-  const undo = () => {
-    toast.info('Undo feature coming soon');
-  };
-
-  const redo = () => {
-    toast.info('Redo feature coming soon');
-  };
 
   // Open GPX import modal
   const openGPXImport = () => {
