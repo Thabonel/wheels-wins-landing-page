@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Configuration Debug</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+        .error { color: #ff0000; }
+        .success { color: #00ff00; }
+        .warning { color: #ffff00; }
+        .info { color: #00ffff; }
+        pre {
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Supabase Configuration Debugger</h1>
+    
+    <div class="section">
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Open your deployed site: https://staging-wheelsandwins.netlify.app</li>
+            <li>Open browser DevTools (F12)</li>
+            <li>Go to Console tab</li>
+            <li>Copy and paste this entire script:</li>
+        </ol>
+        <pre id="debug-script"></pre>
+    </div>
+
+    <script>
+        const debugScript = `
+// Supabase Configuration Debugger
+console.log('%c🔍 SUPABASE CONFIGURATION DEBUG', 'color: #00ff00; font-size: 20px; font-weight: bold');
+console.log('=====================================\\n');
+
+// Get environment variables
+const env = {
+    url: import.meta.env.VITE_SUPABASE_URL,
+    anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    backendUrl: import.meta.env.VITE_BACKEND_URL,
+    environment: import.meta.env.VITE_ENVIRONMENT,
+    mode: import.meta.env.MODE,
+    prod: import.meta.env.PROD,
+    dev: import.meta.env.DEV
+};
+
+console.log('%c1. Environment Variables:', 'color: #00ffff; font-weight: bold');
+console.table({
+    'VITE_SUPABASE_URL': env.url ? '✅ Set' : '❌ Missing',
+    'VITE_SUPABASE_ANON_KEY': env.anonKey ? '✅ Set' : '❌ Missing',
+    'VITE_BACKEND_URL': env.backendUrl || 'Not set',
+    'VITE_ENVIRONMENT': env.environment || 'Not set',
+    'MODE': env.mode,
+    'PROD': env.prod,
+    'DEV': env.dev
+});
+
+if (env.url && env.anonKey) {
+    console.log('%c\\n2. URL Analysis:', 'color: #00ffff; font-weight: bold');
+    try {
+        const urlObj = new URL(env.url);
+        const projectId = urlObj.hostname.split('.')[0];
+        console.log('URL Host:', urlObj.hostname);
+        console.log('Project ID:', projectId);
+        console.log('Is Supabase URL:', urlObj.hostname.includes('supabase.co') ? '✅ Yes' : '❌ No');
+    } catch (e) {
+        console.error('❌ Invalid URL format:', e.message);
+    }
+
+    console.log('%c\\n3. Anon Key Analysis:', 'color: #00ffff; font-weight: bold');
+    if (env.anonKey.startsWith('eyJ')) {
+        try {
+            const [header, payload] = env.anonKey.split('.').slice(0, 2).map(part => 
+                JSON.parse(atob(part))
+            );
+            
+            console.log('JWT Header:', header);
+            console.log('JWT Payload:', payload);
+            
+            if (payload.ref && env.url) {
+                const urlProjectId = env.url.match(/https:\\/\\/([^.]+)/)?.[1];
+                if (payload.ref === urlProjectId) {
+                    console.log('%c✅ JWT ref matches URL project ID', 'color: #00ff00');
+                } else {
+                    console.log('%c❌ JWT ref does NOT match URL!', 'color: #ff0000; font-weight: bold');
+                    console.log('JWT ref:', payload.ref);
+                    console.log('URL project ID:', urlProjectId);
+                    console.log('%cThis is causing the "Invalid API key" error!', 'color: #ff0000');
+                }
+            }
+            
+            if (payload.exp) {
+                const expDate = new Date(payload.exp * 1000);
+                const now = new Date();
+                if (expDate > now) {
+                    console.log('✅ Token valid until:', expDate.toISOString());
+                } else {
+                    console.log('%c❌ Token EXPIRED on:', 'color: #ff0000', expDate.toISOString());
+                }
+            }
+        } catch (e) {
+            console.error('Could not decode JWT:', e);
+        }
+    } else {
+        console.log('%c❌ Anon key is not a JWT token', 'color: #ff0000');
+    }
+
+    console.log('%c\\n4. Testing Supabase Connection:', 'color: #00ffff; font-weight: bold');
+    
+    // Try to import and test the supabase client
+    import('/src/integrations/supabase/client.ts').then(module => {
+        const { supabase } = module;
+        console.log('✅ Supabase client imported successfully');
+        
+        // Test a simple query
+        supabase.from('profiles').select('count', { count: 'exact', head: true })
+            .then(({ count, error }) => {
+                if (error) {
+                    console.error('%c❌ Supabase query failed:', 'color: #ff0000', error);
+                    if (error.message === 'Invalid API key') {
+                        console.log('%c⚠️ The API key does not match the project URL', 'color: #ffff00');
+                    }
+                } else {
+                    console.log('%c✅ Supabase connection successful!', 'color: #00ff00; font-weight: bold');
+                    console.log('Profiles table count:', count);
+                }
+            });
+    }).catch(error => {
+        console.error('%c❌ Failed to import Supabase client:', 'color: #ff0000', error);
+    });
+} else {
+    console.log('%c❌ Missing required environment variables!', 'color: #ff0000; font-size: 16px; font-weight: bold');
+    console.log('%cPlease check Netlify environment variables configuration', 'color: #ffff00');
+}
+
+console.log('%c\\n=====================================', 'color: #00ff00');
+console.log('%cTo fix "Invalid API key" error:', 'color: #ffff00; font-weight: bold');
+console.log('1. Go to: https://app.supabase.com/project/[your-project]/settings/api');
+console.log('2. Copy the Project URL and anon public key');
+console.log('3. Update in Netlify: Settings → Environment Variables');
+console.log('4. Make sure both values are from the SAME project');
+console.log('5. Trigger a redeploy after updating');
+`;
+
+        document.getElementById('debug-script').textContent = debugScript;
+    </script>
+</body>
+</html>

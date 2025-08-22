@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Connection Test - Wheels & Wins</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .success { border-color: #22c55e; background: #dcfce7; }
+        .error { border-color: #ef4444; background: #fef2f2; }
+        .warning { border-color: #f59e0b; background: #fffbeb; }
+        .info { border-color: #3b82f6; background: #dbeafe; }
+        
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
+        
+        .log {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 2px;
+        }
+        .status.connected { background: #22c55e; color: white; }
+        .status.failed { background: #ef4444; color: white; }
+        .status.testing { background: #f59e0b; color: white; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket Connection Test</h1>
+        <p>Testing the WebSocket connection fixes for PAM AI Assistant</p>
+
+        <div class="test-section info">
+            <h3>🔧 Environment Configuration</h3>
+            <div id="env-config">Loading...</div>
+        </div>
+
+        <div class="test-section info">
+            <h3>🏥 Backend Health Check</h3>
+            <button onclick="runHealthCheck()" id="health-btn">Run Health Check</button>
+            <div id="health-results"></div>
+        </div>
+
+        <div class="test-section info">
+            <h3>🔌 WebSocket Connection Test</h3>
+            <button onclick="testWebSockets()" id="ws-btn">Test WebSocket Connections</button>
+            <div id="ws-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Test Log</h3>
+            <button onclick="clearLog()">Clear Log</button>
+            <div class="log" id="test-log"></div>
+        </div>
+    </div>
+
+    <script>
+        let testLog = document.getElementById('test-log');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            testLog.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            testLog.scrollTop = testLog.scrollHeight;
+        }
+        
+        function clearLog() {
+            testLog.textContent = '';
+        }
+        
+        // Display environment configuration
+        function showEnvironmentConfig() {
+            const envDiv = document.getElementById('env-config');
+            
+            // Simulate environment variables (in real app these would come from import.meta.env)
+            const config = {
+                'VITE_API_BASE_URL': 'https://wheels-wins-backend.onrender.com',
+                'VITE_WEBSOCKET_URL': 'wss://wheels-wins-backend.onrender.com',
+                'VITE_PAM_WEBSOCKET_URL': 'wss://wheels-wins-backend.onrender.com/api/v1/pam/ws',
+                'VITE_ENVIRONMENT': 'production'
+            };
+            
+            let html = '<table><tr><th>Variable</th><th>Value</th></tr>';
+            for (const [key, value] of Object.entries(config)) {
+                html += `<tr><td><code>${key}</code></td><td><code>${value}</code></td></tr>`;
+            }
+            html += '</table>';
+            
+            envDiv.innerHTML = html;
+            log('Environment configuration loaded');
+        }
+        
+        // Backend health check
+        async function runHealthCheck() {
+            const btn = document.getElementById('health-btn');
+            const resultsDiv = document.getElementById('health-results');
+            
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+            resultsDiv.innerHTML = '<div class="status testing">Testing...</div>';
+            
+            log('Starting backend health check...');
+            
+            const endpoints = [
+                'https://wheels-wins-backend.onrender.com',
+                'https://wheels-wins-backend-staging.onrender.com',
+                'https://api.wheelsandwins.com'
+            ];
+            
+            let html = '<table><tr><th>Endpoint</th><th>Status</th><th>Response Time</th><th>Details</th></tr>';
+            
+            for (const endpoint of endpoints) {
+                const startTime = Date.now();
+                let status, responseTime, details;
+                
+                try {
+                    log(`Testing HTTP endpoint: ${endpoint}`);
+                    const response = await fetch(`${endpoint}/health`, {
+                        method: 'GET',
+                        signal: AbortSignal.timeout(10000)
+                    });
+                    
+                    responseTime = Date.now() - startTime;
+                    
+                    if (response.ok) {
+                        status = '<span class="status connected">Healthy</span>';
+                        details = `HTTP ${response.status}`;
+                        log(`✅ ${endpoint} - Healthy (${responseTime}ms)`, 'success');
+                    } else {
+                        status = '<span class="status failed">Unhealthy</span>';
+                        details = `HTTP ${response.status}: ${response.statusText}`;
+                        log(`❌ ${endpoint} - Unhealthy: ${response.status}`, 'error');
+                    }
+                } catch (error) {
+                    responseTime = Date.now() - startTime;
+                    status = '<span class="status failed">Failed</span>';
+                    details = error.message;
+                    log(`❌ ${endpoint} - Failed: ${error.message}`, 'error');
+                }
+                
+                html += `<tr><td><code>${endpoint}</code></td><td>${status}</td><td>${responseTime}ms</td><td>${details}</td></tr>`;
+            }
+            
+            html += '</table>';
+            resultsDiv.innerHTML = html;
+            
+            btn.disabled = false;
+            btn.textContent = 'Run Health Check';
+            log('Backend health check completed');
+        }
+        
+        // WebSocket connection test
+        async function testWebSockets() {
+            const btn = document.getElementById('ws-btn');
+            const resultsDiv = document.getElementById('ws-results');
+            
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            resultsDiv.innerHTML = '<div class="status testing">Testing WebSocket connections...</div>';
+            
+            log('Starting WebSocket connection tests...');
+            
+            const wsEndpoints = [
+                'wss://wheels-wins-backend.onrender.com/api/v1/pam/ws',
+                'wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws',
+                'wss://api.wheelsandwins.com/pam/ws'
+            ];
+            
+            let html = '<table><tr><th>WebSocket Endpoint</th><th>Status</th><th>Response Time</th><th>Close Code</th><th>Details</th></tr>';
+            
+            const testPromises = wsEndpoints.map(wsUrl => testSingleWebSocket(wsUrl));
+            const results = await Promise.all(testPromises);
+            
+            results.forEach((result, index) => {
+                const endpoint = wsEndpoints[index];
+                let statusClass, statusText;
+                
+                if (result.status === 'connected') {
+                    statusClass = 'connected';
+                    statusText = 'Connected';
+                    log(`✅ WebSocket ${endpoint} - Connected (${result.responseTime}ms)`, 'success');
+                } else if (result.status === 'timeout') {
+                    statusClass = 'failed';
+                    statusText = 'Timeout';
+                    log(`⏰ WebSocket ${endpoint} - Timeout after 10s`, 'warning');
+                } else {
+                    statusClass = 'failed';
+                    statusText = 'Failed';
+                    log(`❌ WebSocket ${endpoint} - Failed: ${result.error}`, 'error');
+                }
+                
+                html += `<tr>
+                    <td><code>${endpoint}</code></td>
+                    <td><span class="status ${statusClass}">${statusText}</span></td>
+                    <td>${result.responseTime}ms</td>
+                    <td>${result.closeCode || 'N/A'}</td>
+                    <td>${result.error || 'OK'}</td>
+                </tr>`;
+            });
+            
+            html += '</table>';
+            resultsDiv.innerHTML = html;
+            
+            btn.disabled = false;
+            btn.textContent = 'Test WebSocket Connections';
+            log('WebSocket connection tests completed');
+        }
+        
+        function testSingleWebSocket(wsUrl) {
+            return new Promise((resolve) => {
+                const startTime = Date.now();
+                const result = {
+                    status: 'timeout',
+                    responseTime: 0,
+                    error: null,
+                    closeCode: null
+                };
+                
+                try {
+                    log(`Attempting WebSocket connection: ${wsUrl}`);
+                    const ws = new WebSocket(wsUrl);
+                    
+                    const timeout = setTimeout(() => {
+                        ws.close();
+                        result.responseTime = Date.now() - startTime;
+                        result.status = 'timeout';
+                        result.error = 'Connection timeout (10s)';
+                        resolve(result);
+                    }, 10000);
+                    
+                    ws.onopen = () => {
+                        clearTimeout(timeout);
+                        result.responseTime = Date.now() - startTime;
+                        result.status = 'connected';
+                        ws.close(1000, 'Test complete');
+                    };
+                    
+                    ws.onclose = (event) => {
+                        clearTimeout(timeout);
+                        result.closeCode = event.code;
+                        
+                        if (result.status !== 'connected') {
+                            result.responseTime = Date.now() - startTime;
+                            result.status = 'failed';
+                            result.error = `Connection closed: ${event.code} ${event.reason || '(no reason)'}`;
+                        }
+                        
+                        resolve(result);
+                    };
+                    
+                    ws.onerror = (error) => {
+                        clearTimeout(timeout);
+                        result.responseTime = Date.now() - startTime;
+                        result.status = 'failed';
+                        result.error = 'WebSocket error event';
+                        // Note: onclose will be called after onerror
+                    };
+                    
+                } catch (error) {
+                    result.responseTime = Date.now() - startTime;
+                    result.status = 'failed';
+                    result.error = error.message;
+                    resolve(result);
+                }
+            });
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('WebSocket Connection Test initialized');
+            showEnvironmentConfig();
+        });
+    </script>
+</body>
+</html>
