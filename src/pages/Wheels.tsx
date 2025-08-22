@@ -9,12 +9,36 @@ import { PAMErrorBoundary } from "@/components/common/PAMErrorBoundary";
 import { PamHelpButton } from "@/components/pam/PamHelpButton";
 
 // Lazy load heavy components to reduce initial bundle size
-const TripPlannerApp = lazy(() => import('@/components/wheels/TripPlannerApp'));
-const FreshTripPlanner = lazy(() => import('@/components/wheels/trip-planner/fresh/FreshTripPlanner'));
-const FuelLog = lazy(() => import("@/components/wheels/FuelLog"));
-const VehicleMaintenance = lazy(() => import("@/components/wheels/VehicleMaintenance"));
-const RVStorageOrganizer = lazy(() => import("@/components/wheels/RVStorageOrganizer"));
-const CaravanSafety = lazy(() => import("@/components/wheels/CaravanSafety"));
+const TripPlannerApp = lazy(() => 
+  import('@/components/wheels/TripPlannerApp').catch(() => ({
+    default: () => <div className="p-4 text-red-600">Failed to load Trip Planner</div>
+  }))
+);
+const FreshTripPlanner = lazy(() => 
+  import('@/components/wheels/trip-planner/fresh/FreshTripPlanner').catch(() => ({
+    default: () => <div className="p-4 text-red-600">Failed to load Trip Planner 2</div>
+  }))
+);
+const FuelLog = lazy(() => 
+  import("@/components/wheels/FuelLog").catch(() => ({
+    default: () => <div className="p-4 text-red-600">Failed to load Fuel Log</div>
+  }))
+);
+const VehicleMaintenance = lazy(() => 
+  import("@/components/wheels/VehicleMaintenance").catch(() => ({
+    default: () => <div className="p-4 text-red-600">Failed to load Vehicle Maintenance</div>
+  }))
+);
+const RVStorageOrganizer = lazy(() => 
+  import("@/components/wheels/RVStorageOrganizer").catch(() => ({
+    default: () => <div className="p-4 text-red-600">Failed to load RV Storage Organizer</div>
+  }))
+);
+const CaravanSafety = lazy(() => 
+  import("@/components/wheels/CaravanSafety").catch(() => ({
+    default: () => <div className="p-4 text-red-600">Failed to load Caravan Safety</div>
+  }))
+);
 
 const Wheels = () => {
   const [activeTab, setActiveTab] = useState("trip-planner");
