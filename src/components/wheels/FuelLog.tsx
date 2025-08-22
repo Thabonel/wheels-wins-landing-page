@@ -48,20 +48,41 @@ export default function FuelLog() {
     fetchEntries();
   }, [user]);
 
-  // Auto-fill location
+  // Auto-fill location using Mapbox Geocoding API instead of OpenStreetMap
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-          );
-          const data = await res.json();
-          setNewEntry(prev => ({ ...prev, location: data.display_name || '' }));
-        } catch {
-          console.log("Failed to fetch location.");
+          // Use Mapbox Geocoding API which properly handles CORS
+          const token = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN || 
+                       import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN || 
+                       import.meta.env.VITE_MAPBOX_TOKEN;
+          
+          if (token && token.startsWith('pk.')) {
+            const res = await fetch(
+              `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${token}`
+            );
+            const data = await res.json();
+            const placeName = data.features?.[0]?.place_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            setNewEntry(prev => ({ ...prev, location: placeName }));
+          } else {
+            // Fallback to coordinates if no Mapbox token
+            setNewEntry(prev => ({ 
+              ...prev, 
+              location: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` 
+            }));
+          }
+        } catch (error) {
+          console.log("Failed to fetch location, using coordinates:", error);
+          // Fallback to just coordinates
+          setNewEntry(prev => ({ 
+            ...prev, 
+            location: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` 
+          }));
         }
+      }, (error) => {
+        console.log("Geolocation error:", error.message);
       });
     }
   }, []);

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import './fresh-trip-planner.css';
 import { toast } from 'sonner';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
@@ -115,7 +116,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         center: [133.7751, -25.2744], // Center of Australia
         zoom: 4,
         pitch: 0,
-        bearing: 0
+        bearing: 0,
+        attributionControl: true,
+        preserveDrawingBuffer: true // Helps with rendering issues
       });
       
       // Add navigation controls
@@ -133,6 +136,12 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         showUserHeading: true
       });
       newMap.addControl(geolocateControl, 'top-right');
+      
+      // Map loaded successfully
+      newMap.on('load', () => {
+        toast.success('Map loaded successfully');
+        console.log('✅ Mapbox map loaded');
+      });
       
       // Add map options control
       const mapOptionsControl = new FreshMapOptionsControl({
@@ -362,9 +371,12 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   return (
     <div className="relative w-full h-full overflow-hidden">
-      {/* Full-screen map container */}
-      <div ref={mapContainerRef} className="absolute inset-0" />
-      
+      {/* Full-screen map container - ensure it has explicit height */}
+      <div 
+        ref={mapContainerRef} 
+        className="absolute inset-0 w-full h-full" 
+        style={{ minHeight: '500px' }}
+      />
       
       {/* Route planning toolbar */}
       <FreshRouteToolbar
