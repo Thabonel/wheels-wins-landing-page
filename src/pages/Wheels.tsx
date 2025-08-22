@@ -10,6 +10,7 @@ import { PamHelpButton } from "@/components/pam/PamHelpButton";
 
 // Lazy load heavy components to reduce initial bundle size
 const TripPlannerApp = lazy(() => import('@/components/wheels/TripPlannerApp'));
+const FreshTripPlanner = lazy(() => import('@/components/wheels/trip-planner/fresh/FreshTripPlanner'));
 const FuelLog = lazy(() => import("@/components/wheels/FuelLog"));
 const VehicleMaintenance = lazy(() => import("@/components/wheels/VehicleMaintenance"));
 const RVStorageOrganizer = lazy(() => import("@/components/wheels/RVStorageOrganizer"));
@@ -23,6 +24,10 @@ const Wheels = () => {
     {
       id: "trip-planner",
       label: "Trip Planner"
+    },
+    {
+      id: "fresh-planner",
+      label: "Trip Planner 2"
     },
     {
       id: "fuel-log",
@@ -97,6 +102,26 @@ const Wheels = () => {
                         </Suspense>
                       </PAMProvider>
                     </PAMErrorBoundary>
+                  </TripPlannerErrorBoundary>
+                </TabTransition>
+                
+                <TabTransition activeTab={activeTab} tabId="fresh-planner" className="mt-0">
+                  <TripPlannerErrorBoundary>
+                    <Suspense fallback={
+                      <div className="flex items-center justify-center h-96">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                        <span className="ml-3 text-gray-600">Loading Fresh Trip Planner...</span>
+                      </div>
+                    }>
+                      <div className="h-[600px] bg-white rounded-lg overflow-hidden">
+                        <FreshTripPlanner 
+                          onSaveTrip={async (tripData) => {
+                            console.log('Saving trip:', tripData);
+                            // This will be connected to Supabase later
+                          }}
+                        />
+                      </div>
+                    </Suspense>
                   </TripPlannerErrorBoundary>
                 </TabTransition>
                 
