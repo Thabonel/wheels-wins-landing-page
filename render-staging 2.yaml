@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: wheels-wins-backend-staging
+    runtime: python
+    region: oregon
+    branch: staging  # Deploy from staging branch
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: SUPABASE_URL
+        sync: false  # Set in Render dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # Set in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Set in Render dashboard
+      - key: DATABASE_URL
+        sync: false  # Set in Render dashboard
+      - key: REDIS_URL
+        sync: false  # Set in Render dashboard
+      - key: MAPBOX_SECRET_TOKEN
+        sync: false  # Set in Render dashboard
+      - key: TTS_ENABLED
+        value: "true"
+      - key: TTS_PRIMARY_ENGINE
+        value: "edge"
+      - key: TTS_FALLBACK_ENABLED
+        value: "true"
+      - key: TTS_VOICE_DEFAULT
+        value: "en-US-AriaNeural"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://staging-wheelsandwins.netlify.app,http://localhost:8080"
+    rootDir: backend
+    autoDeploy: true

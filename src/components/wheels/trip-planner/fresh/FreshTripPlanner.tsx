@@ -7,11 +7,13 @@ import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 
 // Map styles configuration
+// Note: Replace 'your-username' with your actual Mapbox username for custom styles
 const MAP_STYLES = {
-  STREETS: 'mapbox://styles/mapbox/streets-v12',
+  AUSTRALIA_OFFROAD: 'mapbox://styles/your-username/australia-offroad-89gicc', // Custom style - update username
   OUTDOORS: 'mapbox://styles/mapbox/outdoors-v12',
-  SATELLITE: 'mapbox://styles/mapbox/satellite-v9',
-  SATELLITE_STREETS: 'mapbox://styles/mapbox/satellite-streets-v12',
+  SATELLITE: 'mapbox://styles/mapbox/satellite-streets-v12',
+  NAVIGATION: 'mapbox://styles/mapbox/navigation-day-v1',
+  STREETS: 'mapbox://styles/mapbox/streets-v12',
 } as const;
 
 interface FreshTripPlannerProps {
@@ -25,7 +27,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
 }) => {
   // State
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
-  const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>('OUTDOORS');
+  const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>('AUSTRALIA_OFFROAD');
   const [showSidebar, setShowSidebar] = useState(true);
   const [showTraffic, setShowTraffic] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -76,7 +78,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       const newMap = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: MAP_STYLES[mapStyle],
-        center: [-98.5795, 39.8283], // Center of USA
+        center: [133.7751, -25.2744], // Center of Australia
         zoom: 4,
         pitch: 0,
         bearing: 0
