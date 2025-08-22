@@ -6,6 +6,7 @@ import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
+import MapboxDebugComponent from '@/components/debug/MapboxDebugComponent';
 
 // Map styles configuration
 const MAP_STYLES = {
@@ -60,9 +61,20 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     if (!mapContainerRef.current || mapRef.current) return;
     
     // Check for Mapbox token using the utility function
-    const token = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN || import.meta.env.VITE_MAPBOX_TOKEN;
+    const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+    const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
+    
+    console.log('🔍 Mapbox Token Debug:', {
+      publicTokenExists: !!publicToken,
+      legacyTokenExists: !!legacyToken,
+      publicTokenPreview: publicToken ? `${publicToken.substring(0, 7)}...${publicToken.substring(publicToken.length - 4)}` : 'not set',
+      legacyTokenPreview: legacyToken ? `${legacyToken.substring(0, 7)}...${legacyToken.substring(legacyToken.length - 4)}` : 'not set',
+    });
+    
+    const token = publicToken || legacyToken;
+    
     if (!token) {
-      toast.error('Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN in Render environment variables.');
+      toast.error('Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN in Netlify environment variables.');
       return;
     }
     
@@ -75,10 +87,19 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     
     if (!token.startsWith('pk.')) {
       toast.error('Invalid Mapbox token format. Token must start with "pk."');
+      console.error('❌ Invalid token format:', token.substring(0, 10));
+      return;
+    }
+    
+    // Validate token structure
+    if (!token.includes('.') || token.length < 50) {
+      toast.error('Mapbox token appears to be malformed or truncated');
+      console.error('❌ Token validation failed - length:', token.length);
       return;
     }
     
     mapboxgl.accessToken = token;
+    console.log('✅ Mapbox token set successfully');
     
     // Check WebGL support
     if (!mapboxgl.supported()) {
@@ -342,6 +363,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     <div className="relative w-full h-full overflow-hidden">
       {/* Full-screen map container */}
       <div ref={mapContainerRef} className="absolute inset-0" />
+      
+      {/* Debug component */}
+      <MapboxDebugComponent />
       
       
       {/* Route planning toolbar */}
