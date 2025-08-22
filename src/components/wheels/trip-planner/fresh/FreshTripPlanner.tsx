@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { toast } from 'sonner';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
@@ -8,7 +9,7 @@ import FreshRouteToolbar from './components/FreshRouteToolbar';
 
 // Map styles configuration
 const MAP_STYLES = {
-  AUSTRALIA_OFFROAD: 'mapbox://styles/thabonel/australia-offroad-89gicc',
+  AUSTRALIA_OFFROAD: 'mapbox://styles/thabonel/cm5ddi89k002301s552zx2fyc',
   OUTDOORS: 'mapbox://styles/mapbox/outdoors-v12',
   SATELLITE: 'mapbox://styles/mapbox/satellite-streets-v12',
   NAVIGATION: 'mapbox://styles/mapbox/navigation-day-v1',
@@ -155,12 +156,40 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       
       newMap.on('error', (e) => {
         console.error('Map error:', e);
-        toast.error('Map loading error');
+        if (e.error && e.error.message) {
+          toast.error(`Map error: ${e.error.message}`);
+        } else {
+          toast.error('Map loading error - check console for details');
+        }
       });
       
     } catch (error) {
       console.error('Failed to initialize map:', error);
-      toast.error('Failed to initialize map');
+      toast.error('Failed to initialize map. Trying fallback style...');
+      
+      // Try with a fallback style
+      try {
+        const fallbackMap = new mapboxgl.Map({
+          container: mapContainerRef.current,
+          style: MAP_STYLES.STREETS, // Use streets as fallback
+          center: [133.7751, -25.2744],
+          zoom: 4,
+          pitch: 0,
+          bearing: 0
+        });
+        
+        // Add basic controls
+        fallbackMap.addControl(new mapboxgl.NavigationControl(), 'top-right');
+        fallbackMap.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
+        
+        mapRef.current = fallbackMap;
+        setMap(fallbackMap);
+        toast.info('Using fallback map style');
+        
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        toast.error('Unable to load map. Please check your internet connection.');
+      }
     }
     
     // Cleanup
