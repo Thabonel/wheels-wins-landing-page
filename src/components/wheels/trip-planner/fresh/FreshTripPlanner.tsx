@@ -27,7 +27,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
 }) => {
   // State
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
-  const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>('AUSTRALIA_OFFROAD');
+  const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>('OUTDOORS');
   const [showSidebar, setShowSidebar] = useState(true);
   const [showTraffic, setShowTraffic] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
