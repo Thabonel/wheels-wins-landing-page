@@ -48,6 +48,8 @@ const UnimogTripPlanner: React.FC<UnimogTripPlannerProps> = ({
   const [gpxModalMode, setGPXModalMode] = useState<'import' | 'export'>('import');
   const [showSidebar, setShowSidebar] = useState(true);
   const [showTraffic, setShowTraffic] = useState(false);
+  const [history, setHistory] = useState<Waypoint[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const [isNavigating, setIsNavigating] = useState(false);
   const [showPOIModal, setShowPOIModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -200,6 +202,42 @@ const UnimogTripPlanner: React.FC<UnimogTripPlannerProps> = ({
       }
     };
   }, []);
+
+  // Undo/Redo functionality
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const previousWaypoints = history[historyIndex - 1];
+      setHistoryIndex(historyIndex - 1);
+      setWaypoints(previousWaypoints);
+      toast.info('Undone');
+    }
+  }, [history, historyIndex, setWaypoints]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextWaypoints = history[historyIndex + 1];
+      setHistoryIndex(historyIndex + 1);
+      setWaypoints(nextWaypoints);
+      toast.info('Redone');
+    }
+  }, [history, historyIndex, setWaypoints]);
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  // Add waypoints to history when they change
+  useEffect(() => {
+    if (waypoints.length > 0 || history.length > 0) {
+      // Only add to history if waypoints actually changed
+      const currentWaypoints = historyIndex >= 0 ? history[historyIndex] : [];
+      if (JSON.stringify(waypoints) !== JSON.stringify(currentWaypoints)) {
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push([...waypoints]);
+        setHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+      }
+    }
+  }, [waypoints]);
 
   // Update map style
   const handleStyleChange = useCallback((style: string) => {
@@ -754,13 +792,13 @@ const UnimogTripPlanner: React.FC<UnimogTripPlannerProps> = ({
         onOptimizeRoute={() => optimizeRoute()}
         onClearRoute={clearWaypoints}
         onToggleTraffic={() => setShowTraffic(!showTraffic)}
-        onBudgetCalculator={() => setShowBudgetCalculator(!showBudgetCalculator)}
-        onOpenPAM={() => setShowPamAssistant(!showPamAssistant)}
         canUndo={canUndo}
         canRedo={canRedo}
-        hasRoute={waypoints.length > 0}
+        hasRoute={waypoints.length >= 2}
         isNavigating={isNavigating}
         showTraffic={showTraffic}
+        onBudgetCalculator={() => setShowBudgetCalculator(!showBudgetCalculator)}
+        onOpenPAM={() => setShowPamAssistant(!showPamAssistant)}
       />
 
       {/* GPX Import/Export Modal */}
