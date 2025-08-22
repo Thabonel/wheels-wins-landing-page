@@ -5,7 +5,6 @@ import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
-import MapboxTokenDebug from '@/components/debug/MapboxTokenDebug';
 
 // Map styles configuration
 const MAP_STYLES = {
@@ -79,14 +78,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
     
     mapboxgl.accessToken = token;
-    
-    // Debug logging
-    console.log('🗺️ Mapbox Token Debug:', {
-      publicToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ? 'Set' : 'Not set',
-      legacyToken: import.meta.env.VITE_MAPBOX_TOKEN ? 'Set' : 'Not set',
-      usingToken: token.substring(0, 10) + '...',
-      tokenType: token.startsWith('pk.') ? 'Public (correct)' : token.startsWith('sk.') ? 'Secret (incorrect)' : 'Unknown'
-    });
     
     // Check WebGL support
     if (!mapboxgl.supported()) {
@@ -322,9 +313,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     <div className="relative w-full h-full overflow-hidden">
       {/* Full-screen map container */}
       <div ref={mapContainerRef} className="absolute inset-0" />
-      
-      {/* Temporary debug component */}
-      <MapboxTokenDebug />
       
       
       {/* Route planning toolbar */}
