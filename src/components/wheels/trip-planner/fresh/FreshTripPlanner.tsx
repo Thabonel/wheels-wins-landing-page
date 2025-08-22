@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
+import { FreshFullscreenControl } from './controls/FreshFullscreenControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 import FreshTrackPanel from './components/FreshTrackPanel';
 import FreshStatusBar from './components/FreshStatusBar';
@@ -136,6 +137,10 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         showUserHeading: true
       });
       newMap.addControl(geolocateControl, 'top-right');
+      
+      // Add fullscreen control (positioned below geolocate)
+      const fullscreenControl = new FreshFullscreenControl();
+      newMap.addControl(fullscreenControl, 'top-right');
       
       // Map loaded successfully
       newMap.on('load', () => {
