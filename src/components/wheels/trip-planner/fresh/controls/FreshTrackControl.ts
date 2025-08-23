@@ -31,6 +31,7 @@ export class FreshTrackControl {
 
   // Initialize the control without adding it to the map
   initialize(map: mapboxgl.Map, mapContainer: HTMLElement): void {
+    console.log('[FreshTrackControl] Initialize called');
     this.map = map;
     this.mapContainer = mapContainer;
     
@@ -61,11 +62,14 @@ export class FreshTrackControl {
     // Append panel to container
     if (this.panel) {
       this.container.appendChild(this.panel);
+      console.log('[FreshTrackControl] Panel created and appended to container');
     } else {
-      console.error('[TrackControl] Panel is null!');
+      console.error('[FreshTrackControl] Panel creation failed');
     }
     
-    return this.container;
+    // Add container to map container
+    this.mapContainer.appendChild(this.container);
+    console.log('[FreshTrackControl] Container added to map container');
   }
   
   onRemove(): void {
@@ -414,7 +418,12 @@ export class FreshTrackControl {
   
   // Public methods for external control
   public togglePanel(): void {
-    if (!this.panel) return;
+    console.log('[FreshTrackControl] togglePanel called, panel exists:', !!this.panel);
+    if (!this.panel) {
+      console.error('[FreshTrackControl] Cannot toggle - panel is null');
+      return;
+    }
+    console.log('[FreshTrackControl] Current isOpen state:', this.isOpen);
     if (this.isOpen) {
       this.closePanel();
     } else {
