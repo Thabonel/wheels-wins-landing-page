@@ -25,7 +25,7 @@ const FreshTrackPanel: React.FC<FreshTrackPanelProps> = ({
 }) => {
   return (
     <div 
-      className={`absolute top-16 right-4 bottom-4 w-80 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg transition-transform duration-300 z-10 ${
+      className={`absolute top-16 right-4 bottom-4 w-80 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg transition-transform duration-300 z-[10001] ${
         isOpen ? 'translate-x-0' : 'translate-x-[calc(100%+1rem)]'
       }`}
     >

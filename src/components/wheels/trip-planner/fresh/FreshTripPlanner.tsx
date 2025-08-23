@@ -391,7 +391,10 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         isNavigating={isNavigating}
         onToggleTraffic={() => setShowTraffic(!showTraffic)}
         showTraffic={showTraffic}
-        onToggleSidebar={() => setShowSidebar(!showSidebar)}
+        onToggleSidebar={() => {
+          console.log('Toggle sidebar clicked, current state:', showSidebar);
+          setShowSidebar(!showSidebar);
+        }}
         showSidebar={showSidebar}
         isAddingWaypoint={isAddingWaypoint}
         hasRoute={waypointManager.waypoints.length >= 2}
