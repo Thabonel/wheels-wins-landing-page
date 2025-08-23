@@ -4,7 +4,6 @@ import {
   Redo2, 
   Plus, 
   Trash2, 
-  Map as MapIcon, 
   Navigation, 
   Save, 
   Share2,
@@ -106,19 +105,8 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
           </button>
         </div>
         
-        {/* Map Features Group */}
+        {/* Navigation Group */}
         <div className="flex items-center border-r border-gray-200 pr-2 mr-2">
-          <button
-            onClick={onToggleTraffic}
-            className={`p-2 rounded transition-all ${
-              showTraffic 
-                ? 'bg-green-100 text-green-600 hover:bg-green-200' 
-                : 'hover:bg-gray-100'
-            }`}
-            title="Toggle Traffic"
-          >
-            <MapIcon className="w-4 h-4" />
-          </button>
           <button
             onClick={onStartNavigation}
             disabled={!hasRoute}

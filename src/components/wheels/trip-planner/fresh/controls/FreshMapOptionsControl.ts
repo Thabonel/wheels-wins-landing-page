@@ -16,7 +16,7 @@ interface FreshMapOptionsControlOptions {
   onStyleChange: (style: string) => void;
   onOverlayToggle: (overlayId: string, enabled: boolean) => void;
   currentStyle: string;
-  overlays: MapOverlay[];
+  overlays?: MapOverlay[];
 }
 
 export class FreshMapOptionsControl implements mapboxgl.IControl {
@@ -56,9 +56,10 @@ export class FreshMapOptionsControl implements mapboxgl.IControl {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 30px;
+      width: auto;
+      min-width: 30px;
       height: 30px;
-      padding: 0;
+      padding: 0 8px;
       border: none;
       background: white;
       cursor: pointer;
@@ -66,10 +67,10 @@ export class FreshMapOptionsControl implements mapboxgl.IControl {
       color: #333;
     `;
     
-    // Set button text to MAP
-    this.button.textContent = 'MAP';
+    // Set button text to Map Style
+    this.button.textContent = 'Map Style';
     this.button.style.fontWeight = '600';
-    this.button.style.fontSize = '11px';
+    this.button.style.fontSize = '10px';
     
     // Create dropdown
     this.dropdown = document.createElement('div');
@@ -237,7 +238,7 @@ export class FreshMapOptionsControl implements mapboxgl.IControl {
       const toggle = document.createElement('input');
       toggle.type = 'checkbox';
       toggle.id = `overlay-${overlay.id}`;
-      toggle.checked = this.options.overlays.find(o => o.id === overlay.id)?.enabled || false;
+      toggle.checked = this.options.overlays?.find(o => o.id === overlay.id)?.enabled || false;
       toggle.style.cssText = 'position: absolute; opacity: 0; width: 0; height: 0;';
       
       const toggleSlider = document.createElement('div');

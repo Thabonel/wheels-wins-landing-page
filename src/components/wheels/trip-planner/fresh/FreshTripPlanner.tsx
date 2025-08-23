@@ -142,12 +142,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       const fullscreenControl = new FreshFullscreenControl();
       newMap.addControl(fullscreenControl, 'top-right');
       
-      // Map loaded successfully
-      newMap.on('load', () => {
-        toast.success('Map loaded successfully');
-        console.log('✅ Mapbox map loaded');
-      });
-      
       // Add map options control
       const mapOptionsControl = new FreshMapOptionsControl({
         currentStyle: MAP_STYLES[mapStyle],
