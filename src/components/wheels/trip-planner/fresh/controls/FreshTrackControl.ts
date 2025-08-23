@@ -94,8 +94,7 @@ export class FreshTrackControl {
     this.panel.style.cssText = `
       position: absolute;
       top: 0;
-      right: 100%;
-      margin-right: 10px;
+      right: 0;
       width: 320px;
       height: 500px;
       max-height: calc(100vh - 100px);
@@ -108,7 +107,7 @@ export class FreshTrackControl {
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      transform: translateX(calc(100% + 40px));
+      transform: translateX(100%);
       pointer-events: none;
     `;
     
@@ -434,9 +433,11 @@ export class FreshTrackControl {
   public openPanel(): void {
     if (!this.panel) return;
     
+    console.log('[FreshTrackControl] Opening panel - before transform:', this.panel.style.transform);
     this.panel.style.transform = 'translateX(0)';
     this.panel.style.pointerEvents = 'auto';
     this.isOpen = true;
+    console.log('[FreshTrackControl] Opening panel - after transform:', this.panel.style.transform);
     
     // Add backdrop for mobile
     const mapContainer = this.mapContainer;
@@ -460,9 +461,11 @@ export class FreshTrackControl {
   public closePanel(): void {
     if (!this.panel) return;
     
-    this.panel.style.transform = 'translateX(calc(100% + 40px))';
+    console.log('[FreshTrackControl] Closing panel - before transform:', this.panel.style.transform);
+    this.panel.style.transform = 'translateX(100%)';
     this.panel.style.pointerEvents = 'none';
     this.isOpen = false;
+    console.log('[FreshTrackControl] Closing panel - after transform:', this.panel.style.transform);
     
     // Remove backdrop
     const mapContainer = this.mapContainer;
