@@ -64,6 +64,7 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
   isAddingWaypoint,
   hasRoute,
 }) => {
+  console.log('FreshRouteToolbar rendered, onToggleSidebar:', typeof onToggleSidebar);
   return (
     <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[10000]">
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg px-2 py-2 flex items-center">
@@ -161,8 +162,11 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
         {/* Track Management Toggle (Hamburger) */}
         <button
           onClick={(e) => {
+            console.log('Hamburger button clicked in toolbar');
             e.stopPropagation();
+            console.log('About to call onToggleSidebar');
             onToggleSidebar();
+            console.log('onToggleSidebar called');
           }}
           className="p-2 rounded hover:bg-gray-100 transition-all"
           title="Track Management"
