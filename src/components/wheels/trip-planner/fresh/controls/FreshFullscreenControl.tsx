@@ -41,11 +41,13 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
     if (!this.map) return;
 
     const mapContainer = this.map.getContainer();
-    // Get the main trip planner wrapper (parent of parent)
-    const mapWrapper = mapContainer.parentElement;
-    const tripPlannerWrapper = mapWrapper?.parentElement;
+    // Find the main trip planner root container using data attribute
+    let tripPlannerWrapper = mapContainer.closest('[data-trip-planner-root="true"]') as HTMLElement | null;
 
-    if (!tripPlannerWrapper) return;
+    if (!tripPlannerWrapper) {
+      console.error('Could not find trip planner root container');
+      return;
+    }
 
     if (!this.isFullscreen) {
       // Store original position
@@ -98,8 +100,7 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
     if (!this.map) return;
 
     const mapContainer = this.map.getContainer();
-    const mapWrapper = mapContainer.parentElement;
-    const tripPlannerWrapper = mapWrapper?.parentElement;
+    const tripPlannerWrapper = mapContainer.closest('[data-trip-planner-root="true"]') as HTMLElement | null;
 
     if (!tripPlannerWrapper || !this.originalParent) return;
 

@@ -369,7 +369,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   };
   
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden" data-trip-planner-root="true">
       {/* Full-screen map container - ensure it has explicit height */}
       <div 
         ref={mapContainerRef} 
