@@ -31,7 +31,6 @@ export class FreshTrackControl {
 
   // Initialize the control without adding it to the map
   initialize(map: mapboxgl.Map, mapContainer: HTMLElement): void {
-    console.log('[FreshTrackControl] Initialize called');
     this.map = map;
     this.mapContainer = mapContainer;
     
@@ -62,14 +61,10 @@ export class FreshTrackControl {
     // Append panel to container
     if (this.panel) {
       this.container.appendChild(this.panel);
-      console.log('[FreshTrackControl] Panel created and appended to container');
-    } else {
-      console.error('[FreshTrackControl] Panel creation failed');
     }
     
     // Add container to map container
     this.mapContainer.appendChild(this.container);
-    console.log('[FreshTrackControl] Container added to map container');
   }
   
   onRemove(): void {
@@ -81,38 +76,24 @@ export class FreshTrackControl {
   }
   
   private createPanel(): void {
-    console.log('[TrackControl] createPanel called');
-    
     if (this.panel) {
-      console.warn('[TrackControl] Panel already exists!');
       return;
     }
     
     this.panel = document.createElement('div');
-    this.panel.id = 'track-management-panel'; // Add ID for easier debugging
-    console.log('[TrackControl] Panel element created');
+    this.panel.id = 'track-management-panel';
     this.panel.style.cssText = `
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 320px;
-      height: 500px;
-      max-height: calc(100vh - 100px);
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 8px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      z-index: 1000;
-      transition: transform 0.3s ease;
+      width: 320px;
+      max-height: calc(100vh - 100px);
+      display: none;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      transform: translateX(100%);
-      pointer-events: none;
     `;
     
     this.updatePanelContent();
-    console.log('[TrackControl] Panel content updated');
   }
   
   public updateOptions(options: Partial<FreshTrackControlOptions>): void {
@@ -417,12 +398,7 @@ export class FreshTrackControl {
   
   // Public methods for external control
   public togglePanel(): void {
-    console.log('[FreshTrackControl] togglePanel called, panel exists:', !!this.panel);
-    if (!this.panel) {
-      console.error('[FreshTrackControl] Cannot toggle - panel is null');
-      return;
-    }
-    console.log('[FreshTrackControl] Current isOpen state:', this.isOpen);
+    if (!this.panel) return;
     if (this.isOpen) {
       this.closePanel();
     } else {
@@ -431,49 +407,16 @@ export class FreshTrackControl {
   }
   
   public openPanel(): void {
-    if (!this.panel) return;
-    
-    console.log('[FreshTrackControl] Opening panel - before transform:', this.panel.style.transform);
-    this.panel.style.transform = 'translateX(0)';
-    this.panel.style.pointerEvents = 'auto';
-    this.isOpen = true;
-    console.log('[FreshTrackControl] Opening panel - after transform:', this.panel.style.transform);
-    
-    // Add backdrop for mobile
-    const mapContainer = this.mapContainer;
-    if (mapContainer && window.innerWidth < 768) {
-      const backdrop = document.createElement('div');
-      backdrop.className = 'track-panel-backdrop';
-      backdrop.style.cssText = `
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.3);
-        z-index: 999;
-      `;
-      backdrop.onclick = () => this.closePanel();
-      mapContainer.appendChild(backdrop);
+    if (this.panel) {
+      this.panel.style.display = 'block';
+      this.isOpen = true;
     }
   }
   
   public closePanel(): void {
-    if (!this.panel) return;
-    
-    console.log('[FreshTrackControl] Closing panel - before transform:', this.panel.style.transform);
-    this.panel.style.transform = 'translateX(100%)';
-    this.panel.style.pointerEvents = 'none';
-    this.isOpen = false;
-    console.log('[FreshTrackControl] Closing panel - after transform:', this.panel.style.transform);
-    
-    // Remove backdrop
-    const mapContainer = this.mapContainer;
-    if (mapContainer) {
-      const backdrop = mapContainer.querySelector('.track-panel-backdrop');
-      if (backdrop) {
-        backdrop.remove();
-      }
+    if (this.panel) {
+      this.panel.style.display = 'none';
+      this.isOpen = false;
     }
   }
 }

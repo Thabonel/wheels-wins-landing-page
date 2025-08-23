@@ -460,24 +460,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         onToggleTraffic={() => setShowTraffic(!showTraffic)}
         showTraffic={showTraffic}
         onToggleSidebar={() => {
-          console.log('Hamburger clicked - toggling sidebar');
-          console.log('trackControlRef.current:', trackControlRef.current);
-          
           setShowSidebar(prev => {
             const newState = !prev;
-            
-            if (trackControlRef.current) {
-              console.log('TrackControl exists, checking togglePanel method');
-              if (typeof trackControlRef.current.togglePanel === 'function') {
-                console.log('Calling togglePanel');
-                trackControlRef.current.togglePanel();
-              } else {
-                console.error('TrackControl does not have togglePanel method', trackControlRef.current);
-              }
-            } else {
-              console.error('trackControlRef.current is null');
+            if (trackControlRef.current && typeof trackControlRef.current.togglePanel === 'function') {
+              trackControlRef.current.togglePanel();
             }
-            
             return newState;
           });
         }}
