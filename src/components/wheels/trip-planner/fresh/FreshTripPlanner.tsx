@@ -462,8 +462,12 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         onToggleSidebar={() => {
           setShowSidebar(prev => {
             const newState = !prev;
-            if (trackControlRef.current && typeof trackControlRef.current.togglePanel === 'function') {
-              trackControlRef.current.togglePanel();
+            if (trackControlRef.current) {
+              if (newState) {
+                trackControlRef.current.openPanel();
+              } else {
+                trackControlRef.current.closePanel();
+              }
             }
             return newState;
           });
