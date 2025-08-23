@@ -127,7 +127,8 @@ export class FreshTrackControl implements mapboxgl.IControl {
     this.panel.style.cssText = `
       position: absolute;
       top: 0;
-      left: -330px;
+      right: 100%;
+      margin-right: 10px;
       width: 320px;
       height: 500px;
       max-height: calc(100vh - 100px);
@@ -140,7 +141,8 @@ export class FreshTrackControl implements mapboxgl.IControl {
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      transform: translateX(100%);
+      transform: translateX(calc(100% + 40px));
+      pointer-events: none;
     `;
     
     this.updatePanelContent();
@@ -469,6 +471,7 @@ export class FreshTrackControl implements mapboxgl.IControl {
       console.log('[TrackControl] Current panel transform:', this.panel.style.transform);
       
       this.panel.style.transform = 'translateX(0)'; // Slide panel into view
+      this.panel.style.pointerEvents = 'auto'; // Enable interactions
       this.button.style.backgroundColor = '#f3f4f6';
       
       console.log('[TrackControl] Panel transform set to:', this.panel.style.transform);
@@ -492,7 +495,8 @@ export class FreshTrackControl implements mapboxgl.IControl {
   public closePanel(): void {
     console.log('[TrackControl] closePanel called');
     if (this.panel && this.button) {
-      this.panel.style.transform = 'translateX(100%)'; // Slide panel out of view
+      this.panel.style.transform = 'translateX(calc(100% + 40px))'; // Slide panel out of view
+      this.panel.style.pointerEvents = 'none'; // Disable interactions when hidden
       console.log('[TrackControl] Panel hidden with transform:', this.panel.style.transform);
       this.button.style.backgroundColor = 'white';
       
