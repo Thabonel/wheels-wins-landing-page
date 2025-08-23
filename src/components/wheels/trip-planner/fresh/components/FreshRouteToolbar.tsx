@@ -8,7 +8,8 @@ import {
   Save, 
   Share2,
   Menu,
-  X
+  X,
+  Map
 } from 'lucide-react';
 
 interface FreshRouteToolbarProps {
@@ -32,9 +33,11 @@ interface FreshRouteToolbarProps {
   onToggleTraffic: () => void;
   showTraffic: boolean;
   
-  // Panel toggle
+  // Panel toggles
   onToggleSidebar: () => void;
   showSidebar: boolean;
+  onToggleMapStyle: () => void;
+  showMapStyle: boolean;
   
   // States
   isAddingWaypoint: boolean;
@@ -56,14 +59,28 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
   showTraffic,
   onToggleSidebar,
   showSidebar,
+  onToggleMapStyle,
+  showMapStyle,
   isAddingWaypoint,
   hasRoute,
 }) => {
   return (
     <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[10000]">
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg px-2 py-2 flex items-center">
+        {/* Map Style Toggle - Leftmost */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMapStyle();
+          }}
+          className="p-2 rounded hover:bg-gray-100 transition-all mr-2"
+          title="Map Style"
+        >
+          <Map className="w-4 h-4" />
+        </button>
+        
         {/* Undo/Redo Group */}
-        <div className="flex items-center border-r border-gray-200 pr-2 mr-2">
+        <div className="flex items-center border-r border-gray-200 pr-2 mr-2 border-l pl-2">
           <button
             onClick={onUndo}
             disabled={!canUndo}
@@ -141,13 +158,16 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
           </button>
         </div>
         
-        {/* Sidebar Toggle */}
+        {/* Track Management Toggle (Hamburger) */}
         <button
-          onClick={onToggleSidebar}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSidebar();
+          }}
           className="p-2 rounded hover:bg-gray-100 transition-all"
-          title={showSidebar ? 'Hide Panel' : 'Show Panel'}
+          title="Track Management"
         >
-          {showSidebar ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          <Menu className="w-4 h-4" />
         </button>
       </div>
       

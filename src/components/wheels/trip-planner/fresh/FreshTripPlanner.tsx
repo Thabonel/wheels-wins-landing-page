@@ -32,9 +32,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // State
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>('OUTDOORS');
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [showMapStyle, setShowMapStyle] = useState(false);
   const [showTraffic, setShowTraffic] = useState(false);
   const trackControlRef = useRef<FreshTrackControl | null>(null);
+  const mapOptionsControlRef = useRef<FreshMapOptionsControl | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isAddingWaypoint, setIsAddingWaypoint] = useState(false);
   const [mapOverlays, setMapOverlays] = useState([
@@ -151,7 +153,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       const fullscreenControl = new FreshFullscreenControl();
       newMap.addControl(fullscreenControl, 'top-right');
       
-      // Add track management control
+      // Create track management control (but don't add to map - controlled by toolbar)
       const trackControl = new FreshTrackControl({
         waypoints: [],
         routeProfile: 'driving',
@@ -166,10 +168,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           setRvServices(prev => ({ ...prev, [service]: enabled }));
         }
       });
-      newMap.addControl(trackControl, 'top-right');
+      // Initialize without adding to map controls
+      trackControl.initialize(newMap, mapContainerRef.current);
       trackControlRef.current = trackControl;
       
-      // Add map options control
+      // Create map options control and initialize it
       const mapOptionsControl = new FreshMapOptionsControl({
         currentStyle: MAP_STYLES[mapStyle],
         onStyleChange: (style: string) => {
@@ -193,7 +196,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         },
         overlays: mapOverlays
       });
-      newMap.addControl(mapOptionsControl, 'top-left');
+      // Initialize without adding to map controls
+      mapOptionsControl.initialize(newMap, mapContainerRef.current);
+      mapOptionsControlRef.current = mapOptionsControl;
       
       // Store map instance
       mapRef.current = newMap;
@@ -251,6 +256,14 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     
     // Cleanup
     return () => {
+      if (trackControlRef.current) {
+        trackControlRef.current.cleanup();
+        trackControlRef.current = null;
+      }
+      if (mapOptionsControlRef.current) {
+        mapOptionsControlRef.current.cleanup();
+        mapOptionsControlRef.current = null;
+      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -445,6 +458,21 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           });
         }}
         showSidebar={showSidebar}
+        onToggleMapStyle={() => {
+          setShowMapStyle(prev => {
+            const newState = !prev;
+            // Toggle the map options dropdown
+            if (mapOptionsControlRef.current) {
+              if (newState) {
+                mapOptionsControlRef.current.openDropdown();
+              } else {
+                mapOptionsControlRef.current.closeDropdown();
+              }
+            }
+            return newState;
+          });
+        }}
+        showMapStyle={showMapStyle}
         isAddingWaypoint={isAddingWaypoint}
         hasRoute={waypointManager.waypoints.length >= 2}
       />

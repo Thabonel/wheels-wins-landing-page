@@ -19,13 +19,13 @@ interface FreshMapOptionsControlOptions {
   overlays?: MapOverlay[];
 }
 
-export class FreshMapOptionsControl implements mapboxgl.IControl {
+export class FreshMapOptionsControl {
   private map?: mapboxgl.Map;
   private container?: HTMLElement;
   private options: FreshMapOptionsControlOptions;
-  private button?: HTMLButtonElement;
   private dropdown?: HTMLElement;
   private isOpen: boolean = false;
+  private mapContainer?: HTMLElement;
 
   private styles: MapStyle[] = [
     { name: 'Outdoors', value: 'mapbox://styles/mapbox/outdoors-v12', icon: '🏔️' },
@@ -39,52 +39,28 @@ export class FreshMapOptionsControl implements mapboxgl.IControl {
     this.options = options;
   }
 
-  onAdd(map: mapboxgl.Map): HTMLElement {
+  // Initialize the control without adding it to the map
+  initialize(map: mapboxgl.Map, mapContainer: HTMLElement): void {
     this.map = map;
+    this.mapContainer = mapContainer;
+    
+    // Create container positioned in the map
     this.container = document.createElement('div');
-    this.container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
-    
-    // Create button
-    this.button = document.createElement('button');
-    this.button.className = 'mapboxgl-ctrl-icon';
-    this.button.type = 'button';
-    this.button.setAttribute('aria-label', 'Map Options');
-    this.button.title = 'Map Options';
-    
-    // Style the button
-    this.button.style.cssText = `
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: auto;
-      min-width: 30px;
-      height: 30px;
-      padding: 0 8px;
-      border: none;
-      background: white;
-      cursor: pointer;
-      font-size: 14px;
-      color: #333;
+    this.container.style.cssText = `
+      position: absolute;
+      top: 60px;
+      left: 10px;
+      z-index: 10000;
     `;
-    
-    // Set button text to Map Style
-    this.button.textContent = 'Map Style';
-    this.button.style.fontWeight = '600';
-    this.button.style.fontSize = '10px';
     
     // Create dropdown
     this.dropdown = document.createElement('div');
     this.dropdown.style.cssText = `
-      position: absolute;
-      top: 100%;
-      left: 0;
-      margin-top: 5px;
       background: white;
       border: 1px solid #ccc;
       border-radius: 4px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
       width: 280px;
-      z-index: 1000;
       display: none;
       overflow: hidden;
     `;
@@ -92,24 +68,28 @@ export class FreshMapOptionsControl implements mapboxgl.IControl {
     // Build dropdown content
     this.buildDropdownContent();
     
-    // Add event listeners
-    this.button.addEventListener('click', () => this.toggleDropdown());
-    
     // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!this.container?.contains(e.target as Node) && this.isOpen) {
+    const closeHandler = (e: MouseEvent) => {
+      if (!this.dropdown?.contains(e.target as Node) && this.isOpen) {
         this.closeDropdown();
       }
-    });
+    };
+    document.addEventListener('click', closeHandler);
     
-    // Assemble control
-    this.container.appendChild(this.button);
+    // Store handler for cleanup
+    (this as any)._closeHandler = closeHandler;
+    
+    // Append dropdown to container
     this.container.appendChild(this.dropdown);
     
-    return this.container;
+    // Add container to map container
+    this.mapContainer.appendChild(this.container);
   }
   
-  onRemove(): void {
+  cleanup(): void {
+    if ((this as any)._closeHandler) {
+      document.removeEventListener('click', (this as any)._closeHandler);
+    }
     this.container?.parentNode?.removeChild(this.container);
     this.map = undefined;
   }
@@ -293,7 +273,8 @@ export class FreshMapOptionsControl implements mapboxgl.IControl {
     this.dropdown.appendChild(overlaysSection);
   }
   
-  private toggleDropdown(): void {
+  // Public methods for external control
+  public toggleDropdown(): void {
     if (this.isOpen) {
       this.closeDropdown();
     } else {
@@ -301,18 +282,16 @@ export class FreshMapOptionsControl implements mapboxgl.IControl {
     }
   }
   
-  private openDropdown(): void {
-    if (this.dropdown && this.button) {
+  public openDropdown(): void {
+    if (this.dropdown) {
       this.dropdown.style.display = 'block';
-      this.button.style.backgroundColor = '#f3f4f6';
       this.isOpen = true;
     }
   }
   
-  private closeDropdown(): void {
-    if (this.dropdown && this.button) {
+  public closeDropdown(): void {
+    if (this.dropdown) {
       this.dropdown.style.display = 'none';
-      this.button.style.backgroundColor = 'white';
       this.isOpen = false;
     }
   }
