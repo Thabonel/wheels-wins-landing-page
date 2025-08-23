@@ -17,87 +17,50 @@ interface FreshTrackControlOptions {
   onRVServiceToggle: (service: string, enabled: boolean) => void;
 }
 
-export class FreshTrackControl implements mapboxgl.IControl {
+export class FreshTrackControl {
   private map?: mapboxgl.Map;
   private container?: HTMLElement;
-  private button?: HTMLButtonElement;
   private panel?: HTMLElement;
   private options: FreshTrackControlOptions;
   private isOpen: boolean = false;
+  private mapContainer?: HTMLElement;
 
   constructor(options: FreshTrackControlOptions) {
     this.options = options;
-    console.log('[TrackControl] Constructor called');
   }
 
-  onAdd(map: mapboxgl.Map): HTMLElement {
-    console.log('[TrackControl] onAdd called');
+  // Initialize the control without adding it to the map
+  initialize(map: mapboxgl.Map, mapContainer: HTMLElement): void {
     this.map = map;
+    this.mapContainer = mapContainer;
+    
+    // Create container for panel positioning
     this.container = document.createElement('div');
-    this.container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
-    this.container.style.position = 'relative';
-    this.container.style.overflow = 'visible'; // Allow panel to extend outside
-    
-    // Create toggle button
-    this.button = document.createElement('button');
-    this.button.className = 'mapboxgl-ctrl-icon';
-    this.button.type = 'button';
-    this.button.setAttribute('aria-label', 'Track Management');
-    this.button.title = 'Track Management';
-    
-    // Style the button with menu icon
-    this.button.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="3" y1="12" x2="21" y2="12"></line>
-        <line x1="3" y1="6" x2="21" y2="6"></line>
-        <line x1="3" y1="18" x2="21" y2="18"></line>
-      </svg>
-    `;
-    
-    this.button.style.cssText = `
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 30px;
-      height: 30px;
-      padding: 0;
-      border: none;
-      background: white;
-      cursor: pointer;
-      color: #333;
+    this.container.style.cssText = `
+      position: absolute;
+      top: 60px;
+      right: 10px;
+      z-index: 10000;
     `;
     
     // Create panel
     this.createPanel();
-    console.log('[TrackControl] Panel created:', this.panel);
-    
-    // Add event listeners
-    console.log('[TrackControl] Button created:', this.button);
-    this.button.addEventListener('click', (e) => {
-      console.log('[TrackControl] Button clicked!');
-      e.stopPropagation(); // Prevent event from bubbling to document
-      this.togglePanel();
-    });
     
     // Close panel when clicking outside
-    // Use setTimeout to avoid race condition with button click
-    document.addEventListener('click', (e) => {
-      // Don't close if clicking the button or panel
+    const closeHandler = (e: MouseEvent) => {
       if (this.panel && this.isOpen && 
-          !this.container?.contains(e.target as Node) && 
           !this.panel.contains(e.target as Node)) {
-        console.log('[TrackControl] Document click detected - closing panel');
         this.closePanel();
       }
-    });
+    };
+    document.addEventListener('click', closeHandler);
     
-    // Assemble control
-    this.container.appendChild(this.button);
+    // Store handler for cleanup
+    (this as any)._closeHandler = closeHandler;
+    
+    // Append panel to container
     if (this.panel) {
-      this.container.appendChild(this.panel); // Append to container, not body
-      console.log('[TrackControl] Panel appended to container');
-      const panelInDOM = this.container.contains(this.panel);
-      console.log('[TrackControl] Panel in container:', panelInDOM);
+      this.container.appendChild(this.panel);
     } else {
       console.error('[TrackControl] Panel is null!');
     }
@@ -449,11 +412,9 @@ export class FreshTrackControl implements mapboxgl.IControl {
     return section;
   }
   
+  // Public methods for external control
   public togglePanel(): void {
-    console.log('[TrackControl] togglePanel - isOpen:', this.isOpen);
-    console.log('[TrackControl] Panel exists:', !!this.panel);
-    console.log('[TrackControl] Button exists:', !!this.button);
-    
+    if (!this.panel) return;
     if (this.isOpen) {
       this.closePanel();
     } else {
@@ -462,54 +423,45 @@ export class FreshTrackControl implements mapboxgl.IControl {
   }
   
   public openPanel(): void {
-    console.log('[TrackControl] openPanel called');
-    console.log('[TrackControl] Panel:', this.panel);
-    console.log('[TrackControl] Button:', this.button);
+    if (!this.panel) return;
     
-    if (this.panel && this.button) {
-      // Log current position
-      console.log('[TrackControl] Current panel transform:', this.panel.style.transform);
-      
-      this.panel.style.transform = 'translateX(0)'; // Slide panel into view
-      this.panel.style.pointerEvents = 'auto'; // Enable interactions
-      this.button.style.backgroundColor = '#f3f4f6';
-      
-      console.log('[TrackControl] Panel transform set to:', this.panel.style.transform);
-      console.log('[TrackControl] Panel computed style:', window.getComputedStyle(this.panel).transform);
-      
-      // Change button icon to X
-      this.button.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
+    this.panel.style.transform = 'translateX(0)';
+    this.panel.style.pointerEvents = 'auto';
+    this.isOpen = true;
+    
+    // Add backdrop for mobile
+    const mapContainer = this.mapContainer;
+    if (mapContainer && window.innerWidth < 768) {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'track-panel-backdrop';
+      backdrop.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 999;
       `;
-      
-      this.isOpen = true;
-      console.log('[TrackControl] Panel should now be visible');
-    } else {
-      console.error('[TrackControl] Cannot open - panel or button missing');
+      backdrop.onclick = () => this.closePanel();
+      mapContainer.appendChild(backdrop);
     }
   }
   
   public closePanel(): void {
-    console.log('[TrackControl] closePanel called');
-    if (this.panel && this.button) {
-      this.panel.style.transform = 'translateX(calc(100% + 40px))'; // Slide panel out of view
-      this.panel.style.pointerEvents = 'none'; // Disable interactions when hidden
-      console.log('[TrackControl] Panel hidden with transform:', this.panel.style.transform);
-      this.button.style.backgroundColor = 'white';
-      
-      // Change button icon back to menu
-      this.button.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
-        </svg>
-      `;
-      
-      this.isOpen = false;
+    if (!this.panel) return;
+    
+    this.panel.style.transform = 'translateX(calc(100% + 40px))';
+    this.panel.style.pointerEvents = 'none';
+    this.isOpen = false;
+    
+    // Remove backdrop
+    const mapContainer = this.mapContainer;
+    if (mapContainer) {
+      const backdrop = mapContainer.querySelector('.track-panel-backdrop');
+      if (backdrop) {
+        backdrop.remove();
+      }
     }
   }
 }
