@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -34,8 +34,6 @@ export default function SocialSidebar({
   onOpenMeetupPlanner,
   onAddFriend
 }: SocialSidebarProps) {
-  if (!isOpen) return null;
-
   const getStatusColor = (status: Friend['status']) => {
     switch (status) {
       case 'traveling': return 'bg-warning/20 text-warning-foreground';
@@ -65,7 +63,8 @@ export default function SocialSidebar({
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
-    <div className="h-full overflow-y-auto">
+    <Card className="w-full bg-white border shadow-lg h-fit">
+      <CardContent className="p-0">
       {/* Quick Status Overview */}
       <div className="p-4 border-b bg-muted/30">
         <div className="grid grid-cols-2 gap-4 text-center">
@@ -209,6 +208,7 @@ export default function SocialSidebar({
           Create Trip
         </Button>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
