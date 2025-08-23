@@ -58,6 +58,7 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
       document.body.appendChild(tripPlannerWrapper);
       
       // Apply fullscreen styles to the wrapper
+      // Use z-index: 100000 to ensure panels (z-index: 10000) work inside
       tripPlannerWrapper.style.cssText = `
         position: fixed !important;
         top: 0 !important;
@@ -66,7 +67,7 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
         bottom: 0 !important;
         width: 100vw !important;
         height: 100vh !important;
-        z-index: 9999 !important;
+        z-index: 100000 !important;
         background: white;
       `;
 
