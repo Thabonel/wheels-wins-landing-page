@@ -127,7 +127,7 @@ export class FreshTrackControl implements mapboxgl.IControl {
     this.panel.style.cssText = `
       position: absolute;
       top: 0;
-      right: -320px;
+      left: -330px;
       width: 320px;
       height: 500px;
       max-height: calc(100vh - 100px);
@@ -136,10 +136,11 @@ export class FreshTrackControl implements mapboxgl.IControl {
       border-radius: 8px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
       z-index: 1000;
-      transition: right 0.3s ease;
+      transition: transform 0.3s ease;
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      transform: translateX(100%);
     `;
     
     this.updatePanelContent();
@@ -465,13 +466,13 @@ export class FreshTrackControl implements mapboxgl.IControl {
     
     if (this.panel && this.button) {
       // Log current position
-      console.log('[TrackControl] Current panel right:', this.panel.style.right);
+      console.log('[TrackControl] Current panel transform:', this.panel.style.transform);
       
-      this.panel.style.right = '-340px'; // Position next to button (button width + gap)
+      this.panel.style.transform = 'translateX(0)'; // Slide panel into view
       this.button.style.backgroundColor = '#f3f4f6';
       
-      console.log('[TrackControl] Panel right set to:', this.panel.style.right);
-      console.log('[TrackControl] Panel computed style:', window.getComputedStyle(this.panel).right);
+      console.log('[TrackControl] Panel transform set to:', this.panel.style.transform);
+      console.log('[TrackControl] Panel computed style:', window.getComputedStyle(this.panel).transform);
       
       // Change button icon to X
       this.button.innerHTML = `
@@ -491,9 +492,8 @@ export class FreshTrackControl implements mapboxgl.IControl {
   public closePanel(): void {
     console.log('[TrackControl] closePanel called');
     if (this.panel && this.button) {
-      const panelWidth = this.panel.offsetWidth || 320;
-      this.panel.style.right = `-${panelWidth}px`;
-      console.log('[TrackControl] Panel hidden at right:', this.panel.style.right);
+      this.panel.style.transform = 'translateX(100%)'; // Slide panel out of view
+      console.log('[TrackControl] Panel hidden with transform:', this.panel.style.transform);
       this.button.style.backgroundColor = 'white';
       
       // Change button icon back to menu
