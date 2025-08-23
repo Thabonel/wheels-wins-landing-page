@@ -9,7 +9,9 @@ import {
   Share2,
   Menu,
   X,
-  Map
+  Map,
+  DollarSign,
+  Users
 } from 'lucide-react';
 
 interface FreshRouteToolbarProps {
@@ -38,6 +40,10 @@ interface FreshRouteToolbarProps {
   showSidebar: boolean;
   onToggleMapStyle: () => void;
   showMapStyle: boolean;
+  onToggleBudget: () => void;
+  showBudget: boolean;
+  onToggleSocial: () => void;
+  showSocial: boolean;
   
   // States
   isAddingWaypoint: boolean;
@@ -61,6 +67,10 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
   showSidebar,
   onToggleMapStyle,
   showMapStyle,
+  onToggleBudget,
+  showBudget,
+  onToggleSocial,
+  showSocial,
   isAddingWaypoint,
   hasRoute,
 }) => {
@@ -155,6 +165,38 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
             title="Share Trip"
           >
             <Share2 className="w-4 h-4" />
+          </button>
+        </div>
+        
+        {/* Budget and Social Group */}
+        <div className="flex items-center border-r border-gray-200 pr-2 mr-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleBudget();
+            }}
+            className={`p-2 rounded transition-all ${
+              showBudget 
+                ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                : 'hover:bg-gray-100'
+            }`}
+            title="Budget Tracker"
+          >
+            <DollarSign className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSocial();
+            }}
+            className={`p-2 rounded transition-all ${
+              showSocial 
+                ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+                : 'hover:bg-gray-100'
+            }`}
+            title="Social & Friends"
+          >
+            <Users className="w-4 h-4" />
           </button>
         </div>
         

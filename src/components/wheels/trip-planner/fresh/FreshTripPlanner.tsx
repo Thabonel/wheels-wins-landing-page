@@ -10,6 +10,9 @@ import { FreshFullscreenControl } from './controls/FreshFullscreenControl';
 import { FreshTrackControl } from './controls/FreshTrackControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 import FreshStatusBar from './components/FreshStatusBar';
+import BudgetSidebar from '../BudgetSidebar';
+import SocialSidebar from '../SocialSidebar';
+import { useSocialTripState } from '../hooks/useSocialTripState';
 
 // Map styles configuration
 const MAP_STYLES = {
@@ -34,6 +37,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>('OUTDOORS');
   const [showSidebar, setShowSidebar] = useState(false);
   const [showMapStyle, setShowMapStyle] = useState(false);
+  const [showBudget, setShowBudget] = useState(false);
+  const [showSocial, setShowSocial] = useState(false);
   const [showTraffic, setShowTraffic] = useState(false);
   const trackControlRef = useRef<FreshTrackControl | null>(null);
   const mapOptionsControlRef = useRef<FreshMapOptionsControl | null>(null);
@@ -61,6 +66,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Hooks
   const { user } = useAuth();
+  
+  // Social state for social sidebar
+  const socialState = useSocialTripState();
   
   // Waypoint manager with working undo/redo
   const waypointManager = useFreshWaypointManager({
@@ -488,6 +496,10 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           });
         }}
         showMapStyle={showMapStyle}
+        onToggleBudget={() => setShowBudget(!showBudget)}
+        showBudget={showBudget}
+        onToggleSocial={() => setShowSocial(!showSocial)}
+        showSocial={showSocial}
         isAddingWaypoint={isAddingWaypoint}
         hasRoute={waypointManager.waypoints.length >= 2}
       />
@@ -506,6 +518,47 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         onStartNavigation={handleStartNavigation}
         onStopNavigation={() => setIsNavigating(false)}
       />
+      
+      {/* Budget Sidebar - positioned on left side */}
+      {showBudget && (
+        <div 
+          className="absolute top-20 left-2 z-[10001] max-w-[400px] w-full sm:w-[400px]"
+          style={{ maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}
+        >
+          <BudgetSidebar
+            isVisible={showBudget}
+            onClose={() => setShowBudget(false)}
+            waypoints={waypointManager.waypoints.map((wp, index) => ({
+              coords: [wp.lng, wp.lat],
+              name: wp.name || `Waypoint ${index + 1}`
+            }))}
+          />
+        </div>
+      )}
+      
+      {/* Social Sidebar - positioned on right side */}
+      {showSocial && (
+        <div 
+          className="absolute top-20 right-2 z-[10001] max-w-[320px] w-full sm:w-[320px]"
+          style={{ maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}
+        >
+          <SocialSidebar
+            isOpen={showSocial}
+            onClose={() => setShowSocial(false)}
+            friends={socialState.friends}
+            calendarEvents={socialState.calendarEvents}
+            groupTrips={socialState.groupTrips}
+            onMessageFriend={(friend) => {
+              console.log('Message friend:', friend);
+              // TODO: Implement messaging
+            }}
+            onOpenMeetupPlanner={() => {
+              console.log('Open meetup planner');
+              // TODO: Implement meetup planner
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };
