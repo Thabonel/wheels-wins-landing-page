@@ -46,17 +46,8 @@ export class FreshTrackControl {
     // Create panel
     this.createPanel();
     
-    // Close panel when clicking outside
-    const closeHandler = (e: MouseEvent) => {
-      if (this.panel && this.isOpen && 
-          !this.panel.contains(e.target as Node)) {
-        this.closePanel();
-      }
-    };
-    document.addEventListener('click', closeHandler);
-    
-    // Store handler for cleanup
-    (this as any)._closeHandler = closeHandler;
+    // Don't auto-close when clicking outside - only close with X button
+    // This matches user expectation for a settings panel
     
     // Append panel to container
     if (this.panel) {
