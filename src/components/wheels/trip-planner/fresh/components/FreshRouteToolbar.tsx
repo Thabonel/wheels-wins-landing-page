@@ -60,7 +60,7 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
   hasRoute,
 }) => {
   return (
-    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
+    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[10000]">
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg px-2 py-2 flex items-center">
         {/* Undo/Redo Group */}
         <div className="flex items-center border-r border-gray-200 pr-2 mr-2">
