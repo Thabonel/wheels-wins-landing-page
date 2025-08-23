@@ -7,8 +7,8 @@ import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 import { FreshFullscreenControl } from './controls/FreshFullscreenControl';
+import { FreshTrackControl } from './controls/FreshTrackControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
-import FreshTrackPanel from './components/FreshTrackPanel';
 import FreshStatusBar from './components/FreshStatusBar';
 
 // Map styles configuration
@@ -34,6 +34,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>('OUTDOORS');
   const [showSidebar, setShowSidebar] = useState(true);
   const [showTraffic, setShowTraffic] = useState(false);
+  const trackControlRef = useRef<FreshTrackControl | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isAddingWaypoint, setIsAddingWaypoint] = useState(false);
   const [mapOverlays, setMapOverlays] = useState([
@@ -64,6 +65,14 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     map,
     onRouteUpdate: (waypoints, route) => {
       console.log('Route updated:', waypoints.length, 'waypoints');
+      // Update track control with new waypoints
+      if (trackControlRef.current) {
+        trackControlRef.current.updateOptions({
+          waypoints: waypoints,
+          routeProfile: waypointManager.routeProfile,
+          rvServices: rvServices
+        });
+      }
     }
   });
   
@@ -141,6 +150,24 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       // Add fullscreen control (positioned below geolocate)
       const fullscreenControl = new FreshFullscreenControl();
       newMap.addControl(fullscreenControl, 'top-right');
+      
+      // Add track management control
+      const trackControl = new FreshTrackControl({
+        waypoints: [],
+        routeProfile: 'driving',
+        rvServices: {},
+        onRemoveWaypoint: (id: string) => {
+          // This will be updated with waypointManager reference
+        },
+        onSetRouteProfile: (profile: 'driving' | 'walking' | 'cycling') => {
+          // This will be updated with waypointManager reference
+        },
+        onRVServiceToggle: (service: string, enabled: boolean) => {
+          setRvServices(prev => ({ ...prev, [service]: enabled }));
+        }
+      });
+      newMap.addControl(trackControl, 'top-right');
+      trackControlRef.current = trackControl;
       
       // Add map options control
       const mapOptionsControl = new FreshMapOptionsControl({
@@ -230,6 +257,22 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       }
     };
   }, []); // Only run once on mount
+  
+  // Update track control callbacks when waypoint manager is ready
+  useEffect(() => {
+    if (trackControlRef.current && waypointManager) {
+      trackControlRef.current.updateOptions({
+        waypoints: waypointManager.waypoints,
+        routeProfile: waypointManager.routeProfile,
+        rvServices: rvServices,
+        onRemoveWaypoint: waypointManager.removeWaypoint,
+        onSetRouteProfile: waypointManager.setRouteProfile,
+        onRVServiceToggle: (service: string, enabled: boolean) => {
+          setRvServices(prev => ({ ...prev, [service]: enabled }));
+        }
+      });
+    }
+  }, [waypointManager.waypoints, waypointManager.routeProfile, rvServices]);
   
   // Handle map style changes
   useEffect(() => {
@@ -392,27 +435,18 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         onToggleTraffic={() => setShowTraffic(!showTraffic)}
         showTraffic={showTraffic}
         onToggleSidebar={() => {
-          console.log('Toggle sidebar clicked, current state:', showSidebar);
-          setShowSidebar(!showSidebar);
+          setShowSidebar(prev => {
+            const newState = !prev;
+            // Toggle the track control panel
+            if (trackControlRef.current) {
+              trackControlRef.current.togglePanel();
+            }
+            return newState;
+          });
         }}
         showSidebar={showSidebar}
         isAddingWaypoint={isAddingWaypoint}
         hasRoute={waypointManager.waypoints.length >= 2}
-      />
-      
-      
-      {/* Track management panel overlay */}
-      <FreshTrackPanel
-        isOpen={showSidebar}
-        onClose={() => setShowSidebar(false)}
-        waypoints={waypointManager.waypoints}
-        onRemoveWaypoint={waypointManager.removeWaypoint}
-        routeProfile={waypointManager.routeProfile}
-        onSetRouteProfile={waypointManager.setRouteProfile}
-        onRVServiceToggle={(service, enabled) => {
-          setRvServices(prev => ({ ...prev, [service]: enabled }));
-        }}
-        rvServices={rvServices}
       />
       
       {/* Add waypoint indicator */}
