@@ -27,9 +27,11 @@ export class FreshTrackControl implements mapboxgl.IControl {
 
   constructor(options: FreshTrackControlOptions) {
     this.options = options;
+    console.log('[TrackControl] Constructor called');
   }
 
   onAdd(map: mapboxgl.Map): HTMLElement {
+    console.log('[TrackControl] onAdd called');
     this.map = map;
     this.container = document.createElement('div');
     this.container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
@@ -66,9 +68,14 @@ export class FreshTrackControl implements mapboxgl.IControl {
     
     // Create panel
     this.createPanel();
+    console.log('[TrackControl] Panel created:', this.panel);
     
     // Add event listeners
-    this.button.addEventListener('click', () => this.togglePanel());
+    console.log('[TrackControl] Button created:', this.button);
+    this.button.addEventListener('click', () => {
+      console.log('[TrackControl] Button clicked!');
+      this.togglePanel();
+    });
     
     // Close panel when clicking outside
     document.addEventListener('click', (e) => {
@@ -83,6 +90,11 @@ export class FreshTrackControl implements mapboxgl.IControl {
     this.container.appendChild(this.button);
     if (this.panel) {
       document.body.appendChild(this.panel);
+      console.log('[TrackControl] Panel appended to body');
+      const panelInDOM = document.body.contains(this.panel);
+      console.log('[TrackControl] Panel in DOM:', panelInDOM);
+    } else {
+      console.error('[TrackControl] Panel is null!');
     }
     
     return this.container;
@@ -99,7 +111,16 @@ export class FreshTrackControl implements mapboxgl.IControl {
   }
   
   private createPanel(): void {
+    console.log('[TrackControl] createPanel called');
+    
+    if (this.panel) {
+      console.warn('[TrackControl] Panel already exists!');
+      return;
+    }
+    
     this.panel = document.createElement('div');
+    this.panel.id = 'track-management-panel'; // Add ID for easier debugging
+    console.log('[TrackControl] Panel element created');
     this.panel.style.cssText = `
       position: fixed;
       top: 60px;
@@ -119,6 +140,7 @@ export class FreshTrackControl implements mapboxgl.IControl {
     `;
     
     this.updatePanelContent();
+    console.log('[TrackControl] Panel content updated');
   }
   
   public updateOptions(options: Partial<FreshTrackControlOptions>): void {
@@ -422,6 +444,10 @@ export class FreshTrackControl implements mapboxgl.IControl {
   }
   
   public togglePanel(): void {
+    console.log('[TrackControl] togglePanel - isOpen:', this.isOpen);
+    console.log('[TrackControl] Panel exists:', !!this.panel);
+    console.log('[TrackControl] Button exists:', !!this.button);
+    
     if (this.isOpen) {
       this.closePanel();
     } else {
@@ -430,9 +456,19 @@ export class FreshTrackControl implements mapboxgl.IControl {
   }
   
   public openPanel(): void {
+    console.log('[TrackControl] openPanel called');
+    console.log('[TrackControl] Panel:', this.panel);
+    console.log('[TrackControl] Button:', this.button);
+    
     if (this.panel && this.button) {
+      // Log current position
+      console.log('[TrackControl] Current panel right:', this.panel.style.right);
+      
       this.panel.style.right = '16px';
       this.button.style.backgroundColor = '#f3f4f6';
+      
+      console.log('[TrackControl] Panel right set to:', this.panel.style.right);
+      console.log('[TrackControl] Panel computed style:', window.getComputedStyle(this.panel).right);
       
       // Change button icon to X
       this.button.innerHTML = `
@@ -443,12 +479,17 @@ export class FreshTrackControl implements mapboxgl.IControl {
       `;
       
       this.isOpen = true;
+      console.log('[TrackControl] Panel should now be visible');
+    } else {
+      console.error('[TrackControl] Cannot open - panel or button missing');
     }
   }
   
   public closePanel(): void {
+    console.log('[TrackControl] closePanel called');
     if (this.panel && this.button) {
       this.panel.style.right = '-320px';
+      console.log('[TrackControl] Panel hidden at right:', this.panel.style.right);
       this.button.style.backgroundColor = 'white';
       
       // Change button icon back to menu
