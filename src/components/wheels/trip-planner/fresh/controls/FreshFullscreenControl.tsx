@@ -41,20 +41,22 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
     if (!this.map) return;
 
     const mapContainer = this.map.getContainer();
+    // Get the main trip planner wrapper (parent of parent)
     const mapWrapper = mapContainer.parentElement;
+    const tripPlannerWrapper = mapWrapper?.parentElement;
 
-    if (!mapWrapper) return;
+    if (!tripPlannerWrapper) return;
 
     if (!this.isFullscreen) {
       // Store original position
-      this.originalParent = mapWrapper.parentElement;
-      this.originalNextSibling = mapWrapper.nextSibling;
+      this.originalParent = tripPlannerWrapper.parentElement;
+      this.originalNextSibling = tripPlannerWrapper.nextSibling;
 
-      // Move map to fullscreen
-      document.body.appendChild(mapWrapper);
+      // Move entire trip planner wrapper to fullscreen
+      document.body.appendChild(tripPlannerWrapper);
       
-      // Apply fullscreen styles
-      mapWrapper.style.cssText = `
+      // Apply fullscreen styles to the wrapper
+      tripPlannerWrapper.style.cssText = `
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
@@ -97,18 +99,19 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
 
     const mapContainer = this.map.getContainer();
     const mapWrapper = mapContainer.parentElement;
+    const tripPlannerWrapper = mapWrapper?.parentElement;
 
-    if (!mapWrapper || !this.originalParent) return;
+    if (!tripPlannerWrapper || !this.originalParent) return;
 
     // Restore original position
     if (this.originalNextSibling) {
-      this.originalParent.insertBefore(mapWrapper, this.originalNextSibling);
+      this.originalParent.insertBefore(tripPlannerWrapper, this.originalNextSibling);
     } else {
-      this.originalParent.appendChild(mapWrapper);
+      this.originalParent.appendChild(tripPlannerWrapper);
     }
 
     // Remove fullscreen styles
-    mapWrapper.style.cssText = '';
+    tripPlannerWrapper.style.cssText = '';
     mapContainer.style.cssText = '';
 
     // Update button icon
