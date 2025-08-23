@@ -169,7 +169,13 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         }
       });
       // Initialize without adding to map controls
-      trackControl.initialize(newMap, mapContainerRef.current);
+      if (typeof trackControl.initialize === 'function') {
+        trackControl.initialize(newMap, mapContainerRef.current);
+      } else {
+        // Fallback for old implementation
+        console.warn('TrackControl does not have initialize method, using as map control');
+        newMap.addControl(trackControl as any, 'top-right');
+      }
       trackControlRef.current = trackControl;
       
       // Create map options control and initialize it
@@ -197,7 +203,13 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         overlays: mapOverlays
       });
       // Initialize without adding to map controls
-      mapOptionsControl.initialize(newMap, mapContainerRef.current);
+      if (typeof mapOptionsControl.initialize === 'function') {
+        mapOptionsControl.initialize(newMap, mapContainerRef.current);
+      } else {
+        // Fallback for old implementation
+        console.warn('MapOptionsControl does not have initialize method, using as map control');
+        newMap.addControl(mapOptionsControl as any, 'top-left');
+      }
       mapOptionsControlRef.current = mapOptionsControl;
       
       // Store map instance
@@ -256,11 +268,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     
     // Cleanup
     return () => {
-      if (trackControlRef.current) {
+      if (trackControlRef.current && typeof trackControlRef.current.cleanup === 'function') {
         trackControlRef.current.cleanup();
         trackControlRef.current = null;
       }
-      if (mapOptionsControlRef.current) {
+      if (mapOptionsControlRef.current && typeof mapOptionsControlRef.current.cleanup === 'function') {
         mapOptionsControlRef.current.cleanup();
         mapOptionsControlRef.current = null;
       }
