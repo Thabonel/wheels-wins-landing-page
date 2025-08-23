@@ -72,16 +72,20 @@ export class FreshTrackControl implements mapboxgl.IControl {
     
     // Add event listeners
     console.log('[TrackControl] Button created:', this.button);
-    this.button.addEventListener('click', () => {
+    this.button.addEventListener('click', (e) => {
       console.log('[TrackControl] Button clicked!');
+      e.stopPropagation(); // Prevent event from bubbling to document
       this.togglePanel();
     });
     
     // Close panel when clicking outside
+    // Use setTimeout to avoid race condition with button click
     document.addEventListener('click', (e) => {
+      // Don't close if clicking the button or panel
       if (this.panel && this.isOpen && 
           !this.container?.contains(e.target as Node) && 
           !this.panel.contains(e.target as Node)) {
+        console.log('[TrackControl] Document click detected - closing panel');
         this.closePanel();
       }
     });
@@ -488,7 +492,8 @@ export class FreshTrackControl implements mapboxgl.IControl {
   public closePanel(): void {
     console.log('[TrackControl] closePanel called');
     if (this.panel && this.button) {
-      this.panel.style.right = '-320px';
+      const panelWidth = this.panel.offsetWidth || 320;
+      this.panel.style.right = `-${panelWidth}px`;
       console.log('[TrackControl] Panel hidden at right:', this.panel.style.right);
       this.button.style.backgroundColor = 'white';
       
