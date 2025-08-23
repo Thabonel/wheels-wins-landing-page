@@ -36,6 +36,7 @@ export class FreshTrackControl implements mapboxgl.IControl {
     this.container = document.createElement('div');
     this.container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
     this.container.style.position = 'relative';
+    this.container.style.overflow = 'visible'; // Allow panel to extend outside
     
     // Create toggle button
     this.button = document.createElement('button');
@@ -93,10 +94,10 @@ export class FreshTrackControl implements mapboxgl.IControl {
     // Assemble control
     this.container.appendChild(this.button);
     if (this.panel) {
-      document.body.appendChild(this.panel);
-      console.log('[TrackControl] Panel appended to body');
-      const panelInDOM = document.body.contains(this.panel);
-      console.log('[TrackControl] Panel in DOM:', panelInDOM);
+      this.container.appendChild(this.panel); // Append to container, not body
+      console.log('[TrackControl] Panel appended to container');
+      const panelInDOM = this.container.contains(this.panel);
+      console.log('[TrackControl] Panel in container:', panelInDOM);
     } else {
       console.error('[TrackControl] Panel is null!');
     }
@@ -105,9 +106,7 @@ export class FreshTrackControl implements mapboxgl.IControl {
   }
   
   onRemove(): void {
-    if (this.panel?.parentNode) {
-      this.panel.parentNode.removeChild(this.panel);
-    }
+    // Container removal will handle everything including the panel
     if (this.container?.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
@@ -126,17 +125,17 @@ export class FreshTrackControl implements mapboxgl.IControl {
     this.panel.id = 'track-management-panel'; // Add ID for easier debugging
     console.log('[TrackControl] Panel element created');
     this.panel.style.cssText = `
-      position: fixed;
-      top: 60px;
+      position: absolute;
+      top: 0;
       right: -320px;
       width: 320px;
-      height: calc(100vh - 80px);
-      max-height: 600px;
+      height: 500px;
+      max-height: calc(100vh - 100px);
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
       border-radius: 8px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      z-index: 10001;
+      z-index: 1000;
       transition: right 0.3s ease;
       overflow: hidden;
       display: flex;
@@ -468,7 +467,7 @@ export class FreshTrackControl implements mapboxgl.IControl {
       // Log current position
       console.log('[TrackControl] Current panel right:', this.panel.style.right);
       
-      this.panel.style.right = '16px';
+      this.panel.style.right = '-340px'; // Position next to button (button width + gap)
       this.button.style.backgroundColor = '#f3f4f6';
       
       console.log('[TrackControl] Panel right set to:', this.panel.style.right);
