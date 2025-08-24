@@ -50,7 +50,7 @@ export class FreshMapOptionsControl {
       position: absolute;
       top: 60px;
       left: 10px;
-      z-index: 10000;
+      z-index: 10001;
     `;
     
     // Create dropdown
