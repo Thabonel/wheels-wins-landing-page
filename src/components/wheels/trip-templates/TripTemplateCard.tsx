@@ -44,7 +44,7 @@ export default function TripTemplateCard({
     'advanced': 'bg-red-100 text-red-800'
   };
 
-  // Use template image if available, with intelligent fallback to route maps or verified images
+  // Image fallback chain: Template URL → Wikipedia/Verified → Mapbox Map → Placeholder
   const getTemplateImage = () => {
     // Priority 1: If template has an image URL, use it
     if (template.imageUrl || template.image_url) {
@@ -56,22 +56,23 @@ export default function TripTemplateCard({
       return template.thumbnailUrl || template.thumbnail_url;
     }
     
-    // Priority 3: Try to get verified image synchronously (fast)
+    // Priority 3: Try to get Wikipedia or verified image (fast check)
     try {
       const imageResult = googleImageService.getTemplateImageSync(template);
-      if (imageResult.isVerified && imageResult.imageUrl) {
-        console.log(`Using verified image for ${template.id}`);
+      if (imageResult.imageUrl) {
+        console.log(`Using ${imageResult.isVerified ? 'verified/Wikipedia' : 'fallback'} image for ${template.id}`);
         return imageResult.imageUrl;
       }
     } catch (error) {
-      console.warn('Failed to get verified image for template:', template.id, error);
+      console.warn('Failed to get image for template:', template.id, error);
     }
     
-    // Priority 4: Generate intelligent route-specific map (better than generic placeholder)
+    // Priority 4: Generate intelligent route-specific Mapbox map (excellent fallback!)
     const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!mapboxToken) {
       console.warn('No Mapbox token available for map generation');
-      return '/api/placeholder/400/200'; // Last resort
+      // Use a proper placeholder from our service instead of /api/placeholder
+      return 'https://via.placeholder.com/400x200/0088cc/ffffff?text=Adventure+Awaits';
     }
     
     console.log(`Generating route-specific map for ${template.id}`);
