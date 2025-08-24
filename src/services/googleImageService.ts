@@ -1,5 +1,6 @@
 import { TripTemplate } from './tripTemplateService';
-import { imageStorageService } from './imageStorageService';
+import { supabase } from '@/integrations/supabase/client';
+import { wikipediaImageService } from './wikipediaImageService';
 
 /**
  * Google Image Search Service
@@ -9,54 +10,221 @@ import { imageStorageService } from './imageStorageService';
  * Updated to use ImageStorageService for permanent storage in Supabase
  */
 export class GoogleImageService {
-  // Legacy verified images - now managed by ImageStorageService
+  // Storage configuration
+  private static readonly BUCKET_NAME = 'public-assets';
+  private static readonly FOLDER_NAME = 'trip-templates';
+  
+  // Wikipedia images cache
+  private static wikipediaImagesCache: Record<string, string> | null = null;
+  private static wikipediaImagesFetchPromise: Promise<Record<string, string>> | null = null;
+  
+  // Verified image URLs - Using reliable sources instead of broken Unsplash
   private static readonly VERIFIED_IMAGES: Record<string, string> = {
-    // Great Ocean Road - Twelve Apostles
-    'aus-great-ocean-road': 'https://images.unsplash.com/photo-1529258283598-8d6fe60b27f4?w=800&q=80',
+    // Great Ocean Road - Using the URL you provided
+    'aus-great-ocean-road': 'https://www.bunyiptours.com/wp-content/uploads/2023/09/Sunset-1-scaled.jpg',
     
-    // Big Lap - Uluru
-    'aus-big-lap': 'https://images.unsplash.com/photo-1529108190281-9a4f620bc2d8?w=800&q=80',
-    
-    // East Coast - Great Barrier Reef
-    'aus-east-coast': 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=800&q=80',
-    
-    // Red Centre - Uluru at sunset
-    'aus-red-centre': 'https://images.unsplash.com/photo-1542401886-65d6c61db217?w=800&q=80',
-    
-    // Savannah Way - Kakadu landscape  
-    'aus-savannah-way': 'https://images.unsplash.com/photo-1521706862577-47b053587f91?w=800&q=80',
-    
-    // Tasmania Circuit - Cradle Mountain
-    'aus-tasmania-circuit': 'https://images.unsplash.com/photo-1619956947777-9c2d38007238?w=800&q=80',
-    
-    // Southwest WA - Margaret River vineyards
-    'aus-southwest-wa': 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=800&q=80',
-    
-    // Queensland Outback - Outback landscape
-    'aus-queensland-outback': 'https://images.unsplash.com/photo-1523712900580-a5cc2e0112ed?w=800&q=80',
-    
-    // Murray River - River landscape
-    'aus-murray-river': 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80',
-    
-    // Gibb River Road - Kimberley gorge
-    'aus-gibb-river-road': 'https://images.unsplash.com/photo-1601579621145-ffef641e749f?w=800&q=80',
-    
-    // Victorian High Country - Mountain landscape
-    'aus-high-country': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
-    
-    // Nullarbor - Australian outback desert road
-    'aus-nullarbor': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=80',
-    
-    // Cape York - Remote beach
-    'aus-cape-york': 'https://images.unsplash.com/photo-1523952578875-e6bb18b26645?w=800&q=80',
-    
-    // Flinders Ranges - Mountain landscape
-    'aus-flinders-ranges': 'https://images.unsplash.com/photo-1494500764479-0c8f2919a3d8?w=800&q=80',
-    
-    // Sunshine Coast - Beach scene
-    'aus-sunshine-coast': 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80'
+    // We'll fetch these from Wikipedia API
+    'aus-big-lap': '',
+    'aus-east-coast': '',
+    'aus-red-centre': '',
+    'aus-savannah-way': '',
+    'aus-tasmania-circuit': '',
+    'aus-southwest-wa': '',
+    'aus-queensland-outback': '',
+    'aus-murray-river': '',
+    'aus-gibb-river-road': '',
+    'aus-high-country': '',
+    'aus-nullarbor': '',
+    'aus-cape-york': '',
+    'aus-flinders-ranges': '',
+    'aus-sunshine-coast': '',
+    'nz-south-island': '',
+    'can-rockies': '',
+    'uk-scotland': '',
+    'usa-southwest': '',
+    'general-coastal': ''
   };
   
+  /**
+   * Get Wikipedia images for templates
+   */
+  private static async getWikipediaImages(): Promise<Record<string, string>> {
+    // If we're already fetching, wait for that promise
+    if (this.wikipediaImagesFetchPromise) {
+      return this.wikipediaImagesFetchPromise;
+    }
+    
+    // If we have cached images, return them
+    if (this.wikipediaImagesCache) {
+      return this.wikipediaImagesCache;
+    }
+    
+    // Start fetching images
+    this.wikipediaImagesFetchPromise = wikipediaImageService.getTemplateImages()
+      .then(images => {
+        this.wikipediaImagesCache = images;
+        console.log('✅ Wikipedia images cached:', Object.keys(images).length);
+        return images;
+      })
+      .catch(error => {
+        console.error('❌ Failed to fetch Wikipedia images:', error);
+        // Return fallback images on error
+        return wikipediaImageService.FALLBACK_IMAGES;
+      });
+    
+    return this.wikipediaImagesFetchPromise;
+  }
+  
+  /**
+   * Download an image from a URL and return as blob
+   */
+  private static async downloadImage(url: string): Promise<Blob> {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to download image: ${response.status}`);
+    }
+    return response.blob();
+  }
+
+  /**
+   * Upload image blob to Supabase Storage
+   */
+  private static async uploadToStorage(
+    templateId: string, 
+    imageBlob: Blob
+  ): Promise<string> {
+    const fileName = `${templateId}.jpg`;
+    const filePath = `${this.FOLDER_NAME}/${fileName}`;
+    
+    console.log(`🔄 Uploading ${fileName} to Supabase Storage...`);
+    
+    const { data, error } = await supabase.storage
+      .from(this.BUCKET_NAME)
+      .upload(filePath, imageBlob, {
+        cacheControl: '3600',
+        upsert: true, // Replace if exists
+        contentType: 'image/jpeg'
+      });
+    
+    if (error) {
+      console.error(`❌ Failed to upload ${fileName}:`, error);
+      throw error;
+    }
+    
+    console.log(`✅ Uploaded ${fileName} to Supabase Storage`);
+    
+    // Return the public URL
+    const { data: urlData } = supabase.storage
+      .from(this.BUCKET_NAME)
+      .getPublicUrl(filePath);
+    
+    return urlData.publicUrl;
+  }
+
+  /**
+   * Check if image already exists in Supabase Storage
+   */
+  private static async imageExists(templateId: string): Promise<boolean> {
+    const fileName = `${templateId}.jpg`;
+    const filePath = `${this.FOLDER_NAME}/${fileName}`;
+    
+    const { data, error } = await supabase.storage
+      .from(this.BUCKET_NAME)
+      .list(this.FOLDER_NAME, {
+        search: fileName
+      });
+    
+    if (error) {
+      console.error(`Error checking if ${fileName} exists:`, error);
+      return false;
+    }
+    
+    return data.some(file => file.name === fileName);
+  }
+
+  /**
+   * Get Supabase Storage URL for a template image
+   */
+  private static getStorageUrl(templateId: string): string {
+    const fileName = `${templateId}.jpg`;
+    const filePath = `${this.FOLDER_NAME}/${fileName}`;
+    
+    const { data } = supabase.storage
+      .from(this.BUCKET_NAME)
+      .getPublicUrl(filePath);
+    
+    return data.publicUrl;
+  }
+
+  /**
+   * Ensure image is stored in Supabase Storage
+   * Downloads and uploads if not already present
+   */
+  private static async ensureImageStored(templateId: string): Promise<string> {
+    // Check if we have a verified image URL for this template
+    const sourceUrl = this.VERIFIED_IMAGES[templateId];
+    if (!sourceUrl) {
+      throw new Error(`No verified image URL for template: ${templateId}`);
+    }
+
+    // Check if image already exists in storage
+    const exists = await this.imageExists(templateId);
+    if (exists) {
+      console.log(`✅ Image already exists for ${templateId}`);
+      return this.getStorageUrl(templateId);
+    }
+
+    // Download and upload the image
+    console.log(`📥 Downloading and storing image for ${templateId}...`);
+    
+    try {
+      const imageBlob = await this.downloadImage(sourceUrl);
+      const storageUrl = await this.uploadToStorage(templateId, imageBlob);
+      
+      console.log(`🎉 Successfully stored image for ${templateId}`);
+      return storageUrl;
+      
+    } catch (error) {
+      console.error(`❌ Failed to store image for ${templateId}:`, error);
+      // Fallback to original URL if storage fails
+      return sourceUrl;
+    }
+  }
+
+  /**
+   * Get image URL for a template (storage URL if available, fallback otherwise)
+   */
+  private static async getTemplateImageUrl(templateId: string): Promise<{
+    imageUrl: string;
+    isStored: boolean;
+  }> {
+    try {
+      // Try to get from storage first
+      const exists = await this.imageExists(templateId);
+      if (exists) {
+        return {
+          imageUrl: this.getStorageUrl(templateId),
+          isStored: true
+        };
+      }
+      
+      // Fallback to verified URL
+      const sourceUrl = this.VERIFIED_IMAGES[templateId];
+      if (sourceUrl) {
+        return {
+          imageUrl: sourceUrl,
+          isStored: false
+        };
+      }
+      
+      throw new Error(`No image available for template: ${templateId}`);
+      
+    } catch (error) {
+      console.error(`Error getting image URL for ${templateId}:`, error);
+      throw error;
+    }
+  }
+
   /**
    * Generate a Google Image Search URL for a query
    */
@@ -101,7 +269,7 @@ export class GoogleImageService {
   
   /**
    * Get image for a trip template
-   * Uses ImageStorageService for permanent storage, falls back to search URL
+   * Uses internal storage methods for permanent storage, falls back to search URL
    */
   static async getTemplateImage(template: TripTemplate): Promise<{
     imageUrl: string | null;
@@ -112,8 +280,8 @@ export class GoogleImageService {
     console.log(`🔍 Google Image Service: Getting image for: ${template.name} (${template.id})`);
     
     try {
-      // Try to get from storage service first
-      const { imageUrl, isStored } = await imageStorageService.getTemplateImageUrl(template.id);
+      // Try to get from internal storage methods first
+      const { imageUrl, isStored } = await this.getTemplateImageUrl(template.id);
       
       console.log(`✅ ${isStored ? 'Using stored' : 'Using verified'} image for ${template.id}: ${imageUrl.substring(0, 50)}...`);
       
@@ -153,8 +321,8 @@ export class GoogleImageService {
   } {
     console.log(`🔍 Google Image Service (sync): Getting image for: ${template.name} (${template.id})`);
     
-    // Check if we have a verified image
-    if (this.VERIFIED_IMAGES[template.id]) {
+    // Check if we have a hardcoded verified image
+    if (this.VERIFIED_IMAGES[template.id] && this.VERIFIED_IMAGES[template.id] !== '') {
       const verifiedUrl = this.VERIFIED_IMAGES[template.id];
       console.log(`✅ Using verified image for ${template.id}: ${verifiedUrl.substring(0, 50)}...`);
       return {
@@ -163,6 +331,23 @@ export class GoogleImageService {
         isVerified: true
       };
     }
+    
+    // Check Wikipedia images cache
+    if (this.wikipediaImagesCache && this.wikipediaImagesCache[template.id]) {
+      const wikipediaUrl = this.wikipediaImagesCache[template.id];
+      console.log(`✅ Using Wikipedia image for ${template.id}: ${wikipediaUrl.substring(0, 50)}...`);
+      return {
+        imageUrl: wikipediaUrl,
+        searchUrl: this.generateGoogleImageSearchUrl(this.getSearchQuery(template)),
+        isVerified: true
+      };
+    }
+    
+    // Don't return a fallback here - let TripTemplateCard use Mapbox
+    console.log(`⚠️ No Wikipedia image found for ${template.id} - will use Mapbox fallback`);
+    
+    // Start fetching Wikipedia images in background for next time
+    this.getWikipediaImages().catch(console.error);
     
     // Generate search URL for manual selection
     const searchQuery = this.getSearchQuery(template);
@@ -227,6 +412,36 @@ export class GoogleImageService {
   }
 
   /**
+   * Batch ensure images are stored for multiple templates
+   */
+  private static async ensureImagesStoredInternal(templates: TripTemplate[]): Promise<Map<string, string>> {
+    const imageUrls = new Map<string, string>();
+    
+    console.log(`🔄 Ensuring ${templates.length} template images are stored...`);
+    
+    // Process images in parallel batches of 3 to avoid overwhelming the service
+    const batchSize = 3;
+    for (let i = 0; i < templates.length; i += batchSize) {
+      const batch = templates.slice(i, i + batchSize);
+      
+      const promises = batch.map(async (template) => {
+        try {
+          const url = await this.ensureImageStored(template.id);
+          imageUrls.set(template.id, url);
+        } catch (error) {
+          console.error(`Failed to process image for ${template.id}:`, error);
+          // Don't store URL if failed - will use fallback
+        }
+      });
+      
+      await Promise.all(promises);
+    }
+    
+    console.log(`✅ Processed ${imageUrls.size}/${templates.length} template images`);
+    return imageUrls;
+  }
+
+  /**
    * Initialize image storage for all templates
    * Call this when the app starts to ensure all images are stored
    */
@@ -234,7 +449,18 @@ export class GoogleImageService {
     console.log('🚀 Initializing template image storage...');
     
     try {
-      await imageStorageService.initializeStorage();
+      // First, fetch Wikipedia images
+      await this.getWikipediaImages();
+      console.log('✅ Wikipedia images loaded');
+      
+      // Then proceed with storage initialization if needed
+      const templateIds = Object.keys(this.VERIFIED_IMAGES).filter(id => this.VERIFIED_IMAGES[id] !== '');
+      const fakeTemplates = templateIds.map(id => ({ id } as TripTemplate));
+      
+      if (fakeTemplates.length > 0) {
+        await this.ensureImagesStoredInternal(fakeTemplates);
+      }
+      
       console.log('✅ Template image storage initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize image storage:', error);
@@ -249,7 +475,7 @@ export class GoogleImageService {
     console.log(`🔄 Ensuring images are stored for ${templates.length} templates...`);
     
     try {
-      await imageStorageService.ensureImagesStored(templates);
+      await this.ensureImagesStoredInternal(templates);
       console.log('✅ Template images storage check complete');
     } catch (error) {
       console.error('❌ Failed to ensure images stored:', error);
