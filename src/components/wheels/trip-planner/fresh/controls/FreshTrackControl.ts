@@ -40,7 +40,7 @@ export class FreshTrackControl {
       position: absolute;
       top: 60px;
       right: 10px;
-      z-index: 10000;
+      z-index: 10001;
     `;
     
     // Create panel
