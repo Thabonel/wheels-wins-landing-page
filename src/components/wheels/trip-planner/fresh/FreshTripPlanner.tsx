@@ -251,8 +251,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       
       // Map event handlers
       newMap.on('load', () => {
-        toast.success('Map loaded successfully');
-        
         // Enable map clicking to add waypoints
         newMap.on('click', (e) => {
           if (isAddingWaypointRef.current) {
