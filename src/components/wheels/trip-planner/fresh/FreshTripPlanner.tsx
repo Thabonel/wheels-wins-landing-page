@@ -157,9 +157,12 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       });
       newMap.addControl(geolocateControl, 'top-right');
       
-      // Add native Mapbox fullscreen control (positioned below geolocate)
-      // Using native control for proper fullscreen API support
-      newMap.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+      // Add native Mapbox fullscreen control with container option
+      // This ensures the entire trip planner (including toolbar) goes fullscreen
+      const tripPlannerRoot = mapContainerRef.current?.closest('[data-trip-planner-root="true"]');
+      newMap.addControl(new mapboxgl.FullscreenControl({
+        container: tripPlannerRoot || undefined
+      }), 'top-right');
       
       // Create track management control (but don't add to map - controlled by toolbar)
       const trackControl = new FreshTrackControl({
