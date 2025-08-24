@@ -49,6 +49,65 @@ export function useFreshWaypointManager({
     setHistoryIndex(prev => prev + 1);
   }, [historyIndex]);
   
+  // Update map markers function (moved before setWaypoints)
+  const updateMapMarkers = useCallback((waypoints: Waypoint[]) => {
+    if (!map) return;
+    
+    // Remove old markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current.clear();
+    
+    // Add new markers
+    waypoints.forEach((waypoint, index) => {
+      const color = index === 0 ? '#00ff00' : // Green for start
+                   index === waypoints.length - 1 ? '#ff0000' : // Red for end
+                   '#0080ff'; // Blue for waypoints
+      
+      const marker = new mapboxgl.Marker({ color })
+        .setLngLat(waypoint.coordinates)
+        .setPopup(new mapboxgl.Popup().setText(waypoint.name))
+        .addTo(map);
+      
+      markersRef.current.set(waypoint.id, marker);
+    });
+  }, [map]);
+  
+  // Calculate route using Mapbox Directions API (moved before setWaypoints)
+  const calculateRoute = useCallback(async (waypoints: Waypoint[]) => {
+    if (!map || waypoints.length < 2) return;
+    
+    setIsLoadingRoute(true);
+    
+    try {
+      const coordinates = waypoints.map(wp => wp.coordinates.join(',')).join(';');
+      const url = `https://api.mapbox.com/directions/v5/mapbox/${routeProfile}/${coordinates}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        
+        setCurrentRoute({
+          distance: route.distance,
+          duration: route.duration,
+          geometry: route.geometry
+        });
+        
+        // Draw route on map
+        drawRoute(route.geometry);
+        
+        // Fit map to route bounds
+        fitMapToRoute(waypoints);
+      }
+    } catch (error) {
+      console.error('Error calculating route:', error);
+      toast.error('Failed to calculate route');
+    } finally {
+      setIsLoadingRoute(false);
+    }
+  }, [map, routeProfile, drawRoute, fitMapToRoute]);
+  
   // Main setWaypoints function - properly exposed
   const setWaypoints = useCallback((newWaypoints: Waypoint[]) => {
     setWaypointsInternal(newWaypoints);
@@ -70,7 +129,7 @@ export function useFreshWaypointManager({
     if (onRouteUpdate) {
       onRouteUpdate(newWaypoints, currentRoute);
     }
-  }, [map, onRouteUpdate, currentRoute, addToHistory]);
+  }, [map, onRouteUpdate, currentRoute, addToHistory, updateMapMarkers, calculateRoute]);
   
   // Undo function
   const undo = useCallback(() => {
@@ -166,67 +225,9 @@ export function useFreshWaypointManager({
     setCurrentRoute(null);
   }, [setWaypoints]);
   
-  // Update map markers
-  const updateMapMarkers = (waypoints: Waypoint[]) => {
-    if (!map) return;
-    
-    // Remove old markers
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current.clear();
-    
-    // Add new markers
-    waypoints.forEach((waypoint, index) => {
-      const color = index === 0 ? '#00ff00' : // Green for start
-                   index === waypoints.length - 1 ? '#ff0000' : // Red for end
-                   '#0080ff'; // Blue for waypoints
-      
-      const marker = new mapboxgl.Marker({ color })
-        .setLngLat(waypoint.coordinates)
-        .setPopup(new mapboxgl.Popup().setText(waypoint.name))
-        .addTo(map);
-      
-      markersRef.current.set(waypoint.id, marker);
-    });
-  };
-  
-  // Calculate route using Mapbox Directions API
-  const calculateRoute = async (waypoints: Waypoint[]) => {
-    if (!map || waypoints.length < 2) return;
-    
-    setIsLoadingRoute(true);
-    
-    try {
-      const coordinates = waypoints.map(wp => wp.coordinates.join(',')).join(';');
-      const url = `https://api.mapbox.com/directions/v5/mapbox/${routeProfile}/${coordinates}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
-      
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        
-        setCurrentRoute({
-          distance: route.distance,
-          duration: route.duration,
-          geometry: route.geometry
-        });
-        
-        // Draw route on map
-        drawRoute(route.geometry);
-        
-        // Fit map to route bounds
-        fitMapToRoute(waypoints);
-      }
-    } catch (error) {
-      console.error('Error calculating route:', error);
-      toast.error('Failed to calculate route');
-    } finally {
-      setIsLoadingRoute(false);
-    }
-  };
   
   // Draw route on map
-  const drawRoute = (geometry: any) => {
+  const drawRoute = useCallback((geometry: any) => {
     if (!map) return;
     
     // Remove existing route layer if it exists
@@ -261,10 +262,10 @@ export function useFreshWaypointManager({
         'line-opacity': 0.8
       }
     });
-  };
+  }, [map]);
   
   // Fit map to show all waypoints
-  const fitMapToRoute = (waypoints: Waypoint[]) => {
+  const fitMapToRoute = useCallback((waypoints: Waypoint[]) => {
     if (!map || waypoints.length === 0) return;
     
     const bounds = new mapboxgl.LngLatBounds();
@@ -273,7 +274,7 @@ export function useFreshWaypointManager({
     map.fitBounds(bounds, {
       padding: { top: 50, bottom: 50, left: 50, right: 50 }
     });
-  };
+  }, [map]);
   
   // Clean up on unmount
   useEffect(() => {
