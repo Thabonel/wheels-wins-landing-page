@@ -10,6 +10,7 @@ import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 import { FreshTrackControl } from './controls/FreshTrackControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 import FreshStatusBar from './components/FreshStatusBar';
+import FreshNavigationExport from './components/FreshNavigationExport';
 import BudgetSidebar from '../BudgetSidebar';
 import SocialSidebar from '../SocialSidebar';
 import { useSocialTripState } from '../hooks/useSocialTripState';
@@ -40,6 +41,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [showBudget, setShowBudget] = useState(false);
   const [showSocial, setShowSocial] = useState(false);
   const [showTraffic, setShowTraffic] = useState(false);
+  const [showExportHub, setShowExportHub] = useState(false);
   const trackControlRef = useRef<FreshTrackControl | null>(null);
   const mapOptionsControlRef = useRef<FreshMapOptionsControl | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -413,6 +415,14 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   };
   
   // Share trip handler
+  const handleExportRoute = () => {
+    if (waypointManager.waypoints.length < 2) {
+      toast.error('Add at least 2 waypoints to export a route');
+      return;
+    }
+    setShowExportHub(true);
+  };
+  
   const handleShareTrip = () => {
     if (waypointManager.waypoints.length < 2) {
       toast.error('Please create a route first');
@@ -466,6 +476,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         onClearRoute={handleClearRoute}
         onSaveTrip={handleSaveTrip}
         onShareTrip={handleShareTrip}
+        onExportRoute={handleExportRoute}
         onStartNavigation={handleStartNavigation}
         isNavigating={isNavigating}
         onToggleTraffic={() => setShowTraffic(!showTraffic)}
@@ -562,6 +573,29 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           />
         </div>
       )}
+      
+      {/* Navigation Export Hub */}
+      <FreshNavigationExport
+        isOpen={showExportHub}
+        onClose={() => setShowExportHub(false)}
+        currentRoute={waypointManager.waypoints.length >= 2 ? {
+          origin: {
+            name: waypointManager.waypoints[0]?.name || 'Start',
+            lat: waypointManager.waypoints[0]?.coordinates[1],
+            lng: waypointManager.waypoints[0]?.coordinates[0]
+          },
+          destination: {
+            name: waypointManager.waypoints[waypointManager.waypoints.length - 1]?.name || 'End',
+            lat: waypointManager.waypoints[waypointManager.waypoints.length - 1]?.coordinates[1],
+            lng: waypointManager.waypoints[waypointManager.waypoints.length - 1]?.coordinates[0]
+          },
+          waypoints: waypointManager.waypoints.slice(1, -1).map(wp => ({
+            name: wp.name || 'Waypoint',
+            lat: wp.coordinates[1],
+            lng: wp.coordinates[0]
+          }))
+        } : null}
+      />
     </div>
   );
 };

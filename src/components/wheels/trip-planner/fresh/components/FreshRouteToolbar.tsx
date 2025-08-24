@@ -11,7 +11,8 @@ import {
   X,
   Map,
   DollarSign,
-  Users
+  Users,
+  Download
 } from 'lucide-react';
 
 interface FreshRouteToolbarProps {
@@ -26,6 +27,7 @@ interface FreshRouteToolbarProps {
   onClearRoute: () => void;
   onSaveTrip: () => void;
   onShareTrip: () => void;
+  onExportRoute?: () => void;
   
   // Navigation
   onStartNavigation: () => void;
@@ -59,6 +61,7 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
   onClearRoute,
   onSaveTrip,
   onShareTrip,
+  onExportRoute,
   onStartNavigation,
   isNavigating,
   onToggleTraffic,
@@ -166,6 +169,16 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
           >
             <Share2 className="w-4 h-4" />
           </button>
+          {onExportRoute && (
+            <button
+              onClick={onExportRoute}
+              disabled={!hasRoute}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Export to Navigation Apps"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
         </div>
         
         {/* Budget and Social Group */}
