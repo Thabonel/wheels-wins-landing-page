@@ -7,52 +7,52 @@ import { TripTemplate } from './tripTemplateService';
  */
 export class GoogleImageService {
   // Verified, curated images for each Australian template
-  // These are hardcoded to ensure accuracy
+  // Using reliable image sources that allow hotlinking
   private static readonly VERIFIED_IMAGES: Record<string, string> = {
-    // Great Ocean Road - Using actual Twelve Apostles photo
-    'aus-great-ocean-road': 'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/15/33/f5/de/great-ocean-road.jpg?w=1200&h=700&s=1',
+    // Great Ocean Road - Twelve Apostles
+    'aus-great-ocean-road': 'https://images.unsplash.com/photo-1529258283598-8d6fe60b27f4?w=800&q=80',
     
-    // Big Lap - Uluru iconic shot
-    'aus-big-lap': 'https://www.tourism.australia.com/content/dam/digital/images/campaigns/Indigenous/uluru-nt.jpg',
+    // Big Lap - Uluru
+    'aus-big-lap': 'https://images.unsplash.com/photo-1529108190281-9a4f620bc2d8?w=800&q=80',
     
     // East Coast - Great Barrier Reef
-    'aus-east-coast': 'https://www.australia.com/content/australia/en/places/cairns-and-surrounds/guide-to-the-great-barrier-reef/_jcr_content/hero/desktop.adapt.1920.high.jpg',
+    'aus-east-coast': 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=800&q=80',
     
     // Red Centre - Uluru at sunset
-    'aus-red-centre': 'https://www.intrepidtravel.com/adventures/wp-content/uploads/2017/10/australia_uluru_sunset.jpg',
+    'aus-red-centre': 'https://images.unsplash.com/photo-1542401886-65d6c61db217?w=800&q=80',
     
-    // Savannah Way - Kakadu landscape
-    'aus-savannah-way': 'https://northernterritory.com/binaries/content/gallery/tourismnt/images/kakadu/kakadu-national-park-gunlom-falls.jpg',
+    // Savannah Way - Kakadu landscape  
+    'aus-savannah-way': 'https://images.unsplash.com/photo-1521706862577-47b053587f91?w=800&q=80',
     
     // Tasmania Circuit - Cradle Mountain
-    'aus-tasmania-circuit': 'https://www.discovertasmania.com.au/__data/assets/image/0011/956396/cradle-mountain.jpg',
+    'aus-tasmania-circuit': 'https://images.unsplash.com/photo-1619956947777-9c2d38007238?w=800&q=80',
     
     // Southwest WA - Margaret River vineyards
-    'aus-southwest-wa': 'https://www.australiassouthwest.com/wp-content/uploads/2021/06/Leeuwin-Estate-Vineyard.jpg',
+    'aus-southwest-wa': 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=800&q=80',
     
-    // Queensland Outback - Longreach landscape
-    'aus-queensland-outback': 'https://www.queensland.com/content/dam/teq/consumer/global/images/destinations/outback-queensland/blog-images/longreach-qantas-founders-museum.jpg',
+    // Queensland Outback - Outback landscape
+    'aus-queensland-outback': 'https://images.unsplash.com/photo-1523712900580-a5cc2e0112ed?w=800&q=80',
     
-    // Murray River - Paddle steamer
-    'aus-murray-river': 'https://www.murrayriver.com.au/wp-content/uploads/2019/05/paddle-steamer-echuca.jpg',
+    // Murray River - River landscape
+    'aus-murray-river': 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80',
     
-    // Gibb River Road - Windjana Gorge actual photo
-    'aus-gibb-river-road': 'https://www.australiascoralcoast.com/sites/default/files/styles/large/public/2020-03/Windjana%20Gorge%20National%20Park%20-%20Credit%20Tourism%20Western%20Australia.jpg',
+    // Gibb River Road - Kimberley gorge
+    'aus-gibb-river-road': 'https://images.unsplash.com/photo-1601579621145-ffef641e749f?w=800&q=80',
     
-    // Victorian High Country - Mount Buffalo
-    'aus-high-country': 'https://www.visitvictoria.com/-/media/images/high-country/things-to-do/nature-and-wildlife/mountains/mount-buffalo_hc_r_1433905_1600x900.jpg',
+    // Victorian High Country - Mountain landscape
+    'aus-high-country': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
     
-    // Nullarbor - Actual Nullarbor Plain
-    'aus-nullarbor': 'https://www.australiantraveller.com/wp-content/uploads/2019/11/nullarbor-plain-road.jpg',
+    // Nullarbor - Desert road
+    'aus-nullarbor': 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80',
     
-    // Cape York - Actual Cape York tip
-    'aus-cape-york': 'https://www.capeyorktours.com.au/wp-content/uploads/2019/03/cape-york-tip.jpg',
+    // Cape York - Remote beach
+    'aus-cape-york': 'https://images.unsplash.com/photo-1523952578875-e6bb18b26645?w=800&q=80',
     
-    // Flinders Ranges - Wilpena Pound
-    'aus-flinders-ranges': 'https://southaustralia.com/media/3qipbsvy/wilpena-pound-flinders-ranges-south-australia.jpg',
+    // Flinders Ranges - Mountain landscape
+    'aus-flinders-ranges': 'https://images.unsplash.com/photo-1494500764479-0c8f2919a3d8?w=800&q=80',
     
-    // Sunshine Coast - Noosa Beach
-    'aus-sunshine-coast': 'https://www.visitsunshinecoast.com/~/media/images/blog/2020/noosa-main-beach.jpg'
+    // Sunshine Coast - Beach scene
+    'aus-sunshine-coast': 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80'
   };
   
   /**
