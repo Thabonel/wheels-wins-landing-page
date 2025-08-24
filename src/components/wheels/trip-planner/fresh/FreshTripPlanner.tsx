@@ -479,11 +479,10 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const handleLocationSelect = (coordinates: [number, number], name: string) => {
     // Add waypoint at the selected location
     waypointManager.addWaypoint({
-      lng: coordinates[0],
-      lat: coordinates[1],
+      coordinates: coordinates,
+      name: name,
       type: waypointManager.waypoints.length === 0 ? 'origin' : 
-            waypointManager.waypoints.length === 1 ? 'destination' : 'waypoint',
-      name: name
+            waypointManager.waypoints.length === 1 ? 'destination' : 'waypoint'
     });
     
     toast.success(`Added ${name} to route`);
@@ -498,10 +497,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     // Add template waypoints
     template.waypoints.forEach((wp: any) => {
       waypointManager.addWaypoint({
-        lng: wp.coordinates[0],
-        lat: wp.coordinates[1],
-        type: wp.type,
-        name: wp.name
+        coordinates: wp.coordinates,
+        name: wp.name,
+        type: wp.type
       });
     });
     
@@ -622,7 +620,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
             isVisible={showBudget}
             onClose={() => setShowBudget(false)}
             waypoints={waypointManager.waypoints.map((wp, index) => ({
-              coords: [wp.lng, wp.lat],
+              coords: wp.coordinates,
               name: wp.name || `Waypoint ${index + 1}`
             }))}
           />
