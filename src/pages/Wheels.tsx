@@ -9,14 +9,15 @@ import { PAMErrorBoundary } from "@/components/common/PAMErrorBoundary";
 import { PamHelpButton } from "@/components/pam/PamHelpButton";
 
 // Lazy load heavy components to reduce initial bundle size
-const TripPlannerApp = lazy(() => 
-  import('@/components/wheels/TripPlannerApp').catch(() => ({
+// Only keeping Trip Planner 2 as the main planner
+const FreshTripPlanner = lazy(() => 
+  import('@/components/wheels/trip-planner/fresh/FreshTripPlanner').catch(() => ({
     default: () => <div className="p-4 text-red-600">Failed to load Trip Planner</div>
   }))
 );
-const FreshTripPlanner = lazy(() => 
-  import('@/components/wheels/trip-planner/fresh/FreshTripPlanner').catch(() => ({
-    default: () => <div className="p-4 text-red-600">Failed to load Trip Planner 2</div>
+const TripsHub = lazy(() => 
+  import('@/components/wheels/trips/TripsHub').catch(() => ({
+    default: () => <div className="p-4 text-red-600">Failed to load Trips</div>
   }))
 );
 const FuelLog = lazy(() => 
@@ -31,7 +32,7 @@ const VehicleMaintenance = lazy(() =>
 );
 const RVStorageOrganizer = lazy(() => 
   import("@/components/wheels/RVStorageOrganizer").catch(() => ({
-    default: () => <div className="p-4 text-red-600">Failed to load RV Storage Organizer</div>
+    default: () => <div className="p-4 text-red-600">Failed to load RV Storage</div>
   }))
 );
 const CaravanSafety = lazy(() => 
@@ -50,8 +51,8 @@ const Wheels = () => {
       label: "Trip Planner"
     },
     {
-      id: "fresh-planner",
-      label: "Trip Planner 2"
+      id: "trips",
+      label: "Trips"
     },
     {
       id: "fuel-log",
@@ -114,27 +115,10 @@ const Wheels = () => {
               <div className="min-h-[600px]">
                 <TabTransition activeTab={activeTab} tabId="trip-planner" className="mt-0">
                   <TripPlannerErrorBoundary>
-                    <PAMErrorBoundary>
-                      <PAMProvider>
-                        <Suspense fallback={
-                          <div className="flex items-center justify-center h-96">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                            <span className="ml-3 text-gray-600">Loading Trip Planner...</span>
-                          </div>
-                        }>
-                          <TripPlannerApp />
-                        </Suspense>
-                      </PAMProvider>
-                    </PAMErrorBoundary>
-                  </TripPlannerErrorBoundary>
-                </TabTransition>
-                
-                <TabTransition activeTab={activeTab} tabId="fresh-planner" className="mt-0">
-                  <TripPlannerErrorBoundary>
                     <Suspense fallback={
                       <div className="flex items-center justify-center h-96">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                        <span className="ml-3 text-gray-600">Loading Fresh Trip Planner...</span>
+                        <span className="ml-3 text-gray-600">Loading Trip Planner...</span>
                       </div>
                     }>
                       <div className="h-[600px] relative rounded-lg overflow-hidden">
@@ -147,6 +131,17 @@ const Wheels = () => {
                       </div>
                     </Suspense>
                   </TripPlannerErrorBoundary>
+                </TabTransition>
+                
+                <TabTransition activeTab={activeTab} tabId="trips" className="mt-0">
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center h-96">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-gray-600">Loading Trips...</span>
+                    </div>
+                  }>
+                    <TripsHub />
+                  </Suspense>
                 </TabTransition>
                 
                 <TabTransition activeTab={activeTab} tabId="fuel-log" className="mt-0">
