@@ -37,7 +37,6 @@ import { logEnvironmentStatus } from './config/env-validator';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import { RouteMonitor } from './components/common/RouteMonitor';
-import { googleImageService } from './services/googleImageService';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
@@ -54,15 +53,10 @@ const WheelsSimple = lazy(() => import('./pages/WheelsSimple'));
 const queryClient = new QueryClient();
 
 function App() {
-  // Log environment info in development/staging and initialize image storage
+  // Log environment info in development/staging
   React.useEffect(() => {
     logEnvironmentInfo();
     logEnvironmentStatus();
-    
-    // Initialize image storage in the background
-    googleImageService.initializeImageStorage().catch((error) => {
-      console.warn('Image storage initialization failed (non-critical):', error);
-    });
   }, []);
 
   return (

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Region } from '@/context/RegionContext';
+import { tripTemplateImageService } from './tripTemplateImageService';
 
 export interface TripTemplate {
   id: string;
@@ -709,3 +710,9 @@ export async function incrementTemplateUsage(templateId: string): Promise<void> 
     console.error('Unexpected error incrementing template usage:', error);
   }
 }
+
+/**
+ * Update template image - re-export from tripTemplateImageService
+ */
+export const updateTemplateImage = tripTemplateImageService.updateTemplateImage;
+export const ensureAllTemplatesHaveImages = tripTemplateImageService.ensureAllTemplatesHaveImages;

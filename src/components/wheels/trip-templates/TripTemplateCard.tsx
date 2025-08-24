@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
-import { googleImageService } from '@/services/googleImageService';
 
 interface TripTemplateCardProps {
   template: TripTemplate;
@@ -44,30 +43,19 @@ export default function TripTemplateCard({
     'advanced': 'bg-red-100 text-red-800'
   };
 
-  // Image fallback chain: Template URL → Wikipedia/Verified → Mapbox Map → Placeholder
+  // Image fallback chain: Database URL → Mapbox Map → Placeholder
   const getTemplateImage = () => {
-    // Priority 1: If template has an image URL, use it
+    // Priority 1: If template has an image URL from database, use it
     if (template.imageUrl || template.image_url) {
       return template.imageUrl || template.image_url;
     }
     
-    // Priority 2: If template has thumbnail for performance
+    // Priority 2: If template has thumbnail from database for performance
     if (template.thumbnailUrl || template.thumbnail_url) {
       return template.thumbnailUrl || template.thumbnail_url;
     }
     
-    // Priority 3: Try to get Wikipedia or verified image (fast check)
-    try {
-      const imageResult = googleImageService.getTemplateImageSync(template);
-      if (imageResult.imageUrl) {
-        console.log(`Using ${imageResult.isVerified ? 'verified/Wikipedia' : 'fallback'} image for ${template.id}`);
-        return imageResult.imageUrl;
-      }
-    } catch (error) {
-      console.warn('Failed to get image for template:', template.id, error);
-    }
-    
-    // Priority 4: Generate intelligent route-specific Mapbox map (excellent fallback!)
+    // Priority 3: Generate intelligent route-specific Mapbox map (excellent fallback!)
     const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!mapboxToken) {
       console.warn('No Mapbox token available for map generation');
