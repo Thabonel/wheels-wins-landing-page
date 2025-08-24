@@ -718,42 +718,64 @@ export const tripTemplateServiceSafe = {
   },
   
   /**
-   * Enhance templates with verified Google Images
+   * Enhance templates with verified Google Images using storage service
    */
   async enhanceTemplatesWithImages(templates: TripTemplate[]): Promise<TripTemplate[]> {
     try {
-      console.log(`🖼️ Enhancing ${templates.length} templates with images...`);
+      console.log(`🖼️ Enhancing ${templates.length} templates with images using storage service...`);
       
-      // Use Google Image Service for verified images
-      const enhancedTemplates = templates.map((template) => {
-        console.log(`  Processing template: ${template.name} (${template.id})`);
-        
-        // Skip if image already exists
-        if (template.imageUrl || template.image_url) {
-          console.log(`    ⚠️ Template already has image, skipping: ${template.imageUrl || template.image_url}`);
-          return template;
-        }
-        
-        // Get verified image or placeholder with search URL
-        const imageResult = googleImageService.getTemplateImage(template);
-        
-        // Log if template needs manual image verification
-        if (!imageResult.isVerified) {
-          console.warn(`    ⚠️ Template "${template.name}" needs image verification: ${imageResult.searchUrl}`);
-        } else {
-          console.log(`    ✅ Template "${template.name}" has verified image: ${imageResult.imageUrl?.substring(0, 60)}...`);
-        }
-        
-        return {
-          ...template,
-          imageUrl: imageResult.imageUrl,
-          image_url: imageResult.imageUrl,
-          thumbnailUrl: imageResult.imageUrl,
-          thumbnail_url: imageResult.imageUrl,
-          googleImageSearchUrl: imageResult.searchUrl,
-          imageVerified: imageResult.isVerified
-        };
-      });
+      // Ensure images are stored for all templates
+      await googleImageService.ensureImagesStored(templates);
+      
+      // Process templates with async image loading
+      const enhancedTemplates = await Promise.all(
+        templates.map(async (template) => {
+          console.log(`  Processing template: ${template.name} (${template.id})`);
+          
+          // Skip if image already exists
+          if (template.imageUrl || template.image_url) {
+            console.log(`    ⚠️ Template already has image, skipping: ${template.imageUrl || template.image_url}`);
+            return template;
+          }
+          
+          try {
+            // Get verified image from storage service (async)
+            const imageResult = await googleImageService.getTemplateImage(template);
+            
+            // Log image source
+            const source = imageResult.isStored ? 'stored in Supabase' : 'verified URL';
+            console.log(`    ✅ Template "${template.name}" has ${source}: ${imageResult.imageUrl?.substring(0, 60)}...`);
+            
+            return {
+              ...template,
+              imageUrl: imageResult.imageUrl,
+              image_url: imageResult.imageUrl,
+              thumbnailUrl: imageResult.imageUrl,
+              thumbnail_url: imageResult.imageUrl,
+              googleImageSearchUrl: imageResult.searchUrl,
+              imageVerified: imageResult.isVerified,
+              imageStored: imageResult.isStored
+            };
+            
+          } catch (error) {
+            console.error(`    ❌ Failed to get image for ${template.name}:`, error);
+            
+            // Fallback to sync method for this template
+            const fallbackResult = googleImageService.getTemplateImageSync(template);
+            
+            return {
+              ...template,
+              imageUrl: fallbackResult.imageUrl,
+              image_url: fallbackResult.imageUrl,
+              thumbnailUrl: fallbackResult.imageUrl,
+              thumbnail_url: fallbackResult.imageUrl,
+              googleImageSearchUrl: fallbackResult.searchUrl,
+              imageVerified: fallbackResult.isVerified,
+              imageStored: false
+            };
+          }
+        })
+      );
       
       // Log unverified templates
       const unverified = googleImageService.getUnverifiedTemplates(templates);

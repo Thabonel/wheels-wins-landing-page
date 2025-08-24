@@ -1,13 +1,15 @@
 import { TripTemplate } from './tripTemplateService';
+import { imageStorageService } from './imageStorageService';
 
 /**
  * Google Image Search Service
  * Uses Google Image Search to find REAL photos of actual locations
  * This ensures accurate representation of trip destinations
+ * 
+ * Updated to use ImageStorageService for permanent storage in Supabase
  */
 export class GoogleImageService {
-  // Verified, curated images for each Australian template
-  // Using reliable image sources that allow hotlinking
+  // Legacy verified images - now managed by ImageStorageService
   private static readonly VERIFIED_IMAGES: Record<string, string> = {
     // Great Ocean Road - Twelve Apostles
     'aus-great-ocean-road': 'https://images.unsplash.com/photo-1529258283598-8d6fe60b27f4?w=800&q=80',
@@ -99,14 +101,57 @@ export class GoogleImageService {
   
   /**
    * Get image for a trip template
-   * First checks verified images, then provides Google Image Search URL
+   * Uses ImageStorageService for permanent storage, falls back to search URL
    */
-  static getTemplateImage(template: TripTemplate): {
+  static async getTemplateImage(template: TripTemplate): Promise<{
+    imageUrl: string | null;
+    searchUrl: string;
+    isVerified: boolean;
+    isStored: boolean;
+  }> {
+    console.log(`🔍 Google Image Service: Getting image for: ${template.name} (${template.id})`);
+    
+    try {
+      // Try to get from storage service first
+      const { imageUrl, isStored } = await imageStorageService.getTemplateImageUrl(template.id);
+      
+      console.log(`✅ ${isStored ? 'Using stored' : 'Using verified'} image for ${template.id}: ${imageUrl.substring(0, 50)}...`);
+      
+      return {
+        imageUrl,
+        searchUrl: this.generateGoogleImageSearchUrl(this.getSearchQuery(template)),
+        isVerified: true,
+        isStored
+      };
+      
+    } catch (error) {
+      console.error(`❌ Failed to get image for ${template.id}:`, error);
+      
+      // Fallback to placeholder and search URL
+      const searchQuery = this.getSearchQuery(template);
+      const searchUrl = this.generateGoogleImageSearchUrl(searchQuery);
+      
+      console.log(`⚠️ Using placeholder for ${template.id}, search: ${searchQuery}`);
+      
+      return {
+        imageUrl: this.getPlaceholderImage(template),
+        searchUrl: searchUrl,
+        isVerified: false,
+        isStored: false
+      };
+    }
+  }
+
+  /**
+   * Synchronous version for backward compatibility
+   * NOTE: This will not use stored images, only verified URLs
+   */
+  static getTemplateImageSync(template: TripTemplate): {
     imageUrl: string | null;
     searchUrl: string;
     isVerified: boolean;
   } {
-    console.log(`🔍 Google Image Service: Getting image for: ${template.name} (${template.id})`);
+    console.log(`🔍 Google Image Service (sync): Getting image for: ${template.name} (${template.id})`);
     
     // Check if we have a verified image
     if (this.VERIFIED_IMAGES[template.id]) {
@@ -179,6 +224,37 @@ export class GoogleImageService {
         template,
         searchUrl: this.generateGoogleImageSearchUrl(this.getSearchQuery(template))
       }));
+  }
+
+  /**
+   * Initialize image storage for all templates
+   * Call this when the app starts to ensure all images are stored
+   */
+  static async initializeImageStorage(): Promise<void> {
+    console.log('🚀 Initializing template image storage...');
+    
+    try {
+      await imageStorageService.initializeStorage();
+      console.log('✅ Template image storage initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize image storage:', error);
+      // Don't throw - app should still work with fallback URLs
+    }
+  }
+
+  /**
+   * Ensure images are stored for a batch of templates
+   */
+  static async ensureImagesStored(templates: TripTemplate[]): Promise<void> {
+    console.log(`🔄 Ensuring images are stored for ${templates.length} templates...`);
+    
+    try {
+      await imageStorageService.ensureImagesStored(templates);
+      console.log('✅ Template images storage check complete');
+    } catch (error) {
+      console.error('❌ Failed to ensure images stored:', error);
+      // Don't throw - fallback URLs will be used
+    }
   }
 }
 
