@@ -44,8 +44,8 @@ export class GoogleImageService {
     // Victorian High Country - Mountain landscape
     'aus-high-country': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
     
-    // Nullarbor - Desert road
-    'aus-nullarbor': 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80',
+    // Nullarbor - Australian outback desert road
+    'aus-nullarbor': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=80',
     
     // Cape York - Remote beach
     'aus-cape-york': 'https://images.unsplash.com/photo-1523952578875-e6bb18b26645?w=800&q=80',

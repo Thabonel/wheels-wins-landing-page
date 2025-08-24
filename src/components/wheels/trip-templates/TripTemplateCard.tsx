@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
+import { googleImageService } from '@/services/googleImageService';
 
 interface TripTemplateCardProps {
   template: TripTemplate;
@@ -43,7 +44,7 @@ export default function TripTemplateCard({
     'advanced': 'bg-red-100 text-red-800'
   };
 
-  // Use template image if available, otherwise generate dynamic map based on location
+  // Use template image if available, otherwise get verified image or generate dynamic map
   const getTemplateImage = () => {
     // If template has an image URL, use it
     if (template.imageUrl || template.image_url) {
@@ -53,6 +54,16 @@ export default function TripTemplateCard({
     // If template has thumbnail for performance
     if (template.thumbnailUrl || template.thumbnail_url) {
       return template.thumbnailUrl || template.thumbnail_url;
+    }
+    
+    // Try to get verified image synchronously as fallback
+    try {
+      const imageResult = googleImageService.getTemplateImageSync(template);
+      if (imageResult.isVerified && imageResult.imageUrl) {
+        return imageResult.imageUrl;
+      }
+    } catch (error) {
+      console.warn('Failed to get verified image for template:', template.id, error);
     }
     
     // Generate dynamic map based on template location
