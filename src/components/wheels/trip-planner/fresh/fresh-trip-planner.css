@@ -46,3 +46,8 @@
   height: 100vh !important;
   z-index: 9999 !important;
 }
+
+/* Cursor style for adding waypoints */
+.mapboxgl-canvas-container.waypoint-cursor {
+  cursor: crosshair !important;
+}

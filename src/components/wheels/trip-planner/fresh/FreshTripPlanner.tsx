@@ -65,6 +65,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const mapOptionsControlRef = useRef<FreshMapOptionsControl | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isAddingWaypoint, setIsAddingWaypoint] = useState(false);
+  const isAddingWaypointRef = useRef(false);
   const [mapOverlays, setMapOverlays] = useState([
     { id: 'traffic', name: 'Traffic', enabled: false },
     { id: 'fires', name: 'Active Fires', enabled: false },
@@ -254,7 +255,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         
         // Enable map clicking to add waypoints
         newMap.on('click', (e) => {
-          if (isAddingWaypoint) {
+          if (isAddingWaypointRef.current) {
             handleMapClick(e);
           }
         });
@@ -337,6 +338,21 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       map.setStyle(MAP_STYLES[mapStyle]);
     }
   }, [mapStyle, map]);
+  
+  // Sync isAddingWaypoint state with ref and manage cursor
+  useEffect(() => {
+    isAddingWaypointRef.current = isAddingWaypoint;
+    
+    // Update cursor style
+    if (map) {
+      const canvas = map.getCanvasContainer();
+      if (isAddingWaypoint) {
+        canvas.classList.add('waypoint-cursor');
+      } else {
+        canvas.classList.remove('waypoint-cursor');
+      }
+    }
+  }, [isAddingWaypoint, map]);
   
   // Handle traffic layer
   useEffect(() => {
