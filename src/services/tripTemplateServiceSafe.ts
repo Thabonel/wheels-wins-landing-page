@@ -722,10 +722,15 @@ export const tripTemplateServiceSafe = {
    */
   async enhanceTemplatesWithImages(templates: TripTemplate[]): Promise<TripTemplate[]> {
     try {
+      console.log(`🖼️ Enhancing ${templates.length} templates with images...`);
+      
       // Use Google Image Service for verified images
       const enhancedTemplates = templates.map((template) => {
+        console.log(`  Processing template: ${template.name} (${template.id})`);
+        
         // Skip if image already exists
         if (template.imageUrl || template.image_url) {
+          console.log(`    ⚠️ Template already has image, skipping: ${template.imageUrl || template.image_url}`);
           return template;
         }
         
@@ -734,7 +739,9 @@ export const tripTemplateServiceSafe = {
         
         // Log if template needs manual image verification
         if (!imageResult.isVerified) {
-          console.warn(`⚠️ Template "${template.name}" needs image verification: ${imageResult.searchUrl}`);
+          console.warn(`    ⚠️ Template "${template.name}" needs image verification: ${imageResult.searchUrl}`);
+        } else {
+          console.log(`    ✅ Template "${template.name}" has verified image: ${imageResult.imageUrl?.substring(0, 60)}...`);
         }
         
         return {
