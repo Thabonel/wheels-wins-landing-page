@@ -63,8 +63,9 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
         setTripTemplates(templates);
         setFilteredTemplates(templates);
         
+        // Don't show error if we have templates
         if (templates.length === 0) {
-          setError('No trip templates available for your region yet. Our scraper is working to find some!');
+          console.log('No templates returned from service');
         }
       } catch (err) {
         console.error('Error loading trip templates:', err);
