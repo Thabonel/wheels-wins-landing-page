@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
-import { FreshFullscreenControl } from './controls/FreshFullscreenControl';
+// Removed custom FreshFullscreenControl - using native Mapbox control instead
 import { FreshTrackControl } from './controls/FreshTrackControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 import FreshStatusBar from './components/FreshStatusBar';
@@ -157,9 +157,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       });
       newMap.addControl(geolocateControl, 'top-right');
       
-      // Add fullscreen control (positioned below geolocate)
-      const fullscreenControl = new FreshFullscreenControl();
-      newMap.addControl(fullscreenControl, 'top-right');
+      // Add native Mapbox fullscreen control (positioned below geolocate)
+      // Using native control for proper fullscreen API support
+      newMap.addControl(new mapboxgl.FullscreenControl(), 'top-right');
       
       // Create track management control (but don't add to map - controlled by toolbar)
       const trackControl = new FreshTrackControl({
