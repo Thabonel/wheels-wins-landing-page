@@ -5,21 +5,8 @@ import { tripImageService } from './tripImageService';
 // Safe wrapper for trip template service that handles permission errors
 export const tripTemplateServiceSafe = {
   async getLocationBasedTripTemplates(region?: string | Region) {
-    try {
-      // Try to load templates from the service
-      const service = await import('./tripTemplateService');
-      const templates = await service.getLocationBasedTripTemplates(region as Region || 'Australia');
-      
-      // Automatically fetch images for templates
-      const templatesWithImages = await this.enhanceTemplatesWithImages(templates);
-      
-      return {
-        templates: templatesWithImages,
-        isLoading: false,
-        error: null
-      };
-    } catch (error: any) {
-      console.log('Trip template service error, using comprehensive fallbacks:', error.message);
+    // Always use fallback templates since database access is restricted
+    console.log('Using comprehensive fallback templates for region:', region || 'Australia');
       
       // Use ALL the comprehensive Australian templates as fallback
       const australianTemplates: TripTemplate[] = [
@@ -38,7 +25,7 @@ export const tripTemplateServiceSafe = {
           tags: ['australia', 'coastal', 'scenic', 'victoria'],
           usageCount: 0,
           isPublic: true,
-          imageUrl: undefined // Will be fetched automatically
+          imageUrl: undefined
         },
         {
           id: 'aus-big-lap',
@@ -276,7 +263,7 @@ export const tripTemplateServiceSafe = {
           tags: ['australia', 'sunshine-coast', 'family', 'queensland'],
           usageCount: 0,
           isPublic: true,
-          imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800'
+          imageUrl: undefined
         }
       ];
       
@@ -288,7 +275,6 @@ export const tripTemplateServiceSafe = {
         isLoading: false,
         error: null
       };
-    }
   },
 
   async fetchTripTemplatesForRegion(region: string) {
