@@ -44,33 +44,38 @@ export default function TripTemplateCard({
     'advanced': 'bg-red-100 text-red-800'
   };
 
-  // Use template image if available, otherwise get verified image or generate dynamic map
+  // Use template image if available, with intelligent fallback to route maps or verified images
   const getTemplateImage = () => {
-    // If template has an image URL, use it
+    // Priority 1: If template has an image URL, use it
     if (template.imageUrl || template.image_url) {
       return template.imageUrl || template.image_url;
     }
     
-    // If template has thumbnail for performance
+    // Priority 2: If template has thumbnail for performance
     if (template.thumbnailUrl || template.thumbnail_url) {
       return template.thumbnailUrl || template.thumbnail_url;
     }
     
-    // Try to get verified image synchronously as fallback
+    // Priority 3: Try to get verified image synchronously (fast)
     try {
       const imageResult = googleImageService.getTemplateImageSync(template);
       if (imageResult.isVerified && imageResult.imageUrl) {
+        console.log(`Using verified image for ${template.id}`);
         return imageResult.imageUrl;
       }
     } catch (error) {
       console.warn('Failed to get verified image for template:', template.id, error);
     }
     
-    // Generate dynamic map based on template location
+    // Priority 4: Generate intelligent route-specific map (better than generic placeholder)
     const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!mapboxToken) {
-      return '/api/placeholder/400/200'; // Fallback placeholder
+      console.warn('No Mapbox token available for map generation');
+      return '/api/placeholder/400/200'; // Last resort
     }
+    
+    console.log(`Generating route-specific map for ${template.id}`);
+    // Continue with the intelligent map generation below...
     
     // Determine map center based on region and highlights
     let centerLat = -25.2744; // Default to Australia
