@@ -12,7 +12,10 @@ import {
   Map,
   DollarSign,
   Users,
-  Download
+  Download,
+  MapPin,
+  Search,
+  Sparkles
 } from 'lucide-react';
 
 interface FreshRouteToolbarProps {
@@ -28,6 +31,8 @@ interface FreshRouteToolbarProps {
   onSaveTrip: () => void;
   onShareTrip: () => void;
   onExportRoute?: () => void;
+  onSearchLocation?: () => void;
+  onToggleTemplates?: () => void;
   
   // Navigation
   onStartNavigation: () => void;
@@ -46,6 +51,9 @@ interface FreshRouteToolbarProps {
   showBudget: boolean;
   onToggleSocial: () => void;
   showSocial: boolean;
+  onTogglePOI?: () => void;
+  showPOI?: boolean;
+  showTemplates?: boolean;
   
   // States
   isAddingWaypoint: boolean;
@@ -62,6 +70,8 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
   onSaveTrip,
   onShareTrip,
   onExportRoute,
+  onSearchLocation,
+  onToggleTemplates,
   onStartNavigation,
   isNavigating,
   onToggleTraffic,
@@ -74,6 +84,9 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
   showBudget,
   onToggleSocial,
   showSocial,
+  onTogglePOI,
+  showPOI,
+  showTemplates,
   isAddingWaypoint,
   hasRoute,
 }) => {
@@ -86,11 +99,29 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
             e.stopPropagation();
             onToggleMapStyle();
           }}
-          className="p-2 rounded hover:bg-gray-100 transition-all mr-2"
+          className="p-2 rounded hover:bg-gray-100 transition-all mr-1"
           title="Map Style"
         >
           <Map className="w-4 h-4" />
         </button>
+        
+        {/* POI Toggle */}
+        {onTogglePOI && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePOI();
+            }}
+            className={`p-2 rounded transition-all mr-2 ${
+              showPOI 
+                ? 'bg-purple-100 text-purple-600 hover:bg-purple-200' 
+                : 'hover:bg-gray-100'
+            }`}
+            title="Points of Interest"
+          >
+            <MapPin className="w-4 h-4" />
+          </button>
+        )}
         
         {/* Undo/Redo Group */}
         <div className="flex items-center border-r border-gray-200 pr-2 mr-2 border-l pl-2">
@@ -114,6 +145,28 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
         
         {/* Route Planning Group */}
         <div className="flex items-center border-r border-gray-200 pr-2 mr-2">
+          {onToggleTemplates && (
+            <button
+              onClick={onToggleTemplates}
+              className={`p-2 rounded transition-all ${ 
+                showTemplates 
+                  ? 'bg-purple-100 text-purple-600 hover:bg-purple-200' 
+                  : 'hover:bg-gray-100'
+              }`}
+              title="Trip Templates"
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
+          )}
+          {onSearchLocation && (
+            <button
+              onClick={onSearchLocation}
+              className="p-2 rounded hover:bg-gray-100 transition-all"
+              title="Search Location"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={onAddWaypoint}
             className={`p-2 rounded transition-all ${
