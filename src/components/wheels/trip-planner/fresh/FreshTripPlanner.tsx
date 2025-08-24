@@ -11,6 +11,11 @@ import { FreshTrackControl } from './controls/FreshTrackControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 import FreshStatusBar from './components/FreshStatusBar';
 import FreshNavigationExport from './components/FreshNavigationExport';
+import FreshPOILayer from './components/FreshPOILayer';
+import FreshPOIPanel from './components/FreshPOIPanel';
+import FreshGeocodeSearch from './components/FreshGeocodeSearch';
+import FreshSaveTripDialog from './components/FreshSaveTripDialog';
+import FreshTemplatesPanel from './components/FreshTemplatesPanel';
 import BudgetSidebar from '../BudgetSidebar';
 import SocialSidebar from '../SocialSidebar';
 import { useSocialTripState } from '../hooks/useSocialTripState';
@@ -42,6 +47,20 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [showSocial, setShowSocial] = useState(false);
   const [showTraffic, setShowTraffic] = useState(false);
   const [showExportHub, setShowExportHub] = useState(false);
+  const [showPOI, setShowPOI] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [poiFilters, setPOIFilters] = useState<Record<string, boolean>>({
+    pet_stop: false,
+    wide_parking: false,
+    medical: false,
+    farmers_market: false,
+    fuel: false,
+    camping: false,
+    dump_station: false,
+    water: false,
+  });
   const trackControlRef = useRef<FreshTrackControl | null>(null);
   const mapOptionsControlRef = useRef<FreshMapOptionsControl | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -400,18 +419,12 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       return;
     }
     
-    const tripData = {
-      waypoints: waypointManager.waypoints,
-      route: waypointManager.currentRoute,
-      profile: waypointManager.routeProfile,
-      userId: user?.id,
-      createdAt: new Date().toISOString()
-    };
-    
-    if (onSaveTrip) {
-      await onSaveTrip(tripData);
-      toast.success('Trip saved successfully');
+    if (!user) {
+      toast.error('Please log in to save trips');
+      return;
     }
+    
+    setShowSaveDialog(true);
   };
   
   // Share trip handler
@@ -457,6 +470,51 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     toast.info('Route cleared');
   };
   
+  // Search location handler
+  const handleSearchLocation = () => {
+    setShowSearch(true);
+  };
+  
+  // Handle location selection from search
+  const handleLocationSelect = (coordinates: [number, number], name: string) => {
+    // Add waypoint at the selected location
+    waypointManager.addWaypoint({
+      lng: coordinates[0],
+      lat: coordinates[1],
+      type: waypointManager.waypoints.length === 0 ? 'origin' : 
+            waypointManager.waypoints.length === 1 ? 'destination' : 'waypoint',
+      name: name
+    });
+    
+    toast.success(`Added ${name} to route`);
+    setShowSearch(false);
+  };
+  
+  // Handle template application
+  const handleApplyTemplate = (template: any) => {
+    // Clear existing waypoints
+    waypointManager.clearWaypoints();
+    
+    // Add template waypoints
+    template.waypoints.forEach((wp: any) => {
+      waypointManager.addWaypoint({
+        lng: wp.coordinates[0],
+        lat: wp.coordinates[1],
+        type: wp.type,
+        name: wp.name
+      });
+    });
+    
+    // Fly to the first waypoint
+    if (map && template.waypoints.length > 0) {
+      map.flyTo({
+        center: template.waypoints[0].coordinates,
+        zoom: 8,
+        duration: 2000
+      });
+    }
+  };
+  
   return (
     <div className="relative w-full h-full overflow-hidden" data-trip-planner-root="true">
       {/* Full-screen map container - ensure it has explicit height */}
@@ -477,6 +535,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         onSaveTrip={handleSaveTrip}
         onShareTrip={handleShareTrip}
         onExportRoute={handleExportRoute}
+        onSearchLocation={handleSearchLocation}
+        onToggleTemplates={() => setShowTemplates(!showTemplates)}
         onStartNavigation={handleStartNavigation}
         isNavigating={isNavigating}
         onToggleTraffic={() => setShowTraffic(!showTraffic)}
@@ -514,6 +574,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         showBudget={showBudget}
         onToggleSocial={() => setShowSocial(!showSocial)}
         showSocial={showSocial}
+        onTogglePOI={() => setShowPOI(!showPOI)}
+        showPOI={showPOI}
+        showTemplates={showTemplates}
         isAddingWaypoint={isAddingWaypoint}
         hasRoute={waypointManager.waypoints.length >= 2}
       />
@@ -524,6 +587,22 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           Click on the map to add a waypoint
         </div>
       )}
+      
+      {/* POI Layer */}
+      <FreshPOILayer 
+        map={map} 
+        filters={poiFilters} 
+      />
+      
+      {/* POI Panel */}
+      <FreshPOIPanel
+        isOpen={showPOI}
+        onClose={() => setShowPOI(false)}
+        filters={poiFilters}
+        onFilterChange={(category, enabled) => {
+          setPOIFilters(prev => ({ ...prev, [category]: enabled }));
+        }}
+      />
       
       {/* Status bar overlay */}
       <FreshStatusBar
@@ -595,6 +674,40 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
             lng: wp.coordinates[0]
           }))
         } : null}
+      />
+      
+      {/* Geocode Search Panel */}
+      <FreshGeocodeSearch
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+        onLocationSelect={handleLocationSelect}
+        map={map}
+      />
+      
+      {/* Templates Panel */}
+      <FreshTemplatesPanel
+        isOpen={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        onApplyTemplate={handleApplyTemplate}
+      />
+      
+      {/* Save Trip Dialog */}
+      <FreshSaveTripDialog
+        isOpen={showSaveDialog}
+        onClose={() => setShowSaveDialog(false)}
+        tripData={{
+          waypoints: waypointManager.waypoints,
+          route: waypointManager.currentRoute,
+          profile: waypointManager.routeProfile,
+          distance: waypointManager.currentRoute?.distance,
+          duration: waypointManager.currentRoute?.duration
+        }}
+        onSaveSuccess={(savedTrip) => {
+          console.log('Trip saved:', savedTrip);
+          if (onSaveTrip) {
+            onSaveTrip(savedTrip);
+          }
+        }}
       />
     </div>
   );
