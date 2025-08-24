@@ -1,5 +1,6 @@
 import { Region } from '@/context/RegionContext';
 import { TripTemplate } from './tripTemplateService';
+import { tripImageService } from './tripImageService';
 
 // Safe wrapper for trip template service that handles permission errors
 export const tripTemplateServiceSafe = {
@@ -9,9 +10,11 @@ export const tripTemplateServiceSafe = {
       const service = await import('./tripTemplateService');
       const templates = await service.getLocationBasedTripTemplates(region as Region || 'Australia');
       
-      // Return templates array directly (not wrapped in object)
+      // Automatically fetch images for templates
+      const templatesWithImages = await this.enhanceTemplatesWithImages(templates);
+      
       return {
-        templates: templates,
+        templates: templatesWithImages,
         isLoading: false,
         error: null
       };
@@ -35,7 +38,7 @@ export const tripTemplateServiceSafe = {
           tags: ['australia', 'coastal', 'scenic', 'victoria'],
           usageCount: 0,
           isPublic: true,
-          imageUrl: 'https://images.unsplash.com/photo-1506469717960-433cebe3f181?w=800'
+          imageUrl: undefined // Will be fetched automatically
         },
         {
           id: 'aus-big-lap',
@@ -277,8 +280,11 @@ export const tripTemplateServiceSafe = {
         }
       ];
       
+      // Enhance templates with fetched images
+      const templatesWithImages = await this.enhanceTemplatesWithImages(australianTemplates);
+      
       return {
-        templates: australianTemplates,
+        templates: templatesWithImages,
         isLoading: false,
         error: null
       };
@@ -287,5 +293,37 @@ export const tripTemplateServiceSafe = {
 
   async fetchTripTemplatesForRegion(region: string) {
     return this.getLocationBasedTripTemplates(region);
+  },
+  
+  /**
+   * Enhance templates with automatically fetched images
+   */
+  async enhanceTemplatesWithImages(templates: TripTemplate[]): Promise<TripTemplate[]> {
+    try {
+      // Fetch images for all templates in parallel
+      const imagePromises = templates.map(async (template) => {
+        // Skip if image already exists
+        if (template.imageUrl || template.image_url) {
+          return template;
+        }
+        
+        // Fetch image based on template data
+        const imageUrl = await tripImageService.getTemplateImage(template);
+        
+        return {
+          ...template,
+          imageUrl,
+          image_url: imageUrl,
+          thumbnailUrl: imageUrl,
+          thumbnail_url: imageUrl
+        };
+      });
+      
+      return await Promise.all(imagePromises);
+    } catch (error) {
+      console.error('Error enhancing templates with images:', error);
+      // Return templates without enhancement if error occurs
+      return templates;
+    }
   }
 };
