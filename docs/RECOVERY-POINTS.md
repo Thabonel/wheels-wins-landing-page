@@ -1,6 +1,18 @@
 # Recovery Points Documentation
 
-## Latest Checkpoint: Wheels Reorganization Complete
+## Latest Checkpoint: Trip Planner 2 Enhanced
+**Date**: January 24, 2025  
+**Tag**: `v2.0-trip-planner-enhanced`  
+**Branch**: `staging`  
+**Commit**: `60323219`
+
+### New Features Added
+✅ **POI Layer** - Points of Interest with markers  
+✅ **Geocoding Search** - Search and add locations  
+✅ **Trip Saving** - Save trips to database  
+✅ **Templates Panel** - Popular Australian routes  
+
+## Previous Checkpoint: Wheels Reorganization Complete
 **Date**: January 24, 2025  
 **Tag**: `v1.0-wheels-reorganization-complete`  
 **Branch**: `checkpoint/wheels-reorganization-2025-01-24`  
@@ -25,7 +37,12 @@
 
 ### Recovery Commands
 
-#### Option 1: Revert to Tagged Version
+#### Option 1: Revert to Latest Enhanced Version
+```bash
+git checkout v2.0-trip-planner-enhanced
+```
+
+#### Option 2: Revert to Pre-Enhancement Version
 ```bash
 git checkout v1.0-wheels-reorganization-complete
 ```
