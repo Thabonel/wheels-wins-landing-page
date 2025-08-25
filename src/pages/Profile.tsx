@@ -136,49 +136,26 @@ const Profile = () => {
         }
       }
 
-      // Get current session to ensure we're authenticated
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        toast.error('Authentication required. Please log in again.');
-        return;
-      }
-      
-      // Prepare file for upload - use a simpler path structure
+      // Prepare file for upload
       const fileExt = file.name.split('.').pop()?.toLowerCase();
       const timestamp = Date.now();
-      // Use a simpler filename without nested folders initially
-      const fileName = `${user.id}_${isPartner ? 'partner' : 'profile'}_${timestamp}.${fileExt}`;
+      // Use user ID folder structure for organization
+      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}_${timestamp}.${fileExt}`;
       
       console.log('Uploading file:', {
         fileName,
         fileSize: file.size,
         fileType: file.type,
-        userId: user.id,
-        hasSession: !!session,
-        token: session.access_token ? 'present' : 'missing'
+        userId: user.id
       });
 
-      // Create a new client with the session token to ensure proper auth
-      const { createClient } = await import('@supabase/supabase-js');
-      const authenticatedClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${session.access_token}`
-            }
-          }
-        }
-      );
-
-      // Upload to Supabase storage with authenticated client
-      const { data: uploadData, error: uploadError } = await authenticatedClient.storage
+      // Upload to Supabase storage (storage is now fixed!)
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('profile-images')
         .upload(fileName, file, { 
           upsert: true,
-          contentType: file.type
+          contentType: file.type,
+          cacheControl: '3600'
         });
         
       if (uploadError) {
@@ -197,8 +174,8 @@ const Profile = () => {
         throw uploadError;
       }
       
-      // Get public URL using the same authenticated client
-      const { data: urlData } = authenticatedClient.storage
+      // Get public URL
+      const { data: urlData } = supabase.storage
         .from('profile-images')
         .getPublicUrl(fileName);
       
