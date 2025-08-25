@@ -49,6 +49,56 @@ export function useFreshWaypointManager({
     setHistoryIndex(prev => prev + 1);
   }, [historyIndex]);
   
+  // Draw route on map - MUST be defined before calculateRoute to avoid initialization errors
+  const drawRoute = useCallback((geometry: any) => {
+    if (!map) return;
+    
+    // Remove existing route layer if it exists
+    if (map.getLayer('route')) {
+      map.removeLayer('route');
+    }
+    if (map.getSource('route')) {
+      map.removeSource('route');
+    }
+    
+    // Add new route
+    map.addSource('route', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: geometry
+      }
+    });
+    
+    map.addLayer({
+      id: 'route',
+      type: 'line',
+      source: 'route',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#3b82f6',
+        'line-width': 5,
+        'line-opacity': 0.8
+      }
+    });
+  }, [map]);
+  
+  // Fit map to show all waypoints - MUST be defined before calculateRoute
+  const fitMapToRoute = useCallback((waypoints: Waypoint[]) => {
+    if (!map || waypoints.length === 0) return;
+    
+    const bounds = new mapboxgl.LngLatBounds();
+    waypoints.forEach(wp => bounds.extend(wp.coordinates));
+    
+    map.fitBounds(bounds, {
+      padding: { top: 50, bottom: 50, left: 50, right: 50 }
+    });
+  }, [map]);
+  
   // Update map markers function (moved before setWaypoints)
   const updateMapMarkers = useCallback((waypoints: Waypoint[]) => {
     if (!map) return;
@@ -224,57 +274,6 @@ export function useFreshWaypointManager({
     setWaypoints([]);
     setCurrentRoute(null);
   }, [setWaypoints]);
-  
-  
-  // Draw route on map
-  const drawRoute = useCallback((geometry: any) => {
-    if (!map) return;
-    
-    // Remove existing route layer if it exists
-    if (map.getLayer('route')) {
-      map.removeLayer('route');
-    }
-    if (map.getSource('route')) {
-      map.removeSource('route');
-    }
-    
-    // Add new route
-    map.addSource('route', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: geometry
-      }
-    });
-    
-    map.addLayer({
-      id: 'route',
-      type: 'line',
-      source: 'route',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': '#3b82f6',
-        'line-width': 5,
-        'line-opacity': 0.8
-      }
-    });
-  }, [map]);
-  
-  // Fit map to show all waypoints
-  const fitMapToRoute = useCallback((waypoints: Waypoint[]) => {
-    if (!map || waypoints.length === 0) return;
-    
-    const bounds = new mapboxgl.LngLatBounds();
-    waypoints.forEach(wp => bounds.extend(wp.coordinates));
-    
-    map.fitBounds(bounds, {
-      padding: { top: 50, bottom: 50, left: 50, right: 50 }
-    });
-  }, [map]);
   
   // Clean up on unmount
   useEffect(() => {
