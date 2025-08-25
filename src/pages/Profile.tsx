@@ -136,6 +136,14 @@ const Profile = () => {
         }
       }
 
+      // Get current session to ensure we're authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast.error('Authentication required. Please log in again.');
+        return;
+      }
+      
       // Prepare file for upload
       const fileExt = file.name.split('.').pop()?.toLowerCase();
       const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
@@ -144,15 +152,18 @@ const Profile = () => {
         fileName,
         fileSize: file.size,
         fileType: file.type,
-        userId: user.id
+        userId: user.id,
+        hasSession: !!session
       });
 
-      // Upload to Supabase storage
+      // Upload to Supabase storage with proper authentication
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('profile-images')
         .upload(fileName, file, { 
           upsert: true,
-          contentType: file.type
+          contentType: file.type,
+          cacheControl: '3600',
+          duplex: 'half' // Required for Node 20+
         });
         
       if (uploadError) {
