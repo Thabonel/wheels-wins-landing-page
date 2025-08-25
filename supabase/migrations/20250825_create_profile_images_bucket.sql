@@ -10,6 +10,12 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Drop existing policies if they exist (to avoid conflicts)
+DROP POLICY IF EXISTS "Users can upload own profile images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own profile images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own profile images" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view profile images" ON storage.objects;
+
 -- Create storage policies for profile-images bucket
 
 -- Allow authenticated users to upload their own profile images
