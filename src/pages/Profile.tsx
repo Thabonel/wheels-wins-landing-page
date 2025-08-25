@@ -75,22 +75,79 @@ const Profile = () => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      toast.error('File too large. Maximum size is 10MB.');
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid file type. Please upload JPEG, PNG, GIF, or WebP.');
+      return;
+    }
+
     const setUploading = isPartner ? setUploadingPartnerPhoto : setUploadingPhoto;
     setUploading(true);
 
     try {
-      // Use Supabase storage for file upload
-      const fileExt = file.name.split('.').pop();
+      // First, try to check if the storage bucket exists
+      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+      
+      if (bucketError) {
+        console.error('Error checking buckets:', bucketError);
+        
+        // If we can't list buckets, storage might not be initialized
+        if (bucketError.message?.includes('storage.buckets') || 
+            bucketError.message?.includes('storage schema')) {
+          toast.error(
+            'Storage is not enabled. Please initialize it in Supabase Dashboard.',
+            { 
+              duration: 5000,
+              action: {
+                label: 'Open Dashboard',
+                onClick: () => window.open('https://supabase.com/dashboard/project/kycoklimpzkyrecbjecn/storage', '_blank')
+              }
+            }
+          );
+          console.error('Storage not initialized. Visit: https://supabase.com/dashboard/project/kycoklimpzkyrecbjecn/storage');
+          return;
+        }
+      } else {
+        // Check if profile-images bucket exists
+        const bucketExists = buckets?.some(b => b.name === 'profile-images');
+        
+        if (!bucketExists) {
+          // Try to create the bucket
+          console.log('Creating profile-images bucket...');
+          const { error: createBucketError } = await supabase.storage.createBucket('profile-images', {
+            public: true,
+            allowedMimeTypes: allowedTypes,
+            fileSizeLimit: maxSize
+          });
+          
+          if (createBucketError && !createBucketError.message?.includes('already exists')) {
+            console.error('Failed to create bucket:', createBucketError);
+            toast.error('Unable to create storage bucket. Please try again.');
+            return;
+          }
+        }
+      }
+
+      // Prepare file for upload
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
       const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
       
-      // Upload to Supabase storage
-      console.log('Attempting to upload file:', {
+      console.log('Uploading file:', {
         fileName,
         fileSize: file.size,
         fileType: file.type,
         userId: user.id
       });
-      
+
+      // Upload to Supabase storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('profile-images')
         .upload(fileName, file, { 
@@ -99,7 +156,18 @@ const Profile = () => {
         });
         
       if (uploadError) {
-        console.error('Supabase storage error:', uploadError);
+        console.error('Upload error:', uploadError);
+        
+        // Handle specific storage errors
+        if (uploadError.message?.includes('relation "storage.objects" does not exist')) {
+          toast.error(
+            'Storage is not initialized. Please enable Storage in Supabase Dashboard.',
+            { duration: 5000 }
+          );
+          window.open('https://supabase.com/dashboard/project/kycoklimpzkyrecbjecn/storage/buckets', '_blank');
+          return;
+        }
+        
         throw uploadError;
       }
       
@@ -108,11 +176,10 @@ const Profile = () => {
         .from('profile-images')
         .getPublicUrl(fileName);
       
-      console.log('Public URL generated:', urlData.publicUrl);
+      console.log('Upload successful! Public URL:', urlData.publicUrl);
         
       // Update profile with new image URL
       const updateField = isPartner ? 'partner_profile_image_url' : 'profile_image_url';
-      console.log('Updating profile field:', updateField, 'with URL:', urlData.publicUrl);
       
       const { error: updateError } = await supabase
         .from('profiles')
@@ -123,29 +190,36 @@ const Profile = () => {
         console.error('Profile update error:', updateError);
         throw updateError;
       }
-      toast.success(`${isPartner ? 'Partner' : 'Profile'} photo updated successfully`);
+      
+      toast.success(`${isPartner ? 'Partner' : 'Profile'} photo uploaded successfully!`);
       
       // Refresh profile data to show new image
       if (refreshProfile) {
         await refreshProfile();
       }
     } catch (error: any) {
-      console.error('Upload error details:', error);
+      console.error('Upload error:', error);
       
-      // Provide specific error messages based on the error type
+      // Provide specific error messages
       if (error?.message?.includes('row level security')) {
-        toast.error('Permission denied. Please check storage policies.');
+        toast.error('Permission denied. Please check your authentication.');
       } else if (error?.message?.includes('Bucket not found')) {
-        toast.error('Storage bucket not found. Please contact support.');
-      } else if (error?.message?.includes('Invalid file type')) {
-        toast.error('Invalid file type. Please upload JPEG, PNG, GIF, or WebP.');
-      } else if (error?.message?.includes('File too large')) {
-        toast.error('File too large. Maximum size is 10MB.');
+        toast.error('Storage configuration issue. Please try again or contact support.');
       } else if (error?.message?.includes('JWT')) {
-        toast.error('Authentication error. Please log in again.');
+        toast.error('Session expired. Please log in again.');
+      } else if (error?.message?.includes('storage.objects')) {
+        toast.error(
+          'Storage not initialized. Click here to open Supabase Dashboard.',
+          {
+            duration: 5000,
+            action: {
+              label: 'Open Dashboard',
+              onClick: () => window.open('https://supabase.com/dashboard/project/kycoklimpzkyrecbjecn/storage', '_blank')
+            }
+          }
+        );
       } else {
-        const errorMessage = error?.message || 'Failed to upload photo';
-        toast.error(`Upload failed: ${errorMessage}`);
+        toast.error(`Upload failed: ${error?.message || 'Unknown error'}`);
       }
     } finally {
       setUploading(false);
