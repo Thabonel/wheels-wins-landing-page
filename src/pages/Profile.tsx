@@ -84,28 +84,44 @@ const Profile = () => {
       const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
       
       // Upload to Supabase storage
+      console.log('Attempting to upload file:', {
+        fileName,
+        fileSize: file.size,
+        fileType: file.type,
+        userId: user.id
+      });
+      
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('profile-images')
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, file, { 
+          upsert: true,
+          contentType: file.type
+        });
         
       if (uploadError) {
-        throw new Error(uploadError.message || 'Failed to upload photo');
+        console.error('Supabase storage error:', uploadError);
+        throw uploadError;
       }
       
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('profile-images')
         .getPublicUrl(fileName);
+      
+      console.log('Public URL generated:', urlData.publicUrl);
         
       // Update profile with new image URL
       const updateField = isPartner ? 'partner_profile_image_url' : 'profile_image_url';
+      console.log('Updating profile field:', updateField, 'with URL:', urlData.publicUrl);
+      
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ [updateField]: urlData.publicUrl })
         .eq('user_id', user.id);
         
       if (updateError) {
-        throw new Error(updateError.message || 'Failed to update profile with new image');
+        console.error('Profile update error:', updateError);
+        throw updateError;
       }
       toast.success(`${isPartner ? 'Partner' : 'Profile'} photo updated successfully`);
       
@@ -114,14 +130,22 @@ const Profile = () => {
         await refreshProfile();
       }
     } catch (error: any) {
-      console.error('Upload error:', error);
-      const errorMessage = error?.message || 'Failed to upload photo';
-      toast.error(errorMessage);
+      console.error('Upload error details:', error);
       
-      // Log more details for debugging
-      if (error?.message?.includes('storage/bucket/not-found')) {
-        console.error('Storage bucket "profile-images" does not exist. Please create it in Supabase dashboard.');
-        toast.error('Storage bucket not configured. Please contact support.');
+      // Provide specific error messages based on the error type
+      if (error?.message?.includes('row level security')) {
+        toast.error('Permission denied. Please check storage policies.');
+      } else if (error?.message?.includes('Bucket not found')) {
+        toast.error('Storage bucket not found. Please contact support.');
+      } else if (error?.message?.includes('Invalid file type')) {
+        toast.error('Invalid file type. Please upload JPEG, PNG, GIF, or WebP.');
+      } else if (error?.message?.includes('File too large')) {
+        toast.error('File too large. Maximum size is 10MB.');
+      } else if (error?.message?.includes('JWT')) {
+        toast.error('Authentication error. Please log in again.');
+      } else {
+        const errorMessage = error?.message || 'Failed to upload photo';
+        toast.error(`Upload failed: ${errorMessage}`);
       }
     } finally {
       setUploading(false);
