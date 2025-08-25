@@ -113,9 +113,16 @@ const Profile = () => {
       if (refreshProfile) {
         await refreshProfile();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload photo');
+      const errorMessage = error?.message || 'Failed to upload photo';
+      toast.error(errorMessage);
+      
+      // Log more details for debugging
+      if (error?.message?.includes('storage/bucket/not-found')) {
+        console.error('Storage bucket "profile-images" does not exist. Please create it in Supabase dashboard.');
+        toast.error('Storage bucket not configured. Please contact support.');
+      }
     } finally {
       setUploading(false);
     }
