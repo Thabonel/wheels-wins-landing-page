@@ -147,10 +147,11 @@ function transformDatabaseToTemplate(dbRecord: any): TripTemplate | null {
       usageCount: parseInt(dbRecord.usage_count) || 0,
       isPublic: Boolean(dbRecord.is_public),
       createdBy: templateData.createdBy,
-      imageUrl: dbRecord.image_url,
-      image_url: dbRecord.image_url,
-      thumbnailUrl: dbRecord.thumbnail_url,
-      thumbnail_url: dbRecord.thumbnail_url
+      // Check for images in template_data JSONB first, then fall back to columns
+      imageUrl: templateData.imageUrl || dbRecord.image_url,
+      image_url: templateData.imageUrl || dbRecord.image_url,
+      thumbnailUrl: templateData.thumbnailUrl || dbRecord.thumbnail_url,
+      thumbnail_url: templateData.thumbnailUrl || dbRecord.thumbnail_url
     };
     
     console.log(`✅ Transformed template: ${transformed.name} (${transformed.estimatedDays} days, $${transformed.suggestedBudget})`);
