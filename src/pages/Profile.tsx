@@ -144,26 +144,41 @@ const Profile = () => {
         return;
       }
       
-      // Prepare file for upload
+      // Prepare file for upload - use a simpler path structure
       const fileExt = file.name.split('.').pop()?.toLowerCase();
-      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
+      const timestamp = Date.now();
+      // Use a simpler filename without nested folders initially
+      const fileName = `${user.id}_${isPartner ? 'partner' : 'profile'}_${timestamp}.${fileExt}`;
       
       console.log('Uploading file:', {
         fileName,
         fileSize: file.size,
         fileType: file.type,
         userId: user.id,
-        hasSession: !!session
+        hasSession: !!session,
+        token: session.access_token ? 'present' : 'missing'
       });
 
-      // Upload to Supabase storage with proper authentication
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Create a new client with the session token to ensure proper auth
+      const { createClient } = await import('@supabase/supabase-js');
+      const authenticatedClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
+            }
+          }
+        }
+      );
+
+      // Upload to Supabase storage with authenticated client
+      const { data: uploadData, error: uploadError } = await authenticatedClient.storage
         .from('profile-images')
         .upload(fileName, file, { 
           upsert: true,
-          contentType: file.type,
-          cacheControl: '3600',
-          duplex: 'half' // Required for Node 20+
+          contentType: file.type
         });
         
       if (uploadError) {
@@ -182,8 +197,8 @@ const Profile = () => {
         throw uploadError;
       }
       
-      // Get public URL
-      const { data: urlData } = supabase.storage
+      // Get public URL using the same authenticated client
+      const { data: urlData } = authenticatedClient.storage
         .from('profile-images')
         .getPublicUrl(fileName);
       
