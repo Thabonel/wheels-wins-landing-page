@@ -13,9 +13,7 @@ interface ProfileIdentityProps {
   profile: any;
   region: string;
   setRegion: (region: string) => void;
-  uploadingPhoto: boolean;
-  uploadingPartnerPhoto: boolean;
-  handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>, isPartner?: boolean) => void;
+  handleImageUploaded: (url: string | null, isPartner?: boolean) => void;
 }
 
 export const ProfileIdentity = ({
@@ -25,17 +23,14 @@ export const ProfileIdentity = ({
   profile,
   region,
   setRegion,
-  uploadingPhoto,
-  uploadingPartnerPhoto,
-  handleFileUpload
+  handleImageUploaded
 }: ProfileIdentityProps) => {
   return (
     <Card>
       <CardContent className="space-y-4 p-6">
         <ProfileImageUpload
           imageUrl={profile?.profile_image_url}
-          uploading={uploadingPhoto}
-          onFileUpload={(e) => handleFileUpload(e, false)}
+          onImageUploaded={(url) => handleImageUploaded(url, false)}
           label="Profile Picture"
           altText="Profile"
         />
@@ -113,8 +108,7 @@ export const ProfileIdentity = ({
             <div className="space-y-2 md:col-span-2">
               <ProfileImageUpload
                 imageUrl={profile?.partner_profile_image_url}
-                uploading={uploadingPartnerPhoto}
-                onFileUpload={(e) => handleFileUpload(e, true)}
+                onImageUploaded={(url) => handleImageUploaded(url, true)}
                 label="Partner's Profile Picture"
                 altText="Partner"
               />

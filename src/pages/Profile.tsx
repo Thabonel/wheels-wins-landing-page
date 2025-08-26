@@ -22,14 +22,13 @@ import { PamSettings } from "@/components/settings/PamSettings";
 import { DisplaySettings } from "@/components/settings/DisplaySettings";
 import { AccountSecurity } from "@/components/settings/AccountSecurity";
 import { AccountDeletion } from "@/components/settings/AccountDeletion";
+import { syncLocalPhotos } from "@/utils/fileUploadUtils";
 
 const Profile = () => {
   const { user } = useAuth();
   const { region, setRegion } = useRegion();
   const { profile, loading, refreshProfile } = useProfile();
   const [activeTab, setActiveTab] = useState("identity");
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [uploadingPartnerPhoto, setUploadingPartnerPhoto] = useState(false);
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -71,122 +70,16 @@ const Profile = () => {
     }
   }, [profile]);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isPartner = false) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-
-    // Validate file size (10MB max)
-    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
-    if (file.size > maxSize) {
-      toast.error('File too large. Maximum size is 10MB.');
-      return;
-    }
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Invalid file type. Please upload JPEG, PNG, GIF, or WebP.');
-      return;
-    }
-
-    const setUploading = isPartner ? setUploadingPartnerPhoto : setUploadingPhoto;
-    setUploading(true);
+  const handleImageUploaded = async (url: string | null, isPartner = false) => {
+    if (!url || !user) return;
 
     try {
-      // First, try to check if the storage bucket exists
-      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-      
-      if (bucketError) {
-        console.error('Error checking buckets:', bucketError);
-        
-        // If we can't list buckets, storage might not be initialized
-        if (bucketError.message?.includes('storage.buckets') || 
-            bucketError.message?.includes('storage schema')) {
-          toast.error(
-            'Storage is not enabled. Please initialize it in Supabase Dashboard.',
-            { 
-              duration: 5000,
-              action: {
-                label: 'Open Dashboard',
-                onClick: () => window.open('https://supabase.com/dashboard/project/kycoklimpzkyrecbjecn/storage', '_blank')
-              }
-            }
-          );
-          console.error('Storage not initialized. Visit: https://supabase.com/dashboard/project/kycoklimpzkyrecbjecn/storage');
-          return;
-        }
-      } else {
-        // Check if profile-images bucket exists
-        const bucketExists = buckets?.some(b => b.name === 'profile-images');
-        
-        if (!bucketExists) {
-          // Try to create the bucket
-          console.log('Creating profile-images bucket...');
-          const { error: createBucketError } = await supabase.storage.createBucket('profile-images', {
-            public: true,
-            allowedMimeTypes: allowedTypes,
-            fileSizeLimit: maxSize
-          });
-          
-          if (createBucketError && !createBucketError.message?.includes('already exists')) {
-            console.error('Failed to create bucket:', createBucketError);
-            toast.error('Unable to create storage bucket. Please try again.');
-            return;
-          }
-        }
-      }
-
-      // Prepare file for upload
-      const fileExt = file.name.split('.').pop()?.toLowerCase();
-      const timestamp = Date.now();
-      // Use user ID folder structure for organization
-      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}_${timestamp}.${fileExt}`;
-      
-      console.log('Uploading file:', {
-        fileName,
-        fileSize: file.size,
-        fileType: file.type,
-        userId: user.id
-      });
-
-      // Upload to Supabase storage (storage is now fixed!)
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('profile-images')
-        .upload(fileName, file, { 
-          upsert: true,
-          contentType: file.type,
-          cacheControl: '3600'
-        });
-        
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        
-        // Handle specific storage errors
-        if (uploadError.message?.includes('relation "storage.objects" does not exist')) {
-          toast.error(
-            'Storage is not initialized. Please enable Storage in Supabase Dashboard.',
-            { duration: 5000 }
-          );
-          window.open('https://supabase.com/dashboard/project/kycoklimpzkyrecbjecn/storage/buckets', '_blank');
-          return;
-        }
-        
-        throw uploadError;
-      }
-      
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('profile-images')
-        .getPublicUrl(fileName);
-      
-      console.log('Upload successful! Public URL:', urlData.publicUrl);
-        
       // Update profile with new image URL
       const updateField = isPartner ? 'partner_profile_image_url' : 'profile_image_url';
       
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ [updateField]: urlData.publicUrl })
+        .update({ [updateField]: url })
         .eq('user_id', user.id);
         
       if (updateError) {
@@ -194,40 +87,16 @@ const Profile = () => {
         throw updateError;
       }
       
-      toast.success(`${isPartner ? 'Partner' : 'Profile'} photo uploaded successfully!`);
+      toast.success(`${isPartner ? 'Partner' : 'Profile'} photo updated successfully!`);
       
       // Refresh profile data to show new image
       if (refreshProfile) {
         await refreshProfile();
       }
     } catch (error: any) {
-      console.error('Upload error:', error);
-      
-      // Provide specific error messages
-      if (error?.message?.includes('row level security')) {
-        toast.error('Permission denied. Please check your authentication.');
-      } else if (error?.message?.includes('Bucket not found')) {
-        toast.error('Storage configuration issue. Please try again or contact support.');
-      } else if (error?.message?.includes('JWT')) {
-        toast.error('Session expired. Please log in again.');
-      } else if (error?.message?.includes('storage.objects')) {
-        toast.error(
-          'Storage not initialized. Click here to open Supabase Dashboard.',
-          {
-            duration: 5000,
-            action: {
-              label: 'Open Dashboard',
-              onClick: () => window.open('https://supabase.com/dashboard/project/kycoklimpzkyrecbjecn/storage', '_blank')
-            }
-          }
-        );
-      } else {
-        toast.error(`Upload failed: ${error?.message || 'Unknown error'}`);
-      }
-    } finally {
-      setUploading(false);
+      console.error('Update error:', error);
+      toast.error(`Failed to update profile: ${error?.message || 'Unknown error'}`);
     }
-  };
 
   // Save profile data to database using backend API
   const handleSaveProfile = async () => {
@@ -339,9 +208,7 @@ const Profile = () => {
                 profile={profile}
                 region={region}
                 setRegion={setRegion}
-                uploadingPhoto={uploadingPhoto}
-                uploadingPartnerPhoto={uploadingPartnerPhoto}
-                handleFileUpload={handleFileUpload}
+                handleImageUploaded={handleImageUploaded}
               />
               <Card>
                 <CardContent className="p-6">
