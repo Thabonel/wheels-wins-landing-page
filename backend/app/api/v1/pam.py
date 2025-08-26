@@ -48,6 +48,7 @@ from app.services.pam_visual_actions import pam_visual_actions
 from app.services.tts.manager import get_tts_manager, synthesize_text, VoiceSettings
 from app.services.tts.redis_optimization import get_redis_tts_manager
 from app.services.stt.manager import get_stt_manager
+from app.core.simple_pam_service import simple_pam_service
 from app.services.stt.base import AudioFormat
 
 router = APIRouter()
@@ -1862,7 +1863,6 @@ async def chat_endpoint(
         )
         
         # Use SimplePamService fallback for error handling
-        from app.core.simple_pam_service import simple_pam_service
         
         # Get a helpful error response from SimplePamService
         fallback_response = simple_pam_service._get_error_response(
