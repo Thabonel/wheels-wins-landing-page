@@ -97,6 +97,7 @@ const Profile = () => {
       console.error('Update error:', error);
       toast.error(`Failed to update profile: ${error?.message || 'Unknown error'}`);
     }
+  };
 
   // Save profile data to database using backend API
   const handleSaveProfile = async () => {
