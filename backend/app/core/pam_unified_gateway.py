@@ -272,7 +272,7 @@ class PAMUnifiedGateway:
             
             # Emergency fallback response
             return GatewayResponse(
-                response="I'm experiencing some technical difficulties. Please try again in a moment.",
+                response=f"Service error: {str(e)}. Please try again shortly.",
                 processing_time_ms=(time.time() - start_time) * 1000,
                 system_used=ProcessingSystem.EDGE,
                 confidence=0.5,

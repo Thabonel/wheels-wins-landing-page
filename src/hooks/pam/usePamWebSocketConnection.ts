@@ -10,7 +10,9 @@ interface WebSocketConnectionConfig {
   onStatusChange: (isConnected: boolean) => void;
 }
 
-export function usePamWebSocketConnection({ userId, token, onMessage, onStatusChange }: WebSocketConnectionConfig) {
+// DISABLED: Using usePamWebSocketUnified instead
+// export function usePamWebSocketConnection({ userId, token, onMessage, onStatusChange }: WebSocketConnectionConfig) {
+function usePamWebSocketConnection({ userId, token, onMessage, onStatusChange }: WebSocketConnectionConfig) {
   const ws = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
@@ -314,3 +316,6 @@ export function usePamWebSocketConnection({ userId, token, onMessage, onStatusCh
     disconnect
   };
 }
+
+// Redirect to unified implementation
+export { usePamWebSocketUnified as usePamWebSocketConnection } from './usePamWebSocketUnified';

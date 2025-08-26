@@ -606,7 +606,7 @@ class SimplePamService:
         elif "route" in message_lower or "directions" in message_lower:
             return "I'm unable to provide routing information right now. You might want to use your GPS navigation app for directions."
         else:
-            return "I'm experiencing some technical difficulties at the moment. Please try rephrasing your question or try again in a few moments."
+            return "AI service is temporarily unavailable. Core app features remain functional. Please try again shortly."
     
     async def process_message(
         self,

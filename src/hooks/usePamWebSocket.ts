@@ -9,7 +9,9 @@ interface WebSocketMessage {
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
-export const usePamWebSocket = (userId: string, token: string) => {
+// DISABLED: Using usePamWebSocketUnified instead
+// export const usePamWebSocket = (userId: string, token: string) => {
+const usePamWebSocket = (userId: string, token: string) => {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
@@ -266,3 +268,6 @@ export const usePamWebSocket = (userId: string, token: string) => {
     isConnecting: connectionStatus === 'connecting',
   };
 };
+
+// Redirect to unified implementation
+export { usePamWebSocketUnified as usePamWebSocket } from './pam/usePamWebSocketUnified';
