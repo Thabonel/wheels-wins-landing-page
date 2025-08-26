@@ -185,7 +185,7 @@ class EnhancedPamOrchestrator:
             logger.debug(f"AI orchestrator initialization completed")
             
             # Update provider status based on what initialized
-            if self.ai_orchestrator.providers:
+            if self.ai_orchestrator and hasattr(self.ai_orchestrator, 'providers') and self.ai_orchestrator.providers:
                 logger.info(f"✅ AI Orchestrator initialized with {len(self.ai_orchestrator.providers)} providers")
                 
                 # Check which providers are available
@@ -193,6 +193,7 @@ class EnhancedPamOrchestrator:
                 logger.info(f"Available AI providers: {provider_names}")
                 
                 # Update our provider tracking
+                service_stats = {}
                 for provider in self.ai_orchestrator.providers:
                     if provider.name == 'openai':
                         self.providers['openai']['health'] = True
@@ -212,7 +213,7 @@ class EnhancedPamOrchestrator:
                         else:
                             self.providers['anthropic']['health'] = True
                             self.providers['anthropic']['last_health_check'] = datetime.utcnow()
-                    service_stats = {"error": "stats_unavailable"}
+                    service_stats[provider.name] = "available"
                 
                 # Register AI service capability
                 self.service_capabilities["ai_service"] = ServiceCapability(
@@ -225,7 +226,17 @@ class EnhancedPamOrchestrator:
                 
                 logger.info("✅ AI Service integrated successfully")
             else:
-                raise Exception("AI Service client not available after initialization")
+                # Don't raise exception - just log warning and mark as degraded
+                logger.warning("⚠️ AI Orchestrator has no providers available")
+                self.service_capabilities["ai_service"] = ServiceCapability(
+                    name="ai_service",
+                    status=ServiceStatus.DEGRADED,
+                    confidence=0.3,
+                    last_check=datetime.utcnow(),
+                    error_message="No AI providers available",
+                    metadata={"providers": []}
+                )
+                # Don't raise exception to allow other services to initialize
                 
         except Exception as e:
             logger.error(f"❌ AI Service initialization failed: {e}")
@@ -637,9 +648,13 @@ class EnhancedPamOrchestrator:
                 logger.error("❌ AI service not available for enhanced processing")
                 raise Exception("AI service not available")
             
-            if not self.ai_orchestrator or not self.ai_orchestrator.providers:
-                logger.error("❌ AI service client not available for enhanced processing")
-                raise Exception("AI service client not available")
+            if not self.ai_orchestrator:
+                logger.error("❌ AI orchestrator not initialized")
+                raise Exception("AI orchestrator not initialized")
+            
+            if not hasattr(self.ai_orchestrator, 'providers') or not self.ai_orchestrator.providers:
+                logger.warning("⚠️ No AI providers available, but continuing with limited functionality")
+                # Don't raise exception - let it try to process with fallback
                 
             logger.debug("✅ AI service and client available")
             
