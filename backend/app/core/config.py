@@ -88,10 +88,10 @@ class Settings(BaseSettings):
         # Convert to string for validation if it's a SecretStr
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
         
-        if not key_str.startswith('sk-'):
+        if not (key_str.startswith('sk-') or key_str.startswith('sk-proj-')):
             raise ValueError(
                 "Invalid OpenAI API key format. "
-                "OpenAI API keys should start with 'sk-'. "
+                "OpenAI API keys should start with 'sk-' or 'sk-proj-'. "
                 "Please check your key at https://platform.openai.com/api-keys"
             )
         
@@ -567,8 +567,8 @@ class Settings(BaseSettings):
         else:
             key_str = str(key_value)
         
-        if not key_str.startswith('sk-'):
-            raise ValueError("Invalid OpenAI API key format (should start with 'sk-')")
+        if not (key_str.startswith('sk-') or key_str.startswith('sk-proj-')):
+            raise ValueError("Invalid OpenAI API key format (should start with 'sk-' or 'sk-proj-')")
         
         if len(key_str) < 20:
             raise ValueError("OpenAI API key appears to be too short")
