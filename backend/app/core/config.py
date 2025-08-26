@@ -133,6 +133,20 @@ class Settings(BaseSettings):
         description="Anthropic API key (optional)"
     )
     
+    @field_validator("ANTHROPIC_API_KEY", mode="before")
+    @classmethod
+    def validate_anthropic_api_key(cls, v):
+        """Check for alternative environment variable names for Anthropic API key"""
+        if not v:
+            # Check for alternative environment variable names
+            import os
+            alternative_names = ['ANTHROPIC-WHEELS-KEY', 'ANTHROPIC_WHEELS_KEY']
+            for alt_name in alternative_names:
+                alt_value = os.getenv(alt_name)
+                if alt_value:
+                    return alt_value
+        return v
+    
     # Supabase Configuration (Required)
     SUPABASE_URL: AnyHttpUrl = Field(
         ...,
