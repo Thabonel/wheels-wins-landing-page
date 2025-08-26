@@ -317,4 +317,5 @@ const Profile = () => {
   );
 };
 
+// Profile component handles user profile management and settings
 export default Profile;
