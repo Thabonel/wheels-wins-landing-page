@@ -3,7 +3,7 @@ import { usePamMessageHandler } from '@/hooks/pam/usePamMessageHandler';
 import { usePAMContext } from './PAMContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { usePamWebSocketConnection } from '@/hooks/usePamWebSocketAdapter';
+// import { usePamWebSocketConnection } from '@/hooks/usePamWebSocketAdapter'; // DISABLED: Using main PAM WebSocket
 
 interface PAMTripIntegrationProps {
   onRouteUpdate?: (route: any) => void;
@@ -87,13 +87,17 @@ export default function PAMTripIntegration({
     }
   };
 
-  // WebSocket connection to PAM backend
-  const { isConnected, sendMessage } = usePamWebSocketConnection({
-    userId: user?.id || 'anonymous',
-    token,
-    onMessage: handlePAMMessage,
-    onStatusChange: handleConnectionStatus
-  });
+  // DISABLED: Using main PAM WebSocket connection instead to avoid duplicates
+  // const { isConnected, sendMessage } = usePamWebSocketConnection({
+  //   userId: user?.id || 'anonymous',
+  //   token,
+  //   onMessage: handlePAMMessage,
+  //   onStatusChange: handleConnectionStatus
+  // });
+  
+  // Temporary placeholders for disabled WebSocket
+  const isConnected = false;
+  const sendMessage = async () => {};
 
   // Send current trip context to PAM for optimization
   const sendTripContextToPAM = async () => {
