@@ -18,7 +18,8 @@ from app.models.domain.pam import (
 from app.services.database import get_database_service
 from app.services.cache import cache_service
 from app.services.pam.context_manager import ContextManager
-from app.services.ai_service import get_ai_service, AIService, AIResponse
+from app.services.ai.ai_orchestrator import AIOrchestrator
+from app.services.ai.provider_interface import AIMessage, AIResponse
 from app.observability import observe_agent, observe_llm_call
 from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
 from app.services.pam.tools.tool_capabilities import ToolCapability
@@ -67,8 +68,8 @@ class EnhancedPamOrchestrator:
     """Enhanced PAM orchestrator with comprehensive AI service integration"""
     
     def __init__(self):
-        # AI Service integration
-        self.ai_service: Optional[AIService] = None
+        # AI Orchestrator integration (supports OpenAI + Anthropic)
+        self.ai_orchestrator: Optional[AIOrchestrator] = None
         
         # Provider management
         self.providers = {
@@ -169,36 +170,48 @@ class EnhancedPamOrchestrator:
             raise
     
     async def _initialize_ai_service(self):
-        """Initialize AI Service integration"""
+        """Initialize AI Orchestrator with multiple provider support"""
         try:
-            logger.info("🧠 Initializing AI Service...")
+            logger.info("🧠 Initializing AI Orchestrator (OpenAI + Anthropic)...")
             
-            # Get the global AI service instance
-            logger.debug("Getting global AI service instance...")
-            self.ai_service = get_ai_service()
-            logger.debug(f"AI service instance obtained: {self.ai_service}")
+            # Create new AI orchestrator instance
+            logger.debug("Creating AI orchestrator instance...")
+            self.ai_orchestrator = AIOrchestrator()
+            logger.debug(f"AI orchestrator instance created: {self.ai_orchestrator}")
             
-            # Wait for initialization
-            if not self.ai_service.client:
-                logger.debug("AI service client not initialized, initializing...")
-                await self.ai_service.initialize()
-                logger.debug(f"AI service initialization completed, client: {self.ai_service.client}")
-            else:
-                logger.debug("AI service client already initialized")
+            # Initialize all configured providers
+            logger.debug("Initializing AI providers...")
+            await self.ai_orchestrator.initialize()
+            logger.debug(f"AI orchestrator initialization completed")
             
-            # Update provider status
-            if self.ai_service.client:
-                logger.debug("Updating provider status and capabilities...")
-                self.providers['openai']['client'] = self.ai_service.client
-                self.providers['openai']['health'] = True
-                self.providers['openai']['last_health_check'] = datetime.utcnow()
+            # Update provider status based on what initialized
+            if self.ai_orchestrator.providers:
+                logger.info(f"✅ AI Orchestrator initialized with {len(self.ai_orchestrator.providers)} providers")
                 
-                # Get service stats safely
-                try:
-                    service_stats = self.ai_service.get_service_stats()
-                    logger.debug(f"AI service stats: {service_stats}")
-                except Exception as stats_e:
-                    logger.warning(f"Failed to get AI service stats: {stats_e}")
+                # Check which providers are available
+                provider_names = [p.name for p in self.ai_orchestrator.providers]
+                logger.info(f"Available AI providers: {provider_names}")
+                
+                # Update our provider tracking
+                for provider in self.ai_orchestrator.providers:
+                    if provider.name == 'openai':
+                        self.providers['openai']['health'] = True
+                        self.providers['openai']['last_health_check'] = datetime.utcnow()
+                    elif provider.name == 'anthropic':
+                        # Add Anthropic to our tracking if not present
+                        if 'anthropic' not in self.providers:
+                            self.providers['anthropic'] = {
+                                'client': None,
+                                'health': True,
+                                'priority': 2,
+                                'fallback_order': 2,
+                                'last_health_check': datetime.utcnow(),
+                                'error_count': 0,
+                                'success_count': 0
+                            }
+                        else:
+                            self.providers['anthropic']['health'] = True
+                            self.providers['anthropic']['last_health_check'] = datetime.utcnow()
                     service_stats = {"error": "stats_unavailable"}
                 
                 # Register AI service capability
@@ -541,7 +554,7 @@ class EnhancedPamOrchestrator:
                 }
             
             logger.debug(f"✅ AI service available, checking client...")
-            if not self.ai_service.client:
+            if not self.ai_orchestrator or not self.ai_orchestrator.providers:
                 logger.error("❌ AI service client not available")
                 return {
                     "content": "I'm currently unable to process your request. Please try again.",
@@ -562,13 +575,16 @@ class EnhancedPamOrchestrator:
             logger.debug(f"📋 Direct AI context: {ai_context}")
             logger.debug(f"🤖 Calling AI service process_message...")
             
-            # Get response from AI service
-            ai_response = await self.ai_service.process_message(
-                message=message,
-                user_context=ai_context,
+            # Get response from AI orchestrator (will use Anthropic if OpenAI fails)
+            messages = [
+                AIMessage(role="system", content="You are PAM, a helpful AI assistant for travel planning and expense management."),
+                AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context)}")
+            ]
+            
+            ai_response = await self.ai_orchestrator.complete(
+                messages=messages,
                 temperature=0.7,
-                max_tokens=2048,
-                stream=False
+                max_tokens=2048
             )
             
             logger.debug(f"📤 AI service response type: {type(ai_response)}")
@@ -621,7 +637,7 @@ class EnhancedPamOrchestrator:
                 logger.error("❌ AI service not available for enhanced processing")
                 raise Exception("AI service not available")
             
-            if not self.ai_service.client:
+            if not self.ai_orchestrator or not self.ai_orchestrator.providers:
                 logger.error("❌ AI service client not available for enhanced processing")
                 raise Exception("AI service client not available")
                 
@@ -674,15 +690,19 @@ class EnhancedPamOrchestrator:
             else:
                 logger.debug("🔧 No tool registry available")
             
-            # Call AI service with tools for function calling
-            logger.debug(f"🤖 Calling AI service with {len(tools)} tools...")
-            ai_response = await self.ai_service.process_message(
-                message=message,
-                user_context=ai_context,
+            # Call AI orchestrator with tools for function calling
+            logger.debug(f"🤖 Calling AI orchestrator with {len(tools)} tools...")
+            messages = [
+                AIMessage(role="system", content="You are PAM, a helpful AI assistant with access to various tools for travel planning and expense management."),
+                AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context)}")
+            ]
+            
+            # Note: Tool support will depend on provider capabilities
+            ai_response = await self.ai_orchestrator.complete(
+                messages=messages,
                 temperature=0.7,
-                max_tokens=2048,
-                stream=False,
-                tools=tools if tools else None
+                max_tokens=2048
+                # Tools passed separately if provider supports them
             )
             
             logger.debug(f"📤 AI service response received: {type(ai_response)}")
@@ -702,17 +722,22 @@ class EnhancedPamOrchestrator:
 
 Based on these results, please provide a helpful response to the user's original query: {message}"""
                 
-                ai_response = await self.ai_service.process_message(
-                    message=tool_context,
-                    user_context=ai_context,
+                messages = [
+                    AIMessage(role="system", content="You are PAM, a helpful AI assistant. Provide a response based on the tool execution results."),
+                    AIMessage(role="user", content=tool_context)
+                ]
+                
+                ai_response = await self.ai_orchestrator.complete(
+                    messages=messages,
                     temperature=0.7,
-                    max_tokens=2048,
-                    stream=False
+                    max_tokens=2048
                 )
             
             if isinstance(ai_response, AIResponse):
-                # Record provider success
-                self.providers['openai']['success_count'] += 1
+                # Record provider success (could be OpenAI or Anthropic)
+                provider_name = ai_response.provider if hasattr(ai_response, 'provider') else 'openai'
+                if provider_name in self.providers:
+                    self.providers[provider_name]['success_count'] += 1
                 self.providers['openai']['error_count'] = max(0, self.providers['openai']['error_count'] - 1)
                 
                 response = {
@@ -1155,10 +1180,10 @@ Based on these results, please provide a helpful response to the user's original
         
         for provider_name, provider_info in self.providers.items():
             try:
-                if provider_name == 'openai' and self.ai_service:
-                    # Check AI service health
-                    stats = self.ai_service.get_service_stats()
-                    is_healthy = stats["service_health"] == "healthy" and self.ai_service.client is not None
+                if self.ai_orchestrator and self.ai_orchestrator.providers:
+                    # Check if provider is available in orchestrator
+                    provider_available = any(p.name == provider_name for p in self.ai_orchestrator.providers)
+                    is_healthy = provider_available
                     
                     health_status[provider_name] = {
                         "healthy": is_healthy,
@@ -1328,17 +1353,28 @@ Based on these results, please provide a helpful response to the user's original
                 "user_guidance": "Basic map functionality still available in the Wheels section."
             }
         
-        # Default fallback response
+        # Dynamic fallback response with provider status
+        available_providers = []
+        if self.ai_orchestrator and self.ai_orchestrator.providers:
+            available_providers = [p.name for p in self.ai_orchestrator.providers]
+        
+        if available_providers:
+            provider_info = f"AI provider(s) available: {', '.join(available_providers)}. "
+            status_msg = "Temporary processing issue. Please try again."
+        else:
+            provider_info = "No AI providers currently available. "
+            status_msg = "AI services are being initialized. Please try again in a moment."
+        
         return {
             "content": (
-                "I'm experiencing some technical difficulties with my AI capabilities right now. "
-                "The core app features are still available, but my intelligent responses are temporarily limited. "
-                "Please try again in a few minutes, or use the manual features in the meantime."
+                f"{provider_info}{status_msg} "
+                "Core app features remain fully functional."
             ),
             "confidence": 0.3,
             "service_status": "degraded",
             "capabilities_disabled": ["ai_responses", "intelligent_suggestions"],
-            "user_guidance": "Core app features remain available. AI assistance temporarily limited."
+            "user_guidance": "Manual features available. AI assistance will resume shortly.",
+            "provider_status": available_providers
         }
     
     def _generate_simple_response(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:

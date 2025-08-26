@@ -12,7 +12,9 @@ interface PamWebSocketAdapterProps {
  * Adapter hook to provide backward compatibility for components
  * expecting the object-based interface
  */
-export const usePamWebSocketAdapter = ({
+// DISABLED: Using usePamWebSocketUnified instead
+// export const usePamWebSocketAdapter = ({
+const usePamWebSocketAdapter = ({
   userId,
   token,
   onMessage,
@@ -48,4 +50,9 @@ export const usePamWebSocketAdapter = ({
 };
 
 // Export with the name that components are using
-export const usePamWebSocketConnection = usePamWebSocketAdapter;
+// DISABLED: Using usePamWebSocketUnified instead
+// export const usePamWebSocketConnection = usePamWebSocketAdapter;
+
+// Redirect to unified implementation  
+export { usePamWebSocketUnified as usePamWebSocketAdapter } from './pam/usePamWebSocketUnified';
+export { usePamWebSocketUnified as usePamWebSocketConnection } from './pam/usePamWebSocketUnified';
