@@ -1088,26 +1088,24 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             
             # Check if this is an error response
             if result.get("error") or "technical difficulties" in response_message.lower():
-                logger.warning(f"⚠️ [DEBUG] Orchestrator returned error response: {response_message[:100]}")
+                logger.warning(f"⚠️ [DEBUG] Orchestrator returned error/fallback response: {response_message[:100]}")
                 logger.warning(f"⚠️ [DEBUG] Error details: {result.get('error', 'No error details')}")
                 logger.warning(f"⚠️ [DEBUG] Error type: {result.get('error_type', 'Unknown')}")
                 logger.warning(f"⚠️ [DEBUG] Service status: {result.get('service_status', 'Unknown')}")
                 
-                # Don't send duplicate error messages
-                if "technical difficulties" in response_message.lower():
-                    # This is already an error message from the orchestrator
-                    await websocket.send_json({
-                        "type": "chat_response",
-                        "message": response_message,
-                        "content": response_message,
-                        "source": "cloud",
-                        "error": True,
-                        "error_details": result.get("error", "Service error"),
-                        "error_type": result.get("error_type", "Unknown"),
-                        "service_status": result.get("service_status", "degraded"),
-                        "timestamp": datetime.utcnow().isoformat()
-                    })
-                    return
+                # Send the error/fallback response ONCE and return
+                await websocket.send_json({
+                    "type": "chat_response",
+                    "message": response_message,
+                    "content": response_message,
+                    "source": "cloud",
+                    "error": True,
+                    "error_details": result.get("error", "Service error"),
+                    "error_type": result.get("error_type", "Unknown"),
+                    "service_status": result.get("service_status", "degraded"),
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                return  # IMPORTANT: Return here to prevent duplicate message sending
         except Exception as e:
             logger.error(f"❌ [DEBUG] Orchestrator processing failed: {e}")
             logger.error(f"❌ [DEBUG] Exception type: {type(e).__name__}")
@@ -1444,47 +1442,37 @@ async def get_streaming_ai_response(message: str, context: dict, conversation_hi
             # Update context with any visual actions or additional metadata
             if "actions" in enhanced_response:
                 context["visual_action"] = enhanced_response["actions"]
-                
-            # Check if AI service supports streaming
-            if orchestrator.ai_service and hasattr(orchestrator.ai_service, 'process_message'):
-                try:
-                    # Get streaming response from AI service
-                    stream_response = await orchestrator.ai_service.process_message(
-                        message=message,
-                        user_context=context,
-                        stream=True
-                    )
-                    
-                    if hasattr(stream_response, '__aiter__'):
-                        # Stream tokens as they arrive
-                        async for token in stream_response:
-                            yield token
-                        return
+            
+            # Check if this is a fallback/error response - if so, don't try streaming
+            if "technical difficulties" in response_text.lower() or enhanced_response.get("error"):
+                logger.warning(f"Orchestrator returned fallback response, skipping streaming attempt")
+                # Just use the response text we already have
+            else:
+                # Only try streaming if we got a valid response
+                # Check if AI service supports streaming
+                if orchestrator.ai_service and hasattr(orchestrator.ai_service, 'process_message'):
+                    try:
+                        # Get streaming response from AI service
+                        stream_response = await orchestrator.ai_service.process_message(
+                            message=message,
+                            user_context=context,
+                            stream=True
+                        )
                         
-                except Exception as stream_error:
-                    logger.warning(f"Streaming failed, using non-streaming: {stream_error}")
+                        if hasattr(stream_response, '__aiter__'):
+                            # Stream tokens as they arrive
+                            async for token in stream_response:
+                                yield token
+                            return
+                            
+                    except Exception as stream_error:
+                        logger.warning(f"Streaming failed, using non-streaming: {stream_error}")
                     
         except Exception as orchestrator_error:
             logger.warning(f"Enhanced orchestrator failed: {orchestrator_error}")
             
-            # Fallback to unified orchestrator
-            unified_orch = await get_unified_orchestrator()
-            
-            result = await unified_orch.process_message(
-                user_id=context.get("user_id", "anonymous"),
-                message=message,
-                context=context,
-                conversation_history=conversation_history
-            )
-            
-            # Handle both old string format and new dict format
-            if isinstance(result, str):
-                response_text = result
-            else:
-                response_text = result.get("response", result.get("content", str(result)))
-                # Update the context with any visual actions
-                if isinstance(result, dict) and "context" in result and "visual_action" in result["context"]:
-                    context["visual_action"] = result["context"]["visual_action"]
+            # Generate a single fallback message instead of calling orchestrator again
+            response_text = "I'm having trouble processing your request right now. Please try again in a moment."
         
         # Simulate streaming by chunking the response
         chunks = split_response_into_chunks(response_text)
