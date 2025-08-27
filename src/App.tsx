@@ -37,7 +37,6 @@ import { logEnvironmentStatus } from './config/env-validator';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import { RouteMonitor } from './components/common/RouteMonitor';
-import { SentryTestButton } from './components/common/SentryTestButton';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
@@ -128,7 +127,6 @@ function App() {
             </RegionProvider>
           </AuthProvider>
         </Router>
-        <SentryTestButton />
       </AppErrorBoundary>
     </QueryClientProvider>
   );
