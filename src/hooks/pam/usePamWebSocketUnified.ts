@@ -165,14 +165,47 @@ export const usePamWebSocketUnified = (
         return;
       }
       
+      // Handle ping messages from server (respond with pong, don't display)
+      if (message.type === 'ping') {
+        console.log('🏓 Ping received from server, sending pong');
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+        }
+        return;
+      }
+      
+      // Handle connection messages (log but don't display as user message)
+      if (message.type === 'connection') {
+        console.log('🔌 Connection status:', message.status, message.message);
+        // Don't add to messages array - this is just a status update
+        return;
+      }
+      
+      // Handle visual actions separately (they have their own handler)
+      if (message.type === 'visual_action') {
+        console.log('🎨 Visual action received:', message.action);
+        // Visual actions are handled by specific components, not displayed as messages
+        onMessage?.(message); // Still notify listeners but don't add to messages
+        return;
+      }
+      
+      // Handle UI actions separately  
+      if (message.type === 'ui_actions') {
+        console.log('🎬 UI actions received:', message.actions);
+        onMessage?.(message); // Notify listeners but don't add to messages
+        return;
+      }
+      
       if (message.type === 'error') {
         setError(message.message || 'Unknown error');
         console.error('❌ WebSocket error:', message);
       }
       
-      // Add to messages and trigger callback
-      setMessages(prev => [...prev, message]);
-      onMessage?.(message);
+      // Only add actual chat messages to the messages array
+      if (message.type === 'chat_response' || message.type === 'message' || !message.type) {
+        setMessages(prev => [...prev, message]);
+        onMessage?.(message);
+      }
       
       console.log('✅ Message processed:', message.type, message.id);
     } catch (error) {

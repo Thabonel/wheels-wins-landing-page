@@ -23,6 +23,10 @@ from app.services.ai.provider_interface import AIMessage, AIResponse
 from app.observability import observe_agent, observe_llm_call
 from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
 from app.services.pam.tools.tool_capabilities import ToolCapability
+from app.core.errors import (
+    PAMError, ErrorType, ErrorSeverity, error_handler,
+    raise_external_service_error, raise_rate_limit_error
+)
 import json
 
 logger = logging.getLogger(__name__)
@@ -513,12 +517,42 @@ class EnhancedPamOrchestrator:
                 "capabilities_used": enhanced_response.get("capabilities_used", [])
             }
             
+        except PAMError as e:
+            # We have a properly structured PAM error - use it
+            logger.error(f"❌ PAM Error ({e.error_code}): {e.message}")
+            error_handler.tracker.record_error(e)
+            
+            self.performance_metrics["service_fallbacks"] += 1
+            
+            # Generate user-friendly response with actual error information
+            return {
+                "content": e.user_message,
+                "confidence": 0.2,
+                "response_mode": "text_only",
+                "error": e.message,  # Technical message for debugging
+                "error_code": e.error_code,
+                "error_type": e.error_type.value,
+                "retry_after": e.retry_after,
+                "request_id": e.request_id,
+                "service_status": "error",
+                "user_guidance": f"Error: {e.user_message}. Please try again."
+            }
+                
         except Exception as e:
-            logger.error(f"❌ Enhanced message processing failed: {e}")
-            logger.error(f"❌ Processing exception type: {type(e).__name__}")
-            logger.error(f"❌ Processing exception details: {str(e)}")
+            # Unexpected error - create a PAM error for consistent handling
+            pam_error = PAMError(
+                message=str(e),
+                error_type=ErrorType.INTERNAL_ERROR,
+                status_code=500,
+                severity=ErrorSeverity.ERROR,
+                details={"exception_type": type(e).__name__}
+            )
+            error_handler.tracker.record_error(pam_error)
+            
+            logger.error(f"❌ Unexpected error in message processing: {e}")
+            logger.error(f"❌ Exception type: {type(e).__name__}")
             import traceback
-            logger.error(f"❌ Processing full traceback: {traceback.format_exc()}")
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
             
             # Log service statuses for debugging
             try:
@@ -529,18 +563,18 @@ class EnhancedPamOrchestrator:
             
             self.performance_metrics["service_fallbacks"] += 1
             
-            # Generate specific fallback response based on error type
-            fallback_response = self._generate_fallback_response(e, message)
-            
+            # Provide informative response with actual error details
             return {
-                "content": fallback_response["content"],
-                "confidence": fallback_response["confidence"],
+                "content": f"I encountered an issue processing your request. Error: {pam_error.user_message}. Request ID: {pam_error.request_id}",
+                "confidence": 0.2,
                 "response_mode": "text_only",
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "service_status": fallback_response["service_status"],
-                "capabilities_disabled": fallback_response["capabilities_disabled"],
-                "user_guidance": fallback_response["user_guidance"]
+                "error": pam_error.message,
+                "error_code": pam_error.error_code,
+                "error_type": pam_error.error_type.value,
+                "request_id": pam_error.request_id,
+                "service_status": "error",
+                "capabilities_disabled": ["ai_responses"],
+                "user_guidance": "If this persists, please contact support with the request ID."
             }
     
     async def _process_direct_ai_response(
@@ -1271,56 +1305,62 @@ Based on these results, please provide a helpful response to the user's original
         return healthy_count > 1
     
     def _generate_fallback_response(self, error: Exception, message: str) -> Dict[str, Any]:
-        """Generate specific fallback response based on error type and user message"""
+        """Generate specific fallback response with actual error information"""
         error_str = str(error).lower()
         error_type = type(error).__name__
         
-        # Check for OpenAI-specific errors
+        # Check for OpenAI-specific errors and include actual error message
         if "openai" in error_str or "api key" in error_str:
             if "authentication" in error_str or "api key" in error_str:
                 return {
                     "content": (
-                        "I'm currently unable to access my AI capabilities due to an authentication issue. "
-                        "This means I can't provide intelligent responses right now, but I can still help with basic information. "
-                        "Please contact support if this persists."
+                        f"Authentication error with AI service: {str(error)}. "
+                        "The system administrator has been notified. "
+                        "Basic app features remain available."
                     ),
                     "confidence": 0.2,
-                    "service_status": "degraded",
+                    "service_status": "auth_error",
                     "capabilities_disabled": ["ai_responses", "intelligent_suggestions", "context_awareness"],
-                    "user_guidance": "Basic text responses available. AI features temporarily disabled."
+                    "user_guidance": "This is a configuration issue. Please contact support.",
+                    "error_details": str(error)
                 }
             elif "quota" in error_str or "billing" in error_str:
                 return {
                     "content": (
-                        "I'm currently unable to provide AI-powered responses due to service limits. "
-                        "I can still help with basic information and navigation. "
-                        "Please try again later or contact support."
+                        f"Service quota exceeded: {str(error)}. "
+                        "The usage limit has been reached. "
+                        "Please try again later."
                     ),
                     "confidence": 0.2,
-                    "service_status": "degraded",
+                    "service_status": "quota_exceeded",
                     "capabilities_disabled": ["ai_responses", "intelligent_analysis", "personalized_suggestions"],
-                    "user_guidance": "Basic functionality available. AI responses temporarily limited."
+                    "user_guidance": "Quota will reset at the end of the billing period.",
+                    "error_details": str(error)
                 }
-            elif "rate limit" in error_str:
+            elif "rate limit" in error_str or "429" in error_str:
                 return {
                     "content": (
-                        "I'm currently experiencing high demand and need to slow down my responses. "
-                        "Please wait a moment and try again. I'll be back to full capacity shortly."
+                        f"Rate limit exceeded: {str(error)}. "
+                        "Please wait before trying again."
                     ),
                     "confidence": 0.4,
-                    "service_status": "throttled",
+                    "service_status": "rate_limited",
                     "capabilities_disabled": ["real_time_responses"],
-                    "user_guidance": "Please wait 30 seconds before trying again."
+                    "user_guidance": "Wait 60 seconds before retrying.",
+                    "error_details": str(error),
+                    "retry_after": 60
                 }
         
         # Check for timeout errors
         if "timeout" in error_str:
             return {
                 "content": (
-                    "I'm taking longer than usual to process your request due to high server load. "
-                    "Please try asking your question again. I'll try to respond more quickly."
+                    f"Request timeout: {str(error)}. "
+                    "The AI service is taking longer than expected. "
+                    "Please try again."
                 ),
                 "confidence": 0.3,
+                "error_details": str(error),
                 "service_status": "slow",
                 "capabilities_disabled": ["real_time_responses"],
                 "user_guidance": "Service is slower than normal. Please retry your request."
@@ -1368,28 +1408,24 @@ Based on these results, please provide a helpful response to the user's original
                 "user_guidance": "Basic map functionality still available in the Wheels section."
             }
         
-        # Dynamic fallback response with provider status
+        # Dynamic fallback response with actual error information
         available_providers = []
         if self.ai_orchestrator and self.ai_orchestrator.providers:
             available_providers = [p.name for p in self.ai_orchestrator.providers]
         
-        if available_providers:
-            provider_info = f"AI provider(s) available: {', '.join(available_providers)}. "
-            status_msg = "Temporary processing issue. Please try again."
-        else:
-            provider_info = "No AI providers currently available. "
-            status_msg = "AI services are being initialized. Please try again in a moment."
-        
         return {
             "content": (
-                f"{provider_info}{status_msg} "
-                "Core app features remain fully functional."
+                f"AI service error: {str(error)}. "
+                f"Available providers: {', '.join(available_providers) if available_providers else 'None'}. "
+                "Core app features remain functional."
             ),
             "confidence": 0.3,
-            "service_status": "degraded",
+            "service_status": "error",
             "capabilities_disabled": ["ai_responses", "intelligent_suggestions"],
-            "user_guidance": "Manual features available. AI assistance will resume shortly.",
-            "provider_status": available_providers
+            "user_guidance": "Error has been logged. Manual features available.",
+            "provider_status": available_providers,
+            "error_details": str(error),
+            "error_type": error_type
         }
     
     def _generate_simple_response(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
