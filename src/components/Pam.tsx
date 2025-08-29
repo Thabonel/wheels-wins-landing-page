@@ -808,6 +808,21 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
       
       logger.debug('🔄 PAM DEBUG: ==================== WEBSOCKET CONNECTION ====================');
+      
+      // Check if a WebSocket connection already exists and is open or connecting
+      if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
+        logger.debug('⚠️ PAM DEBUG: WebSocket already exists with readyState:', wsRef.current.readyState);
+        logger.debug('⚠️ PAM DEBUG: Skipping duplicate connection attempt');
+        return;
+      }
+      
+      // Close any existing connection before creating a new one
+      if (wsRef.current) {
+        logger.debug('🔄 PAM DEBUG: Closing existing WebSocket with readyState:', wsRef.current.readyState);
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      
       setConnectionStatus("Connecting");
       logger.debug('🔄 PAM DEBUG: Status set to Connecting');
       logger.debug('🔄 PAM DEBUG: Creating WebSocket with URL:', wsUrl);
@@ -1020,9 +1035,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                     }
                   }, 2000); // 2 second delay to allow user to read the message
                 }, 500); // Short delay for better UX
-              } else {
-                addMessage(content, "pam");
               }
+              // REMOVED duplicate addMessage call here - message was already added at line 969
             } else {
               logger.warn('⚠️ Empty content in response:', message);
               addMessage("I received your message but couldn't generate a proper response.", "pam");
@@ -2432,8 +2446,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string, shouldSpeak: boolean = false, voicePriority?: 'low' | 'normal' | 'high' | 'urgent'): PamMessage => {
+    // Generate a unique ID using timestamp + random string to avoid duplicate keys
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newMessage: PamMessage = {
-      id: Date.now().toString(),
+      id: uniqueId,
       content,
       sender,
       timestamp: new Date().toISOString(),
