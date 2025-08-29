@@ -1,2 +1,0 @@
-# Script analysis service package
-

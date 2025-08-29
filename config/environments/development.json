@@ -1,8 +1,0 @@
-{
-  "VITE_BACKEND_URL": "https://pam-backend.onrender.com",
-  "VITE_PAM_WEBSOCKET_URL": "wss://pam-backend.onrender.com/api/v1/pam/ws",
-  "SUPABASE_URL": "https://your-project.supabase.co",
-  "SUPABASE_ANON_KEY": "your_supabase_anon_key",
-  "SUPABASE_SERVICE_ROLE_KEY": "your_supabase_service_role_key",
-  "VITE_MAPBOX_TOKEN": "pk.your_mapbox_token_here"
-}
