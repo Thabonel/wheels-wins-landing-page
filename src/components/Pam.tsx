@@ -63,6 +63,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const { settings, updateSettings } = useUserSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
+  const [shouldAutoSend, setShouldAutoSend] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
@@ -322,20 +323,11 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     const handleSendMessageEvent = (event: CustomEvent) => {
       const { message } = event.detail;
       logger.debug('🎯 PAM: Sending message:', message);
-      if (isOpen) {
-        setInputMessage(message);
-        // Auto-send the message
-        setTimeout(() => {
-          handleSendMessage();
-        }, 100);
-      } else {
-        // Open PAM and send message
-        setIsOpen(true);
-        setInputMessage(message);
-        setTimeout(() => {
-          handleSendMessage();
-        }, 200);
-      }
+      // Set message and trigger send flag
+      setInputMessage(message);
+      setIsOpen(true);
+      // Use a ref to trigger the send after state updates
+      setShouldAutoSend(true);
     };
 
     // Add event listeners
@@ -348,7 +340,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       window.removeEventListener('pam-open', handleOpen);
       window.removeEventListener('pam-send-message', handleSendMessageEvent as EventListener);
     };
-  }, [isOpen]);
+  }, []); // Empty dependency array - register once
 
   const loadUserContext = async () => {
     try {
@@ -2666,6 +2658,19 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  // Handle auto-send when triggered by external events
+  useEffect(() => {
+    if (shouldAutoSend && inputMessage.trim()) {
+      // Reset the flag first
+      setShouldAutoSend(false);
+      // Delay to ensure UI updates
+      const timer = setTimeout(() => {
+        handleSendMessage();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAutoSend, inputMessage]);
 
   // Cleanup on unmount
   useEffect(() => {
