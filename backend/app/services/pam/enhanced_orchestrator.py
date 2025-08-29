@@ -29,6 +29,15 @@ from app.core.errors import (
 )
 import json
 
+# Import domain-specific nodes
+from app.services.pam.nodes.wheels_node import wheels_node
+from app.services.pam.nodes.wins_node import wins_node
+from app.services.pam.nodes.social_node import social_node
+from app.services.pam.nodes.memory_node import memory_node
+from app.services.pam.nodes.shop_node import shop_node
+from app.services.pam.nodes.you_node import you_node
+from app.services.pam.nodes.admin_node import admin_node
+
 logger = logging.getLogger(__name__)
 
 class ServiceStatus(Enum):
@@ -92,6 +101,17 @@ class EnhancedPamOrchestrator:
         self.knowledge_service = None
         self.tts_manager = None  # Will be initialized in _initialize_tts_service
         self.voice_streaming_manager = None
+        
+        # Domain-specific node registry
+        self.domain_nodes = {
+            'wheels': wheels_node,  # Trip planning, routes, vehicle management
+            'wins': wins_node,      # Financial management, budgets, expenses
+            'social': social_node,  # Community features, social interactions
+            'memory': memory_node,  # Context and memory management
+            'shop': shop_node,      # Product recommendations, shopping
+            'you': you_node,        # Personal calendar, scheduling
+            'admin': admin_node     # Administrative functions
+        }
         
         # Capability tracking
         self.service_capabilities: Dict[str, ServiceCapability] = {}
@@ -420,6 +440,91 @@ class EnhancedPamOrchestrator:
                 error_message=str(e)
             )
     
+    def _classify_intent(self, message: str) -> Optional[str]:
+        """Classify message intent to determine which domain node to use"""
+        message_lower = message.lower()
+        
+        # Trip planning and travel-related intents
+        trip_keywords = ['trip', 'travel', 'journey', 'route', 'directions', 'navigate', 
+                        'plan a trip', 'camping', 'fuel', 'caravan', 'rv', 'drive', 
+                        'from', 'destination', 'waypoint', 'road trip']
+        if any(keyword in message_lower for keyword in trip_keywords):
+            logger.info(f"🚗 Classified as WHEELS intent: {message[:50]}...")
+            return 'wheels'
+        
+        # Financial and budget-related intents
+        finance_keywords = ['budget', 'expense', 'income', 'money', 'cost', 'save', 
+                           'financial', 'spending', 'receipt', 'bill', 'payment']
+        if any(keyword in message_lower for keyword in finance_keywords):
+            logger.info(f"💰 Classified as WINS intent: {message[:50]}...")
+            return 'wins'
+        
+        # Social and community intents
+        social_keywords = ['friend', 'community', 'share', 'group', 'meet', 'social', 
+                          'connect', 'chat with', 'message']
+        if any(keyword in message_lower for keyword in social_keywords):
+            logger.info(f"👥 Classified as SOCIAL intent: {message[:50]}...")
+            return 'social'
+        
+        # Calendar and scheduling intents
+        calendar_keywords = ['calendar', 'schedule', 'appointment', 'event', 'meeting', 
+                            'remind', 'tomorrow', 'next week', 'date']
+        if any(keyword in message_lower for keyword in calendar_keywords):
+            logger.info(f"📅 Classified as YOU intent: {message[:50]}...")
+            return 'you'
+        
+        # Shopping intents
+        shop_keywords = ['buy', 'shop', 'product', 'purchase', 'order', 'deal', 
+                        'discount', 'store', 'price']
+        if any(keyword in message_lower for keyword in shop_keywords):
+            logger.info(f"🛒 Classified as SHOP intent: {message[:50]}...")
+            return 'shop'
+        
+        # Admin intents
+        admin_keywords = ['admin', 'settings', 'configure', 'system', 'manage', 
+                         'permission', 'user management']
+        if any(keyword in message_lower for keyword in admin_keywords):
+            logger.info(f"⚙️ Classified as ADMIN intent: {message[:50]}...")
+            return 'admin'
+        
+        # Memory/context intents
+        memory_keywords = ['remember', 'forget', 'recall', 'history', 'previous', 
+                          'last time', 'context']
+        if any(keyword in message_lower for keyword in memory_keywords):
+            logger.info(f"🧠 Classified as MEMORY intent: {message[:50]}...")
+            return 'memory'
+        
+        # No specific intent detected
+        logger.info(f"❓ No specific intent classified for: {message[:50]}...")
+        return None
+    
+    async def _route_to_domain_node(self, intent: str, message: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Route message to appropriate domain node"""
+        try:
+            node = self.domain_nodes.get(intent)
+            if not node:
+                logger.warning(f"No node registered for intent: {intent}")
+                return None
+            
+            logger.info(f"🎯 Routing to {intent} node for processing")
+            
+            # Call the node's process method
+            node_response = await node.process(message, context)
+            
+            # Ensure response has the required structure
+            if isinstance(node_response, dict):
+                # Add metadata about which node handled it
+                node_response['node_used'] = intent
+                node_response['processing_type'] = 'domain_node'
+                return node_response
+            else:
+                logger.warning(f"Invalid response format from {intent} node: {type(node_response)}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error routing to {intent} node: {e}")
+            return None
+    
     @observe_agent(name="enhanced_pam_process", metadata={"agent_type": "enhanced_pam"})
     async def process_message(
         self,
@@ -457,7 +562,44 @@ class EnhancedPamOrchestrator:
             )
             logger.debug("✅ Step 2: Enhanced context built")
             
-            # Process based on service availability
+            # Step 3: Try domain-specific node routing first
+            logger.debug("Step 3: Checking for domain-specific intent...")
+            intent = self._classify_intent(message)
+            if intent:
+                logger.info(f"🎯 Domain intent detected: {intent}")
+                node_response = await self._route_to_domain_node(intent, message, {
+                    'user_id': user_id,
+                    'session_id': session_id,
+                    'context': context,
+                    'enhanced_context': enhanced_context,
+                    'user_location': user_location
+                })
+                
+                if node_response:
+                    logger.info(f"✅ Successfully processed by {intent} node")
+                    # Format the node response for WebSocket
+                    enhanced_response = {
+                        "content": node_response.get('content', ''),
+                        "type": "chat_response",
+                        "confidence": node_response.get('confidence', 0.9),
+                        "intent": intent,
+                        "node_used": intent,
+                        "capabilities_used": ["domain_node", intent],
+                        "requires_followup": node_response.get('requires_followup', False),
+                        "suggestions": node_response.get('suggestions', []),
+                        "actions": node_response.get('actions', []),
+                        "processing_type": "domain_node"
+                    }
+                    self.performance_metrics["successful_responses"] += 1
+                    logger.debug(f"✅ Step 3: Domain node processing completed")
+                    
+                    # Skip AI processing since node handled it
+                    return enhanced_response
+                else:
+                    logger.warning(f"⚠️ Domain node {intent} failed to process, falling back to AI")
+            
+            # Step 4: Process with AI if no domain node handled it
+            logger.debug("Step 4: Processing with AI services...")
             if self.ai_service and self.providers['openai']['health']:
                 logger.info("🧠 Processing with AI Service")
                 logger.debug("Step 3: Processing with AI Service...")
