@@ -73,9 +73,9 @@ class WeatherTool(BaseTool):
     
     def __init__(self):
         super().__init__(
-            name="weather_advisor",
+            tool_name="weather_advisor",
             description="Get weather forecasts, alerts, and RV travel conditions",
-            capabilities=[ToolCapability.WEATHER_DATA]
+            capabilities=[ToolCapability.WEATHER]
         )
         
         # Try to get weather API key (OpenWeatherMap as primary)
