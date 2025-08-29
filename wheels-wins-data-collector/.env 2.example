@@ -1,0 +1,22 @@
+# Autonomous Data Collector Environment Variables
+# Copy this to .env and fill in your actual values
+
+# Supabase Database (Required)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
+
+# API Keys (Recommended for real data collection)
+RECREATION_GOV_KEY=your-recreation-gov-api-key
+NPS_API_KEY=your-nps-api-key
+GOOGLE_PLACES_KEY=your-google-places-api-key
+
+# Optional Services
+SENTRY_DSN=your-sentry-dsn-for-error-tracking
+NOTIFICATION_WEBHOOK=your-slack-webhook-for-notifications
+OPENWEATHER_API_KEY=your-openweather-api-key
+FOURSQUARE_API_KEY=your-foursquare-api-key
+
+# Environment
+COLLECTOR_ENV=development
+PYTHON_VERSION=3.11
+EOF < /dev/null

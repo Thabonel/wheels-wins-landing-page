@@ -1,0 +1,21 @@
+services:
+  - name: pam-backend
+    type: web
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: wheels-env
+  - name: pam-celery
+    type: worker
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    autoDeploy: true
+    startCommand: celery -A app.workers.celery worker --loglevel=INFO
+    envVars:
+      - fromGroup: wheels-env

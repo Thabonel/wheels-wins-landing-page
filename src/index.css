@@ -1,0 +1,305 @@
+@import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
+@import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
+@import "mapbox-gl/dist/mapbox-gl.css";
+@import './components/wins/QuickActionStyles.css';
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Route container - simplified without animations */
+.route-container {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - var(--header-height));
+}
+
+@layer base {
+  :root {
+    /* Reduce header height variable to give elegant spacing below logo */
+    --header-height: 5rem; /* Reduced from 8rem to 5rem (80px) */
+    
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 199 89% 48%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 60 55% 94%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 25 95% 53%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* New variables for Pam's design */
+    --pam-background: 195 100% 95%;
+    --pam-foreground: 200 98% 39%;
+    --pam-border: 196 100% 78%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Dark mode variables for Pam's design */
+    --pam-background: 195 30% 20%;
+    --pam-foreground: 200 70% 60%;
+    --pam-border: 196 70% 30%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  /* Apply global overflow-x hidden to html and body */
+  html, body {
+    @apply overflow-x-hidden;
+    width: 100%;
+    max-width: 100%;
+    /* Adjust scroll padding to match the new header height */
+    scroll-padding-top: var(--header-height);
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Nunito', sans-serif;
+  }
+  
+  /* Adjust padding to account for smaller fixed header */
+  main {
+    @apply pt-20; /* Reduced from pt-32 to pt-20 */
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* Transparent header styles */
+  .transparent-header {
+    @apply bg-transparent;
+  }
+  
+  /* Text shadow for better contrast on transparent backgrounds */
+  .text-shadow {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Additional styles for better UI elements */
+.btn-hover-effect {
+  @apply transition-all duration-300 ease-in-out transform hover:scale-105;
+}
+
+.section-transition {
+  @apply transition-all duration-500;
+}
+
+/* Pam avatar subtle pulse animation */
+.animate-pulse-slow {
+  animation: subtle-pulse 3s ease-in-out infinite;
+}
+
+@keyframes subtle-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+    transform: scale(1.03);
+  }
+}
+
+/* Pam message bubble tail animation */
+@keyframes bubble-appear {
+  from { 
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.bubble-animate {
+  animation: bubble-appear 0.3s ease-out forwards;
+}
+
+/* Add a utility class to ensure content stays within containers */
+.content-container {
+  @apply w-full max-w-full overflow-x-hidden;
+}
+
+/* Prevent the Mapbox A/B panel from collapsing under narrow layouts */
+#directions-panel {
+  min-width: 320px;
+}
+
+/* Ensure all flex containers wrap properly */
+.flex-container {
+  @apply flex flex-wrap;
+}
+
+/* Custom styling for relocated directions control */
+.directions-control-container .mapboxgl-ctrl-directions {
+  width: 100% !important;
+  max-width: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.directions-control-container .mapboxgl-ctrl-directions .directions-control-directions {
+  display: none !important;
+}
+
+.directions-control-container .mapboxgl-ctrl-directions .directions-control-input {
+  border: 1px solid #d1d5db !important;
+  border-radius: 0.5rem !important;
+  margin-bottom: 0.75rem !important;
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.875rem !important;
+}
+
+.directions-control-container .mapboxgl-ctrl-directions .directions-control-input:focus {
+  outline: none !important;
+  ring: 2px !important;
+  ring-color: #3b82f6 !important;
+  border-color: transparent !important;
+}
+
+/* PAM Visual Control Styles */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInOut {
+  0% { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  20% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+  80% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+  100% { 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+}
+
+@keyframes pamHighlight {
+  0% { 
+    box-shadow: 0 0 0 0px rgba(139, 92, 246, 0.4);
+    border: 2px solid transparent;
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.1);
+    border: 2px solid #8B5CF6;
+  }
+  100% { 
+    box-shadow: 0 0 0 0px rgba(139, 92, 246, 0);
+    border: 2px solid transparent;
+  }
+}
+
+.pam-highlight {
+  animation: pamHighlight 1s ease-in-out !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  z-index: 1000 !important;
+}
+
+.pam-typing {
+  border-left: 3px solid #8B5CF6 !important;
+  padding-left: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+@keyframes blink {
+  0%, 50% { border-left-color: #8B5CF6; }
+  51%, 100% { border-left-color: transparent; }
+}
+
+.pam-typing:focus {
+  animation: blink 1s infinite;
+}
+
+/* PAM Action Tooltips */
+.pam-action-tooltip {
+  pointer-events: none;
+}
+
+/* PAM Toast Notifications */
+.pam-success-toast,
+.pam-error-toast {
+  pointer-events: none;
+}

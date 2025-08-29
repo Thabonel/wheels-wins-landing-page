@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend WebSocket Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .log {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected { background: #d4edda; color: #155724; }
+        .connecting { background: #fff3cd; color: #856404; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+        .error { background: #f8d7da; color: #721c24; }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        input[type="text"] {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .test-results {
+            margin: 20px 0;
+        }
+        .test-result {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .test-pass { background: #d4edda; color: #155724; }
+        .test-fail { background: #f8d7da; color: #721c24; }
+        .test-info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Frontend WebSocket Connection Test</h1>
+        <p>This test mimics how the frontend Pam.tsx component connects to the WebSocket endpoint.</p>
+        
+        <div class="controls">
+            <h3>Configuration</h3>
+            <label>WebSocket URL: </label>
+            <input type="text" id="wsUrl" value="wss://pam-backend.onrender.com/api/v1/pam/ws" />
+            <br><br>
+            
+            <label>Auth Token: </label>
+            <input type="text" id="authToken" value="frontend_test_token" placeholder="Enter test token" />
+            <br><br>
+            
+            <button onclick="testConnection()">🔌 Test Connection</button>
+            <button onclick="sendTestMessage()" id="sendBtn" disabled>💬 Send Test Message</button>
+            <button onclick="disconnect()" id="disconnectBtn" disabled>❌ Disconnect</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+        
+        <div id="status" class="status disconnected">Status: Disconnected</div>
+        
+        <div class="controls">
+            <label>Test Message: </label>
+            <input type="text" id="testMessage" value="Hello PAM! This is a frontend connection test." />
+        </div>
+        
+        <h3>Connection Log</h3>
+        <div id="log" class="log"></div>
+        
+        <h3>Test Results</h3>
+        <div id="testResults" class="test-results"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let startTime = null;
+        let connectionTimeout = null;
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString().substring(11, 23);
+            const logElement = document.getElementById('log');
+            const color = type === 'error' ? '#ff4444' : 
+                         type === 'success' ? '#44ff44' : 
+                         type === 'warning' ? '#ffaa44' : '#00ff00';
+            
+            logElement.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateStatus(status, className) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = `Status: ${status}`;
+            statusEl.className = `status ${className}`;
+        }
+        
+        function addTestResult(message, type) {
+            const resultsEl = document.getElementById('testResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result test-${type}`;
+            resultDiv.textContent = message;
+            resultsEl.appendChild(resultDiv);
+        }
+        
+        function testConnection() {
+            // Clear previous results
+            document.getElementById('testResults').innerHTML = '';
+            
+            // Get configuration
+            const baseUrl = document.getElementById('wsUrl').value;
+            const token = document.getElementById('authToken').value;
+            
+            // Mimic frontend URL construction
+            const wsUrl = `${baseUrl}?token=${encodeURIComponent(token)}`;
+            
+            log(`🚀 Starting WebSocket connection test...`);
+            log(`📋 Base URL: ${baseUrl}`);
+            log(`🎫 Token: ${token.substring(0, 10)}...`);
+            log(`🌐 Full URL: ${wsUrl}`);
+            
+            addTestResult('✅ URL Construction: Pass', 'pass');
+            
+            // Validate URL format
+            if (!wsUrl.includes('/api/v1/pam/ws')) {
+                log('❌ URL validation failed! Missing /api/v1/pam/ws endpoint', 'error');
+                addTestResult('❌ URL Validation: Fail - Missing endpoint', 'fail');
+                return;
+            }
+            
+            addTestResult('✅ URL Validation: Pass - Correct endpoint', 'pass');
+            
+            // Close existing connection
+            if (ws) {
+                ws.close();
+            }
+            
+            updateStatus('Connecting...', 'connecting');
+            startTime = Date.now();
+            
+            // Set connection timeout
+            connectionTimeout = setTimeout(() => {
+                log('⏰ Connection timeout (30 seconds)', 'error');
+                updateStatus('Connection Timeout', 'error');
+                addTestResult('❌ Connection Timeout: Fail - No response in 30s', 'fail');
+                
+                if (ws) {
+                    ws.close();
+                }
+            }, 30000);
+            
+            try {
+                log(`🔄 Creating WebSocket connection...`);
+                ws = new WebSocket(wsUrl);
+                
+                // Connection opened
+                ws.onopen = function(event) {
+                    const connectionTime = Date.now() - startTime;
+                    clearTimeout(connectionTimeout);
+                    
+                    log(`✅ WebSocket connected successfully!`, 'success');
+                    log(`⏱️ Connection time: ${connectionTime}ms`);
+                    
+                    updateStatus('Connected', 'connected');
+                    document.getElementById('sendBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    
+                    addTestResult(`✅ Connection: Pass - Connected in ${connectionTime}ms`, 'pass');
+                    
+                    // Test if we get a welcome message
+                    log('👂 Listening for welcome message...');
+                };
+                
+                // Message received
+                ws.onmessage = function(event) {
+                    const responseTime = Date.now() - startTime;
+                    log(`📨 Message received: ${event.data}`, 'success');
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`📋 Message type: ${data.type || 'unknown'}`);
+                        log(`💬 Content: ${data.message || data.content || 'No content'}`);
+                        
+                        if (data.type === 'welcome') {
+                            addTestResult(`✅ Welcome Message: Pass - Received in ${responseTime}ms`, 'pass');
+                        } else if (data.type === 'chat_response') {
+                            addTestResult(`✅ Chat Response: Pass - Received in ${responseTime}ms`, 'pass');
+                            log(`🤖 PAM Response: ${(data.content || data.message || '').substring(0, 100)}...`);
+                        } else {
+                            addTestResult(`ℹ️ Message Received: ${data.type || 'unknown'} type`, 'info');
+                        }
+                        
+                    } catch (e) {
+                        log(`⚠️ Non-JSON message: ${event.data.substring(0, 200)}...`, 'warning');
+                        addTestResult('⚠️ Message Format: Non-JSON response', 'info');
+                    }
+                };
+                
+                // Connection closed
+                ws.onclose = function(event) {
+                    clearTimeout(connectionTimeout);
+                    const connectionTime = Date.now() - startTime;
+                    
+                    log(`🔌 WebSocket connection closed`, 'warning');
+                    log(`📋 Close code: ${event.code}`);
+                    log(`📋 Close reason: ${event.reason || 'No reason provided'}`);
+                    log(`📋 Clean close: ${event.wasClean}`);
+                    
+                    updateStatus('Disconnected', 'disconnected');
+                    document.getElementById('sendBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    
+                    if (event.code === 1006) {
+                        addTestResult('❌ Connection: Fail - Abnormal closure (1006)', 'fail');
+                        log('💡 Code 1006 usually means connection failed or server unreachable', 'info');
+                    } else if (event.code === 1001) {
+                        addTestResult('ℹ️ Connection: Closed - Going away (1001)', 'info');
+                    } else if (event.code === 1000) {
+                        addTestResult('✅ Connection: Closed normally (1000)', 'pass');
+                    } else {
+                        addTestResult(`⚠️ Connection: Closed with code ${event.code}`, 'info');
+                    }
+                };
+                
+                // Connection error
+                ws.onerror = function(event) {
+                    clearTimeout(connectionTimeout);
+                    const connectionTime = Date.now() - startTime;
+                    
+                    log(`❌ WebSocket error occurred`, 'error');
+                    log(`⏱️ Error after: ${connectionTime}ms`);
+                    
+                    updateStatus('Error', 'error');
+                    addTestResult('❌ Connection: Error - Failed to establish connection', 'fail');
+                    
+                    // Common error troubleshooting
+                    if (wsUrl.startsWith('wss://')) {
+                        log('💡 HTTPS connection - check if server supports WSS', 'info');
+                    }
+                    if (token === 'frontend_test_token') {
+                        log('💡 Using test token - try with real authentication token', 'info');
+                    }
+                };
+                
+            } catch (error) {
+                clearTimeout(connectionTimeout);
+                log(`❌ Failed to create WebSocket: ${error.message}`, 'error');
+                updateStatus('Error', 'error');
+                addTestResult(`❌ WebSocket Creation: Fail - ${error.message}`, 'fail');
+            }
+        }
+        
+        function sendTestMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('❌ Cannot send message - WebSocket not connected', 'error');
+                return;
+            }
+            
+            const message = document.getElementById('testMessage').value;
+            const testData = {
+                type: 'chat',
+                message: message,
+                context: {
+                    user_id: 'frontend_test',
+                    test: true,
+                    timestamp: new Date().toISOString()
+                }
+            };
+            
+            log(`📤 Sending test message...`);
+            log(`💬 Message: ${message}`);
+            
+            startTime = Date.now(); // Reset for response timing
+            
+            try {
+                ws.send(JSON.stringify(testData));
+                log(`✅ Message sent successfully`, 'success');
+                log(`👂 Waiting for PAM response...`);
+                
+                addTestResult('✅ Send Message: Pass - Message sent', 'pass');
+                
+                // Set response timeout
+                setTimeout(() => {
+                    log('⏰ No response received within 30 seconds', 'warning');
+                    addTestResult('⚠️ Response Timeout: No response in 30s', 'info');
+                }, 30000);
+                
+            } catch (error) {
+                log(`❌ Failed to send message: ${error.message}`, 'error');
+                addTestResult(`❌ Send Message: Fail - ${error.message}`, 'fail');
+            }
+        }
+        
+        function disconnect() {
+            if (ws) {
+                log('🔌 Manually disconnecting WebSocket...', 'warning');
+                ws.close(1000, 'Manual disconnect');
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('testResults').innerHTML = '';
+        }
+        
+        // Auto-test when page loads
+        window.onload = function() {
+            log('🎯 Frontend WebSocket Test Tool Loaded');
+            log('📋 This tool mimics the frontend Pam.tsx WebSocket connection');
+            log('🚀 Ready to test connection...');
+            
+            // Auto-populate with current environment
+            const envBackendUrl = 'https://pam-backend.onrender.com';
+            const envWsUrl = 'wss://pam-backend.onrender.com/api/v1/pam/ws';
+            
+            log(`🔧 Environment Backend URL: ${envBackendUrl}`);
+            log(`🔧 Environment WebSocket URL: ${envWsUrl}`);
+            
+            document.getElementById('wsUrl').value = envWsUrl;
+        };
+    </script>
+</body>
+</html>
