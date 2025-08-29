@@ -1,0 +1,304 @@
+# Claude Code Agent Configuration for Wheels & Wins
+# This file configures automatic agent delegation and smart routing
+
+agents:
+  enabled: true
+  default_model: sonnet
+  timeout: 300
+  max_context_length: 200000
+  
+  # Automatic delegation settings
+  delegation:
+    auto_delegate: true
+    require_confirmation: false
+    parallel_execution: true
+    max_parallel: 3
+    
+  # Agent specializations with trigger keywords
+  specializations:
+    # Core Development Agents
+    - name: pam-specialist
+      triggers: ["pam", "websocket", "ai assistant", "chat", "voice"]
+      priority: high
+      auto_activate_on: ["backend/app/api/v1/pam.py", "src/components/pam/"]
+      
+    - name: code-reviewer
+      triggers: ["review", "check", "audit", "quality", "best practices"]
+      priority: medium
+      auto_activate_on: ["pull_request", "merge"]
+      
+    - name: code-simplifier
+      triggers: ["simplify", "refactor", "clean", "reduce complexity", "optimize code"]
+      priority: medium
+      
+    # Security Agents
+    - name: security-reviewer
+      triggers: ["security", "vulnerability", "exploit", "xss", "sql injection", "csrf"]
+      priority: high
+      auto_activate_on: ["auth", "login", "password", "token", "jwt"]
+      
+    - name: security-auditor
+      triggers: ["compliance", "gdpr", "privacy", "audit trail", "penetration"]
+      priority: high
+      
+    # Architecture & Leadership
+    - name: tech-lead
+      triggers: ["architecture", "design", "scale", "strategy", "roadmap", "decision"]
+      priority: high
+      auto_activate_on: ["RFC", "ADR", "proposal"]
+      
+    # UI/UX Agents
+    - name: ux-reviewer
+      triggers: ["ux", "ui", "accessibility", "user experience", "wcag", "a11y", "mobile"]
+      priority: medium
+      auto_activate_on: ["src/components/", "*.css", "*.scss"]
+      
+    - name: ui-ux-specialist
+      triggers: ["component", "design system", "tailwind", "radix", "styling"]
+      priority: medium
+      
+    # Testing Agents
+    - name: test-engineer
+      triggers: ["test", "testing", "coverage", "e2e", "integration", "unit test"]
+      priority: high
+      auto_activate_on: ["*.test.*", "*.spec.*", "__tests__/"]
+      
+    - name: test-developer
+      triggers: ["create tests", "write tests", "test coverage", "tdd"]
+      priority: high
+      
+    # Infrastructure Agents
+    - name: database-expert
+      triggers: ["database", "query", "sql", "optimization", "index", "migration", "supabase"]
+      priority: medium
+      auto_activate_on: ["*.sql", "migrations/", "supabase/"]
+      
+    - name: devops-engineer
+      triggers: ["deploy", "ci/cd", "docker", "kubernetes", "github actions", "render", "netlify"]
+      priority: medium
+      auto_activate_on: [".github/workflows/", "Dockerfile", "*.yaml", "*.yml"]
+      
+    # Performance Agent
+    - name: performance-optimizer
+      triggers: ["performance", "speed", "bundle size", "optimize", "lazy load", "cache"]
+      priority: medium
+      auto_activate_on: ["vite.config", "webpack.config", "lighthouse"]
+
+  # Workflow templates for common tasks
+  workflows:
+    full-review:
+      description: "Complete code review with security and UX checks"
+      agents: [code-reviewer, security-reviewer, ux-reviewer]
+      parallel: true
+      
+    security-audit:
+      description: "Comprehensive security analysis"
+      agents: [security-reviewer, security-auditor, database-expert]
+      parallel: true
+      
+    performance-sprint:
+      description: "Performance optimization workflow"
+      agents: [performance-optimizer, database-expert, devops-engineer]
+      parallel: true
+      
+    test-coverage:
+      description: "Improve test coverage"
+      agents: [test-engineer, test-developer, code-reviewer]
+      parallel: false
+      
+    pam-enhancement:
+      description: "PAM AI improvements"
+      agents: [pam-specialist, test-developer, security-reviewer]
+      parallel: false
+      
+    architecture-review:
+      description: "Architecture and scaling review"
+      agents: [tech-lead, database-expert, devops-engineer]
+      parallel: true
+      
+    ui-improvement:
+      description: "UI/UX enhancement workflow"
+      agents: [ux-reviewer, ui-ux-specialist, performance-optimizer]
+      parallel: false
+
+  # Smart routing rules
+  routing_rules:
+    # File-based routing
+    - pattern: "*.py"
+      prefer_agents: [code-reviewer, security-reviewer]
+      
+    - pattern: "*.tsx|*.ts|*.jsx|*.js"
+      prefer_agents: [code-reviewer, ux-reviewer]
+      
+    - pattern: "*.sql"
+      prefer_agents: [database-expert]
+      
+    - pattern: "Dockerfile|docker-compose.yml"
+      prefer_agents: [devops-engineer]
+      
+    - pattern: "*.test.*|*.spec.*"
+      prefer_agents: [test-engineer]
+      
+    # Keyword-based routing
+    - keywords: ["bug", "error", "issue", "problem"]
+      prefer_agents: [code-reviewer, test-engineer]
+      
+    - keywords: ["slow", "performance", "optimize"]
+      prefer_agents: [performance-optimizer, database-expert]
+      
+    - keywords: ["hack", "vulnerability", "secure"]
+      prefer_agents: [security-reviewer, security-auditor]
+
+  # Agent collaboration rules
+  collaboration:
+    # Agents that work well together
+    pairs:
+      - [code-reviewer, test-developer]
+      - [security-reviewer, devops-engineer]
+      - [database-expert, performance-optimizer]
+      - [ux-reviewer, ui-ux-specialist]
+      - [tech-lead, devops-engineer]
+      
+    # Sequential workflows (one agent's output feeds the next)
+    chains:
+      - sequence: [security-reviewer, code-simplifier, test-developer]
+        description: "Security fix workflow"
+        
+      - sequence: [performance-optimizer, database-expert, devops-engineer]
+        description: "Performance improvement chain"
+        
+      - sequence: [code-simplifier, code-reviewer, test-developer]
+        description: "Refactoring workflow"
+
+  # Project-specific priorities for Wheels & Wins
+  project_priorities:
+    critical:
+      - "PAM AI response quality and neutrality"
+      - "WebSocket stability and message deduplication"
+      - "Test coverage increase (40% → 80%)"
+      - "API security and authentication"
+      
+    high:
+      - "Bundle size optimization (<2MB)"
+      - "Database query performance"
+      - "Mobile responsiveness"
+      - "WCAG 2.1 accessibility compliance"
+      
+    medium:
+      - "Code simplification and refactoring"
+      - "Documentation updates"
+      - "CI/CD improvements"
+      - "Monitoring and observability"
+
+  # Auto-activation rules based on context
+  context_triggers:
+    - context: "pull_request"
+      activate: [code-reviewer, test-engineer, security-reviewer]
+      
+    - context: "production_deploy"
+      activate: [devops-engineer, security-auditor, performance-optimizer]
+      
+    - context: "bug_fix"
+      activate: [code-reviewer, test-developer]
+      
+    - context: "new_feature"
+      activate: [tech-lead, test-developer, ux-reviewer]
+      
+    - context: "optimization"
+      activate: [performance-optimizer, database-expert]
+
+  # Quality gates
+  quality_gates:
+    - name: "test_coverage"
+      threshold: 80
+      blocker: true
+      agents: [test-engineer]
+      
+    - name: "security_scan"
+      threshold: "no_high_severity"
+      blocker: true
+      agents: [security-reviewer]
+      
+    - name: "performance_budget"
+      threshold: "bundle_size < 2MB"
+      blocker: false
+      agents: [performance-optimizer]
+      
+    - name: "accessibility"
+      threshold: "wcag_2.1_aa"
+      blocker: false
+      agents: [ux-reviewer]
+
+  # Monitoring and metrics
+  metrics:
+    track:
+      - agent_response_time
+      - task_completion_rate
+      - code_quality_score
+      - test_coverage_percentage
+      - security_vulnerability_count
+      - bundle_size_kb
+      - api_response_time_ms
+      
+    alert_thresholds:
+      agent_response_time: 300s
+      test_coverage_drop: 5%
+      new_vulnerabilities: 1
+      bundle_size_increase: 100kb
+      api_response_degradation: 50ms
+
+# Wheels & Wins specific configurations
+wheels_wins:
+  tech_stack:
+    frontend:
+      - React 18
+      - TypeScript
+      - Vite
+      - Tailwind CSS
+      - Radix UI
+      
+    backend:
+      - FastAPI
+      - Python 3.11
+      - PostgreSQL (Supabase)
+      - Redis
+      - WebSocket
+      
+    deployment:
+      - Netlify (frontend)
+      - Render (backend)
+      - Supabase (database)
+      
+  critical_paths:
+    - path: "backend/app/api/v1/pam.py"
+      description: "PAM WebSocket endpoint"
+      agents: [pam-specialist, security-reviewer, test-developer]
+      
+    - path: "src/components/pam/"
+      description: "PAM chat components"
+      agents: [pam-specialist, ux-reviewer, test-developer]
+      
+    - path: "backend/app/services/ai_service.py"
+      description: "AI service integration"
+      agents: [pam-specialist, performance-optimizer]
+      
+    - path: "src/components/wins/expenses/"
+      description: "Financial tracking"
+      agents: [ux-reviewer, test-developer, security-reviewer]
+
+  known_issues:
+    - issue: "PAM duplicate messages"
+      priority: critical
+      agents: [pam-specialist, code-reviewer]
+      
+    - issue: "Low test coverage (40%)"
+      priority: high
+      agents: [test-engineer, test-developer]
+      
+    - issue: "Bundle size optimization"
+      priority: medium
+      agents: [performance-optimizer]
+      
+    - issue: "Database query optimization"
+      priority: medium
+      agents: [database-expert, performance-optimizer]

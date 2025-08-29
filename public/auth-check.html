@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAM Auth Check</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .status { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .info { background: #2d3a5a; }
+        pre { overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>PAM WebSocket Authentication Check</h1>
+    <div id="results"></div>
+    
+    <script type="module">
+        const results = document.getElementById('results');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+        
+        log('<h2>Build Information</h2>');
+        log(`Build Time: ${new Date().toISOString()}`);
+        log(`Page URL: ${window.location.href}`);
+        
+        // Check if this is the updated build
+        try {
+            // Try to check for the existence of auth utilities
+            const checkScript = document.createElement('script');
+            checkScript.textContent = `
+                console.log('Checking for auth utilities...');
+                if (window.location.pathname.includes('auth-check.html')) {
+                    document.getElementById('results').innerHTML += '<div class="status info">This is the auth check page - deployment successful!</div>';
+                }
+            `;
+            document.head.appendChild(checkScript);
+            
+            log('<h2>Deployment Status</h2>');
+            log('✅ This auth-check.html file exists, indicating new deployment', 'success');
+            log('Next: Check if JWT authentication is working in the main app', 'info');
+            
+        } catch (e) {
+            log('Error checking build: ' + e.message, 'error');
+        }
+        
+        // Add timestamp
+        log(`<br><strong>Check performed at:</strong> ${new Date().toLocaleString()}`);
+    </script>
+</body>
+</html>

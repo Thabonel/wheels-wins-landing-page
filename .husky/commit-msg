@@ -1,0 +1,6 @@
+# Check commit message format with proper validation
+if command -v npx >/dev/null 2>&1 && npx --yes commitlint --help >/dev/null 2>&1; then
+    npx --yes commitlint --edit "$1"
+else
+    echo "⚠️ Commitlint not available, skipping commit message validation"
+fi

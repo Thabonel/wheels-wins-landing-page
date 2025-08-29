@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ./backend
+      target: production
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+    volumes:
+      - ./backend/logs:/app/logs
+
+  worker:
+    build:
+      context: ./backend
+      target: production
+    command: celery -A app.workers.celery worker --loglevel=info
+    environment:
+      - ENVIRONMENT=production
+    volumes:
+      - ./backend/logs:/app/logs
+
+  beat:
+    build:
+      context: ./backend
+      target: production
+    command: celery -A app.workers.celery beat --loglevel=info
+    environment:
+      - ENVIRONMENT=production
+    volumes:
+      - ./backend/logs:/app/logs
