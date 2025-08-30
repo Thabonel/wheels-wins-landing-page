@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { EmergencyLocationSelector } from './EmergencyLocationSelector';
 
 // Emergency numbers by country/region
 const EMERGENCY_NUMBERS: { [key: string]: { number: string; name: string } } = {
@@ -65,56 +66,58 @@ export const MedicalDisclaimer: React.FC<MedicalDisclaimerProps> = ({
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [emergencyNumber, setEmergencyNumber] = useState(EMERGENCY_NUMBERS.US);
 
-  // Detect user's location
+  // Detect user's location using the emergency service
   useEffect(() => {
     const detectLocation = async () => {
       try {
-        // Try to get location from browser
-        if ('geolocation' in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            async (position) => {
-              // Use reverse geocoding API (would need actual implementation)
-              // For now, use timezone as a rough indicator
-              const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-              
-              if (timezone.includes('America')) {
-                if (timezone.includes('Mexico')) {
-                  setUserCountry('MX');
-                } else if (timezone.includes('Canada')) {
-                  setUserCountry('CA');
-                } else {
-                  setUserCountry('US');
-                }
-              } else if (timezone.includes('Europe')) {
-                setUserCountry('EU');
-              } else if (timezone.includes('Australia')) {
-                setUserCountry('AU');
-              } else if (timezone.includes('Asia')) {
-                if (timezone.includes('Tokyo')) {
-                  setUserCountry('JP');
-                } else if (timezone.includes('Shanghai') || timezone.includes('Beijing')) {
-                  setUserCountry('CN');
-                } else if (timezone.includes('Kolkata')) {
-                  setUserCountry('IN');
-                }
-              } else if (timezone.includes('Africa')) {
-                setUserCountry('ZA');
-              }
-            },
-            (error) => {
-              console.log('Geolocation error:', error);
-              // Fallback to IP-based detection would go here
-            }
-          );
-        }
-
-        // Also try to get from user's profile if available
-        const userProfile = localStorage.getItem('user_country');
-        if (userProfile) {
-          setUserCountry(userProfile);
-        }
+        // Import and use the emergency service for consistent detection
+        const { detectUserCountry } = await import('@/services/emergency/emergencyService');
+        const detectedCountry = await detectUserCountry();
+        console.log('MedicalDisclaimer detected country:', detectedCountry);
+        setUserCountry(detectedCountry);
       } catch (error) {
         console.error('Location detection error:', error);
+        // Fallback to timezone detection
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
+        if (timezone.includes('Australia')) {
+          setUserCountry('AU');
+        } else if (timezone.includes('America')) {
+          if (timezone.includes('Mexico')) {
+            setUserCountry('MX');
+          } else if (timezone.includes('Canada')) {
+            setUserCountry('CA');
+          } else {
+            setUserCountry('US');
+          }
+        } else if (timezone.includes('Europe')) {
+          setUserCountry('EU');
+        } else if (timezone.includes('Asia')) {
+          if (timezone.includes('Tokyo')) {
+            setUserCountry('JP');
+          } else if (timezone.includes('Shanghai') || timezone.includes('Beijing')) {
+            setUserCountry('CN');
+          } else if (timezone.includes('Kolkata')) {
+            setUserCountry('IN');
+          } else {
+            setUserCountry('CN');
+          }
+        } else if (timezone.includes('Africa')) {
+          if (timezone.includes('Cairo')) {
+            setUserCountry('EG');
+          } else {
+            setUserCountry('ZA');
+          }
+        } else if (timezone.includes('Pacific')) {
+          if (timezone.includes('Auckland')) {
+            setUserCountry('NZ');
+          } else {
+            setUserCountry('AU');
+          }
+        } else {
+          // Default fallback
+          setUserCountry('US');
+        }
       }
     };
 
@@ -475,13 +478,73 @@ export const MedicalDisclaimer: React.FC<MedicalDisclaimerProps> = ({
 
 // Persistent disclaimer banner component
 export const MedicalDisclaimerBanner: React.FC = () => {
-  const [emergencyNumber, setEmergencyNumber] = useState(EMERGENCY_NUMBERS.US);
+  const [emergencyNumber, setEmergencyNumber] = useState(EMERGENCY_NUMBERS.DEFAULT);
   const [showEmergencyDialog, setShowEmergencyDialog] = useState(false);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(true);
+  const [detectedCountry, setDetectedCountry] = useState<string>('DEFAULT');
 
-  // Get user's location on mount
+  // Actively detect user's location
   useEffect(() => {
-    const userCountry = localStorage.getItem('user_country') || 'US';
-    setEmergencyNumber(EMERGENCY_NUMBERS[userCountry] || EMERGENCY_NUMBERS.DEFAULT);
+    const detectAndSetEmergency = async () => {
+      setIsDetecting(true);
+      try {
+        // Import the emergency service
+        const { detectUserCountry, getEmergencyInfo } = await import('@/services/emergency/emergencyService');
+        
+        // Detect the user's country
+        const country = await detectUserCountry();
+        console.log('Detected country for emergency number:', country);
+        setDetectedCountry(country);
+        
+        // Get the emergency info for that country
+        const emergencyInfo = getEmergencyInfo(country);
+        
+        // Update the emergency number
+        setEmergencyNumber({
+          number: emergencyInfo.number,
+          name: emergencyInfo.name
+        });
+      } catch (error) {
+        console.error('Error detecting location for emergency number:', error);
+        // Fallback to checking localStorage
+        const storedCountry = localStorage.getItem('user_country');
+        if (storedCountry && EMERGENCY_NUMBERS[storedCountry]) {
+          setEmergencyNumber(EMERGENCY_NUMBERS[storedCountry]);
+        } else {
+          // Last resort: use timezone to guess
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (timezone.includes('Australia')) {
+            setEmergencyNumber(EMERGENCY_NUMBERS.AU);
+          } else if (timezone.includes('Europe')) {
+            setEmergencyNumber(EMERGENCY_NUMBERS.EU);
+          } else if (timezone.includes('Asia')) {
+            if (timezone.includes('Tokyo')) {
+              setEmergencyNumber(EMERGENCY_NUMBERS.JP);
+            } else {
+              setEmergencyNumber(EMERGENCY_NUMBERS.CN);
+            }
+          } else {
+            setEmergencyNumber(EMERGENCY_NUMBERS.US);
+          }
+        }
+      } finally {
+        setIsDetecting(false);
+      }
+    };
+
+    detectAndSetEmergency();
+    
+    // Re-detect when window gains focus (user might have traveled)
+    const handleFocus = () => {
+      detectAndSetEmergency();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   return (
@@ -491,14 +554,29 @@ export const MedicalDisclaimerBanner: React.FC = () => {
         <AlertTitle className="text-sm">Medical Records Disclaimer</AlertTitle>
         <AlertDescription className="text-xs">
           This feature is for informational and organizational purposes only. Not a substitute for professional medical advice.
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0 ml-2 text-xs"
-            onClick={() => setShowEmergencyDialog(true)}
-          >
-            Emergency: {emergencyNumber.number}
-          </Button>
+          {isDetecting ? (
+            <span className="ml-2 text-xs">Detecting location...</span>
+          ) : (
+            <>
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 ml-2 text-xs font-bold text-destructive"
+                onClick={() => setShowEmergencyDialog(true)}
+              >
+                Emergency: {emergencyNumber.number} ({emergencyNumber.name})
+              </Button>
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 ml-2 text-xs"
+                onClick={() => setShowLocationSelector(true)}
+              >
+                <MapPin className="h-3 w-3 inline mr-1" />
+                Change
+              </Button>
+            </>
+          )}
         </AlertDescription>
       </Alert>
 
@@ -506,6 +584,24 @@ export const MedicalDisclaimerBanner: React.FC = () => {
         <MedicalDisclaimer 
           type="emergency" 
           onAccept={() => setShowEmergencyDialog(false)}
+        />
+      )}
+
+      {showLocationSelector && (
+        <EmergencyLocationSelector
+          open={showLocationSelector}
+          onOpenChange={setShowLocationSelector}
+          currentCountry={detectedCountry}
+          onCountryChange={async (country) => {
+            // Update the emergency number immediately
+            const { getEmergencyInfo } = await import('@/services/emergency/emergencyService');
+            const emergencyInfo = getEmergencyInfo(country);
+            setEmergencyNumber({
+              number: emergencyInfo.number,
+              name: emergencyInfo.name
+            });
+            setDetectedCountry(country);
+          }}
         />
       )}
     </>
