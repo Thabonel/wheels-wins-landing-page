@@ -124,7 +124,7 @@ export async function sendHealthConsultation(
     // Provide helpful response based on the question while backend is being deployed
     const lowerMessage = message.toLowerCase();
     
-    // Check if it's about a rash
+    // Check for specific health conditions and provide helpful responses
     if (lowerMessage.includes('rash') && lowerMessage.includes('elbow')) {
       return {
         success: true,
@@ -162,6 +162,122 @@ export async function sendHealthConsultation(
 
 📝 This is health information only, not medical advice. Please consult a healthcare professional for proper diagnosis and treatment.`,
         hasEmergency: false,
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0
+        },
+        model,
+        timestamp: new Date().toISOString(),
+        disclaimer: 'This is health information only, not medical advice.'
+      };
+    }
+    
+    // Check for knee pain
+    if (lowerMessage.includes('knee') && (lowerMessage.includes('sore') || lowerMessage.includes('pain') || lowerMessage.includes('hurt'))) {
+      return {
+        success: true,
+        response: `I understand you have a sore knee. Here's helpful information:
+
+**Check the basics:**
+• How long has your knee been sore?
+• Was there a specific injury or did it develop gradually?
+• Is there swelling, warmth, or redness?
+• Does it hurt more with movement or at rest?
+• Any clicking, locking, or giving way?
+• Is it worse in the morning or after activity?
+
+**Do immediately:**
+• **R.I.C.E. Protocol:**
+  - Rest: Avoid activities that worsen pain
+  - Ice: Apply for 15-20 minutes every 2-3 hours for first 48 hours
+  - Compression: Use elastic bandage (not too tight)
+  - Elevation: Raise knee above heart level when resting
+• Take over-the-counter pain relievers (ibuprofen or acetaminophen as directed)
+• Gentle range-of-motion exercises if tolerated
+• Use walking aids (cane/crutches) if needed
+
+**Seek medical care urgently if:**
+• Severe pain or sudden worsening
+• Cannot bear weight on the leg
+• Knee appears deformed or unstable
+• Signs of infection (fever, red streaks, warmth)
+• Numbness or tingling in leg/foot
+• Previous knee surgery or replacement
+
+**Common causes to consider:**
+• Arthritis (osteoarthritis or rheumatoid)
+• Ligament strain or tear (ACL, MCL, etc.)
+• Meniscus injury
+• Bursitis
+• Tendinitis
+• Overuse injury
+• Gout
+• Baker's cyst
+
+**For RV travelers:**
+• Minimize stairs and uneven surfaces
+• Use handrails when available
+• Consider a knee brace for support
+• Keep anti-inflammatory medication handy
+• Plan rest days during travel
+
+⚠️ Knee pain can range from minor strain to serious conditions requiring treatment. If pain persists more than a few days, worsens, or limits your mobility, see a healthcare provider for proper evaluation.
+
+📝 This is health information only, not medical advice. Please consult a healthcare professional for proper diagnosis and treatment.`,
+        hasEmergency: false,
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0
+        },
+        model,
+        timestamp: new Date().toISOString(),
+        disclaimer: 'This is health information only, not medical advice.'
+      };
+    }
+
+    // Check for general pain questions
+    if (lowerMessage.includes('pain') || lowerMessage.includes('hurt') || lowerMessage.includes('sore') || lowerMessage.includes('ache')) {
+      const bodyPart = message.match(/\b(head|neck|back|shoulder|arm|elbow|wrist|hand|chest|stomach|abdomen|hip|leg|knee|ankle|foot)\b/i)?.[0] || 'body';
+      
+      return {
+        success: true,
+        response: `I understand you're experiencing pain in your ${bodyPart}. Here's general guidance:
+
+**Assess your pain:**
+• When did it start?
+• Scale of 1-10, how severe?
+• Sharp, dull, burning, or throbbing?
+• Constant or comes and goes?
+• What makes it better or worse?
+• Any other symptoms?
+
+**General pain management:**
+• Rest the affected area
+• Apply ice for acute injuries (first 48 hours)
+• Apply heat for muscle tension/stiffness
+• Over-the-counter pain relievers as directed
+• Gentle stretching if appropriate
+• Stay hydrated
+• Get adequate sleep
+
+**Seek immediate medical care if:**
+• Severe or sudden onset pain
+• Chest pain (could be heart-related)
+• Pain with fever, numbness, or weakness
+• Pain after trauma/injury
+• Pain that rapidly worsens
+• Signs of infection
+
+**When to see a doctor:**
+• Pain lasting more than a few days
+• Pain interfering with daily activities
+• Recurring pain episodes
+• Pain not responding to home treatment
+
+📝 This is health information only. Pain can have many causes that require professional evaluation. Please consult a healthcare provider for persistent or concerning pain.`,
+        hasEmergency: lowerMessage.includes('chest') || lowerMessage.includes('severe'),
         usage: {
           promptTokens: 0,
           completionTokens: 0,
