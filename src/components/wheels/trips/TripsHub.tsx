@@ -21,7 +21,6 @@ export default function TripsHub() {
     <div className="container p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Trips</h1>
           <p className="text-gray-600">Manage your saved trips, browse templates, and explore shared journeys</p>
         </div>
 

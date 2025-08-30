@@ -22,6 +22,10 @@ export interface TripTemplate {
   image_url?: string;
   thumbnailUrl?: string;
   thumbnail_url?: string;
+  average_rating?: number;
+  total_ratings?: number;
+  status?: 'draft' | 'published' | 'archived';
+  is_featured?: boolean;
 }
 
 export interface ScrapedTripData {
