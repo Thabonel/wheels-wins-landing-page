@@ -296,9 +296,12 @@ export async function detectUserCountry(): Promise<string> {
     }
   }
 
-  // 3. Use timezone detection
+  // 3. Use timezone detection with enhanced Australian detection
   try {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    console.log('Detected timezone:', timezone);
+    
+    // Check exact timezone mapping first
     const country = TIMEZONE_TO_COUNTRY[timezone];
     
     if (country) {
@@ -307,15 +310,36 @@ export async function detectUserCountry(): Promise<string> {
       return country;
     }
 
+    // Enhanced detection for Australia - check all Australian timezones
+    const australianTimezones = [
+      'Australia/Sydney', 'Australia/Melbourne', 'Australia/Brisbane',
+      'Australia/Perth', 'Australia/Adelaide', 'Australia/Hobart',
+      'Australia/Darwin', 'Australia/Canberra', 'Australia/ACT',
+      'Australia/NSW', 'Australia/Queensland', 'Australia/South',
+      'Australia/Tasmania', 'Australia/Victoria', 'Australia/West',
+      'Australia/North', 'Australia/Eucla', 'Australia/LHI',
+      'Australia/Lord_Howe', 'Australia/Lindeman', 'Australia/Currie',
+      'Australia/Broken_Hill', 'Australia/Yancowinna'
+    ];
+    
+    if (australianTimezones.some(tz => timezone.includes(tz))) {
+      console.log('Detected Australian timezone:', timezone);
+      localStorage.setItem('user_country', 'AU');
+      localStorage.setItem('user_country_time', Date.now().toString());
+      return 'AU';
+    }
+
     // Fallback to region detection
-    if (timezone.includes('America')) {
+    if (timezone.includes('Australia')) {
+      localStorage.setItem('user_country', 'AU');
+      localStorage.setItem('user_country_time', Date.now().toString());
+      return 'AU';
+    } else if (timezone.includes('America')) {
       if (timezone.includes('Mexico')) return 'MX';
       if (timezone.includes('Canada')) return 'CA';
       return 'US';
     } else if (timezone.includes('Europe')) {
       return 'EU';
-    } else if (timezone.includes('Australia')) {
-      return 'AU';
     } else if (timezone.includes('Asia')) {
       if (timezone.includes('Tokyo')) return 'JP';
       if (timezone.includes('Shanghai') || timezone.includes('Beijing')) return 'CN';
@@ -330,7 +354,7 @@ export async function detectUserCountry(): Promise<string> {
       return 'ZA';
     } else if (timezone.includes('Pacific')) {
       if (timezone.includes('Auckland')) return 'NZ';
-      return 'AU';
+      return 'AU'; // Pacific islands often use Australian services
     }
   } catch (error) {
     console.error('Timezone detection error:', error);
