@@ -106,117 +106,32 @@ export async function sendHealthConsultation(
   } catch (error) {
     console.error('Health consultation error:', error);
     
-    // Use fallback mock response when API is not configured
-    return getMockHealthResponse(message, context, model);
+    // Return error response with instructions
+    return {
+      success: false,
+      response: `The AI health consultation service is not currently configured. 
+
+To enable it, please add one of these API keys to your Netlify environment variables:
+• OPENAI_API_KEY for GPT-4
+• ANTHROPIC_API_KEY for Claude
+
+Once configured, the AI will provide comprehensive health information similar to ChatGPT.
+
+For now, please consult your healthcare provider for medical questions.`,
+      hasEmergency: false,
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0
+      },
+      model,
+      timestamp: new Date().toISOString(),
+      disclaimer: 'This service provides health information only. Always consult healthcare professionals for medical advice.',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
 }
 
-// Mock response generator for when API is not configured
-function getMockHealthResponse(
-  message: string,
-  context: HealthContext,
-  model: string
-): HealthConsultationResponse {
-  const lowerMessage = message.toLowerCase();
-  let response = '';
-
-  // Generate contextual mock responses
-  if (lowerMessage.includes('medication') || lowerMessage.includes('medicine')) {
-    const medCount = context.medications.length;
-    response = `Based on your medical records, you're currently taking ${medCount} medication(s)${medCount > 0 ? ': ' + context.medications.join(', ') : ''}.
-
-For information about any medication:
-• Check the medication guide that came with your prescription
-• Consult your pharmacist for specific questions  
-• Never change dosage without doctor approval
-• Report any side effects to your healthcare provider
-
-📝 This is health information only, not medical advice. Always consult your healthcare provider about medications.`;
-  } else if (lowerMessage.includes('allergy') || lowerMessage.includes('allergic')) {
-    const allergyList = context.allergies.length > 0 ? context.allergies.join(', ') : 'None listed';
-    response = `According to your emergency information, you have the following allergies listed: ${allergyList}.
-
-Important allergy reminders:
-• Always inform healthcare providers about all allergies
-• Wear medical alert identification if you have severe allergies
-• Keep emergency medications (like EpiPen) accessible
-• Read all medication and food labels carefully
-• Be extra cautious when trying new foods while traveling
-
-📝 This is health information only. Consult an allergist for specific allergy management.`;
-  } else if (lowerMessage.includes('travel') || lowerMessage.includes('rv') || lowerMessage.includes('trip')) {
-    response = `Here are some health tips for RV travel:
-
-Travel Health Essentials:
-• Keep a well-stocked first aid kit in your RV
-• Store medications in a temperature-controlled area
-• Stay hydrated, especially in hot climates
-• Maintain good hygiene to prevent illness
-• Know the location of nearby hospitals along your route
-• Keep emergency contacts easily accessible
-• Consider travel insurance that covers medical emergencies
-
-RV-Specific Health Considerations:
-• Ensure proper ventilation to prevent carbon monoxide exposure
-• Use safe water sources and consider water filtration
-• Practice food safety with limited refrigeration
-• Take breaks during long drives to prevent fatigue
-
-📝 This is general health information. Consult your doctor before traveling if you have specific health conditions.`;
-  } else if (lowerMessage.includes('emergency') || lowerMessage.includes('urgent')) {
-    response = `If you're experiencing a medical emergency, please:
-
-1. Call emergency services immediately
-2. Do not rely on this app for emergency medical decisions
-3. If possible, have someone stay with you
-4. Provide your location to emergency responders
-5. Follow dispatcher instructions
-
-Common emergency symptoms requiring immediate attention:
-• Chest pain or pressure
-• Difficulty breathing
-• Severe bleeding
-• Loss of consciousness
-• Signs of stroke (facial drooping, slurred speech)
-• Severe allergic reactions
-
-📝 This information is not a substitute for emergency medical care. Call emergency services immediately if you're experiencing a medical emergency.`;
-  } else {
-    // Default response
-    response = `I understand you're asking about "${message}".
-
-While I can provide general health information, I recommend discussing this with your healthcare provider for personalized medical advice.
-
-General Health Information:
-• Regular check-ups are important for preventive care
-• Maintain a balanced diet and stay hydrated
-• Get adequate sleep (7-9 hours for adults)
-• Exercise regularly as appropriate for your fitness level
-• Manage stress through relaxation techniques
-• Keep your medical records updated
-
-Would you like me to help you:
-• Prepare questions for your doctor about this topic?
-• Explain any medical terms you've encountered?
-• Provide general wellness information?
-
-📝 Remember: This is health information only, not medical advice. Always consult qualified healthcare professionals for medical concerns.`;
-  }
-
-  return {
-    success: true,
-    response,
-    hasEmergency: checkForEmergency(message),
-    usage: {
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0
-    },
-    model,
-    timestamp: new Date().toISOString(),
-    disclaimer: 'This is health information only, not medical advice. Always consult healthcare professionals for medical concerns.'
-  };
-}
 
 // Check if message contains emergency keywords
 export function checkForEmergency(message: string): boolean {
