@@ -18,11 +18,14 @@ import { useMedical } from '@/contexts/MedicalContext';
 import MedicalDocuments from './MedicalDocuments';
 import MedicalMedications from './MedicalMedications';
 import MedicalEmergency from './MedicalEmergency';
+import { DocumentUploadDialog } from './DocumentUploadDialog';
 import { format } from 'date-fns';
 
 export const MedicalDashboard: React.FC = () => {
   const { records, medications, emergencyInfo, isLoading } = useMedical();
   const [activeTab, setActiveTab] = useState('overview');
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [medicationDialogOpen, setMedicationDialogOpen] = useState(false);
 
   // Calculate stats
   const activeMediacations = medications.filter(m => m.active).length;
@@ -52,11 +55,21 @@ export const MedicalDashboard: React.FC = () => {
           <p className="text-muted-foreground">Manage your health documents and information</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setUploadDialogOpen(true)}
+          >
             <Upload className="h-4 w-4 mr-2" />
             Upload Document
           </Button>
-          <Button size="sm">
+          <Button 
+            size="sm"
+            onClick={() => {
+              setActiveTab('medications');
+              setMedicationDialogOpen(true);
+            }}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add Medication
           </Button>
@@ -216,13 +229,22 @@ export const MedicalDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="medications">
-          <MedicalMedications />
+          <MedicalMedications 
+            openAddDialog={medicationDialogOpen}
+            onDialogChange={setMedicationDialogOpen}
+          />
         </TabsContent>
 
         <TabsContent value="emergency">
           <MedicalEmergency />
         </TabsContent>
       </Tabs>
+
+      {/* Document Upload Dialog */}
+      <DocumentUploadDialog 
+        open={uploadDialogOpen} 
+        onOpenChange={setUploadDialogOpen} 
+      />
     </div>
   );
 };

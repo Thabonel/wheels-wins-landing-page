@@ -33,8 +33,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MedicalMedication, MedicationFrequency } from '@/types/medical';
+import { useEffect } from 'react';
 
-export default function MedicalMedications() {
+interface MedicalMedicationsProps {
+  openAddDialog?: boolean;
+  onDialogChange?: (open: boolean) => void;
+}
+
+export default function MedicalMedications({ openAddDialog, onDialogChange }: MedicalMedicationsProps) {
   const { medications, addMedication, updateMedication, deleteMedication } = useMedical();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMedication, setEditingMedication] = useState<MedicalMedication | null>(null);
@@ -49,6 +55,17 @@ export default function MedicalMedications() {
     notes: '',
     active: true
   });
+
+  // Handle external dialog trigger
+  useEffect(() => {
+    if (openAddDialog) {
+      openDialog();
+      // Reset the external trigger
+      if (onDialogChange) {
+        onDialogChange(false);
+      }
+    }
+  }, [openAddDialog]);
 
   // Separate active and inactive medications
   const activeMedications = medications.filter(m => m.active);

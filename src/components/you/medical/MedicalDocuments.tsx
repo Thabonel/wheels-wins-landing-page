@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useMedical } from '@/contexts/MedicalContext';
 import { format } from 'date-fns';
+import { DocumentUploadDialog } from './DocumentUploadDialog';
 import {
   Select,
   SelectContent,
@@ -40,6 +41,7 @@ export default function MedicalDocuments() {
   const [filterType, setFilterType] = useState<string>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   // Filter records based on search and type
   const filteredRecords = records.filter(record => {
@@ -106,7 +108,7 @@ export default function MedicalDocuments() {
                 <SelectItem value="imaging">Imaging</SelectItem>
               </SelectContent>
             </Select>
-            <Button>
+            <Button onClick={() => setUploadDialogOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Upload
             </Button>
@@ -189,7 +191,7 @@ export default function MedicalDocuments() {
                   : 'Upload your first medical document to get started'}
               </p>
               {!searchTerm && filterType === 'all' && (
-                <Button>
+                <Button onClick={() => setUploadDialogOpen(true)}>
                   <Upload className="h-4 w-4 mr-2" />
                   Upload Document
                 </Button>
@@ -216,6 +218,12 @@ export default function MedicalDocuments() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Upload Document Dialog */}
+      <DocumentUploadDialog 
+        open={uploadDialogOpen} 
+        onOpenChange={setUploadDialogOpen} 
+      />
     </div>
   );
 }
