@@ -34,6 +34,7 @@ import {
   saveConsultationToHistory,
   formatHealthResponse 
 } from '@/services/health-ai/healthConsultationClient';
+import { getLocalEmergencyInfo } from '@/services/emergency/emergencyService';
 import {
   Dialog,
   DialogContent,
@@ -63,7 +64,21 @@ export default function HealthConsultation() {
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<HealthMessage[]>([]);
   const [input, setInput] = useState('');
+  const [emergencyNumber, setEmergencyNumber] = useState('911');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Get local emergency number
+  useEffect(() => {
+    const getEmergencyNumber = async () => {
+      try {
+        const emergencyInfo = await getLocalEmergencyInfo();
+        setEmergencyNumber(emergencyInfo.number);
+      } catch (error) {
+        console.error('Error getting emergency number:', error);
+      }
+    };
+    getEmergencyNumber();
+  }, []);
 
   // Initialize with welcome message
   useEffect(() => {
@@ -120,7 +135,7 @@ How can I help you today?`,
       const emergencyMessage: HealthMessage = {
         id: `emergency-${Date.now()}`,
         role: 'system',
-        content: '🚨 EMERGENCY DETECTED: If this is a medical emergency, call 911 immediately or go to the nearest emergency room. Do not rely on this assistant for emergency medical situations.',
+        content: `🚨 EMERGENCY DETECTED: If this is a medical emergency, call ${emergencyNumber} immediately or go to the nearest emergency room. Do not rely on this assistant for emergency medical situations.`,
         timestamp: new Date(),
         hasEmergency: true
       };
@@ -162,11 +177,11 @@ How can I help you today?`,
     } catch (error) {
       console.error('Consultation error:', error);
       
-      // Add error message
+      // Add error message with correct emergency number
       const errorMessage: HealthMessage = {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: 'I apologize, but I\'m unable to process your health question at the moment. For urgent medical concerns, please contact your healthcare provider or call 911.',
+        content: `I apologize, but I'm unable to process your health question at the moment. For urgent medical concerns, please contact your healthcare provider or call ${emergencyNumber}.`,
         timestamp: new Date()
       };
       
@@ -388,7 +403,7 @@ How can I help you today?`,
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription className="text-xs">
-          This assistant provides health information only. Always consult healthcare professionals for medical advice. In emergencies, call 911.
+          This assistant provides health information only. Always consult healthcare professionals for medical advice. In emergencies, call {emergencyNumber}.
         </AlertDescription>
       </Alert>
     </div>
