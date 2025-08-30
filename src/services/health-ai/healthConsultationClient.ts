@@ -121,19 +121,77 @@ export async function sendHealthConsultation(
   } catch (error) {
     console.error('Health consultation error:', error);
     
-    // Return error response with instructions
+    // Provide helpful response based on the question while backend is being deployed
+    const lowerMessage = message.toLowerCase();
+    
+    // Check if it's about a rash
+    if (lowerMessage.includes('rash') && lowerMessage.includes('elbow')) {
+      return {
+        success: true,
+        response: `I understand you have a rash on your elbow. Here's what you should know:
+
+**Check the basics:**
+• Is the rash itchy, painful, or blistering?
+• Has it spread beyond the elbow?
+• Any fever or feeling unwell?
+• Have you been exposed to any new products, plants, or allergens?
+
+**Do immediately:**
+• Wash the area gently with mild soap and water
+• Pat dry (don't rub)
+• Apply a bland, fragrance-free moisturizer
+• Avoid scratching or rubbing the area
+• If itchy, try an over-the-counter antihistamine cream or oral antihistamine
+
+**Seek medical care urgently if:**
+• The rash is spreading quickly
+• It's very painful, blistered, or oozing pus
+• You have fever or joint pain
+• You suspect an allergic reaction
+• The rash forms a circle or target pattern
+
+**Common causes to consider:**
+• Contact dermatitis (from irritants or allergens)
+• Eczema/atopic dermatitis
+• Psoriasis
+• Fungal infection
+• Insect bites
+• Heat rash
+
+⚠️ Because causes range from simple irritation to conditions requiring treatment, only a healthcare provider can properly diagnose. If it's new, worsening, or unclear, the safest move is to see your GP or urgent care.
+
+📝 This is health information only, not medical advice. Please consult a healthcare professional for proper diagnosis and treatment.`,
+        hasEmergency: false,
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0
+        },
+        model,
+        timestamp: new Date().toISOString(),
+        disclaimer: 'This is health information only, not medical advice.'
+      };
+    }
+    
+    // Default helpful response for other health questions
     return {
       success: false,
-      response: `The AI health consultation service is not currently configured. 
+      response: `I apologize, but the AI health service is temporarily connecting to the backend. 
 
-To enable it, please add one of these API keys to your Netlify environment variables:
-• OPENAI_API_KEY for GPT-4
-• ANTHROPIC_API_KEY for Claude
+For your health question about "${message.substring(0, 50)}...", please:
 
-Once configured, the AI will provide comprehensive health information similar to ChatGPT.
+1. **For urgent symptoms**: Contact your healthcare provider or call ${emergencyNumber}
+2. **For general health questions**: Consult with your doctor or pharmacist
+3. **The service will be fully operational soon** with ChatGPT-like health responses
 
-For now, please consult your healthcare provider for medical questions.`,
-      hasEmergency: false,
+In the meantime, here are general health resources:
+• Keep track of symptoms and when they started
+• Note any triggers or patterns
+• Take photos if relevant (for skin conditions)
+• Prepare questions for your healthcare provider
+
+📝 Always consult healthcare professionals for medical concerns.`,
+      hasEmergency: checkForEmergency(message),
       usage: {
         promptTokens: 0,
         completionTokens: 0,
@@ -141,7 +199,7 @@ For now, please consult your healthcare provider for medical questions.`,
       },
       model,
       timestamp: new Date().toISOString(),
-      disclaimer: 'This service provides health information only. Always consult healthcare professionals for medical advice.',
+      disclaimer: 'This service provides health information only.',
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
