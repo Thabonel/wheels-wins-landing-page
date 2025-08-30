@@ -153,27 +153,24 @@ How can I help you today?`,
         emergencyNumber
       });
 
-      if (result.success) {
-        const assistantMessage: HealthMessage = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: formatHealthResponse(result.response),
-          timestamp: new Date()
-        };
+      // Always display the response, whether success or not
+      const assistantMessage: HealthMessage = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: formatHealthResponse(result.response),
+        timestamp: new Date()
+      };
 
-        setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, assistantMessage]);
 
-        // Save to history
-        if (user?.id) {
-          await saveConsultationToHistory(
-            user.id,
-            userMessage,
-            result.response,
-            hasEmergency
-          );
-        }
-      } else {
-        throw new Error(result.error || 'Failed to get response');
+      // Save to history if successful
+      if (result.success && user?.id) {
+        await saveConsultationToHistory(
+          user.id,
+          userMessage,
+          result.response,
+          hasEmergency
+        );
       }
     } catch (error) {
       console.error('Consultation error:', error);
