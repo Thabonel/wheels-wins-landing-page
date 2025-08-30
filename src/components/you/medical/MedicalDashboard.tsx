@@ -12,13 +12,18 @@ import {
   Clock,
   Calendar,
   Shield,
-  Heart
+  Heart,
+  Bot,
+  History
 } from 'lucide-react';
 import { useMedical } from '@/contexts/MedicalContext';
 import MedicalDocuments from './MedicalDocuments';
 import MedicalMedications from './MedicalMedications';
 import MedicalEmergency from './MedicalEmergency';
+import HealthConsultation from './HealthConsultation';
+import ConsultationHistory from './ConsultationHistory';
 import { DocumentUploadDialog } from './DocumentUploadDialog';
+import { MedicalDisclaimer, MedicalDisclaimerBanner } from './MedicalDisclaimer';
 import { format } from 'date-fns';
 
 export const MedicalDashboard: React.FC = () => {
@@ -26,6 +31,8 @@ export const MedicalDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [medicationDialogOpen, setMedicationDialogOpen] = useState(false);
+  const [showInitialDisclaimer, setShowInitialDisclaimer] = useState(true);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
   // Calculate stats
   const activeMediacations = medications.filter(m => m.active).length;
@@ -46,8 +53,28 @@ export const MedicalDashboard: React.FC = () => {
     );
   }
 
+  // Show initial disclaimer on first access
+  if (showInitialDisclaimer && !disclaimerAccepted) {
+    return (
+      <MedicalDisclaimer 
+        type="initial"
+        onAccept={() => {
+          setDisclaimerAccepted(true);
+          setShowInitialDisclaimer(false);
+        }}
+        onDecline={() => {
+          // Redirect away from medical records if declined
+          window.history.back();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Persistent disclaimer banner */}
+      <MedicalDisclaimerBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -127,11 +154,13 @@ export const MedicalDashboard: React.FC = () => {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="medications">Medications</TabsTrigger>
           <TabsTrigger value="emergency">Emergency</TabsTrigger>
+          <TabsTrigger value="consultation">AI Consult</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -237,6 +266,14 @@ export const MedicalDashboard: React.FC = () => {
 
         <TabsContent value="emergency">
           <MedicalEmergency />
+        </TabsContent>
+
+        <TabsContent value="consultation">
+          <HealthConsultation />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <ConsultationHistory />
         </TabsContent>
       </Tabs>
 
