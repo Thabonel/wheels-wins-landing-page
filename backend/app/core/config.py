@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     """
     
     # =====================================================
-    # ENVIRONMENT
+    # ENVIRONMENT - v1.1.0 with Health Consultation
     # =====================================================
     
     NODE_ENV: Environment = Field(
