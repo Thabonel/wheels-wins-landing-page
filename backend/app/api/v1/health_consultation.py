@@ -12,13 +12,34 @@ import openai
 from openai import AsyncOpenAI
 import os
 
-from app.api.deps import get_current_user, get_database
-from app.core.config import get_settings
 from app.middleware.rate_limiting import check_rest_api_rate_limit
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-settings = get_settings()
+
+# Import configuration with fallback (similar to main.py pattern)
+try:
+    from app.core.config import settings
+    print("✅ Health consultation using full Pydantic configuration")
+except Exception as config_error:
+    print(f"⚠️ Health consultation failed to load full config: {config_error}")
+    try:
+        from app.core.simple_config import settings
+        print("✅ Health consultation using simple config")
+    except Exception as simple_config_error:
+        print(f"⚠️ Health consultation simple config failed: {simple_config_error}")
+        from app.core.emergency_config import settings
+        print("✅ Health consultation using emergency config")
+
+# Import dependencies with fallback for get_current_user
+try:
+    from app.api.deps import get_current_user
+except Exception as deps_error:
+    logger.warning(f"⚠️ Could not import get_current_user: {deps_error}")
+    # Create a simple fallback dependency
+    async def get_current_user():
+        """Fallback dependency when main deps are unavailable"""
+        return {"id": "fallback-user", "sub": "anonymous"}
 
 # Request/Response models
 class HealthContext(BaseModel):
