@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
+import TripRatingWidget from './TripRatingWidget';
 
 interface TripTemplateCardProps {
   template: TripTemplate;
@@ -214,6 +215,14 @@ export default function TripTemplateCard({
             <span>${template.suggestedBudget.toLocaleString()}</span>
           </div>
         </div>
+
+        {/* Rating */}
+        <TripRatingWidget
+          templateId={template.id}
+          averageRating={template.average_rating || 0}
+          totalRatings={template.total_ratings || 0}
+          showDetails={true}
+        />
 
         {/* Highlights */}
         <div className="space-y-1">
