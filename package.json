@@ -67,7 +67,7 @@
     "@fullcalendar/timegrid": "^6.1.17",
     "@mapbox/mapbox-gl-directions": "^4.3.1",
     "@mapbox/mapbox-gl-geocoder": "^5.0.3",
-    "@netlify/functions": "^4.2.1",
+    "@netlify/functions": "2.8.2",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",
@@ -117,6 +117,7 @@
     "next-themes": "^0.3.0",
     "nodemailer": "^7.0.4",
     "pdf-lib": "^1.17.1",
+    "pdf-parse": "^1.1.1",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -128,6 +129,7 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "tesseract.js": "^6.0.1",
     "uuid": "^11.1.0",
     "vaul": "^0.9.3",
     "ws": "^8.18.3",
@@ -188,7 +190,7 @@
     "lodash": "^4.17.21"
   },
   "engines": {
-    "node": ">=18 <=21"
+    "node": ">=18 <=22"
   },
   "optionalDependencies": {
     "@esbuild/linux-x64": "^0.25.8",
