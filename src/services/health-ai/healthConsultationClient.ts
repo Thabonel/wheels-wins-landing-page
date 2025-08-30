@@ -6,8 +6,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { MedicalMedication, MedicalEmergencyInfo } from '@/types/medical';
 
-// API endpoint (will be proxied through Netlify)
-const HEALTH_API_ENDPOINT = '/.netlify/functions/health-consultation';
+// Use backend API that already has the keys configured
+const getHealthApiEndpoint = () => {
+  // Use the same backend as PAM
+  const backendUrl = import.meta.env.VITE_PAM_BACKEND_URL || 
+                     import.meta.env.VITE_API_URL || 
+                     'https://pam-backend.onrender.com';
+  return `${backendUrl}/api/v1/health-consultation`;
+};
 
 // Response types
 export interface HealthConsultationResponse {
@@ -75,24 +81,33 @@ export async function sendHealthConsultation(
   options: {
     model?: 'fast' | 'accurate' | 'balanced';
     disclaimerAccepted?: boolean;
+    emergencyNumber?: string;
   } = {}
 ): Promise<HealthConsultationResponse> {
   const {
     model = 'balanced',
-    disclaimerAccepted = true
+    disclaimerAccepted = true,
+    emergencyNumber = '911'
   } = options;
 
   try {
-    const response = await fetch(HEALTH_API_ENDPOINT, {
+    // Get user token for authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Not authenticated. Please log in.');
+    }
+
+    const response = await fetch(getHealthApiEndpoint(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         message,
         context,
-        model,
-        disclaimerAccepted
+        emergency_number: emergencyNumber,
+        disclaimer_accepted: disclaimerAccepted
       })
     });
 

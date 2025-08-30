@@ -104,6 +104,7 @@ from app.api.v1 import (
     performance,
     digistore24,
     national_parks,
+    health_consultation,
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import observability as observability_api
@@ -597,6 +598,7 @@ except Exception as e:
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
+app.include_router(health_consultation.router, prefix="/api/v1", tags=["Health Consultation"])
 
 # Conditionally register routers that might fail to import
 if camping_router:

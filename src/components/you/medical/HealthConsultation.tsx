@@ -149,7 +149,8 @@ How can I help you today?`,
       // Call the real AI endpoint
       const result = await sendHealthConsultation(userMessage, context, {
         model: 'balanced',
-        disclaimerAccepted
+        disclaimerAccepted,
+        emergencyNumber
       });
 
       if (result.success) {
