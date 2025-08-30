@@ -518,7 +518,7 @@ class EnhancedPamOrchestrator:
             self.conversation_states[user_id] = {}
         
         self.conversation_states[user_id].update(updates)
-        self.conversation_states[user_id]['last_message_time'] = datetime.utcnow()
+        self.conversation_states[user_id]['last_message_time'] = datetime.utcnow().isoformat()
     
     def _get_recent_messages(self, user_id: str) -> List[Dict[str, Any]]:
         """Get recent messages from conversation memory"""
@@ -530,7 +530,10 @@ class EnhancedPamOrchestrator:
         if len(message.split()) <= 3:
             # Check if there was a recent message (within 30 seconds)
             if conversation_state.get('last_message_time'):
-                time_diff = (datetime.utcnow() - conversation_state['last_message_time']).total_seconds()
+                # Parse ISO format string back to datetime for comparison
+                from datetime import datetime as dt
+                last_time = dt.fromisoformat(conversation_state['last_message_time'])
+                time_diff = (datetime.utcnow() - last_time).total_seconds()
                 if time_diff < 30:
                     return True
         
