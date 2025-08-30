@@ -27,6 +27,7 @@ from app.core.errors import (
     PAMError, ErrorType, ErrorSeverity, error_handler,
     raise_external_service_error, raise_rate_limit_error
 )
+from app.services.pam.intelligent_conversation import AdvancedIntelligentConversation
 import json
 
 # Import domain-specific nodes
@@ -101,6 +102,7 @@ class EnhancedPamOrchestrator:
         self.knowledge_service = None
         self.tts_manager = None  # Will be initialized in _initialize_tts_service
         self.voice_streaming_manager = None
+        self.intelligent_conversation = None  # Advanced AI conversation handler
         
         # Domain-specific node registry
         self.domain_nodes = {
@@ -117,6 +119,10 @@ class EnhancedPamOrchestrator:
         self.service_capabilities: Dict[str, ServiceCapability] = {}
         self.is_initialized = False
         
+        # Conversation state management
+        self.conversation_states = {}  # user_id -> conversation state
+        self.conversation_memory = {}  # user_id -> recent messages
+        
         # Performance tracking
         self.performance_metrics = {
             "total_requests": 0,
@@ -128,7 +134,8 @@ class EnhancedPamOrchestrator:
             "service_fallbacks": 0,
             "ai_service_calls": 0,
             "simple_responses": 0,
-            "provider_health_checks": 0
+            "provider_health_checks": 0,
+            "intelligent_responses": 0
         }
         
         # Configuration
@@ -148,34 +155,39 @@ class EnhancedPamOrchestrator:
             logger.info("🚀 Initializing Enhanced PAM Orchestrator with AI Service...")
             
             # Initialize AI Service first (core dependency)
-            logger.info("Step 1/6: Initializing AI Service...")
+            logger.info("Step 1/7: Initializing AI Service...")
             await self._initialize_ai_service()
-            logger.info("✅ Step 1/6: AI Service initialization completed")
+            logger.info("✅ Step 1/7: AI Service initialization completed")
+            
+            # Initialize Intelligent Conversation Service
+            logger.info("Step 2/7: Initializing Intelligent Conversation...")
+            await self._initialize_intelligent_conversation()
+            logger.info("✅ Step 2/7: Intelligent Conversation initialization completed")
             
             # Initialize tool registry for function calling
-            logger.info("Step 2/6: Initializing Tool Registry...")
+            logger.info("Step 3/7: Initializing Tool Registry...")
             await self._initialize_tool_registry()
-            logger.info("✅ Step 2/6: Tool Registry initialization completed")
+            logger.info("✅ Step 3/7: Tool Registry initialization completed")
             
             # Initialize knowledge service
-            logger.info("Step 3/6: Initializing Knowledge Service...")
+            logger.info("Step 4/7: Initializing Knowledge Service...")
             await self._initialize_knowledge_service()
-            logger.info("✅ Step 3/6: Knowledge Service initialization completed")
+            logger.info("✅ Step 4/7: Knowledge Service initialization completed")
             
             # Initialize TTS service
-            logger.info("Step 4/6: Initializing TTS Service...")
+            logger.info("Step 5/7: Initializing TTS Service...")
             await self._initialize_tts_service()
-            logger.info("✅ Step 4/6: TTS Service initialization completed")
+            logger.info("✅ Step 5/7: TTS Service initialization completed")
             
             # Initialize voice streaming
-            logger.info("Step 5/6: Initializing Voice Streaming...")
+            logger.info("Step 6/7: Initializing Voice Streaming...")
             await self._initialize_voice_streaming()
-            logger.info("✅ Step 5/6: Voice Streaming initialization completed")
+            logger.info("✅ Step 6/7: Voice Streaming initialization completed")
             
             # Assess initial capabilities
-            logger.info("Step 6/6: Assessing Service Capabilities...")
+            logger.info("Step 7/7: Assessing Service Capabilities...")
             await self._assess_service_capabilities()
-            logger.info("✅ Step 6/6: Service Capabilities assessment completed")
+            logger.info("✅ Step 7/7: Service Capabilities assessment completed")
             
             self.is_initialized = True
             logger.info("✅ Enhanced PAM Orchestrator initialized successfully")
@@ -279,6 +291,39 @@ class EnhancedPamOrchestrator:
                 error_message=str(e)
             )
             raise  # Re-raise to stop initialization
+    
+    async def _initialize_intelligent_conversation(self):
+        """Initialize the intelligent conversation service for AI-powered responses"""
+        try:
+            logger.info("🧠 Initializing Intelligent Conversation Service...")
+            
+            # Create instance of AdvancedIntelligentConversation
+            self.intelligent_conversation = AdvancedIntelligentConversation()
+            
+            # Initialize the service
+            await self.intelligent_conversation.initialize()
+            
+            self.service_capabilities["intelligent_conversation"] = ServiceCapability(
+                name="intelligent_conversation",
+                status=ServiceStatus.HEALTHY,
+                confidence=1.0,
+                last_check=datetime.utcnow(),
+                metadata={"capabilities": ["emotional_intelligence", "context_aware", "learning"]}
+            )
+            
+            logger.info("✅ Intelligent Conversation Service initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"❌ Intelligent Conversation initialization failed: {e}")
+            self.service_capabilities["intelligent_conversation"] = ServiceCapability(
+                name="intelligent_conversation",
+                status=ServiceStatus.UNAVAILABLE,
+                confidence=0.0,
+                last_check=datetime.utcnow(),
+                error_message=str(e)
+            )
+            # Don't raise - allow degraded mode
+            logger.warning("⚠️ PAM will operate with basic responses (no AI intelligence)")
     
     async def _initialize_tool_registry(self):
         """Initialize tool registry for function calling"""
@@ -440,6 +485,75 @@ class EnhancedPamOrchestrator:
                 error_message=str(e)
             )
     
+    async def _update_conversation_memory(self, user_id: str, message: str):
+        """Update conversation memory with recent messages"""
+        if user_id not in self.conversation_memory:
+            self.conversation_memory[user_id] = []
+        
+        # Keep last 10 messages for context
+        self.conversation_memory[user_id].append({
+            'message': message,
+            'timestamp': datetime.utcnow().isoformat(),
+            'type': 'user'
+        })
+        
+        # Limit to last 10 messages
+        if len(self.conversation_memory[user_id]) > 10:
+            self.conversation_memory[user_id] = self.conversation_memory[user_id][-10:]
+    
+    def _get_conversation_state(self, user_id: str) -> Dict[str, Any]:
+        """Get current conversation state for a user"""
+        if user_id not in self.conversation_states:
+            self.conversation_states[user_id] = {
+                'last_intent': None,
+                'last_message_time': None,
+                'context': {},
+                'follow_up_count': 0
+            }
+        return self.conversation_states[user_id]
+    
+    def _update_conversation_state(self, user_id: str, updates: Dict[str, Any]):
+        """Update conversation state for a user"""
+        if user_id not in self.conversation_states:
+            self.conversation_states[user_id] = {}
+        
+        self.conversation_states[user_id].update(updates)
+        self.conversation_states[user_id]['last_message_time'] = datetime.utcnow()
+    
+    def _get_recent_messages(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get recent messages from conversation memory"""
+        return self.conversation_memory.get(user_id, [])
+    
+    def _is_followup_message(self, message: str, conversation_state: Dict[str, Any]) -> bool:
+        """Determine if this is a follow-up message based on context and timing"""
+        # Check if message is short (likely a follow-up)
+        if len(message.split()) <= 3:
+            # Check if there was a recent message (within 30 seconds)
+            if conversation_state.get('last_message_time'):
+                time_diff = (datetime.utcnow() - conversation_state['last_message_time']).total_seconds()
+                if time_diff < 30:
+                    return True
+        
+        # Check for follow-up patterns
+        followup_patterns = [
+            r'^to\s+',  # "to Hobart"
+            r'^from\s+',  # "from Sydney"
+            r'^yes',  # "yes"
+            r'^no',  # "no"
+            r'^what about',  # "what about..."
+            r'^how about',  # "how about..."
+            r'^and\s+',  # "and also..."
+            r'^also',  # "also..."
+        ]
+        
+        import re
+        message_lower = message.lower()
+        for pattern in followup_patterns:
+            if re.match(pattern, message_lower):
+                return True
+        
+        return False
+    
     def _classify_intent(self, message: str) -> Optional[str]:
         """Classify message intent to determine which domain node to use"""
         message_lower = message.lower()
@@ -562,45 +676,147 @@ class EnhancedPamOrchestrator:
             )
             logger.debug("✅ Step 2: Enhanced context built")
             
-            # Step 3: Try domain-specific node routing first
-            logger.debug("Step 3: Checking for domain-specific intent...")
-            intent = self._classify_intent(message)
-            if intent:
-                logger.info(f"🎯 Domain intent detected: {intent}")
-                node_response = await self._route_to_domain_node(intent, message, {
-                    'user_id': user_id,
-                    'session_id': session_id,
-                    'context': context,
-                    'enhanced_context': enhanced_context,
-                    'user_location': user_location
-                })
-                
-                if node_response:
-                    logger.info(f"✅ Successfully processed by {intent} node")
-                    # Format the node response for WebSocket
-                    enhanced_response = {
-                        "content": node_response.get('content', ''),
-                        "type": "chat_response",
-                        "confidence": node_response.get('confidence', 0.9),
-                        "intent": intent,
-                        "node_used": intent,
-                        "capabilities_used": ["domain_node", intent],
-                        "requires_followup": node_response.get('requires_followup', False),
-                        "suggestions": node_response.get('suggestions', []),
-                        "actions": node_response.get('actions', []),
-                        "processing_type": "domain_node"
-                    }
-                    self.performance_metrics["successful_responses"] += 1
-                    logger.debug(f"✅ Step 3: Domain node processing completed")
+            # Update conversation memory
+            await self._update_conversation_memory(user_id, message)
+            
+            # Step 3: Process with Intelligent Conversation first for context-aware understanding
+            logger.debug("Step 3: Processing with Intelligent Conversation...")
+            
+            # Get conversation state for context
+            conversation_state = self._get_conversation_state(user_id)
+            
+            if self.intelligent_conversation:
+                try:
+                    logger.info("🧠 Using Intelligent Conversation for AI-powered response")
                     
-                    # Skip AI processing since node handled it
-                    return enhanced_response
-                else:
-                    logger.warning(f"⚠️ Domain node {intent} failed to process, falling back to AI")
+                    # Build context with conversation history
+                    ai_context = {
+                        'user_id': user_id,
+                        'session_id': session_id,
+                        'conversation_history': self._get_recent_messages(user_id),
+                        'last_intent': conversation_state.get('last_intent'),
+                        'current_page': context.get('current_page') if context else None,
+                        'user_location': user_location
+                    }
+                    
+                    # First, analyze intent with AI
+                    intent_analysis = await self.intelligent_conversation.analyze_intent(message, ai_context)
+                    detected_intent = intent_analysis.get('intent')
+                    confidence = intent_analysis.get('confidence', 0.5)
+                    
+                    # Update conversation state with detected intent
+                    self._update_conversation_state(user_id, {'last_intent': detected_intent})
+                    
+                    # Check if this is a follow-up to a previous domain-specific query
+                    is_followup = self._is_followup_message(message, conversation_state)
+                    
+                    # Route to domain node if intent is domain-specific OR it's a follow-up
+                    domain_intents = ['wheels', 'wins', 'social', 'shop', 'you', 'admin']
+                    if (detected_intent in domain_intents or 
+                        (is_followup and conversation_state.get('last_intent') in domain_intents)):
+                        
+                        # Use previous intent for follow-ups
+                        target_intent = detected_intent if detected_intent in domain_intents else conversation_state.get('last_intent')
+                        
+                        logger.info(f"🎯 Domain intent detected: {target_intent} (confidence: {confidence})")
+                        
+                        # Add context about this being a follow-up
+                        domain_context = {
+                            'user_id': user_id,
+                            'session_id': session_id,
+                            'context': context,
+                            'enhanced_context': enhanced_context,
+                            'user_location': user_location,
+                            'is_followup': is_followup,
+                            'conversation_history': self._get_recent_messages(user_id),
+                            'last_intent': target_intent
+                        }
+                        
+                        node_response = await self._route_to_domain_node(target_intent, message, domain_context)
+                        
+                        if node_response:
+                            logger.info(f"✅ Successfully processed by {target_intent} node")
+                            self.performance_metrics["successful_responses"] += 1
+                            
+                            # Format response
+                            enhanced_response = {
+                                "content": node_response.get('content', ''),
+                                "type": "chat_response",
+                                "confidence": node_response.get('confidence', confidence),
+                                "intent": target_intent,
+                                "node_used": target_intent,
+                                "capabilities_used": ["intelligent_conversation", "domain_node", target_intent],
+                                "requires_followup": node_response.get('requires_followup', False),
+                                "suggestions": node_response.get('suggestions', []),
+                                "actions": node_response.get('actions', []),
+                                "processing_type": "intelligent_domain"
+                            }
+                            
+                            return enhanced_response
+                    
+                    # For general queries or when domain node fails, use intelligent conversation
+                    logger.info("💬 Generating intelligent AI response")
+                    ai_response = await self.intelligent_conversation.generate_response(
+                        message, ai_context, context
+                    )
+                    
+                    self.performance_metrics["intelligent_responses"] += 1
+                    
+                    enhanced_response = {
+                        "content": ai_response.get('content', ''),
+                        "type": "chat_response",
+                        "confidence": ai_response.get('confidence', 0.9),
+                        "intent": detected_intent,
+                        "capabilities_used": ["intelligent_conversation"],
+                        "suggestions": ai_response.get('suggestions', []),
+                        "emotional_insight": ai_response.get('emotional_insight'),
+                        "relationship_depth": ai_response.get('relationship_depth'),
+                        "processing_type": "intelligent_ai"
+                    }
+                    
+                    logger.debug("✅ Step 3: Intelligent Conversation processing completed")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Intelligent Conversation failed: {e}")
+                    # Fall back to basic intent classification
+                    intent = self._classify_intent(message)
+            else:
+                # Fallback to basic intent classification if intelligent conversation unavailable
+                logger.warning("⚠️ Intelligent Conversation not available, using basic classification")
+                intent = self._classify_intent(message)
+                
+                if intent:
+                    logger.info(f"🎯 Basic domain intent detected: {intent}")
+                    node_response = await self._route_to_domain_node(intent, message, {
+                        'user_id': user_id,
+                        'session_id': session_id,
+                        'context': context,
+                        'enhanced_context': enhanced_context,
+                        'user_location': user_location
+                    })
+                    
+                    if node_response:
+                        logger.info(f"✅ Successfully processed by {intent} node")
+                        enhanced_response = {
+                            "content": node_response.get('content', ''),
+                            "type": "chat_response",
+                            "confidence": node_response.get('confidence', 0.9),
+                            "intent": intent,
+                            "node_used": intent,
+                            "capabilities_used": ["domain_node", intent],
+                            "requires_followup": node_response.get('requires_followup', False),
+                            "suggestions": node_response.get('suggestions', []),
+                            "actions": node_response.get('actions', []),
+                            "processing_type": "basic_domain"
+                        }
+                        self.performance_metrics["successful_responses"] += 1
+                        logger.debug(f"✅ Step 3: Basic domain node processing completed")
+                        
+                        return enhanced_response
             
             # Step 4: Process with AI if no domain node handled it
             logger.debug("Step 4: Processing with AI services...")
-            if self.ai_service and self.providers['openai']['health']:
+            if self.ai_orchestrator and self.providers['openai']['health']:
                 logger.info("🧠 Processing with AI Service")
                 logger.debug("Step 3: Processing with AI Service...")
                 ai_response = await self._process_with_ai_service(
@@ -610,10 +826,10 @@ class EnhancedPamOrchestrator:
                 enhanced_response["capabilities_used"] = ["ai_service"]
                 self.performance_metrics["ai_service_calls"] += 1
                 logger.debug("✅ Step 3: AI Service processing completed")
-            elif self.ai_service:
+            elif self.ai_orchestrator:
                 # AI service exists but OpenAI is unhealthy - try direct processing
                 logger.info("🔄 Attempting direct AI processing (OpenAI degraded)")
-                logger.debug(f"AI service status: {self.ai_service}, OpenAI health: {self.providers['openai']['health']}")
+                logger.debug(f"AI orchestrator status: {self.ai_orchestrator}, OpenAI health: {self.providers['openai']['health']}")
                 logger.debug("Step 3: Processing with direct AI response...")
                 try:
                     direct_response = await self._process_direct_ai_response(
@@ -730,8 +946,8 @@ class EnhancedPamOrchestrator:
         try:
             logger.debug(f"🔄 Starting direct AI processing for message: '{message[:50]}...'")
             
-            if not self.ai_service:
-                logger.error("❌ AI service not available for direct processing")
+            if not self.ai_orchestrator:
+                logger.error("❌ AI orchestrator not available for direct processing")
                 return {
                     "content": "I'm currently unable to process your request. Please try again.",
                     "confidence": 0.3,
@@ -820,8 +1036,8 @@ class EnhancedPamOrchestrator:
             logger.debug(f"🧠 Starting AI service processing for message: '{message[:50]}...'")
             
             # Check AI service availability
-            if not self.ai_service:
-                logger.error("❌ AI service not available for enhanced processing")
+            if not self.ai_orchestrator:
+                logger.error("❌ AI orchestrator not available for enhanced processing")
                 raise Exception("AI service not available")
             
             if not self.ai_orchestrator:
