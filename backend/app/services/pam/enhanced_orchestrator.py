@@ -1007,15 +1007,33 @@ Based on these results, please provide a helpful response to the user's original
         try:
             # Build base context directly
             logger.debug("📋 Creating base PamContext...")
+            
+            # Parse current_location if it's a string
+            current_location_value = context.get('user_location') if context else None
+            if isinstance(current_location_value, str) and ',' in current_location_value:
+                try:
+                    # Parse string like '-33.8983, 151.0944' into dict
+                    parts = current_location_value.split(',')
+                    current_location_value = {
+                        'lat': float(parts[0].strip()),
+                        'lng': float(parts[1].strip())
+                    }
+                except (ValueError, IndexError):
+                    logger.warning(f"⚠️ Could not parse location string: {current_location_value}")
+                    current_location_value = None
+            elif not isinstance(current_location_value, dict):
+                current_location_value = None
+            
             base_context = PamContext(
                 user_id=user_id,
-                session_id=session_id,
-                conversation_history=[],
-                user_preferences={},
-                current_location=context.get('user_location') if context else None,
-                active_trip=None,
-                emotional_state="neutral",
-                engagement_level="normal"
+                timestamp=datetime.utcnow(),  # Add required timestamp field
+                current_location=current_location_value,
+                recent_expenses=[],
+                budget_status={},
+                travel_plans={},
+                vehicle_info=context.get('vehicle_info', {}) if context else {},
+                preferences=context.get('user_preferences', {}) if context else {},
+                conversation_history=context.get('conversation_history', []) if context else []
             )
             logger.debug("✅ Base PamContext created")
             
