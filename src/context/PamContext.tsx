@@ -48,7 +48,17 @@ const PamContext = createContext<PamContextType | undefined>(undefined);
 export const usePam = () => {
   const context = useContext(PamContext);
   if (!context) {
-    throw new Error('usePam must be used within a PamProvider');
+    // Return mock PAM context when provider is not available
+    return {
+      isAvailable: false,
+      capabilities: null,
+      generateResponse: async () => '',
+      getProactiveAssistance: async () => [],
+      updateContext: () => {},
+      getRecommendations: async () => [],
+      isLoading: false,
+      error: null
+    };
   }
   return context;
 };

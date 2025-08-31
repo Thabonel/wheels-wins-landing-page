@@ -9,6 +9,7 @@ import PAMAnalyticsDashboard from './PAMAnalyticsDashboard';
 import ObservabilityDashboard from './observability/ObservabilityDashboard';
 import { TestingDashboard } from './TestingDashboard';
 import ShopManagement from './ShopManagement';
+import TripTemplateManagement from './TripTemplateManagement';
 import SupportTickets from './SupportTickets';
 import UserFeedback from './UserFeedback';
 import Settings from './Settings';
@@ -43,6 +44,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <TestingDashboard />;
       case 'Shop Management':
         return <ShopManagement />;
+      case 'Trip Templates':
+        return <TripTemplateManagement />;
       case 'Support Tickets':
         return <SupportTickets />;
       case 'Settings':

@@ -12,13 +12,18 @@ import {
   Clock,
   Calendar,
   Shield,
-  Heart
+  Heart,
+  Bot,
+  History
 } from 'lucide-react';
 import { useMedical } from '@/contexts/MedicalContext';
 import MedicalDocuments from './MedicalDocuments';
 import MedicalMedications from './MedicalMedications';
 import MedicalEmergency from './MedicalEmergency';
+import HealthConsultation from './HealthConsultation';
+import ConsultationHistory from './ConsultationHistory';
 import { DocumentUploadDialog } from './DocumentUploadDialog';
+import { MedicalDisclaimer, MedicalDisclaimerBanner } from './MedicalDisclaimer';
 import { format } from 'date-fns';
 
 export const MedicalDashboard: React.FC = () => {
@@ -26,6 +31,8 @@ export const MedicalDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [medicationDialogOpen, setMedicationDialogOpen] = useState(false);
+  const [showInitialDisclaimer, setShowInitialDisclaimer] = useState(true);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
   // Calculate stats
   const activeMediacations = medications.filter(m => m.active).length;
@@ -36,7 +43,9 @@ export const MedicalDashboard: React.FC = () => {
     return daysUntilRefill <= 7 && daysUntilRefill >= 0;
   }).length;
 
-  const recentDocuments = records.slice(0, 3);
+  const recentDocuments = records
+    .sort((a, b) => new Date(b.upload_date || b.created_at).getTime() - new Date(a.upload_date || a.created_at).getTime())
+    .slice(0, 3);
 
   if (isLoading) {
     return (
@@ -46,8 +55,28 @@ export const MedicalDashboard: React.FC = () => {
     );
   }
 
+  // Show initial disclaimer on first access
+  if (showInitialDisclaimer && !disclaimerAccepted) {
+    return (
+      <MedicalDisclaimer 
+        type="initial"
+        onAccept={() => {
+          setDisclaimerAccepted(true);
+          setShowInitialDisclaimer(false);
+        }}
+        onDecline={() => {
+          // Redirect away from medical records if declined
+          window.history.back();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Persistent disclaimer banner */}
+      <MedicalDisclaimerBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -56,82 +85,85 @@ export const MedicalDashboard: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <Button 
-            variant="outline" 
-            size="sm"
             onClick={() => setUploadDialogOpen(true)}
+            size="sm"
           >
-            <Upload className="h-4 w-4 mr-2" />
+            <Upload className="w-4 h-4 mr-2" />
             Upload Document
           </Button>
           <Button 
+            onClick={() => setMedicationDialogOpen(true)}
+            variant="outline"
             size="sm"
-            onClick={() => {
-              setActiveTab('medications');
-              setMedicationDialogOpen(true);
-            }}
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="w-4 h-4 mr-2" />
             Add Medication
           </Button>
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Documents</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{records.length}</div>
-            <p className="text-xs text-muted-foreground">Total records</p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Documents</p>
+                <p className="text-2xl font-bold">{records.length}</p>
+              </div>
+              <FileText className="w-8 h-8 text-muted-foreground" />
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Medications</CardTitle>
-            <Pill className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeMediacations}</div>
-            <p className="text-xs text-muted-foreground">Current prescriptions</p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Active Medications</p>
+                <p className="text-2xl font-bold">{activeMediacations}</p>
+              </div>
+              <Pill className="w-8 h-8 text-muted-foreground" />
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Refills</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{upcomingRefills}</div>
-            <p className="text-xs text-muted-foreground">Next 7 days</p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Upcoming Refills</p>
+                <p className="text-2xl font-bold">{upcomingRefills}</p>
+              </div>
+              <Clock className="w-8 h-8 text-muted-foreground" />
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Emergency Info</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{emergencyInfo ? '✓' : '!'}</div>
-            <p className="text-xs text-muted-foreground">
-              {emergencyInfo ? 'Configured' : 'Not set'}
-            </p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Emergency Info</p>
+                <p className="text-2xl font-bold">
+                  {emergencyInfo ? 'Configured' : 'Not set'}
+                </p>
+              </div>
+              <AlertCircle className="w-8 h-8 text-muted-foreground" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="medications">Medications</TabsTrigger>
           <TabsTrigger value="emergency">Emergency</TabsTrigger>
+          <TabsTrigger value="consultation">AI Consult</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -144,84 +176,73 @@ export const MedicalDashboard: React.FC = () => {
             <CardContent>
               {recentDocuments.length > 0 ? (
                 <div className="space-y-2">
-                  {recentDocuments.map(doc => (
-                    <div key={doc.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-accent">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
+                  {recentDocuments.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-muted-foreground" />
                         <div>
-                          <p className="text-sm font-medium">{doc.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(doc.created_at), 'MMM d, yyyy')}
+                          <p className="font-medium">{doc.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(doc.upload_date || doc.created_at), 'MMM d, yyyy')}
                           </p>
                         </div>
                       </div>
-                      <Badge variant="secondary">{doc.type.replace('_', ' ')}</Badge>
+                      <Badge variant="outline">{doc.category}</Badge>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No documents yet</p>
+                <p className="text-muted-foreground text-center py-8">
+                  No documents uploaded yet
+                </p>
               )}
             </CardContent>
           </Card>
 
-          {/* Active Medications */}
+          {/* Upcoming Medication Refills */}
           <Card>
             <CardHeader>
-              <CardTitle>Active Medications</CardTitle>
-              <CardDescription>Currently prescribed medications</CardDescription>
+              <CardTitle>Upcoming Refills</CardTitle>
+              <CardDescription>Medications needing refill soon</CardDescription>
             </CardHeader>
             <CardContent>
-              {medications.filter(m => m.active).length > 0 ? (
+              {medications.filter(m => m.refill_date && m.active).length > 0 ? (
                 <div className="space-y-2">
-                  {medications.filter(m => m.active).slice(0, 5).map(med => (
-                    <div key={med.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-accent">
-                      <div className="flex items-center space-x-3">
-                        <Pill className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">{med.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {med.dosage} - {med.frequency?.replace('_', ' ')}
-                          </p>
+                  {medications
+                    .filter(m => m.refill_date && m.active)
+                    .sort((a, b) => new Date(a.refill_date!).getTime() - new Date(b.refill_date!).getTime())
+                    .slice(0, 3)
+                    .map((med) => {
+                      const daysUntilRefill = Math.ceil(
+                        (new Date(med.refill_date!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                      );
+                      return (
+                        <div key={med.id} className="flex items-center justify-between p-3 rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            <Pill className="w-5 h-5 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{med.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {med.dosage} - {med.frequency}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge 
+                            variant={daysUntilRefill <= 3 ? 'destructive' : 'secondary'}
+                          >
+                            {daysUntilRefill} days
+                          </Badge>
                         </div>
-                      </div>
-                      {med.refill_date && (
-                        <div className="text-xs text-muted-foreground">
-                          Refill: {format(new Date(med.refill_date), 'MMM d')}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No active medications</p>
+                <p className="text-muted-foreground text-center py-8">
+                  No upcoming refills
+                </p>
               )}
             </CardContent>
           </Card>
-
-          {/* Emergency Alert */}
-          {!emergencyInfo && (
-            <Card className="border-yellow-200 bg-yellow-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-yellow-600" />
-                  Set Up Emergency Information
-                </CardTitle>
-                <CardDescription>
-                  Add your emergency contacts and medical information for quick access
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setActiveTab('emergency')}
-                  className="w-full sm:w-auto"
-                >
-                  Configure Emergency Info
-                </Button>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="documents">
@@ -237,6 +258,14 @@ export const MedicalDashboard: React.FC = () => {
 
         <TabsContent value="emergency">
           <MedicalEmergency />
+        </TabsContent>
+
+        <TabsContent value="consultation">
+          <HealthConsultation />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <ConsultationHistory />
         </TabsContent>
       </Tabs>
 

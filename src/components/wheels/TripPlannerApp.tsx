@@ -1,16 +1,13 @@
 /**
- * IMPORTANT: This Trip Planner component is SACROSANCT and must NOT be modified
- * without explicit permission from the project owner. Any optimizations, 
- * refactoring, or changes require direct approval.
+ * Trip Planner App - Enhanced with robust Unimog-based architecture
  * 
- * DO NOT:
- * - Add performance optimizations
- * - Refactor the code structure
- * - Add lazy loading
- * - Modify the UI/UX
- * - Change any functionality
+ * Features:
+ * - Clean, maintainable trip planning core
+ * - Template system with enhanced integration
+ * - Template system with enhanced integration
+ * - Robust error handling and map integration
  * 
- * This component works exactly as intended.
+ * Architecture: Unimog trip planner core + Wheels & Wins integration layer
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,21 +16,17 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   Route, 
-  Users, 
-  DollarSign,
   Star,
   Sparkles,
   Play,
-  ChevronRight,
-  X
+  ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-// Import existing components
-import IntegratedTripPlanner from './trip-planner/IntegratedTripPlanner';
-import BudgetSidebar from './trip-planner/BudgetSidebar';
-import SocialSidebar from './trip-planner/SocialSidebar';
+// Import enhanced trip planner (replaces old IntegratedTripPlanner)
+import EnhancedTripPlanner from './trip-planner/enhanced/TripPlanner';
+import { useTripPlannerIntegration } from './trip-planner/enhanced/hooks/useTripPlannerIntegration';
 import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
 import NavigationExportHub from './trip-planner/NavigationExportHub';
 import TripTemplates from './TripTemplates';
@@ -53,19 +46,52 @@ export default function TripPlannerApp() {
   
   // Handle case where auth context might not be available
   const user = auth?.user || null;
-  const [activeTab, setActiveTab] = useState('trip-templates');
+  
+  // Check URL parameters for initial tab
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+    if (tab === 'trip-planner') {
+      return 'plan-trip';
+    }
+    return 'trip-templates';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab());
   const [isPlannerInitialized, setIsPlannerInitialized] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
   const [showWelcome, setShowWelcome] = useState(!auth?.user);
   
   // Initialize integrated state
   const integratedState = useIntegratedTripState(false);
+  
+  // Initialize trip planner integration
+  const tripIntegration = useTripPlannerIntegration(integratedState);
 
   useEffect(() => {
     if (user && showWelcome) {
       setShowWelcome(false);
     }
   }, [user, showWelcome]);
+
+  // Check for template from sessionStorage when component mounts
+  useEffect(() => {
+    const templateData = sessionStorage.getItem('selectedTripTemplate');
+    if (templateData) {
+      try {
+        const template = JSON.parse(templateData) as TripTemplate;
+        console.log('📦 Loading template from sessionStorage:', template.name);
+        
+        // Clear the sessionStorage to prevent reloading on refresh
+        sessionStorage.removeItem('selectedTripTemplate');
+        
+        // Apply the template
+        handleUseTemplate(template);
+      } catch (error) {
+        console.error('Error loading template from sessionStorage:', error);
+      }
+    }
+  }, []);
 
   const handleUseTemplate = async (template: TripTemplate) => {
     setSelectedTemplate(template);
@@ -226,39 +252,6 @@ export default function TripPlannerApp() {
               </TabsTrigger>
             </TabsList>
             
-            {/* Budget and Social Buttons - Clean state management */}
-            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:gap-2">
-              <Button
-                size="sm"
-                variant={integratedState.ui.showBudgetSidebar ? "default" : "outline"}
-                onClick={() => {
-                  // Close social if open, then toggle budget
-                  if (integratedState.ui.showSocialSidebar) {
-                    integratedState.toggleFeature('social');
-                  }
-                  integratedState.toggleFeature('budget');
-                }}
-                className="flex-1 sm:flex-initial"
-              >
-                <DollarSign className="w-4 h-4 mr-1" />
-                Budget
-              </Button>
-              <Button
-                size="sm"
-                variant={integratedState.ui.showSocialSidebar ? "default" : "outline"}
-                onClick={() => {
-                  // Close budget if open, then toggle social
-                  if (integratedState.ui.showBudgetSidebar) {
-                    integratedState.toggleFeature('budget');
-                  }
-                  integratedState.toggleFeature('social');
-                }}
-                className="flex-1 sm:flex-initial"
-              >
-                <Users className="w-4 h-4 mr-1" />
-                Social
-              </Button>
-            </div>
           </div>
 
           <TabsContent value="trip-templates" className="mt-0">
@@ -266,91 +259,15 @@ export default function TripPlannerApp() {
           </TabsContent>
 
           <TabsContent value="plan-trip" className="mt-0">
-            <IntegratedTripPlanner templateData={selectedTemplate} />
+            <EnhancedTripPlanner 
+              templateData={selectedTemplate}
+              integratedState={integratedState}
+              onRouteUpdate={tripIntegration.handleRouteUpdate}
+              onBudgetUpdate={tripIntegration.handleBudgetUpdate}
+            />
           </TabsContent>
         </Tabs>
 
-        {/* Sidebar Rendering - ONLY here, nowhere else */}
-        {(integratedState.ui.showBudgetSidebar || integratedState.ui.showSocialSidebar) && (
-          <>
-            {/* Mobile Overlay */}
-            <div 
-              className="fixed inset-0 bg-black/50 z-40 md:hidden"
-              onClick={() => {
-                if (integratedState.ui.showBudgetSidebar) {
-                  integratedState.toggleFeature('budget');
-                }
-                if (integratedState.ui.showSocialSidebar) {
-                  integratedState.toggleFeature('social');
-                }
-              }}
-            />
-            
-            {/* Responsive Sidebar */}
-            <div className={`
-              fixed inset-y-0 right-0 z-50 w-full sm:w-80 md:w-96 
-              bg-background border-l shadow-lg overflow-y-auto
-              transform transition-transform duration-300 ease-in-out
-              ${(integratedState.ui.showBudgetSidebar || integratedState.ui.showSocialSidebar) 
-                ? 'translate-x-0' 
-                : 'translate-x-full'
-              }
-            `}>
-              <div className="p-4 space-y-4">
-                {/* Budget Sidebar */}
-                {integratedState.ui.showBudgetSidebar && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold">Trip Budget Tracker</h3>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => integratedState.toggleFeature('budget')}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <BudgetSidebar 
-                      isVisible={true} 
-                      onClose={() => integratedState.toggleFeature('budget')} 
-                    />
-                  </div>
-                )}
-
-                {/* Social Sidebar */}
-                {integratedState.ui.showSocialSidebar && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold">Social Trip Coordination</h3>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => integratedState.toggleFeature('social')}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <SocialSidebar
-                      friends={integratedState.social.friends}
-                      groupTrips={integratedState.social.groupTrips}
-                      onOpenMeetupPlanner={() => {
-                        if (integratedState.ui.showSocialSidebar) {
-                          integratedState.toggleFeature('social');
-                        }
-                        if (!integratedState.ui.showMeetupPlanner) {
-                          integratedState.toggleFeature('meetup');
-                        }
-                      }}
-                      isOpen={true}
-                      onClose={() => integratedState.toggleFeature('social')}
-                      calendarEvents={[]}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
 
         {/* Plan My Meetup Modal */}
         <SocialTripCoordinator

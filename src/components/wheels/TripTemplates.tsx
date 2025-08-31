@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useRegion } from '@/context/RegionContext';
 import { useToast } from '@/hooks/use-toast';
-import { getLocationBasedTripTemplates, TripTemplate, incrementTemplateUsage } from '@/services/tripTemplateService';
+import { tripTemplateServiceSafe } from '@/services/tripTemplateServiceSafe';
+import { TripTemplate, incrementTemplateUsage } from '@/services/tripTemplateService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +36,7 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
   const { user } = useAuth();
   const { region } = useRegion();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const [tripTemplates, setTripTemplates] = useState<TripTemplate[]>([]);
   const [filteredTemplates, setFilteredTemplates] = useState<TripTemplate[]>([]);
@@ -56,13 +59,15 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
         setError(null);
         
         console.log(`Loading trip templates for region: ${region}`);
-        const templates = await getLocationBasedTripTemplates(region);
+        const result = await tripTemplateServiceSafe.getLocationBasedTripTemplates(region);
+        const templates = result.templates || [];
         
         setTripTemplates(templates);
         setFilteredTemplates(templates);
         
+        // Don't show error if we have templates
         if (templates.length === 0) {
-          setError('No trip templates available for your region yet. Our scraper is working to find some!');
+          console.log('No templates returned from service');
         }
       } catch (err) {
         console.error('Error loading trip templates:', err);
@@ -161,9 +166,15 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
     if (onUseTemplate) {
       onUseTemplate(template);
     } else {
+      // Store template in sessionStorage for Trip Planner to pick up
+      sessionStorage.setItem('selectedTripTemplate', JSON.stringify(template));
+      
+      // Navigate to Trip Planner tab
+      navigate('/wheels?tab=trip-planner');
+      
       toast({
         title: "Template Selected",
-        description: `${template.name} has been selected. Switch to the Trip Map Planner tab to customize it.`,
+        description: `${template.name} has been loaded into the Trip Planner.`,
       });
     }
   };

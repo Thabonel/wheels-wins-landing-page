@@ -27,7 +27,28 @@ class OpenAIModels:
     # Latest models as of January 2025
     # These will be updated as OpenAI releases new models
     LATEST_MODELS = {
-        # GPT-4 Omni series (multimodal, faster, cheaper)
+        # GPT-5 series (latest generation)
+        "gpt-5": {
+            "name": "gpt-5",
+            "context": 256000,
+            "max_output": 32768,
+            "supports_vision": True,
+            "supports_functions": True,
+            "cost_per_1k_input": 0.002,
+            "cost_per_1k_output": 0.008,
+            "released": "2025-01"
+        },
+        "gpt-5-mini": {
+            "name": "gpt-5-mini",
+            "context": 128000,
+            "max_output": 16384,
+            "supports_vision": True,
+            "supports_functions": True,
+            "cost_per_1k_input": 0.0001,
+            "cost_per_1k_output": 0.0004,
+            "released": "2025-01"
+        },
+        # GPT-4 Omni series (previous generation, still available)
         "gpt-4o": {
             "name": "gpt-4o",
             "context": 128000,
@@ -85,41 +106,53 @@ class OpenAIModels:
     # Model selection by purpose (in priority order)
     MODEL_SELECTION = {
         ModelPurpose.GENERAL: [
-            "gpt-4o",           # Best overall model
-            "gpt-4o-mini",      # Faster, cheaper alternative
-            "gpt-4-turbo",      # Fallback
+            "gpt-5",            # Latest and best model
+            "gpt-5-mini",       # Faster, cheaper alternative
+            "gpt-4o",           # Previous generation fallback
+            "gpt-4o-mini",      # Cheaper fallback
+            "gpt-4-turbo",      # Legacy fallback
             "gpt-3.5-turbo"     # Emergency fallback
         ],
         ModelPurpose.COMPLEX: [
-            "gpt-4o",           # Best for complex reasoning
-            "gpt-4-turbo",      # Good alternative
-            "gpt-4-turbo-preview",
+            "gpt-5",            # Best for complex reasoning
+            "gpt-4o",           # Good alternative
+            "gpt-4-turbo",      # Another alternative
+            "gpt-5-mini",       # Fast fallback
             "gpt-4o-mini"       # Last resort
         ],
         ModelPurpose.QUICK: [
-            "gpt-4o-mini",      # Fast and cheap
+            "gpt-5-mini",       # Fast and cheap with latest capabilities
+            "gpt-4o-mini",      # Previous fast model
             "gpt-3.5-turbo",    # Even cheaper
-            "gpt-4o"            # If others fail
+            "gpt-5"             # If others fail
         ],
         ModelPurpose.ANALYSIS: [
-            "gpt-4o",           # Best for analysis
+            "gpt-5",            # Best for analysis
+            "gpt-4o",           # Good fallback
+            "gpt-5-mini",       # Cheaper alternative
             "gpt-4-turbo",
             "gpt-4o-mini"
         ],
         ModelPurpose.EMOTIONAL: [
-            "gpt-4o",           # Best emotional intelligence
+            "gpt-5",            # Best emotional intelligence
+            "gpt-4o",           # Good alternative
+            "gpt-5-mini",       # Cheaper option
             "gpt-4-turbo",
             "gpt-4o-mini"
         ],
         ModelPurpose.FUNCTION_CALL: [
-            "gpt-4o",           # Best function calling
-            "gpt-4o-mini",      # Good and cheap
+            "gpt-5",            # Best function calling
+            "gpt-5-mini",       # Good and cheap
+            "gpt-4o",           # Previous best
+            "gpt-4o-mini",      # Cheaper alternative
             "gpt-4-turbo",
             "gpt-3.5-turbo"
         ],
         ModelPurpose.VISION: [
-            "gpt-4o",           # Best vision model
-            "gpt-4o-mini",      # Cheaper vision
+            "gpt-5",            # Best vision model
+            "gpt-5-mini",       # Cheaper vision
+            "gpt-4o",           # Previous vision model
+            "gpt-4o-mini",      # Cheaper alternative
             "gpt-4-turbo"       # Also supports vision
         ],
         ModelPurpose.EMBEDDING: [
@@ -158,7 +191,7 @@ class OpenAIModels:
     @classmethod
     def get_default_model(cls) -> str:
         """Get the default model (latest and best)"""
-        return "gpt-4o"
+        return "gpt-5"
     
     @classmethod
     def get_fallback_chain(cls, purpose: ModelPurpose = ModelPurpose.GENERAL) -> List[str]:

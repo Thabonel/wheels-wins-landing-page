@@ -29,7 +29,7 @@ export function SentryTestButton() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 space-y-2">
+    <div className="fixed top-20 left-4 z-50 space-y-2">
       <div className="bg-white border border-gray-300 rounded-lg p-2 shadow-lg">
         <div className="text-xs text-gray-600 mb-2">Sentry Test (Dev Only)</div>
         <div className="space-y-1">

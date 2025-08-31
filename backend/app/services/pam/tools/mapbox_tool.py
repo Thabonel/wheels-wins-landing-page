@@ -56,7 +56,7 @@ class MapboxTool(BaseTool):
     
     def __init__(self):
         super().__init__(
-            name="mapbox_navigator",
+            tool_name="mapbox_navigator",
             description="Plan RV routes, find campgrounds, and navigate safely",
             capabilities=[ToolCapability.LOCATION_SEARCH, ToolCapability.ROUTE_PLANNING]
         )

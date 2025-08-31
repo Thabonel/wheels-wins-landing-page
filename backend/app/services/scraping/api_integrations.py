@@ -66,7 +66,18 @@ class GooglePlacesAPI(RateLimitedAPI):
         super().__init__(rate_limit_per_minute=100)  # Adjust based on your quota
         
         # Enhanced debugging for environment variable access
-        self.api_key = getattr(settings, 'GOOGLE_PLACES_API_KEY', None)
+        api_key_raw = getattr(settings, 'GOOGLE_PLACES_API_KEY', None)
+        
+        # Handle SecretStr properly
+        if api_key_raw:
+            from pydantic import SecretStr
+            if isinstance(api_key_raw, SecretStr):
+                self.api_key = api_key_raw.get_secret_value()
+            else:
+                self.api_key = str(api_key_raw)
+        else:
+            self.api_key = None
+        
         logger.info(f"🔍 Google Places API key check: {'✅ Found' if self.api_key else '❌ Not found'}")
         logger.info(f"🔍 googlemaps library available: {'✅ Yes' if GOOGLEMAPS_AVAILABLE else '❌ No'}")
         

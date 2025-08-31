@@ -18,11 +18,26 @@ from app.models.domain.pam import (
 from app.services.database import get_database_service
 from app.services.cache import cache_service
 from app.services.pam.context_manager import ContextManager
-from app.services.ai_service import get_ai_service, AIService, AIResponse
+from app.services.ai.ai_orchestrator import AIOrchestrator
+from app.services.ai.provider_interface import AIMessage, AIResponse
 from app.observability import observe_agent, observe_llm_call
 from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
 from app.services.pam.tools.tool_capabilities import ToolCapability
+from app.core.errors import (
+    PAMError, ErrorType, ErrorSeverity, error_handler,
+    raise_external_service_error, raise_rate_limit_error
+)
+from app.services.pam.intelligent_conversation import AdvancedIntelligentConversation
 import json
+
+# Import domain-specific nodes
+from app.services.pam.nodes.wheels_node import wheels_node
+from app.services.pam.nodes.wins_node import wins_node
+from app.services.pam.nodes.social_node import social_node
+from app.services.pam.nodes.memory_node import memory_node
+from app.services.pam.nodes.shop_node import shop_node
+from app.services.pam.nodes.you_node import you_node
+from app.services.pam.nodes.admin_node import admin_node
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +82,8 @@ class EnhancedPamOrchestrator:
     """Enhanced PAM orchestrator with comprehensive AI service integration"""
     
     def __init__(self):
-        # AI Service integration
-        self.ai_service: Optional[AIService] = None
+        # AI Orchestrator integration (supports OpenAI + Anthropic)
+        self.ai_orchestrator: Optional[AIOrchestrator] = None
         
         # Provider management
         self.providers = {
@@ -87,10 +102,26 @@ class EnhancedPamOrchestrator:
         self.knowledge_service = None
         self.tts_manager = None  # Will be initialized in _initialize_tts_service
         self.voice_streaming_manager = None
+        self.intelligent_conversation = None  # Advanced AI conversation handler
+        
+        # Domain-specific node registry
+        self.domain_nodes = {
+            'wheels': wheels_node,  # Trip planning, routes, vehicle management
+            'wins': wins_node,      # Financial management, budgets, expenses
+            'social': social_node,  # Community features, social interactions
+            'memory': memory_node,  # Context and memory management
+            'shop': shop_node,      # Product recommendations, shopping
+            'you': you_node,        # Personal calendar, scheduling
+            'admin': admin_node     # Administrative functions
+        }
         
         # Capability tracking
         self.service_capabilities: Dict[str, ServiceCapability] = {}
         self.is_initialized = False
+        
+        # Conversation state management
+        self.conversation_states = {}  # user_id -> conversation state
+        self.conversation_memory = {}  # user_id -> recent messages
         
         # Performance tracking
         self.performance_metrics = {
@@ -103,7 +134,8 @@ class EnhancedPamOrchestrator:
             "service_fallbacks": 0,
             "ai_service_calls": 0,
             "simple_responses": 0,
-            "provider_health_checks": 0
+            "provider_health_checks": 0,
+            "intelligent_responses": 0
         }
         
         # Configuration
@@ -123,34 +155,39 @@ class EnhancedPamOrchestrator:
             logger.info("🚀 Initializing Enhanced PAM Orchestrator with AI Service...")
             
             # Initialize AI Service first (core dependency)
-            logger.info("Step 1/6: Initializing AI Service...")
+            logger.info("Step 1/7: Initializing AI Service...")
             await self._initialize_ai_service()
-            logger.info("✅ Step 1/6: AI Service initialization completed")
+            logger.info("✅ Step 1/7: AI Service initialization completed")
+            
+            # Initialize Intelligent Conversation Service
+            logger.info("Step 2/7: Initializing Intelligent Conversation...")
+            await self._initialize_intelligent_conversation()
+            logger.info("✅ Step 2/7: Intelligent Conversation initialization completed")
             
             # Initialize tool registry for function calling
-            logger.info("Step 2/6: Initializing Tool Registry...")
+            logger.info("Step 3/7: Initializing Tool Registry...")
             await self._initialize_tool_registry()
-            logger.info("✅ Step 2/6: Tool Registry initialization completed")
+            logger.info("✅ Step 3/7: Tool Registry initialization completed")
             
             # Initialize knowledge service
-            logger.info("Step 3/6: Initializing Knowledge Service...")
+            logger.info("Step 4/7: Initializing Knowledge Service...")
             await self._initialize_knowledge_service()
-            logger.info("✅ Step 3/6: Knowledge Service initialization completed")
+            logger.info("✅ Step 4/7: Knowledge Service initialization completed")
             
             # Initialize TTS service
-            logger.info("Step 4/6: Initializing TTS Service...")
+            logger.info("Step 5/7: Initializing TTS Service...")
             await self._initialize_tts_service()
-            logger.info("✅ Step 4/6: TTS Service initialization completed")
+            logger.info("✅ Step 5/7: TTS Service initialization completed")
             
             # Initialize voice streaming
-            logger.info("Step 5/6: Initializing Voice Streaming...")
+            logger.info("Step 6/7: Initializing Voice Streaming...")
             await self._initialize_voice_streaming()
-            logger.info("✅ Step 5/6: Voice Streaming initialization completed")
+            logger.info("✅ Step 6/7: Voice Streaming initialization completed")
             
             # Assess initial capabilities
-            logger.info("Step 6/6: Assessing Service Capabilities...")
+            logger.info("Step 7/7: Assessing Service Capabilities...")
             await self._assess_service_capabilities()
-            logger.info("✅ Step 6/6: Service Capabilities assessment completed")
+            logger.info("✅ Step 7/7: Service Capabilities assessment completed")
             
             self.is_initialized = True
             logger.info("✅ Enhanced PAM Orchestrator initialized successfully")
@@ -169,37 +206,50 @@ class EnhancedPamOrchestrator:
             raise
     
     async def _initialize_ai_service(self):
-        """Initialize AI Service integration"""
+        """Initialize AI Orchestrator with multiple provider support"""
         try:
-            logger.info("🧠 Initializing AI Service...")
+            logger.info("🧠 Initializing AI Orchestrator (OpenAI + Anthropic)...")
             
-            # Get the global AI service instance
-            logger.debug("Getting global AI service instance...")
-            self.ai_service = get_ai_service()
-            logger.debug(f"AI service instance obtained: {self.ai_service}")
+            # Create new AI orchestrator instance
+            logger.debug("Creating AI orchestrator instance...")
+            self.ai_orchestrator = AIOrchestrator()
+            logger.debug(f"AI orchestrator instance created: {self.ai_orchestrator}")
             
-            # Wait for initialization
-            if not self.ai_service.client:
-                logger.debug("AI service client not initialized, initializing...")
-                await self.ai_service.initialize()
-                logger.debug(f"AI service initialization completed, client: {self.ai_service.client}")
-            else:
-                logger.debug("AI service client already initialized")
+            # Initialize all configured providers
+            logger.debug("Initializing AI providers...")
+            await self.ai_orchestrator.initialize()
+            logger.debug(f"AI orchestrator initialization completed")
             
-            # Update provider status
-            if self.ai_service.client:
-                logger.debug("Updating provider status and capabilities...")
-                self.providers['openai']['client'] = self.ai_service.client
-                self.providers['openai']['health'] = True
-                self.providers['openai']['last_health_check'] = datetime.utcnow()
+            # Update provider status based on what initialized
+            if self.ai_orchestrator and hasattr(self.ai_orchestrator, 'providers') and self.ai_orchestrator.providers:
+                logger.info(f"✅ AI Orchestrator initialized with {len(self.ai_orchestrator.providers)} providers")
                 
-                # Get service stats safely
-                try:
-                    service_stats = self.ai_service.get_service_stats()
-                    logger.debug(f"AI service stats: {service_stats}")
-                except Exception as stats_e:
-                    logger.warning(f"Failed to get AI service stats: {stats_e}")
-                    service_stats = {"error": "stats_unavailable"}
+                # Check which providers are available
+                provider_names = [p.name for p in self.ai_orchestrator.providers]
+                logger.info(f"Available AI providers: {provider_names}")
+                
+                # Update our provider tracking
+                service_stats = {}
+                for provider in self.ai_orchestrator.providers:
+                    if provider.name == 'openai':
+                        self.providers['openai']['health'] = True
+                        self.providers['openai']['last_health_check'] = datetime.utcnow()
+                    elif provider.name == 'anthropic':
+                        # Add Anthropic to our tracking if not present
+                        if 'anthropic' not in self.providers:
+                            self.providers['anthropic'] = {
+                                'client': None,
+                                'health': True,
+                                'priority': 2,
+                                'fallback_order': 2,
+                                'last_health_check': datetime.utcnow(),
+                                'error_count': 0,
+                                'success_count': 0
+                            }
+                        else:
+                            self.providers['anthropic']['health'] = True
+                            self.providers['anthropic']['last_health_check'] = datetime.utcnow()
+                    service_stats[provider.name] = "available"
                 
                 # Register AI service capability
                 self.service_capabilities["ai_service"] = ServiceCapability(
@@ -212,7 +262,17 @@ class EnhancedPamOrchestrator:
                 
                 logger.info("✅ AI Service integrated successfully")
             else:
-                raise Exception("AI Service client not available after initialization")
+                # Don't raise exception - just log warning and mark as degraded
+                logger.warning("⚠️ AI Orchestrator has no providers available")
+                self.service_capabilities["ai_service"] = ServiceCapability(
+                    name="ai_service",
+                    status=ServiceStatus.DEGRADED,
+                    confidence=0.3,
+                    last_check=datetime.utcnow(),
+                    error_message="No AI providers available",
+                    metadata={"providers": []}
+                )
+                # Don't raise exception to allow other services to initialize
                 
         except Exception as e:
             logger.error(f"❌ AI Service initialization failed: {e}")
@@ -231,6 +291,39 @@ class EnhancedPamOrchestrator:
                 error_message=str(e)
             )
             raise  # Re-raise to stop initialization
+    
+    async def _initialize_intelligent_conversation(self):
+        """Initialize the intelligent conversation service for AI-powered responses"""
+        try:
+            logger.info("🧠 Initializing Intelligent Conversation Service...")
+            
+            # Create instance of AdvancedIntelligentConversation
+            self.intelligent_conversation = AdvancedIntelligentConversation()
+            
+            # Initialize the service
+            await self.intelligent_conversation.initialize()
+            
+            self.service_capabilities["intelligent_conversation"] = ServiceCapability(
+                name="intelligent_conversation",
+                status=ServiceStatus.HEALTHY,
+                confidence=1.0,
+                last_check=datetime.utcnow(),
+                metadata={"capabilities": ["emotional_intelligence", "context_aware", "learning"]}
+            )
+            
+            logger.info("✅ Intelligent Conversation Service initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"❌ Intelligent Conversation initialization failed: {e}")
+            self.service_capabilities["intelligent_conversation"] = ServiceCapability(
+                name="intelligent_conversation",
+                status=ServiceStatus.UNAVAILABLE,
+                confidence=0.0,
+                last_check=datetime.utcnow(),
+                error_message=str(e)
+            )
+            # Don't raise - allow degraded mode
+            logger.warning("⚠️ PAM will operate with basic responses (no AI intelligence)")
     
     async def _initialize_tool_registry(self):
         """Initialize tool registry for function calling"""
@@ -392,6 +485,163 @@ class EnhancedPamOrchestrator:
                 error_message=str(e)
             )
     
+    async def _update_conversation_memory(self, user_id: str, message: str):
+        """Update conversation memory with recent messages"""
+        if user_id not in self.conversation_memory:
+            self.conversation_memory[user_id] = []
+        
+        # Keep last 10 messages for context
+        self.conversation_memory[user_id].append({
+            'message': message,
+            'timestamp': datetime.utcnow().isoformat(),
+            'type': 'user'
+        })
+        
+        # Limit to last 10 messages
+        if len(self.conversation_memory[user_id]) > 10:
+            self.conversation_memory[user_id] = self.conversation_memory[user_id][-10:]
+    
+    def _get_conversation_state(self, user_id: str) -> Dict[str, Any]:
+        """Get current conversation state for a user"""
+        if user_id not in self.conversation_states:
+            self.conversation_states[user_id] = {
+                'last_intent': None,
+                'last_message_time': None,
+                'context': {},
+                'follow_up_count': 0
+            }
+        return self.conversation_states[user_id]
+    
+    def _update_conversation_state(self, user_id: str, updates: Dict[str, Any]):
+        """Update conversation state for a user"""
+        if user_id not in self.conversation_states:
+            self.conversation_states[user_id] = {}
+        
+        self.conversation_states[user_id].update(updates)
+        self.conversation_states[user_id]['last_message_time'] = datetime.utcnow().isoformat()
+    
+    def _get_recent_messages(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get recent messages from conversation memory"""
+        return self.conversation_memory.get(user_id, [])
+    
+    def _is_followup_message(self, message: str, conversation_state: Dict[str, Any]) -> bool:
+        """Determine if this is a follow-up message based on context and timing"""
+        # Check if message is short (likely a follow-up)
+        if len(message.split()) <= 3:
+            # Check if there was a recent message (within 30 seconds)
+            if conversation_state.get('last_message_time'):
+                # Parse ISO format string back to datetime for comparison
+                from datetime import datetime as dt
+                last_time = dt.fromisoformat(conversation_state['last_message_time'])
+                time_diff = (datetime.utcnow() - last_time).total_seconds()
+                if time_diff < 30:
+                    return True
+        
+        # Check for follow-up patterns
+        followup_patterns = [
+            r'^to\s+',  # "to Hobart"
+            r'^from\s+',  # "from Sydney"
+            r'^yes',  # "yes"
+            r'^no',  # "no"
+            r'^what about',  # "what about..."
+            r'^how about',  # "how about..."
+            r'^and\s+',  # "and also..."
+            r'^also',  # "also..."
+        ]
+        
+        import re
+        message_lower = message.lower()
+        for pattern in followup_patterns:
+            if re.match(pattern, message_lower):
+                return True
+        
+        return False
+    
+    def _classify_intent(self, message: str) -> Optional[str]:
+        """Classify message intent to determine which domain node to use"""
+        message_lower = message.lower()
+        
+        # Trip planning and travel-related intents
+        trip_keywords = ['trip', 'travel', 'journey', 'route', 'directions', 'navigate', 
+                        'plan a trip', 'camping', 'fuel', 'caravan', 'rv', 'drive', 
+                        'from', 'destination', 'waypoint', 'road trip']
+        if any(keyword in message_lower for keyword in trip_keywords):
+            logger.info(f"🚗 Classified as WHEELS intent: {message[:50]}...")
+            return 'wheels'
+        
+        # Financial and budget-related intents
+        finance_keywords = ['budget', 'expense', 'income', 'money', 'cost', 'save', 
+                           'financial', 'spending', 'receipt', 'bill', 'payment']
+        if any(keyword in message_lower for keyword in finance_keywords):
+            logger.info(f"💰 Classified as WINS intent: {message[:50]}...")
+            return 'wins'
+        
+        # Social and community intents
+        social_keywords = ['friend', 'community', 'share', 'group', 'meet', 'social', 
+                          'connect', 'chat with', 'message']
+        if any(keyword in message_lower for keyword in social_keywords):
+            logger.info(f"👥 Classified as SOCIAL intent: {message[:50]}...")
+            return 'social'
+        
+        # Calendar and scheduling intents
+        calendar_keywords = ['calendar', 'schedule', 'appointment', 'event', 'meeting', 
+                            'remind', 'tomorrow', 'next week', 'date']
+        if any(keyword in message_lower for keyword in calendar_keywords):
+            logger.info(f"📅 Classified as YOU intent: {message[:50]}...")
+            return 'you'
+        
+        # Shopping intents
+        shop_keywords = ['buy', 'shop', 'product', 'purchase', 'order', 'deal', 
+                        'discount', 'store', 'price']
+        if any(keyword in message_lower for keyword in shop_keywords):
+            logger.info(f"🛒 Classified as SHOP intent: {message[:50]}...")
+            return 'shop'
+        
+        # Admin intents
+        admin_keywords = ['admin', 'settings', 'configure', 'system', 'manage', 
+                         'permission', 'user management']
+        if any(keyword in message_lower for keyword in admin_keywords):
+            logger.info(f"⚙️ Classified as ADMIN intent: {message[:50]}...")
+            return 'admin'
+        
+        # Memory/context intents
+        memory_keywords = ['remember', 'forget', 'recall', 'history', 'previous', 
+                          'last time', 'context']
+        if any(keyword in message_lower for keyword in memory_keywords):
+            logger.info(f"🧠 Classified as MEMORY intent: {message[:50]}...")
+            return 'memory'
+        
+        # No specific intent detected
+        logger.info(f"❓ No specific intent classified for: {message[:50]}...")
+        return None
+    
+    async def _route_to_domain_node(self, intent: str, message: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Route message to appropriate domain node"""
+        try:
+            node = self.domain_nodes.get(intent)
+            if not node:
+                logger.warning(f"No node registered for intent: {intent}")
+                return None
+            
+            logger.info(f"🎯 Routing to {intent} node for processing")
+            
+            # Call the node's process method
+            node_response = await node.process(message, context)
+            
+            # Ensure response has the required structure
+            if isinstance(node_response, dict):
+                # Add metadata about which node handled it
+                node_response['node_used'] = intent
+                node_response['processing_type'] = 'domain_node'
+                return node_response
+            else:
+                logger.warning(f"Invalid response format from {intent} node: {type(node_response)}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error routing to {intent} node: {e}")
+            return None
+    
     @observe_agent(name="enhanced_pam_process", metadata={"agent_type": "enhanced_pam"})
     async def process_message(
         self,
@@ -429,8 +679,147 @@ class EnhancedPamOrchestrator:
             )
             logger.debug("✅ Step 2: Enhanced context built")
             
-            # Process based on service availability
-            if self.ai_service and self.providers['openai']['health']:
+            # Update conversation memory
+            await self._update_conversation_memory(user_id, message)
+            
+            # Step 3: Process with Intelligent Conversation first for context-aware understanding
+            logger.debug("Step 3: Processing with Intelligent Conversation...")
+            
+            # Get conversation state for context
+            conversation_state = self._get_conversation_state(user_id)
+            
+            if self.intelligent_conversation:
+                try:
+                    logger.info("🧠 Using Intelligent Conversation for AI-powered response")
+                    
+                    # Build context with conversation history
+                    ai_context = {
+                        'user_id': user_id,
+                        'session_id': session_id,
+                        'conversation_history': self._get_recent_messages(user_id),
+                        'last_intent': conversation_state.get('last_intent'),
+                        'current_page': context.get('current_page') if context else None,
+                        'user_location': user_location
+                    }
+                    
+                    # First, analyze intent with AI
+                    intent_analysis = await self.intelligent_conversation.analyze_intent(message, ai_context)
+                    detected_intent = intent_analysis.get('intent')
+                    confidence = intent_analysis.get('confidence', 0.5)
+                    
+                    # Update conversation state with detected intent
+                    self._update_conversation_state(user_id, {'last_intent': detected_intent})
+                    
+                    # Check if this is a follow-up to a previous domain-specific query
+                    is_followup = self._is_followup_message(message, conversation_state)
+                    
+                    # Route to domain node if intent is domain-specific OR it's a follow-up
+                    domain_intents = ['wheels', 'wins', 'social', 'shop', 'you', 'admin']
+                    if (detected_intent in domain_intents or 
+                        (is_followup and conversation_state.get('last_intent') in domain_intents)):
+                        
+                        # Use previous intent for follow-ups
+                        target_intent = detected_intent if detected_intent in domain_intents else conversation_state.get('last_intent')
+                        
+                        logger.info(f"🎯 Domain intent detected: {target_intent} (confidence: {confidence})")
+                        
+                        # Add context about this being a follow-up
+                        domain_context = {
+                            'user_id': user_id,
+                            'session_id': session_id,
+                            'context': context,
+                            'enhanced_context': enhanced_context,
+                            'user_location': user_location,
+                            'is_followup': is_followup,
+                            'conversation_history': self._get_recent_messages(user_id),
+                            'last_intent': target_intent
+                        }
+                        
+                        node_response = await self._route_to_domain_node(target_intent, message, domain_context)
+                        
+                        if node_response:
+                            logger.info(f"✅ Successfully processed by {target_intent} node")
+                            self.performance_metrics["successful_responses"] += 1
+                            
+                            # Format response
+                            enhanced_response = {
+                                "content": node_response.get('content', ''),
+                                "type": "chat_response",
+                                "confidence": node_response.get('confidence', confidence),
+                                "intent": target_intent,
+                                "node_used": target_intent,
+                                "capabilities_used": ["intelligent_conversation", "domain_node", target_intent],
+                                "requires_followup": node_response.get('requires_followup', False),
+                                "suggestions": node_response.get('suggestions', []),
+                                "actions": node_response.get('actions', []),
+                                "processing_type": "intelligent_domain"
+                            }
+                            
+                            return enhanced_response
+                    
+                    # For general queries or when domain node fails, use intelligent conversation
+                    logger.info("💬 Generating intelligent AI response")
+                    ai_response = await self.intelligent_conversation.generate_response(
+                        message, ai_context, context
+                    )
+                    
+                    self.performance_metrics["intelligent_responses"] += 1
+                    
+                    enhanced_response = {
+                        "content": ai_response.get('content', ''),
+                        "type": "chat_response",
+                        "confidence": ai_response.get('confidence', 0.9),
+                        "intent": detected_intent,
+                        "capabilities_used": ["intelligent_conversation"],
+                        "suggestions": ai_response.get('suggestions', []),
+                        "emotional_insight": ai_response.get('emotional_insight'),
+                        "relationship_depth": ai_response.get('relationship_depth'),
+                        "processing_type": "intelligent_ai"
+                    }
+                    
+                    logger.debug("✅ Step 3: Intelligent Conversation processing completed")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Intelligent Conversation failed: {e}")
+                    # Fall back to basic intent classification
+                    intent = self._classify_intent(message)
+            else:
+                # Fallback to basic intent classification if intelligent conversation unavailable
+                logger.warning("⚠️ Intelligent Conversation not available, using basic classification")
+                intent = self._classify_intent(message)
+                
+                if intent:
+                    logger.info(f"🎯 Basic domain intent detected: {intent}")
+                    node_response = await self._route_to_domain_node(intent, message, {
+                        'user_id': user_id,
+                        'session_id': session_id,
+                        'context': context,
+                        'enhanced_context': enhanced_context,
+                        'user_location': user_location
+                    })
+                    
+                    if node_response:
+                        logger.info(f"✅ Successfully processed by {intent} node")
+                        enhanced_response = {
+                            "content": node_response.get('content', ''),
+                            "type": "chat_response",
+                            "confidence": node_response.get('confidence', 0.9),
+                            "intent": intent,
+                            "node_used": intent,
+                            "capabilities_used": ["domain_node", intent],
+                            "requires_followup": node_response.get('requires_followup', False),
+                            "suggestions": node_response.get('suggestions', []),
+                            "actions": node_response.get('actions', []),
+                            "processing_type": "basic_domain"
+                        }
+                        self.performance_metrics["successful_responses"] += 1
+                        logger.debug(f"✅ Step 3: Basic domain node processing completed")
+                        
+                        return enhanced_response
+            
+            # Step 4: Process with AI if no domain node handled it
+            logger.debug("Step 4: Processing with AI services...")
+            if self.ai_orchestrator and self.providers['openai']['health']:
                 logger.info("🧠 Processing with AI Service")
                 logger.debug("Step 3: Processing with AI Service...")
                 ai_response = await self._process_with_ai_service(
@@ -440,10 +829,10 @@ class EnhancedPamOrchestrator:
                 enhanced_response["capabilities_used"] = ["ai_service"]
                 self.performance_metrics["ai_service_calls"] += 1
                 logger.debug("✅ Step 3: AI Service processing completed")
-            elif self.ai_service:
+            elif self.ai_orchestrator:
                 # AI service exists but OpenAI is unhealthy - try direct processing
                 logger.info("🔄 Attempting direct AI processing (OpenAI degraded)")
-                logger.debug(f"AI service status: {self.ai_service}, OpenAI health: {self.providers['openai']['health']}")
+                logger.debug(f"AI orchestrator status: {self.ai_orchestrator}, OpenAI health: {self.providers['openai']['health']}")
                 logger.debug("Step 3: Processing with direct AI response...")
                 try:
                     direct_response = await self._process_direct_ai_response(
@@ -489,12 +878,42 @@ class EnhancedPamOrchestrator:
                 "capabilities_used": enhanced_response.get("capabilities_used", [])
             }
             
+        except PAMError as e:
+            # We have a properly structured PAM error - use it
+            logger.error(f"❌ PAM Error ({e.error_code}): {e.message}")
+            error_handler.tracker.record_error(e)
+            
+            self.performance_metrics["service_fallbacks"] += 1
+            
+            # Generate user-friendly response with actual error information
+            return {
+                "content": e.user_message,
+                "confidence": 0.2,
+                "response_mode": "text_only",
+                "error": e.message,  # Technical message for debugging
+                "error_code": e.error_code,
+                "error_type": e.error_type.value,
+                "retry_after": e.retry_after,
+                "request_id": e.request_id,
+                "service_status": "error",
+                "user_guidance": f"Error: {e.user_message}. Please try again."
+            }
+                
         except Exception as e:
-            logger.error(f"❌ Enhanced message processing failed: {e}")
-            logger.error(f"❌ Processing exception type: {type(e).__name__}")
-            logger.error(f"❌ Processing exception details: {str(e)}")
+            # Unexpected error - create a PAM error for consistent handling
+            pam_error = PAMError(
+                message=str(e),
+                error_type=ErrorType.INTERNAL_ERROR,
+                status_code=500,
+                severity=ErrorSeverity.ERROR,
+                details={"exception_type": type(e).__name__}
+            )
+            error_handler.tracker.record_error(pam_error)
+            
+            logger.error(f"❌ Unexpected error in message processing: {e}")
+            logger.error(f"❌ Exception type: {type(e).__name__}")
             import traceback
-            logger.error(f"❌ Processing full traceback: {traceback.format_exc()}")
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
             
             # Log service statuses for debugging
             try:
@@ -505,18 +924,18 @@ class EnhancedPamOrchestrator:
             
             self.performance_metrics["service_fallbacks"] += 1
             
-            # Generate specific fallback response based on error type
-            fallback_response = self._generate_fallback_response(e, message)
-            
+            # Provide informative response with actual error details
             return {
-                "content": fallback_response["content"],
-                "confidence": fallback_response["confidence"],
+                "content": f"I encountered an issue processing your request. Error: {pam_error.user_message}. Request ID: {pam_error.request_id}",
+                "confidence": 0.2,
                 "response_mode": "text_only",
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "service_status": fallback_response["service_status"],
-                "capabilities_disabled": fallback_response["capabilities_disabled"],
-                "user_guidance": fallback_response["user_guidance"]
+                "error": pam_error.message,
+                "error_code": pam_error.error_code,
+                "error_type": pam_error.error_type.value,
+                "request_id": pam_error.request_id,
+                "service_status": "error",
+                "capabilities_disabled": ["ai_responses"],
+                "user_guidance": "If this persists, please contact support with the request ID."
             }
     
     async def _process_direct_ai_response(
@@ -530,8 +949,8 @@ class EnhancedPamOrchestrator:
         try:
             logger.debug(f"🔄 Starting direct AI processing for message: '{message[:50]}...'")
             
-            if not self.ai_service:
-                logger.error("❌ AI service not available for direct processing")
+            if not self.ai_orchestrator:
+                logger.error("❌ AI orchestrator not available for direct processing")
                 return {
                     "content": "I'm currently unable to process your request. Please try again.",
                     "confidence": 0.3,
@@ -541,7 +960,7 @@ class EnhancedPamOrchestrator:
                 }
             
             logger.debug(f"✅ AI service available, checking client...")
-            if not self.ai_service.client:
+            if not self.ai_orchestrator or not self.ai_orchestrator.providers:
                 logger.error("❌ AI service client not available")
                 return {
                     "content": "I'm currently unable to process your request. Please try again.",
@@ -562,13 +981,16 @@ class EnhancedPamOrchestrator:
             logger.debug(f"📋 Direct AI context: {ai_context}")
             logger.debug(f"🤖 Calling AI service process_message...")
             
-            # Get response from AI service
-            ai_response = await self.ai_service.process_message(
-                message=message,
-                user_context=ai_context,
+            # Get response from AI orchestrator (will use Anthropic if OpenAI fails)
+            messages = [
+                AIMessage(role="system", content="You are PAM, a helpful AI assistant for travel planning and expense management."),
+                AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context)}")
+            ]
+            
+            ai_response = await self.ai_orchestrator.complete(
+                messages=messages,
                 temperature=0.7,
-                max_tokens=2048,
-                stream=False
+                max_tokens=2048
             )
             
             logger.debug(f"📤 AI service response type: {type(ai_response)}")
@@ -617,13 +1039,17 @@ class EnhancedPamOrchestrator:
             logger.debug(f"🧠 Starting AI service processing for message: '{message[:50]}...'")
             
             # Check AI service availability
-            if not self.ai_service:
-                logger.error("❌ AI service not available for enhanced processing")
+            if not self.ai_orchestrator:
+                logger.error("❌ AI orchestrator not available for enhanced processing")
                 raise Exception("AI service not available")
             
-            if not self.ai_service.client:
-                logger.error("❌ AI service client not available for enhanced processing")
-                raise Exception("AI service client not available")
+            if not self.ai_orchestrator:
+                logger.error("❌ AI orchestrator not initialized")
+                raise Exception("AI orchestrator not initialized")
+            
+            if not hasattr(self.ai_orchestrator, 'providers') or not self.ai_orchestrator.providers:
+                logger.warning("⚠️ No AI providers available, but continuing with limited functionality")
+                # Don't raise exception - let it try to process with fallback
                 
             logger.debug("✅ AI service and client available")
             
@@ -674,15 +1100,19 @@ class EnhancedPamOrchestrator:
             else:
                 logger.debug("🔧 No tool registry available")
             
-            # Call AI service with tools for function calling
-            logger.debug(f"🤖 Calling AI service with {len(tools)} tools...")
-            ai_response = await self.ai_service.process_message(
-                message=message,
-                user_context=ai_context,
+            # Call AI orchestrator with tools for function calling
+            logger.debug(f"🤖 Calling AI orchestrator with {len(tools)} tools...")
+            messages = [
+                AIMessage(role="system", content="You are PAM, a helpful AI assistant with access to various tools for travel planning and expense management."),
+                AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context)}")
+            ]
+            
+            # Note: Tool support will depend on provider capabilities
+            ai_response = await self.ai_orchestrator.complete(
+                messages=messages,
                 temperature=0.7,
-                max_tokens=2048,
-                stream=False,
-                tools=tools if tools else None
+                max_tokens=2048
+                # Tools passed separately if provider supports them
             )
             
             logger.debug(f"📤 AI service response received: {type(ai_response)}")
@@ -702,17 +1132,22 @@ class EnhancedPamOrchestrator:
 
 Based on these results, please provide a helpful response to the user's original query: {message}"""
                 
-                ai_response = await self.ai_service.process_message(
-                    message=tool_context,
-                    user_context=ai_context,
+                messages = [
+                    AIMessage(role="system", content="You are PAM, a helpful AI assistant. Provide a response based on the tool execution results."),
+                    AIMessage(role="user", content=tool_context)
+                ]
+                
+                ai_response = await self.ai_orchestrator.complete(
+                    messages=messages,
                     temperature=0.7,
-                    max_tokens=2048,
-                    stream=False
+                    max_tokens=2048
                 )
             
             if isinstance(ai_response, AIResponse):
-                # Record provider success
-                self.providers['openai']['success_count'] += 1
+                # Record provider success (could be OpenAI or Anthropic)
+                provider_name = ai_response.provider if hasattr(ai_response, 'provider') else 'openai'
+                if provider_name in self.providers:
+                    self.providers[provider_name]['success_count'] += 1
                 self.providers['openai']['error_count'] = max(0, self.providers['openai']['error_count'] - 1)
                 
                 response = {
@@ -791,15 +1226,33 @@ Based on these results, please provide a helpful response to the user's original
         try:
             # Build base context directly
             logger.debug("📋 Creating base PamContext...")
+            
+            # Parse current_location if it's a string
+            current_location_value = context.get('user_location') if context else None
+            if isinstance(current_location_value, str) and ',' in current_location_value:
+                try:
+                    # Parse string like '-33.8983, 151.0944' into dict
+                    parts = current_location_value.split(',')
+                    current_location_value = {
+                        'lat': float(parts[0].strip()),
+                        'lng': float(parts[1].strip())
+                    }
+                except (ValueError, IndexError):
+                    logger.warning(f"⚠️ Could not parse location string: {current_location_value}")
+                    current_location_value = None
+            elif not isinstance(current_location_value, dict):
+                current_location_value = None
+            
             base_context = PamContext(
                 user_id=user_id,
-                session_id=session_id,
-                conversation_history=[],
-                user_preferences={},
-                current_location=context.get('user_location') if context else None,
-                active_trip=None,
-                emotional_state="neutral",
-                engagement_level="normal"
+                timestamp=datetime.utcnow(),  # Add required timestamp field
+                current_location=current_location_value,
+                recent_expenses=[],
+                budget_status={},
+                travel_plans={},
+                vehicle_info=context.get('vehicle_info', {}) if context else {},
+                preferences=context.get('user_preferences', {}) if context else {},
+                conversation_history=context.get('conversation_history', []) if context else []
             )
             logger.debug("✅ Base PamContext created")
             
@@ -1155,10 +1608,10 @@ Based on these results, please provide a helpful response to the user's original
         
         for provider_name, provider_info in self.providers.items():
             try:
-                if provider_name == 'openai' and self.ai_service:
-                    # Check AI service health
-                    stats = self.ai_service.get_service_stats()
-                    is_healthy = stats["service_health"] == "healthy" and self.ai_service.client is not None
+                if self.ai_orchestrator and self.ai_orchestrator.providers:
+                    # Check if provider is available in orchestrator
+                    provider_available = any(p.name == provider_name for p in self.ai_orchestrator.providers)
+                    is_healthy = provider_available
                     
                     health_status[provider_name] = {
                         "healthy": is_healthy,
@@ -1231,56 +1684,62 @@ Based on these results, please provide a helpful response to the user's original
         return healthy_count > 1
     
     def _generate_fallback_response(self, error: Exception, message: str) -> Dict[str, Any]:
-        """Generate specific fallback response based on error type and user message"""
+        """Generate specific fallback response with actual error information"""
         error_str = str(error).lower()
         error_type = type(error).__name__
         
-        # Check for OpenAI-specific errors
+        # Check for OpenAI-specific errors and include actual error message
         if "openai" in error_str or "api key" in error_str:
             if "authentication" in error_str or "api key" in error_str:
                 return {
                     "content": (
-                        "I'm currently unable to access my AI capabilities due to an authentication issue. "
-                        "This means I can't provide intelligent responses right now, but I can still help with basic information. "
-                        "Please contact support if this persists."
+                        f"Authentication error with AI service: {str(error)}. "
+                        "The system administrator has been notified. "
+                        "Basic app features remain available."
                     ),
                     "confidence": 0.2,
-                    "service_status": "degraded",
+                    "service_status": "auth_error",
                     "capabilities_disabled": ["ai_responses", "intelligent_suggestions", "context_awareness"],
-                    "user_guidance": "Basic text responses available. AI features temporarily disabled."
+                    "user_guidance": "This is a configuration issue. Please contact support.",
+                    "error_details": str(error)
                 }
             elif "quota" in error_str or "billing" in error_str:
                 return {
                     "content": (
-                        "I'm currently unable to provide AI-powered responses due to service limits. "
-                        "I can still help with basic information and navigation. "
-                        "Please try again later or contact support."
+                        f"Service quota exceeded: {str(error)}. "
+                        "The usage limit has been reached. "
+                        "Please try again later."
                     ),
                     "confidence": 0.2,
-                    "service_status": "degraded",
+                    "service_status": "quota_exceeded",
                     "capabilities_disabled": ["ai_responses", "intelligent_analysis", "personalized_suggestions"],
-                    "user_guidance": "Basic functionality available. AI responses temporarily limited."
+                    "user_guidance": "Quota will reset at the end of the billing period.",
+                    "error_details": str(error)
                 }
-            elif "rate limit" in error_str:
+            elif "rate limit" in error_str or "429" in error_str:
                 return {
                     "content": (
-                        "I'm currently experiencing high demand and need to slow down my responses. "
-                        "Please wait a moment and try again. I'll be back to full capacity shortly."
+                        f"Rate limit exceeded: {str(error)}. "
+                        "Please wait before trying again."
                     ),
                     "confidence": 0.4,
-                    "service_status": "throttled",
+                    "service_status": "rate_limited",
                     "capabilities_disabled": ["real_time_responses"],
-                    "user_guidance": "Please wait 30 seconds before trying again."
+                    "user_guidance": "Wait 60 seconds before retrying.",
+                    "error_details": str(error),
+                    "retry_after": 60
                 }
         
         # Check for timeout errors
         if "timeout" in error_str:
             return {
                 "content": (
-                    "I'm taking longer than usual to process your request due to high server load. "
-                    "Please try asking your question again. I'll try to respond more quickly."
+                    f"Request timeout: {str(error)}. "
+                    "The AI service is taking longer than expected. "
+                    "Please try again."
                 ),
                 "confidence": 0.3,
+                "error_details": str(error),
                 "service_status": "slow",
                 "capabilities_disabled": ["real_time_responses"],
                 "user_guidance": "Service is slower than normal. Please retry your request."
@@ -1328,17 +1787,24 @@ Based on these results, please provide a helpful response to the user's original
                 "user_guidance": "Basic map functionality still available in the Wheels section."
             }
         
-        # Default fallback response
+        # Dynamic fallback response with actual error information
+        available_providers = []
+        if self.ai_orchestrator and self.ai_orchestrator.providers:
+            available_providers = [p.name for p in self.ai_orchestrator.providers]
+        
         return {
             "content": (
-                "I'm experiencing some technical difficulties with my AI capabilities right now. "
-                "The core app features are still available, but my intelligent responses are temporarily limited. "
-                "Please try again in a few minutes, or use the manual features in the meantime."
+                f"AI service error: {str(error)}. "
+                f"Available providers: {', '.join(available_providers) if available_providers else 'None'}. "
+                "Core app features remain functional."
             ),
             "confidence": 0.3,
-            "service_status": "degraded",
+            "service_status": "error",
             "capabilities_disabled": ["ai_responses", "intelligent_suggestions"],
-            "user_guidance": "Core app features remain available. AI assistance temporarily limited."
+            "user_guidance": "Error has been logged. Manual features available.",
+            "provider_status": available_providers,
+            "error_details": str(error),
+            "error_type": error_type
         }
     
     def _generate_simple_response(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:

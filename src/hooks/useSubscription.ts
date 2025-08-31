@@ -4,8 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SubscriptionData {
-  id: number;
-  user_id: number;
+  id: string; // Changed from number to string (UUID)
+  user_id: string;
   trial_ends_at: string | null;
   subscription_status: 'trial' | 'active' | 'expired' | 'cancelled';
   plan_type: 'free_trial' | 'monthly' | 'annual';
@@ -38,7 +38,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from('user_subscriptions')
         .select('*')
-        .eq('user_id', parseInt(user!.id))
+        .eq('user_id', user!.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -83,7 +83,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from('user_subscriptions')
         .insert({
-          user_id: parseInt(user.id),
+          user_id: user.id, // Fixed: removed parseInt since user_id is UUID
           trial_ends_at: trialEndDate.toISOString(),
           subscription_status: 'trial',
           plan_type: 'free_trial',

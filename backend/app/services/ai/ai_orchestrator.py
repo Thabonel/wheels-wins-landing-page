@@ -100,7 +100,7 @@ class AIOrchestrator:
             try:
                 anthropic_config = ProviderConfig(
                     name="anthropic",
-                    api_key=settings.ANTHROPIC_API_KEY,
+                    api_key=settings.ANTHROPIC_API_KEY.get_secret_value() if settings.ANTHROPIC_API_KEY else None,
                     default_model=getattr(settings, 'ANTHROPIC_DEFAULT_MODEL', 'claude-3-opus-20240229'),
                     max_retries=3,
                     timeout_seconds=30
