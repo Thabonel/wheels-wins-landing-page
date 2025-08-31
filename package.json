@@ -145,7 +145,6 @@
     "@esbuild-plugins/node-modules-polyfill": "^0.2.2",
     "@eslint/js": "^9.9.0",
     "@playwright/test": "^1.54.1",
-    "@rollup/rollup-darwin-x64": "^4.49.0",
     "@sentry/node": "^9.40.0",
     "@tailwindcss/typography": "^0.5.15",
     "@testing-library/jest-dom": "^6.2.0",
