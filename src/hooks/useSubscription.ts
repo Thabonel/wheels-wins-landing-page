@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface SubscriptionData {
   id: number;
-  user_id: number;
+  user_id: string;
   trial_ends_at: string | null;
   subscription_status: 'trial' | 'active' | 'expired' | 'cancelled';
   plan_type: 'free_trial' | 'monthly' | 'annual';
@@ -38,7 +38,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from('user_subscriptions')
         .select('*')
-        .eq('user_id', parseInt(user!.id))
+        .eq('user_id', user!.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
