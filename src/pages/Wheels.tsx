@@ -10,9 +10,9 @@ import { PamHelpButton } from "@/components/pam/PamHelpButton";
 import { useSearchParams } from "react-router-dom";
 
 // Lazy load heavy components to reduce initial bundle size
-// Only keeping Trip Planner 2 as the main planner
-const FreshTripPlanner = lazy(() => 
-  import('@/components/wheels/trip-planner/fresh/FreshTripPlanner').catch(() => ({
+// Using TripPlannerApp which includes the enhanced features and templates
+const TripPlannerApp = lazy(() => 
+  import('@/components/wheels/TripPlannerApp').catch(() => ({
     default: () => <div className="p-4 text-red-600">Failed to load Trip Planner</div>
   }))
 );
@@ -145,14 +145,8 @@ const Wheels = () => {
                         <span className="ml-3 text-gray-600">Loading Trip Planner...</span>
                       </div>
                     }>
-                      <div className="h-[600px] relative rounded-lg overflow-hidden">
-                        <FreshTripPlanner 
-                          tripId={searchParams.get('trip') || undefined}
-                          onSaveTrip={async (tripData) => {
-                            console.log('Saving trip:', tripData);
-                            // This will be connected to Supabase later
-                          }}
-                        />
+                      <div className="relative">
+                        <TripPlannerApp />
                       </div>
                     </Suspense>
                   </TripPlannerErrorBoundary>
