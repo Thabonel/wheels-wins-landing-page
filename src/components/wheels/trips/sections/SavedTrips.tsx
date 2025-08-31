@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,7 @@ interface SavedTrip {
 
 export default function SavedTrips() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<SavedTrip[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -107,7 +109,7 @@ export default function SavedTrips() {
 
   const handleLoadTrip = (trip: SavedTrip) => {
     // Navigate to Trip Planner with trip data
-    window.location.href = `/wheels?tab=trip-planner&trip=${trip.id}`;
+    navigate(`/wheels?tab=trip-planner&trip=${trip.id}`);
   };
 
   const handleShareTrip = async (trip: SavedTrip) => {
@@ -134,7 +136,7 @@ export default function SavedTrips() {
       <Card>
         <CardContent className="text-center py-12">
           <p className="text-gray-600 mb-4">Please sign in to view your saved trips</p>
-          <Button onClick={() => window.location.href = '/login'}>
+          <Button onClick={() => navigate('/login')}>
             Sign In
           </Button>
         </CardContent>
@@ -148,7 +150,7 @@ export default function SavedTrips() {
         <CardContent className="text-center py-12">
           <MapPin className="w-12 h-12 mx-auto mb-4 text-gray-400" />
           <p className="text-gray-600 mb-4">No saved trips yet</p>
-          <Button onClick={() => window.location.href = '/wheels?tab=trip-planner'}>
+          <Button onClick={() => navigate('/wheels?tab=trip-planner')}>
             Plan Your First Trip
           </Button>
         </CardContent>
