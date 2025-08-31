@@ -19,13 +19,20 @@ import { toast } from 'sonner';
 
 interface SavedTrip {
   id: string;
-  title: string;
+  user_id: string;
+  name: string;
   description?: string;
-  route_data: any;
-  start_date?: string;
-  end_date?: string;
-  status: 'planning' | 'active' | 'completed' | 'cancelled';
-  is_group_trip?: boolean;
+  start_location?: string;
+  end_location?: string;
+  waypoints?: any;
+  distance?: number;
+  duration?: number;
+  difficulty?: string;
+  is_public?: boolean;
+  tags?: string[];
+  route_data?: any;
+  gpx_data?: string;
+  estimated_days?: number;
   created_at: string;
   updated_at: string;
 }
@@ -46,42 +53,29 @@ export default function SavedTrips() {
     try {
       setLoading(true);
       
-      // The existing database uses group_trips as the main trips table
-      // Query trips from group_trips table (which stores all trips)
+      // Query trips from saved_trips table (user's personal saved trips)
       const { data: trips, error } = await supabase
-        .from('group_trips')
+        .from('saved_trips')
         .select('*')
-        .eq('created_by', user?.id)
+        .eq('user_id', user?.id)
         .order('updated_at', { ascending: false });
 
       if (error) {
         console.error('Error loading trips:', error);
-        // If table doesn't exist yet, show empty state
-        if (error.code === '42P01') {
-          setTrips([]);
-          return;
+        // Only show error toast for actual database errors, not empty results
+        if (error.code && error.code !== 'PGRST116') { // PGRST116 is "no rows found"
+          toast.error('Failed to load saved trips');
         }
-        throw error;
+        setTrips([]);
+        return;
       }
 
-      // Map the group_trips fields to our SavedTrip interface
-      const mappedTrips = (trips || []).map(trip => ({
-        id: trip.id,
-        title: trip.trip_name, // group_trips uses trip_name instead of title
-        description: trip.description,
-        route_data: trip.route_data,
-        start_date: trip.start_date,
-        end_date: trip.end_date,
-        status: trip.status as 'planning' | 'active' | 'completed' | 'cancelled',
-        is_group_trip: true, // group_trips are by definition group trips
-        created_at: trip.created_at,
-        updated_at: trip.updated_at
-      }));
-
-      setTrips(mappedTrips);
+      // Set trips directly since the interface matches the table structure
+      setTrips(trips || []);
     } catch (error) {
       console.error('Error loading trips:', error);
-      toast.error('Failed to load saved trips');
+      // Only show error for unexpected errors
+      toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -92,10 +86,10 @@ export default function SavedTrips() {
 
     try {
       const { error } = await supabase
-        .from('group_trips')
+        .from('saved_trips')
         .delete()
         .eq('id', tripId)
-        .eq('created_by', user?.id); // Ensure user owns the trip
+        .eq('user_id', user?.id); // Ensure user owns the trip
 
       if (error) throw error;
       
@@ -170,14 +164,16 @@ export default function SavedTrips() {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg">{trip.title}</CardTitle>
+                  <CardTitle className="text-lg">{trip.name}</CardTitle>
                   {trip.description && (
                     <p className="text-sm text-gray-600 mt-1">{trip.description}</p>
                   )}
                 </div>
-                <Badge variant={trip.status === 'active' ? 'default' : 'secondary'}>
-                  {trip.status}
-                </Badge>
+                {trip.difficulty && (
+                  <Badge variant="secondary">
+                    {trip.difficulty}
+                  </Badge>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -186,10 +182,17 @@ export default function SavedTrips() {
                 <span>{new Date(trip.created_at).toLocaleDateString()}</span>
               </div>
               
-              {routeData && routeData.waypoints && (
+              {trip.start_location && trip.end_location && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <MapPin className="w-4 h-4" />
-                  <span>{routeData.waypoints.length} waypoints</span>
+                  <span>{trip.start_location} → {trip.end_location}</span>
+                </div>
+              )}
+              
+              {trip.distance && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>{trip.distance} km</span>
+                  {trip.estimated_days && <span>• {trip.estimated_days} days</span>}
                 </div>
               )}
 

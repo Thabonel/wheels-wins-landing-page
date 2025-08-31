@@ -37,23 +37,23 @@ export class TripService {
     mode: string,
     waypoints: Waypoint[]
   ): Promise<string | null> {
-    // Use the existing group_trips table structure
+    // Save to saved_trips table (user's personal trips)
     const { data, error } = await supabase
-      .from("group_trips")
+      .from("saved_trips")
       .insert({
-        created_by: userId,
-        trip_name: `${originName} to ${destName}`,
+        user_id: userId,
+        name: `${originName} to ${destName}`,
         description: `Trip from ${originName} to ${destName}`,
-        start_date: new Date().toISOString().split('T')[0], // DATE format
-        end_date: new Date().toISOString().split('T')[0], // DATE format
-        route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints, mode }),
-        status: 'planning', // Fixed: use 'planning' to match DB constraint
-        meeting_point: {
-          lat: origin[1],
-          lng: origin[0],
-          name: originName,
-          address: originName
-        }
+        start_location: originName,
+        end_location: destName,
+        waypoints: waypoints,
+        route_data: { origin, dest, routingProfile, suggestions, waypoints, mode },
+        difficulty: 'moderate', // Default difficulty
+        is_public: false, // Private by default
+        tags: [mode, routingProfile],
+        estimated_days: 1, // Default to 1 day trip
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .select('id')
       .single();
@@ -75,9 +75,10 @@ export class TripService {
     waypoints: Waypoint[]
   ): Promise<void> {
     const { error } = await supabase
-      .from('group_trips')
+      .from('saved_trips')
       .update({
-        route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints, mode }),
+        route_data: { origin, dest, routingProfile, suggestions, waypoints, mode },
+        waypoints: waypoints,
         updated_at: new Date().toISOString()
       })
       .eq('id', tripId);
