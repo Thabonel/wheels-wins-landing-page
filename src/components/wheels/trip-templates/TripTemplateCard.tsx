@@ -9,16 +9,19 @@ import {
   Star,
   Plus,
   Check,
+  ChevronRight,
   Mountain,
   Trees,
   Waves
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
+import TripRatingWidget from './TripRatingWidget';
 
 interface TripTemplateCardProps {
   template: TripTemplate;
   onAddToJourney: (template: TripTemplate) => void;
+  onUseTemplate: (template: TripTemplate) => void;
   isInJourney: boolean;
 }
 
@@ -34,7 +37,8 @@ const categoryIcons: Record<string, React.ReactNode> = {
 
 export default function TripTemplateCard({ 
   template, 
-  onAddToJourney, 
+  onAddToJourney,
+  onUseTemplate, 
   isInJourney 
 }: TripTemplateCardProps) {
   const difficultyColor = {
@@ -43,23 +47,28 @@ export default function TripTemplateCard({
     'advanced': 'bg-red-100 text-red-800'
   };
 
-  // Use template image if available, otherwise generate dynamic map based on location
+  // Image fallback chain: Database URL → Mapbox Map → Placeholder
   const getTemplateImage = () => {
-    // If template has an image URL, use it
+    // Priority 1: If template has an image URL from database, use it
     if (template.imageUrl || template.image_url) {
       return template.imageUrl || template.image_url;
     }
     
-    // If template has thumbnail for performance
+    // Priority 2: If template has thumbnail from database for performance
     if (template.thumbnailUrl || template.thumbnail_url) {
       return template.thumbnailUrl || template.thumbnail_url;
     }
     
-    // Generate dynamic map based on template location
+    // Priority 3: Generate intelligent route-specific Mapbox map (excellent fallback!)
     const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!mapboxToken) {
-      return '/api/placeholder/400/200'; // Fallback placeholder
+      console.warn('No Mapbox token available for map generation');
+      // Use a proper placeholder from our service instead of /api/placeholder
+      return 'https://via.placeholder.com/400x200/0088cc/ffffff?text=Adventure+Awaits';
     }
+    
+    console.log(`Generating route-specific map for ${template.id}`);
+    // Continue with the intelligent map generation below...
     
     // Determine map center based on region and highlights
     let centerLat = -25.2744; // Default to Australia
@@ -210,6 +219,14 @@ export default function TripTemplateCard({
           </div>
         </div>
 
+        {/* Rating */}
+        <TripRatingWidget
+          templateId={template.id}
+          averageRating={template.average_rating || 0}
+          totalRatings={template.total_ratings || 0}
+          showDetails={true}
+        />
+
         {/* Highlights */}
         <div className="space-y-1">
           <p className="text-xs font-medium text-gray-700">Highlights:</p>
@@ -227,25 +244,35 @@ export default function TripTemplateCard({
           </div>
         </div>
 
-        {/* Action Button */}
-        <Button 
-          onClick={() => onAddToJourney(template)}
-          disabled={isInJourney}
-          className="w-full"
-          variant={isInJourney ? "secondary" : "default"}
-        >
-          {isInJourney ? (
-            <>
-              <Check className="w-4 h-4 mr-2" />
-              Added to Journey
-            </>
-          ) : (
-            <>
-              <Plus className="w-4 h-4 mr-2" />
-              Add to Journey
-            </>
-          )}
-        </Button>
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => onAddToJourney(template)}
+            disabled={isInJourney}
+            className="flex-1"
+            variant={isInJourney ? "secondary" : "outline"}
+          >
+            {isInJourney ? (
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                In Journey
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                Add to Journey
+              </>
+            )}
+          </Button>
+          <Button 
+            onClick={() => onUseTemplate(template)}
+            className="flex-1"
+            variant="default"
+          >
+            Use Now
+            <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

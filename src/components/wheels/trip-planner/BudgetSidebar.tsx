@@ -125,8 +125,6 @@ export default function BudgetSidebar({
   const StatusIcon = iconMap[BudgetCalculator.getStatusIcon(budgetStatus.status) as keyof typeof iconMap];
   const statusColor = BudgetCalculator.getStatusColor(budgetStatus.status);
 
-  if (!isVisible) return null;
-
   return (
     <Card className="w-full bg-white border shadow-lg h-fit">
       <CardHeader className="pb-4">

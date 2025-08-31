@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Region } from '@/context/RegionContext';
+import { tripTemplateImageService } from './tripTemplateImageService';
 
 export interface TripTemplate {
   id: string;
@@ -21,6 +22,10 @@ export interface TripTemplate {
   image_url?: string;
   thumbnailUrl?: string;
   thumbnail_url?: string;
+  average_rating?: number;
+  total_ratings?: number;
+  status?: 'draft' | 'published' | 'archived';
+  is_featured?: boolean;
 }
 
 export interface ScrapedTripData {
@@ -146,10 +151,11 @@ function transformDatabaseToTemplate(dbRecord: any): TripTemplate | null {
       usageCount: parseInt(dbRecord.usage_count) || 0,
       isPublic: Boolean(dbRecord.is_public),
       createdBy: templateData.createdBy,
-      imageUrl: dbRecord.image_url,
-      image_url: dbRecord.image_url,
-      thumbnailUrl: dbRecord.thumbnail_url,
-      thumbnail_url: dbRecord.thumbnail_url
+      // Check for images in template_data JSONB first, then fall back to columns
+      imageUrl: templateData.imageUrl || dbRecord.image_url,
+      image_url: templateData.imageUrl || dbRecord.image_url,
+      thumbnailUrl: templateData.thumbnailUrl || dbRecord.thumbnail_url,
+      thumbnail_url: templateData.thumbnailUrl || dbRecord.thumbnail_url
     };
     
     console.log(`✅ Transformed template: ${transformed.name} (${transformed.estimatedDays} days, $${transformed.suggestedBudget})`);
@@ -709,3 +715,9 @@ export async function incrementTemplateUsage(templateId: string): Promise<void> 
     console.error('Unexpected error incrementing template usage:', error);
   }
 }
+
+/**
+ * Update template image - re-export from tripTemplateImageService
+ */
+export const updateTemplateImage = tripTemplateImageService.updateTemplateImage;
+export const ensureAllTemplatesHaveImages = tripTemplateImageService.ensureAllTemplatesHaveImages;

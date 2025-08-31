@@ -37,16 +37,28 @@ export class TripService {
     mode: string,
     waypoints: Waypoint[]
   ): Promise<string | null> {
+    // Save to user_trips table (user's personal trips)
     const { data, error } = await supabase
-      .from("group_trips")
+      .from("user_trips")
       .insert({
-        created_by: userId,
-        trip_name: `${originName} to ${destName}`,
+        user_id: userId,
+        title: `${originName} to ${destName}`,
         description: `Trip from ${originName} to ${destName}`,
-        start_date: new Date().toISOString(),
-        end_date: new Date().toISOString(),
-        route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints }),
-        status: 'active'
+        status: 'planning', // Default status
+        trip_type: mode === 'rv' ? 'rv_travel' : 'road_trip', // Map mode to trip_type
+        privacy_level: 'private', // Private by default
+        metadata: { 
+          origin, 
+          dest, 
+          originName,
+          destName,
+          routingProfile, 
+          suggestions, 
+          waypoints, 
+          mode 
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .select('id')
       .single();
@@ -67,12 +79,16 @@ export class TripService {
     mode: string,
     waypoints: Waypoint[]
   ): Promise<void> {
-    await supabase
-      .from('group_trips')
+    const { error } = await supabase
+      .from('user_trips')
       .update({
-        route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints, mode }),
+        metadata: { origin, dest, routingProfile, suggestions, waypoints, mode },
         updated_at: new Date().toISOString()
       })
       .eq('id', tripId);
+    
+    if (error) {
+      console.error('Error updating trip route:', error);
+    }
   }
 }

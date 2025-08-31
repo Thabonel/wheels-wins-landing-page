@@ -125,7 +125,9 @@ class CORSSettings(BaseSettings):
             "https://staging-wheelsandwins.netlify.app",
             "https://wheels-wins-staging.netlify.app",
             "https://wheelsandwins-staging.netlify.app",
-            "https://wheels-wins-test.netlify.app"
+            "https://wheels-wins-test.netlify.app",
+            "https://staging--wheels-wins-landing-page.netlify.app",
+            "https://staging--charming-figolla-d83b68.netlify.app"
         ],
         description="Staging environment origins"
     )

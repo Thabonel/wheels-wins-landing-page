@@ -22,14 +22,13 @@ import { PamSettings } from "@/components/settings/PamSettings";
 import { DisplaySettings } from "@/components/settings/DisplaySettings";
 import { AccountSecurity } from "@/components/settings/AccountSecurity";
 import { AccountDeletion } from "@/components/settings/AccountDeletion";
+import { syncLocalPhotos } from "@/utils/fileUploadUtils";
 
 const Profile = () => {
   const { user } = useAuth();
   const { region, setRegion } = useRegion();
   const { profile, loading, refreshProfile } = useProfile();
   const [activeTab, setActiveTab] = useState("identity");
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [uploadingPartnerPhoto, setUploadingPartnerPhoto] = useState(false);
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -71,53 +70,32 @@ const Profile = () => {
     }
   }, [profile]);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isPartner = false) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-
-    const setUploading = isPartner ? setUploadingPartnerPhoto : setUploadingPhoto;
-    setUploading(true);
+  const handleImageUploaded = async (url: string | null, isPartner = false) => {
+    if (!url || !user) return;
 
     try {
-      // Use Supabase storage for file upload
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${isPartner ? 'partner' : 'profile'}-${Date.now()}.${fileExt}`;
-      
-      // Upload to Supabase storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('profile-images')
-        .upload(fileName, file, { upsert: true });
-        
-      if (uploadError) {
-        throw new Error(uploadError.message || 'Failed to upload photo');
-      }
-      
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('profile-images')
-        .getPublicUrl(fileName);
-        
       // Update profile with new image URL
       const updateField = isPartner ? 'partner_profile_image_url' : 'profile_image_url';
+      
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ [updateField]: urlData.publicUrl })
+        .update({ [updateField]: url })
         .eq('user_id', user.id);
         
       if (updateError) {
-        throw new Error(updateError.message || 'Failed to update profile with new image');
+        console.error('Profile update error:', updateError);
+        throw updateError;
       }
-      toast.success(`${isPartner ? 'Partner' : 'Profile'} photo updated successfully`);
+      
+      toast.success(`${isPartner ? 'Partner' : 'Profile'} photo updated successfully!`);
       
       // Refresh profile data to show new image
       if (refreshProfile) {
         await refreshProfile();
       }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload photo');
-    } finally {
-      setUploading(false);
+    } catch (error: any) {
+      console.error('Update error:', error);
+      toast.error(`Failed to update profile: ${error?.message || 'Unknown error'}`);
     }
   };
 
@@ -231,9 +209,7 @@ const Profile = () => {
                 profile={profile}
                 region={region}
                 setRegion={setRegion}
-                uploadingPhoto={uploadingPhoto}
-                uploadingPartnerPhoto={uploadingPartnerPhoto}
-                handleFileUpload={handleFileUpload}
+                handleImageUploaded={handleImageUploaded}
               />
               <Card>
                 <CardContent className="p-6">
@@ -341,4 +317,5 @@ const Profile = () => {
   );
 };
 
+// Profile component handles user profile management and settings
 export default Profile;

@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     """
     
     # =====================================================
-    # ENVIRONMENT
+    # ENVIRONMENT - v1.1.0 with Health Consultation
     # =====================================================
     
     NODE_ENV: Environment = Field(
@@ -88,10 +88,10 @@ class Settings(BaseSettings):
         # Convert to string for validation if it's a SecretStr
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
         
-        if not key_str.startswith('sk-'):
+        if not (key_str.startswith('sk-') or key_str.startswith('sk-proj-')):
             raise ValueError(
                 "Invalid OpenAI API key format. "
-                "OpenAI API keys should start with 'sk-'. "
+                "OpenAI API keys should start with 'sk-' or 'sk-proj-'. "
                 "Please check your key at https://platform.openai.com/api-keys"
             )
         
@@ -132,6 +132,20 @@ class Settings(BaseSettings):
         default=None,
         description="Anthropic API key (optional)"
     )
+    
+    @field_validator("ANTHROPIC_API_KEY", mode="before")
+    @classmethod
+    def validate_anthropic_api_key(cls, v):
+        """Check for alternative environment variable names for Anthropic API key"""
+        if not v:
+            # Check for alternative environment variable names
+            import os
+            alternative_names = ['ANTHROPIC-WHEELS-KEY', 'ANTHROPIC_WHEELS_KEY']
+            for alt_name in alternative_names:
+                alt_value = os.getenv(alt_name)
+                if alt_value:
+                    return alt_value
+        return v
     
     # Supabase Configuration (Required)
     SUPABASE_URL: AnyHttpUrl = Field(
@@ -553,8 +567,8 @@ class Settings(BaseSettings):
         else:
             key_str = str(key_value)
         
-        if not key_str.startswith('sk-'):
-            raise ValueError("Invalid OpenAI API key format (should start with 'sk-')")
+        if not (key_str.startswith('sk-') or key_str.startswith('sk-proj-')):
+            raise ValueError("Invalid OpenAI API key format (should start with 'sk-' or 'sk-proj-')")
         
         if len(key_str) < 20:
             raise ValueError("OpenAI API key appears to be too short")

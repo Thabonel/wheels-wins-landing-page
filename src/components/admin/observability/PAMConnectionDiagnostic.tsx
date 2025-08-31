@@ -673,12 +673,13 @@ export function PAMConnectionDiagnostic() {
             <div className="text-xs text-muted-foreground pl-4 -mt-2">
               {results.chatTest.message}
               {results.chatTest.data && results.chatTest.status === 'success' && (
-                <div className="mt-1 p-2 bg-green-50 border border-green-200 rounded text-xs">
-                  <strong>AI Response Preview:</strong> {
-                    typeof results.chatTest.data.response === 'string' 
-                      ? `${results.chatTest.data.response.substring(0, 100)  }...`
-                      : `${JSON.stringify(results.chatTest.data).substring(0, 100)  }...`
-                  }
+                <div className="mt-1 p-2 bg-green-50 border border-green-200 rounded text-xs overflow-auto max-h-40">
+                  <strong>Full AI Response:</strong>
+                  <div className="mt-1 whitespace-pre-wrap break-words">
+                    {typeof results.chatTest.data.response === 'string' 
+                      ? results.chatTest.data.response
+                      : JSON.stringify(results.chatTest.data, null, 2)}
+                  </div>
                 </div>
               )}
               {results.chatTest.error && (
