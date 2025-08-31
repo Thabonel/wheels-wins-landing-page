@@ -9,6 +9,7 @@ import {
   Star,
   Plus,
   Check,
+  ChevronRight,
   Mountain,
   Trees,
   Waves
@@ -20,6 +21,7 @@ import TripRatingWidget from './TripRatingWidget';
 interface TripTemplateCardProps {
   template: TripTemplate;
   onAddToJourney: (template: TripTemplate) => void;
+  onUseTemplate: (template: TripTemplate) => void;
   isInJourney: boolean;
 }
 
@@ -35,7 +37,8 @@ const categoryIcons: Record<string, React.ReactNode> = {
 
 export default function TripTemplateCard({ 
   template, 
-  onAddToJourney, 
+  onAddToJourney,
+  onUseTemplate, 
   isInJourney 
 }: TripTemplateCardProps) {
   const difficultyColor = {
@@ -241,25 +244,35 @@ export default function TripTemplateCard({
           </div>
         </div>
 
-        {/* Action Button */}
-        <Button 
-          onClick={() => onAddToJourney(template)}
-          disabled={isInJourney}
-          className="w-full"
-          variant={isInJourney ? "secondary" : "default"}
-        >
-          {isInJourney ? (
-            <>
-              <Check className="w-4 h-4 mr-2" />
-              Added to Journey
-            </>
-          ) : (
-            <>
-              <Plus className="w-4 h-4 mr-2" />
-              Add to Journey
-            </>
-          )}
-        </Button>
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => onAddToJourney(template)}
+            disabled={isInJourney}
+            className="flex-1"
+            variant={isInJourney ? "secondary" : "outline"}
+          >
+            {isInJourney ? (
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                In Journey
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                Add to Journey
+              </>
+            )}
+          </Button>
+          <Button 
+            onClick={() => onUseTemplate(template)}
+            className="flex-1"
+            variant="default"
+          >
+            Use Now
+            <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

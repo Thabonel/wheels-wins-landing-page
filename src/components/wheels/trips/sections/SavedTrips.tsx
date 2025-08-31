@@ -7,6 +7,7 @@ import {
   MapPin, 
   Calendar, 
   Clock, 
+  DollarSign,
   Edit, 
   Trash2, 
   Play,
@@ -20,19 +21,16 @@ import { toast } from 'sonner';
 interface SavedTrip {
   id: string;
   user_id: string;
-  name: string;
+  title: string;
   description?: string;
-  start_location?: string;
-  end_location?: string;
-  waypoints?: any;
-  distance?: number;
-  duration?: number;
-  difficulty?: string;
-  is_public?: boolean;
-  tags?: string[];
-  route_data?: any;
-  gpx_data?: string;
-  estimated_days?: number;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  trip_type?: string;
+  total_budget?: number;
+  spent_budget?: number;
+  privacy_level?: string;
+  metadata?: any;
   created_at: string;
   updated_at: string;
 }
@@ -53,9 +51,9 @@ export default function SavedTrips() {
     try {
       setLoading(true);
       
-      // Query trips from saved_trips table (user's personal saved trips)
+      // Query trips from user_trips table (user's personal saved trips)
       const { data: trips, error } = await supabase
-        .from('saved_trips')
+        .from('user_trips')
         .select('*')
         .eq('user_id', user?.id)
         .order('updated_at', { ascending: false });
@@ -86,7 +84,7 @@ export default function SavedTrips() {
 
     try {
       const { error } = await supabase
-        .from('saved_trips')
+        .from('user_trips')
         .delete()
         .eq('id', tripId)
         .eq('user_id', user?.id); // Ensure user owns the trip
@@ -155,23 +153,23 @@ export default function SavedTrips() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {trips.map((trip) => {
-        const routeData = typeof trip.route_data === 'string' 
-          ? JSON.parse(trip.route_data) 
-          : trip.route_data;
+        const metadata = typeof trip.metadata === 'string' 
+          ? JSON.parse(trip.metadata) 
+          : trip.metadata || {};
         
         return (
           <Card key={trip.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg">{trip.name}</CardTitle>
+                  <CardTitle className="text-lg">{trip.title}</CardTitle>
                   {trip.description && (
                     <p className="text-sm text-gray-600 mt-1">{trip.description}</p>
                   )}
                 </div>
-                {trip.difficulty && (
+                {trip.status && (
                   <Badge variant="secondary">
-                    {trip.difficulty}
+                    {trip.status}
                   </Badge>
                 )}
               </div>
@@ -182,17 +180,18 @@ export default function SavedTrips() {
                 <span>{new Date(trip.created_at).toLocaleDateString()}</span>
               </div>
               
-              {trip.start_location && trip.end_location && (
+              {trip.start_date && trip.end_date && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4" />
-                  <span>{trip.start_location} → {trip.end_location}</span>
+                  <Calendar className="w-4 h-4" />
+                  <span>{new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}</span>
                 </div>
               )}
               
-              {trip.distance && (
+              {trip.total_budget && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span>{trip.distance} km</span>
-                  {trip.estimated_days && <span>• {trip.estimated_days} days</span>}
+                  <DollarSign className="w-4 h-4" />
+                  <span>Budget: ${trip.total_budget.toLocaleString()}</span>
+                  {trip.spent_budget > 0 && <span>• Spent: ${trip.spent_budget.toLocaleString()}</span>}
                 </div>
               )}
 

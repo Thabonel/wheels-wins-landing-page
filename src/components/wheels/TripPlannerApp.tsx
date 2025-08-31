@@ -46,7 +46,18 @@ export default function TripPlannerApp() {
   
   // Handle case where auth context might not be available
   const user = auth?.user || null;
-  const [activeTab, setActiveTab] = useState('trip-templates');
+  
+  // Check URL parameters for initial tab
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+    if (tab === 'trip-planner') {
+      return 'plan-trip';
+    }
+    return 'trip-templates';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab());
   const [isPlannerInitialized, setIsPlannerInitialized] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
   const [showWelcome, setShowWelcome] = useState(!auth?.user);
@@ -62,6 +73,25 @@ export default function TripPlannerApp() {
       setShowWelcome(false);
     }
   }, [user, showWelcome]);
+
+  // Check for template from sessionStorage when component mounts
+  useEffect(() => {
+    const templateData = sessionStorage.getItem('selectedTripTemplate');
+    if (templateData) {
+      try {
+        const template = JSON.parse(templateData) as TripTemplate;
+        console.log('📦 Loading template from sessionStorage:', template.name);
+        
+        // Clear the sessionStorage to prevent reloading on refresh
+        sessionStorage.removeItem('selectedTripTemplate');
+        
+        // Apply the template
+        handleUseTemplate(template);
+      } catch (error) {
+        console.error('Error loading template from sessionStorage:', error);
+      }
+    }
+  }, []);
 
   const handleUseTemplate = async (template: TripTemplate) => {
     setSelectedTemplate(template);
