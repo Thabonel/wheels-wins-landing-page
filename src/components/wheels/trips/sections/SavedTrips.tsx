@@ -18,12 +18,15 @@ import { toast } from 'sonner';
 
 interface SavedTrip {
   id: string;
-  trip_name: string;
+  title: string;
   description?: string;
   route_data: any;
+  start_date?: string;
+  end_date?: string;
+  status: 'draft' | 'planned' | 'active' | 'completed';
+  is_group_trip?: boolean;
   created_at: string;
   updated_at: string;
-  status: string;
 }
 
 export default function SavedTrips() {
@@ -40,14 +43,42 @@ export default function SavedTrips() {
   const loadSavedTrips = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('group_trips')
+      
+      // Query user's own trips from user_trips table
+      const { data: userTrips, error: userTripsError } = await supabase
+        .from('user_trips')
         .select('*')
-        .eq('created_by', user?.id)
+        .eq('user_id', user?.id)
         .order('updated_at', { ascending: false });
 
-      if (error) throw error;
-      setTrips(data || []);
+      if (userTripsError) {
+        console.error('Error loading user trips:', userTripsError);
+        // If table doesn't exist yet, show empty state
+        if (userTripsError.code === '42P01') {
+          setTrips([]);
+          return;
+        }
+        throw userTripsError;
+      }
+
+      // Also get trips shared with the user via group_trips
+      const { data: groupTrips, error: groupTripsError } = await supabase
+        .from('user_trips')
+        .select(`
+          *,
+          group_trips!inner(user_id)
+        `)
+        .eq('group_trips.user_id', user?.id)
+        .neq('user_id', user?.id) // Exclude own trips (already fetched)
+        .order('updated_at', { ascending: false });
+
+      // Combine both lists, removing duplicates
+      const allTrips = [...(userTrips || [])];
+      if (groupTrips && !groupTripsError) {
+        allTrips.push(...groupTrips);
+      }
+
+      setTrips(allTrips);
     } catch (error) {
       console.error('Error loading trips:', error);
       toast.error('Failed to load saved trips');
@@ -61,9 +92,10 @@ export default function SavedTrips() {
 
     try {
       const { error } = await supabase
-        .from('group_trips')
+        .from('user_trips')
         .delete()
-        .eq('id', tripId);
+        .eq('id', tripId)
+        .eq('user_id', user?.id); // Ensure user owns the trip
 
       if (error) throw error;
       
@@ -138,7 +170,7 @@ export default function SavedTrips() {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg">{trip.trip_name}</CardTitle>
+                  <CardTitle className="text-lg">{trip.title}</CardTitle>
                   {trip.description && (
                     <p className="text-sm text-gray-600 mt-1">{trip.description}</p>
                   )}
