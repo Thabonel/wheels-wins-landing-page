@@ -37,22 +37,22 @@ export class TripService {
     mode: string,
     waypoints: Waypoint[]
   ): Promise<string | null> {
+    // Use the existing group_trips table structure
     const { data, error } = await supabase
-      .from("user_trips")
+      .from("group_trips")
       .insert({
-        user_id: userId,
-        title: `${originName} to ${destName}`,
+        created_by: userId,
+        trip_name: `${originName} to ${destName}`,
         description: `Trip from ${originName} to ${destName}`,
         start_date: new Date().toISOString().split('T')[0], // DATE format
         end_date: new Date().toISOString().split('T')[0], // DATE format
         route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints, mode }),
         status: 'planned',
-        is_group_trip: false,
-        destination: {
-          lat: dest[1],
-          lng: dest[0],
-          name: destName,
-          address: destName
+        meeting_point: {
+          lat: origin[1],
+          lng: origin[0],
+          name: originName,
+          address: originName
         }
       })
       .select('id')
@@ -60,10 +60,6 @@ export class TripService {
 
     if (error) {
       console.error('Error saving trip:', error);
-      // If table doesn't exist, show helpful message
-      if (error.code === '42P01') {
-        console.error('user_trips table does not exist. Please run the migration.');
-      }
       return null;
     }
     return data?.id ?? null;
@@ -79,7 +75,7 @@ export class TripService {
     waypoints: Waypoint[]
   ): Promise<void> {
     const { error } = await supabase
-      .from('user_trips')
+      .from('group_trips')
       .update({
         route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints, mode }),
         updated_at: new Date().toISOString()
@@ -88,9 +84,6 @@ export class TripService {
     
     if (error) {
       console.error('Error updating trip route:', error);
-      if (error.code === '42P01') {
-        console.error('user_trips table does not exist. Please run the migration.');
-      }
     }
   }
 }

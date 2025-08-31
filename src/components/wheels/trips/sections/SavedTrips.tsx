@@ -44,41 +44,39 @@ export default function SavedTrips() {
     try {
       setLoading(true);
       
-      // Query user's own trips from user_trips table
-      const { data: userTrips, error: userTripsError } = await supabase
-        .from('user_trips')
+      // The existing database uses group_trips as the main trips table
+      // Query trips from group_trips table (which stores all trips)
+      const { data: trips, error } = await supabase
+        .from('group_trips')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('created_by', user?.id)
         .order('updated_at', { ascending: false });
 
-      if (userTripsError) {
-        console.error('Error loading user trips:', userTripsError);
+      if (error) {
+        console.error('Error loading trips:', error);
         // If table doesn't exist yet, show empty state
-        if (userTripsError.code === '42P01') {
+        if (error.code === '42P01') {
           setTrips([]);
           return;
         }
-        throw userTripsError;
+        throw error;
       }
 
-      // Also get trips shared with the user via group_trips
-      const { data: groupTrips, error: groupTripsError } = await supabase
-        .from('user_trips')
-        .select(`
-          *,
-          group_trips!inner(user_id)
-        `)
-        .eq('group_trips.user_id', user?.id)
-        .neq('user_id', user?.id) // Exclude own trips (already fetched)
-        .order('updated_at', { ascending: false });
+      // Map the group_trips fields to our SavedTrip interface
+      const mappedTrips = (trips || []).map(trip => ({
+        id: trip.id,
+        title: trip.trip_name, // group_trips uses trip_name instead of title
+        description: trip.description,
+        route_data: trip.route_data,
+        start_date: trip.start_date,
+        end_date: trip.end_date,
+        status: trip.status as 'draft' | 'planned' | 'active' | 'completed',
+        is_group_trip: true, // group_trips are by definition group trips
+        created_at: trip.created_at,
+        updated_at: trip.updated_at
+      }));
 
-      // Combine both lists, removing duplicates
-      const allTrips = [...(userTrips || [])];
-      if (groupTrips && !groupTripsError) {
-        allTrips.push(...groupTrips);
-      }
-
-      setTrips(allTrips);
+      setTrips(mappedTrips);
     } catch (error) {
       console.error('Error loading trips:', error);
       toast.error('Failed to load saved trips');
@@ -92,10 +90,10 @@ export default function SavedTrips() {
 
     try {
       const { error } = await supabase
-        .from('user_trips')
+        .from('group_trips')
         .delete()
         .eq('id', tripId)
-        .eq('user_id', user?.id); // Ensure user owns the trip
+        .eq('created_by', user?.id); // Ensure user owns the trip
 
       if (error) throw error;
       
