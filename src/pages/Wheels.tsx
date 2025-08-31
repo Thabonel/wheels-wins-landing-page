@@ -1,5 +1,5 @@
 
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TabTransition } from "@/components/common/TabTransition";
@@ -7,6 +7,7 @@ import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
 import { TripPlannerErrorBoundary } from "@/components/common/TripPlannerErrorBoundary";
 import { PAMErrorBoundary } from "@/components/common/PAMErrorBoundary";
 import { PamHelpButton } from "@/components/pam/PamHelpButton";
+import { useSearchParams } from "react-router-dom";
 
 // Lazy load heavy components to reduce initial bundle size
 // Only keeping Trip Planner 2 as the main planner
@@ -42,8 +43,31 @@ const CaravanSafety = lazy(() =>
 );
 
 const Wheels = () => {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("trip-planner");
   const isMobile = useIsMobile();
+  
+  // Handle URL parameters for tab navigation
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      // Map old tab names to new ones for backward compatibility
+      const tabMapping: Record<string, string> = {
+        'fresh-planner': 'trip-planner',
+        'trip-planner': 'trip-planner',
+        'trips': 'trips',
+        'fuel-log': 'fuel-log',
+        'vehicle-maintenance': 'vehicle-maintenance',
+        'rv-storage': 'rv-storage',
+        'caravan-safety': 'caravan-safety'
+      };
+      
+      const mappedTab = tabMapping[tabParam];
+      if (mappedTab) {
+        setActiveTab(mappedTab);
+      }
+    }
+  }, [searchParams]);
   
   const tabs = [
     {
@@ -123,6 +147,7 @@ const Wheels = () => {
                     }>
                       <div className="h-[600px] relative rounded-lg overflow-hidden">
                         <FreshTripPlanner 
+                          tripId={searchParams.get('trip') || undefined}
                           onSaveTrip={async (tripData) => {
                             console.log('Saving trip:', tripData);
                             // This will be connected to Supabase later

@@ -76,8 +76,8 @@ export default function SavedTrips() {
   };
 
   const handleLoadTrip = (trip: SavedTrip) => {
-    // Navigate to Trip Planner 2 with trip data
-    window.location.href = `/wheels?tab=fresh-planner&trip=${trip.id}`;
+    // Navigate to Trip Planner with trip data
+    window.location.href = `/wheels?tab=trip-planner&trip=${trip.id}`;
   };
 
   const handleShareTrip = async (trip: SavedTrip) => {
@@ -118,7 +118,7 @@ export default function SavedTrips() {
         <CardContent className="text-center py-12">
           <MapPin className="w-12 h-12 mx-auto mb-4 text-gray-400" />
           <p className="text-gray-600 mb-4">No saved trips yet</p>
-          <Button onClick={() => window.location.href = '/wheels?tab=fresh-planner'}>
+          <Button onClick={() => window.location.href = '/wheels?tab=trip-planner'}>
             Plan Your First Trip
           </Button>
         </CardContent>
