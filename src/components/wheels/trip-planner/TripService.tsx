@@ -47,7 +47,7 @@ export class TripService {
         start_date: new Date().toISOString().split('T')[0], // DATE format
         end_date: new Date().toISOString().split('T')[0], // DATE format
         route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints, mode }),
-        status: 'planned',
+        status: 'planning', // Fixed: use 'planning' to match DB constraint
         meeting_point: {
           lat: origin[1],
           lng: origin[0],

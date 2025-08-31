@@ -23,7 +23,7 @@ interface SavedTrip {
   route_data: any;
   start_date?: string;
   end_date?: string;
-  status: 'draft' | 'planned' | 'active' | 'completed';
+  status: 'planning' | 'active' | 'completed' | 'cancelled';
   is_group_trip?: boolean;
   created_at: string;
   updated_at: string;
@@ -70,7 +70,7 @@ export default function SavedTrips() {
         route_data: trip.route_data,
         start_date: trip.start_date,
         end_date: trip.end_date,
-        status: trip.status as 'draft' | 'planned' | 'active' | 'completed',
+        status: trip.status as 'planning' | 'active' | 'completed' | 'cancelled',
         is_group_trip: true, // group_trips are by definition group trips
         created_at: trip.created_at,
         updated_at: trip.updated_at
