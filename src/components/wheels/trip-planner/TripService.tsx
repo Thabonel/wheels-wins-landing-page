@@ -38,21 +38,32 @@ export class TripService {
     waypoints: Waypoint[]
   ): Promise<string | null> {
     const { data, error } = await supabase
-      .from("group_trips")
+      .from("user_trips")
       .insert({
-        created_by: userId,
-        trip_name: `${originName} to ${destName}`,
+        user_id: userId,
+        title: `${originName} to ${destName}`,
         description: `Trip from ${originName} to ${destName}`,
-        start_date: new Date().toISOString(),
-        end_date: new Date().toISOString(),
-        route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints }),
-        status: 'active'
+        start_date: new Date().toISOString().split('T')[0], // DATE format
+        end_date: new Date().toISOString().split('T')[0], // DATE format
+        route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints, mode }),
+        status: 'planned',
+        is_group_trip: false,
+        destination: {
+          lat: dest[1],
+          lng: dest[0],
+          name: destName,
+          address: destName
+        }
       })
       .select('id')
       .single();
 
     if (error) {
       console.error('Error saving trip:', error);
+      // If table doesn't exist, show helpful message
+      if (error.code === '42P01') {
+        console.error('user_trips table does not exist. Please run the migration.');
+      }
       return null;
     }
     return data?.id ?? null;
@@ -67,12 +78,19 @@ export class TripService {
     mode: string,
     waypoints: Waypoint[]
   ): Promise<void> {
-    await supabase
-      .from('group_trips')
+    const { error } = await supabase
+      .from('user_trips')
       .update({
         route_data: JSON.stringify({ origin, dest, routingProfile, suggestions, waypoints, mode }),
         updated_at: new Date().toISOString()
       })
       .eq('id', tripId);
+    
+    if (error) {
+      console.error('Error updating trip route:', error);
+      if (error.code === '42P01') {
+        console.error('user_trips table does not exist. Please run the migration.');
+      }
+    }
   }
 }
