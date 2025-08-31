@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useRegion } from '@/context/RegionContext';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +36,7 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
   const { user } = useAuth();
   const { region } = useRegion();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const [tripTemplates, setTripTemplates] = useState<TripTemplate[]>([]);
   const [filteredTemplates, setFilteredTemplates] = useState<TripTemplate[]>([]);
@@ -164,9 +166,15 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
     if (onUseTemplate) {
       onUseTemplate(template);
     } else {
+      // Store template in sessionStorage for Trip Planner to pick up
+      sessionStorage.setItem('selectedTripTemplate', JSON.stringify(template));
+      
+      // Navigate to Trip Planner tab
+      navigate('/wheels?tab=trip-planner');
+      
       toast({
         title: "Template Selected",
-        description: `${template.name} has been selected. Switch to the Trip Map Planner tab to customize it.`,
+        description: `${template.name} has been loaded into the Trip Planner.`,
       });
     }
   };
