@@ -34,6 +34,10 @@ if os.getenv('SENTRY_DSN'):
         traces_sample_rate=0.1
     )
 
+# Ensure logs directory exists
+logs_dir = Path('logs')
+logs_dir.mkdir(exist_ok=True)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -69,7 +73,10 @@ class AutonomousCollector:
         key = os.getenv('SUPABASE_KEY')
         
         if not url or not key:
-            raise ValueError("Missing Supabase credentials")
+            logger.error("❌ Missing Supabase credentials")
+            logger.error(f"SUPABASE_URL: {'✓' if url else '❌'}")
+            logger.error(f"SUPABASE_KEY: {'✓' if key else '❌'}")
+            raise ValueError("Missing required environment variables: SUPABASE_URL and SUPABASE_KEY")
         
         return create_client(url, key)
     
@@ -312,11 +319,26 @@ class AutonomousCollector:
 async def main():
     """Main entry point for Render cron job"""
     try:
+        logger.info("🚀 Starting data collector initialization...")
         collector = AutonomousCollector()
-        await collector.run_monthly_collection()
+        logger.info("✅ Data collector initialized successfully")
         
+        await collector.run_monthly_collection()
+        logger.info("✅ Collection completed successfully")
+        
+    except ValueError as e:
+        logger.error(f"❌ Configuration error: {e}")
+        logger.error("💡 Please check environment variables in Render dashboard")
+        sys.exit(1)
+    except ImportError as e:
+        logger.error(f"❌ Import error: {e}")
+        logger.error("💡 Please check requirements.txt dependencies")
+        sys.exit(1)
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        logger.error(f"❌ Fatal error: {e}")
+        logger.error(f"Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
 
 if __name__ == "__main__":
