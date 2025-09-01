@@ -229,7 +229,6 @@ export default function FreshTemplatesPanel({
             })}
           </div>
         )}
-        </div>
         
         <div className="border-t p-4">
           <p className="text-xs text-gray-500">
