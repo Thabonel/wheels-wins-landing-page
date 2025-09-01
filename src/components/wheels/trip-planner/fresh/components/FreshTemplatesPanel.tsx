@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { X, MapPin, Clock, Sparkles } from 'lucide-react';
+import { X, MapPin, Clock, Sparkles, Loader2, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
+import { fetchTripTemplatesForRegion, TripTemplate, incrementTemplateUsage } from '@/services/tripTemplateService';
+import { useRegion } from '@/context/RegionContext';
 
 interface Template {
   id: string;
@@ -26,84 +28,6 @@ interface FreshTemplatesPanelProps {
   onApplyTemplate: (template: Template) => void;
 }
 
-const TRIP_TEMPLATES: Template[] = [
-  {
-    id: 'sydney-blue-mountains',
-    name: 'Sydney to Blue Mountains',
-    description: 'Scenic drive through the Blue Mountains with stops at key lookouts',
-    category: 'scenic',
-    duration: '1 day',
-    distance: '200 km',
-    waypoints: [
-      { name: 'Sydney CBD', coordinates: [151.2093, -33.8688], type: 'origin' },
-      { name: 'Echo Point Lookout', coordinates: [150.3120, -33.7320], type: 'waypoint' },
-      { name: 'Scenic World', coordinates: [150.3019, -33.7290], type: 'waypoint' },
-      { name: 'Leura', coordinates: [150.3340, -33.7120], type: 'destination' }
-    ],
-    tags: ['scenic', 'mountains', 'day-trip']
-  },
-  {
-    id: 'great-ocean-road',
-    name: 'Great Ocean Road Adventure',
-    description: 'Melbourne to Twelve Apostles along the famous coastal route',
-    category: 'coastal',
-    duration: '2 days',
-    distance: '470 km',
-    waypoints: [
-      { name: 'Melbourne', coordinates: [144.9631, -37.8136], type: 'origin' },
-      { name: 'Torquay', coordinates: [144.3247, -38.3319], type: 'waypoint' },
-      { name: 'Lorne', coordinates: [143.9755, -38.5395], type: 'waypoint' },
-      { name: 'Apollo Bay', coordinates: [143.6723, -38.7596], type: 'waypoint' },
-      { name: 'Twelve Apostles', coordinates: [143.1047, -38.6659], type: 'destination' }
-    ],
-    tags: ['coastal', 'multi-day', 'iconic']
-  },
-  {
-    id: 'brisbane-gold-coast',
-    name: 'Brisbane to Gold Coast',
-    description: 'Quick trip to the beaches with theme park options',
-    category: 'beach',
-    duration: '1 day',
-    distance: '100 km',
-    waypoints: [
-      { name: 'Brisbane CBD', coordinates: [153.0251, -27.4698], type: 'origin' },
-      { name: 'Dreamworld', coordinates: [153.3124, -27.8637], type: 'waypoint' },
-      { name: 'Surfers Paradise', coordinates: [153.4292, -28.0173], type: 'destination' }
-    ],
-    tags: ['beach', 'theme-parks', 'family']
-  },
-  {
-    id: 'red-centre-explorer',
-    name: 'Red Centre Explorer',
-    description: 'Alice Springs to Uluru through the Australian Outback',
-    category: 'outback',
-    duration: '3 days',
-    distance: '450 km',
-    waypoints: [
-      { name: 'Alice Springs', coordinates: [133.8807, -23.6980], type: 'origin' },
-      { name: 'MacDonnell Ranges', coordinates: [133.5000, -23.7000], type: 'waypoint' },
-      { name: 'Kings Canyon', coordinates: [131.5667, -24.2667], type: 'waypoint' },
-      { name: 'Uluru', coordinates: [131.0369, -25.3444], type: 'destination' }
-    ],
-    tags: ['outback', 'multi-day', 'adventure']
-  },
-  {
-    id: 'tasmania-circuit',
-    name: 'Tasmania Circuit',
-    description: 'Hobart to Cradle Mountain scenic loop',
-    category: 'island',
-    duration: '5 days',
-    distance: '800 km',
-    waypoints: [
-      { name: 'Hobart', coordinates: [147.3257, -42.8821], type: 'origin' },
-      { name: 'Port Arthur', coordinates: [147.8506, -43.1450], type: 'waypoint' },
-      { name: 'Freycinet', coordinates: [148.2906, -42.1211], type: 'waypoint' },
-      { name: 'Launceston', coordinates: [147.1441, -41.4332], type: 'waypoint' },
-      { name: 'Cradle Mountain', coordinates: [145.9388, -41.6820], type: 'destination' }
-    ],
-    tags: ['island', 'multi-day', 'nature']
-  }
-];
 
 const CATEGORY_COLORS: Record<string, string> = {
   scenic: 'bg-green-100 text-green-800',
@@ -118,13 +42,84 @@ export default function FreshTemplatesPanel({
   onClose, 
   onApplyTemplate 
 }: FreshTemplatesPanelProps) {
-  if (!isOpen) return null;
+  const { region } = useRegion();
+  const [templates, setTemplates] = useState<TripTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleApplyTemplate = (template: Template) => {
-    onApplyTemplate(template);
+  useEffect(() => {
+    if (isOpen) {
+      loadTemplates();
+    }
+  }, [isOpen, region]);
+
+  const loadTemplates = async () => {
+    setIsLoading(true);
+    try {
+      const fetchedTemplates = await fetchTripTemplatesForRegion(region);
+      setTemplates(fetchedTemplates);
+    } catch (error) {
+      console.error('Error loading templates:', error);
+      toast.error('Failed to load templates');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleApplyTemplate = async (template: TripTemplate) => {
+    // Convert TripTemplate to the format expected by FreshTripPlanner
+    const waypoints = [];
+    
+    if (template.route) {
+      // Add origin
+      if (template.route.origin) {
+        waypoints.push({
+          name: template.route.origin.name,
+          coordinates: template.route.origin.coords as [number, number],
+          type: 'origin' as const
+        });
+      }
+      
+      // Add waypoints
+      if (template.route.waypoints) {
+        template.route.waypoints.forEach((wp: any) => {
+          waypoints.push({
+            name: wp.name,
+            coordinates: wp.coords as [number, number],
+            type: 'waypoint' as const
+          });
+        });
+      }
+      
+      // Add destination
+      if (template.route.destination) {
+        waypoints.push({
+          name: template.route.destination.name,
+          coordinates: template.route.destination.coords as [number, number],
+          type: 'destination' as const
+        });
+      }
+    }
+
+    const formattedTemplate: Template = {
+      id: template.id,
+      name: template.name,
+      description: template.description,
+      category: template.category,
+      duration: `${template.estimatedDays} day${template.estimatedDays > 1 ? 's' : ''}`,
+      distance: `${template.estimatedMiles} km`,
+      waypoints: waypoints,
+      tags: template.tags
+    };
+
+    // Increment usage count
+    await incrementTemplateUsage(template.id);
+    
+    onApplyTemplate(formattedTemplate);
     toast.success(`Applied "${template.name}" template`);
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <Card className="absolute top-16 right-2 z-[10001] w-96 max-h-[calc(100vh-100px)] overflow-hidden">
@@ -148,59 +143,92 @@ export default function FreshTemplatesPanel({
           Quick-start your journey with these popular routes
         </div>
         
-        <div className="max-h-[500px] overflow-y-auto px-4 pb-4 space-y-3">
-          {TRIP_TEMPLATES.map((template) => (
-            <div
-              key={template.id}
-              className="border rounded-lg p-3 hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <h4 className="font-medium text-sm">{template.name}</h4>
-                  <p className="text-xs text-gray-600 mt-0.5">
-                    {template.description}
-                  </p>
-                </div>
-                <Badge 
-                  variant="secondary" 
-                  className={`ml-2 text-xs ${CATEGORY_COLORS[template.category] || ''}`}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-600">Loading templates...</span>
+          </div>
+        ) : templates.length === 0 ? (
+          <div className="text-center py-8 px-4">
+            <p className="text-gray-500">No templates available for your region</p>
+            <p className="text-xs text-gray-400 mt-2">Try changing your region in settings</p>
+          </div>
+        ) : (
+          <div className="max-h-[500px] overflow-y-auto px-4 pb-4 space-y-3">
+            {templates.map((template) => {
+              const waypointCount = (template.route?.waypoints?.length || 0) + 2; // +2 for origin and destination
+              
+              return (
+                <div
+                  key={template.id}
+                  className="border rounded-lg p-3 hover:bg-gray-50 transition-colors"
                 >
-                  {template.category}
-                </Badge>
-              </div>
-              
-              <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {template.duration}
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
-                  {template.distance}
-                </span>
-                <span>{template.waypoints.length} stops</span>
-              </div>
-              
-              <div className="flex flex-wrap gap-1 mb-2">
-                {template.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm">{template.name}</h4>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        {template.description}
+                      </p>
+                    </div>
+                    <Badge 
+                      variant="secondary" 
+                      className={`ml-2 text-xs ${CATEGORY_COLORS[template.category] || 'bg-gray-100 text-gray-800'}`}
+                    >
+                      {template.category}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {template.estimatedDays} day{template.estimatedDays > 1 ? 's' : ''}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {template.estimatedMiles} km
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <DollarSign className="w-3 h-3" />
+                      ${template.suggestedBudget}
+                    </span>
+                    <span>{waypointCount} stops</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {template.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  {template.difficulty && (
+                    <div className="mb-2">
+                      <Badge 
+                        variant={template.difficulty === 'beginner' ? 'default' : 
+                                template.difficulty === 'intermediate' ? 'secondary' : 'destructive'}
+                        className="text-xs"
+                      >
+                        {template.difficulty}
+                      </Badge>
+                    </div>
+                  )}
+                  
+                  <Button
+                    onClick={() => handleApplyTemplate(template)}
+                    size="sm"
+                    className="w-full"
                   >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              
-              <Button
-                onClick={() => handleApplyTemplate(template)}
-                size="sm"
-                className="w-full"
-              >
-                Use This Template
-              </Button>
-            </div>
-          ))}
+                    Use This Template
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
         </div>
         
         <div className="border-t p-4">

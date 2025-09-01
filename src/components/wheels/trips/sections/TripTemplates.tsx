@@ -7,9 +7,11 @@ export default function TripTemplates() {
   const { toast } = useToast();
   
   const handleUseTemplate = (template: any) => {
-    // Navigate to Trip Planner 2 with template data
-    const templateData = encodeURIComponent(JSON.stringify(template));
-    window.location.href = `/wheels?tab=fresh-planner&template=${templateData}`;
+    // Store template in sessionStorage for the trip planner to pick up
+    sessionStorage.setItem('selectedTripTemplate', JSON.stringify(template));
+    
+    // Navigate to Trip Planner
+    window.location.href = `/wheels?tab=trip-planner`;
     
     toast({
       title: "Template Selected",
