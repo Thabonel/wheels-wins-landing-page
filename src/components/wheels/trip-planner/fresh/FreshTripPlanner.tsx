@@ -32,11 +32,13 @@ const MAP_STYLES = {
 interface FreshTripPlannerProps {
   onSaveTrip?: (tripData: any) => void;
   onBack?: () => void;
+  initialTemplate?: any; // Support passing template directly
 }
 
 const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   onSaveTrip,
-  onBack
+  onBack,
+  initialTemplate
 }) => {
   // State
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
@@ -525,7 +527,74 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         duration: 2000
       });
     }
+    
+    toast.success(`Template "${template.name}" applied successfully`);
   };
+  
+  // Check for template from sessionStorage when component mounts
+  useEffect(() => {
+    const templateData = sessionStorage.getItem('selectedTripTemplate');
+    if (templateData) {
+      try {
+        const template = JSON.parse(templateData);
+        console.log('📦 Loading template from sessionStorage:', template.name);
+        
+        // Clear sessionStorage to prevent reloading on refresh
+        sessionStorage.removeItem('selectedTripTemplate');
+        
+        // Wait for map to be ready before applying template
+        if (map && waypointManager) {
+          // Apply the template
+          if (template.route) {
+            const waypoints = [];
+            
+            // Add origin
+            if (template.route.origin) {
+              waypoints.push({
+                name: template.route.origin.name,
+                coordinates: template.route.origin.coords,
+                type: 'origin'
+              });
+            }
+            
+            // Add waypoints
+            if (template.route.waypoints) {
+              template.route.waypoints.forEach((wp: any) => {
+                waypoints.push({
+                  name: wp.name,
+                  coordinates: wp.coords,
+                  type: 'waypoint'
+                });
+              });
+            }
+            
+            // Add destination
+            if (template.route.destination) {
+              waypoints.push({
+                name: template.route.destination.name,
+                coordinates: template.route.destination.coords,
+                type: 'destination'
+              });
+            }
+            
+            // Apply template with waypoints
+            handleApplyTemplate({
+              ...template,
+              waypoints: waypoints
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading template from sessionStorage:', error);
+        toast.error('Failed to load template');
+      }
+    }
+    
+    // Also check for initialTemplate prop
+    if (initialTemplate && map && waypointManager) {
+      handleApplyTemplate(initialTemplate);
+    }
+  }, [map, waypointManager, initialTemplate]);
   
   return (
     <div className="relative w-full h-full overflow-hidden" data-trip-planner-root="true">
