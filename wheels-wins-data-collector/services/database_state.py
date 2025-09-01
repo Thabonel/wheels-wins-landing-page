@@ -5,6 +5,7 @@ Replaces file-based progress tracking with robust Supabase integration
 
 import json
 import logging
+import hashlib
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -268,11 +269,17 @@ class DatabaseStateManager:
                 logger.debug(f"Location already exists: {location_data.get('name')}")
                 return None
             
+            # Generate location hash
+            lat_rounded = round(location_data['latitude'], 4)
+            lng_rounded = round(location_data['longitude'], 4)
+            location_hash = hashlib.md5(f"{lat_rounded},{lng_rounded}".encode()).hexdigest()
+            
             # Prepare location record
             location_record = {
                 'name': location_data.get('name', 'Unnamed Location'),
                 'latitude': location_data['latitude'],
                 'longitude': location_data['longitude'],
+                'location_hash': location_hash,
                 'country': location_data.get('country'),
                 'state_province': location_data.get('state_province'),
                 'data_sources': [location_data.get('data_source', 'unknown')],
