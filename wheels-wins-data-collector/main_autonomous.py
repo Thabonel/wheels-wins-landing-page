@@ -34,9 +34,13 @@ if os.getenv('SENTRY_DSN'):
         traces_sample_rate=0.1
     )
 
-# Ensure logs directory exists
+# Ensure logs directory exists BEFORE logging configuration
 logs_dir = Path('logs')
 logs_dir.mkdir(exist_ok=True)
+
+# Ensure data directory exists
+data_dir = Path('data')
+data_dir.mkdir(exist_ok=True)
 
 # Configure logging
 logging.basicConfig(
