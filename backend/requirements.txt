@@ -32,11 +32,12 @@ neo4j>=5.14.0,<6.0.0
 
 # Text analysis and TTS (now installed)
 textstat==0.7.7
-# pyttsx3==2.99  # Removed - using native system commands instead
+pyttsx3==2.99  # Python TTS library - important fallback for production
 
 # Phase 5A: TTS Dependencies  
 edge-tts>=6.1.9
 pydub>=0.25.1
+gtts>=2.3.0  # Google Text-to-Speech as additional fallback
 
 # Phase 5A Optimization: Redis-based caching and rate limiting
 aioredis==2.0.1  # Async Redis client (if not using redis[asyncio])
