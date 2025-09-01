@@ -9,8 +9,8 @@ services:
     rootDir: wheels-wins-data-collector
     buildCommand: pip install -r requirements.txt
     
-    # Run on the 1st of every month at 2 AM UTC
-    schedule: "0 2 1 * *"
+    # Run every Sunday at 2 AM UTC (weekly collection)
+    schedule: "0 2 * * 0"
     
     # Main collection command (autonomous collector)
     command: python main_autonomous.py
