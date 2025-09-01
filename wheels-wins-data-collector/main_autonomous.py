@@ -20,9 +20,13 @@ sys.path.append(str(Path(__file__).parent))
 from scrapers.real_camping_scraper import RealCampingScraperService
 from scrapers.real_parks_scraper import RealParksScraperService
 from scrapers.real_attractions_scraper import RealAttractionsScraperService
+from services.database_state import DatabaseStateManager
+from services.monitoring import MonitoringService
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import sentry_sdk
+from tenacity import retry, stop_after_attempt, wait_exponential
+import time
 
 # Load environment variables
 load_dotenv()
@@ -34,32 +38,32 @@ if os.getenv('SENTRY_DSN'):
         traces_sample_rate=0.1
     )
 
-# Ensure logs directory exists BEFORE logging configuration
+# Ensure required directories exist BEFORE any file operations
 logs_dir = Path('logs')
-logs_dir.mkdir(exist_ok=True)
+logs_dir.mkdir(parents=True, exist_ok=True)
 
-# Ensure data directory exists
 data_dir = Path('data')
-data_dir.mkdir(exist_ok=True)
+data_dir.mkdir(parents=True, exist_ok=True)
 
-# Configure logging
+# Configure logging - now safe to create log file
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/autonomous_collector.log'),
+        logging.FileHandler(str(logs_dir / 'autonomous_collector.log')),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
 class AutonomousCollector:
-    """Autonomous data collector that runs monthly on Render"""
+    """Autonomous data collector that runs weekly on Render"""
     
     def __init__(self):
         self.supabase = self._init_supabase()
-        self.progress_file = Path('data/collection_progress.json')
-        self.monthly_target = 1000  # Collect 1000 items per run
+        self.state_manager = DatabaseStateManager(self.supabase)
+        self.monitor = MonitoringService()
+        self.weekly_target = 500  # Collect 500 items per week (to reach 5000+ faster)
         
         # Initialize scrapers
         self.scrapers = {
@@ -68,8 +72,7 @@ class AutonomousCollector:
             'attractions': RealAttractionsScraperService()
         }
         
-        # Load progress
-        self.progress = self._load_progress()
+        # State will be loaded from database in initialize()
     
     def _init_supabase(self) -> Client:
         """Initialize Supabase client"""
@@ -84,109 +87,158 @@ class AutonomousCollector:
         
         return create_client(url, key)
     
-    def _load_progress(self) -> Dict:
-        """Load collection progress from file"""
-        if self.progress_file.exists():
-            with open(self.progress_file, 'r') as f:
-                return json.load(f)
-        
-        return {
-            'total_collected': 0,
-            'last_run': None,
-            'collection_history': [],
-            'next_priority': 'camping',  # Rotate through types
-            'errors': []
-        }
+    async def initialize(self):
+        """Initialize collector state from database"""
+        try:
+            self.state = await self.state_manager.initialize()
+            logger.info(f"Initialized collector with {self.state['total_collected']} items collected")
+        except Exception as e:
+            logger.error(f"Failed to initialize state: {e}")
+            raise
     
-    def _save_progress(self):
-        """Save collection progress"""
-        self.progress_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.progress_file, 'w') as f:
-            json.dump(self.progress, f, indent=2)
-    
-    async def run_monthly_collection(self):
-        """Main collection routine - runs monthly via Render cron"""
+    async def run_weekly_collection(self):
+        """Main collection routine - runs weekly via Render cron"""
         start_time = datetime.now()
         logger.info("=" * 60)
-        logger.info("🚀 Starting Autonomous Monthly Collection")
-        logger.info(f"Target: {self.monthly_target} new locations")
-        logger.info(f"Total collected so far: {self.progress['total_collected']}")
+        logger.info("🚀 Starting Autonomous Weekly Collection")
+        logger.info(f"Target: {self.weekly_target} new locations")
+        logger.info(f"Total collected so far: {self.state['total_collected']}")
         
         collected_items = []
         errors = []
+        sources_succeeded = []
+        
+        # Start a new run in database
+        run_id = await self.state_manager.start_run('scheduled', self.weekly_target)
         
         try:
-            # Determine what to collect this month
+            # Get configuration from database
+            config = self.state_manager.get_config()
+            
+            # Determine what to collect this week
             collection_plan = self._create_collection_plan()
             
-            # Execute collection
+            # Execute collection with retry logic
             for data_type, target_count in collection_plan.items():
                 logger.info(f"\n📍 Collecting {target_count} {data_type} locations...")
                 
+                source_start = time.time()
                 try:
-                    scraper = self.scrapers.get(data_type)
-                    if scraper:
-                        items = await scraper.collect_all_countries(limit=target_count)
+                    items = await self._collect_with_retry(data_type, target_count)
+                    
+                    if items:
+                        # Process and upload to database with deduplication
+                        if config.get('enable_deduplication', True):
+                            uploaded_count = await self._process_and_upload_dedupe(items, data_type)
+                        else:
+                            uploaded = await self._process_and_upload(items, data_type)
+                            uploaded_count = len(uploaded)
+                            collected_items.extend(uploaded)
                         
-                        # Process and upload to database
-                        uploaded = await self._process_and_upload(items, data_type)
-                        collected_items.extend(uploaded)
+                        # Record metrics
+                        duration = time.time() - source_start
+                        quality_scores = [item.get('quality_score', 0.0) for item in items[:10]]
+                        await self.state_manager.record_metric(
+                            data_type, uploaded_count, duration, 
+                            errors=[], quality_scores=quality_scores
+                        )
                         
-                        logger.info(f"✅ Successfully collected {len(uploaded)} {data_type} locations")
+                        # Update source stats
+                        await self.state_manager.update_source_stats(data_type, uploaded_count)
+                        
+                        sources_succeeded.append(data_type)
+                        logger.info(f"✅ Successfully collected {uploaded_count} {data_type} locations")
                     
                 except Exception as e:
                     error_msg = f"Error collecting {data_type}: {str(e)}"
                     logger.error(error_msg)
                     errors.append(error_msg)
                     
+                    # Record failed metric
+                    duration = time.time() - source_start
+                    await self.state_manager.record_metric(
+                        data_type, 0, duration, errors=[error_msg]
+                    )
+                    
                 # Rate limiting between types
-                await asyncio.sleep(10)
+                await asyncio.sleep(5)
             
-            # Update progress
-            run_summary = {
-                'date': start_time.isoformat(),
-                'collected': len(collected_items),
-                'duration': (datetime.now() - start_time).total_seconds(),
-                'errors': len(errors),
-                'breakdown': self._count_by_type(collected_items)
-            }
+            # Complete the run
+            total_collected = len(collected_items) if collected_items else \
+                             sum([collection_plan.get(s, 0) for s in sources_succeeded])
+            await self.state_manager.complete_run(total_collected, sources_succeeded)
             
-            self.progress['total_collected'] += len(collected_items)
-            self.progress['last_run'] = start_time.isoformat()
-            self.progress['collection_history'].append(run_summary)
-            self.progress['errors'] = errors[-10:]  # Keep last 10 errors
+            # Get updated stats
+            stats = await self.state_manager.get_collection_stats()
             
-            # Rotate priority for next run
-            priorities = ['camping', 'parks', 'attractions', 'swimming']
-            current_idx = priorities.index(self.progress.get('next_priority', 'camping'))
-            self.progress['next_priority'] = priorities[(current_idx + 1) % len(priorities)]
+            # Send success notification
+            duration = (datetime.now() - start_time).total_seconds()
+            await self.monitor.send_success_notification(
+                run_id=run_id,
+                items_collected=total_collected,
+                total_in_db=stats.get('total_locations', 0),
+                duration_seconds=duration,
+                sources_succeeded=sources_succeeded
+            )
             
-            self._save_progress()
-            
-            # Send summary report
-            await self._send_summary_report(run_summary)
+            # Check health metrics
+            health = await self.monitor.check_health_metrics(self.state_manager)
+            if health.get('warnings'):
+                for warning in health['warnings']:
+                    await self.monitor.send_warning_notification(
+                        warning['type'],
+                        warning
+                    )
             
             logger.info("\n" + "=" * 60)
-            logger.info(f"✅ Monthly collection complete!")
-            logger.info(f"📊 Collected: {len(collected_items)} new locations")
-            logger.info(f"📈 Total in database: {self.progress['total_collected']}")
+            logger.info(f"✅ Weekly collection complete!")
+            logger.info(f"📊 Collected: {total_collected} new locations")
+            logger.info(f"📈 Total in database: {stats.get('total_locations', 0)}")
+            logger.info(f"✓ Verified locations: {stats.get('verified_locations', 0)}")
             logger.info("=" * 60)
             
         except Exception as e:
             logger.error(f"Critical error in collection: {e}")
-            logger.error(traceback.format_exc())
+            error_trace = traceback.format_exc()
+            logger.error(error_trace)
+            
+            # Mark run as failed
+            await self.state_manager.fail_run(str(e))
+            
+            # Send failure notification
+            await self.monitor.send_failure_notification(
+                run_id=run_id if 'run_id' in locals() else 'unknown',
+                error_message=str(e),
+                traceback_str=error_trace
+            )
+            
             if os.getenv('SENTRY_DSN'):
                 sentry_sdk.capture_exception(e)
             raise
     
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    async def _collect_with_retry(self, data_type: str, target_count: int) -> List[Dict]:
+        """Collect data with retry logic"""
+        scraper = self.scrapers.get(data_type)
+        if not scraper:
+            logger.warning(f"No scraper available for {data_type}")
+            return []
+        
+        try:
+            items = await scraper.collect_all_countries(limit=target_count)
+            return items
+        except Exception as e:
+            logger.error(f"Collection failed for {data_type}: {e}")
+            raise
+    
     def _create_collection_plan(self) -> Dict[str, int]:
         """Create collection plan based on progress and priorities"""
-        total_collected = self.progress['total_collected']
-        target = self.monthly_target
+        total_collected = self.state['total_collected']
+        target = self.weekly_target
         
         # Adaptive strategy based on total collected
         if total_collected < 1000:
-            # Focus on camping first
+            # Focus on camping first (high value content)
             return {
                 'camping': int(target * 0.7),  # 70%
                 'parks': int(target * 0.2),    # 20%
@@ -200,24 +252,23 @@ class AutonomousCollector:
                 'attractions': int(target * 0.3)  # 30%
             }
         else:
-            # Focus on variety
-            priority = self.progress.get('next_priority', 'camping')
-            base_per_type = int(target * 0.2)  # 20% each
+            # Focus on variety with rotating priority
+            priority = self.state_manager.get_next_priority()
+            base_per_type = int(target * 0.25)  # 25% each
             plan = {
                 'camping': base_per_type,
                 'parks': base_per_type,
-                'attractions': base_per_type,
-                'swimming': base_per_type
+                'attractions': base_per_type
             }
             # Boost priority type with remaining
-            remaining = target - (base_per_type * 4)
+            remaining = target - (base_per_type * 3)
             if priority in plan:
                 plan[priority] += remaining
             
             return plan
     
     async def _process_and_upload(self, items: List[Dict], data_type: str) -> List[Dict]:
-        """Process items and upload to Supabase"""
+        """Process items and upload to Supabase (without deduplication)"""
         uploaded = []
         
         # Process in batches
@@ -249,6 +300,55 @@ class AutonomousCollector:
                 continue
         
         return uploaded
+    
+    async def _process_and_upload_dedupe(self, items: List[Dict], data_type: str) -> int:
+        """Process items and upload with deduplication"""
+        uploaded_count = 0
+        
+        # First, insert into trip_locations for deduplication
+        location_ids = await self.state_manager.batch_insert_locations(items)
+        
+        # Process in batches for trip_templates
+        batch_size = 50
+        for i in range(0, len(items), batch_size):
+            batch = items[i:i + batch_size]
+            
+            try:
+                # Transform to trip_templates format
+                templates = []
+                for item in batch:
+                    # Check if location was inserted (not duplicate)
+                    if await self._should_create_template(item):
+                        template = self._transform_to_template(item, data_type)
+                        if template:
+                            templates.append(template)
+                
+                if templates:
+                    # Upload to Supabase
+                    result = self.supabase.table('trip_templates').insert(templates).execute()
+                    
+                    if result.data:
+                        uploaded_count += len(result.data)
+                        logger.info(f"Uploaded batch of {len(result.data)} deduplicated items")
+                    
+                    # Rate limiting
+                    await asyncio.sleep(1)
+                    
+            except Exception as e:
+                logger.error(f"Error uploading batch: {e}")
+                continue
+        
+        return uploaded_count
+    
+    async def _should_create_template(self, item: Dict) -> bool:
+        """Check if we should create a template for this item"""
+        # For now, create templates for all non-duplicate locations
+        # In future, could add quality threshold checks here
+        config = self.state_manager.get_config()
+        quality_threshold = config.get('quality_threshold', 0.3)
+        
+        item_quality = item.get('quality_score', 0.5)
+        return item_quality >= quality_threshold
     
     def _transform_to_template(self, item: Dict, data_type: str) -> Optional[Dict]:
         """Transform scraped item to trip_template format"""
@@ -304,30 +404,19 @@ class AutonomousCollector:
             data_type = item.get('category', 'unknown')
             counts[data_type] = counts.get(data_type, 0) + 1
         return counts
-    
-    async def _send_summary_report(self, summary: Dict):
-        """Send summary report (email, Slack, etc.)"""
-        # For now, just log it
-        logger.info("\n📧 COLLECTION SUMMARY REPORT")
-        logger.info(f"Date: {summary['date']}")
-        logger.info(f"Items collected: {summary['collected']}")
-        logger.info(f"Duration: {summary['duration']:.1f} seconds")
-        logger.info(f"Errors: {summary['errors']}")
-        logger.info(f"Breakdown: {summary['breakdown']}")
-        
-        # Could integrate with SendGrid, Slack, etc.
-        if os.getenv('NOTIFICATION_WEBHOOK'):
-            # Send to webhook
-            pass
 
 async def main():
     """Main entry point for Render cron job"""
     try:
         logger.info("🚀 Starting data collector initialization...")
         collector = AutonomousCollector()
+        
+        # Initialize state from database
+        await collector.initialize()
         logger.info("✅ Data collector initialized successfully")
         
-        await collector.run_monthly_collection()
+        # Run weekly collection
+        await collector.run_weekly_collection()
         logger.info("✅ Collection completed successfully")
         
     except ValueError as e:
