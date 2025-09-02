@@ -324,8 +324,14 @@ class ChatResponse(BaseModel):
     session_id: str
     message_id: Optional[str] = None
     processing_time_ms: Optional[int] = None
-    timestamp: datetime
+    timestamp: str
     tokens_used: Optional[int] = None
+    
+    @validator('timestamp', pre=True)
+    def serialize_timestamp(cls, v):
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return v
     
     # Support for content field (backwards compatibility)
     @property

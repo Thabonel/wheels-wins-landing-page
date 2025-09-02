@@ -62,6 +62,15 @@ DEDUP_WINDOW_SECONDS = 5  # Prevent duplicates within 5 seconds
 # Helper function for safe WebSocket operations
 import base64
 import hashlib
+import json
+from datetime import datetime, date
+
+class DateTimeEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles datetime objects"""
+    def default(self, obj):
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        return super().default(obj)
 
 async def safe_websocket_send(websocket: WebSocket, data: dict) -> bool:
     """
@@ -76,7 +85,9 @@ async def safe_websocket_send(websocket: WebSocket, data: dict) -> bool:
     """
     try:
         if websocket.client_state == WebSocketState.CONNECTED:
-            await websocket.send_json(data)
+            # Convert data to JSON string with datetime handling, then send
+            json_str = json.dumps(data, cls=DateTimeEncoder, ensure_ascii=False)
+            await websocket.send_text(json_str)
             return True
         else:
             logger.warning(f"WebSocket not in CONNECTED state: {websocket.client_state}")
@@ -1310,11 +1321,13 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
         
     except Exception as e:
         logger.error(f"❌ [DEBUG] Streaming chat handling error: {str(e)}", exc_info=True)
-        if websocket.client_state == WebSocketState.CONNECTED:  # Only send if connected
-            await websocket.send_json({
-                "type": "error",
-                "message": f"Sorry, I encountered an error: {str(e)}"
-            })
+        # Send error response using safe method with proper JSON serialization
+        await safe_websocket_send(websocket, {
+            "type": "error",
+            "message": "Sorry, I encountered an error processing your message. Please try again.",
+            "error_code": "PROCESSING_ERROR",
+            "timestamp": datetime.utcnow().isoformat()
+        })
 
 async def stream_response_to_websocket(websocket: WebSocket, response: str, metadata: dict = None):
     """Stream a complete response to WebSocket in chunks"""
@@ -1327,7 +1340,7 @@ async def stream_response_to_websocket(websocket: WebSocket, response: str, meta
                 logger.warning("WebSocket disconnected during streaming")
                 break
                 
-            await websocket.send_json({
+            await safe_websocket_send(websocket, {
                 "type": "chat_response_delta",
                 "content": chunk,
                 "timestamp": datetime.utcnow().isoformat()
@@ -1337,12 +1350,11 @@ async def stream_response_to_websocket(websocket: WebSocket, response: str, meta
             await asyncio.sleep(0.05)  # 50ms between chunks
         
         # Send completion message
-        if websocket.client_state == WebSocketState.CONNECTED:
-            await websocket.send_json({
-                "type": "chat_response_complete",
-                "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat()
-            })
+        await safe_websocket_send(websocket, {
+            "type": "chat_response_complete",
+            "metadata": metadata or {},
+            "timestamp": datetime.utcnow().isoformat()
+        })
             
     except Exception as e:
         logger.error(f"Error streaming response: {str(e)}")
@@ -1363,7 +1375,7 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
                 
             full_response += chunk
             
-            await websocket.send_json({
+            await safe_websocket_send(websocket, {
                 "type": "chat_response_delta",
                 "content": chunk,
                 "timestamp": datetime.utcnow().isoformat()
