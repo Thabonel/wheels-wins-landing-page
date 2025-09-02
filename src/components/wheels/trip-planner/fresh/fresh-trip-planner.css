@@ -51,3 +51,17 @@
 .mapboxgl-canvas-container.waypoint-cursor {
   cursor: crosshair !important;
 }
+
+/* Ensure the crosshair cursor takes priority over default Mapbox cursors */
+.mapboxgl-canvas-container.waypoint-cursor .mapboxgl-canvas {
+  cursor: crosshair !important;
+}
+
+/* Alternative targeting in case the above doesn't work */
+.waypoint-cursor {
+  cursor: crosshair !important;
+}
+
+.waypoint-cursor * {
+  cursor: crosshair !important;
+}

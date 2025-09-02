@@ -55,10 +55,11 @@ export default function FreshSaveTripDialog({
     
     try {
       const result = await tripService.saveTrip(user.id, {
-        trip_name: tripName.trim(),
+        title: tripName.trim(),
         description: description.trim() || undefined,
         route_data: tripData,
-        status: 'draft'
+        status: 'draft',
+        privacy_level: 'private'
       });
 
       if (result.success) {

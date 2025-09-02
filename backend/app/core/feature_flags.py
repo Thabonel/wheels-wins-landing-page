@@ -24,6 +24,9 @@ class FeatureFlags(BaseSettings):
     ENABLE_PAM_VOICE: bool = True
     ENABLE_PAM_ENHANCED: bool = True
     ENABLE_PAM_AGENTIC: bool = False  # Advanced AI features
+    ENABLE_PAM_VECTOR_MEMORY: bool = False  # Vector-based memory and context
+    ENABLE_PAM_MULTI_AGENT: bool = False  # Multi-agent collaboration system
+    ENABLE_PAM_PROACTIVE_INTELLIGENCE: bool = False  # Proactive intelligence and anticipation
     
     # Map Feature Flags
     ENABLE_REAL_TIME_MAP_DATA: bool = True
@@ -141,6 +144,9 @@ class FeatureFlags(BaseSettings):
             
             # Beta features
             "ENABLE_PAM_AGENTIC": FeatureStage.BETA,
+            "ENABLE_PAM_VECTOR_MEMORY": FeatureStage.BETA,
+            "ENABLE_PAM_MULTI_AGENT": FeatureStage.BETA,
+            "ENABLE_PAM_PROACTIVE_INTELLIGENCE": FeatureStage.BETA,
             "ENABLE_TRIP_MATCHING": FeatureStage.BETA,
             "ENABLE_BUDGET_PREDICTIONS": FeatureStage.BETA,
             "ENABLE_PREDICTIVE_MAINTENANCE": FeatureStage.BETA,

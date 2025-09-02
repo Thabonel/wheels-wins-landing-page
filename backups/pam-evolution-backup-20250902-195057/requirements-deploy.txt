@@ -1,0 +1,83 @@
+# PAM Backend - Deployment-Optimized Dependencies for Python 3.13
+# This file contains only the essential dependencies needed for production deployment
+# Avoids packages with compilation issues on Python 3.13
+
+# Core FastAPI and ASGI server
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+
+# Data validation and settings
+pydantic==2.8.2
+pydantic-settings==2.3.4
+
+# Authentication and security - SECURITY FIX: Replaced python-jose due to CVE
+PyJWT[crypto]==2.8.0
+cryptography>=41.0.7
+email-validator==2.2.0
+
+# Core APIs
+openai==1.35.3
+supabase==2.5.0
+stripe==9.8.0
+
+# Database and caching
+redis==5.0.7
+sqlalchemy[asyncio]==2.0.41
+asyncpg==0.30.0
+
+# HTTP client
+httpx==0.27.0
+
+# Web scraping (basic) - SECURITY FIX: Updated requests to fix credential leak vulnerability
+beautifulsoup4==4.12.3
+requests>=2.32.0
+
+# Logging
+structlog==23.2.0
+python-json-logger==2.0.7
+
+# Environment and configuration
+python-dotenv==1.0.0
+
+# Date/time handling
+python-dateutil==2.8.2
+
+# Password hashing
+passlib[bcrypt]==1.7.4
+
+# CORS handling
+fastapi-cors==0.0.6
+
+# Utilities
+click==8.1.7
+# SECURITY FIX: Updated python-multipart to fix DoS vulnerabilities
+python-multipart>=0.0.10
+
+# Basic TTS (lightweight)
+edge-tts==6.1.9
+
+# Essential processing
+numpy==1.26.4
+
+# LangChain (for AI orchestration) - SECURITY FIX: Updated to patch file access vulnerabilities
+langchain-core>=0.3.0
+langchain>=0.3.0
+
+# Monitoring and error tracking - SECURITY FIX: Updated sentry-sdk to fix env var exposure
+sentry-sdk[fastapi]>=2.0.0
+psutil==5.9.8
+prometheus-client==0.19.0
+
+# OpenTelemetry for observability (lightweight)
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-instrumentation-fastapi>=0.41b0
+
+# Web search and HTML parsing
+beautifulsoup4==4.12.3
+
+# OpenAI tokenization - Use pre-built wheels only (no Rust compilation)
+# tiktoken>=0.8.0  # Temporarily disabled due to Python 3.13 compilation issues
+
+# Image processing for screenshot analysis - Python 3.13 compatible
+Pillow>=10.4.0

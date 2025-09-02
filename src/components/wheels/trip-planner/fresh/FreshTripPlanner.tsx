@@ -253,10 +253,16 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       
       // Map event handlers
       newMap.on('load', () => {
+        console.log('🗺️ Map loaded, attaching click handler');
+        
         // Enable map clicking to add waypoints
         newMap.on('click', (e) => {
+          console.log('🖱️ Map click detected, isAddingWaypoint ref:', isAddingWaypointRef.current);
           if (isAddingWaypointRef.current) {
+            console.log('✅ Processing map click for waypoint');
             handleMapClick(e);
+          } else {
+            console.log('❌ Ignoring map click, not in waypoint mode');
           }
         });
       });
@@ -345,11 +351,13 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     
     // Update cursor style
     if (map) {
-      const canvas = map.getCanvasContainer();
+      const canvasContainer = map.getCanvasContainer();
       if (isAddingWaypoint) {
-        canvas.classList.add('waypoint-cursor');
+        canvasContainer.classList.add('waypoint-cursor');
+        console.log('✅ Added waypoint-cursor class, state:', isAddingWaypoint);
       } else {
-        canvas.classList.remove('waypoint-cursor');
+        canvasContainer.classList.remove('waypoint-cursor');
+        console.log('❌ Removed waypoint-cursor class, state:', isAddingWaypoint);
       }
     }
   }, [isAddingWaypoint, map]);
@@ -399,9 +407,17 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Handle map click to add waypoint
   const handleMapClick = async (e: mapboxgl.MapLayerMouseEvent) => {
+    console.log('🎯 Map clicked! isAddingWaypoint ref:', isAddingWaypointRef.current, 'state:', isAddingWaypoint);
+    
+    // Prevent default map behavior
+    e.preventDefault();
+    
     const { lng, lat } = e.lngLat;
     
     try {
+      // Show loading state
+      toast.loading('Adding waypoint...');
+      
       // Reverse geocode to get address
       const response = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}`
@@ -420,11 +436,14 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
               waypointManager.waypoints.length === 1 ? 'destination' : 'waypoint'
       });
       
-      toast.success('Waypoint added');
+      toast.dismiss(); // Remove loading toast
+      toast.success(`Waypoint added: ${placeName}`);
       setIsAddingWaypoint(false);
     } catch (error) {
       console.error('Error adding waypoint:', error);
+      toast.dismiss();
       toast.error('Failed to add waypoint');
+      // Don't turn off adding mode if there was an error, let user try again
     }
   };
   
@@ -489,6 +508,23 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Search location handler
   const handleSearchLocation = () => {
     setShowSearch(true);
+  };
+
+  // Add waypoint button handler
+  const handleAddWaypointToggle = () => {
+    const newState = !isAddingWaypoint;
+    console.log('🖱️ Add waypoint button clicked. Changing state from', isAddingWaypoint, 'to', newState);
+    
+    setIsAddingWaypoint(newState);
+    
+    // Immediately update the ref to ensure synchronization
+    isAddingWaypointRef.current = newState;
+    
+    if (newState) {
+      toast.info('Click on the map to add a waypoint', { duration: 3000 });
+    } else {
+      toast.info('Waypoint adding mode disabled');
+    }
   };
   
   // Handle location selection from search
@@ -611,7 +647,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         onRedo={waypointManager.redo}
         canUndo={waypointManager.canUndo}
         canRedo={waypointManager.canRedo}
-        onAddWaypoint={() => setIsAddingWaypoint(!isAddingWaypoint)}
+        onAddWaypoint={handleAddWaypointToggle}
         onClearRoute={handleClearRoute}
         onSaveTrip={handleSaveTrip}
         onShareTrip={handleShareTrip}

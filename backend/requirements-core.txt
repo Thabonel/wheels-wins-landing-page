@@ -46,9 +46,11 @@ sentry-sdk[fastapi]==2.33.0
 # CORS handling
 fastapi-cors==0.0.6
 
-# Basic LangChain (core only - no extras that break)
+# LangChain and LangGraph for agent architecture
 langchain-core>=0.3.0
 langchain-text-splitters>=0.3.0
+langgraph>=0.2.0  # Agent orchestration framework
+langchain-openai>=0.2.0  # OpenAI integration for LangGraph
 
 # Basic task scheduling
 APScheduler==3.11.0

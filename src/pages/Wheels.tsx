@@ -148,8 +148,9 @@ const Wheels = () => {
                       <div className="h-[600px] relative rounded-lg overflow-hidden">
                         <FreshTripPlanner 
                           onSaveTrip={async (tripData) => {
-                            console.log('Saving trip:', tripData);
-                            // This will be connected to Supabase later
+                            console.log('Trip saved successfully:', tripData);
+                            // The save functionality is now handled by FreshSaveTripDialog
+                            // which uses the updated tripService
                           }}
                         />
                       </div>
