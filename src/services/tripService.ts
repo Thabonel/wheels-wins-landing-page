@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface TripData {
-  trip_name: string;
+  title: string;
   description?: string;
   route_data: {
     waypoints: any[];
@@ -11,6 +11,7 @@ export interface TripData {
     duration?: number;
   };
   status?: string;
+  privacy_level?: string;
 }
 
 export const tripService = {
@@ -18,15 +19,21 @@ export const tripService = {
   async saveTrip(userId: string, tripData: TripData) {
     try {
       const { data, error } = await supabase
-        .from('group_trips')
+        .from('user_trips')
         .insert({
-          created_by: userId,
-          trip_name: tripData.trip_name,
+          user_id: userId,
+          title: tripData.title,
           description: tripData.description,
-          route_data: tripData.route_data,
           status: tripData.status || 'draft',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          privacy_level: tripData.privacy_level || 'private',
+          // Store route data in metadata since route_data column may not exist
+          metadata: {
+            route_data: tripData.route_data,
+            distance: tripData.route_data.distance,
+            duration: tripData.route_data.duration,
+            profile: tripData.route_data.profile,
+            waypoint_count: tripData.route_data.waypoints.length
+          }
         })
         .select()
         .single();
@@ -42,12 +49,25 @@ export const tripService = {
   // Update an existing trip
   async updateTrip(tripId: string, tripData: Partial<TripData>) {
     try {
+      const updateData: any = {};
+      
+      if (tripData.title) updateData.title = tripData.title;
+      if (tripData.description !== undefined) updateData.description = tripData.description;
+      if (tripData.status) updateData.status = tripData.status;
+      if (tripData.privacy_level) updateData.privacy_level = tripData.privacy_level;
+      if (tripData.route_data) {
+        updateData.metadata = {
+          route_data: tripData.route_data,
+          distance: tripData.route_data.distance,
+          duration: tripData.route_data.duration,
+          profile: tripData.route_data.profile,
+          waypoint_count: tripData.route_data.waypoints.length
+        };
+      }
+
       const { data, error } = await supabase
-        .from('group_trips')
-        .update({
-          ...tripData,
-          updated_at: new Date().toISOString()
-        })
+        .from('user_trips')
+        .update(updateData)
         .eq('id', tripId)
         .select()
         .single();
@@ -64,7 +84,7 @@ export const tripService = {
   async loadTrip(tripId: string) {
     try {
       const { data, error } = await supabase
-        .from('group_trips')
+        .from('user_trips')
         .select('*')
         .eq('id', tripId)
         .single();
@@ -81,9 +101,9 @@ export const tripService = {
   async getUserTrips(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('group_trips')
+        .from('user_trips')
         .select('*')
-        .eq('created_by', userId)
+        .eq('user_id', userId)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -98,7 +118,7 @@ export const tripService = {
   async deleteTrip(tripId: string) {
     try {
       const { error } = await supabase
-        .from('group_trips')
+        .from('user_trips')
         .delete()
         .eq('id', tripId);
 

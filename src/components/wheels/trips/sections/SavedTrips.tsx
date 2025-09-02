@@ -100,7 +100,18 @@ export default function SavedTrips() {
   };
 
   const handleLoadTrip = (trip: SavedTrip) => {
-    // Navigate to Trip Planner with trip data
+    // Store trip data in sessionStorage for the trip planner to load
+    const tripData = {
+      id: trip.id,
+      title: trip.title,
+      description: trip.description,
+      route_data: trip.metadata?.route_data || null,
+      status: trip.status
+    };
+    
+    sessionStorage.setItem('loadTripData', JSON.stringify(tripData));
+    
+    // Navigate to Trip Planner
     navigate(`/wheels?tab=trip-planner&trip=${trip.id}`);
   };
 
@@ -192,6 +203,21 @@ export default function SavedTrips() {
                   <DollarSign className="w-4 h-4" />
                   <span>Budget: ${trip.total_budget.toLocaleString()}</span>
                   {trip.spent_budget > 0 && <span>• Spent: ${trip.spent_budget.toLocaleString()}</span>}
+                </div>
+              )}
+
+              {metadata.distance && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <MapPin className="w-4 h-4" />
+                  <span>Distance: {Math.round(metadata.distance / 1000)} km</span>
+                  {metadata.waypoint_count && <span>• {metadata.waypoint_count} stops</span>}
+                </div>
+              )}
+
+              {metadata.duration && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Clock className="w-4 h-4" />
+                  <span>Duration: {Math.round(metadata.duration / 3600)}h {Math.round((metadata.duration % 3600) / 60)}m</span>
                 </div>
               )}
 

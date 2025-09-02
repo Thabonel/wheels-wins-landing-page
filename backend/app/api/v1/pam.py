@@ -51,6 +51,24 @@ from app.services.stt.manager import get_stt_manager
 from app.core.simple_pam_service import simple_pam_service
 from app.services.stt.base import AudioFormat
 
+# LangGraph Agent Integration
+from app.core.feature_flags import feature_flags, is_feature_enabled
+from app.agents.orchestrator import PAMAgentOrchestrator
+import os
+
+# Initialize LangGraph orchestrator if feature is enabled
+pam_agent_orchestrator = None
+if feature_flags.ENABLE_PAM_AGENTIC:
+    openai_key = os.getenv('OPENAI_API_KEY')
+    if openai_key:
+        try:
+            pam_agent_orchestrator = PAMAgentOrchestrator(openai_key)
+            logger.info("🤖 PAM Agent Orchestrator initialized successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize PAM Agent Orchestrator: {e}")
+    else:
+        logger.warning("⚠️ OpenAI API key not found, agent features disabled")
+
 router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
@@ -1059,7 +1077,69 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         # Fallback to full PAM processing
         logger.info(f"🔄 [DEBUG] Falling back to cloud processing (edge confidence: {edge_result.confidence:.2f})")
         
-        # Use enhanced orchestrator for consistent neutral responses
+        # Try LangGraph Agent processing first (if enabled)
+        if pam_agent_orchestrator and is_feature_enabled("ENABLE_PAM_AGENTIC", user_id):
+            logger.info(f"🤖 [DEBUG] ENABLE_PAM_AGENTIC enabled for user {user_id}, using LangGraph agent")
+            
+            try:
+                agent_start_time = time.time()
+                
+                # Process message through LangGraph agent
+                agent_result = await pam_agent_orchestrator.process_message(
+                    message=message,
+                    user_id=user_id,
+                    context=context
+                )
+                
+                agent_processing_time = (time.time() - agent_start_time) * 1000
+                logger.info(f"🚀 [DEBUG] LangGraph agent processed in {agent_processing_time:.1f}ms")
+                
+                if agent_result.success:
+                    logger.info(f"✅ [DEBUG] LangGraph agent success: {agent_result.content[:100]}...")
+                    
+                    # Send agent response
+                    agent_response_payload = {
+                        "type": "response", 
+                        "content": agent_result.content,
+                        "source": "langgraph_agent",
+                        "processing_time_ms": agent_processing_time,
+                        "confidence": agent_result.confidence,
+                        "metadata": {
+                            **agent_result.metadata,
+                            "agent_used": agent_result.agent_used,
+                            "tool_calls": agent_result.tool_calls
+                        }
+                    }
+                    
+                    # Store successful interaction in agent memory
+                    try:
+                        await pam_agent_orchestrator.memory.store_interaction(
+                            user_id=user_id,
+                            user_message=message,
+                            agent_response=agent_result.content,
+                            context=context
+                        )
+                    except Exception as memory_e:
+                        logger.warning(f"⚠️ [DEBUG] Failed to store agent interaction: {memory_e}")
+                    
+                    await websocket.send_json(agent_response_payload)
+                    logger.info(f"📤 [DEBUG] LangGraph agent response sent successfully")
+                    return
+                else:
+                    logger.warning(f"⚠️ [DEBUG] LangGraph agent failed: {agent_result.content}")
+                    # Fall through to enhanced orchestrator
+                    
+            except Exception as agent_e:
+                logger.error(f"❌ [DEBUG] LangGraph agent processing failed: {agent_e}")
+                logger.error(f"❌ [DEBUG] Agent error traceback: {traceback.format_exc()}")
+                # Fall through to enhanced orchestrator
+        else:
+            if not pam_agent_orchestrator:
+                logger.info(f"🤖 [DEBUG] LangGraph agent orchestrator not initialized")
+            else:
+                logger.info(f"🤖 [DEBUG] ENABLE_PAM_AGENTIC disabled for user {user_id}")
+        
+        # Use enhanced orchestrator for consistent neutral responses (fallback)
         logger.info(f"📥 [DEBUG] Using enhanced orchestrator for consistent responses...")
         
         # Process through orchestrator with error handling
@@ -1310,7 +1390,65 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
             })
             return
         
-        # 3. Fallback to cloud processing with streaming
+        # 3. Try LangGraph Agent processing first (if enabled) - streaming mode
+        if pam_agent_orchestrator and is_feature_enabled("ENABLE_PAM_AGENTIC", user_id):
+            logger.info(f"🤖 [DEBUG] ENABLE_PAM_AGENTIC enabled for user {user_id}, using LangGraph agent (streaming)")
+            
+            try:
+                agent_start_time = time.time()
+                
+                # Process message through LangGraph agent
+                agent_result = await pam_agent_orchestrator.process_message(
+                    message=message,
+                    user_id=user_id,
+                    context=context
+                )
+                
+                agent_processing_time = (time.time() - agent_start_time) * 1000
+                logger.info(f"🚀 [DEBUG] LangGraph agent processed in {agent_processing_time:.1f}ms (streaming)")
+                
+                if agent_result.success:
+                    logger.info(f"✅ [DEBUG] LangGraph agent success (streaming): {agent_result.content[:100]}...")
+                    
+                    # Stream the agent response
+                    await stream_response_to_websocket(websocket, agent_result.content, {
+                        "source": "langgraph_agent",
+                        "processing_time_ms": agent_processing_time,
+                        "confidence": agent_result.confidence,
+                        "agent_used": agent_result.agent_used,
+                        "tool_calls": agent_result.tool_calls,
+                        "metadata": agent_result.metadata
+                    })
+                    
+                    # Store successful interaction in agent memory
+                    try:
+                        await pam_agent_orchestrator.memory.store_interaction(
+                            user_id=user_id,
+                            user_message=message,
+                            agent_response=agent_result.content,
+                            context=context
+                        )
+                    except Exception as memory_e:
+                        logger.warning(f"⚠️ [DEBUG] Failed to store agent interaction (streaming): {memory_e}")
+                    
+                    logger.info(f"📤 [DEBUG] LangGraph agent streaming response sent successfully")
+                    return
+                else:
+                    logger.warning(f"⚠️ [DEBUG] LangGraph agent failed (streaming): {agent_result.content}")
+                    # Fall through to cloud streaming
+                    
+            except Exception as agent_e:
+                logger.error(f"❌ [DEBUG] LangGraph agent processing failed (streaming): {agent_e}")
+                import traceback
+                logger.error(f"❌ [DEBUG] Agent error traceback (streaming): {traceback.format_exc()}")
+                # Fall through to cloud streaming
+        else:
+            if not pam_agent_orchestrator:
+                logger.info(f"🤖 [DEBUG] LangGraph agent orchestrator not initialized (streaming)")
+            else:
+                logger.info(f"🤖 [DEBUG] ENABLE_PAM_AGENTIC disabled for user {user_id} (streaming)")
+        
+        # 4. Fallback to cloud processing with streaming
         logger.info(f"🌊 [DEBUG] Starting cloud AI streaming...")
         
         # Get conversation history
