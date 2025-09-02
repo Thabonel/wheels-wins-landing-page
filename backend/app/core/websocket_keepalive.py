@@ -110,9 +110,11 @@ class WebSocketKeepalive:
                     last_pong = connection['last_pong']
                     time_since_pong = (datetime.utcnow() - last_pong).total_seconds()
                     
-                    if time_since_pong > (self.ping_interval + self.pong_timeout):
+                    # Be more lenient with timeout - allow for 2 missed pongs before declaring dead
+                    max_no_pong_time = (self.ping_interval * 2) + self.pong_timeout  # 55 seconds with current settings
+                    if time_since_pong > max_no_pong_time:
                         logger.warning(f"⚠️ [KEEPALIVE] Connection {connection_id[:8]}... appears dead "
-                                     f"(no pong for {time_since_pong:.1f}s)")
+                                     f"(no pong for {time_since_pong:.1f}s, threshold: {max_no_pong_time}s)")
                         connection['is_alive'] = False
                         
                         # Try to close the connection gracefully
@@ -130,7 +132,12 @@ class WebSocketKeepalive:
                             "timestamp": datetime.utcnow().isoformat(),
                             "ping_number": connection['ping_count']
                         }
-                        await websocket.send_json(ping_message)
+                        # Use safe JSON sending with datetime handling
+                        import json
+                        from datetime import datetime
+                        from app.core.serialization import DateTimeEncoder
+                        json_str = json.dumps(ping_message, cls=DateTimeEncoder, ensure_ascii=False)
+                        await websocket.send_text(json_str)
                         logger.debug(f"🏓 [KEEPALIVE] Ping #{connection['ping_count']} sent to {connection_id[:8]}...")
                         
                     except Exception as send_error:
@@ -192,8 +199,8 @@ class WebSocketKeepalive:
 # Global keepalive manager instance with Render-optimized settings
 # Render closes connections after 30 seconds of inactivity
 websocket_keepalive = WebSocketKeepalive(
-    ping_interval=20,  # Send ping every 20 seconds (well before Render's 30s timeout)
-    pong_timeout=15    # Wait up to 15 seconds for pong
+    ping_interval=25,  # Send ping every 25 seconds (well before Render's 30s timeout)
+    pong_timeout=20    # Wait up to 20 seconds for pong (more lenient for network delays)
 )
 
 
