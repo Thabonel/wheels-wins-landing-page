@@ -243,10 +243,12 @@ async def generate_tts_audio(text: str, user_settings: dict = None, user_id: str
 
 # Helper function for safe WebSocket operations
 async def safe_send_json(websocket: WebSocket, data: dict) -> bool:
-    """Safely send JSON data through WebSocket with state checking"""
+    """Safely send JSON data through WebSocket with state checking and datetime handling"""
     try:
         if websocket.client_state == WebSocketState.CONNECTED:
-            await websocket.send_json(data)
+            # Convert data to JSON string with datetime handling, then send
+            json_str = json.dumps(data, cls=DateTimeEncoder, ensure_ascii=False)
+            await websocket.send_text(json_str)
             return True
         else:
             logger.warning(f"Attempted to send to disconnected WebSocket")
@@ -619,7 +621,7 @@ async def websocket_endpoint(
                                 return
                             
                             # Send warning and skip message processing
-                            await websocket.send_json({
+                            await safe_send_json(websocket, {
                                 "type": "error",
                                 "message": "Message contains suspicious content and was rejected.",
                                 "error_code": "SUSPICIOUS_CONTENT"
@@ -637,7 +639,7 @@ async def websocket_endpoint(
                         await websocket.close(code=4003, reason="Repeated validation failures")
                         return
                     
-                    await websocket.send_json({
+                    await safe_send_json(websocket, {
                         "type": "error",
                         "message": "Message validation failed. Please check your input.",
                         "error_code": "VALIDATION_ERROR"
@@ -654,7 +656,7 @@ async def websocket_endpoint(
                         await websocket.close(code=4003, reason="Security violation")
                         return
                     
-                    await websocket.send_json({
+                    await safe_send_json(websocket, {
                         "type": "error",
                         "message": "Security validation failed.",
                         "error_code": "SECURITY_ERROR"
@@ -687,7 +689,7 @@ async def websocket_endpoint(
                         error_response["field_violations"] = size_validation_result.field_violations
                         error_response["violation_count"] = size_validation_result.violation_count
                     
-                    await websocket.send_json(error_response)
+                    await safe_send_json(websocket, error_response)
                     
                     # Close connection for severe violations or repeated offenses
                     if should_block or size_validation_result.size_bytes > 1048576:  # 1MB threshold for immediate disconnect
@@ -721,7 +723,7 @@ async def websocket_endpoint(
                     # Send detailed rate limit information
                     reset_in_seconds = int((rate_result.reset_time - datetime.now()).total_seconds()) if rate_result.reset_time else 60
                     
-                    await websocket.send_json({
+                    await safe_send_json(websocket, {
                         "type": "error",
                         "message": f"Rate limit exceeded. Try again in {reset_in_seconds} seconds.",
                         "error_code": "RATE_LIMIT_EXCEEDED",
@@ -747,7 +749,7 @@ async def websocket_endpoint(
             # Process different message types
             if data.get("type") == "ping":
                 logger.info(f"🏓 [DEBUG] Ping received from {user_id}, sending pong")
-                await websocket.send_json({"type": "pong"})
+                await safe_send_json(websocket, {"type": "pong"})
                 
             elif data.get("type") == "pong":
                 # Handle pong response for heartbeat monitoring
@@ -894,7 +896,7 @@ async def websocket_endpoint(
                     stt_manager = get_stt_manager()
                     capabilities = stt_manager.get_engine_capabilities()
                     
-                    await websocket.send_json({
+                    await safe_send_json(websocket, {
                         "type": "stt_capabilities",
                         "capabilities": capabilities,
                         "supported_formats": [f.value for f in stt_manager.get_supported_formats()],
@@ -902,7 +904,7 @@ async def websocket_endpoint(
                     })
                 except Exception as cap_error:
                     logger.error(f"❌ Error getting STT capabilities: {str(cap_error)}")
-                    await websocket.send_json({
+                    await safe_send_json(websocket, {
                         "type": "error",
                         "message": "Failed to get STT capabilities",
                         "error_code": "CAPABILITIES_ERROR"
@@ -910,7 +912,7 @@ async def websocket_endpoint(
                 
             else:
                 logger.warning(f"❓ [DEBUG] Unknown message type '{data.get('type')}' from user {user_id}")
-                await websocket.send_json({
+                await safe_send_json(websocket, {
                     "type": "error",
                     "message": f"Unknown message type: {data.get('type')}"
                 })
@@ -1028,7 +1030,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         # Check for empty message
         if not message or message.strip() == "":
             logger.warning(f"❌ [DEBUG] Empty message received from user {user_id}")
-            await websocket.send_json({
+            await safe_send_json(websocket, {
                 "type": "error",
                 "message": "I didn't receive your message. Could you please try again?"
             })
@@ -1070,7 +1072,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 edge_response_payload["tts_processing_time_ms"] = tts_processing_time
                 logger.info(f"🎵 Edge TTS generated in {tts_processing_time:.1f}ms, engine: {tts_audio['engine_used']}")
             
-            await websocket.send_json(edge_response_payload)
+            await safe_send_json(websocket, edge_response_payload)
             logger.info(f"📤 [DEBUG] Edge response sent successfully to user {user_id}")
             return
         
@@ -1122,7 +1124,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                     except Exception as memory_e:
                         logger.warning(f"⚠️ [DEBUG] Failed to store agent interaction: {memory_e}")
                     
-                    await websocket.send_json(agent_response_payload)
+                    await safe_send_json(websocket, agent_response_payload)
                     logger.info(f"📤 [DEBUG] LangGraph agent response sent successfully")
                     return
                 else:
@@ -1185,7 +1187,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 logger.warning(f"⚠️ [DEBUG] Service status: {result.get('service_status', 'Unknown')}")
                 
                 # Send the error/fallback response ONCE and return
-                await websocket.send_json({
+                await safe_send_json(websocket, {
                     "type": "chat_response",
                     "message": response_message,
                     "content": response_message,
@@ -1218,7 +1220,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 logger.error(f"❌ [DEBUG] Could not get service status: {status_e}")
             
             # Send a single error response with more details
-            await websocket.send_json({
+            await safe_send_json(websocket, {
                 "type": "chat_response",
                 "message": "I apologize, but I'm having trouble processing your request right now. Please try again.",
                 "content": "I apologize, but I'm having trouble processing your request right now. Please try again.",
@@ -1284,7 +1286,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             logger.info(f"📤 [DEBUG] Sending response payload: {response_payload}")
             
             # Send response
-            await websocket.send_json(response_payload)
+            await safe_send_json(websocket, response_payload)
             logger.info(f"✅ [DEBUG] Response sent successfully to user {user_id}")
             
             # Check for visual action from AI function call OR regex pattern matching
@@ -1308,13 +1310,13 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 if 'message' in visual_action:
                     del visual_action['message']
                 logger.info(f"🎨 Sending visual action to frontend (without duplicating response): {visual_action}")
-                await websocket.send_json(visual_action)
+                await safe_send_json(websocket, visual_action)
             
             # Send UI actions if any (currently none from SimplePamService)
             ui_actions = [a for a in actions if a.get("type") in ["navigate", "fill_form", "click", "alert"]]
             if ui_actions and websocket.client_state == WebSocketState.CONNECTED:
                 logger.info(f"🎬 [DEBUG] Sending UI actions: {ui_actions}")
-                await websocket.send_json({
+                await safe_send_json(websocket, {
                     "type": "ui_actions",
                     "actions": ui_actions
                 })
@@ -1324,7 +1326,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
     except Exception as e:
         logger.error(f"❌ [DEBUG] Chat handling error: {str(e)}", exc_info=True)
         if websocket.client_state == WebSocketState.CONNECTED:  # Only send if connected
-            await websocket.send_json({
+            await safe_send_json(websocket, {
                 "type": "error",
                 "message": f"Sorry, I encountered an error: {str(e)}"
             })
@@ -1354,7 +1356,7 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
         # Check for empty message
         if not message or message.strip() == "":
             logger.warning(f"❌ [DEBUG] Empty message received from user {user_id}")
-            await websocket.send_json({
+            await safe_send_json(websocket, {
                 "type": "error",
                 "message": "I didn't receive your message. Could you please try again?"
             })
@@ -1364,7 +1366,7 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
         start_time = time.time()
         logger.info(f"⚡ [DEBUG] Sending immediate acknowledgment...")
         
-        await websocket.send_json({
+        await safe_send_json(websocket, {
             "type": "chat_response_start",
             "message_id": str(uuid.uuid4()),
             "status": "processing",
@@ -1535,7 +1537,7 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
                 if visual_action:
                     logger.info(f"🔍 Regex pattern matched visual action: {visual_action}")
             
-            await websocket.send_json({
+            await safe_send_json(websocket, {
                 "type": "chat_response_complete",
                 "full_response": full_response,
                 "source": "cloud",
@@ -1553,12 +1555,12 @@ async def stream_ai_response_to_websocket(websocket: WebSocket, message: str, co
                 if 'full_response' in visual_action:
                     del visual_action['full_response']
                 logger.info(f"🎨 Sending visual action to frontend (without duplicating response): {visual_action}")
-                await websocket.send_json(visual_action)
+                await safe_send_json(websocket, visual_action)
             
     except Exception as e:
         logger.error(f"Error streaming AI response: {str(e)}")
         if websocket.client_state == WebSocketState.CONNECTED:
-            await websocket.send_json({
+            await safe_send_json(websocket, {
                 "type": "error",
                 "message": f"Streaming error: {str(e)}"
             })
@@ -1686,7 +1688,7 @@ async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, 
         # Store context update in database
         # Implementation depends on your context storage strategy
         
-        await websocket.send_json({
+        await safe_send_json(websocket, {
             "type": "context_updated",
             "message": "Context updated successfully",
             "timestamp": datetime.utcnow().isoformat()
@@ -1694,7 +1696,7 @@ async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, 
         
     except Exception as e:
         logger.error(f"Context update error: {str(e)}")
-        await websocket.send_json({
+        await safe_send_json(websocket, {
             "type": "error",
             "message": "Failed to update context"
         })

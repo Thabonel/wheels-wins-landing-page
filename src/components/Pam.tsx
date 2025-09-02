@@ -2677,16 +2677,19 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   // Handle auto-send when triggered by external events
   useEffect(() => {
-    if (shouldAutoSend && inputMessage.trim()) {
+    if (shouldAutoSend) {
       // Reset the flag first
       setShouldAutoSend(false);
-      // Delay to ensure UI updates
-      const timer = setTimeout(() => {
-        handleSendMessage();
-      }, 100);
-      return () => clearTimeout(timer);
+      // Only send if there's actually a message to send
+      if (inputMessage.trim()) {
+        // Delay to ensure UI updates
+        const timer = setTimeout(() => {
+          handleSendMessage();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [shouldAutoSend, inputMessage]);
+  }, [shouldAutoSend]); // Removed inputMessage from dependencies to prevent triggering on every character
 
   // Cleanup on unmount
   useEffect(() => {
