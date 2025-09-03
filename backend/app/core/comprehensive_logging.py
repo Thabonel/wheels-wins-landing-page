@@ -415,7 +415,7 @@ class AlertManager:
             key = f"pam:alert:{alert_id}"
             alert_data = asdict(alert)
             alert_data["timestamp"] = alert.timestamp.isoformat()
-            self.redis_client.setex(key, 86400 * 7, json.dumps(alert_data, cls=DateTimeEncoder))
+            self.redis_client.setex(key, 86400 * 7, json.dumps(alert_data, default=str))
         except Exception as e:
             self.logger.error("Failed to store alert in Redis", error=str(e))
         
@@ -497,7 +497,6 @@ Alert ID: {alert.id}
             return
         
         import aiohttp
-from app.utils.datetime_encoder import DateTimeEncoder
         
         color_map = {
             "low": "#36a64f",
@@ -691,7 +690,7 @@ class PAMLoggingSystem:
             }
             
             ttl = ttl_map.get(log_entry.level, 86400 * 7)
-            self.redis_client.setex(key, ttl, json.dumps(log_data, cls=DateTimeEncoder))
+            self.redis_client.setex(key, ttl, json.dumps(log_data, default=str))
             
         except Exception as e:
             logging.error(f"Failed to store log entry in Redis: {e}")
