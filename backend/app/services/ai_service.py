@@ -9,7 +9,7 @@ import time
 from typing import Dict, List, Any, Optional, AsyncGenerator, Tuple, Union
 from datetime import datetime
 from dataclasses import dataclass
-from app.core.serialization import DateTimeEncoder
+from app.utils.datetime_encoder import DateTimeEncoder
 
 from openai import AsyncOpenAI, OpenAIError
 import jwt
