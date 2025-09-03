@@ -9,6 +9,7 @@ import time
 from typing import Dict, List, Any, Optional, AsyncGenerator, Tuple, Union
 from datetime import datetime
 from dataclasses import dataclass
+from app.core.serialization import DateTimeEncoder
 
 from openai import AsyncOpenAI, OpenAIError
 import jwt
@@ -710,7 +711,7 @@ Remember: Adapt your response to what the user is actually asking about. Don't a
             function_messages.append({
                 "role": "function",
                 "name": message.function_call.name,
-                "content": json.dumps(function_result)
+                "content": json.dumps(function_result, cls=DateTimeEncoder, ensure_ascii=False)
             })
             
             # Make follow-up call without functions to get final response
