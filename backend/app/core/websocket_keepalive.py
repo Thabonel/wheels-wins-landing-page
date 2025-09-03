@@ -133,8 +133,6 @@ class WebSocketKeepalive:
                             "ping_number": connection['ping_count']
                         }
                         # Use safe JSON sending with datetime handling
-                        import json
-                        from datetime import datetime
                         from app.core.serialization import DateTimeEncoder
                         json_str = json.dumps(ping_message, cls=DateTimeEncoder, ensure_ascii=False)
                         await websocket.send_text(json_str)
