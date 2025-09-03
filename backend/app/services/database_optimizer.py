@@ -17,6 +17,7 @@ from asyncpg.pool import Pool
 from app.core.logging import get_logger
 from app.core.config import get_settings
 from app.services.cache_manager import get_cache_manager, CacheStrategy
+from app.utils.datetime_encoder import DateTimeEncoder
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -35,7 +36,7 @@ class QueryPlan:
         
     def generate_cache_key(self) -> str:
         """Generate cache key for query result"""
-        key_data = f"{self.query}:{json.dumps(self.params, default=str)}"
+        key_data = f"{self.query}:{json.dumps(self.params, cls=DateTimeEncoder)}"
         return hashlib.md5(key_data.encode()).hexdigest()
 
 
@@ -241,7 +242,7 @@ class DatabaseOptimizer:
         params = params or []
         
         # Generate cache key
-        cache_key = hashlib.md5(f"{query}:{json.dumps(params, default=str)}".encode()).hexdigest()
+        cache_key = hashlib.md5(f"{query}:{json.dumps(params, cls=DateTimeEncoder)}".encode()).hexdigest()
         
         # Check result cache for read queries
         if query_type == "read" and use_cache:

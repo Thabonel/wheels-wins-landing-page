@@ -17,6 +17,7 @@ import os
 
 from .base_tts import TTSRequest, TTSResponse, AudioFormat, VoiceProfile
 from app.core.config import get_settings
+from app.utils.datetime_encoder import DateTimeEncoder
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -321,7 +322,7 @@ class TTSCache:
             
             # Save to disk (compressed)
             with gzip.open(entry_file, 'wb') as f:
-                f.write(json.dumps(entry_data, default=str).encode())
+                f.write(json.dumps(entry_data, cls=DateTimeEncoder).encode())
                 
         except Exception as e:
             logger.warning(f"⚠️ Failed to persist cache entry {cache_key}: {e}")

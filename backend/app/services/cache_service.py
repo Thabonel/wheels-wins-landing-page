@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import redis.asyncio as aioredis
 from app.core.config import settings
 from app.core.logging import setup_logging, get_logger
+from app.utils.datetime_encoder import DateTimeEncoder
 
 setup_logging()
 logger = get_logger(__name__)
@@ -106,7 +107,7 @@ class CacheService:
             if use_pickle:
                 serialized_value = pickle.dumps(value).decode('latin-1')
             else:
-                serialized_value = json.dumps(value, default=str)
+                serialized_value = json.dumps(value, cls=DateTimeEncoder)
             
             await self.redis.setex(key, ttl, serialized_value)
         except Exception as e:
@@ -179,7 +180,7 @@ class CacheService:
             pipe = self.redis.pipeline()
             
             for key, value in data.items():
-                serialized_value = json.dumps(value, default=str)
+                serialized_value = json.dumps(value, cls=DateTimeEncoder)
                 pipe.setex(key, ttl, serialized_value)
             
             await pipe.execute()

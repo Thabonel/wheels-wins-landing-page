@@ -3661,7 +3661,7 @@ async def search_logs(
                                 continue
                             
                             # Search in the log entry
-                            log_entry_str = json.dumps(log_entry, default=str).lower()
+                            log_entry_str = json.dumps(log_entry, cls=DateTimeEncoder).lower()
                             if search_pattern.search(log_entry_str):
                                 matching_events.append(log_entry)
                                 
@@ -3805,7 +3805,7 @@ async def export_logs(
                     flattened_entry = {}
                     for key, value in entry.items():
                         if isinstance(value, (dict, list)):
-                            flattened_entry[key] = json.dumps(value, default=str)
+                            flattened_entry[key] = json.dumps(value, cls=DateTimeEncoder)
                         else:
                             flattened_entry[key] = str(value) if value is not None else ""
                     writer.writerow(flattened_entry)
@@ -4355,6 +4355,7 @@ async def pam_debug_endpoint(current_user = Depends(get_current_user)):
         logger.info("🔍 PAM Debug: Testing Import Systems...")
         try:
             from app.services.pam.tools.import_utils import get_import_diagnostics, check_circular_imports
+from app.utils.datetime_encoder import DateTimeEncoder
             
             # Get comprehensive import diagnostics
             import_diag = get_import_diagnostics()

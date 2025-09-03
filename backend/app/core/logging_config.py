@@ -161,7 +161,7 @@ class PAMLogger:
         log_method(event.message, **event_data)
         
         # Log to specialized file loggers based on event type
-        json_message = json.dumps(event_data, default=str, ensure_ascii=False)
+        json_message = json.dumps(event_data, cls=DateTimeEncoder, ensure_ascii=False)
         
         if event.severity in [LogSeverity.ERROR, LogSeverity.CRITICAL]:
             self.error_logger.error(json_message)
@@ -199,7 +199,7 @@ class PAMLogger:
             user_agent=user_agent,
             context={
                 "method": method,
-                "data_size_bytes": len(json.dumps(data, default=str)),
+                "data_size_bytes": len(json.dumps(data, cls=DateTimeEncoder)),
                 "has_sensitive_data": self._contains_sensitive_data(data)
             }
         )
@@ -504,6 +504,7 @@ class PAMLogger:
         finally:
             # Clear context when done
             from app.core.logging import clear_request_context
+from app.utils.datetime_encoder import DateTimeEncoder
             clear_request_context()
     
     # Helper methods for categorization and analysis
