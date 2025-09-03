@@ -585,7 +585,7 @@ async def websocket_endpoint(
                 logger.info(f"📨 [DEBUG] WebSocket message received from user {user_id}")
                 
                 # Calculate message size for logging
-                message_size = len(json.dumps(raw_data, default=str))
+                message_size = len(json.dumps(raw_data, cls=DateTimeEncoder, ensure_ascii=False))
                 
                 # SECURITY: Comprehensive input validation and sanitization
                 try:
