@@ -2507,6 +2507,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const handleSendMessage = async () => {
+    console.log('🚀 DEBUG: handleSendMessage called with inputMessage:', inputMessage);
+    console.trace('🚀 DEBUG: Call stack for handleSendMessage');
     if (!inputMessage?.trim()) {
       logger.warn('⚠️ PAM DEBUG: Attempted to send empty message');
       return;
@@ -2883,7 +2885,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               ref={inputRef}
               type="text"
               value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
+              onChange={(e) => {
+                console.log('🔍 DEBUG: Input changed from', inputMessage, 'to', e.target.value);
+                setInputMessage(e.target.value);
+              }}
               onKeyPress={handleKeyPress}
               placeholder="Ask PAM anything..."
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
@@ -3040,7 +3045,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 ref={inputRef}
                 type="text"
                 value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
+                onChange={(e) => {
+                console.log('🔍 DEBUG: Input changed from', inputMessage, 'to', e.target.value);
+                setInputMessage(e.target.value);
+              }}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask PAM anything..."
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
