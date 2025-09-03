@@ -10,7 +10,7 @@ import logging
 import time
 import asyncio
 import base64
-from datetime import datetime
+from datetime import datetime, date
 
 from app.api.deps import (
     get_current_user, verify_supabase_jwt_token, verify_supabase_jwt_flexible, get_pam_orchestrator, get_database,
