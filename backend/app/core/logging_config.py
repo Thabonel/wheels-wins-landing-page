@@ -17,6 +17,7 @@ from contextlib import contextmanager
 
 from app.core.logging import get_logger, set_request_context
 from app.core.config import get_settings
+from app.utils.datetime_encoder import DateTimeEncoder
 
 settings = get_settings()
 
@@ -504,7 +505,6 @@ class PAMLogger:
         finally:
             # Clear context when done
             from app.core.logging import clear_request_context
-from app.utils.datetime_encoder import DateTimeEncoder
             clear_request_context()
     
     # Helper methods for categorization and analysis

@@ -72,7 +72,6 @@ class AdvancedIntelligentConversation:
         # Import enhanced prompts
         try:
             from app.services.pam.prompts.enhanced_pam_prompt import ENHANCED_PAM_SYSTEM_PROMPT
-from app.utils.datetime_encoder import DateTimeEncoder
             self.base_system_prompt = ENHANCED_PAM_SYSTEM_PROMPT
         except ImportError:
             # Fallback to inline prompt if import fails
@@ -135,7 +134,7 @@ Never be robotic or purely functional. Always respond as a caring, intelligent f
             intent_prompt = f"""Analyze this user message for both intent and emotional context. Consider their relationship with PAM.
 
 User message: "{message}"
-Context: {json.dumps(context, cls=DateTimeEncoder)}
+Context: {json.dumps(context, default=str)}
 
 Available intents:
 - budget_query: Questions about spending, money, financial status, retirement income
@@ -805,7 +804,7 @@ IMPORTANT: Adapt your expertise to the query context ({query_context}). Don't fo
 User: "{user_message}"
 PAM: "{ai_response}"
 Relationship stage: {pam_personality.relationship_stage.value}
-Context: {json.dumps(context, cls=DateTimeEncoder)}
+Context: {json.dumps(context, default=str)}
 
 Generate suggestions that:
 - Match the depth of their relationship

@@ -18,6 +18,7 @@ import zlib
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.utils.datetime_encoder import DateTimeEncoder
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -584,7 +585,6 @@ class CacheManager:
                 
                 # Log to monitoring system if configured
                 from app.core.logging_config import pam_logger
-from app.utils.datetime_encoder import DateTimeEncoder
                 pam_logger.log_performance_alert(
                     metric="cache_hit_rate",
                     current_value=float(stats["performance"]["hit_rate"].rstrip('%')),
