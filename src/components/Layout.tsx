@@ -1,6 +1,6 @@
 import React from "react";
-import Pam from "@/components/Pam"; // Switched back to main Pam component for debugging
-// import PamSimple from "@/components/PamSimple";
+// import Pam from "@/components/Pam"; // Complex version with voice/TTS - too many dependencies
+import PamSimple from "@/components/PamSimple"; // Simplified text-only version for stability
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Header from "@/components/header/Header";
@@ -38,7 +38,7 @@ export default function Layout({ children }: LayoutProps) {
       </main>
       
       {/* PAM - intelligent travel companion */}
-      {!hidePam && <Pam mode="floating" />}
+      {!hidePam && <PamSimple mode="floating" />}
       
       <footer className="bg-white text-gray-600 py-4 border-t">
         <Footer />
