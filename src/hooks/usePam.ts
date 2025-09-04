@@ -4,8 +4,8 @@ import { v4 as uuid } from "uuid";
 import { useAuth } from "@/context/AuthContext";
 import { useOffline } from "@/context/OfflineContext";
 
-// DEPRECATED: This hook is deprecated in favor of usePamWebSocket
-// Use usePamWebSocket for real-time WebSocket communication instead
+// DEPRECATED: This hook is deprecated in favor of usePamWebSocketCore
+// Use usePamWebSocketCore for real-time WebSocket communication instead
 // This hook is kept for backward compatibility only
 
 export function usePam() {
@@ -14,7 +14,7 @@ export function usePam() {
   const [messages, setMessages] = useState<any[]>([]);
 
   const send = async (userMessage: string) => {
-    console.warn('⚠️ DEPRECATED: usePam hook is deprecated. Use usePamWebSocket for real-time communication.');
+    console.warn('⚠️ DEPRECATED: usePam hook is deprecated. Use usePamWebSocketCore for real-time communication.');
     
     if (!user?.id) {
       console.error("No authenticated user ID – cannot send to Pam");

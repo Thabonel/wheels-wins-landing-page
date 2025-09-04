@@ -27,6 +27,7 @@ class FeatureFlags(BaseSettings):
     ENABLE_PAM_VECTOR_MEMORY: bool = False  # Vector-based memory and context
     ENABLE_PAM_MULTI_AGENT: bool = False  # Multi-agent collaboration system
     ENABLE_PAM_PROACTIVE_INTELLIGENCE: bool = False  # Proactive intelligence and anticipation
+    ENABLE_PAM_PHASE2_MEMORY: bool = True  # Phase 2 memory and context system
     
     # Map Feature Flags
     ENABLE_REAL_TIME_MAP_DATA: bool = True

@@ -54,6 +54,7 @@ from app.services.stt.base import AudioFormat
 # LangGraph Agent Integration
 from app.core.feature_flags import feature_flags, is_feature_enabled
 from app.agents.orchestrator import PAMAgentOrchestrator
+from app.agents.orchestrator_enhanced import create_enhanced_orchestrator
 import os
 
 # Initialize LangGraph orchestrator if feature is enabled
@@ -62,8 +63,13 @@ if feature_flags.ENABLE_PAM_AGENTIC:
     openai_key = os.getenv('OPENAI_API_KEY')
     if openai_key:
         try:
-            pam_agent_orchestrator = PAMAgentOrchestrator(openai_key)
-            logger.info("🤖 PAM Agent Orchestrator initialized successfully")
+            # Use enhanced orchestrator if Phase 2 is enabled, otherwise standard
+            if feature_flags.ENABLE_PAM_PHASE2_MEMORY:
+                pam_agent_orchestrator = create_enhanced_orchestrator(openai_key)
+                logger.info("🧠 PAM Enhanced Agent Orchestrator (Phase 2) initialized successfully")
+            else:
+                pam_agent_orchestrator = PAMAgentOrchestrator(openai_key)
+                logger.info("🤖 PAM Agent Orchestrator initialized successfully")
         except Exception as e:
             logger.error(f"❌ Failed to initialize PAM Agent Orchestrator: {e}")
     else:
@@ -1086,12 +1092,20 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             try:
                 agent_start_time = time.time()
                 
-                # Process message through LangGraph agent
-                agent_result = await pam_agent_orchestrator.process_message(
-                    message=message,
-                    user_id=user_id,
-                    context=context
-                )
+                # Process message through LangGraph agent (with Phase 2 enhancement if available)
+                if hasattr(pam_agent_orchestrator, 'process_message_enhanced'):
+                    agent_result = await pam_agent_orchestrator.process_message_enhanced(
+                        message=message,
+                        user_id=user_id,
+                        context=context,
+                        use_phase2=True
+                    )
+                else:
+                    agent_result = await pam_agent_orchestrator.process_message(
+                        message=message,
+                        user_id=user_id,
+                        context=context
+                    )
                 
                 agent_processing_time = (time.time() - agent_start_time) * 1000
                 logger.info(f"🚀 [DEBUG] LangGraph agent processed in {agent_processing_time:.1f}ms")
@@ -1399,12 +1413,20 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
             try:
                 agent_start_time = time.time()
                 
-                # Process message through LangGraph agent
-                agent_result = await pam_agent_orchestrator.process_message(
-                    message=message,
-                    user_id=user_id,
-                    context=context
-                )
+                # Process message through LangGraph agent (with Phase 2 enhancement if available)
+                if hasattr(pam_agent_orchestrator, 'process_message_enhanced'):
+                    agent_result = await pam_agent_orchestrator.process_message_enhanced(
+                        message=message,
+                        user_id=user_id,
+                        context=context,
+                        use_phase2=True
+                    )
+                else:
+                    agent_result = await pam_agent_orchestrator.process_message(
+                        message=message,
+                        user_id=user_id,
+                        context=context
+                    )
                 
                 agent_processing_time = (time.time() - agent_start_time) * 1000
                 logger.info(f"🚀 [DEBUG] LangGraph agent processed in {agent_processing_time:.1f}ms (streaming)")

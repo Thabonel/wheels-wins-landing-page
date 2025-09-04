@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, CheckCircle, XCircle, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePamWebSocket } from '@/hooks/usePamWebSocket';
+import { usePamWebSocketCore } from '@/hooks/pam/usePamWebSocketCore';
 import { useAuth } from '@/hooks/useAuth';
 
 interface DiagnosticInfo {
@@ -22,7 +22,7 @@ interface DiagnosticInfo {
 
 export const WebSocketDiagnostic: React.FC<{ className?: string }> = ({ className }) => {
   const { user } = useAuth();
-  const { isConnected, messages, sendMessage } = usePamWebSocket(user?.id || '', user?.access_token || '');
+  const { isConnected, messages, sendMessage } = usePamWebSocketCore(user?.id || null, user?.access_token || null);
   
   const [diagnosticInfo, setDiagnosticInfo] = useState<DiagnosticInfo>({
     status: 'disconnected',
