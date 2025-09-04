@@ -107,6 +107,56 @@ npm install -g @render/mcp-server
 
 Configuration: `~/.config/claude-desktop/claude_desktop_config.json`
 
+## 🔄 Development Workflow
+
+### **Our Standard Development Process**
+Follow this structured approach for all features and fixes:
+
+1. **Plan the Architecture** 
+   - Create PRD (Product Requirements Document) using PLAN.md template
+   - Write ADR (Architecture Decision Record) for technical decisions
+   - Define system structure and component relationships
+
+2. **Define Types and Tests as Guardrails**
+   - Establish TypeScript interfaces and types first
+   - Write test cases before implementation (TDD approach)
+   - Create API contracts and data schemas
+
+3. **Build with Parallel Agents**
+   - Deploy specialized agents for different domains
+   - Use `/double escape` for concurrent development streams
+   - Coordinate through main session with context sharing
+
+4. **Review Tests and Key Decisions**
+   - Validate implementation against initial test cases
+   - Review architecture decisions and document changes
+   - Ensure quality standards and security requirements
+
+5. **Document Everything in ADR**
+   - Record all significant technical decisions
+   - Update context files (cloud.md) with architectural changes
+   - Maintain decision rationale for future reference
+
+6. **Repeat with Full Context Preserved**
+   - Archive completed work in context system
+   - Update PLAN.md with lessons learned
+   - Preserve knowledge for future iterations
+
+### **Workflow Tools**
+- **PLAN.md**: Structured planning templates in project root
+- **cloud.md files**: Architecture and context documentation per subsystem
+- **ADR templates**: Decision record formats in `/docs/decisions/`
+- **`/double escape`**: Parallel agent deployment command
+- **`/resume [context]`**: Context restoration between sessions
+- **GitHub Integration**: Automated PR generation with context-rich descriptions
+
+### **Quality Gates**
+- All implementations must have corresponding tests
+- TypeScript strict mode compliance required
+- Security review for authentication and data handling
+- Performance benchmarks for user-facing features
+- Documentation updates for architectural changes
+
 ## Recent Fixes (January 2025)
 
 ### ✅ Fixed Issues
