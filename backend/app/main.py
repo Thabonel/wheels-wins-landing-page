@@ -559,6 +559,16 @@ app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
 app.include_router(pam_ai_sdk.router, prefix="/api/v1/pam-ai-sdk", tags=["PAM AI SDK"])
+
+# Import and add intent classification routes
+try:
+    from app.api.v1 import intent
+    app.include_router(intent.router, prefix="/api/v1/pam", tags=["Intent Classification"])
+    print("✅ Intent classification routes added successfully")
+except ImportError as e:
+    print(f"⚠️  Intent classification routes not available: {e}")
+except Exception as e:
+    print(f"❌ Failed to add intent classification routes: {e}")
 app.include_router(profiles.router, prefix="/api/v1", tags=["Profiles"])
 app.include_router(user_settings.router, prefix="/api/v1", tags=["User Settings"])
 app.include_router(products.router, prefix="/api/v1", tags=["Products"])

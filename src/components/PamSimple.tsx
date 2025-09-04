@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { usePamWebSocketUnified } from "@/hooks/pam/usePamWebSocketUnified";
+import { usePamWebSocketCore } from "@/hooks/pam/usePamWebSocketCore";
 import { logger } from '@/lib/logger';
 
 interface PamMessage {
@@ -35,14 +35,12 @@ const PamSimple: React.FC<PamProps> = ({ mode = "floating" }) => {
   // WebSocket connection using unified hook with authentication
   const { 
     sendMessage, 
-    connectionStatus, 
-    lastMessage,
+    connectionStatus,
     connect,
     disconnect 
-  } = usePamWebSocketUnified(user?.id || '', jwtToken || '', {
+  } = usePamWebSocketCore(user?.id || null, jwtToken || null, {
     autoReconnect: true,
-    maxReconnectAttempts: 5,
-    reconnectDelay: 3000,
+    reconnectDelays: [1000, 2000, 4000, 8000, 16000],
     onMessage: (message) => {
       logger.debug('PAM received message:', message);
       handleIncomingMessage(message);
