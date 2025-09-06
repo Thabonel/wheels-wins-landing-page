@@ -31,10 +31,6 @@ interface ObservabilityConfig {
       host: string;
       public_key_preview?: string;
     };
-    agentops: {
-      configured: boolean;
-      key_preview?: string;
-    };
   };
 }
 
@@ -291,66 +287,6 @@ export default function APIKeyManagement() {
               </div>
             </div>
 
-            {/* AgentOps */}
-            <div className="p-4 border rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  {getStatusIcon(config.platforms.agentops.configured, testResults.agentops?.connected)}
-                  <span className="font-medium">AgentOps</span>
-                </div>
-                <a
-                  href="https://app.agentops.ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:text-blue-700"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </div>
-              
-              <div className="space-y-2">
-                <Badge variant={config.platforms.agentops.configured ? "default" : "outline"}>
-                  {config.platforms.agentops.configured ? "Configured" : "Not Configured"}
-                </Badge>
-                
-                {config.platforms.agentops.key_preview && (
-                  <div className="text-sm">
-                    <Label>API Key:</Label>
-                    <div className="flex items-center space-x-2">
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                        {showKeys.agentops ? config.platforms.agentops.key_preview : "••••••••"}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => toggleKeyVisibility('agentops')}
-                      >
-                        {showKeys.agentops ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => testPlatformConnection('agentops')}
-                  disabled={!config.platforms.agentops.configured || testing === 'agentops'}
-                  className="w-full"
-                >
-                  {testing === 'agentops' ? (
-                    <RefreshCw className="h-3 w-3 animate-spin mr-2" />
-                  ) : null}
-                  Test Connection
-                </Button>
-                
-                {testResults.agentops && (
-                  <p className={`text-xs ${testResults.agentops.connected ? 'text-green-600' : 'text-red-600'}`}>
-                    {testResults.agentops.message}
-                  </p>
-                )}
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -382,7 +318,6 @@ export default function APIKeyManagement() {
                     <div>LANGFUSE_SECRET_KEY=sk-lf-your-secret-key-here</div>
                     <div>LANGFUSE_PUBLIC_KEY=pk-lf-your-public-key-here</div>
                     <div>LANGFUSE_HOST=https://cloud.langfuse.com</div>
-                    <div>AGENTOPS_API_KEY=your-agentops-key-here</div>
                     <div>OBSERVABILITY_ENABLED=true</div>
                   </code>
                 </div>
@@ -390,7 +325,7 @@ export default function APIKeyManagement() {
             </TabsContent>
 
             <TabsContent value="platforms" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <h4 className="font-medium">OpenAI Setup</h4>
                   <ol className="text-sm text-gray-600 space-y-1">
@@ -411,15 +346,6 @@ export default function APIKeyManagement() {
                   </ol>
                 </div>
                 
-                <div className="space-y-2">
-                  <h4 className="font-medium">AgentOps Setup</h4>
-                  <ol className="text-sm text-gray-600 space-y-1">
-                    <li>1. Visit agentops.ai</li>
-                    <li>2. Sign up for account</li>
-                    <li>3. Generate API key</li>
-                    <li>4. Copy the provided key</li>
-                  </ol>
-                </div>
               </div>
             </TabsContent>
           </Tabs>

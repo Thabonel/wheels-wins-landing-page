@@ -1,6 +1,6 @@
 """
 AI Agent Observability Module for Wheels and Wins
-Integrated observability using OpenAI, Langfuse, and AgentOps
+Integrated observability using OpenAI and Langfuse
 """
 
 from .config import ObservabilityConfig
