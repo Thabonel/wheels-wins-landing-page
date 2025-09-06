@@ -26,6 +26,33 @@ logger = get_logger("api.deps")
 security = HTTPBearer(auto_error=False)  # Don't auto-error for missing auth
 
 
+def _safe_error_message(error: Exception) -> str:
+    """
+    Safely extract error message from exception, preventing JSON serialization errors.
+    Handles cases where error objects contain non-serializable enum types like PAMEventType.
+    """
+    try:
+        # First, try to get the basic error message
+        error_msg = str(error)
+        
+        # If the error message contains references to enum objects that can't be serialized,
+        # we need to clean it up
+        if "Object of type" in error_msg and "is not JSON serializable" in error_msg:
+            # Extract just the type name for cleaner error reporting
+            if "PAMEventType" in error_msg:
+                return "PAM event logging error: enum serialization issue"
+            elif "ErrorCode" in error_msg:
+                return "Error code serialization issue"
+            else:
+                return "Object serialization error"
+        
+        return error_msg
+        
+    except Exception:
+        # Fallback: if we can't even convert to string safely
+        return f"Error occurred in {type(error).__name__}"
+
+
 # Models
 class PaginationParams(BaseModel):
     """Pagination parameters"""
@@ -54,8 +81,10 @@ async def get_database() -> Generator[DatabaseService, None, None]:
     try:
         yield db_service
     except Exception as e:
-        logger.error(f"Database dependency error: {str(e)}")
-        raise PAMError(f"Database service error: {str(e)}", ErrorCode.DATABASE_CONNECTION_ERROR)
+        # Safe error message extraction to prevent JSON serialization errors
+        error_message = _safe_error_message(e)
+        logger.error(f"Database dependency error: {error_message}")
+        raise PAMError(f"Database service error: {error_message}", ErrorCode.DATABASE_CONNECTION_ERROR)
     finally:
         # Cleanup if needed
         pass
@@ -67,8 +96,10 @@ async def get_cache() -> Generator[CacheService, None, None]:
     try:
         yield cache_service
     except Exception as e:
-        logger.error(f"Cache dependency error: {str(e)}")
-        raise PAMError(f"Cache service error: {str(e)}", ErrorCode.CACHE_CONNECTION_ERROR)
+        # Safe error message extraction to prevent JSON serialization errors
+        error_message = _safe_error_message(e)
+        logger.error(f"Cache dependency error: {error_message}")
+        raise PAMError(f"Cache service error: {error_message}", ErrorCode.CACHE_CONNECTION_ERROR)
     finally:
         # Cleanup if needed
         pass
@@ -81,8 +112,10 @@ async def get_pam_orchestrator():
         # Get the enhanced orchestrator with full tool support
         return await get_enhanced_orchestrator()
     except Exception as e:
-        logger.error(f"PAM orchestrator dependency error: {str(e)}")
-        raise PAMError(f"PAM service error: {str(e)}", ErrorCode.NODE_INITIALIZATION_ERROR)
+        # Safe error message extraction to prevent JSON serialization errors
+        error_message = _safe_error_message(e)
+        logger.error(f"PAM orchestrator dependency error: {error_message}")
+        raise PAMError(f"PAM service error: {error_message}", ErrorCode.NODE_INITIALIZATION_ERROR)
 
 
 # Authentication Dependencies
@@ -811,13 +844,17 @@ async def get_health_status() -> Dict[str, Any]:
             pam = orchestrator
             health["services"]["pam"] = "healthy"
         except Exception as e:
-            health["services"]["pam"] = f"unhealthy: {str(e)}"
+            # Safe error message extraction to prevent JSON serialization errors
+            error_message = _safe_error_message(e)
+            health["services"]["pam"] = f"unhealthy: {error_message}"
             health["status"] = "degraded"
 
         return health
     except Exception as e:
-        logger.error(f"Health check error: {str(e)}")
-        return {"status": "unhealthy", "error": str(e), "timestamp": datetime.utcnow().isoformat()}
+        # Safe error message extraction to prevent JSON serialization errors
+        error_message = _safe_error_message(e)
+        logger.error(f"Health check error: {error_message}")
+        return {"status": "unhealthy", "error": error_message, "timestamp": datetime.utcnow().isoformat()}
 
 
 async def get_current_user_optional(
@@ -853,7 +890,9 @@ async def get_pam_orchestrator():
         
         return orchestrator_instance
     except Exception as e:
-        logger.error(f"❌ Failed to get PAM orchestrator: {e}")
+        # Safe error message extraction to prevent JSON serialization errors
+        error_message = _safe_error_message(e)
+        logger.error(f"❌ Failed to get PAM orchestrator: {error_message}")
         # Return the global instance as fallback
         return orchestrator
 
