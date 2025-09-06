@@ -117,10 +117,25 @@ class AIFailoverService:
             raise PAMError("AI service not available", ErrorCode.SERVICE_UNAVAILABLE)
         
         try:
+            # Convert dict messages to AIMessage objects for orchestrator compatibility
+            from app.services.ai.provider_interface import AIMessage
+            ai_messages = []
+            for msg in messages:
+                if isinstance(msg, dict):
+                    ai_messages.append(AIMessage(
+                        role=msg.get("role", "user"),
+                        content=msg.get("content", ""),
+                        name=msg.get("name"),
+                        function_call=msg.get("function_call"),
+                        timestamp=datetime.now()
+                    ))
+                else:
+                    ai_messages.append(msg)
+            
             # Use orchestrator to handle provider selection and failover
             if stream:
                 return await self.orchestrator.stream_chat(
-                    messages=messages,
+                    messages=ai_messages,
                     user_id=user_id,
                     context=context or {},
                     tools=tools,
@@ -128,7 +143,7 @@ class AIFailoverService:
                 )
             else:
                 response = await self.orchestrator.chat_completion(
-                    messages=messages,
+                    messages=ai_messages,
                     user_id=user_id, 
                     context=context or {},
                     tools=tools,
