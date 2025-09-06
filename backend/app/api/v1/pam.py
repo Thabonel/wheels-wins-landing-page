@@ -2841,7 +2841,8 @@ async def get_pam_savings_analytics(current_user = Depends(get_current_user)):
 @router.post("/agentic/plan")
 async def create_agentic_plan(
     request: dict,
-    current_user = Depends(get_current_user),
+    req: Request,
+    current_user = Depends(verify_supabase_jwt_token),
     orchestrator = Depends(get_pam_orchestrator)
 ):
     """
@@ -2908,7 +2909,8 @@ async def create_agentic_plan(
 @router.post("/agentic/execute")
 async def execute_agentic_plan(
     request: dict,
-    current_user = Depends(get_current_user),
+    req: Request,
+    current_user = Depends(verify_supabase_jwt_token),
     orchestrator = Depends(get_pam_orchestrator)
 ):
     """
