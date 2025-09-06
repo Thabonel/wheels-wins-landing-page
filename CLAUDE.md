@@ -150,6 +150,13 @@ Follow this structured approach for all features and fixes:
 - **`/resume [context]`**: Context restoration between sessions
 - **GitHub Integration**: Automated PR generation with context-rich descriptions
 
+### **Branch Protection & PR Requirements**
+- **Protected Branches**: staging and main branches are protected
+- **Pull Request Required**: All commits must be made to non-protected branches and submitted via PR
+- **Approval Required**: Pull requests require approval before merging
+- **No Direct Pushes**: Cannot push directly to protected branches
+- **Workflow**: Create feature branch → make changes → submit PR → get approval → merge
+
 ### **Quality Gates**
 - All implementations must have corresponding tests
 - TypeScript strict mode compliance required
