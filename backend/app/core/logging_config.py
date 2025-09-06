@@ -77,28 +77,6 @@ class PAMLogEvent:
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now(timezone.utc)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert PAMLogEvent to JSON-serializable dictionary"""
-        from .datetime_encoder import DateTimeEncoder
-        
-        data = {
-            'event_type': self.event_type.value if hasattr(self.event_type, 'value') else str(self.event_type),
-            'severity': self.severity.value if hasattr(self.severity, 'value') else str(self.severity),
-            'message': self.message,
-            'user_id': self.user_id,
-            'request_id': self.request_id,
-            'session_id': self.session_id,
-            'endpoint': self.endpoint,
-            'duration_ms': self.duration_ms,
-            'error_code': self.error_code,
-            'error_details': self.error_details,
-            'context': self.context,
-            'timestamp': DateTimeEncoder.serialize_datetime(self.timestamp) if self.timestamp else None,
-            'ip_address': self.ip_address,
-            'user_agent': self.user_agent
-        }
-        return data
 
 
 class PAMLogger:
