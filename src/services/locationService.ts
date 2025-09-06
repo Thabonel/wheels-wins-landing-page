@@ -122,17 +122,20 @@ class LocationService {
    * Update user location in the database
    */
   async updateUserLocation(locationData: UserLocationUpdate): Promise<void> {
-    const { error } = await supabase
-      .from('user_locations')
-      .upsert({
-        ...locationData,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id'
-      });
+    try {
+      const { error } = await supabase
+        .from('user_locations')
+        .upsert({
+          ...locationData,
+          updated_at: new Date().toISOString()
+        });
 
-    if (error) {
-      throw new Error(`Failed to update location: ${error.message}`);
+      if (error) {
+        throw new Error(`Failed to update location: ${error.message}`);
+      }
+    } catch (err) {
+      console.error('Location update error:', err);
+      throw new Error(`Failed to update location: ${err.message || 'Unknown error'}`);
     }
   }
 

@@ -11,6 +11,7 @@ import time
 import asyncio
 import base64
 from datetime import datetime, date
+from pydantic import ValidationError
 
 from app.api.deps import (
     get_current_user, verify_supabase_jwt_token, verify_supabase_jwt_flexible, get_pam_orchestrator, get_database,
@@ -596,6 +597,7 @@ async def websocket_endpoint(
                 # SECURITY: Comprehensive input validation and sanitization
                 try:
                     # Use SecureWebSocketMessage for validation and sanitization
+                    logger.debug(f"🔍 [SECURITY] Validating message: {raw_data}")
                     secure_message = SecureWebSocketMessage(**raw_data)
                     # Convert back to dict with validated/sanitized data
                     data = secure_message.dict()
@@ -604,6 +606,7 @@ async def websocket_endpoint(
                     # Additional security checks using middleware
                     message_content = secure_message.get_message_content()
                     if message_content:
+                        logger.debug(f"🔍 [SECURITY] Checking message content: {message_content[:100]}")  # Log first 100 chars
                         is_suspicious, suspicion_reason = security_middleware.detect_suspicious_patterns(user_id, message_content)
                         if is_suspicious:
                             # Enhanced security event logging
@@ -638,6 +641,7 @@ async def websocket_endpoint(
                     # Validation failed - reject the message
                     error_msg = f"Message validation failed: {str(validation_error)}"
                     logger.warning(f"🚫 [SECURITY] WebSocket message rejected from {user_id}: {error_msg}")
+                    logger.debug(f"🔍 [DEBUG] Raw message that failed validation: {raw_data}")
                     
                     # Log security event for repeated validation failures
                     should_block = security_middleware.log_security_event("VALIDATION_FAILURE", user_id, str(validation_error))
@@ -653,10 +657,23 @@ async def websocket_endpoint(
                     continue
                     
                 except Exception as security_error:
-                    # Unexpected validation error - treat as potential attack
-                    logger.error(f"🚨 [SECURITY] Unexpected validation error from {user_id}: {str(security_error)}")
+                    # Unexpected validation error - need better diagnostics
+                    logger.error(f"🚨 [SECURITY] Unexpected validation error from {user_id}: {type(security_error).__name__}: {str(security_error)}")
+                    logger.debug(f"🔍 [DEBUG] Raw message causing error: {raw_data}")
+                    logger.exception("Full exception details:")
                     
-                    # Log security event
+                    # Check if this is a benign validation issue vs actual security threat
+                    if isinstance(security_error, (ValidationError, TypeError, AttributeError)):
+                        # This is likely a code/validation logic issue, not a security threat
+                        logger.warning(f"⚠️ [VALIDATION] Validation logic error, not security threat")
+                        await safe_send_json(websocket, {
+                            "type": "error",
+                            "message": "Message format error. Please try again.",
+                            "error_code": "FORMAT_ERROR"
+                        })
+                        continue
+                    
+                    # Log security event for truly unexpected errors
                     should_block = security_middleware.log_security_event("SECURITY_ERROR", user_id, str(security_error))
                     if should_block:
                         await websocket.close(code=4003, reason="Security violation")

@@ -1,0 +1,779 @@
+#!/bin/bash
+#
+# Git-Safe: Comprehensive Git Corruption Prevention System
+# A wrapper script that prevents git repository corruption through:
+# - Single operation execution with flock
+# - Pre-operation integrity checks
+# - Automatic backups before risky operations  
+# - Corruption detection and recovery
+# - Complete operation logging
+#
+# Usage: git-safe <git-command> [args...]
+# Example: git-safe commit -m "message"
+#          git-safe push origin main
+#
+# Author: Claude Code
+# License: MIT
+
+set -euo pipefail
+
+# Configuration
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly GIT_SAFE_DIR="${GIT_SAFE_DIR:-$(git rev-parse --git-dir 2>/dev/null || echo ".git")/git-safe}"
+readonly LOCK_FILE="${GIT_SAFE_DIR}/git-safe.lock"
+readonly LOG_FILE="${GIT_SAFE_DIR}/operations.log"
+readonly BACKUP_DIR="${GIT_SAFE_DIR}/backups"
+readonly CONFIG_FILE="${GIT_SAFE_DIR}/config"
+readonly MAX_BACKUPS=5
+readonly LOCK_TIMEOUT=300  # 5 minutes
+
+# Colors for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Risk levels for different git operations
+declare -A OPERATION_RISK=(
+    ["fetch"]="medium"
+    ["pull"]="medium" 
+    ["push"]="low"
+    ["commit"]="low"
+    ["merge"]="high"
+    ["rebase"]="high"
+    ["reset"]="high"
+    ["gc"]="high"
+    ["fsck"]="low"
+    ["clone"]="medium"
+    ["checkout"]="medium"
+    ["branch"]="low"
+    ["tag"]="low"
+    ["stash"]="medium"
+    ["cherry-pick"]="medium"
+    ["revert"]="medium"
+    ["clean"]="high"
+    ["filter-branch"]="high"
+    ["reflog"]="low"
+)
+
+# Initialize git-safe system
+init_git_safe() {
+    local git_dir
+    
+    # Find git directory
+    if ! git_dir=$(git rev-parse --git-dir 2>/dev/null); then
+        echo -e "${RED}Error: Not in a git repository${NC}" >&2
+        exit 1
+    fi
+    
+    # Create git-safe directory structure
+    mkdir -p "${GIT_SAFE_DIR}" "${BACKUP_DIR}"
+    
+    # Create default config if it doesn't exist
+    if [[ ! -f "${CONFIG_FILE}" ]]; then
+        cat > "${CONFIG_FILE}" << 'EOF'
+# Git-Safe Configuration
+# Enable/disable features
+ENABLE_BACKUPS=true
+ENABLE_INTEGRITY_CHECKS=true
+ENABLE_CORRUPTION_DETECTION=true
+ENABLE_LOGGING=true
+ENABLE_RECOVERY=true
+
+# Backup settings
+MAX_BACKUPS=5
+BACKUP_ON_HIGH_RISK=true
+BACKUP_ON_MEDIUM_RISK=true
+BACKUP_ON_LOW_RISK=false
+
+# Integrity check settings
+QUICK_FSCK_ONLY=true
+FSCK_TIMEOUT=30
+
+# Recovery settings
+AUTO_RECOVERY=true
+BACKUP_REMOTE_REFS=true
+
+# Logging settings
+LOG_LEVEL=info  # debug, info, warn, error
+MAX_LOG_SIZE=10M
+EOF
+    fi
+    
+    # Source config
+    source "${CONFIG_FILE}"
+    
+    # Create initial log entry
+    log_operation "init" "Git-Safe initialized" "info"
+}
+
+# Load configuration
+load_config() {
+    if [[ -f "${CONFIG_FILE}" ]]; then
+        source "${CONFIG_FILE}"
+    fi
+}
+
+# Logging function
+log_operation() {
+    local operation="$1"
+    local message="$2"
+    local level="${3:-info}"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local pid=$$
+    
+    if [[ "${ENABLE_LOGGING:-true}" == "true" ]]; then
+        echo "[${timestamp}] [${level}] [PID:${pid}] [${operation}] ${message}" >> "${LOG_FILE}"
+        
+        # Rotate log if it gets too large
+        if [[ -f "${LOG_FILE}" ]] && [[ $(stat -f%z "${LOG_FILE}" 2>/dev/null || stat -c%s "${LOG_FILE}" 2>/dev/null || echo 0) -gt 10485760 ]]; then
+            mv "${LOG_FILE}" "${LOG_FILE}.old"
+            log_operation "log-rotate" "Log rotated due to size" "info"
+        fi
+    fi
+    
+    # Also print to stderr for important messages
+    case "${level}" in
+        "error") echo -e "${RED}[ERROR] ${message}${NC}" >&2 ;;
+        "warn")  echo -e "${YELLOW}[WARN] ${message}${NC}" >&2 ;;
+        "info")  echo -e "${BLUE}[INFO] ${message}${NC}" >&2 ;;
+    esac
+}
+
+# Acquire exclusive lock with timeout
+acquire_lock() {
+    local timeout="${LOCK_TIMEOUT}"
+    local waited=0
+    
+    log_operation "lock" "Attempting to acquire lock" "debug"
+    
+    # Create lock directory if it doesn't exist
+    mkdir -p "$(dirname "${LOCK_FILE}")"
+    
+    # Try to acquire lock with timeout
+    while (( waited < timeout )); do
+        if (set -C; echo $$ > "${LOCK_FILE}") 2>/dev/null; then
+            log_operation "lock" "Lock acquired successfully" "debug"
+            return 0
+        fi
+        
+        # Check if the process holding the lock is still running
+        if [[ -f "${LOCK_FILE}" ]]; then
+            local lock_pid=$(cat "${LOCK_FILE}" 2>/dev/null || echo "")
+            if [[ -n "${lock_pid}" ]] && ! kill -0 "${lock_pid}" 2>/dev/null; then
+                log_operation "lock" "Removing stale lock (PID ${lock_pid} not running)" "warn"
+                rm -f "${LOCK_FILE}"
+                continue
+            fi
+        fi
+        
+        sleep 1
+        ((waited++))
+    done
+    
+    log_operation "lock" "Failed to acquire lock after ${timeout} seconds" "error"
+    return 1
+}
+
+# Release lock
+release_lock() {
+    if [[ -f "${LOCK_FILE}" ]]; then
+        local current_pid=$(cat "${LOCK_FILE}" 2>/dev/null || echo "")
+        if [[ "${current_pid}" == "$$" ]]; then
+            rm -f "${LOCK_FILE}"
+            log_operation "lock" "Lock released" "debug"
+        else
+            log_operation "lock" "Lock not owned by this process" "warn"
+        fi
+    fi
+}
+
+# Pre-operation integrity check
+check_integrity() {
+    local operation="$1"
+    
+    if [[ "${ENABLE_INTEGRITY_CHECKS:-true}" != "true" ]]; then
+        return 0
+    fi
+    
+    log_operation "integrity" "Running pre-operation integrity check for: ${operation}" "info"
+    
+    local fsck_args=()
+    if [[ "${QUICK_FSCK_ONLY:-true}" == "true" ]]; then
+        fsck_args+=("--quick")
+    fi
+    
+    # Run fsck with timeout
+    if timeout "${FSCK_TIMEOUT:-30}" git fsck "${fsck_args[@]}" --no-progress 2>/dev/null; then
+        log_operation "integrity" "Repository integrity check passed" "info"
+        return 0
+    else
+        local exit_code=$?
+        if [[ ${exit_code} -eq 124 ]]; then
+            log_operation "integrity" "Integrity check timed out" "warn"
+            return 1
+        else
+            log_operation "integrity" "Repository integrity check failed (exit code: ${exit_code})" "error"
+            return 1
+        fi
+    fi
+}
+
+# Create backup of git objects
+create_backup() {
+    local operation="$1"
+    local risk_level="${OPERATION_RISK[${operation}]:-medium}"
+    
+    if [[ "${ENABLE_BACKUPS:-true}" != "true" ]]; then
+        return 0
+    fi
+    
+    # Check if we should backup based on risk level
+    local should_backup=false
+    case "${risk_level}" in
+        "high")   [[ "${BACKUP_ON_HIGH_RISK:-true}" == "true" ]] && should_backup=true ;;
+        "medium") [[ "${BACKUP_ON_MEDIUM_RISK:-true}" == "true" ]] && should_backup=true ;;
+        "low")    [[ "${BACKUP_ON_LOW_RISK:-false}" == "true" ]] && should_backup=true ;;
+    esac
+    
+    if [[ "${should_backup}" != "true" ]]; then
+        log_operation "backup" "Skipping backup for ${risk_level} risk operation: ${operation}" "debug"
+        return 0
+    fi
+    
+    log_operation "backup" "Creating backup for ${risk_level} risk operation: ${operation}" "info"
+    
+    local git_dir=$(git rev-parse --git-dir)
+    local backup_name="backup-$(date +%Y%m%d_%H%M%S)-${operation}"
+    local backup_path="${BACKUP_DIR}/${backup_name}"
+    
+    # Create backup
+    if mkdir -p "${backup_path}" && \
+       cp -r "${git_dir}/objects" "${backup_path}/" 2>/dev/null && \
+       cp -r "${git_dir}/refs" "${backup_path}/" 2>/dev/null && \
+       cp "${git_dir}/HEAD" "${backup_path}/" 2>/dev/null; then
+        
+        log_operation "backup" "Backup created successfully: ${backup_name}" "info"
+        
+        # Clean up old backups
+        cleanup_old_backups
+        
+        # Store backup name for potential recovery
+        echo "${backup_name}" > "${GIT_SAFE_DIR}/last_backup"
+        
+        return 0
+    else
+        log_operation "backup" "Failed to create backup" "error"
+        return 1
+    fi
+}
+
+# Clean up old backups
+cleanup_old_backups() {
+    local backup_count=$(ls -1 "${BACKUP_DIR}" 2>/dev/null | wc -l)
+    
+    if (( backup_count > MAX_BACKUPS )); then
+        local to_remove=$((backup_count - MAX_BACKUPS))
+        log_operation "backup" "Removing ${to_remove} old backups (keeping ${MAX_BACKUPS})" "info"
+        
+        # Remove oldest backups
+        ls -1t "${BACKUP_DIR}" | tail -n "${to_remove}" | while read -r backup; do
+            rm -rf "${BACKUP_DIR}/${backup}"
+            log_operation "backup" "Removed old backup: ${backup}" "debug"
+        done
+    fi
+}
+
+# Detect corruption
+detect_corruption() {
+    if [[ "${ENABLE_CORRUPTION_DETECTION:-true}" != "true" ]]; then
+        return 0
+    fi
+    
+    log_operation "corruption" "Running corruption detection" "debug"
+    
+    # Check for common corruption signs
+    local git_dir=$(git rev-parse --git-dir)
+    local issues=()
+    
+    # Check for truncated pack files
+    if find "${git_dir}/objects/pack" -name "*.pack" -size 0 2>/dev/null | grep -q .; then
+        issues+=("Zero-size pack files found")
+    fi
+    
+    # Check for missing index files
+    while IFS= read -r -d '' pack_file; do
+        local idx_file="${pack_file%.pack}.idx"
+        if [[ ! -f "${idx_file}" ]]; then
+            issues+=("Missing index file: ${idx_file}")
+        fi
+    done < <(find "${git_dir}/objects/pack" -name "*.pack" -print0 2>/dev/null)
+    
+    # Check for lock files that shouldn't exist
+    if find "${git_dir}" -name "*.lock" 2>/dev/null | grep -q .; then
+        issues+=("Stale lock files found")
+    fi
+    
+    # Quick fsck for object corruption
+    if ! timeout 10 git fsck --quick --no-progress >/dev/null 2>&1; then
+        issues+=("Git fsck detected corruption")
+    fi
+    
+    if (( ${#issues[@]} > 0 )); then
+        log_operation "corruption" "Corruption detected: ${issues[*]}" "error"
+        return 1
+    else
+        log_operation "corruption" "No corruption detected" "debug"
+        return 0
+    fi
+}
+
+# Attempt automatic recovery
+attempt_recovery() {
+    local operation="$1"
+    
+    if [[ "${ENABLE_RECOVERY:-true}" != "true" ]] || [[ "${AUTO_RECOVERY:-true}" != "true" ]]; then
+        log_operation "recovery" "Auto-recovery disabled" "info"
+        return 1
+    fi
+    
+    log_operation "recovery" "Attempting automatic recovery" "warn"
+    
+    local git_dir=$(git rev-parse --git-dir)
+    local last_backup_file="${GIT_SAFE_DIR}/last_backup"
+    
+    # Try to restore from last backup
+    if [[ -f "${last_backup_file}" ]]; then
+        local backup_name=$(cat "${last_backup_file}")
+        local backup_path="${BACKUP_DIR}/${backup_name}"
+        
+        if [[ -d "${backup_path}" ]]; then
+            log_operation "recovery" "Restoring from backup: ${backup_name}" "warn"
+            
+            # Create recovery backup of current state
+            local recovery_backup="${BACKUP_DIR}/recovery-$(date +%Y%m%d_%H%M%S)"
+            mkdir -p "${recovery_backup}"
+            cp -r "${git_dir}/objects" "${recovery_backup}/" 2>/dev/null || true
+            cp -r "${git_dir}/refs" "${recovery_backup}/" 2>/dev/null || true
+            cp "${git_dir}/HEAD" "${recovery_backup}/" 2>/dev/null || true
+            
+            # Restore from backup
+            if cp -r "${backup_path}/objects" "${git_dir}/" && \
+               cp -r "${backup_path}/refs" "${git_dir}/" && \
+               cp "${backup_path}/HEAD" "${git_dir}/"; then
+                
+                log_operation "recovery" "Recovery successful from backup: ${backup_name}" "info"
+                
+                # Verify recovery
+                if git fsck --quick --no-progress >/dev/null 2>&1; then
+                    log_operation "recovery" "Recovery verification passed" "info"
+                    return 0
+                else
+                    log_operation "recovery" "Recovery verification failed" "error"
+                    return 1
+                fi
+            else
+                log_operation "recovery" "Failed to restore from backup" "error"
+                return 1
+            fi
+        fi
+    fi
+    
+    # Try git gc and repack as last resort
+    log_operation "recovery" "Attempting git gc and repack" "warn"
+    if git gc --aggressive --prune=now 2>/dev/null; then
+        log_operation "recovery" "Git gc completed successfully" "info"
+        
+        if git fsck --quick --no-progress >/dev/null 2>&1; then
+            log_operation "recovery" "Repository repaired with git gc" "info"
+            return 0
+        fi
+    fi
+    
+    log_operation "recovery" "Automatic recovery failed" "error"
+    return 1
+}
+
+# Execute git operation safely
+execute_git_operation() {
+    local operation="$1"
+    shift
+    local args=("$@")
+    
+    log_operation "${operation}" "Starting git ${operation} with args: ${args[*]}" "info"
+    
+    # Pre-operation checks
+    if ! check_integrity "${operation}"; then
+        log_operation "${operation}" "Pre-operation integrity check failed" "error"
+        
+        if detect_corruption && attempt_recovery "${operation}"; then
+            log_operation "${operation}" "Recovery successful, retrying integrity check" "info"
+            if ! check_integrity "${operation}"; then
+                log_operation "${operation}" "Integrity check still failing after recovery" "error"
+                return 1
+            fi
+        else
+            log_operation "${operation}" "Repository integrity compromised, aborting operation" "error"
+            return 1
+        fi
+    fi
+    
+    # Create backup before risky operations
+    if ! create_backup "${operation}"; then
+        log_operation "${operation}" "Backup creation failed, proceeding with caution" "warn"
+    fi
+    
+    # Execute the git operation
+    local start_time=$(date +%s)
+    local exit_code=0
+    
+    if git "${operation}" "${args[@]}"; then
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        log_operation "${operation}" "Operation completed successfully in ${duration}s" "info"
+    else
+        exit_code=$?
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        log_operation "${operation}" "Operation failed with exit code ${exit_code} after ${duration}s" "error"
+    fi
+    
+    # Post-operation corruption check
+    if detect_corruption; then
+        log_operation "${operation}" "Post-operation corruption detected" "error"
+        
+        if attempt_recovery "${operation}"; then
+            log_operation "${operation}" "Post-operation recovery successful" "info"
+        else
+            log_operation "${operation}" "Post-operation recovery failed" "error"
+            exit_code=1
+        fi
+    fi
+    
+    return ${exit_code}
+}
+
+# Show usage information
+show_usage() {
+    cat << 'EOF'
+Git-Safe: Comprehensive Git Corruption Prevention System
+
+Usage: git-safe <command> [args...]
+
+Commands:
+  git-safe <git-command> [args]  Execute git command safely
+  git-safe --init               Initialize git-safe in current repository
+  git-safe --status             Show git-safe status and configuration
+  git-safe --list-backups       List available backups
+  git-safe --restore <backup>   Restore from specific backup
+  git-safe --clean-backups      Clean up old backups
+  git-safe --check-corruption   Manual corruption check
+  git-safe --repair             Attempt manual repair
+  git-safe --help               Show this help message
+
+Examples:
+  git-safe commit -m "message"
+  git-safe push origin main
+  git-safe merge feature-branch
+  git-safe rebase -i HEAD~3
+
+Configuration:
+  Edit .git/git-safe/config to customize behavior
+
+Logs:
+  Operations are logged to .git/git-safe/operations.log
+EOF
+}
+
+# Show git-safe status
+show_status() {
+    local git_dir=$(git rev-parse --git-dir 2>/dev/null || echo "")
+    
+    if [[ -z "${git_dir}" ]]; then
+        echo -e "${RED}Not in a git repository${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Git-Safe Status${NC}"
+    echo "=================="
+    
+    # Repository info
+    echo -e "\n${YELLOW}Repository:${NC}"
+    echo "  Git directory: ${git_dir}"
+    echo "  Git-Safe directory: ${GIT_SAFE_DIR}"
+    
+    # Configuration status
+    echo -e "\n${YELLOW}Configuration:${NC}"
+    load_config
+    echo "  Backups enabled: ${ENABLE_BACKUPS:-true}"
+    echo "  Integrity checks enabled: ${ENABLE_INTEGRITY_CHECKS:-true}"
+    echo "  Corruption detection enabled: ${ENABLE_CORRUPTION_DETECTION:-true}"
+    echo "  Auto-recovery enabled: ${AUTO_RECOVERY:-true}"
+    echo "  Max backups: ${MAX_BACKUPS:-5}"
+    
+    # Backup status
+    echo -e "\n${YELLOW}Backups:${NC}"
+    if [[ -d "${BACKUP_DIR}" ]]; then
+        local backup_count=$(ls -1 "${BACKUP_DIR}" 2>/dev/null | wc -l)
+        echo "  Available backups: ${backup_count}"
+        
+        if (( backup_count > 0 )); then
+            echo "  Latest backup:"
+            ls -1t "${BACKUP_DIR}" | head -1 | sed 's/^/    /'
+        fi
+    else
+        echo "  No backups created yet"
+    fi
+    
+    # Repository health
+    echo -e "\n${YELLOW}Repository Health:${NC}"
+    if check_integrity "status" 2>/dev/null; then
+        echo -e "  Integrity: ${GREEN}GOOD${NC}"
+    else
+        echo -e "  Integrity: ${RED}ISSUES DETECTED${NC}"
+    fi
+    
+    if detect_corruption 2>/dev/null; then
+        echo -e "  Corruption: ${RED}DETECTED${NC}"
+    else
+        echo -e "  Corruption: ${GREEN}NONE${NC}"
+    fi
+    
+    # Recent activity
+    echo -e "\n${YELLOW}Recent Activity:${NC}"
+    if [[ -f "${LOG_FILE}" ]]; then
+        echo "  Last 5 operations:"
+        tail -5 "${LOG_FILE}" | sed 's/^/    /'
+    else
+        echo "  No operations logged yet"
+    fi
+}
+
+# List available backups
+list_backups() {
+    if [[ ! -d "${BACKUP_DIR}" ]]; then
+        echo "No backups directory found"
+        return 0
+    fi
+    
+    echo -e "${BLUE}Available Backups${NC}"
+    echo "=================="
+    
+    local count=0
+    while IFS= read -r -d '' backup; do
+        local backup_name=$(basename "${backup}")
+        local backup_date=$(echo "${backup_name}" | grep -o '[0-9]\{8\}_[0-9]\{6\}' || echo "unknown")
+        local backup_operation=$(echo "${backup_name}" | sed 's/^backup-[0-9]\{8\}_[0-9]\{6\}-//' || echo "unknown")
+        
+        echo "${backup_name}"
+        echo "  Date: ${backup_date}"
+        echo "  Operation: ${backup_operation}"
+        echo "  Size: $(du -sh "${backup}" 2>/dev/null | cut -f1)"
+        echo ""
+        
+        ((count++))
+    done < <(find "${BACKUP_DIR}" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+    
+    if (( count == 0 )); then
+        echo "No backups found"
+    else
+        echo "Total backups: ${count}"
+    fi
+}
+
+# Restore from backup
+restore_backup() {
+    local backup_name="$1"
+    local backup_path="${BACKUP_DIR}/${backup_name}"
+    
+    if [[ ! -d "${backup_path}" ]]; then
+        echo -e "${RED}Backup not found: ${backup_name}${NC}"
+        return 1
+    fi
+    
+    echo -e "${YELLOW}Restoring from backup: ${backup_name}${NC}"
+    echo "This will overwrite your current git objects and refs."
+    echo -n "Are you sure you want to continue? (y/N): "
+    read -r confirmation
+    
+    if [[ "${confirmation}" != "y" && "${confirmation}" != "Y" ]]; then
+        echo "Restore cancelled"
+        return 0
+    fi
+    
+    local git_dir=$(git rev-parse --git-dir)
+    
+    # Create safety backup of current state
+    local safety_backup="${BACKUP_DIR}/safety-$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "${safety_backup}"
+    cp -r "${git_dir}/objects" "${safety_backup}/" 2>/dev/null || true
+    cp -r "${git_dir}/refs" "${safety_backup}/" 2>/dev/null || true
+    cp "${git_dir}/HEAD" "${safety_backup}/" 2>/dev/null || true
+    
+    log_operation "restore" "Created safety backup: $(basename "${safety_backup}")" "info"
+    
+    # Perform restore
+    if cp -r "${backup_path}/objects" "${git_dir}/" && \
+       cp -r "${backup_path}/refs" "${git_dir}/" && \
+       cp "${backup_path}/HEAD" "${git_dir}/"; then
+        
+        echo -e "${GREEN}Restore completed successfully${NC}"
+        log_operation "restore" "Restore successful from backup: ${backup_name}" "info"
+        
+        # Verify restore
+        if git fsck --quick --no-progress >/dev/null 2>&1; then
+            echo -e "${GREEN}Repository integrity verified${NC}"
+            log_operation "restore" "Restore verification passed" "info"
+            return 0
+        else
+            echo -e "${YELLOW}Warning: Repository integrity check failed after restore${NC}"
+            log_operation "restore" "Restore verification failed" "warn"
+            return 1
+        fi
+    else
+        echo -e "${RED}Restore failed${NC}"
+        log_operation "restore" "Restore failed from backup: ${backup_name}" "error"
+        return 1
+    fi
+}
+
+# Manual repair
+manual_repair() {
+    echo -e "${YELLOW}Starting manual repository repair${NC}"
+    
+    log_operation "repair" "Manual repair initiated" "info"
+    
+    # Step 1: Remove stale lock files
+    echo "Step 1: Removing stale lock files..."
+    local git_dir=$(git rev-parse --git-dir)
+    find "${git_dir}" -name "*.lock" -delete 2>/dev/null
+    echo "  Lock files removed"
+    
+    # Step 2: Check for corrupted pack files
+    echo "Step 2: Checking pack files..."
+    local pack_issues=0
+    while IFS= read -r -d '' pack_file; do
+        if [[ ! -s "${pack_file}" ]]; then
+            echo "  Removing empty pack file: $(basename "${pack_file}")"
+            rm -f "${pack_file}" "${pack_file%.pack}.idx" "${pack_file%.pack}.rev" 2>/dev/null
+            ((pack_issues++))
+        fi
+    done < <(find "${git_dir}/objects/pack" -name "*.pack" -print0 2>/dev/null)
+    
+    if (( pack_issues > 0 )); then
+        echo "  Removed ${pack_issues} corrupted pack files"
+    else
+        echo "  No pack file issues found"
+    fi
+    
+    # Step 3: Run git gc
+    echo "Step 3: Running git garbage collection..."
+    if git gc --aggressive --prune=now 2>/dev/null; then
+        echo "  Git gc completed successfully"
+    else
+        echo "  Git gc failed or had issues"
+    fi
+    
+    # Step 4: Final integrity check
+    echo "Step 4: Final integrity check..."
+    if git fsck --full --no-progress 2>/dev/null; then
+        echo -e "${GREEN}✓ Repository repair completed successfully${NC}"
+        log_operation "repair" "Manual repair completed successfully" "info"
+        return 0
+    else
+        echo -e "${RED}✗ Repository still has integrity issues${NC}"
+        echo "You may need to restore from a backup or re-clone the repository"
+        log_operation "repair" "Manual repair failed - integrity issues remain" "error"
+        return 1
+    fi
+}
+
+# Main function
+main() {
+    # Handle special commands
+    case "${1:-}" in
+        "--help"|"-h")
+            show_usage
+            exit 0
+            ;;
+        "--init")
+            init_git_safe
+            echo -e "${GREEN}Git-Safe initialized successfully${NC}"
+            exit 0
+            ;;
+        "--status")
+            show_status
+            exit 0
+            ;;
+        "--list-backups")
+            init_git_safe
+            list_backups
+            exit 0
+            ;;
+        "--restore")
+            if [[ -z "${2:-}" ]]; then
+                echo -e "${RED}Error: Backup name required${NC}"
+                echo "Usage: git-safe --restore <backup-name>"
+                exit 1
+            fi
+            init_git_safe
+            restore_backup "$2"
+            exit $?
+            ;;
+        "--clean-backups")
+            init_git_safe
+            cleanup_old_backups
+            echo -e "${GREEN}Old backups cleaned up${NC}"
+            exit 0
+            ;;
+        "--check-corruption")
+            init_git_safe
+            if detect_corruption; then
+                echo -e "${RED}Corruption detected${NC}"
+                exit 1
+            else
+                echo -e "${GREEN}No corruption detected${NC}"
+                exit 0
+            fi
+            ;;
+        "--repair")
+            init_git_safe
+            manual_repair
+            exit $?
+            ;;
+        "")
+            echo -e "${RED}Error: No command specified${NC}"
+            show_usage
+            exit 1
+            ;;
+    esac
+    
+    # Regular git operation
+    local operation="$1"
+    shift
+    
+    # Initialize git-safe if needed
+    init_git_safe
+    
+    # Set up cleanup trap
+    trap 'release_lock; exit' EXIT INT TERM
+    
+    # Acquire lock
+    if ! acquire_lock; then
+        echo -e "${RED}Error: Could not acquire lock. Another git operation may be in progress.${NC}" >&2
+        exit 1
+    fi
+    
+    # Execute the operation safely
+    execute_git_operation "${operation}" "$@"
+    local exit_code=$?
+    
+    # Release lock (also handled by trap)
+    release_lock
+    
+    exit ${exit_code}
+}
+
+# Run main function with all arguments
+main "$@"

@@ -571,36 +571,94 @@ class WeatherTool(BaseTool):
     
     def _mock_current_weather(self, location: str) -> ToolResult:
         """Mock current weather when no API key"""
+        # Generate realistic mock data based on location and current season
+        import random
+        from datetime import datetime
+        
+        now = datetime.now()
+        month = now.month
+        
+        # Seasonal temperature ranges (in Fahrenheit)
+        if month in [12, 1, 2]:  # Winter
+            temp_range = (35, 55)
+            conditions_pool = ["Clear", "Partly Cloudy", "Cloudy", "Light Snow", "Overcast"]
+        elif month in [3, 4, 5]:  # Spring
+            temp_range = (55, 75)
+            conditions_pool = ["Sunny", "Partly Cloudy", "Light Rain", "Clear", "Cloudy"]
+        elif month in [6, 7, 8]:  # Summer
+            temp_range = (70, 85)
+            conditions_pool = ["Sunny", "Hot", "Partly Cloudy", "Clear", "Thunderstorms"]
+        else:  # Fall
+            temp_range = (50, 70)
+            conditions_pool = ["Partly Cloudy", "Cloudy", "Light Rain", "Clear", "Overcast"]
+        
+        temp = random.randint(*temp_range)
+        feels_like = temp + random.randint(-3, 3)
+        conditions = random.choice(conditions_pool)
+        wind_speed = random.randint(5, 15)
+        humidity = random.randint(40, 80)
+        
         return ToolResult(
             success=True,
             result={
                 "current": {
                     "location": location,
-                    "temperature": "72°F",
-                    "feels_like": "70°F",
-                    "conditions": "Partly Cloudy",
-                    "wind": "8 mph NW",
-                    "humidity": "45%",
+                    "temperature": f"{temp}°F",
+                    "feels_like": f"{feels_like}°F", 
+                    "conditions": conditions,
+                    "wind": f"{wind_speed} mph NW",
+                    "humidity": f"{humidity}%",
                     "visibility": "10.0 miles",
-                    "rv_travel_rating": "Excellent"
+                    "rv_travel_rating": "Good" if conditions in ["Light Rain", "Thunderstorms"] else "Excellent"
                 },
-                "message": f"Mock weather for {location}: 72°F, Partly Cloudy, RV travel: Excellent"
+                "message": f"Current weather for {location}: {temp}°F, {conditions}. (Demo data - configure OPENWEATHER_API_KEY for real forecasts)"
             }
         )
     
     def _mock_forecast(self, location: str, days: int) -> ToolResult:
         """Mock forecast when no API key"""
+        import random
+        from datetime import datetime, date, timedelta
+        
+        now = datetime.now()
+        month = now.month
+        
+        # Seasonal temperature ranges
+        if month in [12, 1, 2]:  # Winter
+            base_high, base_low = 50, 30
+            conditions_pool = ["Clear", "Partly Cloudy", "Cloudy", "Snow", "Overcast"]
+        elif month in [3, 4, 5]:  # Spring
+            base_high, base_low = 70, 50
+            conditions_pool = ["Sunny", "Partly Cloudy", "Showers", "Clear", "Cloudy"]
+        elif month in [6, 7, 8]:  # Summer
+            base_high, base_low = 80, 65
+            conditions_pool = ["Sunny", "Hot", "Partly Cloudy", "Clear", "Thunderstorms"]
+        else:  # Fall
+            base_high, base_low = 65, 45
+            conditions_pool = ["Partly Cloudy", "Cloudy", "Rain", "Clear", "Overcast"]
+        
         mock_days = []
-        for i in range(days):
-            date = datetime.now().date() + timedelta(days=i)
+        for i in range(min(days, 7)):  # Limit to 7 days
+            forecast_date = (now.date() + timedelta(days=i))
+            
+            # Add some realistic variation
+            temp_var = random.randint(-5, 5)
+            high_temp = base_high + temp_var + random.randint(-3, 3)
+            low_temp = base_low + temp_var + random.randint(-3, 3)
+            
+            conditions = random.choice(conditions_pool)
+            rain_chance = random.randint(0, 70) if conditions in ["Rain", "Showers", "Thunderstorms", "Snow"] else random.randint(0, 30)
+            wind_speed = random.randint(5, 20)
+            
             mock_days.append({
-                "date": date.isoformat(),
-                "high": f"{75 + i}°F",
-                "low": f"{55 + i}°F",
-                "conditions": ["Sunny", "Partly Cloudy", "Cloudy", "Light Rain", "Clear"][i % 5],
-                "rain_chance": f"{i * 10}%",
-                "wind": f"{10 + i} mph",
-                "rv_rating": ["Excellent", "Good", "Good", "Fair", "Excellent"][i % 5]
+                "date": forecast_date.isoformat(),
+                "day_name": forecast_date.strftime("%A"),
+                "high": f"{high_temp}°F",
+                "low": f"{low_temp}°F", 
+                "conditions": conditions,
+                "rain_chance": f"{rain_chance}%",
+                "wind": f"{wind_speed} mph",
+                "rv_rating": "Fair" if rain_chance > 50 else "Good" if rain_chance > 20 else "Excellent"
             })
         
         return ToolResult(
@@ -608,7 +666,7 @@ class WeatherTool(BaseTool):
             result={
                 "forecast": mock_days,
                 "location": location,
-                "message": f"Mock {days}-day forecast for {location}"
+                "message": f"{days}-day forecast for {location}. (Demo data - configure OPENWEATHER_API_KEY for real forecasts)"
             }
         )
     
