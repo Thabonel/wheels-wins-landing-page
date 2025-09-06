@@ -7,14 +7,7 @@ import logging
 from typing import Optional
 from openai import OpenAI
 
-# Optional imports - make agentops optional for deployment
-try:
-    import agentops
-
-    AGENTOPS_AVAILABLE = True
-except ImportError:
-    AGENTOPS_AVAILABLE = False
-    agentops = None
+# AgentOps removed - no longer needed
 
 try:
     from langfuse import Langfuse
@@ -51,7 +44,6 @@ class ObservabilityConfig:
         self.settings = get_infra_settings()
         self.openai_client: Optional[OpenAI] = None
         self.langfuse_client: Optional[Langfuse] = None
-        self.agentops_initialized = False
         self.tracer = None
         self._initialized = False
 
@@ -140,99 +132,6 @@ class ObservabilityConfig:
             logger.warning(f"Failed to initialize Langfuse observability: {e}")
             return None
 
-    def initialize_agentops(self) -> bool:
-        """Initialize AgentOps for agent workflow tracking"""
-        if not AGENTOPS_AVAILABLE:
-            logger.info(
-                "📦 AgentOps package not available - install agentops package to enable observability"
-            )
-            return False
-
-        api_key = self.settings.AGENTOPS_API_KEY
-        if not api_key:
-            logger.info(
-                "🔑 AgentOps API key not configured - set AGENTOPS_API_KEY to enable observability"
-            )
-            return False
-        
-        logger.info("✅ AgentOps API key found, checking compatibility...")
-
-        try:
-            import openai
-            openai_version = openai.__version__
-            logger.info(f"📋 OpenAI version detected: {openai_version}")
-            
-            # Check OpenAI version compatibility
-            # AgentOps 0.3.x and below are incompatible with OpenAI 1.x
-            # AgentOps 0.4.x+ should work with OpenAI 1.x
-            import pkg_resources
-            try:
-                agentops_version = pkg_resources.get_distribution("agentops").version
-                logger.info(f"📋 AgentOps version detected: {agentops_version}")
-                
-                # Parse versions
-                openai_major = int(openai_version.split(".")[0])
-                agentops_major = int(agentops_version.split(".")[0])
-                agentops_minor = int(agentops_version.split(".")[1])
-                
-                # Check compatibility
-                if openai_major >= 1 and agentops_major == 0 and agentops_minor < 4:
-                    logger.warning(
-                        f"⚠️ AgentOps {agentops_version} is incompatible with OpenAI {openai_version}"
-                    )
-                    logger.warning(
-                        "   Please upgrade AgentOps to 0.4.15+ for OpenAI 1.x compatibility"
-                    )
-                    logger.warning(
-                        "   Run: pip install 'agentops>=0.4.15,<0.5.0'"
-                    )
-                    self.agentops_initialized = False
-                    return False
-                    
-            except Exception as version_error:
-                logger.warning(f"Could not check AgentOps version: {version_error}")
-
-            # Try to initialize with better error handling
-            try:
-                # Check if OpenAI client structure is compatible
-                from openai import OpenAI as OpenAIClient
-                test_client = OpenAIClient(api_key="test")
-                
-                # Initialize AgentOps with minimal configuration
-                agentops.init(
-                    api_key=self.settings.AGENTOPS_API_KEY,
-                    auto_start_session=False,  # Don't auto-start session
-                    inherited_session_id=None   # No inherited session
-                )
-                
-                self.agentops_initialized = True
-                logger.info("✅ AgentOps observability initialized successfully")
-                return True
-                
-            except AttributeError as attr_error:
-                if "ChatCompletion" in str(attr_error) or "Completion" in str(attr_error):
-                    logger.warning(
-                        "⚠️ AgentOps incompatible with current OpenAI client structure"
-                    )
-                    logger.warning(f"   Error: {attr_error}")
-                    logger.warning(
-                        "   AgentOps disabled to preserve OpenAI functionality"
-                    )
-                else:
-                    logger.warning(f"AgentOps initialization error: {attr_error}")
-                self.agentops_initialized = False
-                return False
-                
-        except ImportError as e:
-            logger.warning(
-                f"⚠️ AgentOps initialization failed due to import error: {e}"
-            )
-            self.agentops_initialized = False
-            return False
-        except Exception as e:
-            logger.warning(f"Failed to initialize AgentOps observability: {e}")
-            self.agentops_initialized = False
-            return False
 
     def initialize_all(self):
         """Initialize all available observability platforms"""
@@ -247,7 +146,6 @@ class ObservabilityConfig:
         self.initialize_tracing()
         self.initialize_openai()
         self.initialize_langfuse()
-        self.initialize_agentops()
 
         self._initialized = True
         logger.info("✅ AI agent observability initialization complete")
@@ -274,10 +172,6 @@ class ObservabilityConfig:
                 ),
                 "client_ready": self.langfuse_client is not None,
             },
-            "agentops": {
-                "configured": bool(self.settings.AGENTOPS_API_KEY),
-                "initialized": self.agentops_initialized,
-            },
         }
 
     def shutdown(self):
@@ -286,15 +180,6 @@ class ObservabilityConfig:
             if self.langfuse_client:
                 self.langfuse_client.flush()
                 logger.info("✅ Langfuse client flushed")
-
-            if self.agentops_initialized and AGENTOPS_AVAILABLE:
-                try:
-                    agentops.end_session("Success")
-                    logger.info("✅ AgentOps session ended")
-                except Exception as agentops_error:
-                    logger.warning(
-                        f"⚠️ AgentOps shutdown error (non-critical): {agentops_error}"
-                    )
 
             logger.info("🔄 Observability platforms shut down cleanly")
 

@@ -67,6 +67,7 @@ class AIResponse:
     cached: bool = False
     finish_reason: Optional[str] = None
     function_calls: Optional[List[Dict[str, Any]]] = None
+    confidence_score: Optional[float] = None  # Added to fix attribute error
 
 
 @dataclass
