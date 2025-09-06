@@ -344,14 +344,15 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadUserContext = async () => {
     try {
-      // Fetch user preferences and context
+      // Load comprehensive user profile using the load_user_profile tool
       const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
         body: JSON.stringify({
-          message: 'What is my current context and preferences?',
+          message: 'Load my complete profile and travel preferences',
           context: {
             user_id: user?.id,
-            request_type: 'load_user_context'
+            request_type: 'load_user_profile',
+            use_tool: 'load_user_profile'
           }
         })
       });
@@ -359,8 +360,23 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       let contextData = {};
       if (response.ok) {
         const data = await response.json();
-        logger.debug('📋 Loaded user context:', data);
-        contextData = data?.context_updates || data?.actions || data;
+        logger.debug('📋 Loaded user profile context:', data);
+        
+        // Extract profile data from tool response
+        if (data?.tool_responses?.load_user_profile?.result) {
+          const profileData = data.tool_responses.load_user_profile.result;
+          contextData = {
+            user_profile: profileData,
+            is_rv_traveler: true, // Flag to indicate RV travel focus
+            vehicle_info: profileData.vehicle_info,
+            travel_preferences: profileData.travel_preferences,
+            budget_preferences: profileData.budget_preferences,
+            personal_details: profileData.personal_details
+          };
+        } else {
+          // Fallback to basic context if profile tool didn't work
+          contextData = data?.context_updates || data?.actions || data;
+        }
       }
 
       // Try to get location on PAM startup
@@ -2530,8 +2546,19 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             content: m.content,
             role: m.sender === 'user' ? 'user' : 'assistant'
           })),
-          user_context: userContext,
-          user_preferences: settings
+          user_context: {
+            ...userContext,
+            travel_mode: 'RV', // Explicitly indicate RV travel
+            travel_type: 'recreational_vehicle',
+          },
+          user_preferences: settings,
+          rv_context: {
+            is_rv_traveler: true,
+            vehicle_type: userContext?.vehicle_info?.type || 'caravan',
+            vehicle_specs: userContext?.vehicle_info || {},
+            travel_preferences: userContext?.travel_preferences || {},
+            needs_rv_specific_planning: true
+          }
         });
         
         if (result.execution.success && result.execution.execution_result) {

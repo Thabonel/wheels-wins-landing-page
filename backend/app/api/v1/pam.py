@@ -2870,6 +2870,19 @@ async def create_agentic_plan(
         user_goal = request.get("goal", "")
         context = request.get("context", {})
         
+        # Enhance context with RV travel detection
+        rv_context = context.get("rv_context", {})
+        if rv_context.get("is_rv_traveler") or context.get("is_rv_traveler"):
+            # Add RV-specific planning context
+            context["travel_mode"] = "RV"
+            context["requires_rv_planning"] = True
+            context["vehicle_constraints"] = rv_context.get("vehicle_specs", {})
+            
+            # Add RV travel keywords to goal if not present
+            rv_keywords = ["RV", "caravan", "motorhome", "camping", "campground"]
+            if not any(keyword.lower() in user_goal.lower() for keyword in rv_keywords):
+                context["implicit_rv_context"] = True
+        
         # Try to access agentic orchestrator
         try:
             from app.services.pam.unified_orchestrator import get_unified_orchestrator
@@ -2937,6 +2950,15 @@ async def execute_agentic_plan(
         plan_id = request.get("plan_id")
         user_goal = request.get("goal", "")
         context = request.get("context", {})
+        
+        # Enhance context with RV travel information
+        rv_context = context.get("rv_context", {})
+        if rv_context.get("is_rv_traveler") or context.get("is_rv_traveler"):
+            # Add RV-specific execution context
+            context["travel_mode"] = "RV"
+            context["requires_rv_planning"] = True
+            context["vehicle_constraints"] = rv_context.get("vehicle_specs", {})
+            context["rv_preferences"] = rv_context.get("travel_preferences", {})
         
         # For now, execute via standard chat processing with enhanced context
         from app.core.simple_pam_service import simple_pam_service
