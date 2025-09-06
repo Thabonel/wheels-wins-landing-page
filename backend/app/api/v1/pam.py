@@ -1277,7 +1277,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         }]
         
         # Calculate total processing time
-        total_processing_time = (time.time() - start_time) * 1000
+        total_processing_time = (time.time() - start_time.timestamp()) * 1000
         logger.info(f"⏱️ [DEBUG] Total processing time: {total_processing_time:.1f}ms")
         
         # Check for duplicate response before sending
@@ -2005,7 +2005,7 @@ async def chat_endpoint(
         logger.error(f"Chat endpoint error: {str(e)}", exc_info=True)
         
         # Calculate processing time for error case
-        error_processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+        error_processing_time = (time.time() - start_time.timestamp()) * 1000  # Convert to milliseconds
         
         # Log error response
         pam_logger.log_api_response(
