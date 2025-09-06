@@ -2883,6 +2883,20 @@ async def create_agentic_plan(
             if not any(keyword.lower() in user_goal.lower() for keyword in rv_keywords):
                 context["implicit_rv_context"] = True
         
+        # Load user profile first to ensure proper context
+        from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+        profile_tool = LoadUserProfileTool()
+        profile_result = await profile_tool.execute(str(current_user.id))
+        
+        # Extract profile data
+        user_profile = {}
+        if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
+            user_profile = profile_result["result"]
+            # Add profile data to context
+            context["user_profile"] = user_profile
+            context["vehicle_info"] = user_profile.get("vehicle_info", {})
+            context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
+
         # Try to access agentic orchestrator
         try:
             from app.services.pam.unified_orchestrator import get_unified_orchestrator
@@ -2913,18 +2927,24 @@ async def create_agentic_plan(
             
         except ImportError as e:
             logger.warning(f"Agentic orchestrator not available: {e}")
-            # Fallback to basic goal analysis
+            # Fallback to basic goal analysis with profile context
+            vehicle_type = user_profile.get("vehicle_info", {}).get("type", "unknown")
+            is_rv = user_profile.get("vehicle_info", {}).get("is_rv", False)
+            
             return {
                 "success": True,
                 "plan": {
                     "user_goal": user_goal,
-                    "complexity": "simple",
-                    "steps": [{"action": "process_request", "description": f"Process: {user_goal}"}],
-                    "tools_required": ["basic_chat"],
+                    "complexity": "moderate" if is_rv else "simple",
+                    "steps": [
+                        {"action": "load_profile", "description": f"Load user profile (Vehicle: {vehicle_type})"},
+                        {"action": "process_request", "description": f"Process RV-specific request: {user_goal}" if is_rv else f"Process: {user_goal}"}
+                    ],
+                    "tools_required": ["load_user_profile", "enhanced_chat"],
                     "estimated_time": "immediate",
                     "success_probability": 0.9
                 },
-                "agent_reasoning": "Basic goal processing (agentic features initializing)",
+                "agent_reasoning": f"Profile-aware processing (Vehicle: {vehicle_type}, RV: {is_rv})",
                 "can_execute": True
             }
             
@@ -2960,16 +2980,37 @@ async def execute_agentic_plan(
             context["vehicle_constraints"] = rv_context.get("vehicle_specs", {})
             context["rv_preferences"] = rv_context.get("travel_preferences", {})
         
-        # For now, execute via standard chat processing with enhanced context
+        # Load user profile to ensure PAM has access to vehicle and travel info
+        from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+        profile_tool = LoadUserProfileTool()
+        profile_result = await profile_tool.execute(str(current_user.id))
+        
+        # Extract profile data for context
+        user_profile = {}
+        if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
+            user_profile = profile_result["result"]
+        
+        # Execute via standard chat processing with enhanced context including profile
         from app.core.simple_pam_service import simple_pam_service
         
-        # Add agentic context flags
+        # Add comprehensive context including unified profile data
         enhanced_context = {
             **context,
             "user_id": str(current_user.id),
-            "execution_mode": "agentic",
+            "execution_mode": "agentic", 
             "plan_id": plan_id,
-            "multi_step_reasoning": True
+            "multi_step_reasoning": True,
+            
+            # Add unified profile data for proper personalization
+            "user_profile": user_profile,
+            "vehicle_info": user_profile.get("vehicle_info", {}),
+            "travel_preferences": user_profile.get("travel_preferences", {}),
+            "is_rv_traveler": user_profile.get("vehicle_info", {}).get("is_rv", False),
+            "personal_details": user_profile.get("personal_details", {}),
+            
+            # Explicit RV context flags
+            "travel_mode": "RV" if user_profile.get("vehicle_info", {}).get("is_rv") else "general",
+            "requires_rv_planning": user_profile.get("vehicle_info", {}).get("is_rv", False)
         }
         
         response = await simple_pam_service.get_response(
