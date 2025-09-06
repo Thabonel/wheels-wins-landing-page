@@ -1850,6 +1850,12 @@ async def chat_endpoint(
         profile_tool = LoadUserProfileTool()
         profile_result = await profile_tool.execute(user_id)
         
+        # Debug: Log profile loading result
+        logger.info(f"🔍 Profile loading result for user {user_id}: success={profile_result.get('success')}")
+        if profile_result.get("result"):
+            vehicle_info = profile_result.get("result", {}).get("vehicle_info", {})
+            logger.info(f"🚐 Vehicle info loaded: {vehicle_info}")
+        
         # Extract profile data for enhanced context
         user_profile = {}
         if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
@@ -1961,6 +1967,12 @@ async def chat_endpoint(
         
         # Get conversation history if available
         conversation_history = context.get("conversation_history", [])
+        
+        # Debug: Log context being passed to SimplePamService
+        logger.info(f"🔄 Passing context to SimplePamService:")
+        logger.info(f"   - is_rv_traveler: {context.get('is_rv_traveler', False)}")
+        logger.info(f"   - travel_mode: {context.get('travel_mode', 'unknown')}")
+        logger.info(f"   - vehicle_type: {context.get('vehicle_info', {}).get('type', 'unknown')}")
         
         # Process through SimplePamService with use case
         pam_response = await simple_pam_service.process_message(
