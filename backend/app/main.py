@@ -410,12 +410,8 @@ logger.info("🛡️ Initializing enhanced security system...")
 security_config = setup_enhanced_security(app)
 logger.info("✅ Enhanced security system fully operational")
 
-# Setup other middleware
-app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
-setup_middleware(app)
-app.add_middleware(GuardrailsMiddleware)
-
-# CORS Configuration - Simple and Proven Approach
+# CORS Configuration - Must Be FIRST
+# CRITICAL: CORS must be configured BEFORE other middleware
 # Using FastAPI's standard CORSMiddleware with comprehensive origins
 allowed_origins = [
     # Development origins
@@ -448,6 +444,7 @@ allowed_origins = [
 ]
 
 # Add CORS middleware - This handles ALL CORS including OPTIONS preflight
+# CRITICAL: CORS middleware must be added BEFORE other middleware that might interfere
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -457,10 +454,43 @@ app.add_middleware(
     expose_headers=["Content-Type", "Authorization", "X-Request-ID"]
 )
 logger.info(f"✅ CORS middleware configured with {len(allowed_origins)} origins")
+logger.info(f"🔍 CORS Debug - Allowed origins: {allowed_origins}")
+logger.info(f"🔍 CORS Debug - Environment: {getattr(settings, 'NODE_ENV', 'unknown')}")
+
+# Add CORS debug middleware for troubleshooting
+@app.middleware("http")
+async def cors_debug_middleware(request: Request, call_next):
+    origin = request.headers.get("origin")
+    method = request.method
+    
+    if origin or method == "OPTIONS":
+        logger.info(f"🔍 CORS Debug - Request from origin: {origin}")
+        logger.info(f"🔍 CORS Debug - Method: {method}")
+        logger.info(f"🔍 CORS Debug - Path: {request.url.path}")
+        
+        # Check if origin is in allowed list
+        if origin in allowed_origins:
+            logger.info(f"✅ CORS Debug - Origin {origin} is in allowed list")
+        else:
+            logger.warning(f"❌ CORS Debug - Origin {origin} NOT in allowed list")
+            logger.warning(f"❌ CORS Debug - Available origins: {allowed_origins[:3]}...")
+    
+    response = await call_next(request)
+    
+    # Log response headers
+    cors_headers = {k: v for k, v in response.headers.items() if 'access-control' in k.lower()}
+    if cors_headers:
+        logger.info(f"🔍 CORS Debug - Response headers: {cors_headers}")
+    
+    return response
 
 # FastAPI's CORSMiddleware handles ALL OPTIONS requests automatically
 # No need for additional OPTIONS handlers - they can cause conflicts
 
+# Setup other middleware AFTER CORS
+app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
+setup_middleware(app)
+app.add_middleware(GuardrailsMiddleware)
 
 # Add root route handler
 @app.get("/")
@@ -489,6 +519,31 @@ async def root():
         }
     }
 
+# Add CORS test endpoint for debugging
+@app.get("/api/cors-test")
+async def cors_test(request: Request):
+    """Test endpoint specifically for CORS debugging"""
+    origin = request.headers.get("origin", "No origin header")
+    return {
+        "message": "CORS test successful!",
+        "origin": origin,
+        "origin_allowed": origin in allowed_origins,
+        "timestamp": datetime.utcnow().isoformat(),
+        "method": "GET"
+    }
+
+@app.post("/api/cors-test") 
+async def cors_test_post(request: Request):
+    """POST test endpoint for CORS preflight testing"""
+    origin = request.headers.get("origin", "No origin header")
+    return {
+        "message": "CORS POST test successful!",
+        "origin": origin,
+        "origin_allowed": origin in allowed_origins,
+        "timestamp": datetime.utcnow().isoformat(),
+        "method": "POST"
+    }
+
 # CORS debugging endpoint
 @app.get("/api/cors/debug")
 async def cors_debug_info(request: Request):
@@ -499,6 +554,7 @@ async def cors_debug_info(request: Request):
         "timestamp": datetime.utcnow().isoformat(),
         "request_origin": origin,
         "configured_cors_origins": allowed_origins,
+        "cors_debug_enabled": True,
         "origin_allowed": origin in allowed_origins if origin != "No origin header" else False,
         "environment": getattr(settings, 'NODE_ENV', 'unknown'),
         "total_origins": len(allowed_origins),
