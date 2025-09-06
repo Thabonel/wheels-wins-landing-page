@@ -1845,21 +1845,9 @@ async def chat_endpoint(
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        # Load user profile to ensure PAM has access to vehicle and travel preferences
-        from app.services.pam.tools.load_user_profile import LoadUserProfileTool
-        profile_tool = LoadUserProfileTool()
-        profile_result = await profile_tool.execute(user_id)
-        
-        # Debug: Log profile loading result
-        logger.info(f"🔍 Profile loading result for user {user_id}: success={profile_result.get('success')}")
-        if profile_result.get("result"):
-            vehicle_info = profile_result.get("result", {}).get("vehicle_info", {})
-            logger.info(f"🚐 Vehicle info loaded: {vehicle_info}")
-        
-        # Extract profile data for enhanced context
-        user_profile = {}
-        if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
-            user_profile = profile_result["result"]
+        # Note: Profile loading is now handled internally by PersonalizedPamAgent
+        # This eliminates the architectural disconnect between profile loading and AI responses
+        logger.info(f"🔄 PersonalizedPamAgent will handle profile loading and context injection")
         
         # Log API request
         pam_logger.log_api_request(
@@ -1927,60 +1915,24 @@ async def chat_endpoint(
                 detail="Message contains suspicious content and was rejected"
             )
         
-        # Prepare context
+        # Prepare minimal context - PersonalizedPamAgent handles the rest
         context = request.context or {}
         context["user_id"] = str(user_id)
         
-        # Add unified profile data to context for proper personalization
-        if user_profile:
-            context["user_profile"] = user_profile
-            context["vehicle_info"] = user_profile.get("vehicle_info", {})
-            context["travel_preferences"] = user_profile.get("travel_preferences", {})
-            context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
-            context["personal_details"] = user_profile.get("personal_details", {})
-            
-            # Add explicit RV context flags for better trip planning
-            context["travel_mode"] = "RV" if user_profile.get("vehicle_info", {}).get("is_rv") else "general"
-            context["requires_rv_planning"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
-            
-            logger.info(f"🚐 Added profile context - Vehicle: {user_profile.get('vehicle_info', {}).get('type', 'unknown')}, RV: {context['is_rv_traveler']}")
+        logger.info(f"Processing chat request for user {user_id} with PersonalizedPamAgent")
         
-        # Detect use case if not provided
-        use_case = None
-        if request.use_case:
-            try:
-                use_case = PamUseCase(request.use_case)
-                logger.info(f"📊 Using explicit use case: {use_case.value}")
-            except ValueError:
-                logger.warning(f"⚠️ Invalid use case provided: {request.use_case}, using auto-detection")
+        # 🚀 NEW: Use unified PersonalizedPamAgent instead of competing services
+        logger.info(f"🤖 Processing with PersonalizedPamAgent - profile loading and context injection handled internally")
         
-        if not use_case:
-            # Use profile router to detect use case
-            route_decision = profile_router.analyze_message(request.message, context)
-            use_case = route_decision.use_case
-            logger.info(f"🎯 Auto-detected use case: {use_case.value} (confidence: {route_decision.confidence:.2f})")
+        # Import and use the unified agent
+        from app.core.personalized_pam_agent import personalized_pam_agent
         
-        logger.info(f"Processing chat request for user {user_id} with use case: {use_case.value}")
-        
-        # Process through unified orchestrator
-        from app.services.pam.unified_orchestrator import get_unified_orchestrator
-        
-        # Get conversation history if available
-        conversation_history = context.get("conversation_history", [])
-        
-        # Debug: Log context being passed to SimplePamService
-        logger.info(f"🔄 Passing context to SimplePamService:")
-        logger.info(f"   - is_rv_traveler: {context.get('is_rv_traveler', False)}")
-        logger.info(f"   - travel_mode: {context.get('travel_mode', 'unknown')}")
-        logger.info(f"   - vehicle_type: {context.get('vehicle_info', {}).get('type', 'unknown')}")
-        
-        # Process through SimplePamService with use case
-        pam_response = await simple_pam_service.process_message(
-            str(user_id),
-            request.message,
+        # Process message with unified agent (replaces all competing implementations)
+        pam_response = await personalized_pam_agent.process_message(
+            user_id=str(user_id),
+            message=request.message,
             session_id=request.conversation_id,
-            context=context,
-            use_case=use_case
+            additional_context=context
         )
         actions = pam_response.get("actions", [])
         
