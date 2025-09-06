@@ -4206,7 +4206,7 @@ async def pam_debug_endpoint(current_user = Depends(get_current_user)):
         # Test 1: Import Dependencies
         logger.info("🔍 PAM Debug: Testing imports...")
         try:
-            from app.services.ai_service import get_ai_service
+            from app.services.ai_failover_service import get_ai_failover_service
             from app.services.pam.enhanced_orchestrator import get_pam_orchestrator
             from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
             from app.services.tts.tts_service import get_tts_service
@@ -4232,7 +4232,7 @@ async def pam_debug_endpoint(current_user = Depends(get_current_user)):
         # Test 2: AI Service
         logger.info("🔍 PAM Debug: Testing AI Service...")
         try:
-            ai_service = await get_ai_service()
+            ai_service = await get_ai_failover_service()
             if ai_service:
                 # Test basic AI service functionality
                 test_messages = [{"role": "user", "content": "Hello, this is a test"}]

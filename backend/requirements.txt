@@ -14,6 +14,9 @@ opentelemetry-api>=1.20.0
 opentelemetry-sdk>=1.20.0
 opentelemetry-instrumentation-fastapi>=0.41b0
 
+# AI Providers
+anthropic>=0.28.0
+
 # AI Agent Observability (stable versions)
 langfuse>=2.0.0
 # agentops>=0.4.15,<0.5.0  # Temporarily disabled - incompatible with OpenAI 1.99.6
