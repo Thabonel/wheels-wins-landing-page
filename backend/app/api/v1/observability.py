@@ -220,8 +220,7 @@ async def get_dashboard_data(
                 "health": health,
                 "platform_links": {
                     "openai": "https://platform.openai.com/usage",
-                    "langfuse": getattr(observability.settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
-                    "agentops": "https://app.agentops.ai"
+                    "langfuse": getattr(observability.settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com')
                 }
             }
         }
@@ -273,9 +272,6 @@ async def get_observability_config_public():
                 "langfuse": {
                     "configured": bool(getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)),
                     "host": getattr(settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
-                },
-                "agentops": {
-                    "configured": bool(getattr(settings, 'AGENTOPS_API_KEY', None)),
                 }
             }
         }
@@ -295,7 +291,6 @@ async def get_observability_config_public():
                 "platforms": {
                     "openai": {"configured": False},
                     "langfuse": {"configured": False},
-                    "agentops": {"configured": False}
                 }
             }
         }
@@ -322,10 +317,6 @@ async def get_observability_configuration(
                     "host": getattr(settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
                     "public_key_preview": f"{getattr(settings, 'LANGFUSE_PUBLIC_KEY', '')[:8]}..." if getattr(settings, 'LANGFUSE_PUBLIC_KEY', None) else None
                 },
-                "agentops": {
-                    "configured": bool(getattr(settings, 'AGENTOPS_API_KEY', None)),
-                    "key_preview": f"{getattr(settings, 'AGENTOPS_API_KEY', '')[:8]}..." if getattr(settings, 'AGENTOPS_API_KEY', None) else None
-                }
             }
         }
         
@@ -358,7 +349,7 @@ async def test_platform_connection(
 ) -> Dict[str, Any]:
     """Test connection to a specific observability platform"""
     try:
-        if platform not in ["openai", "langfuse", "agentops"]:
+        if platform not in ["openai", "langfuse"]:
             raise HTTPException(status_code=400, detail="Invalid platform")
         
         if platform == "openai":
@@ -382,12 +373,6 @@ async def test_platform_connection(
             else:
                 result = {"connected": False, "message": "Failed to initialize Langfuse client"}
                 
-        elif platform == "agentops":
-            success = observability.initialize_agentops()
-            if success:
-                result = {"connected": True, "message": "AgentOps initialized successfully"}
-            else:
-                result = {"connected": False, "message": "Failed to initialize AgentOps"}
         
         return {
             "status": "success",

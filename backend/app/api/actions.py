@@ -131,8 +131,7 @@ def get_action_status():
         
         platform_status = {
             "openai": "configured" if getattr(settings, 'OPENAI_API_KEY', None) else "not_configured",
-            "langfuse": "configured" if (getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)) else "not_configured",  
-            "agentops": "configured" if getattr(settings, 'AGENTOPS_API_KEY', None) else "not_configured"
+            "langfuse": "configured" if (getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)) else "not_configured"
         }
         
         basic_status["platform_status"] = platform_status

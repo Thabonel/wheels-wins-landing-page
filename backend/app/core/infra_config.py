@@ -73,7 +73,6 @@ class InfrastructureSettings(BaseSettings):
     LANGFUSE_SECRET_KEY: Optional[str] = None
     LANGFUSE_PUBLIC_KEY: Optional[str] = None
     LANGFUSE_HOST: str = "https://cloud.langfuse.com"
-    AGENTOPS_API_KEY: Optional[str] = None
     OTLP_ENDPOINT: Optional[str] = None
     OTLP_API_KEY: Optional[str] = None
 

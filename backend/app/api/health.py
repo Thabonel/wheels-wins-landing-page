@@ -59,16 +59,14 @@ async def detailed_health_check():
         # Use environment variables directly to avoid configuration import issues
         platform_status = {
             "openai": "configured" if os.getenv('OPENAI_API_KEY') else "not_configured",
-            "langfuse": "configured" if (os.getenv('LANGFUSE_SECRET_KEY') and os.getenv('LANGFUSE_PUBLIC_KEY')) else "not_configured",  
-            "agentops": "configured" if os.getenv('AGENTOPS_API_KEY') else "not_configured",
+            "langfuse": "configured" if (os.getenv('LANGFUSE_SECRET_KEY') and os.getenv('LANGFUSE_PUBLIC_KEY')) else "not_configured",
             "observability_enabled": os.getenv('OBSERVABILITY_ENABLED', 'false').lower() == 'true'
         }
     except Exception as e:
         platform_status = {
             "error": f"Could not check platform status: {str(e)}",
             "openai": "unknown",
-            "langfuse": "unknown", 
-            "agentops": "unknown"
+            "langfuse": "unknown"
         }
 
     return {

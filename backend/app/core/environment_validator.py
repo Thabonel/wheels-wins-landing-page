@@ -46,7 +46,6 @@ class EnvironmentValidator:
         "GOOGLE_SEARCH_API_KEY",
         "GOOGLE_PLACES_API_KEY",  # For PAM location intelligence
         "LANGFUSE_SECRET_KEY",
-        "AGENTOPS_API_KEY",
     ]
     
     # Security-critical variables that should never be default values
