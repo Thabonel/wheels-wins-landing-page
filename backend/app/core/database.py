@@ -31,7 +31,12 @@ def init_supabase() -> Client:
     global supabase_client
     try:
         url = getattr(settings, "SUPABASE_URL", None)
-        key = getattr(settings, "SUPABASE_KEY", None)
+        key = getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None)
+        
+        # Convert SecretStr to string if needed
+        if hasattr(key, 'get_secret_value'):
+            key = key.get_secret_value()
+        
         if not url or not key:
             logger.warning("Supabase settings not configured; using dummy client")
             class MockClient:
@@ -39,7 +44,7 @@ def init_supabase() -> Client:
                     return lambda *args, **kwargs: None
             return MockClient()
 
-        supabase_client = create_client(url, key)
+        supabase_client = create_client(str(url), key)
         logger.info("Supabase client initialized successfully")
         return supabase_client
     except Exception as e:
