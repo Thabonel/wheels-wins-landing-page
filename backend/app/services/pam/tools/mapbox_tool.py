@@ -61,16 +61,26 @@ class MapboxTool(BaseTool):
             capabilities=[ToolCapability.LOCATION_SEARCH, ToolCapability.ROUTE_PLANNING]
         )
         
-        # Check for Mapbox token
-        self.mapbox_token = getattr(settings, 'MAPBOX_SECRET_TOKEN', None)
-        if self.mapbox_token and hasattr(self.mapbox_token, 'get_secret_value'):
-            self.mapbox_token = self.mapbox_token.get_secret_value()
+        # Check for Mapbox token in order of preference
+        token_sources = [
+            'MAPBOX_SECRET_TOKEN',
+            'VITE_MAPBOX_TOKEN', 
+            'VITE_MAPBOX_PUBLIC_TOKEN'
+        ]
+        
+        self.mapbox_token = None
+        for token_name in token_sources:
+            token = getattr(settings, token_name, None)
+            if token:
+                if hasattr(token, 'get_secret_value'):
+                    token = token.get_secret_value()
+                if token:  # Make sure it's not empty after extraction
+                    self.mapbox_token = token
+                    logger.info(f"🗺️ Using {token_name} for Mapbox API")
+                    break
         
         if not self.mapbox_token:
-            # Try public token as fallback
-            self.mapbox_token = getattr(settings, 'VITE_MAPBOX_TOKEN', None)
-            if not self.mapbox_token:
-                logger.warning("⚠️ Mapbox token not configured - using mock mode")
+            logger.warning("⚠️ Mapbox token not configured - using mock mode")
         
         self.base_url = "https://api.mapbox.com"
         self.session = None

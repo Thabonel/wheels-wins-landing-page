@@ -330,8 +330,8 @@ class EdgeTTS(BaseTTSEngine):
         """Check Edge TTS health"""
         if not EDGE_TTS_AVAILABLE:
             return {
-                "status": "unhealthy",
-                "error": "edge-tts package not available"
+                "status": "unavailable",
+                "error": "Edge TTS not available"
             }
         
         try:
@@ -339,10 +339,11 @@ class EdgeTTS(BaseTTSEngine):
             test_text = "Test"
             communicate = edge_tts.Communicate(test_text, "en-US-AriaNeural")
             
-            # Try to get first chunk to verify it works
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    break
+            # Try to get first chunk to verify it works with timeout
+            async with asyncio.timeout(10):  # 10 second timeout
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        break
             
             return {
                 "status": "healthy",
