@@ -1845,6 +1845,16 @@ async def chat_endpoint(
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
         
+        # Load user profile to ensure PAM has access to vehicle and travel preferences
+        from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+        profile_tool = LoadUserProfileTool()
+        profile_result = await profile_tool.execute(user_id)
+        
+        # Extract profile data for enhanced context
+        user_profile = {}
+        if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
+            user_profile = profile_result["result"]
+        
         # Log API request
         pam_logger.log_api_request(
             user_id=str(user_id),
@@ -1914,6 +1924,20 @@ async def chat_endpoint(
         # Prepare context
         context = request.context or {}
         context["user_id"] = str(user_id)
+        
+        # Add unified profile data to context for proper personalization
+        if user_profile:
+            context["user_profile"] = user_profile
+            context["vehicle_info"] = user_profile.get("vehicle_info", {})
+            context["travel_preferences"] = user_profile.get("travel_preferences", {})
+            context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
+            context["personal_details"] = user_profile.get("personal_details", {})
+            
+            # Add explicit RV context flags for better trip planning
+            context["travel_mode"] = "RV" if user_profile.get("vehicle_info", {}).get("is_rv") else "general"
+            context["requires_rv_planning"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
+            
+            logger.info(f"🚐 Added profile context - Vehicle: {user_profile.get('vehicle_info', {}).get('type', 'unknown')}, RV: {context['is_rv_traveler']}")
         
         # Detect use case if not provided
         use_case = None
