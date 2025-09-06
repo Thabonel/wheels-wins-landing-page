@@ -10,6 +10,7 @@ from .claude_service import ClaudeService
 from .openai_service import OpenAIService
 from app.core.logging import logger
 from app.services.cache import CacheService
+from app.utils.datetime_encoder import DateTimeEncoder
 
 
 class AICoordinator:
@@ -124,7 +125,7 @@ class AICoordinator:
     def _generate_cache_key(self, request_type: str, params: Dict) -> str:
         """Generate a cache key for the request"""
         # Create a deterministic string from parameters
-        param_str = json.dumps(params, sort_keys=True)
+        param_str = json.dumps(params, sort_keys=True, cls=DateTimeEncoder)
         param_hash = hashlib.md5(param_str.encode()).hexdigest()
         return f"ai:{request_type}:{param_hash}"
     

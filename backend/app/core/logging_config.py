@@ -16,10 +16,18 @@ import structlog
 from contextlib import contextmanager
 
 from app.core.logging import get_logger, set_request_context
-from app.core.config import get_settings
 from app.utils.datetime_encoder import DateTimeEncoder
 
-settings = get_settings()
+# Temporary settings fallback for testing
+class SimpleSettings:
+    def __init__(self):
+        pass
+
+try:
+    from app.core.config import get_settings
+    settings = get_settings()
+except ImportError:
+    settings = SimpleSettings()
 
 
 class PAMEventType(Enum):
@@ -77,6 +85,19 @@ class PAMLogEvent:
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now(timezone.utc)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary with enum values properly serialized"""
+        data = asdict(self)
+        # Convert enums to their values
+        if isinstance(data['event_type'], PAMEventType):
+            data['event_type'] = data['event_type'].value
+        if isinstance(data['severity'], LogSeverity):
+            data['severity'] = data['severity'].value
+        # Convert timestamp to ISO string
+        if data['timestamp']:
+            data['timestamp'] = data['timestamp'].isoformat()
+        return data
 
 
 class PAMLogger:
@@ -148,14 +169,10 @@ class PAMLogger:
     
     def _log_event(self, event: PAMLogEvent, additional_data: Optional[Dict] = None):
         """Internal method to log structured PAM events"""
-        # Convert event to dict and merge with additional data
-        event_data = asdict(event)
+        # Convert event to dict with proper enum serialization
+        event_data = event.to_dict()
         if additional_data:
             event_data.update(additional_data)
-        
-        # Convert timestamp to string for JSON serialization
-        if event.timestamp:
-            event_data['timestamp'] = event.timestamp.isoformat()
         
         # Log to main structured logger
         log_method = getattr(self.logger, event.severity.value)
