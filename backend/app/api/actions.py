@@ -141,8 +141,7 @@ def get_action_status():
         logger.warning(f"Could not get platform status: {e}")
         basic_status["platform_status"] = {
             "openai": "unknown",
-            "langfuse": "unknown", 
-            "agentops": "unknown"
+            "langfuse": "unknown"
         }
     
     return basic_status

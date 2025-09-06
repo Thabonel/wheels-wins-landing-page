@@ -27,7 +27,6 @@ interface ObservabilityData {
   platforms: {
     openai: boolean;
     langfuse: boolean;
-    agentops: boolean;
   };
   key_metrics: {
     total_observations: number;
@@ -405,16 +404,6 @@ export default function ObservabilityDashboard() {
                         <ExternalLink className="h-4 w-4" />
                       </a>
                     )}
-                    {platform === 'agentops' && (
-                      <a
-                        href="https://app.agentops.ai"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    )}
                   </div>
                 </div>
               ))}
@@ -567,7 +556,7 @@ export default function ObservabilityDashboard() {
                   <div className="text-sm text-gray-600">
                     Configure your observability platforms through environment variables or the settings panel.
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-3 border rounded-lg">
                       <h4 className="font-medium">OpenAI</h4>
                       <p className="text-sm text-gray-600">API key required for LLM call tracking</p>
@@ -575,10 +564,6 @@ export default function ObservabilityDashboard() {
                     <div className="p-3 border rounded-lg">
                       <h4 className="font-medium">Langfuse</h4>
                       <p className="text-sm text-gray-600">Secret and public keys for advanced LLM observability</p>
-                    </div>
-                    <div className="p-3 border rounded-lg">
-                      <h4 className="font-medium">AgentOps</h4>
-                      <p className="text-sm text-gray-600">API key for agent workflow tracking</p>
                     </div>
                   </div>
                 </div>
