@@ -103,8 +103,7 @@ class ObservabilityMonitor:
             "status": "active" if observability.is_enabled() else "disabled",
             "platforms": {
                 "openai": metrics["platform_status"]["openai"]["client_ready"],
-                "langfuse": metrics["platform_status"]["langfuse"]["client_ready"],
-                "agentops": metrics["platform_status"]["agentops"]["initialized"]
+                "langfuse": metrics["platform_status"]["langfuse"]["client_ready"]
             },
             "key_metrics": {
                 "total_observations": metrics["observation_metrics"]["total_observations"],
@@ -143,7 +142,7 @@ class ObservabilityMonitor:
                 logger.warning(f"Failed to initialize observability during health check: {e}")
         
         # Check each platform
-        for platform in ["openai", "langfuse", "agentops"]:
+        for platform in ["openai", "langfuse"]:
             platform_status = status.get(platform, {})
             configured = platform_status.get("configured", False)
             ready = platform_status.get("client_ready", False) or platform_status.get("initialized", False)
@@ -168,9 +167,7 @@ class ObservabilityMonitor:
             if configured and not ready:
                 health["issues"].append(f"{platform} is configured but not ready - check credentials")
             elif not configured:
-                if platform == "agentops":
-                    health["issues"].append(f"{platform} is not configured - set AGENTOPS_API_KEY environment variable")
-                elif platform == "langfuse":
+                if platform == "langfuse":
                     health["issues"].append(f"{platform} is not configured - set LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY")
                 elif platform == "openai":
                     health["issues"].append(f"{platform} is not configured - set OPENAI_API_KEY environment variable")
