@@ -1959,14 +1959,14 @@ async def chat_endpoint(
                 "message_length": len(request.message),
                 "response_length": len(response_text),
                 "has_actions": len(actions) > 0 if actions else False,
-                "use_case": use_case.value if use_case else "unknown"
+                "use_case": request.use_case.value if request.use_case else "unknown"
             }
         )
         
         # Record profile metrics for performance tracking
-        if use_case and not has_error:
+        if request.use_case and not has_error:
             profile_router.record_performance(
-                use_case=use_case,
+                use_case=request.use_case,
                 latency=processing_time_seconds,
                 tokens=len(request.message) + len(response_text),  # Rough estimate
                 cost=0.0001,  # Rough estimate
