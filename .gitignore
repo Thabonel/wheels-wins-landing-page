@@ -13,3 +13,13 @@ coverage/
 .env.production
 .env.staging
 .env.ai-agents.local
+
+# Git Safety Systems - Generated Files (DO NOT COMMIT)
+.git/git-safe/
+.git/git-network-resilient/
+.git/git-health-monitor/
+.git/git-script-auditor/
+*.git-safe.backup
+REPO_HEALTH_CHECK.md
+scripts/git-safe-config
+git-safety-functions.sh
