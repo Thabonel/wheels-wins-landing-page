@@ -32,11 +32,12 @@ class LoadUserProfileTool(BaseTool):
 
             self.logger.info(f"Loading profile for user {user_id}")
             
-            # Get user profile from Supabase
+            # Get comprehensive user profile from unified profiles table
+            # This now includes all onboarding data (vehicle, travel preferences, etc.)
             profile_response = (
                 self.supabase.table("profiles")
                 .select("*")
-                .eq("user_id", user_id)
+                .eq("id", user_id)  # profiles uses id, not user_id
                 .single()
                 .execute()
             )
@@ -62,10 +63,11 @@ class LoadUserProfileTool(BaseTool):
                 "profile_exists": True,
                 "personal_details": {
                     "full_name": profile.get("full_name", ""),
-                    "nickname": profile.get("nickname", ""),
+                    "nickname": profile.get("nickname", ""),  # Now from onboarding
                     "email": profile.get("email", ""),
-                    "region": profile.get("region", "Australia"),
-                    "experience_level": profile.get("experience_level", "intermediate")
+                    "region": profile.get("region", "Australia"),  # Now from onboarding
+                    "age_range": profile.get("age_range", ""),  # Now from onboarding
+                    "onboarding_completed": profile.get("onboarding_completed", False)
                 },
                 "travel_preferences": self._extract_travel_preferences(profile),
                 "vehicle_info": self._extract_vehicle_info(profile),
@@ -83,33 +85,47 @@ class LoadUserProfileTool(BaseTool):
             return self._create_error_response(f"Could not load user profile: {str(e)}")
     
     def _extract_travel_preferences(self, profile: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract and structure travel preferences"""
-        travel_prefs = profile.get("travel_preferences", {})
+        """Extract and structure travel preferences from unified profile"""
+        # Now reads directly from onboarding fields
         return {
-            "style": travel_prefs.get("style", "balanced"),  # budget, balanced, luxury
-            "camp_types": travel_prefs.get("camp_types", ["caravan_parks", "free_camps"]),
-            "drive_limit_per_day": travel_prefs.get("drive_limit", "500km"),
-            "preferred_season": travel_prefs.get("preferred_season", "any"),
-            "group_size": travel_prefs.get("group_size", 2),
-            "pet_friendly_required": travel_prefs.get("pet_friendly", False),
-            "internet_required": travel_prefs.get("internet_required", False)
+            "style": profile.get("travel_style", "balanced"),  # Direct from onboarding
+            "camp_types": profile.get("preferred_camp_types", ["caravan_parks", "free_camps"]),  # Direct from onboarding
+            "drive_limit_per_day": profile.get("daily_drive_limit", "500km"),  # Direct from onboarding
+            "region": profile.get("region", "Australia"),  # Direct from onboarding
+            "pet_info": profile.get("pet_info", ""),  # Direct from onboarding
+            "accessibility_needs": profile.get("accessibility_needs", []),  # Direct from onboarding
+            "age_range": profile.get("age_range", ""),  # Direct from onboarding
+            
+            # Derived preferences
+            "pet_friendly_required": bool(profile.get("pet_info", "")),
+            "has_accessibility_needs": bool(profile.get("accessibility_needs", [])),
         }
     
     def _extract_vehicle_info(self, profile: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract and structure vehicle information"""
-        vehicle_info = profile.get("vehicle_info", {})
+        """Extract and structure vehicle information from unified profile"""
+        # Now reads directly from onboarding fields in the unified profile
         return {
-            "type": vehicle_info.get("type", "caravan"),  # caravan, motorhome, camper_trailer
-            "make_model_year": vehicle_info.get("make_model_year", ""),
-            "fuel_type": vehicle_info.get("fuel_type", "diesel"),
-            "fuel_efficiency": vehicle_info.get("fuel_efficiency", 8.5),  # L/100km
-            "length_meters": vehicle_info.get("length", 7.5),
-            "height_meters": vehicle_info.get("height", 3.2),
-            "weight_kg": vehicle_info.get("weight", 2500),
-            "water_capacity": vehicle_info.get("water_capacity", 120),
-            "grey_water_capacity": vehicle_info.get("grey_water_capacity", 95),
-            "solar_panels": vehicle_info.get("solar_panels", False),
-            "generator": vehicle_info.get("generator", False)
+            "type": profile.get("vehicle_type", "caravan"),  # Direct from onboarding: unimog, motorhome, etc.
+            "make_model_year": profile.get("make_model_year", ""),  # Direct from onboarding
+            "fuel_type": profile.get("fuel_type", "diesel"),  # Direct from onboarding
+            "towing_info": profile.get("towing_info", ""),  # Direct from onboarding
+            "second_vehicle": profile.get("second_vehicle", ""),  # Direct from onboarding
+            
+            # Enhanced specs from unified profile (if available)
+            "fuel_efficiency": profile.get("fuel_efficiency_l_100km", 8.5),  # L/100km
+            "length_feet": profile.get("vehicle_length_feet", 25.0),  # feet
+            "height_feet": profile.get("vehicle_height_feet", 10.0),  # feet  
+            "weight_kg": profile.get("vehicle_weight_kg", 2500),
+            "water_capacity": profile.get("water_capacity_liters", 120),
+            "grey_water_capacity": profile.get("grey_water_capacity_liters", 95),
+            "solar_panels": profile.get("solar_panels", False),
+            "generator": profile.get("generator", False),
+            
+            # Add explicit RV detection
+            "is_rv": profile.get("vehicle_type", "").lower() in [
+                'motorhome', 'caravan', 'travel_trailer', 'fifth_wheel', 
+                'truck_camper', 'van', 'unimog', 'camper_trailer'
+            ]
         }
     
     def _extract_budget_preferences(self, profile: Dict[str, Any]) -> Dict[str, Any]:
