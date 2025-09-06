@@ -2651,9 +2651,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     // Fallback to REST API
     try {
-      // Show thinking indicator
+      // Show thinking indicator with pulsing animation
       const thinkingMsgId = Date.now().toString();
-      addMessage("🤔 PAM is thinking...", "pam");
+      addMessage("🤔 <span class='animate-pulse'>PAM is thinking...</span>", "pam");
       
       const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
@@ -2668,7 +2668,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         const pamResponse = data.response || data.message || data.content || "I'm sorry, I couldn't process that request.";
         
         // Remove thinking indicator and add actual response
-        setMessages(prev => prev.filter(m => m.content !== "🤔 PAM is thinking..."));
+        setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
         addMessage(pamResponse, "pam", message);
         // Note: PAM backend automatically saves all conversation history
         
@@ -2677,12 +2677,12 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           handleUIAction(data.ui_action);
         }
       } else {
-        setMessages(prev => prev.filter(m => m.content !== "🤔 PAM is thinking..."));
+        setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
         addMessage("I'm having trouble connecting to the server. Please try again later.", "pam");
       }
     } catch (error) {
       logger.error('❌ Failed to send message via REST API:', error);
-      setMessages(prev => prev.filter(m => m.content !== "🤔 PAM is thinking..."));
+      setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
       addMessage("I'm experiencing connection issues. Please check your internet connection and try again.", "pam");
     }
   };
