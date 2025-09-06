@@ -5,7 +5,6 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { DollarSign, TrendingUp, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-// import { usePamWebSocketConnection } from "@/hooks/usePamWebSocketAdapter"; // DISABLED: Using main PAM WebSocket
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useExpenses } from "@/context/ExpensesContext";
 import { useIncomeData } from "@/components/wins/income/useIncomeData";
@@ -50,34 +49,8 @@ const WinsOverview = React.memo(({ onTabChange }: WinsOverviewProps) => {
     retry: 1 // Minimal retries to avoid overwhelming the API
   });
 
-  // DISABLED: Using main PAM WebSocket connection instead to avoid duplicates
-  // const handlePamMessage = useCallback((msg: any) => {
-  //   if (msg.type === 'chat_response') {
-  //     setPamInsights((prev) => [...prev, msg.message || msg.content]);
-  //   }
-  // }, []);
 
-  // const handleStatusChange = useCallback(() => {}, []);
-
-  // const { isConnected, sendMessage } = usePamWebSocketConnection({
-  //   userId: user?.id ? String(user.id) : 'anonymous',
-  //   token,
-  //   onMessage: handlePamMessage,
-  //   onStatusChange: handleStatusChange
-  // });
-
-  // useEffect(() => {
-  //   if (user && isConnected && pamInsights.length === 0) {
-  //     sendMessage({
-  //       type: 'chat',
-  //       message: 'Show me my financial summary for this month',
-  //       user_id: user.id,
-  //       context: { source: 'wins_overview' }
-  //     });
-  //   }
-  // }, [user, isConnected, pamInsights.length, sendMessage]);
-  
-  // Temporary placeholders for disabled WebSocket
+  // Placeholder WebSocket state (component uses API queries instead)
   const isConnected = false;
   const sendMessage = () => {};
 
