@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
 import logging
+import json
+from app.utils.datetime_encoder import DateTimeEncoder
 
 from app.models.domain.pam import (
     PamMemory, PamIntent, PamContext, 
@@ -28,7 +30,6 @@ from app.core.errors import (
     raise_external_service_error, raise_rate_limit_error
 )
 from app.services.pam.intelligent_conversation import AdvancedIntelligentConversation
-import json
 
 # Import domain-specific nodes
 from app.services.pam.nodes.wheels_node import wheels_node
@@ -984,7 +985,7 @@ class EnhancedPamOrchestrator:
             # Get response from AI orchestrator (will use Anthropic if OpenAI fails)
             messages = [
                 AIMessage(role="system", content="You are PAM, a helpful AI assistant for travel planning and expense management."),
-                AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context)}")
+                AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context, cls=DateTimeEncoder)}")
             ]
             
             ai_response = await self.ai_orchestrator.complete(
@@ -1104,7 +1105,7 @@ class EnhancedPamOrchestrator:
             logger.debug(f"🤖 Calling AI orchestrator with {len(tools)} tools...")
             messages = [
                 AIMessage(role="system", content="You are PAM, a helpful AI assistant with access to various tools for travel planning and expense management."),
-                AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context)}")
+                AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context, cls=DateTimeEncoder)}")
             ]
             
             # Note: Tool support will depend on provider capabilities
@@ -1128,7 +1129,7 @@ class EnhancedPamOrchestrator:
                 
                 # Generate final response with tool results
                 tool_context = f"""Tool execution completed. Results:
-{json.dumps(tool_results, indent=2)}
+{json.dumps(tool_results, indent=2, cls=DateTimeEncoder)}
 
 Based on these results, please provide a helpful response to the user's original query: {message}"""
                 
