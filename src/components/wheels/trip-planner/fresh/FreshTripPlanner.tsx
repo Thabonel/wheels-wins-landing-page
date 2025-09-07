@@ -23,7 +23,7 @@ import { useSocialTripState } from '../hooks/useSocialTripState';
 
 // Map styles configuration
 const MAP_STYLES = {
-  AUSTRALIA_OFFROAD: 'mapbox://styles/thabonel/cm5ddi89k002301s552zx2fyc',
+  OFFROAD: 'mapbox://styles/thabonel/cm5ddi89k002301s552zx2fyc',
   OUTDOORS: 'mapbox://styles/mapbox/outdoors-v12',
   SATELLITE: 'mapbox://styles/mapbox/satellite-streets-v12',
   NAVIGATION: 'mapbox://styles/mapbox/navigation-day-v1',
@@ -416,47 +416,137 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
   }, [waypoints, routeProfile, rvServices]);
   
-  // Handle map style changes using layer visibility toggle for satellite
+  // Handle map style changes with proper directions plugin preservation
   useEffect(() => {
-    if (!map) return;
+    if (!map || !directionsRef.current) return;
     
-    // For satellite mode, toggle satellite layer visibility instead of changing entire style
-    if (mapStyle === 'SATELLITE') {
-      // Ensure satellite source and layer exist
-      if (!map.getSource('satellite-source')) {
-        map.addSource('satellite-source', {
-          type: 'raster',
-          url: 'mapbox://mapbox.satellite',
-          tileSize: 512
-        });
+    console.log('🎨 Changing map style to:', mapStyle);
+    
+    // Store current route data before style change
+    const currentOrigin = directionsRef.current.getOrigin();
+    const currentDestination = directionsRef.current.getDestination();
+    const currentWaypoints = [...waypoints];
+    const currentProfile = routeProfile;
+    
+    console.log('💾 Saving route data before style change:', {
+      origin: currentOrigin?.place_name,
+      destination: currentDestination?.place_name,
+      waypoints: currentWaypoints.length,
+      profile: currentProfile
+    });
+    
+    // Remove directions control before style change
+    map.removeControl(directionsRef.current);
+    console.log('🗑️ Removed directions control');
+    
+    // Change the map style
+    map.setStyle(MAP_STYLES[mapStyle]);
+    console.log('🎨 Style changed to:', MAP_STYLES[mapStyle]);
+    
+    // Wait for style to load, then restore directions control
+    const handleStyleLoad = () => {
+      console.log('✅ Style loaded, restoring directions control...');
+      
+      // Get token using same resolution as initial setup
+      const mainToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN;
+      const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+      const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      const token = mainToken || publicToken || legacyToken;
+      
+      // Create fresh directions control with exact same settings as initial
+      const directions = new MapboxDirections({
+        accessToken: token,
+        unit: 'imperial',
+        profile: `mapbox/${currentProfile}`,
+        alternatives: true,
+        geometries: 'geojson',
+        controls: {
+          inputs: false,        // Hide search input boxes
+          instructions: false,  // Hide turn-by-turn instructions
+          profileSwitcher: false // Hide walking/driving/cycling buttons
+        },
+        flyTo: true,
+        placeholderOrigin: 'Choose starting point',
+        placeholderDestination: 'Choose destination',
+        interactive: true // Enable native click-to-add and drag-to-modify
+      });
+      
+      // Add the restored directions control
+      map.addControl(directions, 'top-left');
+      directionsRef.current = directions;
+      console.log('✅ Directions control restored');
+      
+      // Restore all event handlers - same as initial setup
+      directions.on('route', (e: any) => {
+        console.log('🗺️ Route calculated:', e);
+        if (e.route && e.route.length > 0) {
+          setCurrentRoute(e.route[0]);
+          const routeWaypoints = [];
+          
+          const origin = directions.getOrigin();
+          if (origin && origin.geometry && origin.geometry.coordinates) {
+            routeWaypoints.push({
+              coordinates: origin.geometry.coordinates,
+              name: origin.properties?.address || origin.place_name || 'Starting Point',
+              type: 'origin'
+            });
+          }
+          
+          const destination = directions.getDestination();
+          if (destination && destination.geometry && destination.geometry.coordinates) {
+            routeWaypoints.push({
+              coordinates: destination.geometry.coordinates,
+              name: destination.properties?.address || destination.place_name || 'Destination',
+              type: 'destination'
+            });
+          }
+          
+          setWaypoints(routeWaypoints);
+          toast.success('Route calculated successfully!');
+        }
+      });
+      
+      directions.on('clear', () => {
+        console.log('🗑️ Route cleared');
+        setCurrentRoute(null);
+        setWaypoints([]);
+        setIsNavigating(false);
+      });
+      
+      directions.on('origin', (e: any) => {
+        console.log('📍 Origin set:', e.feature?.place_name);
+        toast.success(`Start: ${e.feature?.place_name || 'Location set'}`);
+      });
+      
+      directions.on('destination', (e: any) => {
+        console.log('📍 Destination set:', e.feature?.place_name);
+        toast.success(`End: ${e.feature?.place_name || 'Location set'}`);
+      });
+      
+      // Restore previous route if it existed
+      if (currentOrigin && currentDestination) {
+        console.log('🔄 Restoring previous route...');
+        
+        // Small delay to ensure directions control is ready
+        setTimeout(() => {
+          if (currentOrigin.geometry?.coordinates) {
+            directions.setOrigin(currentOrigin.geometry.coordinates);
+          }
+          if (currentDestination.geometry?.coordinates) {
+            directions.setDestination(currentDestination.geometry.coordinates);
+          }
+        }, 100);
       }
       
-      if (!map.getLayer('satellite-layer')) {
-        map.addLayer({
-          id: 'satellite-layer',
-          type: 'raster',
-          source: 'satellite-source'
-        }, 'waterway-label'); // Insert below labels but above base layers
-      }
-      
-      // Show satellite layer
-      map.setLayoutProperty('satellite-layer', 'visibility', 'visible');
-      console.log('🛰️ Satellite layer enabled via visibility toggle');
-      
-    } else {
-      // Hide satellite layer for all other styles
-      if (map.getLayer('satellite-layer')) {
-        map.setLayoutProperty('satellite-layer', 'visibility', 'none');
-        console.log('🗺️ Satellite layer disabled via visibility toggle');
-      }
-      
-      // For non-satellite styles, use normal style switching
-      if (mapStyle !== 'SATELLITE') {
-        map.setStyle(MAP_STYLES[mapStyle]);
-        console.log('🎨 Changed to style:', mapStyle);
-      }
-    }
-  }, [mapStyle, map]);
+      // Clean up event listener
+      map.off('style.load', handleStyleLoad);
+      console.log('🧹 Style load handler cleaned up');
+    };
+    
+    // Listen for style load event
+    map.on('style.load', handleStyleLoad);
+    
+  }, [mapStyle, map]); // Remove directionsRef.current dependency to avoid issues
   
   // Sync isAddingWaypoint state with ref and manage cursor
   useEffect(() => {
