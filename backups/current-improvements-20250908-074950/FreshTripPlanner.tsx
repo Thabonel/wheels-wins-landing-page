@@ -23,7 +23,7 @@ import { useSocialTripState } from '../hooks/useSocialTripState';
 
 // Map styles configuration
 const MAP_STYLES = {
-  AUSTRALIA_OFFROAD: 'mapbox://styles/thabonel/cm5ddi89k002301s552zx2fyc',
+  OFFROAD: 'mapbox://styles/thabonel/cm5ddi89k002301s552zx2fyc',
   OUTDOORS: 'mapbox://styles/mapbox/outdoors-v12',
   SATELLITE: 'mapbox://styles/mapbox/satellite-streets-v12',
   NAVIGATION: 'mapbox://styles/mapbox/navigation-day-v1',
@@ -44,6 +44,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // State
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>('OUTDOORS');
+  const [isInitialized, setIsInitialized] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showMapStyle, setShowMapStyle] = useState(false);
   const [showBudget, setShowBudget] = useState(false);
@@ -317,9 +318,24 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       // Map event handlers
       newMap.on('load', () => {
         console.log('🗺️ Map and directions loaded successfully');
+        // Set initialized flag after successful setup
+        setIsInitialized(true);
+        console.log('✅ Trip planner initialized successfully');
       });
       
       newMap.on('error', (e) => {
+        // Filter out expected directions plugin layer errors during style changes
+        const errorMessage = e.error?.message || '';
+        const isDirectionsLayerError = errorMessage.includes('directions-route-line-alt') || 
+                                      errorMessage.includes('directions-origin-point') || 
+                                      errorMessage.includes('directions-destination-point') ||
+                                      errorMessage.includes('directions-waypoint-point');
+        
+        if (isDirectionsLayerError) {
+          console.log('ℹ️ Suppressed expected directions layer error during style change:', errorMessage);
+          return; // Don't show toast for expected errors
+        }
+        
         console.error('Map error:', e);
         if (e.error && e.error.message) {
           toast.error(`Map error: ${e.error.message}`);
@@ -416,12 +432,12 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
   }, [waypoints, routeProfile, rvServices]);
   
-  // Handle map style changes
+  // Handle map style changes - standard approach
   useEffect(() => {
-    if (map) {
+    if (map && isInitialized) {
       map.setStyle(MAP_STYLES[mapStyle]);
     }
-  }, [mapStyle, map]);
+  }, [mapStyle, map, isInitialized]);
   
   // Sync isAddingWaypoint state with ref and manage cursor
   useEffect(() => {
@@ -901,20 +917,26 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         currentRoute={waypoints.length >= 2 && waypoints[0]?.coordinates && waypoints[waypoints.length - 1]?.coordinates ? {
           origin: {
             name: waypoints[0]?.name || 'Start',
-            lat: waypoints[0]?.coordinates[1],
-            lng: waypoints[0]?.coordinates[0]
+            lat: waypoints[0]?.coordinates[1], // latitude (second element in [lng, lat])
+            lng: waypoints[0]?.coordinates[0]  // longitude (first element in [lng, lat])
           },
           destination: {
             name: waypoints[waypoints.length - 1]?.name || 'End',
-            lat: waypoints[waypoints.length - 1]?.coordinates[1],
-            lng: waypoints[waypoints.length - 1]?.coordinates[0]
+            lat: waypoints[waypoints.length - 1]?.coordinates[1], // latitude 
+            lng: waypoints[waypoints.length - 1]?.coordinates[0]  // longitude
           },
-          waypoints: waypoints.slice(1, -1).filter(wp => wp.coordinates).map(wp => ({
+          waypoints: waypoints.slice(1, -1).filter(wp => wp.coordinates && wp.coordinates.length >= 2).map(wp => ({
             name: wp.name || 'Waypoint',
-            lat: wp.coordinates[1],
-            lng: wp.coordinates[0]
+            lat: wp.coordinates[1], // latitude
+            lng: wp.coordinates[0]  // longitude
           }))
-        } : null}
+        } : {
+          // Provide fallback structure with debugging info
+          origin: { name: 'Debug: No origin coordinates', lat: 0, lng: 0 },
+          destination: { name: 'Debug: No destination coordinates', lat: 0, lng: 0 },
+          waypoints: []
+        }}
+        currentBudget={socialState.budget}
       />
       
       {/* Geocode Search Panel */}
