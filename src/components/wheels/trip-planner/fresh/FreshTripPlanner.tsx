@@ -328,7 +328,68 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         }
       });
       
-      // Plugin now handles clicks natively - no custom click handler needed
+      // Add custom click handler for waypoint addition when button is active
+      newMap.on('click', (e) => {
+        console.log('🖱️ Map clicked. isAddingWaypoint:', isAddingWaypointRef.current);
+        
+        // Only handle clicks when in waypoint adding mode
+        if (!isAddingWaypointRef.current || !directionsRef.current) {
+          console.log('🚫 Ignoring click - isAddingWaypoint:', isAddingWaypointRef.current, 'directionsRef:', !!directionsRef.current);
+          return;
+        }
+        
+        const coordinates = [e.lngLat.lng, e.lngLat.lat] as [number, number];
+        console.log('📍 Adding waypoint at coordinates:', coordinates);
+        
+        // Check current plugin state
+        const currentOrigin = directionsRef.current.getOrigin();
+        const currentDestination = directionsRef.current.getDestination();
+        
+        console.log('🔍 Plugin state - Origin:', currentOrigin, 'Destination:', currentDestination);
+        
+        // Use React state for reliable counting
+        const currentWaypointCount = waypointsRef.current.length;
+        console.log('📊 Current waypoint count from React state:', currentWaypointCount);
+        
+        if (!currentOrigin || currentWaypointCount === 0) {
+          // No origin set - set as origin (point A)
+          directionsRef.current.setOrigin(coordinates);
+          console.log('📍 Set as origin (A)');
+          
+          // Update React state immediately
+          const newWaypoint = {
+            coordinates: coordinates,
+            name: 'Starting Point',
+            type: 'origin'
+          };
+          setWaypoints([newWaypoint]);
+          
+          toast.success('Starting point (A) added!');
+          
+        } else if (!currentDestination || currentWaypointCount === 1) {
+          // Origin exists but no destination - set as destination (point B)
+          directionsRef.current.setDestination(coordinates);
+          console.log('📍 Set as destination (B)');
+          
+          // Update React state immediately
+          const newWaypoint = {
+            coordinates: coordinates,
+            name: 'Destination',
+            type: 'destination'
+          };
+          setWaypoints(prev => [...prev, newWaypoint]);
+          
+          toast.success('Destination (B) added! Route calculating...');
+          // Disable waypoint mode after setting destination
+          setIsAddingWaypoint(false);
+          
+        } else {
+          // Both origin and destination exist - try to add intermediate waypoint
+          console.log('📍 Attempting to add intermediate waypoint...');
+          toast.info('Multiple waypoints not yet supported. Clear route to start over.');
+          setIsAddingWaypoint(false);
+        }
+      });
       
     } catch (error) {
       console.error('Failed to initialize map:', error);
@@ -517,6 +578,69 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         directions.on('destination', (e: any) => {
           console.log('📍 Destination set:', e.feature?.place_name);
           toast.success(`End: ${e.feature?.place_name || 'Location set'}`);
+        });
+        
+        // Restore custom click handler for waypoint addition
+        map.on('click', (e) => {
+          console.log('🖱️ Map clicked. isAddingWaypoint:', isAddingWaypointRef.current);
+          
+          // Only handle clicks when in waypoint adding mode
+          if (!isAddingWaypointRef.current || !directionsRef.current) {
+            console.log('🚫 Ignoring click - isAddingWaypoint:', isAddingWaypointRef.current, 'directionsRef:', !!directionsRef.current);
+            return;
+          }
+          
+          const coordinates = [e.lngLat.lng, e.lngLat.lat] as [number, number];
+          console.log('📍 Adding waypoint at coordinates:', coordinates);
+          
+          // Check current plugin state
+          const currentOriginNow = directionsRef.current.getOrigin();
+          const currentDestinationNow = directionsRef.current.getDestination();
+          
+          console.log('🔍 Plugin state - Origin:', currentOriginNow, 'Destination:', currentDestinationNow);
+          
+          // Use React state for reliable counting
+          const currentWaypointCount = waypointsRef.current.length;
+          console.log('📊 Current waypoint count from React state:', currentWaypointCount);
+          
+          if (!currentOriginNow || currentWaypointCount === 0) {
+            // No origin set - set as origin (point A)
+            directionsRef.current.setOrigin(coordinates);
+            console.log('📍 Set as origin (A)');
+            
+            // Update React state immediately
+            const newWaypoint = {
+              coordinates: coordinates,
+              name: 'Starting Point',
+              type: 'origin'
+            };
+            setWaypoints([newWaypoint]);
+            
+            toast.success('Starting point (A) added!');
+            
+          } else if (!currentDestinationNow || currentWaypointCount === 1) {
+            // Origin exists but no destination - set as destination (point B)
+            directionsRef.current.setDestination(coordinates);
+            console.log('📍 Set as destination (B)');
+            
+            // Update React state immediately
+            const newWaypoint = {
+              coordinates: coordinates,
+              name: 'Destination',
+              type: 'destination'
+            };
+            setWaypoints(prev => [...prev, newWaypoint]);
+            
+            toast.success('Destination (B) added! Route calculating...');
+            // Disable waypoint mode after setting destination
+            setIsAddingWaypoint(false);
+            
+          } else {
+            // Both origin and destination exist - try to add intermediate waypoint
+            console.log('📍 Attempting to add intermediate waypoint...');
+            toast.info('Multiple waypoints not yet supported. Clear route to start over.');
+            setIsAddingWaypoint(false);
+          }
         });
         
         // Restore previous route if it existed
