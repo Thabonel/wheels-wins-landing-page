@@ -306,35 +306,35 @@ class PamDatabaseService:
         # Process with connection limiting
         async with self._connection_semaphore:
             for op in optimized_ops:
-            table_name = op.get("table")
-            operation = op.get("operation")
-            data = op.get("data")
-            filters = op.get("filters")
-            
-            try:
-                table = await self.get_table(table_name)
+                table_name = op.get("table")
+                operation = op.get("operation")
+                data = op.get("data")
+                filters = op.get("filters")
                 
-                if operation == "create":
-                    result = await table.create(data)
-                elif operation == "read":
-                    result = await table.read(filters)
-                elif operation == "update":
-                    result = await table.update(filters, data)
-                elif operation == "delete":
-                    result = await table.delete(filters)
-                elif operation == "upsert":
-                    result = await table.upsert(data)
-                else:
-                    result = {"success": False, "error": f"Unknown operation: {operation}"}
-                
-                results.append(result)
-                if not result.get("success"):
-                    success = False
+                try:
+                    table = await self.get_table(table_name)
                     
-            except Exception as e:
-                self.logger.error(f"Bulk operation failed: {e}")
-                results.append({"success": False, "error": str(e)})
-                success = False
+                    if operation == "create":
+                        result = await table.create(data)
+                    elif operation == "read":
+                        result = await table.read(filters)
+                    elif operation == "update":
+                        result = await table.update(filters, data)
+                    elif operation == "delete":
+                        result = await table.delete(filters)
+                    elif operation == "upsert":
+                        result = await table.upsert(data)
+                    else:
+                        result = {"success": False, "error": f"Unknown operation: {operation}"}
+                    
+                    results.append(result)
+                    if not result.get("success"):
+                        success = False
+                        
+                except Exception as e:
+                    self.logger.error(f"Bulk operation failed: {e}")
+                    results.append({"success": False, "error": str(e)})
+                    success = False
         
         return {"success": success, "results": results}
     

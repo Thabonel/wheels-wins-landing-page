@@ -1065,6 +1065,3 @@ PAM: {response}"""
                 'suggestions': [],
                 'error': str(e)
             }
-
-# Create global instance
-memory_node = MemoryNode()
