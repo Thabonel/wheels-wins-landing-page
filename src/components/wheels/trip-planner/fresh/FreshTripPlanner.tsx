@@ -272,13 +272,25 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           setCurrentRoute(e.route[0]);
           const routeWaypoints = [];
           
-          // Get origin
+          // Get origin from plugin and format consistently
           const origin = directions.getOrigin();
-          if (origin) routeWaypoints.push(origin);
+          if (origin && origin.geometry && origin.geometry.coordinates) {
+            routeWaypoints.push({
+              coordinates: origin.geometry.coordinates,
+              name: origin.properties?.address || origin.place_name || 'Starting Point',
+              type: 'origin'
+            });
+          }
           
-          // Get destination  
+          // Get destination from plugin and format consistently
           const destination = directions.getDestination();
-          if (destination) routeWaypoints.push(destination);
+          if (destination && destination.geometry && destination.geometry.coordinates) {
+            routeWaypoints.push({
+              coordinates: destination.geometry.coordinates,
+              name: destination.properties?.address || destination.place_name || 'Destination',
+              type: 'destination'
+            });
+          }
           
           setWaypoints(routeWaypoints);
           toast.success('Route calculated successfully!');
@@ -833,7 +845,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       <FreshNavigationExport
         isOpen={showExportHub}
         onClose={() => setShowExportHub(false)}
-        currentRoute={waypoints.length >= 2 ? {
+        currentRoute={waypoints.length >= 2 && waypoints[0]?.coordinates && waypoints[waypoints.length - 1]?.coordinates ? {
           origin: {
             name: waypoints[0]?.name || 'Start',
             lat: waypoints[0]?.coordinates[1],
@@ -844,7 +856,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
             lat: waypoints[waypoints.length - 1]?.coordinates[1],
             lng: waypoints[waypoints.length - 1]?.coordinates[0]
           },
-          waypoints: waypoints.slice(1, -1).map(wp => ({
+          waypoints: waypoints.slice(1, -1).filter(wp => wp.coordinates).map(wp => ({
             name: wp.name || 'Waypoint',
             lat: wp.coordinates[1],
             lng: wp.coordinates[0]
