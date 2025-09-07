@@ -416,9 +416,124 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
   }, [waypoints, routeProfile, rvServices]);
   
-  // Handle map style changes
+  // Handle map style changes - preserve directions when switching styles
   useEffect(() => {
-    if (map) {
+    if (map && directionsRef.current) {
+      // Store current route data before style change
+      const currentOrigin = directionsRef.current.getOrigin();
+      const currentDestination = directionsRef.current.getDestination();
+      const currentWaypoints = [...waypoints]; // Store waypoints
+      const currentProfile = routeProfile;
+      
+      console.log('🎨 Changing map style, preserving route data:', {
+        origin: currentOrigin?.place_name,
+        destination: currentDestination?.place_name,
+        waypoints: currentWaypoints.length,
+        profile: currentProfile
+      });
+      
+      // Remove directions control before style change
+      map.removeControl(directionsRef.current);
+      
+      // Change the style
+      map.setStyle(MAP_STYLES[mapStyle]);
+      
+      // Wait for style to load, then restore directions
+      const handleStyleLoad = () => {
+        console.log('🎨 Style loaded, restoring directions...');
+        
+        // Create fresh directions control
+        const directions = new MapboxDirections({
+          accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
+          unit: 'imperial',
+          profile: `mapbox/${currentProfile}`,
+          alternatives: true,
+          geometries: 'geojson',
+          controls: {
+            inputs: false,
+            instructions: false,
+            profileSwitcher: false
+          },
+          flyTo: false, // Don't fly to avoid jarring movement
+          placeholderOrigin: 'Choose starting point',
+          placeholderDestination: 'Choose destination',
+          interactive: true
+        });
+        
+        // Add the fresh directions control
+        map.addControl(directions, 'top-left');
+        directionsRef.current = directions;
+        
+        // Restore event handlers
+        directions.on('route', (e: any) => {
+          console.log('🗺️ Route calculated after style change:', e);
+          if (e.route && e.route.length > 0) {
+            setCurrentRoute(e.route[0]);
+            const routeWaypoints = [];
+            
+            const origin = directions.getOrigin();
+            if (origin && origin.geometry && origin.geometry.coordinates) {
+              routeWaypoints.push({
+                coordinates: origin.geometry.coordinates,
+                name: origin.properties?.address || origin.place_name || 'Starting Point',
+                type: 'origin'
+              });
+            }
+            
+            const destination = directions.getDestination();
+            if (destination && destination.geometry && destination.geometry.coordinates) {
+              routeWaypoints.push({
+                coordinates: destination.geometry.coordinates,
+                name: destination.properties?.address || destination.place_name || 'Destination',
+                type: 'destination'
+              });
+            }
+            
+            setWaypoints(routeWaypoints);
+            toast.success('Route restored on new map style!');
+          }
+        });
+        
+        directions.on('clear', () => {
+          console.log('🗑️ Route cleared');
+          setCurrentRoute(null);
+          setWaypoints([]);
+          setIsNavigating(false);
+        });
+        
+        directions.on('origin', (e: any) => {
+          console.log('📍 Origin set:', e.feature?.place_name);
+          toast.success(`Start: ${e.feature?.place_name || 'Location set'}`);
+        });
+        
+        directions.on('destination', (e: any) => {
+          console.log('📍 Destination set:', e.feature?.place_name);
+          toast.success(`End: ${e.feature?.place_name || 'Location set'}`);
+        });
+        
+        // Restore previous route if it existed
+        if (currentOrigin && currentDestination) {
+          console.log('🔄 Restoring previous route...');
+          
+          // Small delay to ensure directions control is ready
+          setTimeout(() => {
+            if (currentOrigin.geometry?.coordinates) {
+              directions.setOrigin(currentOrigin.geometry.coordinates);
+            }
+            if (currentDestination.geometry?.coordinates) {
+              directions.setDestination(currentDestination.geometry.coordinates);
+            }
+          }, 100);
+        }
+        
+        // Clean up event listener
+        map.off('style.load', handleStyleLoad);
+      };
+      
+      // Listen for style load event
+      map.on('style.load', handleStyleLoad);
+    } else if (map) {
+      // If no directions control exists yet, just change style
       map.setStyle(MAP_STYLES[mapStyle]);
     }
   }, [mapStyle, map]);
