@@ -66,12 +66,13 @@
   cursor: crosshair !important;
 }
 
-/* Hide Mapbox Directions plugin UI - we use our custom toolbar instead */
-/* IMPORTANT: Don't use display:none as it breaks click-to-add functionality */
+/* Hide Mapbox Directions plugin UI elements - but keep the control active for click functionality */
 .mapboxgl-ctrl-directions {
+  /* Keep control active but visually hidden */
   position: absolute !important;
   top: -9999px !important;
   left: -9999px !important;
+  /* Important: DO NOT use display:none or pointer-events:none as this breaks map click functionality */
   opacity: 0 !important;
   width: 1px !important;
   height: 1px !important;
@@ -79,7 +80,7 @@
   z-index: -1 !important;
 }
 
-/* Hide all directions control elements */
+/* Hide specific UI elements while preserving map interactivity */
 .mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-input {
   display: none !important;
 }
