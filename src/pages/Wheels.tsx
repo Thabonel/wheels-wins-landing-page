@@ -108,11 +108,8 @@ const Wheels = () => {
         {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4 h-full bg-white rounded-lg shadow-sm border">
           <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{tabs.find(tab => tab.id === activeTab)?.label || 'Travel Planning'}</h1>
-                <p className="text-sm text-gray-600 mt-1">{tabs.find(tab => tab.id === activeTab)?.description}</p>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-gray-600">{tabs.find(tab => tab.id === activeTab)?.description}</p>
               <PamHelpButton 
                 page="wheels" 
                 context={`Currently viewing ${activeTab.replace('-', ' ')}`}
