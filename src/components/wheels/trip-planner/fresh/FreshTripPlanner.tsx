@@ -442,35 +442,42 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       const handleStyleLoad = () => {
         console.log('🎨 Style loaded, restoring directions...');
         
-        // Create fresh directions control
+        // Use same token resolution as initial setup
+        const mainToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN;
+        const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+        const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
+        const token = mainToken || publicToken || legacyToken;
+        
+        // Create fresh directions control with same settings as initial
         const directions = new MapboxDirections({
-          accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
+          accessToken: token,
           unit: 'imperial',
           profile: `mapbox/${currentProfile}`,
           alternatives: true,
           geometries: 'geojson',
           controls: {
-            inputs: false,
-            instructions: false,
-            profileSwitcher: false
+            inputs: false,        // Hide search input boxes
+            instructions: false,  // Hide turn-by-turn instructions
+            profileSwitcher: false // Hide walking/driving/cycling buttons
           },
-          flyTo: false, // Don't fly to avoid jarring movement
+          flyTo: true, // Keep same as initial setup
           placeholderOrigin: 'Choose starting point',
           placeholderDestination: 'Choose destination',
-          interactive: true
+          interactive: true // Enable native click-to-add and drag-to-modify
         });
         
         // Add the fresh directions control
         map.addControl(directions, 'top-left');
         directionsRef.current = directions;
         
-        // Restore event handlers
+        // Restore event handlers - same as initial setup
         directions.on('route', (e: any) => {
-          console.log('🗺️ Route calculated after style change:', e);
+          console.log('🗺️ Route calculated:', e);
           if (e.route && e.route.length > 0) {
             setCurrentRoute(e.route[0]);
             const routeWaypoints = [];
             
+            // Get origin from plugin and format consistently
             const origin = directions.getOrigin();
             if (origin && origin.geometry && origin.geometry.coordinates) {
               routeWaypoints.push({
@@ -480,6 +487,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
               });
             }
             
+            // Get destination from plugin and format consistently
             const destination = directions.getDestination();
             if (destination && destination.geometry && destination.geometry.coordinates) {
               routeWaypoints.push({
@@ -490,7 +498,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
             }
             
             setWaypoints(routeWaypoints);
-            toast.success('Route restored on new map style!');
+            toast.success('Route calculated successfully!');
           }
         });
         
