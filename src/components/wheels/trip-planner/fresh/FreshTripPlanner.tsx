@@ -44,6 +44,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // State
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>('OUTDOORS');
+  const [isInitialized, setIsInitialized] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showMapStyle, setShowMapStyle] = useState(false);
   const [showBudget, setShowBudget] = useState(false);
@@ -89,6 +90,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const prevMapStyle = useRef<keyof typeof MAP_STYLES>(mapStyle);
   
   // Hooks
   const { user } = useAuth();
@@ -317,6 +319,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       // Map event handlers
       newMap.on('load', () => {
         console.log('🗺️ Map and directions loaded successfully');
+        // Set initialized flag after successful setup
+        setIsInitialized(true);
+        console.log('✅ Trip planner initialized successfully');
       });
       
       newMap.on('error', (e) => {
@@ -418,9 +423,24 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Handle map style changes with proper directions plugin preservation
   useEffect(() => {
-    if (!map || !directionsRef.current) return;
+    // Only run if initialized and there's an actual style change
+    if (!isInitialized || !map || !directionsRef.current) {
+      console.log('⏭️ Skipping style change - not ready:', {
+        isInitialized,
+        hasMap: !!map,
+        hasDirections: !!directionsRef.current
+      });
+      return;
+    }
     
-    console.log('🎨 Changing map style to:', mapStyle);
+    // Check if this is actually a style change (not just initial render)
+    const hasStyleChanged = prevMapStyle.current !== mapStyle;
+    if (!hasStyleChanged) {
+      console.log('⏭️ Skipping - no actual style change');
+      return;
+    }
+    
+    console.log('🎨 User changed map style from', prevMapStyle.current, 'to', mapStyle);
     
     // Store current route data before style change
     const currentOrigin = directionsRef.current.getOrigin();
@@ -442,6 +462,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     // Change the map style
     map.setStyle(MAP_STYLES[mapStyle]);
     console.log('🎨 Style changed to:', MAP_STYLES[mapStyle]);
+    
+    // Update previous style reference
+    prevMapStyle.current = mapStyle;
     
     // Wait for style to load, then restore directions control
     const handleStyleLoad = () => {
@@ -546,7 +569,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     // Listen for style load event
     map.on('style.load', handleStyleLoad);
     
-  }, [mapStyle, map]); // Remove directionsRef.current dependency to avoid issues
+  }, [mapStyle, map, isInitialized]); // Add isInitialized dependency
   
   // Sync isAddingWaypoint state with ref and manage cursor
   useEffect(() => {
