@@ -1,7 +1,8 @@
 // Service Worker for Offline Capabilities with Optimized Bundle Strategy
-const CACHE_NAME = 'pam-mobile-v2-optimized';
-const API_CACHE_NAME = 'pam-api-v2';
-const DYNAMIC_CACHE_NAME = 'pam-dynamic-v2';
+const CACHE_NAME = 'pam-mobile-v3-optimized';
+const API_CACHE_NAME = 'pam-api-v3';
+const DYNAMIC_CACHE_NAME = 'pam-dynamic-v3';
+const MAP_CACHE_NAME = 'pam-maps-v3';
 
 // Essential resources to cache immediately (small core bundle)
 const CORE_RESOURCES = [
@@ -33,7 +34,21 @@ const CACHE_STRATEGIES = {
 const CACHEABLE_API_PATTERNS = [
   /\/api\/pam\/.*$/,
   /\/api\/health$/,
-  /\/api\/user\/profile$/
+  /\/api\/user\/profile$/,
+  // Supabase API patterns
+  /supabase\.co\/rest\/.*$/,
+  /supabase\.co\/auth\/.*$/
+];
+
+// Map tile and navigation API patterns
+const MAP_API_PATTERNS = [
+  // Mapbox API patterns
+  /api\.mapbox\.com\/styles\/.*$/,
+  /api\.mapbox\.com\/v1\/.*$/,
+  /api\.mapbox\.com\/directions\/.*$/,
+  /api\.mapbox\.com\/geocoding\/.*$/,
+  // Map tiles
+  /\.tiles\.mapbox\.com\/.*$/
 ];
 
 self.addEventListener('install', (event) => {
@@ -48,7 +63,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
-        const validCaches = [CACHE_NAME, API_CACHE_NAME, DYNAMIC_CACHE_NAME];
+        const validCaches = [CACHE_NAME, API_CACHE_NAME, DYNAMIC_CACHE_NAME, MAP_CACHE_NAME];
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (!validCaches.includes(cacheName)) {
@@ -59,7 +74,7 @@ self.addEventListener('activate', (event) => {
         );
       })
       .then(() => {
-        console.log('Service Worker v2 activated with optimized caching');
+        console.log('Service Worker v3 activated with map caching support');
         return self.clients.claim();
       })
   );
@@ -68,6 +83,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // Handle map API requests (Mapbox tiles, styles, directions)
+  const isMapRequest = MAP_API_PATTERNS.some(pattern => pattern.test(request.url));
+  if (isMapRequest) {
+    event.respondWith(handleMapRequest(request));
+    return;
+  }
 
   // Handle API requests
   if (url.pathname.startsWith('/api/')) {
@@ -140,6 +162,34 @@ async function handleAssetRequest(request, url) {
     return response;
   } catch (error) {
     // Network failed, use cached version if available
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    throw error;
+  }
+}
+
+async function handleMapRequest(request) {
+  // Cache-first strategy for map tiles and styles (they rarely change)
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  try {
+    const response = await fetch(request);
+    
+    if (response.ok) {
+      // Cache successful map responses for offline use
+      const cache = await caches.open(MAP_CACHE_NAME);
+      await cache.put(request, response.clone());
+      
+      console.log('Cached map resource:', request.url);
+    }
+    
+    return response;
+  } catch (error) {
+    // If we have a cached version, use it even if network failed
     if (cachedResponse) {
       return cachedResponse;
     }
