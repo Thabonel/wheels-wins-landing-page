@@ -69,6 +69,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [isNavigating, setIsNavigating] = useState(false);
   const [isAddingWaypoint, setIsAddingWaypoint] = useState(false);
   const isAddingWaypointRef = useRef(false);
+  const waypointsRef = useRef<any[]>([]);
   const [mapOverlays, setMapOverlays] = useState([
     { id: 'traffic', name: 'Traffic', enabled: false },
     { id: 'fires', name: 'Active Fires', enabled: false },
@@ -315,6 +316,42 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         }
       });
       
+      // Add manual click handler for waypoint addition
+      newMap.on('click', (e) => {
+        console.log('🖱️ Map clicked. isAddingWaypoint:', isAddingWaypointRef.current);
+        
+        // Only handle clicks when in waypoint adding mode
+        if (!isAddingWaypointRef.current || !directionsRef.current) {
+          return;
+        }
+        
+        const coordinates = [e.lngLat.lng, e.lngLat.lat] as [number, number];
+        console.log('📍 Adding waypoint at coordinates:', coordinates);
+        
+        // Determine waypoint type based on current waypoints
+        const currentWaypoints = waypointsRef.current.length;
+        
+        if (currentWaypoints === 0) {
+          // Set as origin
+          directionsRef.current.setOrigin(coordinates);
+          console.log('📍 Set as origin');
+        } else if (currentWaypoints === 1) {
+          // Set as destination
+          directionsRef.current.setDestination(coordinates);
+          console.log('📍 Set as destination');
+          // Disable waypoint mode after setting destination
+          setIsAddingWaypoint(false);
+        } else {
+          // For now, we'll replace the destination with the new point
+          // Future enhancement: support intermediate waypoints
+          directionsRef.current.setDestination(coordinates);
+          console.log('📍 Updated destination');
+          setIsAddingWaypoint(false);
+        }
+        
+        toast.success('Waypoint added to route!');
+      });
+      
     } catch (error) {
       console.error('Failed to initialize map:', error);
       toast.error('Failed to initialize map. Trying fallback style...');
@@ -424,6 +461,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       }
     }
   }, [isAddingWaypoint, map]);
+  
+  // Sync waypoints state with ref for use in event handlers
+  useEffect(() => {
+    waypointsRef.current = waypoints;
+  }, [waypoints]);
   
   // Handle traffic layer
   useEffect(() => {
@@ -544,10 +586,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     
     setIsAddingWaypoint(newState);
     
-    // Enable/disable click-to-add on the directions plugin
-    if (directionsRef.current) {
-      directionsRef.current.options.interactive = newState;
-    }
+    // Note: We'll handle click-to-add via manual map click handler
+    // since the Mapbox Directions plugin interactive option is not easily toggleable
     
     if (newState) {
       toast.info('Click on the map to add a waypoint', { duration: 3000 });
