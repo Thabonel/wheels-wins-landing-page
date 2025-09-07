@@ -73,7 +73,7 @@ const Wheels = () => {
     {
       id: "trip-planner",
       label: "Trip Planner",
-      description: "Click the map to add points A and B, then drag the route line to customize your journey"
+      description: "Click the map to add points A and B, then drag the route line to customize your journey. Currently works best with Outdoors and Australia Offroad map styles."
     },
     {
       id: "trips",

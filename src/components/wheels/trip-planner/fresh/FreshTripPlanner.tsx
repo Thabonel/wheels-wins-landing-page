@@ -90,7 +90,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const prevMapStyle = useRef<keyof typeof MAP_STYLES>(mapStyle);
   
   // Hooks
   const { user } = useAuth();
@@ -325,6 +324,18 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       });
       
       newMap.on('error', (e) => {
+        // Filter out expected directions plugin layer errors during style changes
+        const errorMessage = e.error?.message || '';
+        const isDirectionsLayerError = errorMessage.includes('directions-route-line-alt') || 
+                                      errorMessage.includes('directions-origin-point') || 
+                                      errorMessage.includes('directions-destination-point') ||
+                                      errorMessage.includes('directions-waypoint-point');
+        
+        if (isDirectionsLayerError) {
+          console.log('ℹ️ Suppressed expected directions layer error during style change:', errorMessage);
+          return; // Don't show toast for expected errors
+        }
+        
         console.error('Map error:', e);
         if (e.error && e.error.message) {
           toast.error(`Map error: ${e.error.message}`);
@@ -421,155 +432,12 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
   }, [waypoints, routeProfile, rvServices]);
   
-  // Handle map style changes with proper directions plugin preservation
+  // Handle map style changes - standard approach
   useEffect(() => {
-    // Only run if initialized and there's an actual style change
-    if (!isInitialized || !map || !directionsRef.current) {
-      console.log('⏭️ Skipping style change - not ready:', {
-        isInitialized,
-        hasMap: !!map,
-        hasDirections: !!directionsRef.current
-      });
-      return;
+    if (map && isInitialized) {
+      map.setStyle(MAP_STYLES[mapStyle]);
     }
-    
-    // Check if this is actually a style change (not just initial render)
-    const hasStyleChanged = prevMapStyle.current !== mapStyle;
-    if (!hasStyleChanged) {
-      console.log('⏭️ Skipping - no actual style change');
-      return;
-    }
-    
-    console.log('🎨 User changed map style from', prevMapStyle.current, 'to', mapStyle);
-    
-    // Store current route data before style change
-    const currentOrigin = directionsRef.current.getOrigin();
-    const currentDestination = directionsRef.current.getDestination();
-    const currentWaypoints = [...waypoints];
-    const currentProfile = routeProfile;
-    
-    console.log('💾 Saving route data before style change:', {
-      origin: currentOrigin?.place_name,
-      destination: currentDestination?.place_name,
-      waypoints: currentWaypoints.length,
-      profile: currentProfile
-    });
-    
-    // Remove directions control before style change
-    map.removeControl(directionsRef.current);
-    console.log('🗑️ Removed directions control');
-    
-    // Change the map style
-    map.setStyle(MAP_STYLES[mapStyle]);
-    console.log('🎨 Style changed to:', MAP_STYLES[mapStyle]);
-    
-    // Update previous style reference
-    prevMapStyle.current = mapStyle;
-    
-    // Wait for style to load, then restore directions control
-    const handleStyleLoad = () => {
-      console.log('✅ Style loaded, restoring directions control...');
-      
-      // Get token using same resolution as initial setup
-      const mainToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN;
-      const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
-      const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
-      const token = mainToken || publicToken || legacyToken;
-      
-      // Create fresh directions control with exact same settings as initial
-      const directions = new MapboxDirections({
-        accessToken: token,
-        unit: 'imperial',
-        profile: `mapbox/${currentProfile}`,
-        alternatives: true,
-        geometries: 'geojson',
-        controls: {
-          inputs: false,        // Hide search input boxes
-          instructions: false,  // Hide turn-by-turn instructions
-          profileSwitcher: false // Hide walking/driving/cycling buttons
-        },
-        flyTo: true,
-        placeholderOrigin: 'Choose starting point',
-        placeholderDestination: 'Choose destination',
-        interactive: true // Enable native click-to-add and drag-to-modify
-      });
-      
-      // Add the restored directions control
-      map.addControl(directions, 'top-left');
-      directionsRef.current = directions;
-      console.log('✅ Directions control restored');
-      
-      // Restore all event handlers - same as initial setup
-      directions.on('route', (e: any) => {
-        console.log('🗺️ Route calculated:', e);
-        if (e.route && e.route.length > 0) {
-          setCurrentRoute(e.route[0]);
-          const routeWaypoints = [];
-          
-          const origin = directions.getOrigin();
-          if (origin && origin.geometry && origin.geometry.coordinates) {
-            routeWaypoints.push({
-              coordinates: origin.geometry.coordinates,
-              name: origin.properties?.address || origin.place_name || 'Starting Point',
-              type: 'origin'
-            });
-          }
-          
-          const destination = directions.getDestination();
-          if (destination && destination.geometry && destination.geometry.coordinates) {
-            routeWaypoints.push({
-              coordinates: destination.geometry.coordinates,
-              name: destination.properties?.address || destination.place_name || 'Destination',
-              type: 'destination'
-            });
-          }
-          
-          setWaypoints(routeWaypoints);
-          toast.success('Route calculated successfully!');
-        }
-      });
-      
-      directions.on('clear', () => {
-        console.log('🗑️ Route cleared');
-        setCurrentRoute(null);
-        setWaypoints([]);
-        setIsNavigating(false);
-      });
-      
-      directions.on('origin', (e: any) => {
-        console.log('📍 Origin set:', e.feature?.place_name);
-        toast.success(`Start: ${e.feature?.place_name || 'Location set'}`);
-      });
-      
-      directions.on('destination', (e: any) => {
-        console.log('📍 Destination set:', e.feature?.place_name);
-        toast.success(`End: ${e.feature?.place_name || 'Location set'}`);
-      });
-      
-      // Restore previous route if it existed
-      if (currentOrigin && currentDestination) {
-        console.log('🔄 Restoring previous route...');
-        
-        // Small delay to ensure directions control is ready
-        setTimeout(() => {
-          if (currentOrigin.geometry?.coordinates) {
-            directions.setOrigin(currentOrigin.geometry.coordinates);
-          }
-          if (currentDestination.geometry?.coordinates) {
-            directions.setDestination(currentDestination.geometry.coordinates);
-          }
-        }, 100);
-      }
-      
-      // Clean up event listener
-      map.off('style.load', handleStyleLoad);
-      console.log('🧹 Style load handler cleaned up');
-    };
-    
-    // Listen for style load event
-    map.on('style.load', handleStyleLoad);
-    
-  }, [mapStyle, map, isInitialized]); // Add isInitialized dependency
+  }, [mapStyle, map, isInitialized]);
   
   // Sync isAddingWaypoint state with ref and manage cursor
   useEffect(() => {
@@ -1049,20 +917,26 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         currentRoute={waypoints.length >= 2 && waypoints[0]?.coordinates && waypoints[waypoints.length - 1]?.coordinates ? {
           origin: {
             name: waypoints[0]?.name || 'Start',
-            lat: waypoints[0]?.coordinates[1],
-            lng: waypoints[0]?.coordinates[0]
+            lat: waypoints[0]?.coordinates[1], // latitude (second element in [lng, lat])
+            lng: waypoints[0]?.coordinates[0]  // longitude (first element in [lng, lat])
           },
           destination: {
             name: waypoints[waypoints.length - 1]?.name || 'End',
-            lat: waypoints[waypoints.length - 1]?.coordinates[1],
-            lng: waypoints[waypoints.length - 1]?.coordinates[0]
+            lat: waypoints[waypoints.length - 1]?.coordinates[1], // latitude 
+            lng: waypoints[waypoints.length - 1]?.coordinates[0]  // longitude
           },
-          waypoints: waypoints.slice(1, -1).filter(wp => wp.coordinates).map(wp => ({
+          waypoints: waypoints.slice(1, -1).filter(wp => wp.coordinates && wp.coordinates.length >= 2).map(wp => ({
             name: wp.name || 'Waypoint',
-            lat: wp.coordinates[1],
-            lng: wp.coordinates[0]
+            lat: wp.coordinates[1], // latitude
+            lng: wp.coordinates[0]  // longitude
           }))
-        } : null}
+        } : {
+          // Provide fallback structure with debugging info
+          origin: { name: 'Debug: No origin coordinates', lat: 0, lng: 0 },
+          destination: { name: 'Debug: No destination coordinates', lat: 0, lng: 0 },
+          waypoints: []
+        }}
+        currentBudget={socialState.budget}
       />
       
       {/* Geocode Search Panel */}
