@@ -328,28 +328,75 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         const coordinates = [e.lngLat.lng, e.lngLat.lat] as [number, number];
         console.log('📍 Adding waypoint at coordinates:', coordinates);
         
-        // Determine waypoint type based on current waypoints
-        const currentWaypoints = waypointsRef.current.length;
+        // Check current plugin state instead of React state
+        const currentOrigin = directionsRef.current.getOrigin();
+        const currentDestination = directionsRef.current.getDestination();
         
-        if (currentWaypoints === 0) {
-          // Set as origin
+        console.log('🔍 Plugin state - Origin:', currentOrigin ? 'exists' : 'none', 'Destination:', currentDestination ? 'exists' : 'none');
+        
+        if (!currentOrigin) {
+          // No origin set - set as origin (point A)
           directionsRef.current.setOrigin(coordinates);
-          console.log('📍 Set as origin');
-        } else if (currentWaypoints === 1) {
-          // Set as destination
+          console.log('📍 Set as origin (A)');
+          
+          // Update React state immediately
+          const newWaypoint = {
+            coordinates: coordinates,
+            name: 'Starting Point',
+            type: 'origin'
+          };
+          setWaypoints([newWaypoint]);
+          
+          toast.success('Starting point (A) added!');
+          
+        } else if (!currentDestination) {
+          // Origin exists but no destination - set as destination (point B)
           directionsRef.current.setDestination(coordinates);
-          console.log('📍 Set as destination');
+          console.log('📍 Set as destination (B)');
+          
+          // Update React state immediately
+          const newWaypoint = {
+            coordinates: coordinates,
+            name: 'Destination',
+            type: 'destination'
+          };
+          setWaypoints(prev => [...prev, newWaypoint]);
+          
+          toast.success('Destination (B) added! Route calculating...');
           // Disable waypoint mode after setting destination
           setIsAddingWaypoint(false);
+          
         } else {
-          // For now, we'll replace the destination with the new point
-          // Future enhancement: support intermediate waypoints
-          directionsRef.current.setDestination(coordinates);
-          console.log('📍 Updated destination');
-          setIsAddingWaypoint(false);
+          // Both origin and destination exist - add intermediate waypoint
+          try {
+            // Get current waypoints from plugin to determine insertion index
+            const waypoints = directionsRef.current.getWaypoints();
+            const insertIndex = waypoints.length; // Add at end (before destination)
+            
+            directionsRef.current.addWaypoint(insertIndex, coordinates);
+            console.log('📍 Added intermediate waypoint at index:', insertIndex);
+            
+            // Update React state immediately
+            const newWaypoint = {
+              coordinates: coordinates,
+              name: `Stop ${insertIndex}`,
+              type: 'waypoint'
+            };
+            setWaypoints(prev => {
+              const updated = [...prev];
+              updated.splice(-1, 0, newWaypoint); // Insert before destination
+              return updated;
+            });
+            
+            toast.success(`Stop ${insertIndex} added to route!`);
+            setIsAddingWaypoint(false);
+            
+          } catch (error) {
+            console.error('❌ Failed to add intermediate waypoint:', error);
+            toast.error('Failed to add waypoint. Try clearing the route first.');
+            setIsAddingWaypoint(false);
+          }
         }
-        
-        toast.success('Waypoint added to route!');
       });
       
     } catch (error) {
