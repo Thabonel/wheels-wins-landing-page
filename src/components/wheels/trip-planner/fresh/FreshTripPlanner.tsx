@@ -416,10 +416,45 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
   }, [waypoints, routeProfile, rvServices]);
   
-  // Handle map style changes
+  // Handle map style changes using layer visibility toggle for satellite
   useEffect(() => {
-    if (map) {
-      map.setStyle(MAP_STYLES[mapStyle]);
+    if (!map) return;
+    
+    // For satellite mode, toggle satellite layer visibility instead of changing entire style
+    if (mapStyle === 'SATELLITE') {
+      // Ensure satellite source and layer exist
+      if (!map.getSource('satellite-source')) {
+        map.addSource('satellite-source', {
+          type: 'raster',
+          url: 'mapbox://mapbox.satellite',
+          tileSize: 512
+        });
+      }
+      
+      if (!map.getLayer('satellite-layer')) {
+        map.addLayer({
+          id: 'satellite-layer',
+          type: 'raster',
+          source: 'satellite-source'
+        }, 'waterway-label'); // Insert below labels but above base layers
+      }
+      
+      // Show satellite layer
+      map.setLayoutProperty('satellite-layer', 'visibility', 'visible');
+      console.log('🛰️ Satellite layer enabled via visibility toggle');
+      
+    } else {
+      // Hide satellite layer for all other styles
+      if (map.getLayer('satellite-layer')) {
+        map.setLayoutProperty('satellite-layer', 'visibility', 'none');
+        console.log('🗺️ Satellite layer disabled via visibility toggle');
+      }
+      
+      // For non-satellite styles, use normal style switching
+      if (mapStyle !== 'SATELLITE') {
+        map.setStyle(MAP_STYLES[mapStyle]);
+        console.log('🎨 Changed to style:', mapStyle);
+      }
     }
   }, [mapStyle, map]);
   
