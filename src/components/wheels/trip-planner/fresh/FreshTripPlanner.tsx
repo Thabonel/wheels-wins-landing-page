@@ -185,10 +185,10 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         routeProfile: 'driving',
         rvServices: {},
         onRemoveWaypoint: (id: string) => {
-          // This will be updated with waypointManager reference
+          // Placeholder - will be updated via updateOptions
         },
         onSetRouteProfile: (profile: 'driving' | 'walking' | 'cycling') => {
-          // This will be updated with waypointManager reference
+          // Placeholder - will be updated via updateOptions
         },
         onRVServiceToggle: (service: string, enabled: boolean) => {
           setRvServices(prev => ({ ...prev, [service]: enabled }));
@@ -363,19 +363,43 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Update track control callbacks when waypoint manager is ready
   useEffect(() => {
-    if (trackControlRef.current && waypointManager) {
+    if (trackControlRef.current && directionsRef.current) {
       trackControlRef.current.updateOptions({
-        waypoints: waypointManager.waypoints,
-        routeProfile: waypointManager.routeProfile,
+        waypoints: waypoints,
+        routeProfile: routeProfile,
         rvServices: rvServices,
-        onRemoveWaypoint: waypointManager.removeWaypoint,
-        onSetRouteProfile: waypointManager.setRouteProfile,
+        onRemoveWaypoint: (index: number) => {
+          // Remove waypoint using directions plugin
+          if (directionsRef.current) {
+            const currentWaypoints = [...waypoints];
+            currentWaypoints.splice(index, 1);
+            setWaypoints(currentWaypoints);
+            // Clear and rebuild route
+            directionsRef.current.removeRoutes();
+            if (currentWaypoints.length >= 2) {
+              directionsRef.current.setOrigin(currentWaypoints[0].coordinates);
+              directionsRef.current.setDestination(currentWaypoints[currentWaypoints.length - 1].coordinates);
+            }
+          }
+        },
+        onSetRouteProfile: (profile: 'driving' | 'walking' | 'cycling') => {
+          setRouteProfile(profile);
+          if (directionsRef.current) {
+            directionsRef.current.options.profile = `mapbox/${profile}`;
+            // Trigger route recalculation if we have waypoints
+            if (waypoints.length >= 2) {
+              directionsRef.current.removeRoutes();
+              directionsRef.current.setOrigin(waypoints[0].coordinates);
+              directionsRef.current.setDestination(waypoints[waypoints.length - 1].coordinates);
+            }
+          }
+        },
         onRVServiceToggle: (service: string, enabled: boolean) => {
           setRvServices(prev => ({ ...prev, [service]: enabled }));
         }
       });
     }
-  }, [waypointManager.waypoints, waypointManager.routeProfile, rvServices]);
+  }, [waypoints, routeProfile, rvServices]);
   
   // Handle map style changes
   useEffect(() => {
@@ -534,13 +558,26 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Handle location selection from search
   const handleLocationSelect = (coordinates: [number, number], name: string) => {
-    // Add waypoint at the selected location
-    waypointManager.addWaypoint({
-      coordinates: coordinates,
-      name: name,
-      type: waypointManager.waypoints.length === 0 ? 'origin' : 
-            waypointManager.waypoints.length === 1 ? 'destination' : 'waypoint'
-    });
+    // Add waypoint using directions plugin
+    if (directionsRef.current) {
+      const newWaypoint = {
+        coordinates: coordinates,
+        name: name,
+        type: waypoints.length === 0 ? 'origin' : 
+              waypoints.length === 1 ? 'destination' : 'waypoint'
+      };
+      
+      // Update waypoints state
+      const updatedWaypoints = [...waypoints, newWaypoint];
+      setWaypoints(updatedWaypoints);
+      
+      // Set in directions plugin
+      if (updatedWaypoints.length === 1) {
+        directionsRef.current.setOrigin(coordinates);
+      } else if (updatedWaypoints.length === 2) {
+        directionsRef.current.setDestination(coordinates);
+      }
+    }
     
     toast.success(`Added ${name} to route`);
     setShowSearch(false);
@@ -549,16 +586,27 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Handle template application
   const handleApplyTemplate = (template: any) => {
     // Clear existing waypoints
-    waypointManager.clearWaypoints();
+    if (directionsRef.current) {
+      directionsRef.current.removeRoutes();
+      directionsRef.current.setOrigin(null);
+      directionsRef.current.setDestination(null);
+    }
+    setWaypoints([]);
     
     // Add template waypoints
-    template.waypoints.forEach((wp: any) => {
-      waypointManager.addWaypoint({
-        coordinates: wp.coordinates,
-        name: wp.name,
-        type: wp.type
-      });
-    });
+    const templateWaypoints = template.waypoints.map((wp: any) => ({
+      coordinates: wp.coordinates,
+      name: wp.name,
+      type: wp.type
+    }));
+    
+    setWaypoints(templateWaypoints);
+    
+    // Set origin and destination in directions plugin
+    if (directionsRef.current && templateWaypoints.length >= 2) {
+      directionsRef.current.setOrigin(templateWaypoints[0].coordinates);
+      directionsRef.current.setDestination(templateWaypoints[templateWaypoints.length - 1].coordinates);
+    }
     
     // Fly to the first waypoint
     if (map && template.waypoints.length > 0) {
@@ -584,7 +632,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         sessionStorage.removeItem('selectedTripTemplate');
         
         // Wait for map to be ready before applying template
-        if (map && waypointManager) {
+        if (map && directionsRef.current) {
           // Apply the template
           if (template.route) {
             const waypoints = [];
@@ -632,10 +680,10 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
     
     // Also check for initialTemplate prop
-    if (initialTemplate && map && waypointManager) {
+    if (initialTemplate && map && directionsRef.current) {
       handleApplyTemplate(initialTemplate);
     }
-  }, [map, waypointManager, initialTemplate]);
+  }, [map, directionsRef.current, initialTemplate]);
   
   return (
     <div className="relative w-full h-full overflow-hidden" data-trip-planner-root="true">
@@ -728,7 +776,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       
       {/* Status bar overlay */}
       <FreshStatusBar
-        route={waypointManager.currentRoute}
+        route={currentRoute}
         isNavigating={isNavigating}
         onStartNavigation={handleStartNavigation}
         onStopNavigation={() => setIsNavigating(false)}
@@ -743,7 +791,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           <BudgetSidebar
             isVisible={showBudget}
             onClose={() => setShowBudget(false)}
-            waypoints={waypointManager.waypoints.map((wp, index) => ({
+            waypoints={waypoints.map((wp, index) => ({
               coords: wp.coordinates,
               name: wp.name || `Waypoint ${index + 1}`
             }))}
@@ -779,18 +827,18 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       <FreshNavigationExport
         isOpen={showExportHub}
         onClose={() => setShowExportHub(false)}
-        currentRoute={waypointManager.waypoints.length >= 2 ? {
+        currentRoute={waypoints.length >= 2 ? {
           origin: {
-            name: waypointManager.waypoints[0]?.name || 'Start',
-            lat: waypointManager.waypoints[0]?.coordinates[1],
-            lng: waypointManager.waypoints[0]?.coordinates[0]
+            name: waypoints[0]?.name || 'Start',
+            lat: waypoints[0]?.coordinates[1],
+            lng: waypoints[0]?.coordinates[0]
           },
           destination: {
-            name: waypointManager.waypoints[waypointManager.waypoints.length - 1]?.name || 'End',
-            lat: waypointManager.waypoints[waypointManager.waypoints.length - 1]?.coordinates[1],
-            lng: waypointManager.waypoints[waypointManager.waypoints.length - 1]?.coordinates[0]
+            name: waypoints[waypoints.length - 1]?.name || 'End',
+            lat: waypoints[waypoints.length - 1]?.coordinates[1],
+            lng: waypoints[waypoints.length - 1]?.coordinates[0]
           },
-          waypoints: waypointManager.waypoints.slice(1, -1).map(wp => ({
+          waypoints: waypoints.slice(1, -1).map(wp => ({
             name: wp.name || 'Waypoint',
             lat: wp.coordinates[1],
             lng: wp.coordinates[0]
@@ -818,11 +866,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         isOpen={showSaveDialog}
         onClose={() => setShowSaveDialog(false)}
         tripData={{
-          waypoints: waypointManager.waypoints,
-          route: waypointManager.currentRoute,
-          profile: waypointManager.routeProfile,
-          distance: waypointManager.currentRoute?.distance,
-          duration: waypointManager.currentRoute?.duration
+          waypoints: waypoints,
+          route: currentRoute,
+          profile: routeProfile,
+          distance: currentRoute?.distance,
+          duration: currentRoute?.duration
         }}
         onSaveSuccess={(savedTrip) => {
           console.log('Trip saved:', savedTrip);
