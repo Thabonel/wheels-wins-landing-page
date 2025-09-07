@@ -4,6 +4,7 @@ import { useRef, useEffect, useMemo, useCallback, memo } from 'react';
 import Map from 'react-map-gl/mapbox';
 import mapboxgl from 'mapbox-gl';
 import MapboxDirections from '@mapbox/mapbox-gl-directions';
+import { getMapboxToken } from '@/utils/mapboxToken';
 
 interface TripMapProps {
   startLocation?: string;
@@ -33,7 +34,7 @@ const TripMap = ({
 }: TripMapProps) => {
   const mapRef = useRef<mapboxgl.Map>(null);
   const directionsRef = useRef<MapboxDirections | null>(null);
-  const mapboxToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN || import.meta.env.VITE_MAPBOX_TOKEN;
+  const mapboxToken = getMapboxToken();
   
   // Helper function to create a valid tuple
   const createLocationTuple = useCallback((lat: number, lng: number): [number, number] => {
@@ -134,7 +135,7 @@ const TripMap = ({
         <div className="text-center space-y-2">
           <div className="text-lg font-medium text-destructive">Mapbox Token Required</div>
           <div className="text-sm text-muted-foreground">
-            Please add VITE_MAPBOX_PUBLIC_TOKEN to your environment variables
+            Please configure VITE_MAPBOX_PUBLIC_TOKEN or VITE_MAPBOX_TOKEN in your environment
           </div>
         </div>
       </div>
