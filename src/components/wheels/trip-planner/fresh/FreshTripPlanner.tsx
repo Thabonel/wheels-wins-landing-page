@@ -5,7 +5,6 @@ import './fresh-trip-planner.css';
 import { toast } from 'sonner';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
-import { getMapboxToken } from '@/utils/mapboxToken';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 // Removed custom FreshFullscreenControl - using native Mapbox control instead
 import { FreshTrackControl } from './controls/FreshTrackControl';
@@ -115,11 +114,34 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     
-    // Use established token utility for consistent token handling
-    const token = getMapboxToken();
+    // Check for Mapbox token - try multiple env vars
+    const mainToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN;
+    const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+    const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
+    const token = mainToken || publicToken || legacyToken;
     
     if (!token) {
-      toast.error('Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN or VITE_MAPBOX_TOKEN in environment variables.');
+      toast.error('Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN_MAIN in Netlify environment variables.');
+      return;
+    }
+    
+    // Validate token type
+    if (token.startsWith('sk.')) {
+      toast.error('Invalid token type: Please use a public token (pk.*) not a secret token (sk.*) for frontend map rendering.');
+      console.error('❌ Mapbox Error: Secret token detected. Frontend requires public token (pk.*) for security.');
+      return;
+    }
+    
+    if (!token.startsWith('pk.')) {
+      toast.error('Invalid Mapbox token format. Token must start with "pk."');
+      console.error('❌ Invalid token format:', token.substring(0, 10));
+      return;
+    }
+    
+    // Validate token structure
+    if (!token.includes('.') || token.length < 50) {
+      toast.error('Mapbox token appears to be malformed or truncated');
+      console.error('❌ Token validation failed - length:', token.length);
       return;
     }
     
