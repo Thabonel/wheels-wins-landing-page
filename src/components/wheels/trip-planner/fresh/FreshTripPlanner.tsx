@@ -520,15 +520,23 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       return;
     }
     
-    // Create shareable link or export data
-    const shareData = {
-      waypoints: waypoints,
-      route: currentRoute
+    // Create shareable URL with encoded route data
+    const routeData = {
+      waypoints: waypoints.map(wp => ({
+        name: wp.name,
+        coordinates: wp.coordinates,
+        type: wp.type
+      })),
+      profile: routeProfile
     };
     
-    // Copy to clipboard
-    navigator.clipboard.writeText(JSON.stringify(shareData, null, 2));
-    toast.success('Route copied to clipboard');
+    // Encode route data as URL parameters
+    const encodedData = encodeURIComponent(JSON.stringify(routeData));
+    const shareUrl = `${window.location.origin}/wheels?tab=trip-planner&route=${encodedData}`;
+    
+    // Copy shareable URL to clipboard
+    navigator.clipboard.writeText(shareUrl);
+    toast.success('Shareable link copied to clipboard! Anyone can open this link to view your route.');
   };
   
   // Navigation handler
@@ -697,6 +705,50 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       }
     }
     
+    // Check for shared route from URL parameters
+    if (map && directionsRef.current) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const routeParam = urlParams.get('route');
+      
+      if (routeParam) {
+        try {
+          const routeData = JSON.parse(decodeURIComponent(routeParam));
+          console.log('Loading shared route:', routeData);
+          
+          // Set route profile
+          if (routeData.profile) {
+            setRouteProfile(routeData.profile);
+          }
+          
+          // Apply waypoints
+          if (routeData.waypoints && routeData.waypoints.length >= 2) {
+            const sharedWaypoints = routeData.waypoints.map((wp: any, index: number) => ({
+              id: `shared-${index}`,
+              name: wp.name || `Waypoint ${index + 1}`,
+              coordinates: wp.coordinates,
+              type: wp.type || (index === 0 ? 'origin' : index === routeData.waypoints.length - 1 ? 'destination' : 'waypoint')
+            }));
+            
+            setWaypoints(sharedWaypoints);
+            
+            // Set origin and destination in directions plugin
+            directionsRef.current.setOrigin(sharedWaypoints[0].coordinates);
+            if (sharedWaypoints.length >= 2) {
+              directionsRef.current.setDestination(sharedWaypoints[sharedWaypoints.length - 1].coordinates);
+            }
+            
+            toast.success('Shared route loaded successfully!');
+            
+            // Clean up URL after loading
+            window.history.replaceState({}, document.title, window.location.pathname + '?tab=trip-planner');
+          }
+        } catch (error) {
+          console.error('Error loading shared route:', error);
+          toast.error('Failed to load shared route');
+        }
+      }
+    }
+    
     // Also check for initialTemplate prop
     if (initialTemplate && map && directionsRef.current) {
       handleApplyTemplate(initialTemplate);
@@ -779,7 +831,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       {/* POI Layer */}
       <FreshPOILayer 
         map={map} 
-        filters={poiFilters} 
+        filters={poiFilters}
+        rvServices={rvServices}
       />
       
       {/* POI Panel */}
