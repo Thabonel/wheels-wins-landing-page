@@ -405,7 +405,6 @@ export const pamAgenticService = {
   isTripPlanningRequest(goal: string): boolean {
     const tripKeywords = [
       'trip', 'travel', 'plan', 'route', 'journey', 'visit', 'go to', 'drive to',
-      'sydney', 'hobart', 'melbourne', 'brisbane', 'perth', 'adelaide', 'darwin',
       'vacation', 'holiday', 'road trip', 'fly to', 'directions'
     ];
     
@@ -427,69 +426,55 @@ export const pamAgenticService = {
   },
 
   /**
-   * Generate structured trip planning response
+   * Generate intelligent trip planning response based on the request
    */
   generateTripPlanningResponse(goal: string, context: Record<string, any>): string {
+    return this.generateIntelligentResponse(goal, context, 'trip_planning');
+  },
+
+  /**
+   * Generate financial planning response
+   */
+  generateFinancialPlanningResponse(goal: string, context: Record<string, any>): string {
+    return this.generateIntelligentResponse(goal, context, 'financial_planning');
+  },
+
+  /**
+   * Generate generic helpful response
+   */
+  generateGenericHelpfulResponse(goal: string, context: Record<string, any>): string {
+    return this.generateIntelligentResponse(goal, context, 'general');
+  },
+
+  /**
+   * Generate intelligent responses based on the user's actual request
+   * This replaces hard-coded responses with contextual understanding
+   */
+  generateIntelligentResponse(goal: string, context: Record<string, any>, category: string): string {
     const lowerGoal = goal.toLowerCase();
     
-    // Sydney to Hobart specific route
-    if (lowerGoal.includes('sydney') && lowerGoal.includes('hobart')) {
-      return `# 🗺️ Sydney to Hobart Trip Plan
+    // Weather requests
+    if (lowerGoal.includes('weather') || lowerGoal.includes('temperature') || lowerGoal.includes('forecast')) {
+      return `I'd love to help with weather information! However, I don't have access to current weather data right now.
 
-## Route Overview
-- **Distance**: ~1,100km (680 miles)
-- **Driving Time**: ~13-15 hours
-- **Recommended Duration**: 3-4 days with stops
+For accurate weather forecasts, I recommend:
+- **Bureau of Meteorology**: bom.gov.au (official Australian weather)
+- **Weather app** on your phone for location-specific forecasts
+- **Local news** for detailed regional conditions
 
-## Key Waypoints
-
-### 1. **Sydney, NSW** (Starting Point)
-- Iconic harbor city with Opera House and Bridge
-- Stock up on supplies before heading south
-
-### 2. **Goulburn, NSW** (2 hours south)
-- Famous "Big Merino" statue
-- Good rest stop and fuel up
-
-### 3. **Albury, NSW** (Border Town)
-- Murray River crossing point
-- Historic border city with good accommodation
-
-### 4. **Melbourne, VIC** (Major Stop)
-- Cultural capital - plan overnight stop
-- Great food scene and attractions
-
-### 5. **Spirit of Tasmania Ferry**
-- **Route**: Melbourne to Devonport (10-11 hours)
-- **Booking**: Essential for vehicle + passengers
-- **Alternative**: Jetstar flights (2 hours)
-
-### 6. **Launceston, TAS**
-- Historic city with Cataract Gorge
-- Good stopping point before final push
-
-### 7. **Hobart, TAS** (Destination)
-- MONA (Museum of Old and New Art)
-- Salamanca Market (Saturdays)
-- Mount Wellington views
-
-## Travel Tips
-- **Best Time**: October-April (warmer weather)
-- **Ferry Booking**: Book well in advance
-- **Fuel**: Plan stops - distances are significant
-- **Accommodation**: Book ahead, especially in Tasmania
-
-## Budget Estimate
-- **Fuel**: ~$200-300
-- **Ferry**: ~$500-800 (car + 2 passengers)
-- **Accommodation**: ~$150-250/night
-- **Food**: ~$100-150/day
-
-Would you like me to help you book any specific parts of this journey or provide more detailed information about any stops?`;
+If you're planning travel, I can help with general seasonal guidance for different Australian regions instead!`;
     }
     
-    // Generic trip planning response
-    return `# 🗺️ Trip Planning Assistant
+    // Trip planning with intelligent route detection
+    if (category === 'trip_planning') {
+      // Extract locations from the request
+      const locations = this.extractLocationsFromRequest(lowerGoal);
+      
+      if (locations.origin && locations.destination) {
+        return this.generateRouteResponse(locations.origin, locations.destination, context);
+      }
+      
+      return `# 🗺️ Trip Planning Assistant
 
 I'd be happy to help plan your trip! For the most helpful recommendations, I'll need a few details:
 
@@ -509,13 +494,11 @@ I'd be happy to help plan your trip! For the most helpful recommendations, I'll 
 ✅ **Practical tips** for Australian travel
 
 Just let me know your preferences and I'll create a detailed itinerary for you!`;
-  },
-
-  /**
-   * Generate financial planning response
-   */
-  generateFinancialPlanningResponse(goal: string, context: Record<string, any>): string {
-    return `# 💰 Financial Planning Assistant
+    }
+    
+    // Financial planning
+    if (category === 'financial_planning') {
+      return `# 💰 Financial Planning Assistant
 
 I'm here to help with your financial planning needs! 
 
@@ -532,27 +515,114 @@ I'm here to help with your financial planning needs!
 - What timeframe are you working with?
 
 Let me know more details and I'll provide personalized financial guidance!`;
+    }
+    
+    // General requests - try to be helpful based on content
+    if (lowerGoal.includes('help') || lowerGoal.includes('what') || lowerGoal.includes('how')) {
+      return `I'm here to help with your question: "${goal}"
+
+## I Can Assist With:
+✅ **Trip Planning** - Routes, destinations, and travel advice
+✅ **Financial Guidance** - Budgeting and money management  
+✅ **General Information** - Questions about Australia, travel, etc.
+✅ **App Navigation** - Using Wheels & Wins features
+
+Could you be more specific about what you're looking for? The more details you provide, the better I can help!`;
+    }
+    
+    // Default response
+    return `Thanks for your question: "${goal}"
+
+I'm here to help! While my advanced AI system is temporarily unavailable, I can still provide assistance with:
+
+✅ **Travel planning** and route advice
+✅ **Financial guidance** and budgeting tips
+✅ **General questions** about using the app
+✅ **Information** about Australian destinations
+
+What specifically would you like help with?`;
   },
 
   /**
-   * Generate generic helpful response
+   * Extract origin and destination from trip planning requests
    */
-  generateGenericHelpfulResponse(goal: string, context: Record<string, any>): string {
-    return `# 🤖 PAM Assistant
+  extractLocationsFromRequest(goal: string): { origin?: string, destination?: string } {
+    const locations: { origin?: string, destination?: string } = {};
+    
+    // Common patterns: "from X to Y", "X to Y", "plan trip X Y"
+    const patterns = [
+      /from\s+(.+?)\s+to\s+(.+)/i,
+      /(.+?)\s+to\s+(.+)/i,
+    ];
+    
+    for (const pattern of patterns) {
+      const match = goal.match(pattern);
+      if (match) {
+        locations.origin = match[1].trim();
+        locations.destination = match[2].trim();
+        break;
+      }
+    }
+    
+    return locations;
+  },
 
-I'm here to help! While my advanced planning system is temporarily unavailable, I can still assist you with:
+  /**
+   * Generate intelligent route responses based on detected locations
+   */
+  generateRouteResponse(origin: string, destination: string, context: Record<string, any>): string {
+    const lowerOrigin = origin.toLowerCase();
+    const lowerDest = destination.toLowerCase();
+    
+    // Sydney to Hobart
+    if (lowerOrigin.includes('sydney') && lowerDest.includes('hobart')) {
+      return `# 🗺️ ${origin} to ${destination} Trip Plan
 
-## Available Services:
-✅ **Trip Planning** - Routes, stops, and travel advice
-✅ **Financial Guidance** - Budgeting and money management
-✅ **Social Features** - Connect with friends and community
-✅ **Shopping Assistance** - Product recommendations
-✅ **General Questions** - Information and guidance
+## Route Overview
+- **Distance**: ~1,100km (680 miles via Melbourne + ferry)
+- **Driving Time**: ~15-17 hours (including ferry crossing)
+- **Recommended Duration**: 3-4 days with stops
 
-## Your Request:
-"${goal}"
+## Recommended Route
+1. **Sydney** → Goulburn (2h) → Albury (3h) → **Melbourne** (3h)
+2. **Melbourne** → Spirit of Tasmania ferry (overnight)
+3. **Devonport, TAS** → Launceston (1h) → **Hobart** (2.5h)
 
-Could you provide a bit more detail about what you're looking for? I'll do my best to give you helpful, actionable advice right away!`;
+## Key Highlights
+- **Goulburn**: Famous Big Merino, rest stop
+- **Melbourne**: Cultural capital, overnight recommended
+- **Spirit of Tasmania**: Vehicle ferry, book advance
+- **Launceston**: Historic city, Cataract Gorge
+- **Hobart**: MONA, Salamanca Markets, Mt Wellington
+
+## Budget Estimate
+- Fuel: ~$250-350
+- Ferry: ~$500-800 (car + passengers)
+- Accommodation: ~$150-250/night
+- Food: ~$100-150/day
+
+Would you like specific details about any part of this journey?`;
+    }
+    
+    // Generic route response
+    return `# 🗺️ ${origin} to ${destination} Route
+
+I can help plan your journey from ${origin} to ${destination}! 
+
+## What I Need to Know:
+- **Travel dates** - When are you planning to go?
+- **Travel style** - Driving, flying, or combination?
+- **Duration** - How many days do you have?
+- **Interests** - Scenic routes, cities, nature, food?
+
+## I Can Provide:
+✅ Best route options and timing
+✅ Recommended stops along the way
+✅ Budget estimates for your journey
+✅ Accommodation suggestions
+✅ Local highlights and attractions
+
+Let me know your preferences and I'll create a detailed itinerary!`;
   },
 
   /**
