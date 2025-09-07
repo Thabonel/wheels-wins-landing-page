@@ -258,7 +258,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         flyTo: true,
         placeholderOrigin: 'Choose starting point',
         placeholderDestination: 'Choose destination',
-        interactive: false // Initially disable click-to-add
+        interactive: true // Enable native click-to-add and drag-to-modify
       });
       
       // Add the hidden directions control to the map
@@ -316,86 +316,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         }
       });
       
-      // Add manual click handler for waypoint addition
-      newMap.on('click', (e) => {
-        console.log('🖱️ Map clicked. isAddingWaypoint:', isAddingWaypointRef.current);
-        
-        // Only handle clicks when in waypoint adding mode
-        if (!isAddingWaypointRef.current || !directionsRef.current) {
-          console.log('🚫 Ignoring click - isAddingWaypoint:', isAddingWaypointRef.current, 'directionsRef:', !!directionsRef.current);
-          return;
-        }
-        
-        // Debug: Check what methods are available on the directions plugin
-        console.log('🔧 Available methods:', Object.getOwnPropertyNames(directionsRef.current).filter(name => typeof directionsRef.current[name] === 'function'));
-        
-        const coordinates = [e.lngLat.lng, e.lngLat.lat] as [number, number];
-        console.log('📍 Adding waypoint at coordinates:', coordinates);
-        
-        // Check current plugin state instead of React state
-        const currentOrigin = directionsRef.current.getOrigin();
-        const currentDestination = directionsRef.current.getDestination();
-        
-        console.log('🔍 Plugin state - Origin:', currentOrigin, 'Destination:', currentDestination);
-        console.log('🔍 Origin exists?', !!currentOrigin, 'Destination exists?', !!currentDestination);
-        
-        // Fallback: Use React state count but with better logic
-        const currentWaypointCount = waypointsRef.current.length;
-        console.log('📊 Current waypoint count from React state:', currentWaypointCount);
-        
-        // Try the plugin methods but fallback to counting if they don't work
-        let hasOrigin = false;
-        let hasDestination = false;
-        
-        try {
-          hasOrigin = !!currentOrigin;
-          hasDestination = !!currentDestination;
-          console.log('✅ Plugin methods working - hasOrigin:', hasOrigin, 'hasDestination:', hasDestination);
-        } catch (error) {
-          console.log('❌ Plugin methods failed, using fallback counting');
-          hasOrigin = currentWaypointCount >= 1;
-          hasDestination = currentWaypointCount >= 2;
-        }
-        
-        if (!hasOrigin) {
-          // No origin set - set as origin (point A)
-          directionsRef.current.setOrigin(coordinates);
-          console.log('📍 Set as origin (A)');
-          
-          // Update React state immediately
-          const newWaypoint = {
-            coordinates: coordinates,
-            name: 'Starting Point',
-            type: 'origin'
-          };
-          setWaypoints([newWaypoint]);
-          
-          toast.success('Starting point (A) added!');
-          
-        } else if (!hasDestination) {
-          // Origin exists but no destination - set as destination (point B)
-          directionsRef.current.setDestination(coordinates);
-          console.log('📍 Set as destination (B)');
-          
-          // Update React state immediately
-          const newWaypoint = {
-            coordinates: coordinates,
-            name: 'Destination',
-            type: 'destination'
-          };
-          setWaypoints(prev => [...prev, newWaypoint]);
-          
-          toast.success('Destination (B) added! Route calculating...');
-          // Disable waypoint mode after setting destination
-          setIsAddingWaypoint(false);
-          
-        } else {
-          // Both origin and destination exist - try to add intermediate waypoint
-          console.log('📍 Attempting to add intermediate waypoint...');
-          toast.info('Multiple waypoints not yet supported. Clear route to start over.');
-          setIsAddingWaypoint(false);
-        }
-      });
+      // Plugin now handles clicks natively - no custom click handler needed
       
     } catch (error) {
       console.error('Failed to initialize map:', error);
