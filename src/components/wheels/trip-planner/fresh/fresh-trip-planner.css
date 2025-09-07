@@ -65,3 +65,26 @@
 .waypoint-cursor * {
   cursor: crosshair !important;
 }
+
+/* Hide Mapbox Directions plugin UI - we use our custom toolbar instead */
+.mapboxgl-ctrl-directions {
+  display: none !important;
+}
+
+/* Hide all directions control elements */
+.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-input {
+  display: none !important;
+}
+
+.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-instructions {
+  display: none !important;
+}
+
+.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-profile {
+  display: none !important;
+}
+
+/* Ensure our custom toolbar stays visible above everything */
+.fresh-route-toolbar {
+  z-index: 10000 !important;
+}
