@@ -2533,54 +2533,52 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Note: PAM backend automatically saves all conversation history
     setInputMessage("");
     
-    // Check if we should use agentic planning for complex queries
-    if (needsAgenticPlanning(message)) {
-      logger.debug('🧠 Using agentic planning for complex query');
-      try {
-        // Show planning indicator
-        const planningMsgId = Date.now().toString();
-        addMessage("🧠 Planning your request...", "pam");
-        
-        const result = await pamAgenticService.planAndExecute(message, {
-          conversation_history: messages.slice(-5).map(m => ({
-            content: m.content,
-            role: m.sender === 'user' ? 'user' : 'assistant'
-          })),
-          user_context: {
-            ...userContext,
-            travel_mode: 'RV', // Explicitly indicate RV travel
-            travel_type: 'recreational_vehicle',
-          },
-          user_preferences: settings,
-          rv_context: {
-            is_rv_traveler: true,
-            vehicle_type: userContext?.vehicle_info?.type || 'caravan',
-            vehicle_specs: userContext?.vehicle_info || {},
-            travel_preferences: userContext?.travel_preferences || {},
-            needs_rv_specific_planning: true
-          }
-        });
-        
-        if (result.execution.success && result.execution.execution_result) {
-          // Remove planning message and add result
-          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-          addMessage(result.execution.execution_result.response, "pam");
-          
-          // If voice is enabled, speak the response
-          if (settings?.pam_preferences?.voice_enabled) {
-            await speakText(result.execution.execution_result.response);
-          }
-          return; // Exit early, we've handled the message
-        } else {
-          // Remove planning message
-          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-          logger.debug('Agentic planning unsuccessful, falling back to WebSocket');
+    // Always try agentic planning first with intelligent fallbacks
+    logger.debug('🧠 Using agentic planning with intelligent fallbacks for all queries');
+    try {
+      // Show planning indicator
+      const planningMsgId = Date.now().toString();
+      addMessage("🧠 Planning your request...", "pam");
+      
+      const result = await pamAgenticService.planAndExecute(message, {
+        conversation_history: messages.slice(-5).map(m => ({
+          content: m.content,
+          role: m.sender === 'user' ? 'user' : 'assistant'
+        })),
+        user_context: {
+          ...userContext,
+          travel_mode: 'RV', // Explicitly indicate RV travel
+          travel_type: 'recreational_vehicle',
+        },
+        user_preferences: settings,
+        rv_context: {
+          is_rv_traveler: true,
+          vehicle_type: userContext?.vehicle_info?.type || 'caravan',
+          vehicle_specs: userContext?.vehicle_info || {},
+          travel_preferences: userContext?.travel_preferences || {},
+          needs_rv_specific_planning: true
         }
-      } catch (error) {
-        logger.error('Agentic planning error:', error);
+      });
+      
+      if (result.execution.success && result.execution.execution_result) {
+        // Remove planning message and add result
         setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-        // Fall through to WebSocket
+        addMessage(result.execution.execution_result.response, "pam");
+        
+        // If voice is enabled, speak the response
+        if (settings?.pam_preferences?.voice_enabled) {
+          await speakText(result.execution.execution_result.response);
+        }
+        return; // Exit early, we've handled the message
+      } else {
+        // Remove planning message
+        setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+        logger.debug('Agentic planning unsuccessful, falling back to WebSocket/REST');
       }
+    } catch (error) {
+      logger.error('Agentic planning error:', error);
+      setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+      // Fall through to WebSocket/REST fallback
     }
 
     // Check if user is asking for location-based services and we don't have location
