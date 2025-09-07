@@ -66,21 +66,28 @@
   cursor: crosshair !important;
 }
 
-/* Hide Mapbox Directions plugin UI - we use our custom toolbar instead */
+/* Make directions control visible but hide only UI inputs */
 .mapboxgl-ctrl-directions {
+  /* Make control container invisible but keep route visuals */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+/* Hide input controls specifically */
+.mapboxgl-ctrl-directions .directions-control-inputs,
+.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-input,
+.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-instructions,
+.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-profile,
+.mapboxgl-ctrl-directions .directions-control {
   display: none !important;
 }
 
-/* Hide all directions control elements */
-.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-input {
-  display: none !important;
-}
-
-.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-instructions {
-  display: none !important;
-}
-
-.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-profile {
+/* Alternative targeting for input elements */
+.mapboxgl-ctrl-directions input,
+.mapboxgl-ctrl-directions button,
+.mapboxgl-ctrl-directions .directions-control-list {
   display: none !important;
 }
 
