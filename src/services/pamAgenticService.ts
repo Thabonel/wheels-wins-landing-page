@@ -137,6 +137,9 @@ export const pamAgenticService = {
     try {
       console.log('🧠 Creating agentic plan for goal:', goal);
       
+      // Sanitize context to prevent timestamp conflicts
+      const sanitizedContext = this.sanitizeContext(context);
+      
       const headers = await getAuthHeaders();
       const response = await fetch(`${AGENTIC_BASE}/plan`, {
         method: 'POST',
@@ -144,7 +147,7 @@ export const pamAgenticService = {
         body: JSON.stringify({
           goal,
           context: {
-            ...context,
+            ...sanitizedContext,
             timestamp: new Date().toISOString(),
             source: 'frontend'
           }
@@ -172,6 +175,9 @@ export const pamAgenticService = {
     try {
       console.log('🚀 Executing agentic plan:', { goal, planId });
       
+      // Sanitize context to prevent timestamp conflicts
+      const sanitizedContext = this.sanitizeContext(context);
+      
       const headers = await getAuthHeaders();
       const response = await fetch(`${AGENTIC_BASE}/execute`, {
         method: 'POST',
@@ -180,7 +186,7 @@ export const pamAgenticService = {
           goal,
           plan_id: planId,
           context: {
-            ...context,
+            ...sanitizedContext,
             timestamp: new Date().toISOString(),
             source: 'frontend'
           }
@@ -547,6 +553,47 @@ I'm here to help! While my advanced planning system is temporarily unavailable, 
 "${goal}"
 
 Could you provide a bit more detail about what you're looking for? I'll do my best to give you helpful, actionable advice right away!`;
+  },
+
+  /**
+   * Sanitize context object to prevent timestamp conflicts and other issues
+   */
+  sanitizeContext(context: Record<string, any>): Record<string, any> {
+    try {
+      const sanitized: Record<string, any> = {};
+      
+      for (const [key, value] of Object.entries(context)) {
+        // Skip any existing timestamp fields to avoid conflicts
+        if (key === 'timestamp') {
+          continue;
+        }
+        
+        // Handle different types of values
+        if (value === null || value === undefined) {
+          sanitized[key] = value;
+        } else if (typeof value === 'object') {
+          // Recursively sanitize nested objects, but avoid circular references
+          try {
+            sanitized[key] = JSON.parse(JSON.stringify(value));
+          } catch (error) {
+            console.warn(`❌ Failed to sanitize context key "${key}":`, error);
+            sanitized[key] = String(value);
+          }
+        } else if (typeof value === 'function') {
+          // Skip functions as they can't be JSON serialized
+          continue;
+        } else {
+          // Keep primitive values as-is
+          sanitized[key] = value;
+        }
+      }
+      
+      return sanitized;
+    } catch (error) {
+      console.error('❌ Context sanitization failed:', error);
+      // Return empty object if sanitization fails completely
+      return {};
+    }
   }
 };
 
