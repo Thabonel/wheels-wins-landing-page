@@ -190,6 +190,13 @@ const TripPlanner = ({
             startLocation={startLocation}
             endLocation={endLocation}
             userLocation={userCoordinates}
+            onRouteUpdate={(routeData) => {
+              console.log('🗺️ Route updated from map:', routeData);
+              // Update trip plan with real route data from Mapbox
+              if (onRouteUpdate) {
+                onRouteUpdate(routeData);
+              }
+            }}
           />
         </div>
 
