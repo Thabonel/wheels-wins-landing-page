@@ -11,7 +11,19 @@ import json
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from app.core.database import get_supabase
+# Defensive import for database connection
+try:
+    from app.core.database import get_supabase
+    _database_import_error = None
+except Exception as e:
+    print(f"⚠️ Warning: Failed to import database connection: {e}")
+    _database_import_error = e
+    
+    # Create a mock function to prevent immediate failure
+    def get_supabase():
+        raise RuntimeError(f"Database connection not available: {_database_import_error}")
+        
+    print("⚠️ Using mock database connection - PAM will use placeholder functionality")
 
 class MemoryNode:
     """Manages conversation memory and context for PAM"""
@@ -1065,3 +1077,25 @@ PAM: {response}"""
                 'suggestions': [],
                 'error': str(e)
             }
+# Create global instance with defensive instantiation
+try:
+    memory_node = MemoryNode()
+    print("✅ MemoryNode instantiated successfully")
+except Exception as e:
+    import traceback
+    print(f"⚠️ Warning: Failed to instantiate MemoryNode: {e}")
+    print(f"Traceback: {traceback.format_exc()}")
+    
+    # Create a placeholder to prevent import errors
+    class PlaceholderMemoryNode:
+        def __getattr__(self, name):
+            def placeholder_method(*args, **kwargs):
+                return {
+                    "success": False, 
+                    "error": f"MemoryNode initialization failed: {e}",
+                    "data": []
+                }
+            return placeholder_method
+    
+    memory_node = PlaceholderMemoryNode()
+    print("⚠️ Using PlaceholderMemoryNode - some PAM functionality may be limited")
