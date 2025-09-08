@@ -2,8 +2,6 @@
 import type { Config } from "tailwindcss";
 import animatePlugin from "tailwindcss-animate";
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
-
 export default {
 	darkMode: ["class"],
 	content: [
@@ -104,10 +102,6 @@ export default {
                 'float': 'float 6s ease-in-out infinite',
 				'pulse-slow': 'pulse-slow 3s ease-in-out infinite',
 			},
-            backgroundImage: {
-                'hero-pattern': `url('${supabaseUrl}/storage/v1/object/public/public-assets//WheelsnadwinsHero.jpg')`,
-                'logo': `url('${supabaseUrl}/storage/v1/object/public/public-assets//wheels%20and%20wins%20Logo%20alpha.png')`,
-            },
 		}
 	},
         plugins: [animatePlugin],
