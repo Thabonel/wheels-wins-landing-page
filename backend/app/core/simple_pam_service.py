@@ -19,14 +19,9 @@ from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator, Re
 
 logger = get_logger("simple_pam")
 
-# Import weather tool for real weather data
-try:
-    from app.services.pam.tools.weather_tool import WeatherTool
-    WEATHER_TOOL_AVAILABLE = True
-    logger.info("WeatherTool imported successfully")
-except ImportError as e:
-    logger.warning(f"WeatherTool not available - weather queries will use fallback responses: {e}")
-    WEATHER_TOOL_AVAILABLE = False
+# Weather tool removed - ChatGPT handles weather with user location context
+WEATHER_TOOL_AVAILABLE = False
+logger.info("Weather queries now handled by ChatGPT with user context")
 
 class PAMServiceError(Exception):
     """Exception raised when PAM service encounters errors"""
@@ -50,15 +45,8 @@ class SimplePamService:
         self.enhanced_orchestrator = None
         self.orchestrator_initialized = False
         
-        # Initialize weather tool if available
+        # Weather queries handled by ChatGPT with user context
         self.weather_tool = None
-        if WEATHER_TOOL_AVAILABLE:
-            try:
-                self.weather_tool = WeatherTool()
-                logger.info("WeatherTool initialized successfully")
-            except Exception as e:
-                logger.error(f"Failed to initialize WeatherTool: {e}")
-                self.weather_tool = None
         
         # Initialize the AI service with database connection (fallback)
         try:
@@ -298,8 +286,9 @@ class SimplePamService:
             message_lower = message.lower()
             needs_location = self._needs_location(message)
             
-            # Handle weather queries with smart location context
-            if self.weather_tool and any(word in message_lower for word in ["weather", "forecast", "temperature", "rain", "sunny", "cloudy", "snow"]):
+            # Weather queries now handled by enhanced orchestrator with ChatGPT + user context
+            # (Removed weather tool - simplified to use ChatGPT with location context)
+            if False:  # Disabled old weather tool logic
                 logger.info(f"🌤️ Weather query detected, using WeatherTool")
                 try:
                     # Smart location extraction - use context first, never ask for permission
