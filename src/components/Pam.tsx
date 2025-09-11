@@ -1915,13 +1915,19 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         };
 
         recorder.onstop = async () => {
-          logger.debug('🛑 Recording stopped, processing audio...');
+          logger.debug('🛑 Recording stopped, processing audio with auto-send...');
           setVoiceStatus("processing");
+          
+          // Clean up VAD if it was initialized
+          if ((recorder as any).vadCleanup) {
+            (recorder as any).vadCleanup();
+          }
           
           const audioBlob = new Blob(chunks, { type: recorder.mimeType });
           logger.debug('📦 Audio blob created:', audioBlob.size, 'bytes');
           
-          await handleVoiceSubmission(audioBlob);
+          // Auto-send the voice message immediately
+          await handleVoiceSubmission(audioBlob, true); // Pass true for auto-send
           
           // Stop all tracks to release microphone
           stream.getTracks().forEach(track => {
@@ -1949,22 +1955,101 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         // Setup audio level monitoring
         await setupAudioLevelMonitoring(stream);
         
-        logger.debug('🎤 Started voice recording');
-        addMessage("🟢 Recording... Click the green microphone to stop recording.", "pam");
+        logger.debug('🎤 Started voice recording with intelligent auto-send');
+        addMessage("🎙️ Speak now... I'll send your message when you finish speaking.", "pam");
         
-        // Auto-stop after 30 seconds to prevent infinite recording
+        // Initialize VAD for intelligent auto-stop and auto-send
+        // Check user preference for auto-send (default: enabled for better UX)
+        const autoSendEnabled = settings?.pam_preferences?.voice_auto_send ?? true;
+        
+        if (autoSendEnabled) {
+          try {
+            await vadService.initialize(stream);
+            setIsVADActive(true);
+          
+          let speechTimer: NodeJS.Timeout | null = null;
+          let silenceTimer: NodeJS.Timeout | null = null;
+          let hasSpeechDetected = false;
+          const SILENCE_THRESHOLD = 2000; // 2 seconds of silence to auto-send
+          const MIN_SPEECH_DURATION = 500; // Minimum 0.5 seconds of speech required
+          
+          // Track speech activity for intelligent auto-send
+          const speechStartHandler = (result: any) => {
+            logger.debug('🎤 VAD: Speech detected during recording');
+            hasSpeechDetected = true;
+            
+            // Clear any silence timer
+            if (silenceTimer) {
+              clearTimeout(silenceTimer);
+              silenceTimer = null;
+            }
+            
+            // Start minimum speech duration timer
+            if (!speechTimer) {
+              speechTimer = setTimeout(() => {
+                logger.debug('✅ VAD: Minimum speech duration met');
+              }, MIN_SPEECH_DURATION);
+            }
+          };
+          
+          const speechEndHandler = (result: any) => {
+            logger.debug('🔇 VAD: Speech ended, starting silence countdown for auto-send');
+            
+            // Only start silence timer if we've detected speech and met minimum duration
+            if (hasSpeechDetected && speechTimer) {
+              silenceTimer = setTimeout(() => {
+                logger.debug('🚀 VAD: Auto-sending message after natural speech pause');
+                if (recorder.state === 'recording') {
+                  recorder.stop(); // This triggers onstop handler which auto-sends
+                  setIsListening(false);
+                }
+              }, SILENCE_THRESHOLD);
+            }
+          };
+          
+          // Set up VAD listeners for this recording session
+          vadService.onSpeechStart(speechStartHandler);
+          vadService.onSpeechEnd(speechEndHandler);
+          
+          // Store cleanup function for when recording ends
+          const vadCleanup = () => {
+            if (speechTimer) clearTimeout(speechTimer);
+            if (silenceTimer) clearTimeout(silenceTimer);
+            vadService.cleanup();
+            setIsVADActive(false);
+            logger.debug('🧹 VAD cleanup completed');
+          };
+          
+          // Store cleanup function on recorder for later use
+          (recorder as any).vadCleanup = vadCleanup;
+          
+          logger.debug('✅ Intelligent auto-send enabled with VAD');
+          } catch (vadError) {
+            logger.warn('⚠️ VAD initialization failed, using manual control:', vadError);
+            addMessage("🎤 Recording... Click the microphone when done speaking.", "pam");
+          }
+        } else {
+          logger.debug('🔧 Auto-send disabled by user preference - using manual control');
+          addMessage("🎤 Recording... Click the microphone when done speaking.", "pam");
+        }
+        
+        // Safety auto-stop after 30 seconds to prevent infinite recording
         setTimeout(() => {
           if (isListening && recorder.state === 'recording') {
-            logger.debug('⏰ Auto-stopping recording after 30 seconds');
+            logger.debug('⏰ Safety auto-stop after 30 seconds');
             recorder.stop();
             setIsListening(false);
           }
         }, 30000);
         
       } else {
-        // Stop recording
-        logger.debug('🛑 Stopping voice recording...');
+        // Manual stop recording
+        logger.debug('🛑 Manual stop of voice recording...');
         if (mediaRecorder && mediaRecorder.state === 'recording') {
+          // Clean up VAD if it was initialized
+          if ((mediaRecorder as any).vadCleanup) {
+            (mediaRecorder as any).vadCleanup();
+          }
           mediaRecorder.stop();
           setIsListening(false);
         }
@@ -1986,13 +2071,16 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const handleVoiceSubmission = async (audioBlob: Blob) => {
+  const handleVoiceSubmission = async (audioBlob: Blob, autoSend: boolean = false) => {
     try {
       logger.debug('🎤 Processing voice message...', `${audioBlob.size} bytes`);
       setIsProcessingVoice(true);
       
       // Remove the temporary processing message and add a better one
-      const processingMessage = addMessage("🎤 Processing your voice message...", "pam");
+      const processingMessage = addMessage(
+        autoSend ? "🚀 Auto-sending your voice message..." : "🎤 Processing your voice message...", 
+        "pam"
+      );
 
       const formData = new FormData();
       formData.append('audio', audioBlob, `recording.${audioBlob.type.includes('webm') ? 'webm' : 'mp4'}`);
