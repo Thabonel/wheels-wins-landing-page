@@ -11,7 +11,7 @@ export const API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL || 
   (import.meta.env.VITE_ENVIRONMENT === 'staging' 
     ? 'https://wheels-wins-backend-staging.onrender.com'  // Staging backend
-    : 'https://wheels-wins-backend-staging.onrender.com');
+    : 'https://pam-backend.onrender.com');  // Production backend
 
 /**
  * WebSocket endpoint override for PAM connections

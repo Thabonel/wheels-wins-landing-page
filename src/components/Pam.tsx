@@ -8,7 +8,7 @@ const pamEnabled = true;
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
-import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
+import { getWebSocketUrl, apiFetch, authenticatedFetch, API_BASE_URL } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -697,7 +697,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
 
     logger.debug('🏥 PAM DEBUG: ==================== HEALTH CHECK ====================');
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+    const backendUrl = API_BASE_URL;
     logger.debug('🏥 PAM DEBUG: Backend URL:', backendUrl);
     logger.debug('🏥 PAM DEBUG: Health check URL:', `${backendUrl}/health`);
     
