@@ -20,6 +20,9 @@ if os.getenv("RENDER", False) or os.getenv("RENDER_SERVICE_ID"):
     print(f"   APP_URL: {os.environ['APP_URL']}")
     print("   ✅ Staging environment forced successfully!")
     print(f"   📅 Deployed at: {os.environ.get('RENDER_GIT_COMMIT', 'unknown')[:8]}")
+    print("🌐 CORS ALLOWED ORIGINS:")
+    for origin in cors_origins.split(','):
+        print(f"   ✅ {origin.strip()}")
 
 import asyncio
 from contextlib import asynccontextmanager
