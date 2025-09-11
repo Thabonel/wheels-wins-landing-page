@@ -630,7 +630,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       logger.debug('🔄 Testing REST API connection...');
       
       // First try the health endpoint (no auth required)
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      const backendUrl = API_BASE_URL;
       const healthResponse = await fetch(`${backendUrl}/health`);
       if (!healthResponse.ok) {
         throw new Error('Backend health check failed');
@@ -2849,7 +2849,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                     
                     // Test backend health
                     try {
-                      const healthResponse = await fetch('https://wheels-wins-backend-staging.onrender.com/health');
+                      const healthResponse = await fetch(`${API_BASE_URL}/health`);
                       logger.debug('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
                     } catch (error) {
                       logger.debug('🧪 Backend health: ERROR', error);
