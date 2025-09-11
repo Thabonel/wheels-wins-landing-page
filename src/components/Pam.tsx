@@ -956,8 +956,33 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           // Handle streaming chat responses
           if (message.type === 'chat_response_start') {
             logger.debug('🌊 PAM DEBUG: Streaming response started');
-            // Show immediate processing indicator
-            addMessage(message.message || "🔍 Processing your request...", "pam", undefined, false, 'normal');
+            // Replace the thinking message with streaming response
+            setMessages(prev => {
+              // Find and replace the last thinking message
+              const updated = [...prev];
+              const lastPamIndex = updated.findIndex((msg, index) => 
+                index === updated.length - 1 && msg.sender === 'pam' && 
+                (msg.content === 'PAM is thinking' || msg.isStreaming)
+              );
+              
+              if (lastPamIndex !== -1) {
+                updated[lastPamIndex] = {
+                  ...updated[lastPamIndex],
+                  content: message.message || "🔍 Processing your request...",
+                  isStreaming: true
+                };
+              } else {
+                // Fallback: add new message if thinking message not found
+                updated.push({
+                  id: Date.now().toString(),
+                  content: message.message || "🔍 Processing your request...",
+                  sender: "pam",
+                  timestamp: new Date().toISOString(),
+                  isStreaming: true
+                });
+              }
+              return updated;
+            });
             return;
           }
           
@@ -1023,8 +1048,37 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             }
             
             if (content && content.trim()) {
-              // Phase 5A: Add message with TTS data
-              const newMessage = addMessage(content, "pam");
+              // Replace thinking message with actual response
+              let newMessage: PamMessage;
+              setMessages(prev => {
+                const updated = [...prev];
+                const thinkingIndex = updated.findIndex((msg, index) => 
+                  index === updated.length - 1 && msg.sender === 'pam' && 
+                  (msg.content === 'PAM is thinking' || msg.isStreaming)
+                );
+                
+                if (thinkingIndex !== -1) {
+                  // Replace thinking message
+                  updated[thinkingIndex] = {
+                    ...updated[thinkingIndex],
+                    content: content,
+                    isStreaming: false
+                  };
+                  newMessage = updated[thinkingIndex];
+                } else {
+                  // Fallback: add new message
+                  newMessage = {
+                    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    content,
+                    sender: "pam",
+                    timestamp: new Date().toISOString(),
+                    shouldSpeak: false,
+                    isStreaming: false
+                  };
+                  updated.push(newMessage);
+                }
+                return updated;
+              });
               
               // Phase 5A: Update message with TTS data if available
               if (ttsData) {
@@ -2520,6 +2574,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Note: PAM backend automatically saves all conversation history
     setInputMessage("");
     
+    // Immediately show thinking message for better UX
+    const thinkingMessage = addMessage("PAM is thinking", "pam");
+    thinkingMessage.isStreaming = true;  // Use streaming flag for pulsing effect
+    
     // Check if we should use agentic planning for complex queries
     if (needsAgenticPlanning(message)) {
       logger.debug('🧠 Using agentic planning for complex query');
@@ -2640,7 +2698,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     try {
       // Show thinking indicator with pulsing animation
       const thinkingMsgId = Date.now().toString();
-      addMessage("🤔 <span class='animate-pulse'>PAM is thinking...</span>", "pam");
+      addMessage("PAM is thinking", "pam");
       
       const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
@@ -2879,7 +2937,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 <div className={`max-w-[80%] px-3 py-2 rounded-lg ${
                   msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
                 }`}>
-                  <p className="text-sm">{msg.content}</p>
+                  <p className={`text-sm ${msg.content === 'PAM is thinking' ? 'animate-pulse text-blue-600' : ''}`}>
+                    {msg.content}
+                  </p>
                   {/* Streaming indicator */}
                   {msg.isStreaming && (
                     <div className="flex items-center mt-1 text-xs text-gray-500">
@@ -3057,7 +3117,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                   }`}>
                     <div className="flex items-start gap-2">
                       <div className="flex-1">
-                        <p className="text-sm">{msg.content}</p>
+                        <p className={`text-sm ${msg.content === 'PAM is thinking' ? 'animate-pulse text-blue-600' : ''}`}>
+                          {msg.content}
+                        </p>
                         {/* Streaming indicator */}
                         {msg.isStreaming && (
                           <div className="flex items-center mt-1 text-xs text-gray-500">
