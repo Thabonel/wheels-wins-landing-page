@@ -418,37 +418,53 @@ app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
 setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
-# CORS Configuration - Simple and Proven Approach
-# Using FastAPI's standard CORSMiddleware with comprehensive origins
-allowed_origins = [
-    # Development origins
-    "http://localhost:8080",
-    "http://localhost:3000",
-    "http://127.0.0.1:8080",
-    "http://127.0.0.1:3000",
-    
-    # Production origins
-    "https://wheelsandwins.com",
-    "https://www.wheelsandwins.com", 
-    "https://wheelz-wins.com",
-    "https://www.wheelz-wins.com",
-    "https://wheels-wins-landing-page.netlify.app",
-    "https://charming-figolla-d83b68.netlify.app",
-    
-    # Staging origins
-    "https://staging-wheelsandwins.netlify.app",
-    "https://wheels-wins-staging.netlify.app",
-    "https://wheelsandwins-staging.netlify.app",
-    "https://wheels-wins-test.netlify.app",
-    "https://staging--wheels-wins.netlify.app",  # Additional Netlify preview format
-    "https://staging--wheels-wins-landing-page.netlify.app",  # Netlify branch deploy format
-    "https://staging--charming-figolla-d83b68.netlify.app",  # Specific site ID format
-    
-    # Development origins (only in development)
-    *(["http://localhost:3000", "http://localhost:8080", "http://localhost:5173", 
-       "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://127.0.0.1:5173"] 
-      if getattr(settings, 'NODE_ENV', 'production') == 'development' else [])
-]
+# CORS Configuration - Environment-aware approach
+# Use environment variable if available, otherwise fallback to comprehensive list
+cors_env_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if cors_env_origins:
+    # Split environment variable and add localhost for development
+    allowed_origins = [origin.strip() for origin in cors_env_origins.split(",") if origin.strip()]
+    # Always add localhost for development
+    allowed_origins.extend([
+        "http://localhost:8080",
+        "http://localhost:3000", 
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:3000"
+    ])
+    print(f"🌐 Using CORS origins from environment variable: {len(allowed_origins)} origins")
+    for origin in allowed_origins:
+        print(f"   ✅ {origin}")
+else:
+    # Fallback to comprehensive hardcoded list
+    allowed_origins = [
+        # Development origins
+        "http://localhost:8080",
+        "http://localhost:3000",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:3000",
+        
+        # Production origins
+        "https://wheelsandwins.com",
+        "https://www.wheelsandwins.com", 
+        "https://wheelz-wins.com",
+        "https://www.wheelz-wins.com",
+        "https://wheels-wins-landing-page.netlify.app",
+        "https://charming-figolla-d83b68.netlify.app",
+        
+        # Staging origins
+        "https://staging-wheelsandwins.netlify.app",
+        "https://wheels-wins-staging.netlify.app",
+        "https://wheelsandwins-staging.netlify.app",
+        "https://wheels-wins-test.netlify.app",
+        "https://staging--wheels-wins.netlify.app",  # Additional Netlify preview format
+        "https://staging--wheels-wins-landing-page.netlify.app",  # Netlify branch deploy format
+        "https://staging--charming-figolla-d83b68.netlify.app",  # Specific site ID format
+        
+        # Development origins (only in development)
+        *(["http://localhost:5173", "http://127.0.0.1:5173"] 
+          if getattr(settings, 'NODE_ENV', 'production') == 'development' else [])
+    ]
+    print(f"🌐 Using fallback CORS origins: {len(allowed_origins)} origins")
 
 # Add CORS middleware - This handles ALL CORS including OPTIONS preflight
 app.add_middleware(
