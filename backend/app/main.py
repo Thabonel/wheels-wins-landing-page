@@ -399,20 +399,36 @@ setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
 # CORS Configuration - Industry Standard (OpenAI/Vercel Pattern)
-# Single source of truth: Environment variable from render.yaml
+# Priority: settings object → environment variable → development defaults
+cors_origins_from_settings = getattr(settings, 'CORS_ALLOWED_ORIGINS', None)
 cors_env_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
 
-if cors_env_origins:
-    # Production/Staging: Use explicit domains from environment
+if cors_origins_from_settings and isinstance(cors_origins_from_settings, list) and len(cors_origins_from_settings) > 0:
+    # Production/Staging: Use origins from settings object (configured by simple_config.py)
+    allowed_origins = cors_origins_from_settings.copy()
+    # Add localhost for development testing
+    allowed_origins.extend([
+        "http://localhost:8080",
+        "http://localhost:3000"
+    ])
+    print(f"🌐 CORS: Using settings configuration ({len(cors_origins_from_settings)} configured origins)")
+    print("🌐 CORS: Configured origins:")
+    for origin in cors_origins_from_settings:
+        print(f"   ✅ {origin}")
+    print("🌐 CORS: Added development origins:")
+    print("   ✅ http://localhost:8080")
+    print("   ✅ http://localhost:3000")
+elif cors_env_origins:
+    # Fallback to environment variable (if settings failed)
     allowed_origins = [origin.strip() for origin in cors_env_origins.split(",") if origin.strip()]
     # Add localhost for development testing
     allowed_origins.extend([
         "http://localhost:8080",
         "http://localhost:3000"
     ])
-    print(f"🌐 CORS: Using environment configuration ({len(allowed_origins)} origins)")
-    print("🌐 CORS: Allowed origins:")
-    for origin in allowed_origins:
+    print(f"🌐 CORS: Using environment variable fallback ({len(allowed_origins)-2} configured origins)")
+    print("🌐 CORS: Environment origins:")
+    for origin in allowed_origins[:-2]:  # Don't print localhost ones twice
         print(f"   ✅ {origin}")
 else:
     # Development fallback: Localhost only (never wildcards)
@@ -422,16 +438,18 @@ else:
         "http://127.0.0.1:8080", 
         "http://127.0.0.1:3000"
     ]
-    print("⚠️  CORS: No environment variable found - using development fallback")
-    print("⚠️  CORS: Production deployments MUST set CORS_ALLOWED_ORIGINS")
-    print(f"🌐 CORS: Fallback origins ({len(allowed_origins)} origins):")
+    print("⚠️  CORS: No configuration found - using development fallback")
+    print("⚠️  CORS: Production deployments MUST configure CORS_ALLOWED_ORIGINS")
+    print(f"🌐 CORS: Development origins ({len(allowed_origins)} origins):")
     for origin in allowed_origins:
         print(f"   ✅ {origin}")
 
 # Validate CORS configuration
-print(f"🔒 CORS: Security level = {'PRODUCTION' if cors_env_origins else 'DEVELOPMENT'}")
+is_production_cors = cors_origins_from_settings or cors_env_origins
+print(f"🔒 CORS: Security level = {'PRODUCTION' if is_production_cors else 'DEVELOPMENT'}")
 print(f"🔒 CORS: Credentials support = ENABLED")
 print(f"🔒 CORS: Origin validation = EXPLICIT_ONLY (no wildcards)")
+print(f"🔒 CORS: Total allowed origins = {len(allowed_origins)}")
 
 # Add CORS middleware - Industry Standard Configuration
 app.add_middleware(
