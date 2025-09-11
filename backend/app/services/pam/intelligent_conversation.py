@@ -632,6 +632,34 @@ IMPORTANT: Transform this technical data into warm, conversational advice. Don't
                     context_parts.append(f"Travel style: {travel_prefs.get('style', 'Unknown')}")
                     context_parts.append(f"Daily drive limit: {travel_prefs.get('drive_limit_per_day', 'Unknown')}")
                 
+                # Add new personalization preferences  
+                preferences = user_profile.get('preferences', {})
+                if preferences:
+                    # Travel interests
+                    interests = preferences.get('travel_interests', [])
+                    if interests:
+                        context_parts.append(f"Travel interests: {', '.join(interests)}")
+                    
+                    # Trip pace preference
+                    trip_pace = preferences.get('trip_pace', 'mixed')
+                    context_parts.append(f"Preferred trip pace: {trip_pace}")
+                    
+                    # Budget style
+                    budget_style = preferences.get('budget_style', 'mid')
+                    context_parts.append(f"Budget style: {budget_style}")
+                    
+                    # Past trip notes/learning
+                    trip_notes = preferences.get('past_trip_notes', '')
+                    if trip_notes:
+                        context_parts.append(f"Travel notes: {trip_notes}")
+                    
+                    # Feedback history for learning
+                    feedback_history = preferences.get('feedback_history', [])
+                    if feedback_history and len(feedback_history) > 0:
+                        recent_feedback = [f['rating'] for f in feedback_history[-5:]]  # Last 5 ratings
+                        positive_count = sum(1 for r in recent_feedback if r > 0)
+                        context_parts.append(f"Recent response satisfaction: {positive_count}/{len(recent_feedback)} positive")
+                
                 vehicle = user_profile.get('vehicle_info', {})
                 if vehicle:
                     context_parts.append(f"Vehicle: {vehicle.get('type', 'Unknown')} ({vehicle.get('fuel_type', 'Unknown')} fuel)")

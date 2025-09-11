@@ -5,7 +5,7 @@ import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
 const pamEnabled = true;
 
 // Regular imports
-import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2 } from "lucide-react";
+import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
 import { getWebSocketUrl, apiFetch, authenticatedFetch, API_BASE_URL } from "@/services/api";
@@ -51,6 +51,7 @@ interface PamMessage {
   voicePriority?: 'low' | 'normal' | 'high' | 'urgent';
   isStreaming?: boolean;  // Indicates if this message is currently being streamed
   tts?: TTSAudio;  // Phase 5A: TTS audio data from backend
+  feedback?: 1 | -1;  // Simple feedback: 1 = helpful, -1 = not helpful
 }
 
 interface PamProps {
@@ -622,6 +623,47 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       
     } catch (error) {
       logger.error('Failed to save to memory:', error);
+    }
+  };
+
+  const handleFeedback = async (messageId: string, rating: 1 | -1) => {
+    try {
+      logger.debug('👍👎 Processing feedback:', { messageId, rating });
+      
+      // Update message feedback in state
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, feedback: rating } : msg
+      ));
+
+      // Save feedback to user preferences in backend
+      if (user?.id) {
+        const response = await authenticatedFetch('/api/v1/user/preferences', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            preferences: {
+              feedback_history: {
+                action: 'append',
+                value: {
+                  response_id: messageId,
+                  rating: rating,
+                  timestamp: new Date().toISOString()
+                }
+              }
+            }
+          })
+        });
+
+        if (response.ok) {
+          logger.debug('✅ Feedback saved successfully');
+        } else {
+          logger.warn('⚠️ Failed to save feedback to backend');
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Failed to handle feedback:', error);
     }
   };
 
@@ -2847,9 +2889,34 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                       <span>thinking...</span>
                     </div>
                   )}
-                  <p className="text-xs opacity-70 mt-1">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
-                  </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs opacity-70">
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </p>
+                    {/* Simple feedback buttons for PAM responses */}
+                    {msg.sender === "pam" && !msg.isStreaming && (
+                      <div className="flex items-center gap-1 ml-2">
+                        <button
+                          onClick={() => handleFeedback(msg.id, 1)}
+                          className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                            msg.feedback === 1 ? 'text-green-600 bg-green-100' : 'text-gray-400 hover:text-green-600'
+                          }`}
+                          title="Helpful"
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(msg.id, -1)}
+                          className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                            msg.feedback === -1 ? 'text-red-600 bg-red-100' : 'text-gray-400 hover:text-red-600'
+                          }`}
+                          title="Not helpful"
+                        >
+                          <ThumbsDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -3000,9 +3067,34 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                             <span>thinking...</span>
                           </div>
                         )}
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(msg.timestamp).toLocaleTimeString()}
-                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs opacity-70">
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </p>
+                          {/* Simple feedback buttons for PAM responses */}
+                          {msg.sender === "pam" && !msg.isStreaming && (
+                            <div className="flex items-center gap-1 ml-2">
+                              <button
+                                onClick={() => handleFeedback(msg.id, 1)}
+                                className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                                  msg.feedback === 1 ? 'text-green-600 bg-green-100' : 'text-gray-400 hover:text-green-600'
+                                }`}
+                                title="Helpful"
+                              >
+                                <ThumbsUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleFeedback(msg.id, -1)}
+                                className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                                  msg.feedback === -1 ? 'text-red-600 bg-red-100' : 'text-gray-400 hover:text-red-600'
+                                }`}
+                                title="Not helpful"
+                              >
+                                <ThumbsDown className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       {/* Phase 5A: TTS Controls for PAM messages */}
                       {msg.sender === "pam" && msg.tts && (
