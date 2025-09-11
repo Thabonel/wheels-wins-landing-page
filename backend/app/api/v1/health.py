@@ -81,8 +81,8 @@ async def pam_health():
     
     # Check TTS
     try:
-        from app.services.tts.tts_manager import TTSManager
-        tts_manager = TTSManager()
+        from app.services.tts.manager import get_tts_manager
+        tts_manager = get_tts_manager()
         checks["tts"] = {
             "status": HealthStatus.HEALTHY if settings.TTS_ENABLED else HealthStatus.DEGRADED,
             "enabled": settings.TTS_ENABLED,
