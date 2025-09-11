@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import time
 
 from .base import BaseTTSEngine, VoiceSettings, TTSResponse, TTSError
+from .engines.elevenlabs_tts import ElevenLabsTTSEngine
 from .engines.edge_tts import EdgeTTSEngine
 from .engines.system_tts import SystemTTSEngine
 
@@ -59,10 +60,11 @@ class TTSManager:
         """Initialize all TTS engines in priority order"""
         logger.info("🚀 Initializing TTS engines...")
         
-        # Priority order: Edge TTS -> System TTS
+        # Priority order: ElevenLabs -> Edge TTS -> System TTS
         engine_classes = [
-            EdgeTTSEngine,
-            SystemTTSEngine
+            ElevenLabsTTSEngine,  # Premium quality (requires API key)
+            EdgeTTSEngine,        # Free, good quality fallback
+            SystemTTSEngine       # Last resort system fallback
         ]
         
         for engine_class in engine_classes:
