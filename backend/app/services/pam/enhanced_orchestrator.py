@@ -412,7 +412,7 @@ class EnhancedPamOrchestrator:
     async def _initialize_tts_service(self):
         """Initialize enhanced TTS service integration with multi-engine support"""
         try:
-            from app.services.tts.tts_manager import get_tts_manager
+            from app.services.tts.manager import get_tts_manager
             
             logger.info("🎤 Initializing enhanced TTS Manager...")
             self.tts_manager = get_tts_manager()
