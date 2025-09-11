@@ -70,7 +70,7 @@ export const useVoice = (chat?: any) => {
           try {
             const baseUrl = import.meta.env.VITE_WEBSOCKET_URL || 
                            import.meta.env.VITE_API_BASE_URL?.replace('https://', 'wss://') || 
-                           'wss://wheels-wins-backend-staging.onrender.com';
+                           'wss://pam-backend.onrender.com';
             const signalingUrl = import.meta.env.VITE_WEBRTC_SIGNALING_URL || 
                                `${baseUrl}/api/v1/webrtc`;
             

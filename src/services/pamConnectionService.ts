@@ -27,7 +27,7 @@ class PamConnectionService {
 
   // Backend URLs in priority order - Updated to prioritize working staging server
   private backends = [
-    'https://wheels-wins-backend-staging.onrender.com',
+    'https://pam-backend.onrender.com',
     import.meta.env.VITE_BACKEND_URL,
     import.meta.env.VITE_API_URL,
     'https://pam-backend.onrender.com'  // Moved to last - has event loop issues

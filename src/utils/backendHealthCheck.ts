@@ -146,15 +146,15 @@ class BackendHealthMonitor {
 
     // HTTP endpoints to test
     const httpEndpoints = [
-      import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend.onrender.com',
-      'https://wheels-wins-backend-staging.onrender.com',
+      import.meta.env.VITE_API_BASE_URL || 'https://pam-backend.onrender.com',
+      'https://pam-backend.onrender.com',
       'https://api.wheelsandwins.com'
     ].filter(Boolean);
 
     // WebSocket endpoints to test
     const wsEndpoints = [
-      import.meta.env.VITE_PAM_WEBSOCKET_URL || 'wss://wheels-wins-backend.onrender.com/api/v1/pam/ws',
-      'wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws',
+      import.meta.env.VITE_PAM_WEBSOCKET_URL || 'wss://pam-backend.onrender.com/api/v1/pam/ws',
+      'wss://pam-backend.onrender.com/api/v1/pam/ws',
       'wss://api.wheelsandwins.com/pam/ws'
     ].filter(Boolean);
 
