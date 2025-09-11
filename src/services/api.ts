@@ -10,7 +10,7 @@ export const API_BASE_URL =
   import.meta.env.VITE_API_URL || 
   import.meta.env.VITE_BACKEND_URL || 
   (import.meta.env.VITE_ENVIRONMENT === 'staging' 
-    ? 'https://wheels-wins-backend-staging.onrender.com'  // Staging backend
+    ? 'https://pam-backend.onrender.com'  // Staging backend (same as production)
     : 'https://pam-backend.onrender.com');  // Production backend
 
 /**
