@@ -322,6 +322,137 @@ async def synthesize_text(
     
     return await manager.synthesize(text, settings, preferred_engine)
 
+# PAM-specific methods for compatibility with existing PAM orchestrator
+class PAMVoiceProfile:
+    """PAM voice profile constants"""
+    PAM_ASSISTANT = "pam_assistant"
+    NAVIGATION = "navigation" 
+    EMERGENCY = "emergency"
+    CASUAL = "casual"
+    PROFESSIONAL = "professional"
+
+class ResponseMode:
+    """PAM response mode constants"""
+    TEXT_ONLY = "text_only"
+    VOICE_ONLY = "voice_only"
+    MULTIMODAL = "multimodal"
+    ADAPTIVE = "adaptive"
+
+async def synthesize_for_pam(
+    text: str,
+    voice_profile: str = PAMVoiceProfile.PAM_ASSISTANT,
+    response_mode: str = ResponseMode.ADAPTIVE,
+    user_id: str = None,
+    context: dict = None
+) -> Dict[str, Any]:
+    """
+    PAM-optimized text-to-speech synthesis
+    
+    This method provides compatibility with PAM's orchestrator expectations
+    while leveraging our new ElevenLabs-powered TTS system.
+    
+    Args:
+        text: Text to synthesize
+        voice_profile: PAM voice profile (pam_assistant, navigation, emergency, etc.)
+        response_mode: Response mode (text_only, voice_only, multimodal, adaptive)
+        user_id: User identifier for personalization
+        context: Additional context for synthesis optimization
+        
+    Returns:
+        Dict with audio_data, format, duration, and PAM-specific metadata
+    """
+    manager = get_tts_manager()
+    
+    # Map PAM voice profiles to appropriate voice settings
+    voice_mapping = {
+        PAMVoiceProfile.PAM_ASSISTANT: VoiceSettings(voice="alloy", speed=1.0, volume=0.8),
+        PAMVoiceProfile.NAVIGATION: VoiceSettings(voice="nova", speed=1.1, volume=0.9),
+        PAMVoiceProfile.EMERGENCY: VoiceSettings(voice="onyx", speed=1.2, volume=1.0),
+        PAMVoiceProfile.CASUAL: VoiceSettings(voice="alloy", speed=0.9, volume=0.7),
+        PAMVoiceProfile.PROFESSIONAL: VoiceSettings(voice="echo", speed=1.0, volume=0.8)
+    }
+    
+    # Use default if voice profile not found
+    voice_settings = voice_mapping.get(voice_profile, voice_mapping[PAMVoiceProfile.PAM_ASSISTANT])
+    
+    # Handle response mode preferences
+    if response_mode == ResponseMode.TEXT_ONLY:
+        # Return text-only response
+        return {
+            "success": True,
+            "audio_data": None,
+            "format": "text",
+            "duration": 0.0,
+            "text_response": text,
+            "voice_profile": voice_profile,
+            "response_mode": response_mode,
+            "engine_used": "text_only"
+        }
+    
+    try:
+        # Synthesize using our new TTS manager
+        response = await manager.synthesize(text, voice_settings)
+        
+        # Return in PAM-expected format
+        return {
+            "success": True,
+            "audio_data": response.audio_data,
+            "format": response.format,
+            "duration": response.duration,
+            "text_response": text,
+            "voice_profile": voice_profile,
+            "response_mode": response_mode,
+            "engine_used": response.engine_used,
+            "voice_used": response.voice_used,
+            "pam_optimized": True
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ PAM TTS synthesis failed: {e}")
+        
+        # Return text-only fallback for PAM
+        return {
+            "success": False,
+            "audio_data": None,
+            "format": "text",
+            "duration": 0.0,
+            "text_response": text,
+            "voice_profile": voice_profile,
+            "response_mode": ResponseMode.TEXT_ONLY,
+            "engine_used": "fallback_text",
+            "error": str(e)
+        }
+
+def get_pam_voice_profiles() -> List[str]:
+    """Get available PAM voice profiles"""
+    return [
+        PAMVoiceProfile.PAM_ASSISTANT,
+        PAMVoiceProfile.NAVIGATION,
+        PAMVoiceProfile.EMERGENCY,
+        PAMVoiceProfile.CASUAL,
+        PAMVoiceProfile.PROFESSIONAL
+    ]
+
+def supports_streaming() -> bool:
+    """Check if TTS manager supports streaming (future enhancement)"""
+    return False  # Not implemented yet, but ready for future expansion
+
+async def get_pam_tts_health() -> Dict[str, Any]:
+    """Get PAM-specific TTS health information"""
+    manager = get_tts_manager()
+    engine_status = manager.get_engine_status()
+    is_healthy = manager.health_check()
+    
+    return {
+        "healthy": is_healthy,
+        "available_engines": engine_status["available_engines"],
+        "total_engines": engine_status["total_engines"],
+        "voice_profiles_available": get_pam_voice_profiles(),
+        "streaming_supported": supports_streaming(),
+        "engines": engine_status["engines"],
+        "pam_integration": "active"
+    }
+
 async def test_tts_manager():
     """Test the TTS manager functionality"""
     try:

@@ -412,7 +412,7 @@ class EnhancedPamOrchestrator:
     async def _initialize_tts_service(self):
         """Initialize enhanced TTS service integration with multi-engine support"""
         try:
-            from app.services.tts.manager import get_tts_manager
+            from app.services.tts.manager import get_tts_manager, synthesize_for_pam, PAMVoiceProfile
             
             logger.info("🎤 Initializing enhanced TTS Manager...")
             self.tts_manager = get_tts_manager()
@@ -1467,20 +1467,20 @@ Based on these results, please provide a helpful response to the user's original
             logger.debug(f"🎤 Generating TTS for context: {voice_context}, user: {user_id}")
             
             tts_response = await asyncio.wait_for(
-                self.tts_manager.synthesize_for_pam(
+                synthesize_for_pam(
                     text=content,
+                    voice_profile=PAMVoiceProfile.PAM_ASSISTANT,
                     user_id=user_id,
-                    context=voice_context,
-                    stream=False
+                    context=voice_context
                 ),
                 timeout=self.config["tts_timeout_ms"] / 1000
             )
             
-            if tts_response and tts_response.success:
+            if tts_response and tts_response.get("success"):
                 return {
-                    "audio_data": tts_response.audio_data,
-                    "generation_time_ms": tts_response.generation_time_ms,
-                    "engine_used": tts_response.engine_used.value if tts_response.engine_used else "unknown"
+                    "audio_data": tts_response.get("audio_data"),
+                    "generation_time_ms": tts_response.get("duration", 0.0) * 1000,  # Convert to ms
+                    "engine_used": tts_response.get("engine_used", "unknown")
                 }
             
             return None
