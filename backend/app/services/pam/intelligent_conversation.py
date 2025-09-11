@@ -199,8 +199,11 @@ Return ONLY a JSON object with:
             user_id = context.get('user_id')
             
             # Step 1: Load User Profile (always do this first)
+            logger.info(f"🔍 PAM DEBUG: Loading user profile for {user_id}")
             user_profile_result = await self.load_user_profile_tool.execute(user_id)
             user_profile = user_profile_result.get('data', {}) if user_profile_result.get('success') else {}
+            logger.info(f"🔍 PAM DEBUG: Profile tool success: {user_profile_result.get('success', False)}")
+            logger.info(f"🔍 PAM DEBUG: Profile data exists: {user_profile.get('profile_exists', False)}")
             
             # Step 2: Load Recent Memory 
             memory_result = await self.load_recent_memory_tool.execute(user_id)
@@ -661,8 +664,24 @@ IMPORTANT: Transform this technical data into warm, conversational advice. Don't
                         context_parts.append(f"Recent response satisfaction: {positive_count}/{len(recent_feedback)} positive")
                 
                 vehicle = user_profile.get('vehicle_info', {})
+                logger.info(f"🚐 CONTEXT DEBUG: Vehicle info from profile: {vehicle}")
                 if vehicle:
-                    context_parts.append(f"Vehicle: {vehicle.get('type', 'Unknown')} ({vehicle.get('fuel_type', 'Unknown')} fuel)")
+                    # Enhanced vehicle context for better AI understanding
+                    vehicle_type = vehicle.get('type', 'Unknown')
+                    make_model = vehicle.get('make_model_year', '')
+                    fuel_type = vehicle.get('fuel_type', 'Unknown')
+                    is_rv = vehicle.get('is_rv', False)
+                    
+                    # Build comprehensive vehicle context
+                    vehicle_context = f"Vehicle: {vehicle_type}"
+                    if make_model:
+                        vehicle_context += f" - {make_model}"
+                    vehicle_context += f" ({fuel_type} fuel)"
+                    if is_rv:
+                        vehicle_context += " - RV/OVERLAND VEHICLE requiring ferry for Tasmania travel"
+                    
+                    context_parts.append(vehicle_context)
+                    logger.info(f"🚐 CONTEXT DEBUG: Added vehicle context: {vehicle_context}")
                 
                 budget = user_profile.get('budget_preferences', {})
                 if budget:
