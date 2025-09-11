@@ -72,33 +72,27 @@ const Wheels = () => {
   const tabs = [
     {
       id: "trip-planner",
-      label: "Trip Planner",
-      description: "Click the map to add points A and B, then drag the route line to customize your journey. Currently works best with Outdoors and Australia Offroad map styles."
+      label: "Trip Planner"
     },
     {
       id: "trips",
-      label: "Trips",
-      description: "Manage your saved trips, browse templates, and explore shared journeys"
+      label: "Trips"
     },
     {
       id: "fuel-log",
-      label: "Fuel Log",
-      description: "Track fuel purchases, calculate efficiency, and monitor your vehicle's consumption patterns"
+      label: "Fuel Log"
     },
     {
       id: "vehicle-maintenance",
-      label: "Vehicle Maintenance",
-      description: "Schedule services, track repairs, and maintain your vehicle's health records"
+      label: "Vehicle Maintenance"
     },
     {
       id: "rv-storage",
-      label: "RV Storage",
-      description: "Organize your RV storage, track inventory, and plan what to pack for trips"
+      label: "RV Storage"
     },
     {
       id: "caravan-safety",
-      label: "Caravan Safety",
-      description: "Access safety checklists, emergency procedures, and caravan towing guidelines"
+      label: "Caravan Safety"
     }
   ];
 
@@ -108,8 +102,8 @@ const Wheels = () => {
         {/* Main Content - 75% on desktop */}
         <div className="w-full lg:w-3/4 h-full bg-white rounded-lg shadow-sm border">
           <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-gray-600">{tabs.find(tab => tab.id === activeTab)?.description}</p>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Travel Planning</h1>
               <PamHelpButton 
                 page="wheels" 
                 context={`Currently viewing ${activeTab.replace('-', ' ')}`}
