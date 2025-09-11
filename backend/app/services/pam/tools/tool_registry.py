@@ -648,105 +648,9 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Mapbox tool registration failed: {e}")
         failed_count += 1
     
-    # Weather Tool for travel safety
-    try:
-        logger.debug("🔄 Attempting to register Weather tool...")
-        WeatherTool = lazy_import("app.services.pam.tools.weather_tool", "WeatherTool")
-        
-        if WeatherTool is None:
-            raise ImportError("WeatherTool not available")
-        
-        registry.register_tool(
-            tool=WeatherTool(),
-            function_definition={
-                "name": "weather_service",
-                "description": "Get weather forecasts, alerts, and RV travel conditions. Use for weather-related queries.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "action": {
-                            "type": "string",
-                            "enum": ["get_current", "get_forecast", "check_travel_conditions", "get_alerts", "get_route_weather"],
-                            "description": "Weather information to retrieve"
-                        },
-                        "location": {
-                            "type": "string", 
-                            "description": "Location for weather (address, city name, or coordinates)"
-                        },
-                        "days": {
-                            "type": "number",
-                            "description": "Number of days for forecast (1-7, optional)"
-                        }
-                    },
-                    "required": ["action", "location"]
-                }
-            },
-            capability=ToolCapability.EXTERNAL_API,
-            priority=2
-        )
-        logger.info("✅ Weather tool registered")
-        registered_count += 1
-        
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register Weather tool: {e}")
-        failed_count += 1
-    except Exception as e:
-        logger.error(f"❌ Weather tool registration failed: {e}")
-        failed_count += 1
+    # Weather Tool removed - ChatGPT handles weather with user location context
     
-    # Google Places Tool (existing)
-    try:
-        logger.debug("🔄 Attempting to register Google Places tool...")
-        GooglePlacesTool = lazy_import("app.services.pam.tools.google_places_tool", "GooglePlacesTool")
-        
-        if GooglePlacesTool is None:
-            raise ImportError("GooglePlacesTool not available")
-        
-        registry.register_tool(
-            tool=GooglePlacesTool(),
-            function_definition={
-                "name": "search_nearby_places",
-                "description": "Search for places, businesses, and points of interest near a location. Use for any location-based queries including restaurants, gas stations, attractions, campgrounds, etc.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "location": {
-                            "type": "array",
-                            "items": {"type": "number"},
-                            "description": "Location coordinates [latitude, longitude] or address string"
-                        },
-                        "place_type": {
-                            "type": "string",
-                            "enum": ["restaurant", "lodging", "tourist_attraction", "gas_station", "campground", "rv_park", "grocery_store", "hospital", "bank"],
-                            "description": "Type of place to search for"
-                        },
-                        "radius": {
-                            "type": "number",
-                            "description": "Search radius in meters (default: 5000, max: 50000)"
-                        },
-                        "keyword": {
-                            "type": "string", 
-                            "description": "Optional keyword to refine search"
-                        },
-                        "min_rating": {
-                            "type": "number",
-                            "description": "Minimum rating filter (1.0-5.0, default: 3.0)"
-                        }
-                    },
-                    "required": ["location", "place_type"]
-                }
-            },
-            capability=ToolCapability.LOCATION_SEARCH,
-            priority=2
-        )
-        registered_count += 1
-        
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register Google Places tool: {e}")
-        failed_count += 1
-    except Exception as e:
-        logger.error(f"❌ Google Places tool registration failed: {e}")
-        failed_count += 1
+    # Google Places Tool removed - ChatGPT handles place recommendations with user location context
     
     # YouTube Trip Tool
     try:
@@ -793,50 +697,7 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ YouTube Trip tool registration failed: {e}")
         failed_count += 1
     
-    # Web Scraper Tool
-    try:
-        logger.debug("🔄 Attempting to register Web Scraper tool...")
-        WebScraperTool = lazy_import("app.services.pam.tools.webscraper_tool", "WebScraperTool")
-        
-        if WebScraperTool is None:
-            raise ImportError("WebScraperTool not available")
-        
-        registry.register_tool(
-            tool=WebScraperTool(),
-            function_definition={
-                "name": "search_web_information",
-                "description": "Search and scrape web information about travel, camping, RV tips, weather, or any topic",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string", 
-                            "description": "Search query for web information"
-                        },
-                        "result_type": {
-                            "type": "string",
-                            "enum": ["general", "news", "weather", "travel", "camping", "rv_guides"],
-                            "description": "Type of information to search for"
-                        },
-                        "max_results": {
-                            "type": "number",
-                            "description": "Maximum number of results (default: 3)"
-                        }
-                    },
-                    "required": ["query"]
-                }
-            },
-            capability=ToolCapability.WEB_SCRAPING,
-            priority=2
-        )
-        registered_count += 1
-        
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register Web Scraper tool: {e}")
-        failed_count += 1
-    except Exception as e:
-        logger.error(f"❌ Web Scraper tool registration failed: {e}")
-        failed_count += 1
+    # Web Scraper Tool removed - ChatGPT handles general information with its knowledge base
     
     # Memory Tools
     try:
