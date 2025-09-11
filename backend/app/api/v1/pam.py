@@ -1277,7 +1277,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         }]
         
         # Calculate total processing time
-        total_processing_time = (time.time() - start_time.timestamp()) * 1000
+        total_processing_time = (time.time() - start_time) * 1000
         logger.info(f"⏱️ [DEBUG] Total processing time: {total_processing_time:.1f}ms")
         
         # Check for duplicate response before sending
@@ -1959,14 +1959,14 @@ async def chat_endpoint(
                 "message_length": len(request.message),
                 "response_length": len(response_text),
                 "has_actions": len(actions) > 0 if actions else False,
-                "use_case": request.use_case.value if request.use_case else "unknown"
+                "use_case": use_case.value if use_case else "unknown"
             }
         )
         
         # Record profile metrics for performance tracking
-        if request.use_case and not has_error:
+        if use_case and not has_error:
             profile_router.record_performance(
-                use_case=request.use_case,
+                use_case=use_case,
                 latency=processing_time_seconds,
                 tokens=len(request.message) + len(response_text),  # Rough estimate
                 cost=0.0001,  # Rough estimate
@@ -2005,7 +2005,7 @@ async def chat_endpoint(
         logger.error(f"Chat endpoint error: {str(e)}", exc_info=True)
         
         # Calculate processing time for error case
-        error_processing_time = (time.time() - start_time.timestamp()) * 1000  # Convert to milliseconds
+        error_processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
         
         # Log error response
         pam_logger.log_api_response(
@@ -4206,7 +4206,7 @@ async def pam_debug_endpoint(current_user = Depends(get_current_user)):
         # Test 1: Import Dependencies
         logger.info("🔍 PAM Debug: Testing imports...")
         try:
-            from app.services.ai_failover_service import get_ai_failover_service
+            from app.services.ai_service import get_ai_service
             from app.services.pam.enhanced_orchestrator import get_pam_orchestrator
             from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
             from app.services.tts.tts_service import get_tts_service
@@ -4232,7 +4232,7 @@ async def pam_debug_endpoint(current_user = Depends(get_current_user)):
         # Test 2: AI Service
         logger.info("🔍 PAM Debug: Testing AI Service...")
         try:
-            ai_service = await get_ai_failover_service()
+            ai_service = await get_ai_service()
             if ai_service:
                 # Test basic AI service functionality
                 test_messages = [{"role": "user", "content": "Hello, this is a test"}]

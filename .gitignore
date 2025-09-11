@@ -23,9 +23,3 @@ coverage/
 REPO_HEALTH_CHECK.md
 scripts/git-safe-config
 git-safety-functions.sh
-
-# Platform-specific Rollup packages (cause deployment conflicts)
-node_modules/@rollup/rollup-darwin-x64/
-node_modules/@rollup/rollup-linux-x64-gnu/
-@rollup/rollup-darwin-x64
-@rollup/rollup-linux-x64-gnu
