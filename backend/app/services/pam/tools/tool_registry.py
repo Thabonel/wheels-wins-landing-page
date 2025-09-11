@@ -666,16 +666,16 @@ async def _register_all_tools(registry: ToolRegistry):
                     "properties": {
                         "action": {
                             "type": "string",
-                            "enum": ["current_weather", "forecast", "travel_conditions", "weather_alerts"],
+                            "enum": ["get_current", "get_forecast", "check_travel_conditions", "get_alerts", "get_route_weather"],
                             "description": "Weather information to retrieve"
                         },
                         "location": {
-                            "type": "string",
-                            "description": "Location for weather (address or coordinates)"
+                            "type": "string", 
+                            "description": "Location for weather (address, city name, or coordinates)"
                         },
                         "days": {
                             "type": "number",
-                            "description": "Number of days for forecast (1-7)"
+                            "description": "Number of days for forecast (1-7, optional)"
                         }
                     },
                     "required": ["action", "location"]
