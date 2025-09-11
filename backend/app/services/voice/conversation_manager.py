@@ -13,6 +13,7 @@ from dataclasses import dataclass, asdict
 
 from app.core.config import get_settings
 from app.services.tts.tts_service import tts_service
+from app.services.tts.manager import synthesize_for_pam, PAMVoiceProfile
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -138,10 +139,11 @@ class VoiceConversationManager:
                 greeting_response = {"response": "Hello! How can I help you on the road today?"}
             
             # Convert to voice using existing TTS
-            greeting_audio = await tts_service.synthesize_for_pam(
+            greeting_audio = await synthesize_for_pam(
                 text=greeting_response.get("response", "Hello! How can I help you on the road today?"),
+                voice_profile=PAMVoiceProfile.PAM_ASSISTANT,
                 user_id=user_id,
-                context="voice_greeting"
+                context={"voice_greeting": True}
             )
             
             # Add to conversation history
@@ -221,10 +223,11 @@ class VoiceConversationManager:
             response_text = pam_response.get("response", "I'm not sure how to help with that.")
             
             # Convert to voice using existing TTS
-            response_audio = await tts_service.synthesize_for_pam(
+            response_audio = await synthesize_for_pam(
                 text=response_text,
+                voice_profile=PAMVoiceProfile.PAM_ASSISTANT,
                 user_id=conversation.user_id,
-                context="voice_conversation"
+                context={"voice_conversation": True}
             )
             
             # Add PAM response to history
@@ -274,11 +277,13 @@ class VoiceConversationManager:
             if priority in ["urgent", "emergency"]:
                 await self._handle_interruption(conversation, message, priority)
             
-            # Convert to voice
-            proactive_audio = await tts_service.synthesize_for_pam(
+            # Convert to voice  
+            voice_profile = PAMVoiceProfile.EMERGENCY if priority == "emergency" else PAMVoiceProfile.PAM_ASSISTANT
+            proactive_audio = await synthesize_for_pam(
                 text=message,
+                voice_profile=voice_profile,
                 user_id=conversation.user_id,
-                context="proactive_alert"
+                context={"proactive_alert": True, "priority": priority}
             )
             
             # Add to conversation history
@@ -318,10 +323,11 @@ class VoiceConversationManager:
             
             # Generate goodbye message
             goodbye_text = "Safe travels! I'll be here when you need me."
-            goodbye_audio = await tts_service.synthesize_for_pam(
+            goodbye_audio = await synthesize_for_pam(
                 text=goodbye_text,
+                voice_profile=PAMVoiceProfile.PAM_ASSISTANT,
                 user_id=conversation.user_id,
-                context="voice_goodbye"
+                context={"voice_goodbye": True}
             )
             
             # Stop proactive discovery monitoring

@@ -15,6 +15,8 @@ from datetime import datetime
 import json
 import io
 
+from app.services.tts.manager import synthesize_for_pam, PAMVoiceProfile
+
 logger = logging.getLogger(__name__)
 
 class AudioFormat(Enum):
@@ -329,10 +331,10 @@ class AudioStreamProcessor:
             
             # Generate TTS response
             tts_start = time.time()
-            tts_result = await self.tts_service.synthesize_for_pam(
+            tts_result = await synthesize_for_pam(
                 text=ai_response,
-                context="voice_conversation",
-                stream=True
+                voice_profile=PAMVoiceProfile.PAM_ASSISTANT,
+                context={"voice_conversation": True, "stream": True}
             )
             tts_latency = int((time.time() - tts_start) * 1000)
             
@@ -388,10 +390,10 @@ class AudioStreamProcessor:
             
             # TTS Processing
             tts_start = time.time()
-            tts_result = await self.tts_service.synthesize_for_pam(
+            tts_result = await synthesize_for_pam(
                 text=ai_response,
-                context="voice_conversation",
-                stream=True
+                voice_profile=PAMVoiceProfile.PAM_ASSISTANT,
+                context={"voice_conversation": True, "stream": True}
             )
             tts_latency = int((time.time() - tts_start) * 1000)
             
