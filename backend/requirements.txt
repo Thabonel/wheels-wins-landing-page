@@ -38,6 +38,7 @@ pyttsx3==2.99  # Python TTS library - important fallback for production
 edge-tts>=6.1.9
 pydub>=0.25.1
 gtts>=2.3.0  # Google Text-to-Speech as additional fallback
+elevenlabs>=1.0.0  # ElevenLabs premium TTS for PAM voice
 
 # Phase 5A Optimization: Redis-based caching and rate limiting
 aioredis==2.0.1  # Async Redis client (if not using redis[asyncio])
