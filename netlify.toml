@@ -1,4 +1,4 @@
-# Force fresh deployment - cache fix
+# Force fresh deployment - cache fix - URL migration complete
 [build]
   publish = "dist" 
   command = "npm run build:netlify"
@@ -10,6 +10,8 @@
   # Disable secrets scanning for staging builds
   # This should be enabled only in production
   SECRETS_SCAN_ENABLED = "false"
+  # Ensure correct backend URL is used
+  VITE_BACKEND_URL = "https://pam-backend.onrender.com"
 
 [[redirects]]
   from = "/*"
