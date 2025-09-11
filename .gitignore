@@ -14,6 +14,10 @@ coverage/
 .env.staging
 .env.ai-agents.local
 
+# Package lock files (prevent accidental dependency updates)
+package-lock.json
+yarn.lock
+
 # Git Safety Systems - Generated Files (DO NOT COMMIT)
 .git/git-safe/
 .git/git-network-resilient/
