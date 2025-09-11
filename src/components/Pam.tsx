@@ -996,62 +996,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 });
               }
               
-              // Check if PAM is asking for location and offer to get it automatically
-              const locationKeywords = [
-                'current location', 'your location', 'where you are', 'share your location',
-                'tell me your location', 'location manually', 'provide your location'
-              ];
-              
-              const needsLocation = locationKeywords.some(keyword => 
-                content.toLowerCase().includes(keyword)
-              );
-              
-              if (needsLocation && !userContext?.current_location) {
-                logger.debug('📍 PAM is asking for location, offering automatic request');
-                
-                // Add a helpful message with location request button
-                setTimeout(() => {
-                  addMessage(
-                    "I can automatically get your current location if you'd like. Would you like me to request access to your location?",
-                    "pam"
-                  );
-                  
-                  // Auto-request location after a brief delay
-                  setTimeout(async () => {
-                    logger.debug('📍 Auto-requesting location for better assistance');
-                    const location = await requestUserLocation();
-                    
-                    if (location) {
-                      // Re-send the original user message with updated location context
-                      const lastUserMessage = messages[messages.length - 1];
-                      if (lastUserMessage && lastUserMessage.sender === 'user') {
-                        const messageData = {
-                          type: "chat",
-                          message: lastUserMessage.content,
-                          context: {
-                            user_id: user?.id,
-                            userLocation: `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`,
-                            vehicleInfo: userContext?.vehicle_info,
-                            travelStyle: userContext?.travel_style,
-                            conversation_history: messages.slice(-5).map(msg => ({
-                              role: msg.sender === "user" ? "user" : "assistant",
-                              content: msg.content
-                            })),
-                            timestamp: new Date().toISOString(),
-                            session_id: sessionId,
-                            location_updated: true
-                          }
-                        };
-                        
-                        if (wsRef.current?.readyState === WebSocket.OPEN) {
-                          wsRef.current.send(JSON.stringify(messageData));
-                          addMessage("🔄 Re-processing your request with your current location...", "pam");
-                        }
-                      }
-                    }
-                  }, 2000); // 2 second delay to allow user to read the message
-                }, 500); // Short delay for better UX
-              }
+              // Let PAM handle location requests naturally through backend responses
               // REMOVED duplicate addMessage call here - message was already added at line 969
             } else {
               logger.warn('⚠️ Empty content in response:', message);
