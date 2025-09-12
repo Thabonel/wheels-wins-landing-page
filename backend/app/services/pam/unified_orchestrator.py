@@ -18,6 +18,7 @@ from app.services.database import get_database_service
 from app.services.ai_service import get_ai_service
 from app.services.pam.context_manager import ContextManager
 from app.core.intelligent_conversation import IntelligentConversationHandler
+from app.services.pam.rag_integration_mixin import RAGIntegrationMixin
 
 logger = get_logger(__name__)
 
@@ -53,7 +54,7 @@ class UnifiedResponse:
     context_used: Optional[str] = None
 
 
-class UnifiedPamOrchestrator:
+class UnifiedPamOrchestrator(RAGIntegrationMixin):
     """
     Unified orchestrator that combines all capabilities:
     - Context-aware responses (no hardcoded RV bias)
@@ -62,9 +63,13 @@ class UnifiedPamOrchestrator:
     - AI service integration with fallbacks
     - Node-based data access when needed
     - Analytics and monitoring
+    - RAG-enhanced conversation memory and context retrieval
     """
     
     def __init__(self):
+        # Initialize RAG mixin first
+        super().__init__()
+        
         # Core services
         self.ai_service = None
         self.database_service = None
@@ -78,6 +83,7 @@ class UnifiedPamOrchestrator:
         self.enable_streaming = True
         self.enable_analytics = True
         self.enable_memory = True
+        self.enable_rag = True  # Enable RAG by default
         
     async def initialize(self):
         """Initialize all required services"""
@@ -228,9 +234,48 @@ Be conversational and friendly without forcing specialized knowledge."""
         if self._is_simple_greeting(message):
             return self._handle_simple_greeting(message, context)
         
+        # Enhance context with RAG if enabled
+        if self.enable_rag and self._rag_enabled:
+            try:
+                context = await self.enhance_message_with_rag(
+                    message=message,
+                    user_id=user_id,
+                    session_id=session_id,
+                    context=context
+                )
+                logger.info(f"🧠 Context enhanced with RAG (confidence: {context.get('confidence_score', 0):.2f})")
+            except Exception as e:
+                logger.warning(f"RAG enhancement failed, continuing without: {e}")
+        
         # For complex queries, use AI service
         try:
             response = await self._process_with_ai(message, context, query_context)
+            
+            # Store conversation with RAG context if available
+            if self.enable_rag and context.get('rag_enabled') and isinstance(response, dict):
+                try:
+                    # Convert context back to EnhancedContext for storage
+                    from app.services.pam.enhanced_context_retriever import EnhancedContext
+                    enhanced_obj = EnhancedContext(
+                        similar_conversations=context.get('similar_conversations', []),
+                        relevant_preferences=context.get('relevant_preferences', []),
+                        contextual_memories=context.get('contextual_memories', []),
+                        user_knowledge=context.get('user_knowledge', []),
+                        context_summary=context.get('context_summary', ''),
+                        confidence_score=context.get('confidence_score', 0.0),
+                        retrieval_time_ms=context.get('retrieval_time_ms', 0)
+                    )
+                    
+                    await self.store_rag_enhanced_conversation(
+                        user_id=user_id,
+                        user_message=message,
+                        assistant_response=response.get('content', ''),
+                        session_id=session_id,
+                        enhanced_context=enhanced_obj
+                    )
+                except Exception as store_error:
+                    logger.warning(f"Failed to store RAG-enhanced conversation: {store_error}")
+            
             return response
         except Exception as e:
             logger.error(f"AI processing failed: {e}")
