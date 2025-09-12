@@ -68,22 +68,24 @@ class Settings(BaseSettings):
     # CORE CONFIGURATION (REQUIRED)
     # =====================================================
     
-    # OpenAI Configuration (Required for PAM)
-    OPENAI_API_KEY: SecretStr = Field(
+    # OpenAI Configuration (Optional - for fallback)
+    OPENAI_API_KEY: Optional[SecretStr] = Field(
+        default=None,
+        description="OpenAI API key (optional - for fallback AI functionality)"
+    )
+    
+    # Anthropic Configuration (Primary AI Provider)
+    ANTHROPIC_API_KEY: SecretStr = Field(
         ...,
-        description="OpenAI API key (required for PAM AI functionality)"
+        description="Anthropic API key (required for PAM AI functionality with Claude)"
     )
     
     @field_validator("OPENAI_API_KEY", mode="before")
     @classmethod
     def validate_openai_api_key(cls, v):
-        """Validate OpenAI API key format and provide helpful error messages"""
+        """Validate OpenAI API key format if provided (optional)"""
         if not v:
-            raise ValueError(
-                "OpenAI API key is required for PAM functionality. "
-                "Please set OPENAI_API_KEY environment variable. "
-                "Get your API key from https://platform.openai.com/api-keys"
-            )
+            return None  # OpenAI is now optional
         
         # Convert to string for validation if it's a SecretStr
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
@@ -102,6 +104,52 @@ class Settings(BaseSettings):
             )
         
         return v
+    
+    @field_validator("ANTHROPIC_API_KEY", mode="before")
+    @classmethod
+    def validate_anthropic_api_key(cls, v):
+        """Validate Anthropic API key format and provide helpful error messages"""
+        if not v:
+            raise ValueError(
+                "Anthropic API key is required for PAM functionality. "
+                "Please set ANTHROPIC_API_KEY environment variable. "
+                "Get your API key from https://console.anthropic.com/settings/keys"
+            )
+        
+        # Convert to string for validation if it's a SecretStr
+        key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+        
+        if not key_str.startswith('sk-ant-'):
+            raise ValueError(
+                "Invalid Anthropic API key format. "
+                "Anthropic API keys should start with 'sk-ant-'. "
+                "Please check your key at https://console.anthropic.com/settings/keys"
+            )
+        
+        if len(key_str) < 20:
+            raise ValueError(
+                "Anthropic API key appears to be too short. "
+                "Please verify your key at https://console.anthropic.com/settings/keys"
+            )
+        
+        return v
+    
+    # Anthropic Model Configuration
+    ANTHROPIC_DEFAULT_MODEL: str = Field(
+        default="claude-3-5-sonnet-20241022",
+        description="Default Anthropic model (always Sonnet for cost control)"
+    )
+    
+    @field_validator("ANTHROPIC_DEFAULT_MODEL", mode="before")
+    @classmethod
+    def validate_anthropic_model(cls, v):
+        """Ensure only Sonnet models are used (never Opus for cost reasons)"""
+        if v and "opus" in v.lower():
+            raise ValueError(
+                "Opus models are not allowed due to high costs. "
+                "Use Claude 3.5 Sonnet (claude-3-5-sonnet-20241022) instead."
+            )
+        return v or "claude-3-5-sonnet-20241022"
     
     OPENAI_MODEL: str = Field(
         default=DEFAULT_MODEL,
