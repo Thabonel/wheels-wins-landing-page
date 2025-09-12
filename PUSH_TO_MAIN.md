@@ -73,6 +73,17 @@ Ensure these are set in Render production backend:
 - `SUPABASE_SERVICE_ROLE_KEY` → Production Supabase service key
 - `DATABASE_URL` → Production database URL
 
+#### **C. Local Development NOT SUPPORTED**
+**CRITICAL**: We do NOT use localhost for development:
+- ❌ No local backend servers (crashes Netlify/production)
+- ❌ No localhost environment variables 
+- ❌ No development packages that break deployment
+- ❌ No OS-specific packages (rollup-darwin, etc.)
+- ❌ No localhost-specific dependencies
+- ✅ Always develop against staging environment
+- ✅ Use staging.netlify.app for all testing
+- ✅ Direct cloud-to-cloud development only
+
 ---
 
 ### 🌐 **3. URL Mapping Verification**
@@ -102,16 +113,34 @@ Before pushing to main, test these on staging:
 
 ### 📝 **5. Code Review Checklist**
 
-Search codebase for hardcoded staging URLs:
+Search codebase for problematic URLs and packages:
 
 ```bash
 # Search for staging URLs that should be production
 grep -r "wheels-wins-backend-staging" src/
 grep -r "wheels-wins-staging.netlify.app" src/  
 grep -r "staging" src/services/
+
+# Search for localhost references (SHOULD NOT EXIST)
+grep -r "localhost" src/
+grep -r "127.0.0.1" src/
+grep -r "http://local" src/
+
+# Check for development packages that break deployment
+grep -r "rollup-darwin" package.json
+grep -r "dev-only" package.json
 ```
 
-**Remove or fix any hardcoded staging references!**
+**Remove or fix any hardcoded staging/localhost references!**
+
+#### **🚨 CRITICAL: Development Package Warnings**
+- ❌ Never commit `package-lock.json` (causes dependency issues and crashes production)
+- ❌ No localhost-specific packages (crash Netlify/production deployment)
+- ❌ No OS-specific build tools (break cross-platform deployment)
+- ❌ No `@rollup/rollup-darwin-x64` or similar OS packages
+- ❌ No development-only dependencies that don't work in cloud environments
+- ❌ No packages that assume local servers or development environments
+- ✅ All dependencies must be cloud-native and production-ready
 
 ---
 
