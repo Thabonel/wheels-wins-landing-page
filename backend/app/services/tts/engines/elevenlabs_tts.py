@@ -49,9 +49,17 @@ class ElevenLabsTTSEngine(BaseTTSEngine):
             self.default_voice_id = os.getenv("ELEVENLABS_DEFAULT_VOICE", self.default_voice_id)
             self.default_model = os.getenv("ELEVENLABS_MODEL", self.default_model)
             
-            # Test API connection with a simple call
-            voices = self.client.voices.get_all()
-            logger.info(f"✅ ElevenLabs initialized with {len(voices.voices)} available voices")
+            # Test API connection with a simple call (optional - may not have voices_read permission)
+            try:
+                voices = self.client.voices.get_all()
+                logger.info(f"✅ ElevenLabs initialized with {len(voices.voices)} available voices")
+            except Exception as voices_error:
+                # Some API keys don't have voices_read permission, but can still synthesize
+                if "voices_read" in str(voices_error).lower() or "missing_permissions" in str(voices_error).lower():
+                    logger.warning(f"⚠️ ElevenLabs API key lacks voices_read permission - using default voices")
+                else:
+                    logger.warning(f"⚠️ Could not fetch voices list: {voices_error}")
+                # Continue initialization - synthesize should still work
             
         except ImportError as e:
             raise Exception(f"ElevenLabs SDK not installed. Run: pip install elevenlabs") from e
@@ -150,8 +158,13 @@ class ElevenLabsTTSEngine(BaseTTSEngine):
             return voices
             
         except Exception as e:
-            logger.warning(f"⚠️ Failed to get ElevenLabs voices: {e}")
-            return self._get_fallback_voices()
+            # Handle permission issues gracefully
+            if "voices_read" in str(e).lower() or "missing_permissions" in str(e).lower():
+                logger.info(f"ℹ️ ElevenLabs API key lacks voices_read permission - using predefined voices")
+                return self._get_common_voice_mappings()
+            else:
+                logger.warning(f"⚠️ Failed to get ElevenLabs voices: {e}")
+                return self._get_fallback_voices()
     
     def _get_voice_id(self, voice_name: str) -> str:
         """
@@ -269,8 +282,13 @@ class ElevenLabsTTSEngine(BaseTTSEngine):
             return False
         
         try:
-            # Quick API test
+            # Quick API test - try voices first, then fallback to user info
             voices = self.client.voices.get_all()
             return len(voices.voices) > 0
-        except Exception:
-            return False
+        except Exception as e:
+            # If voices_read permission missing, try user endpoint instead
+            try:
+                user_info = self.client.user.get()
+                return user_info is not None
+            except Exception:
+                return False
