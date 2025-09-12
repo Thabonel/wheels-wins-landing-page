@@ -75,15 +75,34 @@ export function useFreshWaypointManager({
   const drawRoute = useCallback((geometry: any, alternatives?: RouteAlternative[]) => {
     if (!map) return;
     
+    console.log('🗺️ Drawing route with geometry:', geometry);
+    
     // Remove existing route layers
     ['route-main', 'route-alt-1', 'route-alt-2', 'route-alt-3'].forEach(layerId => {
       if (map.getLayer(layerId)) {
         map.removeLayer(layerId);
+        console.log(`🗑️ Removed existing layer: ${layerId}`);
       }
       if (map.getSource(layerId)) {
         map.removeSource(layerId);
+        console.log(`🗑️ Removed existing source: ${layerId}`);
       }
     });
+    
+    // Find a suitable layer to insert routes before (typically labels or symbols)
+    const layers = map.getStyle().layers;
+    let beforeId = undefined;
+    
+    // Look for the first symbol or label layer to insert routes before
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i];
+      if (layer.type === 'symbol' || layer.id.includes('label') || layer.id.includes('place')) {
+        beforeId = layer.id;
+        break;
+      }
+    }
+    
+    console.log(`🎯 Inserting route layers before: ${beforeId || 'top of stack'}`);
     
     // Add main route (magnetic road-following route in green)
     map.addSource('route-main', {
@@ -105,10 +124,12 @@ export function useFreshWaypointManager({
       },
       paint: {
         'line-color': '#10b981', // Green for main GPS-accurate route
-        'line-width': 5,
-        'line-opacity': 0.8
+        'line-width': 6, // Increased width for better visibility
+        'line-opacity': 0.9 // Increased opacity for better visibility
       }
-    });
+    }, beforeId);
+    
+    console.log('✅ Added main route layer above base map');
     
     // Add alternative routes if available
     if (alternatives && alternatives.length > 0) {
@@ -144,11 +165,13 @@ export function useFreshWaypointManager({
           },
           paint: {
             'line-color': color,
-            'line-width': 4, // Slightly thinner than main route
-            'line-opacity': 0.6,
-            'line-dasharray': [2, 2] // Dashed line for alternatives
+            'line-width': 5, // Increased width for better visibility
+            'line-opacity': 0.8, // Increased opacity
+            'line-dasharray': [3, 3] // More visible dash pattern
           }
-        });
+        }, beforeId); // Insert before labels
+        
+        console.log(`✅ Added alternative route ${index + 1} layer above base map`);
         
         // Add click handler for alternative route selection
         map.on('click', layerId, () => {
@@ -184,23 +207,69 @@ export function useFreshWaypointManager({
   const updateMapMarkers = useCallback((waypoints: Waypoint[]) => {
     if (!map) return;
     
+    console.log(`🗺️ Updating markers for ${waypoints.length} waypoints`);
+    
     // Remove old markers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current.clear();
     
-    // Add new markers
+    // Add new markers with proper z-index and visibility
     waypoints.forEach((waypoint, index) => {
-      const color = index === 0 ? '#00ff00' : // Green for start
-                   index === waypoints.length - 1 ? '#ff0000' : // Red for end
-                   '#0080ff'; // Blue for waypoints
+      const isStart = index === 0;
+      const isEnd = index === waypoints.length - 1;
+      const isWaypoint = !isStart && !isEnd;
       
-      const marker = new mapboxgl.Marker({ color })
+      // Enhanced color scheme for better visibility - using Mapbox built-in colors
+      const color = isStart ? '#22c55e' : // Bright green for start (A)
+                   isEnd ? '#ef4444' : // Bright red for end (B)  
+                   '#3b82f6'; // Bright blue for waypoints
+      
+      // COMMUNITY SOLUTION: Use Mapbox color option for built-in marker styling
+      const marker = new mapboxgl.Marker({ 
+        color, // This provides default SVG styling that's visible
+        scale: 1.0, // Use default scale for consistency
+        draggable: false
+      })
         .setLngLat(waypoint.coordinates)
-        .setPopup(new mapboxgl.Popup().setText(waypoint.name))
+        .setPopup(
+          new mapboxgl.Popup({ 
+            offset: 25,
+            closeButton: false,
+            closeOnClick: true 
+          }).setText(
+            isStart ? `🅰️ Start: ${waypoint.name}` :
+            isEnd ? `🅱️ End: ${waypoint.name}` :
+            `📍 ${waypoint.name}`
+          )
+        )
         .addTo(map);
       
+      // Apply CSS classes for proper styling and z-index
+      const markerElement = marker.getElement();
+      if (markerElement) {
+        markerElement.style.zIndex = '1000';
+        markerElement.style.position = 'relative';
+        
+        // Add specific classes for trip planner markers (fallback for CSS styling)
+        markerElement.classList.add('trip-planner-marker');
+        
+        if (isStart) {
+          markerElement.classList.add('trip-planner-start');
+        } else if (isEnd) {
+          markerElement.classList.add('trip-planner-end');
+        } else {
+          markerElement.classList.add('trip-planner-waypoint');
+        }
+        
+        console.log(`✅ Applied styling classes to ${isStart ? 'START' : isEnd ? 'END' : 'WAYPOINT'} marker`);
+      }
+      
       markersRef.current.set(waypoint.id, marker);
+      
+      console.log(`✅ Added ${isStart ? 'START' : isEnd ? 'END' : 'WAYPOINT'} marker at`, waypoint.coordinates);
     });
+    
+    console.log(`✅ Total markers created: ${markersRef.current.size}`);
   }, [map]);
   
   // Calculate elevation profile for route
@@ -416,6 +485,33 @@ export function useFreshWaypointManager({
     }
   }, [history, historyIndex, map]);
   
+  // Debug function to check marker visibility
+  const debugMarkers = useCallback(() => {
+    if (!map) return;
+    
+    console.log('🔍 MARKER DEBUG INFORMATION:');
+    console.log(`- Total markers in ref: ${markersRef.current.size}`);
+    console.log('- Map center:', map.getCenter());
+    console.log('- Map zoom:', map.getZoom());
+    
+    markersRef.current.forEach((marker, id) => {
+      const element = marker.getElement();
+      const coords = marker.getLngLat();
+      console.log(`  Marker ${id}:`, {
+        coordinates: coords,
+        element: !!element,
+        visible: element?.style.display !== 'none',
+        zIndex: element?.style.zIndex,
+        className: element?.className
+      });
+    });
+    
+    // Check map layers
+    const layers = map.getStyle().layers;
+    const routeLayers = layers.filter(layer => layer.id.startsWith('route-'));
+    console.log('🗺️ Route layers on map:', routeLayers.map(l => l.id));
+  }, [map]);
+
   // Add a new waypoint
   const addWaypoint = useCallback((waypoint: Omit<Waypoint, 'id'>) => {
     const newWaypoint: Waypoint = {
@@ -423,8 +519,12 @@ export function useFreshWaypointManager({
       id: `waypoint-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     };
     
+    console.log('➕ Adding waypoint:', newWaypoint);
     setWaypoints([...waypoints, newWaypoint]);
-  }, [waypoints, setWaypoints]);
+    
+    // Debug markers after a short delay to ensure they're rendered
+    setTimeout(debugMarkers, 500);
+  }, [waypoints, setWaypoints, debugMarkers]);
   
   // Remove a waypoint
   const removeWaypoint = useCallback((id: string) => {
@@ -495,8 +595,9 @@ export function useFreshWaypointManager({
     canUndo: historyIndex > 0,
     canRedo: historyIndex < history.length - 1,
     
-    // Utility
+    // Utility & Debug
     historyLength: history.length,
-    currentHistoryIndex: historyIndex
+    currentHistoryIndex: historyIndex,
+    debugMarkers        // ✅ Debug function for troubleshooting
   };
 }

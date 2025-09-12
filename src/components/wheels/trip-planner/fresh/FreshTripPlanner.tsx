@@ -808,6 +808,16 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           >
             🗂️
           </button>
+          {/* Debug button (only in development) */}
+          {import.meta.env.DEV && (
+            <button
+              onClick={() => waypointManager.debugMarkers?.()}
+              className="bg-red-600 text-white p-3 rounded-full shadow-lg hover:bg-red-700 transition-colors"
+              title="Debug Markers & Routes"
+            >
+              🐛
+            </button>
+          )}
         </div>
       )}
       
