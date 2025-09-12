@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Route, Map as MapIcon } from 'lucide-react';
-import TripMap from './TripMap';
+import EnhancedTripMap from './EnhancedTripMap';
 import { useTripPlanning } from './hooks/use-trip-planning';
 import { TripPlannerProps } from './types';
 import RouteForm from './RouteForm';
@@ -34,7 +34,18 @@ const TripPlanner = ({
     setSelectedPois,
     isPlanning,
     tripPlan,
-    planTrip
+    planTrip,
+    // Enhanced routing features
+    waypoints,
+    routes,
+    mainRoute,
+    alternativeRoutes,
+    addWaypoint,
+    removeWaypoint,
+    switchToAlternativeRoute,
+    isCalculatingRoute,
+    routeError,
+    hasRoutes
   } = useTripPlanning();
   
   // Apply template data when provided
@@ -186,10 +197,16 @@ const TripPlanner = ({
         </Tabs>
 
         <div className="mt-6">
-          <TripMap 
-            startLocation={startLocation}
-            endLocation={endLocation}
+          <EnhancedTripMap 
+            waypoints={waypoints}
+            routes={routes}
+            mainRoute={mainRoute}
+            alternativeRoutes={alternativeRoutes}
+            isCalculating={isCalculatingRoute}
+            onRouteSelect={switchToAlternativeRoute}
             userLocation={userCoordinates}
+            showRouteDetails={true}
+            enableInteractiveMode={false}
           />
         </div>
 
@@ -208,17 +225,98 @@ const TripPlanner = ({
         </div>
 
         {tripPlan && (
-          <div className="mt-4 p-4 bg-muted rounded-lg">
-            <h4 className="font-medium mb-2">Trip Summary</h4>
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p><strong>Route:</strong> {tripPlan.title}</p>
-              <p><strong>Distance:</strong> {tripPlan.distance} miles</p>
-              <p><strong>Duration:</strong> {tripPlan.duration} days</p>
-              <p><strong>Difficulty:</strong> {tripPlan.difficulty}</p>
-              {tripPlan.terrainTypes.length > 0 && (
-                <p><strong>Road Types:</strong> {tripPlan.terrainTypes.join(', ')}</p>
-              )}
+          <div className="mt-4 space-y-4">
+            {/* Enhanced Trip Summary */}
+            <div className="p-4 bg-muted rounded-lg">
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <Route className="w-4 h-4" />
+                Trip Summary
+              </h4>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2 text-sm">
+                  <p><strong>Route:</strong> {tripPlan.title}</p>
+                  <p><strong>Distance:</strong> {tripPlan.distance.toFixed(1)} km ({(tripPlan.distance * 0.621371).toFixed(1)} miles)</p>
+                  <p><strong>Duration:</strong> {tripPlan.duration.toFixed(1)} hours</p>
+                  <p><strong>Difficulty:</strong> {tripPlan.difficulty}</p>
+                  {tripPlan.terrainTypes.length > 0 && (
+                    <p><strong>Road Types:</strong> {tripPlan.terrainTypes.join(', ')}</p>
+                  )}
+                </div>
+                <div className="space-y-2 text-sm">
+                  <p><strong>RV Suitability:</strong> 
+                    <span className={`ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      tripPlan.rvSuitability >= 80 ? 'bg-green-100 text-green-800' :
+                      tripPlan.rvSuitability >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                      tripPlan.rvSuitability >= 40 ? 'bg-orange-100 text-orange-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {tripPlan.rvSuitability}%
+                    </span>
+                  </p>
+                  <p><strong>Route Confidence:</strong> {Math.round(tripPlan.confidence * 100)}%</p>
+                  <p><strong>Waypoints:</strong> {tripPlan.waypoints.length}</p>
+                  {tripPlan.routes.length > 1 && (
+                    <p><strong>Alternatives:</strong> {tripPlan.routes.length - 1} available</p>
+                  )}
+                </div>
+              </div>
             </div>
+
+            {/* Alternative Routes Panel */}
+            {alternativeRoutes.length > 0 && (
+              <div className="p-4 bg-background border rounded-lg">
+                <h4 className="font-medium mb-3">Alternative Routes</h4>
+                <div className="space-y-2">
+                  {alternativeRoutes.map((route, index) => (
+                    <div 
+                      key={route.id}
+                      className="flex items-center justify-between p-2 bg-muted/50 rounded cursor-pointer hover:bg-muted transition-colors"
+                      onClick={() => switchToAlternativeRoute(route.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-1 rounded ${
+                          route.provider === 'openroute' ? 'bg-purple-500' : 'bg-indigo-500'
+                        }`}></div>
+                        <div>
+                          <div className="text-sm font-medium">Alternative {index + 1}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {route.distance.toFixed(1)} km • {route.duration.toFixed(1)}h • RV: {route.rvSuitability}%
+                          </div>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm">Switch</Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Route Instructions */}
+            {tripPlan.instructions.length > 0 && (
+              <div className="p-4 bg-background border rounded-lg">
+                <h4 className="font-medium mb-3">Turn-by-Turn Directions</h4>
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {tripPlan.instructions.slice(0, 10).map((instruction, index) => (
+                    <div key={index} className="text-sm p-2 bg-muted/30 rounded">
+                      <span className="font-medium text-primary">{index + 1}.</span> {instruction}
+                    </div>
+                  ))}
+                  {tripPlan.instructions.length > 10 && (
+                    <div className="text-xs text-muted-foreground text-center py-2">
+                      ... and {tripPlan.instructions.length - 10} more directions
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {routeError && (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <h4 className="font-medium text-destructive mb-2">Routing Error</h4>
+                <p className="text-sm text-destructive/80">{routeError}</p>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
