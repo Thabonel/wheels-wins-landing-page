@@ -19,9 +19,9 @@ from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator, Re
 
 logger = get_logger("simple_pam")
 
-# Weather tool removed - ChatGPT handles weather with user location context
-WEATHER_TOOL_AVAILABLE = False
-logger.info("Weather queries now handled by ChatGPT with user context")
+# Weather tool integrated with Unified Orchestrator for direct responses
+WEATHER_TOOL_AVAILABLE = True
+logger.info("Weather queries handled by WeatherTool for direct, concise responses")
 
 class PAMServiceError(Exception):
     """Exception raised when PAM service encounters errors"""
@@ -45,7 +45,7 @@ class SimplePamService:
         self.enhanced_orchestrator = None
         self.orchestrator_initialized = False
         
-        # Weather queries handled by ChatGPT with user context
+        # Weather tool now integrated with Unified Orchestrator
         self.weather_tool = None
         
         # Initialize the AI service with database connection (fallback)
