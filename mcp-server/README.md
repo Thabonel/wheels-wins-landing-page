@@ -1,5 +1,19 @@
 # PAM Supabase MCP Server
 
+## 🚀 Overview
+This is a complete Model Context Protocol (MCP) server that enables AI assistants to directly access PAM's financial data through Supabase. Built for ChatGPT Pro's native MCP support.
+
+## 📋 Status: READY FOR FUTURE ACTIVATION
+- ✅ Complete implementation with 4 financial tools
+- ✅ Security features (rate limiting, SQL validation)
+- ✅ Production-ready architecture
+- 🔄 Awaiting ChatGPT Pro upgrade for activation
+
+## 💡 Strategic Decision
+**Current Status**: PAM now uses Anthropic's native MCP support for superior integration. This server remains ready for future ChatGPT Pro activation when business scales and requires multi-platform AI access.
+
+---
+
 A secure, read-only Model Context Protocol (MCP) server that provides ChatGPT and other AI systems with access to PAM's financial data through Supabase.
 
 ## 🚀 Quick Start

@@ -4,6 +4,16 @@
 **Dev Server**: http://localhost:8080 (NOT 3000!)
 **Stack**: React 18.3 + TypeScript + Vite + Tailwind + Supabase + FastAPI
 
+## 🎯 Strategic AI Decision (January 2025)
+
+**PAM AI Provider**: **Anthropic Claude 3.5 Sonnet** (Primary)
+- ✅ **Native MCP Support**: Direct integration with financial data tools
+- ✅ **Cost Effective**: $3/M input tokens vs OpenAI's higher costs
+- ✅ **Superior Performance**: Better reasoning and conversation quality
+- ✅ **Model Lock**: ONLY Sonnet models allowed (never Opus due to costs)
+- 🔄 **Future Ready**: MCP server archived for ChatGPT Pro integration when scaling
+- 🔄 **OpenAI Fallback**: Available if needed, but Anthropic is primary
+
 ## Critical Commands
 ```bash
 npm run dev              # Start dev server (port 8080)
@@ -96,14 +106,14 @@ Production:
 Frontend (wheelsandwins.com) ◄──► Backend (pam-backend) ◄──► Shared Services
 ├── React/TS/PWA (Netlify)         ├── FastAPI/Redis               ├── Supabase DB
 ├── Vite 5.4.19                    ├── Celery Workers              ├── Mapbox GL  
-├── Tailwind 3.4.11                ├── WebSocket                   ├── OpenAI GPT-4
+├── Tailwind 3.4.11                ├── WebSocket                   ├── Anthropic Claude 3.5
 └── PWA Manifest                   └── TTS/STT                     └── Data Collector
 
 Staging:
 Frontend (staging.netlify.app) ◄──► Backend (staging.onrender.com) ◄──► Shared Services
 ├── React/TS/PWA (Netlify)          ├── FastAPI/Redis                ├── Supabase DB
 ├── Vite 5.4.19                     ├── Celery Workers               ├── Mapbox GL
-├── Tailwind 3.4.11                 ├── WebSocket                    ├── OpenAI GPT-4  
+├── Tailwind 3.4.11                 ├── WebSocket                    ├── Anthropic Claude 3.5  
 └── PWA Manifest                    └── TTS/STT                      └── Data Collector
 ```
 
