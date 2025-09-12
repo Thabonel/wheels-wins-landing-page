@@ -134,11 +134,13 @@ const EnhancedTripMap = memo(({
       
       // Style the marker based on type
       if (waypoint.type === 'start') {
-        el.innerHTML = '🏁';
-        el.style.fontSize = '24px';
+        el.innerHTML = 'A';
+        el.className += ' bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold shadow-lg';
+        el.style.border = '2px solid white';
       } else if (waypoint.type === 'end') {
-        el.innerHTML = '🏁';
-        el.style.fontSize = '24px';
+        el.innerHTML = 'B';
+        el.className += ' bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold shadow-lg';
+        el.style.border = '2px solid white';
       } else {
         el.innerHTML = `${index}`;
         el.className += ' bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold';
