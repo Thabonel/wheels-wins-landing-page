@@ -1085,6 +1085,29 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             logger.error(f"❌ [CACHE] Error loading financial context: {e}")
             # Continue without financial context - don't block chat
         
+        # Load user profile to ensure PAM has access to vehicle and travel info
+        try:
+            from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+            profile_tool = LoadUserProfileTool()
+            profile_result = await profile_tool.execute(user_id)
+            
+            if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
+                user_profile = profile_result["result"]
+                context["user_profile"] = user_profile
+                context["vehicle_info"] = user_profile.get("vehicle_info", {})
+                context["travel_preferences"] = user_profile.get("travel_preferences", {})
+                context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
+                
+                # Log vehicle info for debugging Unimog recognition
+                vehicle_info = user_profile.get("vehicle_info", {})
+                logger.info(f"🚐 [PROFILE] Vehicle loaded: {vehicle_info.get('type', 'unknown')} - {vehicle_info.get('make_model_year', 'N/A')}")
+                logger.info(f"🚐 [PROFILE] Is RV: {vehicle_info.get('is_rv', False)}")
+            else:
+                logger.info(f"👤 [PROFILE] No profile found for user {user_id}")
+        except Exception as e:
+            logger.error(f"❌ [PROFILE] Error loading user profile: {e}")
+            # Continue without profile - don't block chat
+        
         # Get stored connection context (includes location from init)
         connection_id = getattr(websocket, 'connection_id', None)
         if connection_id:
@@ -1474,6 +1497,29 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
                 logger.info(f"💰 [CACHE] Financial context loaded for user {user_id} (streaming)")
         except Exception as e:
             logger.error(f"❌ [CACHE] Error loading financial context (streaming): {e}")
+        
+        # Load user profile to ensure PAM has access to vehicle and travel info (streaming)
+        try:
+            from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+            profile_tool = LoadUserProfileTool()
+            profile_result = await profile_tool.execute(user_id)
+            
+            if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
+                user_profile = profile_result["result"]
+                context["user_profile"] = user_profile
+                context["vehicle_info"] = user_profile.get("vehicle_info", {})
+                context["travel_preferences"] = user_profile.get("travel_preferences", {})
+                context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
+                
+                # Log vehicle info for debugging Unimog recognition (streaming)
+                vehicle_info = user_profile.get("vehicle_info", {})
+                logger.info(f"🚐 [PROFILE STREAMING] Vehicle loaded: {vehicle_info.get('type', 'unknown')} - {vehicle_info.get('make_model_year', 'N/A')}")
+                logger.info(f"🚐 [PROFILE STREAMING] Is RV: {vehicle_info.get('is_rv', False)}")
+            else:
+                logger.info(f"👤 [PROFILE STREAMING] No profile found for user {user_id}")
+        except Exception as e:
+            logger.error(f"❌ [PROFILE STREAMING] Error loading user profile: {e}")
+            # Continue without profile - don't block chat
         
         logger.info(f"🌊 [DEBUG] handle_websocket_chat_streaming called with:")
         logger.info(f"  - Message: '{message}'")
