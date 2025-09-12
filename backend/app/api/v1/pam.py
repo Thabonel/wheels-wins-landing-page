@@ -1108,6 +1108,30 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             logger.error(f"❌ [PROFILE] Error loading user profile: {e}")
             # Continue without profile - don't block chat
         
+        # Load social context to enable friend meetup suggestions during travel
+        try:
+            from app.services.pam.tools.load_social_context import LoadSocialContextTool
+            social_tool = LoadSocialContextTool()
+            social_result = await social_tool.execute(user_id)
+            
+            if social_result.get("success") and social_result.get("result"):
+                social_context = social_result["result"]
+                context["social_context"] = social_context
+                context["friends_nearby"] = social_context.get("friend_locations", {})
+                context["upcoming_events"] = social_context.get("nearby_events", {})
+                context["friend_travel_activity"] = social_context.get("friend_travel_activity", {})
+                
+                # Log social context for debugging
+                friends_count = social_context.get("friends", {}).get("count", 0)
+                locations_count = social_context.get("friend_locations", {}).get("count", 0)
+                events_count = social_context.get("nearby_events", {}).get("count", 0)
+                logger.info(f"🤝 [SOCIAL] Loaded: {friends_count} friends, {locations_count} recent locations, {events_count} events")
+            else:
+                logger.info(f"🤝 [SOCIAL] No social context available for user {user_id}")
+        except Exception as e:
+            logger.error(f"❌ [SOCIAL] Error loading social context: {e}")
+            # Continue without social context - don't block chat
+        
         # Get stored connection context (includes location from init)
         connection_id = getattr(websocket, 'connection_id', None)
         if connection_id:
@@ -1520,6 +1544,30 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
         except Exception as e:
             logger.error(f"❌ [PROFILE STREAMING] Error loading user profile: {e}")
             # Continue without profile - don't block chat
+        
+        # Load social context to enable friend meetup suggestions during travel (streaming)
+        try:
+            from app.services.pam.tools.load_social_context import LoadSocialContextTool
+            social_tool = LoadSocialContextTool()
+            social_result = await social_tool.execute(user_id)
+            
+            if social_result.get("success") and social_result.get("result"):
+                social_context = social_result["result"]
+                context["social_context"] = social_context
+                context["friends_nearby"] = social_context.get("friend_locations", {})
+                context["upcoming_events"] = social_context.get("nearby_events", {})
+                context["friend_travel_activity"] = social_context.get("friend_travel_activity", {})
+                
+                # Log social context for debugging (streaming)
+                friends_count = social_context.get("friends", {}).get("count", 0)
+                locations_count = social_context.get("friend_locations", {}).get("count", 0)
+                events_count = social_context.get("nearby_events", {}).get("count", 0)
+                logger.info(f"🤝 [SOCIAL STREAMING] Loaded: {friends_count} friends, {locations_count} recent locations, {events_count} events")
+            else:
+                logger.info(f"🤝 [SOCIAL STREAMING] No social context available for user {user_id}")
+        except Exception as e:
+            logger.error(f"❌ [SOCIAL STREAMING] Error loading social context: {e}")
+            # Continue without social context - don't block chat
         
         logger.info(f"🌊 [DEBUG] handle_websocket_chat_streaming called with:")
         logger.info(f"  - Message: '{message}'")
