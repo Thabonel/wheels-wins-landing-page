@@ -106,24 +106,44 @@
 
 /* COMMUNITY SOLUTION: Default Mapbox marker styling - fixes invisible marker issue */
 .mapboxgl-marker {
-  width: 30px !important;
-  height: 30px !important;
+  width: 32px !important;
+  height: 32px !important;
   border-radius: 50% !important;
   border: 2px solid white !important;
   background-color: #3b82f6 !important;
   cursor: pointer !important;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+  color: white !important;
 }
 
-/* Override for specific trip planner markers with better colors */
+/* Override for specific trip planner markers with A/B letters */
 .mapboxgl-marker.trip-planner-start {
   background-color: #22c55e !important; /* Green for start (A) */
   border-color: #16a34a !important;
 }
 
+.mapboxgl-marker.trip-planner-start::after {
+  content: 'A' !important;
+  color: white !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+}
+
 .mapboxgl-marker.trip-planner-end {
   background-color: #ef4444 !important; /* Red for end (B) */  
   border-color: #dc2626 !important;
+}
+
+.mapboxgl-marker.trip-planner-end::after {
+  content: 'B' !important;
+  color: white !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
 }
 
 .mapboxgl-marker.trip-planner-waypoint {
