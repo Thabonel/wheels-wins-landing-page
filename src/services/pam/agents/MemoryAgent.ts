@@ -304,7 +304,7 @@ export class MemoryAgent extends DomainAgent {
         // Include top relevant result
         const topResult = searchData.results[0] as KnowledgeSearchResult;
         const preview = topResult.content.length > 150 
-          ? topResult.content.substring(0, 150) + '...' 
+          ? `${topResult.content.substring(0, 150)  }...` 
           : topResult.content;
         response += `"${preview}" (from ${topResult.document_name}). `;
         

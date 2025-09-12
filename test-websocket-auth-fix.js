@@ -161,7 +161,7 @@ async function main() {
   // Test admin role support
   await testAdminRole();
   
-  log('\n' + '=' .repeat(60), 'blue');
+  log(`\n${  '=' .repeat(60)}`, 'blue');
   log('✅ Test suite completed', 'green');
   log('=' .repeat(60), 'blue');
   

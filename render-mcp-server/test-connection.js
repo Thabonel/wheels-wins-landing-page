@@ -19,7 +19,7 @@ async function testConnection() {
       process.exit(1);
     }
     
-    console.log(' API Key loaded:', process.env.RENDER_API_KEY.substring(0, 10) + '...');
+    console.log(' API Key loaded:', `${process.env.RENDER_API_KEY.substring(0, 10)  }...`);
     
     // Initialize Render client
     const renderClient = new RenderClient(process.env.RENDER_API_KEY);

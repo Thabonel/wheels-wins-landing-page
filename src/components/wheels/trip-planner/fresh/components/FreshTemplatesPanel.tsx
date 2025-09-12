@@ -107,7 +107,7 @@ export default function FreshTemplatesPanel({
       category: template.category,
       duration: `${template.estimatedDays} day${template.estimatedDays > 1 ? 's' : ''}`,
       distance: `${template.estimatedMiles} km`,
-      waypoints: waypoints,
+      waypoints,
       tags: template.tags
     };
 

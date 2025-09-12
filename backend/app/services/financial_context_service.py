@@ -14,7 +14,7 @@ import redis
 from supabase import Client
 
 from app.core.config import get_settings
-from app.services.database import get_supabase_client
+from app.services.database import get_database_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -99,7 +99,8 @@ class FinancialContextService:
     
     def __init__(self):
         self.redis_client = None
-        self.supabase: Client = get_supabase_client()
+        self.database_service = get_database_service()
+        self.supabase: Client = self.database_service.get_client()
         self.cache_ttl = 3600  # 1 hour in seconds
         self._initialize_redis()
     

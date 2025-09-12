@@ -16,6 +16,9 @@ import FreshPOIPanel from './components/FreshPOIPanel';
 import FreshGeocodeSearch from './components/FreshGeocodeSearch';
 import FreshSaveTripDialog from './components/FreshSaveTripDialog';
 import FreshTemplatesPanel from './components/FreshTemplatesPanel';
+import FreshRouteComparison from './components/FreshRouteComparison';
+import FreshElevationProfile from './components/FreshElevationProfile';
+import FreshDraggableWaypoints from './components/FreshDraggableWaypoints';
 import BudgetSidebar from '../BudgetSidebar';
 import SocialSidebar from '../SocialSidebar';
 import { useSocialTripState } from '../hooks/useSocialTripState';
@@ -53,6 +56,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [showSearch, setShowSearch] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showRouteComparison, setShowRouteComparison] = useState(false);
+  const [showElevationProfile, setShowElevationProfile] = useState(false);
+  const [showWaypointsManager, setShowWaypointsManager] = useState(false);
   const [poiFilters, setPOIFilters] = useState<Record<string, boolean>>({
     pet_stop: false,
     wide_parking: false,
@@ -91,6 +97,52 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Hooks
   const { user } = useAuth();
   
+  // User profile state for vehicle-specific recommendations
+  const [userProfile, setUserProfile] = useState<any>(null);
+  
+  // Load user profile for vehicle-specific routing advice
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (!user?.id) return;
+      
+      try {
+        // Use the same approach as PAM WebSocket handlers
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          // Extract vehicle info similar to LoadUserProfileTool
+          const vehicleInfo = {
+            type: profile.vehicle_type || 'Standard Vehicle',
+            make_model_year: profile.make_model_year || '',
+            fuel_type: profile.fuel_type || 'petrol',
+            enhanced_type: profile.vehicle_type?.toLowerCase().includes('unimog') ? 'Unimog RV' :
+                          profile.vehicle_type === '4 x 4' ? '4WD RV' :
+                          profile.vehicle_type || 'Standard Vehicle'
+          };
+          
+          setUserProfile({
+            vehicle_info: vehicleInfo,
+            travel_preferences: {
+              style: profile.travel_style || 'balanced',
+              region: profile.region || 'Australia'
+            }
+          });
+          
+          console.log('🚐 User profile loaded for trip planner:', vehicleInfo);
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+      }
+    };
+    
+    loadUserProfile();
+  }, [user?.id]);
+  
   // Social state for social sidebar
   const socialState = useSocialTripState();
   
@@ -102,9 +154,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       // Update track control with new waypoints
       if (trackControlRef.current) {
         trackControlRef.current.updateOptions({
-          waypoints: waypoints,
+          waypoints,
           routeProfile: waypointManager.routeProfile,
-          rvServices: rvServices
+          rvServices
         });
       }
     }
@@ -328,7 +380,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       trackControlRef.current.updateOptions({
         waypoints: waypointManager.waypoints,
         routeProfile: waypointManager.routeProfile,
-        rvServices: rvServices,
+        rvServices,
         onRemoveWaypoint: waypointManager.removeWaypoint,
         onSetRouteProfile: waypointManager.setRouteProfile,
         onRVServiceToggle: (service: string, enabled: boolean) => {
@@ -431,7 +483,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       waypointManager.addWaypoint({
         name: placeName,
         coordinates: [lng, lat],
-        address: address,
+        address,
         type: waypointManager.waypoints.length === 0 ? 'origin' : 
               waypointManager.waypoints.length === 1 ? 'destination' : 'waypoint'
       });
@@ -510,6 +562,31 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     setShowSearch(true);
   };
 
+  // Route analysis handlers
+  const handleShowRouteComparison = () => {
+    if (waypointManager.waypoints.length < 2) {
+      toast.error('Please create a route first');
+      return;
+    }
+    setShowRouteComparison(true);
+  };
+
+  const handleShowElevationProfile = () => {
+    if (!waypointManager.currentRoute?.elevation) {
+      toast.error('No elevation data available for this route');
+      return;
+    }
+    setShowElevationProfile(true);
+  };
+
+  const handleShowWaypointsManager = () => {
+    if (waypointManager.waypoints.length === 0) {
+      toast.error('Please add waypoints to your route first');
+      return;
+    }
+    setShowWaypointsManager(true);
+  };
+
   // Add waypoint button handler
   const handleAddWaypointToggle = () => {
     const newState = !isAddingWaypoint;
@@ -531,8 +608,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const handleLocationSelect = (coordinates: [number, number], name: string) => {
     // Add waypoint at the selected location
     waypointManager.addWaypoint({
-      coordinates: coordinates,
-      name: name,
+      coordinates,
+      name,
       type: waypointManager.waypoints.length === 0 ? 'origin' : 
             waypointManager.waypoints.length === 1 ? 'destination' : 'waypoint'
     });
@@ -616,7 +693,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
             // Apply template with waypoints
             handleApplyTemplate({
               ...template,
-              waypoints: waypoints
+              waypoints
             });
           }
         }
@@ -702,6 +779,35 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       {isAddingWaypoint && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg">
           Click on the map to add a waypoint
+        </div>
+      )}
+      
+      {/* Route Analysis FABs */}
+      {waypointManager.waypoints.length >= 2 && (
+        <div className="absolute top-32 right-4 z-[10000] flex flex-col gap-2">
+          <button
+            onClick={handleShowRouteComparison}
+            className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+            title="Compare Routes"
+          >
+            📊
+          </button>
+          {waypointManager.currentRoute?.elevation && (
+            <button
+              onClick={handleShowElevationProfile}
+              className="bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
+              title="Elevation Profile"
+            >
+              ⛰️
+            </button>
+          )}
+          <button
+            onClick={handleShowWaypointsManager}
+            className="bg-purple-600 text-white p-3 rounded-full shadow-lg hover:bg-purple-700 transition-colors"
+            title="Manage Waypoints"
+          >
+            🗂️
+          </button>
         </div>
       )}
       
@@ -823,6 +929,49 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           console.log('Trip saved:', savedTrip);
           if (onSaveTrip) {
             onSaveTrip(savedTrip);
+          }
+        }}
+      />
+      
+      {/* Route Comparison Dialog */}
+      <FreshRouteComparison
+        isOpen={showRouteComparison}
+        onClose={() => setShowRouteComparison(false)}
+        route={waypointManager.currentRoute}
+        onRouteSelect={(routeIndex) => {
+          console.log('Route selected:', routeIndex);
+          // TODO: Implement route switching
+        }}
+      />
+      
+      {/* Elevation Profile Dialog */}
+      <FreshElevationProfile
+        isOpen={showElevationProfile}
+        onClose={() => setShowElevationProfile(false)}
+        elevation={waypointManager.currentRoute?.elevation || null}
+        vehicleType={userProfile?.vehicle_info?.enhanced_type || 'Standard Vehicle'}
+      />
+      
+      {/* Waypoints Manager Dialog */}
+      <FreshDraggableWaypoints
+        isOpen={showWaypointsManager}
+        onClose={() => setShowWaypointsManager(false)}
+        waypoints={waypointManager.waypoints}
+        onRemoveWaypoint={(id: string) => {
+          waypointManager.removeWaypoint(id);
+          toast.info('Waypoint removed');
+        }}
+        onReorderWaypoints={(startIndex: number, endIndex: number) => {
+          waypointManager.reorderWaypoints(startIndex, endIndex);
+          toast.info('Waypoints reordered');
+        }}
+        onNavigateToWaypoint={(waypoint) => {
+          if (map) {
+            map.flyTo({
+              center: waypoint.coordinates,
+              zoom: 15,
+              duration: 2000
+            });
           }
         }}
       />

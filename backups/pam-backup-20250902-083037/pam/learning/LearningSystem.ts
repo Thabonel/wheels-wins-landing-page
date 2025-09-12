@@ -224,7 +224,7 @@ export class LearningSystem {
   private async updateAgentMetrics(feedbackData: FeedbackData): Promise<void> {
     const { agentType, userFeedback } = feedbackData;
     
-    let metrics = this.agentPerformanceMetrics.get(agentType) || this.createDefaultMetrics();
+    const metrics = this.agentPerformanceMetrics.get(agentType) || this.createDefaultMetrics();
     
     // Update metrics using exponential moving average (industry standard)
     const alpha = this.config.recencyWeight;

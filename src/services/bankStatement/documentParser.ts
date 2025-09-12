@@ -279,7 +279,7 @@ export class UniversalDocumentParser {
       
       for (const tjMatch of tjMatches) {
         const text = this.decodePdfString(tjMatch[1]);
-        extractedText += text + ' ';
+        extractedText += `${text  } `;
       }
       
       // Handle TJ arrays (text with spacing)
@@ -307,7 +307,7 @@ export class UniversalDocumentParser {
       for (const match of simpleMatches) {
         const text = this.decodePdfString(match[1]);
         if (text && text.length > 1 && !text.match(/^[A-Z]{2,}$/)) { // Filter out PDF commands
-          extractedText += text + ' ';
+          extractedText += `${text  } `;
         }
       }
     }
@@ -325,7 +325,7 @@ export class UniversalDocumentParser {
         
         for (const word of words) {
           if (word.length > 2) {
-            extractedText += word + ' ';
+            extractedText += `${word  } `;
           }
         }
       }
@@ -640,7 +640,7 @@ export class UniversalDocumentParser {
       
       if (date && !isNaN(amount)) {
         // Extract description (everything except date and amount)
-        let description = cleanedLine
+        const description = cleanedLine
           .replace(dateMatch[0], '')
           .replace(amountMatch[0], '')
           .trim();

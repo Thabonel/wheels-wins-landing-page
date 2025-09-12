@@ -648,7 +648,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 action: 'append',
                 value: {
                   response_id: messageId,
-                  rating: rating,
+                  rating,
                   timestamp: new Date().toISOString()
                 }
               }
@@ -754,7 +754,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       });
       
       const healthTime = Date.now() - healthStartTime;
-      logger.debug('🏥 PAM DEBUG: Health check completed in:', healthTime + 'ms');
+      logger.debug('🏥 PAM DEBUG: Health check completed in:', `${healthTime  }ms`);
       logger.debug('🏥 PAM DEBUG: Health response status:', healthResponse.status);
       logger.debug('🏥 PAM DEBUG: Health response ok:', healthResponse.ok);
       
@@ -826,7 +826,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       logger.debug('✅ PAM DEBUG: Valid JWT token obtained:', {
         tokenLength: pamToken.value.length,
-        tokenPreview: pamToken.value.substring(0, 30) + '...',
+        tokenPreview: `${pamToken.value.substring(0, 30)  }...`,
         tokenKind: pamToken.kind,
         expiresAt: expiresAt?.toISOString()
       });
@@ -861,7 +861,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       if (!wsUrl.includes('/api/v1/pam/ws')) {
         logger.error('❌ PAM DEBUG: URL validation failed!');
         logger.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
-        logger.error('❌ PAM DEBUG: Actual URL:', wsUrl.substring(0, 100) + '...');
+        logger.error('❌ PAM DEBUG: Actual URL:', `${wsUrl.substring(0, 100)  }...`);
         throw new Error('WebSocket endpoint validation failed');
       }
       
@@ -896,7 +896,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         const connectionTime = Date.now() - connectionStartTimeRef.current;
         logger.debug('✅ PAM DEBUG: ==================== CONNECTION SUCCESS ====================');
         logger.debug('✅ PAM DEBUG: WebSocket OPENED successfully!');
-        logger.debug('✅ PAM DEBUG: Connection time:', connectionTime + 'ms');
+        logger.debug('✅ PAM DEBUG: Connection time:', `${connectionTime  }ms`);
         logger.debug('✅ PAM DEBUG: Event:', event);
         logger.debug('✅ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
         logger.debug('✅ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
@@ -1034,7 +1034,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           // Handle traditional chat responses (non-streaming fallback)
           if (message.type === 'chat_response' || message.type === 'response') {
             const content = message.content || message.message || message.response;
-            logger.debug('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
+            logger.debug('💬 PAM DEBUG: Response received:', { type: message.type, content: `${content?.substring(0, 100)  }...` });
             
             // Phase 5A: Extract TTS data if present
             const ttsData = message.tts;
@@ -1061,7 +1061,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                   // Replace thinking message
                   updated[thinkingIndex] = {
                     ...updated[thinkingIndex],
-                    content: content,
+                    content,
                     isStreaming: false
                   };
                   newMessage = updated[thinkingIndex];
@@ -1203,7 +1203,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         try {
           localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
             messages: messages.slice(-10),
-            sessionId: sessionId,
+            sessionId,
             timestamp: new Date().toISOString()
           }));
           logger.debug('💾 PAM DEBUG: Conversation state saved');
@@ -1417,7 +1417,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: text,
+          text,
           voice: voiceSettings.voice,
           rate: voiceSettings.rate,
           pitch: voiceSettings.pitch,
@@ -1592,7 +1592,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         const currentIsContinuousMode = isContinuousModeRef.current;
         
         logger.debug('🎙️ Speech detected:', {
-          transcript: transcript,
+          transcript,
           isFinal: latest.isFinal,
           confidence: latest[0].confidence,
           isWakeWordListening: currentIsWakeWordListening,
@@ -1644,8 +1644,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         logger.error('⚠️ Speech recognition error:', {
           error: event.error,
           message: event.message,
-          isWakeWordListening: isWakeWordListening,
-          isContinuousMode: isContinuousMode
+          isWakeWordListening,
+          isContinuousMode
         });
         
         if (event.error === 'not-allowed') {
@@ -2558,7 +2558,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           setIsSpeaking(false);
           vadService.setPAMSpeaking(false);
           setCurrentAudio(null);
-          return;
+          
         }
       } else {
         // Normal manual TTS playback (user clicked a voice button)
@@ -2627,7 +2627,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       try {
         localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
           messages: updatedMessages.slice(-10), // Keep last 10 messages
-          sessionId: sessionId,
+          sessionId,
           timestamp: new Date().toISOString()
         }));
       } catch (error) {
@@ -2755,7 +2755,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     const messageData = {
       type: "chat",
-      message: message,  // Backend expects 'message' not 'content'
+      message,  // Backend expects 'message' not 'content'
       stream: true,  // Request streaming response for better UX
       context: {
         user_id: user?.id,  // Move userId into context as expected by backend

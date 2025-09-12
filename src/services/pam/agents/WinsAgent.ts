@@ -1361,7 +1361,7 @@ export class WinsAgent extends DomainAgent {
 
   private getPeriodStartDate(period: string): string {
     const now = new Date();
-    let startDate = new Date();
+    const startDate = new Date();
     
     switch (period) {
       case 'day':

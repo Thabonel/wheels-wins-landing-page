@@ -70,7 +70,7 @@ export default function PamWebSocketTester() {
     
     updateTestResult('Backend URL', 'success', `Backend: ${backendUrl}`, {
       httpUrl: backendUrl,
-      wsUrl: wsUrl
+      wsUrl
     });
 
     // Test 3: HTTP Backend Health
