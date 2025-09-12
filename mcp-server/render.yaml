@@ -3,7 +3,7 @@ services:
     name: pam-supabase-mcp-server
     runtime: node
     plan: starter
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
