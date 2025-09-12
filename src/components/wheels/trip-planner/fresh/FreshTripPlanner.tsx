@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
+import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css';
 import './fresh-trip-planner.css';
 import { toast } from 'sonner';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
@@ -93,6 +95,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
+  const directionsRef = useRef<MapboxDirections | null>(null);
   
   // Hooks
   const { user } = useAuth();
@@ -166,14 +170,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     
-    // Check for Mapbox token - try multiple env vars
-    const mainToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN;
-    const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
-    const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
-    const token = mainToken || publicToken || legacyToken;
+    // Check for Mapbox token using standard naming convention
+    const token = import.meta.env.VITE_MAPBOX_TOKEN;
     
     if (!token) {
-      toast.error('Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN_MAIN in Netlify environment variables.');
+      toast.error('Mapbox token not configured. Please set VITE_MAPBOX_TOKEN in your environment variables.');
       return;
     }
     
@@ -223,15 +224,18 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       // Add scale control
       newMap.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
       
-      // Add geolocate control
-      const geolocateControl = new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true
-        },
-        trackUserLocation: true,
-        showUserHeading: true
-      });
-      newMap.addControl(geolocateControl, 'top-right');
+      // Add geolocate control only if not already created
+      if (!geolocateControlRef.current) {
+        geolocateControlRef.current = new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true
+          },
+          trackUserLocation: true,
+          showUserHeading: true,
+          showAccuracyCircle: true // Show the accuracy circle
+        });
+        newMap.addControl(geolocateControlRef.current, 'top-right');
+      }
       
       // Add native Mapbox fullscreen control with container option
       // This ensures the entire trip planner (including toolbar) goes fullscreen
@@ -239,6 +243,39 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       newMap.addControl(new mapboxgl.FullscreenControl({
         container: tripPlannerRoot || undefined
       }), 'top-right');
+      
+      // Add Mapbox Directions control for draggable routes
+      if (!directionsRef.current) {
+        directionsRef.current = new MapboxDirections({
+          accessToken: mapboxgl.accessToken,
+          unit: 'metric',
+          profile: 'mapbox/driving',
+          interactive: true,  // Enable route dragging
+          controls: {
+            inputs: false,  // Hide inputs since we use custom UI
+            instructions: false,
+            profileSwitcher: false
+          },
+          flyTo: false,
+          alternatives: true,
+          congestion: true,
+          geometries: 'geojson'
+        });
+        
+        newMap.addControl(directionsRef.current, 'top-left');
+        
+        // Sync with our waypoint system when route changes
+        directionsRef.current.on('route', (event) => {
+          if (event.route && event.route.length > 0) {
+            const route = event.route[0];
+            console.log('🛣️ Route updated via drag:', route);
+            // Update internal route state with the modified route
+            if (typeof waypointManager.updateRouteFromDrag === 'function') {
+              waypointManager.updateRouteFromDrag(route);
+            }
+          }
+        });
+      }
       
       // Create track management control (but don't add to map - controlled by toolbar)
       const trackControl = new FreshTrackControl({
@@ -359,6 +396,14 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     
     // Cleanup
     return () => {
+      if (directionsRef.current && mapRef.current) {
+        mapRef.current.removeControl(directionsRef.current);
+        directionsRef.current = null;
+      }
+      if (geolocateControlRef.current && mapRef.current) {
+        mapRef.current.removeControl(geolocateControlRef.current);
+        geolocateControlRef.current = null;
+      }
       if (trackControlRef.current && typeof trackControlRef.current.cleanup === 'function') {
         trackControlRef.current.cleanup();
         trackControlRef.current = null;
@@ -389,6 +434,23 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       });
     }
   }, [waypointManager.waypoints, waypointManager.routeProfile, rvServices]);
+  
+  // Sync waypoints with Directions control
+  useEffect(() => {
+    if (directionsRef.current && waypointManager.waypoints.length >= 2) {
+      const origin = waypointManager.waypoints[0];
+      const destination = waypointManager.waypoints[waypointManager.waypoints.length - 1];
+      
+      // Set origin and destination on the directions control
+      directionsRef.current.setOrigin([origin.coordinates[0], origin.coordinates[1]]);
+      directionsRef.current.setDestination([destination.coordinates[0], destination.coordinates[1]]);
+      
+      console.log('🇺️ Synced waypoints with Directions control:', { origin: origin.name, destination: destination.name });
+    } else if (directionsRef.current && waypointManager.waypoints.length === 0) {
+      // Clear directions when waypoints are cleared
+      directionsRef.current.removeRoutes();
+    }
+  }, [waypointManager.waypoints]);
   
   // Handle map style changes
   useEffect(() => {
@@ -461,6 +523,14 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const handleMapClick = async (e: mapboxgl.MapLayerMouseEvent) => {
     console.log('🎯 Map clicked! isAddingWaypoint ref:', isAddingWaypointRef.current, 'state:', isAddingWaypoint);
     
+    // Prevent adding more than 2 waypoints (A and B only)
+    if (waypointManager.waypoints.length >= 2) {
+      console.log('Already have start (A) and end (B) points');
+      toast.info('You already have start (A) and end (B) points. Clear the route to start over.');
+      setIsAddingWaypoint(false);
+      return;
+    }
+    
     // Prevent default map behavior
     e.preventDefault();
     
@@ -476,20 +546,31 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       );
       const data = await response.json();
       
-      const placeName = data.features?.[0]?.place_name || `Location (${lng.toFixed(4)}, ${lat.toFixed(4)})`;
+      const placeName = data.features?.[0]?.place_name || `Point ${waypointManager.waypoints.length === 0 ? 'A' : 'B'}`;
       const address = data.features?.[0]?.properties?.address || '';
       
-      // Add waypoint
+      // Add waypoint with proper A/B types
       waypointManager.addWaypoint({
         name: placeName,
         coordinates: [lng, lat],
         address,
-        type: waypointManager.waypoints.length === 0 ? 'origin' : 
-              waypointManager.waypoints.length === 1 ? 'destination' : 'waypoint'
+        type: waypointManager.waypoints.length === 0 ? 'origin' : 'destination'
       });
       
       toast.dismiss(); // Remove loading toast
-      toast.success(`Waypoint added: ${placeName}`);
+      const pointLabel = waypointManager.waypoints.length === 0 ? 'Point A (Start)' : 'Point B (End)';
+      toast.success(`${pointLabel} added: ${placeName}`);
+      
+      // If we now have 2 waypoints, calculate the route and turn off adding mode
+      if (waypointManager.waypoints.length === 1) {
+        // Calculate route after adding the second point
+        setTimeout(() => {
+          if (typeof waypointManager.calculateRoute === 'function') {
+            waypointManager.calculateRoute();
+          }
+        }, 500);
+      }
+      
       setIsAddingWaypoint(false);
     } catch (error) {
       console.error('Error adding waypoint:', error);
