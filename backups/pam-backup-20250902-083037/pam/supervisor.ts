@@ -191,7 +191,7 @@ export class PAMSupervisor {
         context: agentResponse.context,
         tools: agentResponse.toolsUsed,
         executionTime: Date.now() - startTime,
-        insights: insights, // Phase 6: Include proactive insights
+        insights, // Phase 6: Include proactive insights
       };
     } catch (error) {
       console.error('❌ Error processing message:', error);

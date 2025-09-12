@@ -115,7 +115,7 @@ export async function updateTemplatesWithSmartImages() {
         // Update template_data with image
         const updatedData = {
           ...template.template_data,
-          imageUrl: imageUrl,
+          imageUrl,
           thumbnailUrl: imageUrl.replace('w=1600', 'w=400'),
           imageSource: 'Unsplash',
           imageAttribution: 'High-quality travel photography',
@@ -175,7 +175,7 @@ export async function updateSingleTemplate(templateId: string, imageUrl: string)
     // Update with new image
     const updatedData = {
       ...template.template_data,
-      imageUrl: imageUrl,
+      imageUrl,
       thumbnailUrl: imageUrl.replace('w=1600', 'w=400'),
       imageSource: 'Manual Update',
       imageUpdated: new Date().toISOString()

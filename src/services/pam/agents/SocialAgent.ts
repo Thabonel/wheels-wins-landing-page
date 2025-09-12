@@ -1321,7 +1321,7 @@ export class SocialAgent extends DomainAgent {
   }
 
   private generateGroupId(): string {
-    return 'group_' + Math.random().toString(36).substr(2, 9);
+    return `group_${  Math.random().toString(36).substr(2, 9)}`;
   }
 
   private generateSecureJoinCode(): string {
@@ -1553,7 +1553,7 @@ export class SocialAgent extends DomainAgent {
         type: 'weather',
         severity: 'medium',
         message: 'High winds expected this weekend in the area',
-        location: location
+        location
       }
     ];
   }

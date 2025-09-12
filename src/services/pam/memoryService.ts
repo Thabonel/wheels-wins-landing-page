@@ -134,14 +134,14 @@ export class PAMMemoryService {
     const memoryData = {
       user_id: this.userId,
       memory_type: memoryType,
-      content: content,
+      content,
       content_text: contentText,
-      embedding: embedding,
+      embedding,
       importance_score: importance,
-      context: context,
+      context,
       related_conversation_id: conversationId,
-      tags: tags,
-      source: source,
+      tags,
+      source,
       is_active: true
     };
 
@@ -261,7 +261,7 @@ export class PAMMemoryService {
         .eq('user_id', this.userId)
         .eq('memory_type', memoryType)
         .eq('is_active', true)
-        .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+        .or(`expires_at.is.null,expires_at.gt.${  new Date().toISOString()}`)
         .order('importance_score', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(limit);

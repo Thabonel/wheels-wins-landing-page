@@ -135,7 +135,7 @@ const anonymizeText = (text: string): { text: string; redacted: string[] } => {
               // Reconstruct with proper formatting
               if (separators.length > 0) {
                 // Preserve original formatting pattern
-                return '****' + separators.slice(-1) + lastFour;
+                return `****${  separators.slice(-1)  }${lastFour}`;
               } else {
                 return '*'.repeat(maskLength) + lastFour;
               }
@@ -149,7 +149,7 @@ const anonymizeText = (text: string): { text: string; redacted: string[] } => {
           anonymized = anonymized.replace(pattern, (match) => {
             const digits = match.replace(/\D/g, '');
             if (digits.length >= 4) {
-              return 'XXX-XXX-' + digits.slice(-4);
+              return `XXX-XXX-${  digits.slice(-4)}`;
             }
             return '[phone]';
           });

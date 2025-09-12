@@ -250,14 +250,14 @@ const parseAmount = (value: any): number => {
     
     // Handle parentheses for negative numbers
     if (cleaned.startsWith('(') && cleaned.endsWith(')')) {
-      cleaned = '-' + cleaned.slice(1, -1);
+      cleaned = `-${  cleaned.slice(1, -1)}`;
     }
     
     // Handle CR/DR notation
     if (cleaned.endsWith('CR') || cleaned.endsWith('cr')) {
       cleaned = cleaned.slice(0, -2);
     } else if (cleaned.endsWith('DR') || cleaned.endsWith('dr')) {
-      cleaned = '-' + cleaned.slice(0, -2);
+      cleaned = `-${  cleaned.slice(0, -2)}`;
     }
     
     const parsed = parseFloat(cleaned);

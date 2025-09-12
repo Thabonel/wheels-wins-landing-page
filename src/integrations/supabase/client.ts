@@ -22,10 +22,10 @@ if (import.meta.env.MODE === 'staging' || window.location.hostname.includes('sta
   console.log('🔍 Supabase Configuration Debug:', {
     mode: import.meta.env.MODE,
     urlLength: SUPABASE_URL?.length,
-    urlFirst20: SUPABASE_URL?.substring(0, 20) + '...',
-    urlLast20: '...' + SUPABASE_URL?.substring(SUPABASE_URL.length - 20),
+    urlFirst20: `${SUPABASE_URL?.substring(0, 20)  }...`,
+    urlLast20: `...${  SUPABASE_URL?.substring(SUPABASE_URL.length - 20)}`,
     hasKey: !!SUPABASE_ANON_KEY,
-    keyPrefix: SUPABASE_ANON_KEY?.substring(0, 10) + '...',
+    keyPrefix: `${SUPABASE_ANON_KEY?.substring(0, 10)  }...`,
     urlHasSpaces: SUPABASE_URL?.includes(' '),
     urlHasNewlines: SUPABASE_URL?.includes('\n'),
     urlHasTrailingSlash: SUPABASE_URL?.endsWith('/'),

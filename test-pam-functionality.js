@@ -150,7 +150,7 @@ async function testPAMFunctionality() {
     try {
       const permission = await navigator.permissions.query({ name: 'geolocation' });
       testResults.features.locationPermission = permission.state;
-      console.log(`  ✓ Location Permission: ${permission.state === 'granted' ? '✅' : '⚠️ ' + permission.state}`);
+      console.log(`  ✓ Location Permission: ${permission.state === 'granted' ? '✅' : `⚠️ ${  permission.state}`}`);
     } catch (error) {
       testResults.features.locationPermission = 'unknown';
     }

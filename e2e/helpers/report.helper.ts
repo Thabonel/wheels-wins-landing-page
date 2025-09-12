@@ -387,7 +387,7 @@ export class ReportGenerator {
     console.log(`📊 JSON Data saved to: ${jsonPath}`);
 
     // Print summary to console
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${  '='.repeat(60)}`);
     console.log('📊 WHEELS & WINS SITE TEST SUMMARY');
     console.log('='.repeat(60));
     console.log(`\n✅ PASSED: ${summary.pages.passed}/${summary.pages.total} pages`);
@@ -397,6 +397,6 @@ export class ReportGenerator {
     console.log(`📝 Forms: ${summary.forms.submittable}/${summary.forms.total} submittable`);
     console.log(`🔗 Links: ${summary.links.reachable}/${summary.links.total} reachable`);
     console.log(`⚡ Average Load Time: ${(summary.avgLoadTime / 1000).toFixed(2)}s`);
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${  '='.repeat(60)}`);
   }
 }
