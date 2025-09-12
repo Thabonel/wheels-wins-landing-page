@@ -40,25 +40,28 @@ class WinsNode:
             return []
     
     async def check_budget_status(self, user_id: str, category: str) -> Dict[str, Any]:
-        """Check budget status and remaining amount"""
+        """Check budget status and remaining amount using optimized database function (eliminates N+1 queries)"""
         try:
-            # Get budget for this category
-            budget_result = self.supabase.table("budgets").select("*").eq("user_id", user_id).eq("category", category).execute()
-            if not budget_result.data:
+            # Use optimized database function instead of 2 separate queries + Python aggregation
+            result = self.supabase.rpc('get_budget_status_with_expenses', {
+                'p_user_id': user_id,
+                'p_category': category
+            }).execute()
+            
+            if not result.data:
+                return {"status": "error", "message": "Failed to get budget status"}
+            
+            budget_data = result.data
+            
+            # Handle no budget case
+            if budget_data.get('status') == 'no_budget':
                 return {"status": "no_budget", "message": "No budget set for this category"}
             
-            budget = budget_result.data[0]
-            
-            # Get expenses for this category in current budget period
-            start_date = budget.get("start_date", date.today().replace(day=1))
-            end_date = budget.get("end_date", date.today())
-            
-            expenses_result = self.supabase.table("expenses").select("amount").eq("user_id", user_id).eq("category", category).gte("date", start_date).lte("date", end_date).execute()
-            
-            total_spent = sum(float(expense["amount"]) for expense in expenses_result.data)
-            budget_amount = float(budget["budgeted_amount"])
-            remaining = budget_amount - total_spent
-            percentage_used = (total_spent / budget_amount) * 100 if budget_amount > 0 else 0
+            # Extract optimized results (no more Python calculations needed)
+            budget_amount = float(budget_data.get('budget_amount', 0))
+            total_spent = float(budget_data.get('spent', 0))
+            remaining = float(budget_data.get('remaining', 0))
+            percentage_used = float(budget_data.get('percentage_used', 0))
             
             return {
                 "status": "active",
@@ -395,9 +398,14 @@ class WinsNode:
             return {"success": False, "error": str(e)}
     
     async def get_hustle_leaderboard(self, hustle_id: Optional[str] = None, limit: int = 10) -> Dict[str, Any]:
-        """Get hustle leaderboard showing community success"""
+        """Get hustle leaderboard showing community success using optimized JOIN query (eliminates N+1)"""
         try:
-            query = self.supabase.table("hustle_leaderboard").select("*, youtube_hustles(title)")
+            # Use optimized single query with LEFT JOIN instead of 2 separate queries + Python merging
+            query = self.supabase.table("hustle_leaderboard").select("""
+                *,
+                youtube_hustles(title),
+                profiles!inner(user_id, email)
+            """)
             
             if hustle_id:
                 query = query.eq("hustle_id", hustle_id)
@@ -405,21 +413,19 @@ class WinsNode:
             result = query.order("total_earnings", desc=True).limit(limit).execute()
             leaderboard = result.data
             
-            # Get user profiles for display names (if profiles table exists)
-            user_ids = [entry["user_id"] for entry in leaderboard]
-            if user_ids:
-                try:
-                    profiles_result = self.supabase.table("profiles").select("user_id, email").in_("user_id", user_ids).execute()
-                    profiles_map = {profile["user_id"]: profile for profile in profiles_result.data}
-                    
-                    # Merge profile data with leaderboard
-                    for entry in leaderboard:
-                        profile = profiles_map.get(entry["user_id"], {})
-                        entry["user_email"] = profile.get("email", "Anonymous")
-                except:
-                    # If profiles table doesn't exist or query fails, use anonymous
-                    for entry in leaderboard:
-                        entry["user_email"] = "Anonymous"
+            # Extract profile data from JOIN result (no more Python merging needed)
+            for entry in leaderboard:
+                profiles = entry.get("profiles")
+                if profiles and isinstance(profiles, dict):
+                    entry["user_email"] = profiles.get("email", "Anonymous")
+                elif profiles and isinstance(profiles, list) and profiles:
+                    entry["user_email"] = profiles[0].get("email", "Anonymous")
+                else:
+                    entry["user_email"] = "Anonymous"
+                
+                # Clean up the nested profiles object for cleaner response
+                if "profiles" in entry:
+                    del entry["profiles"]
             
             # Calculate additional stats
             if leaderboard:
