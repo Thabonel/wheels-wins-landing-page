@@ -48,6 +48,7 @@ from app.services.voice.edge_processing_service import edge_processing_service
 from app.services.pam_visual_actions import pam_visual_actions
 from app.services.tts.manager import get_tts_manager, synthesize_text, VoiceSettings
 from app.services.tts.redis_optimization import get_redis_tts_manager
+from app.services.financial_context_service import financial_context_service
 from app.services.stt.manager import get_stt_manager
 from app.core.simple_pam_service import simple_pam_service
 from app.services.stt.base import AudioFormat
@@ -82,6 +83,45 @@ logger = get_logger(__name__)
 
 # Response deduplication tracking
 response_tracker = {}  # user_id: {message_hash: timestamp}
+
+# Helper functions for financial context
+def calculate_financial_health_score(financial_context) -> float:
+    """Calculate a simple financial health score (0-100) based on context"""
+    if not financial_context:
+        return 0.0
+    
+    score = 0.0
+    
+    # Budget utilization score (40 points max)
+    if financial_context.budgets.total_budget > 0:
+        utilization = financial_context.budgets.budget_utilization
+        if utilization <= 80:  # Good: under 80% budget usage
+            score += 40
+        elif utilization <= 100:  # Fair: 80-100% budget usage
+            score += 25
+        else:  # Poor: over budget
+            score += 10
+    
+    # Expense tracking score (30 points max)
+    if financial_context.expenses.transaction_count > 0:
+        score += 30  # Has expense tracking
+        
+        # Bonus for consistent tracking (daily average indicates regular use)
+        if financial_context.expenses.average_daily > 0:
+            score += 10
+    
+    # Income vs expenses balance (30 points max)
+    if financial_context.income.total_income > 0 and financial_context.expenses.total_amount > 0:
+        expense_ratio = financial_context.expenses.total_amount / financial_context.income.total_income
+        if expense_ratio <= 0.7:  # Excellent: spending 70% or less of income
+            score += 30
+        elif expense_ratio <= 0.9:  # Good: spending 70-90% of income
+            score += 20
+        elif expense_ratio <= 1.0:  # Fair: spending 90-100% of income
+            score += 10
+        # Poor: spending more than income gets 0 points
+    
+    return min(score, 100.0)  # Cap at 100
 DEDUP_WINDOW_SECONDS = 5  # Prevent duplicates within 5 seconds
 
 # Helper function for safe WebSocket operations
@@ -1017,6 +1057,34 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         context["user_id"] = user_id
         context["connection_type"] = "websocket"
         
+        # Load financial context from cache/database for enhanced PAM responses
+        try:
+            financial_context = await financial_context_service.get_user_financial_context(user_id)
+            if financial_context:
+                context["financial_context"] = {
+                    "expenses": {
+                        "total_amount": financial_context.expenses.total_amount,
+                        "transaction_count": financial_context.expenses.transaction_count,
+                        "categories": financial_context.expenses.categories,
+                        "average_daily": financial_context.expenses.average_daily
+                    },
+                    "budgets": {
+                        "total_budget": financial_context.budgets.total_budget,
+                        "remaining_budget": financial_context.budgets.remaining_budget,
+                        "budget_utilization": financial_context.budgets.budget_utilization,
+                        "over_budget_categories": financial_context.budgets.over_budget_categories
+                    },
+                    "context_summary": {
+                        "has_recent_expenses": financial_context.expenses.transaction_count > 0,
+                        "has_active_budgets": financial_context.budgets.total_budget > 0,
+                        "financial_health_score": calculate_financial_health_score(financial_context)
+                    }
+                }
+                logger.info(f"💰 [CACHE] Financial context loaded for user {user_id}")
+        except Exception as e:
+            logger.error(f"❌ [CACHE] Error loading financial context: {e}")
+            # Continue without financial context - don't block chat
+        
         # Get stored connection context (includes location from init)
         connection_id = getattr(websocket, 'connection_id', None)
         if connection_id:
@@ -1379,6 +1447,33 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
         
         # Add current timestamp
         context["server_timestamp"] = datetime.utcnow().isoformat()
+        
+        # Load financial context from cache/database for enhanced PAM responses
+        try:
+            financial_context = await financial_context_service.get_user_financial_context(user_id)
+            if financial_context:
+                context["financial_context"] = {
+                    "expenses": {
+                        "total_amount": financial_context.expenses.total_amount,
+                        "transaction_count": financial_context.expenses.transaction_count,
+                        "categories": financial_context.expenses.categories,
+                        "average_daily": financial_context.expenses.average_daily
+                    },
+                    "budgets": {
+                        "total_budget": financial_context.budgets.total_budget,
+                        "remaining_budget": financial_context.budgets.remaining_budget,
+                        "budget_utilization": financial_context.budgets.budget_utilization,
+                        "over_budget_categories": financial_context.budgets.over_budget_categories
+                    },
+                    "context_summary": {
+                        "has_recent_expenses": financial_context.expenses.transaction_count > 0,
+                        "has_active_budgets": financial_context.budgets.total_budget > 0,
+                        "financial_health_score": calculate_financial_health_score(financial_context)
+                    }
+                }
+                logger.info(f"💰 [CACHE] Financial context loaded for user {user_id} (streaming)")
+        except Exception as e:
+            logger.error(f"❌ [CACHE] Error loading financial context (streaming): {e}")
         
         logger.info(f"🌊 [DEBUG] handle_websocket_chat_streaming called with:")
         logger.info(f"  - Message: '{message}'")
