@@ -3,45 +3,26 @@ import { logger } from '../lib/logger';
 
 
 /**
- * Environment-aware backend URL selection
- * Automatically detects staging vs production based on domain
+ * Backend URL configuration - uses environment variables set by Netlify build context
+ * Falls back to production URL if no environment variables are set
  * @constant {string}
  */
-const getApiBaseUrl = () => {
-  // Check for explicit API URL first
-  if (import.meta.env.VITE_API_URL) {
-    console.log('🔧 Using VITE_API_URL:', import.meta.env.VITE_API_URL);
-    return import.meta.env.VITE_API_URL;
-  }
-  
-  // Check for explicit backend URL
-  if (import.meta.env.VITE_BACKEND_URL) {
-    console.log('🔧 Using VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL);
-    return import.meta.env.VITE_BACKEND_URL;
-  }
-  
-  // Auto-detect based on current domain for staging vs production
-  const currentDomain = window.location.hostname;
-  console.log('🔧 Detecting domain:', currentDomain);
-  
-  if (currentDomain.includes('staging') || currentDomain.includes('netlify')) {
-    // Staging environment - use staging backend
-    console.log('🔧 Staging detected - using staging backend');
-    return 'https://wheels-wins-backend-staging.onrender.com';
-  }
-  
-  // Production environment - use production backend
-  console.log('🔧 Production detected - using production backend');
-  return 'https://pam-backend.onrender.com';
-};
+export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'https://pam-backend.onrender.com';
 
-export const API_BASE_URL = getApiBaseUrl();
+// Debug logging to track URL resolution
+console.log('🔧 API Configuration Debug:', {
+  VITE_BACKEND_URL: import.meta.env.VITE_BACKEND_URL,
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  VITE_ENVIRONMENT: import.meta.env.VITE_ENVIRONMENT,
+  resolved_API_BASE_URL: API_BASE_URL,
+  hostname: typeof window !== 'undefined' ? window.location.hostname : 'server-side'
+});
 
 /**
- * WebSocket endpoint override for PAM connections
- * @constant {string | undefined}
+ * WebSocket endpoint for PAM connections - uses environment variable or derives from API_BASE_URL
+ * @constant {string}
  */
-const WS_OVERRIDE = import.meta.env.VITE_PAM_WEBSOCKET_URL;
+const WS_BASE_URL = import.meta.env.VITE_PAM_WEBSOCKET_URL || API_BASE_URL.replace(/^http/, 'ws');
 
 /**
  * Default timeout in milliseconds for fetch requests
@@ -209,44 +190,19 @@ export function apiFetch(path: string, options: RequestInit = {}) {
  * Get WebSocket URL without token (token handled via subprotocol)
  */
 export async function getAuthenticatedWebSocketUrl(path: string): Promise<string> {
-  let baseUrl: string;
-  
-  // Use explicit WebSocket override if provided
-  if (WS_OVERRIDE) {
-    baseUrl = WS_OVERRIDE;
-  } else {
-    // Otherwise derive from the HTTP base URL
-    baseUrl = API_BASE_URL.replace(/^http/, 'ws');
-  }
-  
-  // Return clean WebSocket URL without token
-  return `${baseUrl}${path}`;
+  return `${WS_BASE_URL}${path}`;
 }
 
 export function getWebSocketUrl(path: string) {
+  const finalUrl = `${WS_BASE_URL}${path}`;
+  
   logger.debug('🔌 WebSocket URL Construction Debug:', {
     path,
-    WS_OVERRIDE,
+    WS_BASE_URL,
+    VITE_PAM_WEBSOCKET_URL: import.meta.env.VITE_PAM_WEBSOCKET_URL,
     API_BASE_URL,
-    env_ws_url: import.meta.env.VITE_PAM_WEBSOCKET_URL
+    finalUrl
   });
-
-  // Use explicit WebSocket override if provided
-  if (WS_OVERRIDE) {
-    logger.debug('✅ Using WebSocket override:', WS_OVERRIDE);
-    // IMPORTANT: Never use the override as-is if it contains a partial path
-    // We need to properly construct the URL with the user ID
-    // Strip any existing /api/v1/pam/ws from the override
-    const cleanOverride = WS_OVERRIDE.replace(/\/api\/v1\/pam\/ws.*$/, '');
-    const finalUrl = cleanOverride + path;
-    logger.debug('🔗 Constructed WebSocket URL from override:', finalUrl);
-    return finalUrl;
-  }
-
-  // Otherwise derive from the HTTP base URL
-  logger.debug('⚠️ No WebSocket override found, deriving from API_BASE_URL');
-  const baseUrl = API_BASE_URL.replace(/^http/, 'ws');
-  const finalUrl = `${baseUrl}${path}`;
-  logger.debug('🔗 Derived WebSocket URL:', finalUrl);
+  
   return finalUrl;
 }
