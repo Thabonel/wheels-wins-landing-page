@@ -534,4 +534,698 @@ describe('ClaudeService', () => {
       expect(error.name).toBe('ClaudeServiceError');
     });
   });
+
+  describe('Tool Integration', () => {
+    let service: ClaudeService;
+
+    beforeEach(() => {
+      service = new ClaudeService({ apiKey: 'test-key' });
+      
+      // Mock the tool registry and executor
+      vi.doMock('@/services/pam/tools/toolRegistry', () => ({
+        getToolsForClaude: vi.fn().mockReturnValue([
+          {
+            name: 'getUserProfile',
+            description: 'Get user profile information',
+            input_schema: {
+              type: 'object',
+              properties: {
+                include_financial_goals: { type: 'boolean' }
+              }
+            }
+          },
+          {
+            name: 'getTripHistory',
+            description: 'Get user trip history',
+            input_schema: {
+              type: 'object',
+              properties: {
+                start_date: { type: 'string' },
+                end_date: { type: 'string' }
+              }
+            }
+          }
+        ])
+      }));
+
+      vi.doMock('@/services/pam/tools/toolExecutor', () => ({
+        executeToolCall: vi.fn()
+      }));
+    });
+
+    describe('Single Tool Call Integration', () => {
+      it('should handle single tool call successfully', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const userId = 'user-123';
+        const messages = [
+          { role: 'user' as const, content: 'What is my profile information?', timestamp: new Date() }
+        ];
+
+        // Mock initial response with tool use
+        const mockToolUseResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'getUserProfile',
+              input: { include_financial_goals: true }
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 100, output_tokens: 50 }
+        };
+
+        // Mock tool execution result
+        vi.mocked(executeToolCall).mockResolvedValue({
+          success: true,
+          data: {
+            id: 'user-123',
+            name: 'John Doe',
+            email: 'john@example.com',
+            financial_goals: [
+              { name: 'Emergency Fund', target: 10000, current: 5000 }
+            ]
+          },
+          formattedResponse: 'User profile: John Doe (john@example.com) with emergency fund goal of $10,000 (50% complete)',
+          executionTime: 150
+        });
+
+        // Mock continuation response after tool execution
+        const mockContinuationResponse = {
+          id: 'msg-2',
+          content: [
+            {
+              type: 'text',
+              text: 'Based on your profile, I can see you\'re John Doe with an emergency fund goal. You\'re 50% of the way to your $10,000 target!'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 200, output_tokens: 75 }
+        };
+
+        // Setup mock calls
+        mockCreate
+          .mockResolvedValueOnce(mockToolUseResponse as any)
+          .mockResolvedValueOnce(mockContinuationResponse as any);
+
+        // Execute test
+        const result = await service.chat(messages, {
+          userId,
+          tools: vi.mocked(getToolsForClaude)(),
+          systemPrompt: 'You are a helpful assistant with access to user data.'
+        });
+
+        // Verify tool execution was called
+        expect(vi.mocked(executeToolCall)).toHaveBeenCalledWith(
+          'getUserProfile',
+          { include_financial_goals: true },
+          userId,
+          'claude_tool-1'
+        );
+
+        // Verify final response
+        expect(result).toEqual({
+          role: 'assistant',
+          content: 'Based on your profile, I can see you\'re John Doe with an emergency fund goal. You\'re 50% of the way to your $10,000 target!',
+          timestamp: expect.any(Date),
+          id: 'msg-2'
+        });
+
+        // Verify API calls
+        expect(mockCreate).toHaveBeenCalledTimes(2);
+      });
+
+      it('should handle tool execution failure gracefully', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const userId = 'user-123';
+        const messages = [
+          { role: 'user' as const, content: 'Show me my profile', timestamp: new Date() }
+        ];
+
+        // Mock tool use response
+        const mockToolUseResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'getUserProfile',
+              input: {}
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 50, output_tokens: 25 }
+        };
+
+        // Mock failed tool execution
+        vi.mocked(executeToolCall).mockResolvedValue({
+          success: false,
+          error: 'Database connection failed',
+          executionTime: 100
+        });
+
+        // Mock continuation response with error
+        const mockContinuationResponse = {
+          id: 'msg-2',
+          content: [
+            {
+              type: 'text',
+              text: 'I apologize, but I\'m unable to access your profile information right now due to a database issue. Please try again later.'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 150, output_tokens: 50 }
+        };
+
+        mockCreate
+          .mockResolvedValueOnce(mockToolUseResponse as any)
+          .mockResolvedValueOnce(mockContinuationResponse as any);
+
+        const result = await service.chat(messages, { 
+          userId, 
+          tools: vi.mocked(getToolsForClaude)() 
+        });
+
+        expect(vi.mocked(executeToolCall)).toHaveBeenCalled();
+        expect(result.content).toContain('unable to access your profile');
+      });
+    });
+
+    describe('Multiple Tool Calls Integration', () => {
+      it('should handle multiple sequential tool calls', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const userId = 'user-123';
+        const messages = [
+          { role: 'user' as const, content: 'Show me my profile and recent trips', timestamp: new Date() }
+        ];
+
+        // Mock response with multiple tool uses
+        const mockMultiToolResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'getUserProfile',
+              input: { include_financial_goals: false }
+            },
+            {
+              type: 'tool_use',
+              id: 'tool-2',
+              name: 'getTripHistory',
+              input: { limit: 5 }
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 100, output_tokens: 75 }
+        };
+
+        // Mock tool execution results
+        vi.mocked(executeToolCall)
+          .mockResolvedValueOnce({
+            success: true,
+            data: { id: 'user-123', name: 'John Doe', email: 'john@example.com' },
+            formattedResponse: 'User: John Doe (john@example.com)',
+            executionTime: 120
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: [
+              { id: 'trip-1', destination: 'Los Angeles', date: '2024-01-15', cost: 250 },
+              { id: 'trip-2', destination: 'San Francisco', date: '2024-01-20', cost: 180 }
+            ],
+            formattedResponse: 'Recent trips: Los Angeles ($250), San Francisco ($180)',
+            executionTime: 200
+          });
+
+        const mockContinuationResponse = {
+          id: 'msg-2',
+          content: [
+            {
+              type: 'text',
+              text: 'Here\'s your information, John! You\'ve taken 2 recent trips to Los Angeles ($250) and San Francisco ($180). Total spent: $430.'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 300, output_tokens: 100 }
+        };
+
+        mockCreate
+          .mockResolvedValueOnce(mockMultiToolResponse as any)
+          .mockResolvedValueOnce(mockContinuationResponse as any);
+
+        const result = await service.chat(messages, { 
+          userId, 
+          tools: vi.mocked(getToolsForClaude)() 
+        });
+
+        // Verify both tools were called
+        expect(vi.mocked(executeToolCall)).toHaveBeenCalledTimes(2);
+        expect(vi.mocked(executeToolCall)).toHaveBeenNthCalledWith(1, 'getUserProfile', { include_financial_goals: false }, userId, 'claude_tool-1');
+        expect(vi.mocked(executeToolCall)).toHaveBeenNthCalledWith(2, 'getTripHistory', { limit: 5 }, userId, 'claude_tool-2');
+
+        expect(result.content).toContain('John');
+        expect(result.content).toContain('Los Angeles');
+        expect(result.content).toContain('San Francisco');
+      });
+
+      it('should handle mixed success/failure in multiple tool calls', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const userId = 'user-123';
+        const messages = [
+          { role: 'user' as const, content: 'Get my profile and trips', timestamp: new Date() }
+        ];
+
+        const mockMultiToolResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'getUserProfile',
+              input: {}
+            },
+            {
+              type: 'tool_use',
+              id: 'tool-2',
+              name: 'getTripHistory',
+              input: {}
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 80, output_tokens: 60 }
+        };
+
+        // First tool succeeds, second fails
+        vi.mocked(executeToolCall)
+          .mockResolvedValueOnce({
+            success: true,
+            data: { name: 'John Doe' },
+            formattedResponse: 'User: John Doe',
+            executionTime: 100
+          })
+          .mockResolvedValueOnce({
+            success: false,
+            error: 'Trip data unavailable',
+            executionTime: 50
+          });
+
+        const mockContinuationResponse = {
+          id: 'msg-2',
+          content: [
+            {
+              type: 'text',
+              text: 'I found your profile information (John Doe), but I\'m unable to retrieve your trip history at the moment.'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 200, output_tokens: 80 }
+        };
+
+        mockCreate
+          .mockResolvedValueOnce(mockMultiToolResponse as any)
+          .mockResolvedValueOnce(mockContinuationResponse as any);
+
+        const result = await service.chat(messages, { 
+          userId, 
+          tools: vi.mocked(getToolsForClaude)() 
+        });
+
+        expect(vi.mocked(executeToolCall)).toHaveBeenCalledTimes(2);
+        expect(result.content).toContain('John Doe');
+        expect(result.content).toContain('unable to retrieve');
+      });
+    });
+
+    describe('No Tools Needed Scenario', () => {
+      it('should handle regular conversation without tool use', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const messages = [
+          { role: 'user' as const, content: 'Hello, how are you today?', timestamp: new Date() }
+        ];
+
+        const mockRegularResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'text',
+              text: 'Hello! I\'m doing well, thank you for asking. How can I help you today?'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 20, output_tokens: 30 }
+        };
+
+        mockCreate.mockResolvedValueOnce(mockRegularResponse as any);
+
+        const result = await service.chat(messages, { 
+          tools: vi.mocked(getToolsForClaude)() 
+        });
+
+        expect(vi.mocked(executeToolCall)).not.toHaveBeenCalled();
+        expect(result).toEqual({
+          role: 'assistant',
+          content: 'Hello! I\'m doing well, thank you for asking. How can I help you today?',
+          timestamp: expect.any(Date),
+          id: 'msg-1'
+        });
+      });
+
+      it('should work without tools array provided', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        
+        const messages = [
+          { role: 'user' as const, content: 'What is 2+2?', timestamp: new Date() }
+        ];
+
+        const mockMathResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'text',
+              text: '2 + 2 = 4'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 15, output_tokens: 10 }
+        };
+
+        mockCreate.mockResolvedValueOnce(mockMathResponse as any);
+
+        const result = await service.chat(messages); // No tools provided
+
+        expect(vi.mocked(executeToolCall)).not.toHaveBeenCalled();
+        expect(result.content).toBe('2 + 2 = 4');
+      });
+    });
+
+    describe('Error Handling and Edge Cases', () => {
+      it('should handle tool execution timeout/error gracefully', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const userId = 'user-123';
+        const messages = [
+          { role: 'user' as const, content: 'Get my profile', timestamp: new Date() }
+        ];
+
+        const mockToolUseResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'getUserProfile',
+              input: {}
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 50, output_tokens: 25 }
+        };
+
+        // Mock tool execution throwing an error
+        vi.mocked(executeToolCall).mockRejectedValue(new Error('Tool execution timeout'));
+
+        const mockContinuationResponse = {
+          id: 'msg-2',
+          content: [
+            {
+              type: 'text',
+              text: 'I apologize, but I encountered an error while trying to access your information. Please try again.'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 100, output_tokens: 40 }
+        };
+
+        mockCreate
+          .mockResolvedValueOnce(mockToolUseResponse as any)
+          .mockResolvedValueOnce(mockContinuationResponse as any);
+
+        const result = await service.chat(messages, { 
+          userId, 
+          tools: vi.mocked(getToolsForClaude)() 
+        });
+
+        expect(result.content).toContain('encountered an error');
+      });
+
+      it('should handle missing userId when tools are requested', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const messages = [
+          { role: 'user' as const, content: 'Get my profile', timestamp: new Date() }
+        ];
+
+        const mockToolUseResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'getUserProfile',
+              input: {}
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 50, output_tokens: 25 }
+        };
+
+        mockCreate.mockResolvedValueOnce(mockToolUseResponse as any);
+
+        // Call without userId - should continue without tool execution
+        const result = await service.chat(messages, { 
+          tools: vi.mocked(getToolsForClaude)() 
+        });
+
+        expect(vi.mocked(executeToolCall)).not.toHaveBeenCalled();
+        expect(result.content).toBe(''); // No continuation without userId
+      });
+
+      it('should handle malformed tool use response', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const userId = 'user-123';
+        const messages = [
+          { role: 'user' as const, content: 'Test malformed response', timestamp: new Date() }
+        ];
+
+        const mockMalformedResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              // Missing name and input
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 30, output_tokens: 20 }
+        };
+
+        const mockContinuationResponse = {
+          id: 'msg-2',
+          content: [
+            {
+              type: 'text',
+              text: 'I encountered an issue processing your request. Please try again.'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 80, output_tokens: 35 }
+        };
+
+        mockCreate
+          .mockResolvedValueOnce(mockMalformedResponse as any)
+          .mockResolvedValueOnce(mockContinuationResponse as any);
+
+        const result = await service.chat(messages, { 
+          userId, 
+          tools: vi.mocked(getToolsForClaude)() 
+        });
+
+        // Should handle gracefully without calling executeToolCall
+        expect(result.content).toContain('encountered an issue');
+      });
+
+      it('should handle API errors during tool execution continuation', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const userId = 'user-123';
+        const messages = [
+          { role: 'user' as const, content: 'Get my profile', timestamp: new Date() }
+        ];
+
+        const mockToolUseResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'getUserProfile',
+              input: {}
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 50, output_tokens: 25 }
+        };
+
+        vi.mocked(executeToolCall).mockResolvedValue({
+          success: true,
+          data: { name: 'John Doe' },
+          formattedResponse: 'User: John Doe',
+          executionTime: 100
+        });
+
+        // First call succeeds, second call (continuation) fails
+        mockCreate
+          .mockResolvedValueOnce(mockToolUseResponse as any)
+          .mockRejectedValueOnce(new Error('API rate limit exceeded'));
+
+        await expect(service.chat(messages, { 
+          userId, 
+          tools: vi.mocked(getToolsForClaude)() 
+        })).rejects.toThrow('API rate limit exceeded');
+
+        expect(vi.mocked(executeToolCall)).toHaveBeenCalled();
+      });
+    });
+
+    describe('Complex Integration Scenarios', () => {
+      it('should handle conversation with mixed tool and non-tool responses', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const userId = 'user-123';
+        const messages = [
+          { role: 'user' as const, content: 'Hello', timestamp: new Date() },
+          { role: 'assistant' as const, content: 'Hi! How can I help?', timestamp: new Date() },
+          { role: 'user' as const, content: 'Show me my profile please', timestamp: new Date() }
+        ];
+
+        const mockToolUseResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'text',
+              text: 'I\'ll get your profile information for you.'
+            },
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'getUserProfile',
+              input: { include_financial_goals: true }
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 80, output_tokens: 60 }
+        };
+
+        vi.mocked(executeToolCall).mockResolvedValue({
+          success: true,
+          data: { name: 'John Doe', email: 'john@example.com' },
+          formattedResponse: 'Profile: John Doe (john@example.com)',
+          executionTime: 150
+        });
+
+        const mockContinuationResponse = {
+          id: 'msg-2',
+          content: [
+            {
+              type: 'text',
+              text: 'Here\'s your profile information: John Doe (john@example.com). Is there anything specific you\'d like to know about your account?'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 200, output_tokens: 90 }
+        };
+
+        mockCreate
+          .mockResolvedValueOnce(mockToolUseResponse as any)
+          .mockResolvedValueOnce(mockContinuationResponse as any);
+
+        const result = await service.chat(messages, { 
+          userId, 
+          tools: vi.mocked(getToolsForClaude)() 
+        });
+
+        expect(result.content).toContain('John Doe');
+        expect(result.content).toContain('john@example.com');
+        expect(result.content).toContain('anything specific');
+      });
+
+      it('should preserve conversation context through tool calls', async () => {
+        const { executeToolCall } = await import('@/services/pam/tools/toolExecutor');
+        const { getToolsForClaude } = await import('@/services/pam/tools/toolRegistry');
+        
+        const userId = 'user-123';
+        const conversationMessages = [
+          { role: 'user' as const, content: 'My name is Alice', timestamp: new Date() },
+          { role: 'assistant' as const, content: 'Nice to meet you, Alice!', timestamp: new Date() },
+          { role: 'user' as const, content: 'Can you get my profile data?', timestamp: new Date() }
+        ];
+
+        const mockToolUseResponse = {
+          id: 'msg-1',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'getUserProfile',
+              input: {}
+            }
+          ],
+          stop_reason: 'tool_use',
+          usage: { input_tokens: 120, output_tokens: 40 }
+        };
+
+        vi.mocked(executeToolCall).mockResolvedValue({
+          success: true,
+          data: { name: 'Alice Smith', email: 'alice@example.com' },
+          formattedResponse: 'Profile: Alice Smith (alice@example.com)',
+          executionTime: 100
+        });
+
+        const mockContinuationResponse = {
+          id: 'msg-2',
+          content: [
+            {
+              type: 'text',
+              text: 'I found your profile, Alice! Your full name is Alice Smith and your email is alice@example.com.'
+            }
+          ],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 250, output_tokens: 70 }
+        };
+
+        mockCreate
+          .mockResolvedValueOnce(mockToolUseResponse as any)
+          .mockResolvedValueOnce(mockContinuationResponse as any);
+
+        const result = await service.chat(conversationMessages, { 
+          userId, 
+          tools: vi.mocked(getToolsForClaude)() 
+        });
+
+        // Verify the continuation call includes all previous messages plus tool results
+        const continuationCall = mockCreate.mock.calls[1][0];
+        expect(continuationCall.messages).toHaveLength(6); // 3 original + 1 assistant response + 1 tool result + continuation
+        expect(result.content).toContain('Alice');
+      });
+    });
+  });
 });
