@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { usePamMessageHandler } from '@/hooks/pam/usePamMessageHandler';
-import { usePAMContext } from './PAMContext';
+// OLD PAM IMPORTS - COMMENTED OUT FOR REMOVAL
+// import { usePamMessageHandler } from '@/hooks/pam/usePamMessageHandler';
+// import { usePAMContext } from './PAMContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 // import { usePamWebSocketConnection } from '@/hooks/usePamWebSocketAdapter'; // DISABLED: Using main PAM WebSocket
@@ -18,15 +19,16 @@ export default function PAMTripIntegration({
 }: PAMTripIntegrationProps) {
   const { user, token } = useAuth();
   const { toast } = useToast();
-  const { context, updateContext, addMessage } = usePAMContext();
-  const { handleMessage } = usePamMessageHandler();
+  // OLD PAM HOOKS - COMMENTED OUT FOR REMOVAL  
+  // const { context, updateContext, addMessage } = usePAMContext();
+  // const { handleMessage } = usePamMessageHandler();
 
   // PAM WebSocket connection with enhanced trip planning actions
   const handlePAMMessage = async (message: any) => {
     console.log('🎯 PAM Trip Message:', message);
     
     // Handle standard message processing
-    await handleMessage(message);
+    // await handleMessage(message); // COMMENTED OUT - OLD PAM
     
     // Enhanced trip-specific message handling
     switch (message.type) {

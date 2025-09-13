@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { logger } from '@/lib/logger';
+import { getToolsForClaude } from '@/services/pam/tools/toolRegistry';
+import { executeToolCall } from '@/services/pam/tools/toolExecutor';
 
 /**
  * Message interface for chat conversations
@@ -125,7 +127,7 @@ export class ClaudeService {
    */
   public async chat(
     messages: ChatMessage[],
-    options?: ChatOptions
+    options?: ChatOptions & { userId?: string }
   ): Promise<ChatMessage> {
     if (!this.isReady()) {
       throw new ClaudeServiceError(
@@ -137,7 +139,9 @@ export class ClaudeService {
     try {
       logger.debug('Sending chat request to Claude', {
         messageCount: messages.length,
-        model: options?.model || this.config.model
+        model: options?.model || this.config.model,
+        hasTools: !!options?.tools,
+        userId: options?.userId
       });
 
       // Format messages for Anthropic API
@@ -153,14 +157,43 @@ export class ClaudeService {
         ...(options?.tools && { tools: options.tools })
       };
 
-      const response = await this.client.messages.create(requestParams);
+      let response = await this.client.messages.create(requestParams);
 
       logger.debug('Received response from Claude', {
         stopReason: response.stop_reason,
-        usage: response.usage
+        usage: response.usage,
+        hasToolUse: response.stop_reason === 'tool_use'
       });
 
-      // Extract text content from response
+      // Handle tool use requests
+      if (response.stop_reason === 'tool_use' && options?.userId) {
+        const toolResults = await this.handleToolUse(response, options.userId);
+        
+        // Continue conversation with tool results
+        const continuationMessages = [
+          ...formattedMessages,
+          {
+            role: 'assistant' as const,
+            content: response.content
+          },
+          ...toolResults
+        ];
+
+        // Make another API call with tool results
+        const continuationResponse = await this.client.messages.create({
+          ...requestParams,
+          messages: continuationMessages
+        });
+
+        response = continuationResponse;
+        
+        logger.debug('Received continuation response after tool use', {
+          stopReason: continuationResponse.stop_reason,
+          usage: continuationResponse.usage
+        });
+      }
+
+      // Extract text content from final response
       const content = this.extractTextContent(response);
 
       return {
@@ -174,6 +207,84 @@ export class ClaudeService {
       logger.error('Claude API error', error);
       throw this.handleApiError(error);
     }
+  }
+
+  /**
+   * Handle tool use requests from Claude
+   */
+  private async handleToolUse(
+    response: Anthropic.Messages.Message,
+    userId: string
+  ): Promise<Anthropic.Messages.MessageParam[]> {
+    const toolResults: Anthropic.Messages.MessageParam[] = [];
+
+    try {
+      // Process each content block for tool use
+      for (const contentBlock of response.content) {
+        if (contentBlock.type === 'tool_use') {
+          const { id: toolUseId, name: toolName, input: toolInput } = contentBlock;
+
+          logger.debug('Executing tool from Claude', {
+            toolName,
+            toolUseId,
+            userId,
+            input: toolInput
+          });
+
+          // Execute the tool
+          const toolResult = await executeToolCall(
+            toolName,
+            toolInput || {},
+            userId,
+            `claude_${toolUseId}`
+          );
+
+          // Format result for Claude
+          const toolResultMessage: Anthropic.Messages.MessageParam = {
+            role: 'user',
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: toolUseId,
+                content: toolResult.success 
+                  ? toolResult.formattedResponse || JSON.stringify(toolResult.data)
+                  : `Error: ${toolResult.error || 'Tool execution failed'}`,
+                is_error: !toolResult.success
+              }
+            ]
+          };
+
+          toolResults.push(toolResultMessage);
+
+          logger.debug('Tool execution completed for Claude', {
+            toolName,
+            toolUseId,
+            success: toolResult.success,
+            executionTime: toolResult.executionTime
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Error handling tool use from Claude', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId
+      });
+      
+      // Return error result to Claude
+      toolResults.push({
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'error',
+            content: 'Tool execution encountered an unexpected error. Please try again.',
+            is_error: true
+          }
+        ]
+      });
+    }
+
+    return toolResults;
   }
 
   /**
