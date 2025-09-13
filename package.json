@@ -59,6 +59,7 @@
     "@ai-sdk/anthropic": "^2.0.1",
     "@ai-sdk/openai": "^2.0.4",
     "@ai-sdk/react": "^2.0.5",
+    "@anthropic-ai/sdk": "^0.62.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -195,9 +196,9 @@
     "node": ">=18 <=22"
   },
   "optionalDependencies": {
-    "@esbuild/linux-x64": "^0.25.8",
     "@esbuild/darwin-x64": "^0.25.9",
-    "@rollup/rollup-linux-x64-gnu": "^4.24.0",
-    "@rollup/rollup-darwin-x64": "^4.50.0"
+    "@esbuild/linux-x64": "^0.25.8",
+    "@rollup/rollup-darwin-x64": "^4.50.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.24.0"
   }
 }
