@@ -86,31 +86,10 @@ export interface AgenticCapabilitiesResponse {
 // API CLIENT CONFIGURATION
 // =====================================================
 
-// Environment-aware backend URL selection
-const getApiBaseUrl = () => {
-  // Check for explicit API URL first
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  
-  // Check for explicit backend URL
-  if (import.meta.env.VITE_BACKEND_URL) {
-    return import.meta.env.VITE_BACKEND_URL;
-  }
-  
-  // Auto-detect based on current domain for staging vs production
-  const currentDomain = window.location.hostname;
-  
-  if (currentDomain.includes('staging') || currentDomain.includes('netlify')) {
-    // Staging environment - use staging backend
-    return 'https://wheels-wins-backend-staging.onrender.com';
-  }
-  
-  // Production environment - use production backend
-  return 'https://pam-backend.onrender.com';
-};
-
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = 
+  import.meta.env.VITE_API_URL || 
+  import.meta.env.VITE_BACKEND_URL || 
+  'https://pam-backend.onrender.com';
 const AGENTIC_BASE = `${API_BASE_URL}/api/v1/pam/agentic`;
 
 // Error handling wrapper
