@@ -261,92 +261,111 @@ export function PAMConnectionDiagnostic() {
       }
 
       console.log('🔐 Testing PAM chat with user:', user?.email);
-      console.log('🌐 Using optimized authentication system (reference tokens or standard JWTs)');
+      console.log('🌐 Using simplified authentication for diagnostics');
 
       const startTime = Date.now();
       
-      // Test the PAM chat endpoint using our optimized authentication system
-      console.log('🌐 DIAGNOSTIC: Sending PAM chat test to:', `/api/v1/pam/chat`);
-      console.log('🔐 DIAGNOSTIC: Using optimized authentication (reference tokens or JWT)');
+      // Get session token directly
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      // Temporarily disable reference tokens for diagnostics to avoid RLS issues
-      localStorage.setItem('use_reference_tokens', 'false');
+      if (sessionError || !session?.access_token) {
+        return { 
+          status: 'error', 
+          message: 'Failed to get valid session token',
+          error: sessionError 
+        };
+      }
+
+      console.log('🔐 DIAGNOSTIC: Got session token, length:', session.access_token.length);
       
-      const response = await authenticatedFetch('/api/v1/pam/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          message: 'Hello PAM! This is a connection test from the observability dashboard.',
-          user_id: user?.id || 'test-user'
-        }),
-      });
+      // Use simplified fetch approach (bypassing complex authenticatedFetch)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      // Re-enable reference tokens after test
-      localStorage.setItem('use_reference_tokens', 'true');
-      
-      console.log('📡 DIAGNOSTIC: Response status:', response.status);
-      console.log('📡 DIAGNOSTIC: Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      const responseTime = Date.now() - startTime;
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ PAM chat response:', result);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/pam/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            message: 'Hello PAM! This is a connection test from the observability dashboard.',
+            user_id: user?.id || 'test-user'
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
         
-        if (result.response || result.message || result.content) {
-          return { 
-            status: 'success', 
-            message: 'PAM chat is working! Received response from AI.',
-            responseTime,
-            data: result 
-          };
-        } else {
-          return { 
-            status: 'error', 
-            message: 'No response content from PAM chat',
-            responseTime,
-            data: result 
-          };
-        }
-      } else {
-        // Handle HTTP error responses
-        console.log('❌ DIAGNOSTIC: Response not OK, status:', response.status);
-        let errorDetails = '';
-        try {
-          const responseText = await response.text();
-          console.log('📄 DIAGNOSTIC: Response text:', responseText.substring(0, 200));
+        console.log('📡 DIAGNOSTIC: Response status:', response.status);
+        console.log('📡 DIAGNOSTIC: Response headers:', Object.fromEntries(response.headers.entries()));
+        
+        const responseTime = Date.now() - startTime;
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ PAM chat response:', result);
           
-          // Try to parse as JSON
-          const errorData = JSON.parse(responseText);
-          errorDetails = errorData.detail || errorData.message || JSON.stringify(errorData);
-        } catch (parseError) {
-          console.log('❌ DIAGNOSTIC: Failed to parse response as JSON:', parseError);
-          errorDetails = `HTTP ${response.status} ${response.statusText}`;
-        }
-        
-        console.error('❌ PAM chat HTTP error:', response.status, errorDetails);
-        
-        if (response.status === 401) {
-          return { 
-            status: 'error', 
-            message: `Authentication failed: ${errorDetails}`,
-            responseTime,
-            error: { status: response.status, detail: errorDetails }
-          };
-        } else if (response.status === 403) {
-          return { 
-            status: 'error', 
-            message: `Authorization failed: ${errorDetails}`,
-            responseTime,
-            error: { status: response.status, detail: errorDetails }
-          };
+          if (result.response || result.message || result.content) {
+            return { 
+              status: 'success', 
+              message: 'PAM chat is working! Received response from AI.',
+              responseTime,
+              data: result 
+            };
+          } else {
+            return { 
+              status: 'error', 
+              message: 'No response content from PAM chat',
+              responseTime,
+              data: result 
+            };
+          }
         } else {
-          return { 
-            status: 'error', 
-            message: `PAM chat error (${response.status}): ${errorDetails}`,
-            responseTime,
-            error: { status: response.status, detail: errorDetails }
-          };
+          // Handle HTTP error responses
+          console.log('❌ DIAGNOSTIC: Response not OK, status:', response.status);
+          let errorDetails = '';
+          try {
+            const responseText = await response.text();
+            console.log('📄 DIAGNOSTIC: Response text:', responseText.substring(0, 200));
+            
+            // Try to parse as JSON
+            const errorData = JSON.parse(responseText);
+            errorDetails = errorData.detail || errorData.message || JSON.stringify(errorData);
+          } catch (parseError) {
+            console.log('❌ DIAGNOSTIC: Failed to parse response as JSON:', parseError);
+            errorDetails = `HTTP ${response.status} ${response.statusText}`;
+          }
+          
+          console.error('❌ PAM chat HTTP error:', response.status, errorDetails);
+          
+          if (response.status === 401) {
+            return { 
+              status: 'error', 
+              message: `Authentication failed: ${errorDetails}`,
+              responseTime,
+              error: { status: response.status, detail: errorDetails }
+            };
+          } else if (response.status === 403) {
+            return { 
+              status: 'error', 
+              message: `Authorization failed: ${errorDetails}`,
+              responseTime,
+              error: { status: response.status, detail: errorDetails }
+            };
+          } else {
+            return { 
+              status: 'error', 
+              message: `PAM chat error (${response.status}): ${errorDetails}`,
+              responseTime,
+              error: { status: response.status, detail: errorDetails }
+            };
+          }
         }
+      } finally {
+        clearTimeout(timeoutId);
       }
       
     } catch (error: any) {
@@ -365,7 +384,7 @@ export function PAMConnectionDiagnostic() {
       if (errorMessage.includes('timeout') || errorMessage.includes('aborted')) {
         return { 
           status: 'error', 
-          message: 'Request timeout: PAM backend is not responding within 15 seconds.',
+          message: 'Request timeout: PAM backend is not responding within 10 seconds.',
           error: { message: errorMessage, type: 'timeout' }
         };
       }
