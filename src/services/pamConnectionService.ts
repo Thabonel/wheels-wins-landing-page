@@ -25,12 +25,12 @@ class PamConnectionService {
   private healthCheckInterval?: NodeJS.Timeout;
   private retryTimeout?: NodeJS.Timeout;
 
-  // Backend URLs in priority order - Updated to prioritize working staging server
+  // Backend URLs in priority order - Production first for main branch
   private backends = [
-    import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com',
-    import.meta.env.VITE_API_URL || 'https://wheels-wins-backend-staging.onrender.com', 
-    'https://wheels-wins-backend-staging.onrender.com',
-    'https://pam-backend.onrender.com'  // Production fallback
+    import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com',
+    import.meta.env.VITE_API_URL || 'https://pam-backend.onrender.com',
+    'https://pam-backend.onrender.com',  // Primary production
+    'https://wheels-wins-backend-staging.onrender.com'  // Staging fallback for testing
   ].filter(Boolean);
 
   private currentBackendIndex = 0;
