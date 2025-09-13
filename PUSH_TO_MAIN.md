@@ -158,14 +158,10 @@ Double-check these files before pushing:
 
 ## 🚀 **DEPLOYMENT PROCESS**
 
-### **Step 1: Automated Pre-flight Check**
+### **Step 1: Quick Check**
 ```bash
-# Run automated validation (REQUIRED before push to main)
-npm run pre-push:main
-
-# This runs:
-# 1. npm run validate:main  (checks PUSH_TO_MAIN.md compliance)
-# 2. npm run build         (tests production build)
+# REQUIRED before pushing to main
+npm run check-main
 ```
 
 ### **Step 1.5: Manual Verification**
