@@ -19,6 +19,7 @@ from app.core.websocket_manager import manager as websocket_manager
 from app.core.middleware import setup_middleware
 from app.core.monitoring_middleware import MonitoringMiddleware
 from app.guardrails.guardrails_middleware import GuardrailsMiddleware
+from app.core.cors_settings import CORSSettings
 # CORS imports removed - using simple FastAPI CORSMiddleware approach
 
 # Import enhanced security setup
@@ -399,81 +400,64 @@ app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
 setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
-# CORS Configuration - Industry Standard (OpenAI/Vercel Pattern)
-# Priority: settings object → environment variable → development defaults
-cors_origins_from_settings = getattr(settings, 'CORS_ALLOWED_ORIGINS', None)
-cors_env_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
-
-if cors_origins_from_settings and isinstance(cors_origins_from_settings, list) and len(cors_origins_from_settings) > 0:
-    # Production/Staging: Use origins from settings object (configured by simple_config.py)
-    allowed_origins = cors_origins_from_settings.copy()
-    # Add localhost for development testing
-    allowed_origins.extend([
-        "http://localhost:8080",
-        "http://localhost:3000"
-    ])
-    print(f"🌐 CORS: Using settings configuration ({len(cors_origins_from_settings)} configured origins)")
+# CORS Configuration - Using Dedicated CORSSettings Class
+# Load proper CORS configuration with environment-aware origins
+try:
+    cors_settings = CORSSettings()
+    allowed_origins = cors_settings.get_allowed_origins()
+    print(f"🌐 CORS: Using CORSSettings class with {len(allowed_origins)} allowed origins")
     print("🌐 CORS: Configured origins:")
-    for origin in cors_origins_from_settings:
-        print(f"   ✅ {origin}")
-    print("🌐 CORS: Added development origins:")
-    print("   ✅ http://localhost:8080")
-    print("   ✅ http://localhost:3000")
-elif cors_env_origins:
-    # Fallback to environment variable (if settings failed)
-    allowed_origins = [origin.strip() for origin in cors_env_origins.split(",") if origin.strip()]
-    # Add localhost for development testing
-    allowed_origins.extend([
-        "http://localhost:8080",
-        "http://localhost:3000"
-    ])
-    print(f"🌐 CORS: Using environment variable fallback ({len(allowed_origins)-2} configured origins)")
-    print("🌐 CORS: Environment origins:")
-    for origin in allowed_origins[:-2]:  # Don't print localhost ones twice
-        print(f"   ✅ {origin}")
-else:
-    # Development fallback: Localhost only (never wildcards)
-    allowed_origins = [
-        "http://localhost:8080",
-        "http://localhost:3000",
-        "http://127.0.0.1:8080", 
-        "http://127.0.0.1:3000"
-    ]
-    print("⚠️  CORS: No configuration found - using development fallback")
-    print("⚠️  CORS: Production deployments MUST configure CORS_ALLOWED_ORIGINS")
-    print(f"🌐 CORS: Development origins ({len(allowed_origins)} origins):")
     for origin in allowed_origins:
         print(f"   ✅ {origin}")
+except Exception as cors_error:
+    print(f"⚠️ Failed to load CORSSettings: {cors_error}")
+    # Fallback to basic configuration
+    allowed_origins = [
+        "https://wheelsandwins.com",
+        "https://www.wheelsandwins.com", 
+        "https://wheels-wins-staging.netlify.app",
+        "http://localhost:8080",
+        "http://localhost:3000"
+    ]
+    print(f"🌐 CORS: Using fallback configuration with {len(allowed_origins)} origins")
 
 # Validate CORS configuration
-is_production_cors = cors_origins_from_settings or cors_env_origins
+is_production_cors = any("wheelsandwins.com" in origin for origin in allowed_origins)
 print(f"🔒 CORS: Security level = {'PRODUCTION' if is_production_cors else 'DEVELOPMENT'}")
 print(f"🔒 CORS: Credentials support = ENABLED")
 print(f"🔒 CORS: Origin validation = EXPLICIT_ONLY (no wildcards)")
 print(f"🔒 CORS: Total allowed origins = {len(allowed_origins)}")
 
-# Add CORS middleware - Industry Standard Configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,           # Explicit domains only (no wildcards)
-    allow_credentials=True,                  # Enable authentication
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=[                          # Restricted headers for security
-        "Authorization",
-        "Content-Type", 
-        "X-Requested-With",
-        "Accept",
-        "Origin",
-        "Access-Control-Request-Method",
-        "Access-Control-Request-Headers"
-    ],
-    expose_headers=[                         # Headers exposed to frontend
-        "Content-Type",
-        "Authorization", 
-        "X-Request-ID",
-        "X-Process-Time"
-    ]
-)
+# Add CORS middleware - Using CORSSettings configuration
+try:
+    cors_config = cors_settings.get_cors_middleware_config()
+    app.add_middleware(CORSMiddleware, **cors_config)
+    print("✅ CORS middleware configured using CORSSettings class")
+except Exception as middleware_error:
+    print(f"⚠️ Failed to use CORSSettings middleware config: {middleware_error}")
+    # Fallback to manual configuration
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type", 
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers"
+        ],
+        expose_headers=[
+            "Content-Type",
+            "Authorization", 
+            "X-Request-ID",
+            "X-Process-Time"
+        ]
+    )
+    print("✅ CORS middleware configured with fallback settings")
 
 print(f"✅ CORS middleware configured with {len(allowed_origins)} origins")
 print("✅ CORS: Production-grade security enabled")
