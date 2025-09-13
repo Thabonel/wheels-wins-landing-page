@@ -273,10 +273,22 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           flyTo: false,
           alternatives: true,
           congestion: true,
-          geometries: 'geojson'
+          geometries: 'geojson',
+          // CRITICAL: Hide Directions control's default markers to prevent conflicts
+          markers: {
+            start: false,
+            end: false,
+            waypoint: false
+          },
+          // Disable automatic geocoding that might create location markers
+          geocoder: false,
+          // Disable location tracking in Directions control
+          trackUserLocation: false
         });
         
         newMap.addControl(directionsRef.current, 'top-left');
+        
+        console.log('🗺️ Mapbox Directions control configured with hidden markers to prevent conflicts');
         
         // Sync with our waypoint system when route changes
         directionsRef.current.on('route', (event) => {
@@ -288,6 +300,15 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
               waypointManager.updateRouteFromDrag(route);
             }
           }
+        });
+        
+        // Debug: Confirm markers are hidden
+        console.log('🔍 Directions control marker settings:', {
+          startMarker: false,
+          endMarker: false, 
+          waypointMarker: false,
+          geocoder: false,
+          trackUserLocation: false
         });
       }
       
