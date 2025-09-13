@@ -4,6 +4,16 @@
 **Dev Server**: http://localhost:8080 (NOT 3000!)
 **Stack**: React 18.3 + TypeScript + Vite + Tailwind + Supabase + FastAPI
 
+## 🎯 Strategic AI Decision (January 2025)
+
+**PAM AI Provider**: **Anthropic Claude 3.5 Sonnet** (Primary)
+- ✅ **Native MCP Support**: Direct integration with financial data tools
+- ✅ **Cost Effective**: $3/M input tokens vs OpenAI's higher costs
+- ✅ **Superior Performance**: Better reasoning and conversation quality
+- ✅ **Model Lock**: ONLY Sonnet models allowed (never Opus due to costs)
+- 🔄 **Future Ready**: MCP server archived for ChatGPT Pro integration when scaling
+- 🔄 **OpenAI Fallback**: Available if needed, but Anthropic is primary
+
 ## Critical Commands
 ```bash
 npm run dev              # Start dev server (port 8080)
@@ -61,13 +71,50 @@ scripts/git-safe repair
 scripts/git-safe repair --nuclear
 ```
 
-## Architecture Overview
+## Infrastructure Architecture
+
+### Two-System Setup (CRITICAL: Staging & Production)
+We operate **two complete separate systems** sharing one Supabase database:
+
+#### 🔵 Production System
+- **Frontend**: wheelsandwins.com (Netlify main branch)
+- **Backend**: pam-backend.onrender.com (Render)
+- **Database**: Shared Supabase instance
+- **Redis**: pam-redis.onrender.com (private network)
+- **Workers**: pam-celery-worker.onrender.com, pam-celery-beat.onrender.com
+
+#### 🟡 Staging System  
+- **Frontend**: wheels-wins-staging.netlify.app (Netlify staging branch)
+- **Backend**: wheels-wins-backend-staging.onrender.com (Render)
+- **Database**: Same shared Supabase instance
+- **Workers**: wheels-wins-celery-worker-staging.onrender.com
+
+#### 🔄 Shared Services
+- **Database**: Single Supabase PostgreSQL (shared between systems)
+- **Data Collector**: wheels-wins-data-collector.onrender.com
+- **Redis**: Separate Redis instances per environment
+
+### Environment Variable Configuration
+
+**CRITICAL**: Each frontend must point to its corresponding backend!
+- Production frontend → Production backend (pam-backend.onrender.com)
+- Staging frontend → Staging backend (wheels-wins-backend-staging.onrender.com)
+
+### System Architecture Overview
 ```
-Frontend (React/TS/PWA) ◄──► Backend (FastAPI/Redis) ◄──► External Services
-├── Vite 5.4.19               ├── pam-backend              ├── Supabase DB
-├── Tailwind 3.4.11           ├── pam-redis                ├── Mapbox GL
-├── Radix UI (25+)            ├── celery-worker            ├── OpenAI GPT-4
-└── PWA Manifest              └── WebSocket                └── TTS/STT
+Production:
+Frontend (wheelsandwins.com) ◄──► Backend (pam-backend) ◄──► Shared Services
+├── React/TS/PWA (Netlify)         ├── FastAPI/Redis               ├── Supabase DB
+├── Vite 5.4.19                    ├── Celery Workers              ├── Mapbox GL  
+├── Tailwind 3.4.11                ├── WebSocket                   ├── Anthropic Claude 3.5
+└── PWA Manifest                   └── TTS/STT                     └── Data Collector
+
+Staging:
+Frontend (staging.netlify.app) ◄──► Backend (staging.onrender.com) ◄──► Shared Services
+├── React/TS/PWA (Netlify)          ├── FastAPI/Redis                ├── Supabase DB
+├── Vite 5.4.19                     ├── Celery Workers               ├── Mapbox GL
+├── Tailwind 3.4.11                 ├── WebSocket                    ├── Anthropic Claude 3.5  
+└── PWA Manifest                    └── TTS/STT                      └── Data Collector
 ```
 
 ## Environment Variables
@@ -104,19 +151,29 @@ src/
 
 ## Deployment
 
-### Frontend (Netlify)
-- **Production**: main branch → domain
-- **Staging**: staging branch → staging--[site].netlify.app
+### Frontend (Netlify - 2 Sites)
+1. **Production**: main branch → wheelsandwins.com
+2. **Staging**: staging branch → wheels-wins-staging.netlify.app
 - **Build**: `npm run build`
 
-### Backend (Render - 4 Services)
-1. **pam-backend**: https://pam-backend.onrender.com
-2. **pam-redis**: Private network cache
-3. **pam-celery-worker**: Background tasks
-4. **pam-celery-beat**: Task scheduler
+### Backend (Render - 7 Services Total)
 
-### Database (Supabase)
-- PostgreSQL with RLS
+#### Production Services
+1. **pam-backend**: https://pam-backend.onrender.com (main backend)
+2. **pam-redis**: Private network cache for production
+3. **pam-celery-worker**: Production background tasks
+4. **pam-celery-beat**: Production task scheduler
+
+#### Staging Services  
+5. **wheels-wins-backend-staging**: https://wheels-wins-backend-staging.onrender.com
+6. **wheels-wins-celery-worker-staging**: Staging background tasks
+
+#### Shared Services
+7. **wheels-wins-data-collector**: https://wheels-wins-data-collector.onrender.com
+
+### Database (Supabase - Shared)
+- **Single PostgreSQL instance** shared between staging and production
+- RLS policies distinguish between environments via user context
 - Tables: profiles, user_settings, pam_conversations, expenses, budgets
 - Daily backups
 
@@ -128,9 +185,17 @@ src/
 2. **Duplicate components**: Pam.tsx AND PamAssistant.tsx
 3. **WebSocket URL**: Must include user_id: `/api/v1/pam/ws/${userId}?token=${token}`
 
-### PAM Connection
+### PAM Connection Endpoints
+
+#### Production
 - **WebSocket**: `wss://pam-backend.onrender.com/api/v1/pam/ws/{user_id}?token={jwt}`
 - **Health**: https://pam-backend.onrender.com/api/health
+
+#### Staging  
+- **WebSocket**: `wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jwt}`
+- **Health**: https://wheels-wins-backend-staging.onrender.com/api/health
+
+**IMPORTANT**: Each frontend must connect to its corresponding backend environment!
 
 ## MCP Servers Configuration
 
@@ -306,6 +371,40 @@ export const MyComponent: React.FC<ComponentProps> = ({
 3. **Env vars**: Use VITE_ prefix for frontend
 4. **Staging**: Always test there first
 5. **RLS**: Test for recursion
+6. **Environment Mismatch**: Staging frontend pointing to production backend
+7. **CORS Issues**: Backend CORS origins must include both staging and production URLs
+8. **JWT Secrets**: Must match between frontend and corresponding backend environment
+
+## Environment Troubleshooting
+
+### Critical Environment Checks
+When debugging staging/production issues, verify:
+
+1. **Frontend→Backend Mapping**:
+   ```bash
+   # Production should use:
+   VITE_API_BASE_URL=https://pam-backend.onrender.com
+   
+   # Staging should use:  
+   VITE_API_BASE_URL=https://wheels-wins-backend-staging.onrender.com
+   ```
+
+2. **Backend CORS Configuration**:
+   ```python
+   # Backend main.py must include both:
+   "https://wheelsandwins.com",
+   "https://wheels-wins-staging.netlify.app"
+   ```
+
+3. **JWT Token Compatibility**:
+   - Staging frontend + staging backend = ✅
+   - Production frontend + production backend = ✅  
+   - Cross-environment = ❌ (JWT decode failures)
+
+### Common Error Patterns
+- `"<!doctype"... is not valid JSON` = CORS/Environment mismatch
+- `JWT decode failed: Signature verification failed` = Wrong backend for environment
+- `Cannot connect to PAM backend` = Environment variable pointing to wrong backend
 
 ## Key Files
 - `vite.config.ts` - Build configuration

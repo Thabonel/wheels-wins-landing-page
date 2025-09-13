@@ -25,12 +25,12 @@ class PamConnectionService {
   private healthCheckInterval?: NodeJS.Timeout;
   private retryTimeout?: NodeJS.Timeout;
 
-  // Backend URLs in priority order - Updated to prioritize working staging server
+  // Backend URLs in priority order - Production first for main branch
   private backends = [
-    'https://wheels-wins-backend-staging.onrender.com',
-    import.meta.env.VITE_BACKEND_URL,
-    import.meta.env.VITE_API_URL,
-    'https://pam-backend.onrender.com'  // Moved to last - has event loop issues
+    import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com',
+    import.meta.env.VITE_API_URL || 'https://pam-backend.onrender.com',
+    'https://pam-backend.onrender.com',  // Primary production
+    'https://wheels-wins-backend-staging.onrender.com'  // Staging fallback for testing
   ].filter(Boolean);
 
   private currentBackendIndex = 0;
@@ -115,34 +115,31 @@ class PamConnectionService {
         return true;
       }
 
+      // Handle rate limiting - stop retrying if we're being rate limited
+      if (response.status === 429) {
+        logger.warn(`Rate limited by backend: ${backendUrl} - stopping retries`);
+        this.updateStatus({
+          isConnected: false,
+          isConnecting: false,
+          backend: 'offline',
+          lastError: 'Rate limited - please wait before trying again'
+        });
+        // Stop all retry mechanisms when rate limited
+        this.stopHealthMonitoring();
+        if (this.retryTimeout) {
+          clearTimeout(this.retryTimeout);
+          this.retryTimeout = undefined;
+        }
+        return false;
+      }
+
       logger.warn(`Backend health check failed with status: ${response.status}`);
       return false;
     } catch (error: any) {
       // Check if it's a CORS error (typically happens with fetch)
       if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        logger.warn(`Backend may be sleeping or has CORS issues: ${backendUrl}`);
-        
-        // Try to wake it up with a simple request
-        try {
-          await fetch(backendUrl, { 
-            method: 'HEAD',
-            mode: 'no-cors' // This won't give us the response but will wake the server
-          });
-          logger.debug('Sent wake-up request to backend');
-          
-          // Wait a bit for server to wake up
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          // Try health check again
-          const retryResponse = await fetch(`${backendUrl}/health`, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-          });
-          
-          return retryResponse.ok;
-        } catch {
-          // Silent fail on wake-up attempt
-        }
+        logger.warn(`Backend connection failed: ${backendUrl}`);
+        // Don't try wake-up requests that cause more load - just fail gracefully
       }
       
       logger.debug(`Health check failed for ${backendUrl}:`, error.message);
@@ -168,7 +165,7 @@ class PamConnectionService {
         });
         this.connect(); // Try to reconnect
       }
-    }, 30000); // Check every 30 seconds
+    }, 120000); // Check every 2 minutes (reduced from 30 seconds)
   }
 
   /**
@@ -189,7 +186,14 @@ class PamConnectionService {
       clearTimeout(this.retryTimeout);
     }
 
-    const retryDelay = Math.min(5000 * Math.pow(2, this.status.retryCount), 60000); // Max 1 minute
+    // If we have a rate limit error, don't retry for much longer
+    if (this.status.lastError?.includes('Rate limited')) {
+      logger.warn('Rate limited - not scheduling retry to avoid more requests');
+      return;
+    }
+
+    // Much longer retry delays to avoid hammering the server
+    const retryDelay = Math.min(30000 * Math.pow(2, this.status.retryCount), 300000); // Max 5 minutes
     logger.debug(`Scheduling retry in ${retryDelay / 1000} seconds...`);
 
     this.retryTimeout = setTimeout(() => {

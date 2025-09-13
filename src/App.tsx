@@ -44,7 +44,7 @@ const AuthTest = lazy(() => import('./pages/AuthTest'));
 // Temporarily disabled - AI SDK not configured
 // const PamAiSdkTest = lazy(() => import('./pages/PamAiSdkTest'));
 const PamVoiceTest = lazy(() => import('./pages/PamVoiceTest'));
-const PamWebSocketTest = lazy(() => import('./pages/PamWebSocketTest'));
+// const PamWebSocketTest = lazy(() => import('./pages/PamWebSocketTest')); // Disabled - using unified PAM service
 const SiteQALog = lazy(() => import('./pages/SiteQALog'));
 const FreshTripPlannerTest = lazy(() => import('./pages/FreshTripPlannerTest'));
 const WheelsSimple = lazy(() => import('./pages/WheelsSimple'));
@@ -110,7 +110,7 @@ function App() {
                                   <Route path="/auth-test" element={<ProtectedRoute><AuthTest /></ProtectedRoute>} />
                                   {/* <Route path="/pam-ai-sdk-test" element={<PamAiSdkTest />} /> */}
                                   <Route path="/pam-voice-test" element={<PamVoiceTest />} />
-                                  <Route path="/pam-websocket-test" element={<PamWebSocketTest />} />
+                                  {/* <Route path="/pam-websocket-test" element={<PamWebSocketTest />} /> */}
                                   <Route path="/qa" element={<SiteQALog />} />
                                   <Route path="/fresh-trip-planner" element={<FreshTripPlannerTest />} />
                                   <Route path="/wheels-simple" element={<WheelsSimple />} />

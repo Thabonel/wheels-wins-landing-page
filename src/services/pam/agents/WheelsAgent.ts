@@ -597,8 +597,8 @@ export class WheelsAgent extends DomainAgent {
     if (/(yellowstone|grand canyon|yosemite|zion)/i.test(location)) return 'US West';
     
     // International
-    if /(canada|canadian|toronto|vancouver|calgary)/i.test(location)) return 'Canada';
-    if /(australia|sydney|melbourne|brisbane|perth)/i.test(location)) return 'Australia';
+    if (/(canada|canadian|toronto|vancouver|calgary)/i.test(location)) return 'Canada';
+    if (/(australia|sydney|melbourne|brisbane|perth)/i.test(location)) return 'Australia';
     
     // Default to US West for unknown locations
     return 'US West';

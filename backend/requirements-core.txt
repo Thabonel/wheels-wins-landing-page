@@ -22,6 +22,7 @@ supabase==2.17.0
 httpx==0.28.1
 requests==2.32.4
 urllib3==2.5.0
+elevenlabs>=1.0.0  # Premium TTS for PAM voice
 
 # Database essentials
 redis==6.2.0

@@ -19,6 +19,7 @@ from .provider_interface import (
 from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
 from app.core.config import get_settings
+from app.services.mcp_config import mcp_config
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -76,7 +77,30 @@ class AIOrchestrator:
         
         logger.info("Initializing AI Orchestrator...")
         
-        # Initialize OpenAI provider if configured
+        # Initialize Anthropic provider FIRST (primary AI provider)
+        if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:
+            try:
+                anthropic_config = ProviderConfig(
+                    name="anthropic",
+                    api_key=settings.ANTHROPIC_API_KEY.get_secret_value() if settings.ANTHROPIC_API_KEY else None,
+                    default_model=getattr(settings, 'ANTHROPIC_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022'),
+                    max_retries=3,
+                    timeout_seconds=30
+                )
+                anthropic_provider = AnthropicProvider(anthropic_config)
+                if await anthropic_provider.initialize():
+                    # Enable MCP tools for Anthropic
+                    if mcp_config.enable_mcp_for_anthropic(anthropic_provider):
+                        logger.info("✅ MCP tools enabled for Anthropic provider")
+                    
+                    self.providers.append(anthropic_provider)
+                    logger.info("✅ Anthropic provider initialized successfully with MCP support")
+                else:
+                    logger.error("❌ Failed to initialize Anthropic provider")
+            except Exception as e:
+                logger.error(f"Error initializing Anthropic provider: {e}")
+        
+        # Initialize OpenAI provider as fallback (if configured)
         if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
             try:
                 openai_config = ProviderConfig(
@@ -89,30 +113,11 @@ class AIOrchestrator:
                 openai_provider = OpenAIProvider(openai_config)
                 if await openai_provider.initialize():
                     self.providers.append(openai_provider)
-                    logger.info("✅ OpenAI provider initialized successfully")
+                    logger.info("✅ OpenAI provider initialized successfully (fallback)")
                 else:
                     logger.error("❌ Failed to initialize OpenAI provider")
             except Exception as e:
                 logger.error(f"Error initializing OpenAI provider: {e}")
-        
-        # Initialize Anthropic provider if configured
-        if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:
-            try:
-                anthropic_config = ProviderConfig(
-                    name="anthropic",
-                    api_key=settings.ANTHROPIC_API_KEY.get_secret_value() if settings.ANTHROPIC_API_KEY else None,
-                    default_model=getattr(settings, 'ANTHROPIC_DEFAULT_MODEL', 'claude-3-opus-20240229'),
-                    max_retries=3,
-                    timeout_seconds=30
-                )
-                anthropic_provider = AnthropicProvider(anthropic_config)
-                if await anthropic_provider.initialize():
-                    self.providers.append(anthropic_provider)
-                    logger.info("✅ Anthropic provider initialized successfully")
-                else:
-                    logger.error("❌ Failed to initialize Anthropic provider")
-            except Exception as e:
-                logger.error(f"Error initializing Anthropic provider: {e}")
         
         # Initialize metrics for each provider
         for provider in self.providers:

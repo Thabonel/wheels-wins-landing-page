@@ -407,7 +407,7 @@ export class STTService {
     }
     
     // OpenAI Whisper (fallback)
-    const backendUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+    const backendUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
     const openaiProvider = new OpenAISTTProvider(backendUrl);
     providers.push(openaiProvider);
     

@@ -66,33 +66,87 @@
   cursor: crosshair !important;
 }
 
-/* Hide Mapbox Directions plugin UI - we use our custom toolbar instead */
-/* IMPORTANT: Don't use display:none as it breaks click-to-add functionality */
-.mapboxgl-ctrl-directions {
+/* Trip Planner Markers - Ensure maximum visibility */
+.trip-planner-marker {
+  position: relative !important;
+  z-index: 1000 !important;
+  transform-origin: center bottom !important;
+  pointer-events: auto !important;
+}
+
+/* Enhanced Mapbox marker visibility for trip planner */
+.mapboxgl-marker.trip-planner-marker {
+  z-index: 1000 !important;
   position: absolute !important;
-  top: -9999px !important;
-  left: -9999px !important;
-  opacity: 0 !important;
-  width: 1px !important;
-  height: 1px !important;
-  overflow: hidden !important;
-  z-index: -1 !important;
 }
 
-/* Hide all directions control elements */
-.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-input {
-  display: none !important;
+.mapboxgl-marker.trip-planner-marker svg {
+  display: block !important;
+  width: 40px !important;
+  height: 40px !important;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)) !important;
 }
 
-.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-instructions {
-  display: none !important;
+/* Ensure Mapbox marker popups are visible */
+.mapboxgl-popup {
+  z-index: 1001 !important;
 }
 
-.mapboxgl-ctrl-directions .mapboxgl-ctrl-directions-profile {
-  display: none !important;
+/* Route layer visibility fixes */
+.mapboxgl-canvas {
+  outline: none !important;
 }
 
-/* Ensure our custom toolbar stays visible above everything */
-.fresh-route-toolbar {
-  z-index: 10000 !important;
+/* Force visibility of all Mapbox markers in trip planner */
+.mapbox-map-container .mapboxgl-marker {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+}
+
+/* COMMUNITY SOLUTION: Default Mapbox marker styling - fixes invisible marker issue */
+.mapboxgl-marker {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  border: 2px solid white !important;
+  background-color: #3b82f6 !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+  color: white !important;
+}
+
+/* Override for specific trip planner markers with A/B letters */
+.mapboxgl-marker.trip-planner-start {
+  background-color: #22c55e !important; /* Green for start (A) */
+  border-color: #16a34a !important;
+}
+
+.mapboxgl-marker.trip-planner-start::after {
+  content: 'A' !important;
+  color: white !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+}
+
+.mapboxgl-marker.trip-planner-end {
+  background-color: #ef4444 !important; /* Red for end (B) */  
+  border-color: #dc2626 !important;
+}
+
+.mapboxgl-marker.trip-planner-end::after {
+  content: 'B' !important;
+  color: white !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+}
+
+.mapboxgl-marker.trip-planner-waypoint {
+  background-color: #3b82f6 !important; /* Blue for waypoints */
+  border-color: #2563eb !important;
 }

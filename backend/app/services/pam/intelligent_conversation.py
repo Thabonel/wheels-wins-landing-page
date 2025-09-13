@@ -199,8 +199,11 @@ Return ONLY a JSON object with:
             user_id = context.get('user_id')
             
             # Step 1: Load User Profile (always do this first)
+            logger.info(f"🔍 PAM DEBUG: Loading user profile for {user_id}")
             user_profile_result = await self.load_user_profile_tool.execute(user_id)
             user_profile = user_profile_result.get('data', {}) if user_profile_result.get('success') else {}
+            logger.info(f"🔍 PAM DEBUG: Profile tool success: {user_profile_result.get('success', False)}")
+            logger.info(f"🔍 PAM DEBUG: Profile data exists: {user_profile.get('profile_exists', False)}")
             
             # Step 2: Load Recent Memory 
             memory_result = await self.load_recent_memory_tool.execute(user_id)
@@ -632,9 +635,53 @@ IMPORTANT: Transform this technical data into warm, conversational advice. Don't
                     context_parts.append(f"Travel style: {travel_prefs.get('style', 'Unknown')}")
                     context_parts.append(f"Daily drive limit: {travel_prefs.get('drive_limit_per_day', 'Unknown')}")
                 
+                # Add new personalization preferences  
+                preferences = user_profile.get('preferences', {})
+                if preferences:
+                    # Travel interests
+                    interests = preferences.get('travel_interests', [])
+                    if interests:
+                        context_parts.append(f"Travel interests: {', '.join(interests)}")
+                    
+                    # Trip pace preference
+                    trip_pace = preferences.get('trip_pace', 'mixed')
+                    context_parts.append(f"Preferred trip pace: {trip_pace}")
+                    
+                    # Budget style
+                    budget_style = preferences.get('budget_style', 'mid')
+                    context_parts.append(f"Budget style: {budget_style}")
+                    
+                    # Past trip notes/learning
+                    trip_notes = preferences.get('past_trip_notes', '')
+                    if trip_notes:
+                        context_parts.append(f"Travel notes: {trip_notes}")
+                    
+                    # Feedback history for learning
+                    feedback_history = preferences.get('feedback_history', [])
+                    if feedback_history and len(feedback_history) > 0:
+                        recent_feedback = [f['rating'] for f in feedback_history[-5:]]  # Last 5 ratings
+                        positive_count = sum(1 for r in recent_feedback if r > 0)
+                        context_parts.append(f"Recent response satisfaction: {positive_count}/{len(recent_feedback)} positive")
+                
                 vehicle = user_profile.get('vehicle_info', {})
+                logger.info(f"🚐 CONTEXT DEBUG: Vehicle info from profile: {vehicle}")
                 if vehicle:
-                    context_parts.append(f"Vehicle: {vehicle.get('type', 'Unknown')} ({vehicle.get('fuel_type', 'Unknown')} fuel)")
+                    # Enhanced vehicle context for better AI understanding
+                    vehicle_type = vehicle.get('type', 'Unknown')
+                    make_model = vehicle.get('make_model_year', '')
+                    fuel_type = vehicle.get('fuel_type', 'Unknown')
+                    is_rv = vehicle.get('is_rv', False)
+                    
+                    # Build comprehensive vehicle context
+                    vehicle_context = f"Vehicle: {vehicle_type}"
+                    if make_model:
+                        vehicle_context += f" - {make_model}"
+                    vehicle_context += f" ({fuel_type} fuel)"
+                    if is_rv:
+                        vehicle_context += " - RV/OVERLAND VEHICLE requiring ferry for Tasmania travel"
+                    
+                    context_parts.append(vehicle_context)
+                    logger.info(f"🚐 CONTEXT DEBUG: Added vehicle context: {vehicle_context}")
                 
                 budget = user_profile.get('budget_preferences', {})
                 if budget:

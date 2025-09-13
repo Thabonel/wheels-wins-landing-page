@@ -542,7 +542,7 @@ const parseAmount = (value: any): number => {
     
     // Handle parentheses for negative numbers (e.g., "(100.00)")
     if (cleaned.startsWith('(') && cleaned.endsWith(')')) {
-      cleaned = '-' + cleaned.slice(1, -1);
+      cleaned = `-${  cleaned.slice(1, -1)}`;
     }
     
     // Handle CR/DR notation (Credit/Debit)

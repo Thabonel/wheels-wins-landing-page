@@ -3,24 +3,7 @@ PAM Backend Main Application
 High-performance FastAPI application with comprehensive monitoring and security.
 """
 
-# FORCE STAGING ENVIRONMENT - Must be first before any config imports
 import os
-if os.getenv("RENDER", False) or os.getenv("RENDER_SERVICE_ID"):
-    # Force staging environment on Render deployment
-    os.environ["ENVIRONMENT"] = "staging"
-    os.environ["NODE_ENV"] = "staging"
-    os.environ["DEBUG"] = "true"
-    os.environ["APP_URL"] = "https://wheels-wins-backend-staging.onrender.com"
-    cors_origins = "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app,https://wheelsandwins-staging.netlify.app,https://staging--wheels-wins-landing-page.netlify.app,https://staging--charming-figolla-d83b68.netlify.app"
-    os.environ["CORS_ALLOWED_ORIGINS"] = cors_origins
-    print("🔧 FORCED STAGING ENVIRONMENT ON RENDER:")
-    print(f"   ENVIRONMENT: {os.environ['ENVIRONMENT']}")
-    print(f"   NODE_ENV: {os.environ['NODE_ENV']}")
-    print(f"   DEBUG: {os.environ['DEBUG']}")
-    print(f"   APP_URL: {os.environ['APP_URL']}")
-    print("   ✅ Staging environment forced successfully!")
-    print(f"   📅 Deployed at: {os.environ.get('RENDER_GIT_COMMIT', 'unknown')[:8]}")
-
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -99,6 +82,7 @@ from app.api.v1 import (
     maintenance,
     custom_routes,
     mapbox,
+    openroute,
     user_settings,
     onboarding,
     performance,
@@ -410,87 +394,131 @@ logger.info("🛡️ Initializing enhanced security system...")
 security_config = setup_enhanced_security(app)
 logger.info("✅ Enhanced security system fully operational")
 
-# CORS Configuration - Must Be FIRST
-# CRITICAL: CORS must be configured BEFORE other middleware
-# Using FastAPI's standard CORSMiddleware with comprehensive origins
-allowed_origins = [
-    # Development origins
-    "http://localhost:8080",
-    "http://localhost:3000",
-    "http://127.0.0.1:8080",
-    "http://127.0.0.1:3000",
-    
-    # Production origins
-    "https://wheelsandwins.com",
-    "https://www.wheelsandwins.com", 
-    "https://wheelz-wins.com",
-    "https://www.wheelz-wins.com",
-    "https://wheels-wins-landing-page.netlify.app",
-    "https://charming-figolla-d83b68.netlify.app",
-    
-    # Staging origins
-    "https://staging-wheelsandwins.netlify.app",
-    "https://wheels-wins-staging.netlify.app",
-    "https://wheelsandwins-staging.netlify.app",
-    "https://wheels-wins-test.netlify.app",
-    "https://staging--wheels-wins.netlify.app",  # Additional Netlify preview format
-    "https://staging--wheels-wins-landing-page.netlify.app",  # Netlify branch deploy format
-    "https://staging--charming-figolla-d83b68.netlify.app",  # Specific site ID format
-    
-    # Development origins (only in development)
-    *(["http://localhost:3000", "http://localhost:8080", "http://localhost:5173", 
-       "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://127.0.0.1:5173"] 
-      if getattr(settings, 'NODE_ENV', 'production') == 'development' else [])
-]
-
-# Add CORS middleware - This handles ALL CORS including OPTIONS preflight
-# CRITICAL: CORS middleware must be added BEFORE other middleware that might interfere
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["*"],  # Allow all headers
-    expose_headers=["Content-Type", "Authorization", "X-Request-ID"]
-)
-logger.info(f"✅ CORS middleware configured with {len(allowed_origins)} origins")
-logger.info(f"🔍 CORS Debug - Allowed origins: {allowed_origins}")
-logger.info(f"🔍 CORS Debug - Environment: {getattr(settings, 'NODE_ENV', 'unknown')}")
-
-# Add CORS debug middleware for troubleshooting
-@app.middleware("http")
-async def cors_debug_middleware(request: Request, call_next):
-    origin = request.headers.get("origin")
-    method = request.method
-    
-    if origin or method == "OPTIONS":
-        logger.info(f"🔍 CORS Debug - Request from origin: {origin}")
-        logger.info(f"🔍 CORS Debug - Method: {method}")
-        logger.info(f"🔍 CORS Debug - Path: {request.url.path}")
-        
-        # Check if origin is in allowed list
-        if origin in allowed_origins:
-            logger.info(f"✅ CORS Debug - Origin {origin} is in allowed list")
-        else:
-            logger.warning(f"❌ CORS Debug - Origin {origin} NOT in allowed list")
-            logger.warning(f"❌ CORS Debug - Available origins: {allowed_origins[:3]}...")
-    
-    response = await call_next(request)
-    
-    # Log response headers
-    cors_headers = {k: v for k, v in response.headers.items() if 'access-control' in k.lower()}
-    if cors_headers:
-        logger.info(f"🔍 CORS Debug - Response headers: {cors_headers}")
-    
-    return response
-
-# FastAPI's CORSMiddleware handles ALL OPTIONS requests automatically
-# No need for additional OPTIONS handlers - they can cause conflicts
-
-# Setup other middleware AFTER CORS
+# Setup other middleware
 app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
 setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
+
+# CORS Configuration - Industry Standard (OpenAI/Vercel Pattern)
+# Priority: settings object → environment variable → development defaults
+cors_origins_from_settings = getattr(settings, 'CORS_ALLOWED_ORIGINS', None)
+cors_env_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+
+if cors_origins_from_settings and isinstance(cors_origins_from_settings, list) and len(cors_origins_from_settings) > 0:
+    # Production/Staging: Use origins from settings object (configured by simple_config.py)
+    allowed_origins = cors_origins_from_settings.copy()
+    # Add localhost for development testing
+    allowed_origins.extend([
+        "http://localhost:8080",
+        "http://localhost:3000"
+    ])
+    print(f"🌐 CORS: Using settings configuration ({len(cors_origins_from_settings)} configured origins)")
+    print("🌐 CORS: Configured origins:")
+    for origin in cors_origins_from_settings:
+        print(f"   ✅ {origin}")
+    print("🌐 CORS: Added development origins:")
+    print("   ✅ http://localhost:8080")
+    print("   ✅ http://localhost:3000")
+elif cors_env_origins:
+    # Fallback to environment variable (if settings failed)
+    allowed_origins = [origin.strip() for origin in cors_env_origins.split(",") if origin.strip()]
+    # Add localhost for development testing
+    allowed_origins.extend([
+        "http://localhost:8080",
+        "http://localhost:3000"
+    ])
+    print(f"🌐 CORS: Using environment variable fallback ({len(allowed_origins)-2} configured origins)")
+    print("🌐 CORS: Environment origins:")
+    for origin in allowed_origins[:-2]:  # Don't print localhost ones twice
+        print(f"   ✅ {origin}")
+else:
+    # Development fallback: Localhost only (never wildcards)
+    allowed_origins = [
+        "http://localhost:8080",
+        "http://localhost:3000",
+        "http://127.0.0.1:8080", 
+        "http://127.0.0.1:3000"
+    ]
+    print("⚠️  CORS: No configuration found - using development fallback")
+    print("⚠️  CORS: Production deployments MUST configure CORS_ALLOWED_ORIGINS")
+    print(f"🌐 CORS: Development origins ({len(allowed_origins)} origins):")
+    for origin in allowed_origins:
+        print(f"   ✅ {origin}")
+
+# Validate CORS configuration
+is_production_cors = cors_origins_from_settings or cors_env_origins
+print(f"🔒 CORS: Security level = {'PRODUCTION' if is_production_cors else 'DEVELOPMENT'}")
+print(f"🔒 CORS: Credentials support = ENABLED")
+print(f"🔒 CORS: Origin validation = EXPLICIT_ONLY (no wildcards)")
+print(f"🔒 CORS: Total allowed origins = {len(allowed_origins)}")
+
+# Add CORS middleware - Industry Standard Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,           # Explicit domains only (no wildcards)
+    allow_credentials=True,                  # Enable authentication
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[                          # Restricted headers for security
+        "Authorization",
+        "Content-Type", 
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers"
+    ],
+    expose_headers=[                         # Headers exposed to frontend
+        "Content-Type",
+        "Authorization", 
+        "X-Request-ID",
+        "X-Process-Time"
+    ]
+)
+
+print(f"✅ CORS middleware configured with {len(allowed_origins)} origins")
+print("✅ CORS: Production-grade security enabled")
+print("✅ CORS: Ready for authentication and WebSocket connections")
+
+# CORS Validation and Error Handling
+def validate_cors_setup():
+    """Validate CORS configuration and provide helpful error messages"""
+    try:
+        # Check if we have valid origins
+        if not allowed_origins:
+            print("❌ CORS ERROR: No allowed origins configured!")
+            return False
+            
+        # Validate origin format
+        invalid_origins = []
+        for origin in allowed_origins:
+            if not (origin.startswith('http://') or origin.startswith('https://')):
+                invalid_origins.append(origin)
+                
+        if invalid_origins:
+            print(f"❌ CORS ERROR: Invalid origin format: {invalid_origins}")
+            return False
+            
+        # Check for common misconfigurations
+        if "*" in allowed_origins:
+            print("❌ CORS ERROR: Wildcard origins not allowed with credentials!")
+            return False
+            
+        print("✅ CORS validation passed")
+        return True
+        
+    except Exception as e:
+        print(f"❌ CORS validation failed: {e}")
+        return False
+
+# Run CORS validation
+cors_valid = validate_cors_setup()
+if not cors_valid:
+    print("🚨 CORS CONFIGURATION ERROR - API may not work properly!")
+    print("🔧 Check environment variables and render.yaml configuration")
+
+# FastAPI's CORSMiddleware handles ALL OPTIONS requests automatically  
+# No need for additional OPTIONS handlers - they can cause conflicts
+
 
 # Add root route handler
 @app.get("/")
@@ -519,31 +547,6 @@ async def root():
         }
     }
 
-# Add CORS test endpoint for debugging
-@app.get("/api/cors-test")
-async def cors_test(request: Request):
-    """Test endpoint specifically for CORS debugging"""
-    origin = request.headers.get("origin", "No origin header")
-    return {
-        "message": "CORS test successful!",
-        "origin": origin,
-        "origin_allowed": origin in allowed_origins,
-        "timestamp": datetime.utcnow().isoformat(),
-        "method": "GET"
-    }
-
-@app.post("/api/cors-test") 
-async def cors_test_post(request: Request):
-    """POST test endpoint for CORS preflight testing"""
-    origin = request.headers.get("origin", "No origin header")
-    return {
-        "message": "CORS POST test successful!",
-        "origin": origin,
-        "origin_allowed": origin in allowed_origins,
-        "timestamp": datetime.utcnow().isoformat(),
-        "method": "POST"
-    }
-
 # CORS debugging endpoint
 @app.get("/api/cors/debug")
 async def cors_debug_info(request: Request):
@@ -554,7 +557,6 @@ async def cors_debug_info(request: Request):
         "timestamp": datetime.utcnow().isoformat(),
         "request_origin": origin,
         "configured_cors_origins": allowed_origins,
-        "cors_debug_enabled": True,
         "origin_allowed": origin in allowed_origins if origin != "No origin header" else False,
         "environment": getattr(settings, 'NODE_ENV', 'unknown'),
         "total_origins": len(allowed_origins),
@@ -664,6 +666,7 @@ except Exception as e:
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
+app.include_router(openroute.router, prefix="/api/v1/openroute", tags=["OpenRoute Service Proxy"])
 app.include_router(health_consultation.router, prefix="/api/v1", tags=["Health Consultation"])
 
 # Conditionally register routers that might fail to import

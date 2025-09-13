@@ -412,48 +412,34 @@ class EnhancedPamOrchestrator:
     async def _initialize_tts_service(self):
         """Initialize enhanced TTS service integration with multi-engine support"""
         try:
-            from app.services.tts.tts_manager import get_tts_manager
+            from app.services.tts.manager import get_tts_manager, synthesize_for_pam, PAMVoiceProfile
             
             logger.info("🎤 Initializing enhanced TTS Manager...")
             self.tts_manager = get_tts_manager()
             
-            # Initialize TTS engines if not already done
-            if not self.tts_manager._engines_initialized:
-                await self.tts_manager._initialize_engines()
+            # Get TTS engine status from our new manager
+            engine_status = self.tts_manager.get_engine_status()
+            available_engines = engine_status["available_engines"]
             
-            if self.tts_manager.is_initialized:
-                # Get TTS health status
-                tts_health = self.tts_manager.get_health_status()
-                available_engines = tts_health["system_health"]["available_engines"]
-                
-                if available_engines > 0:
-                    self.service_capabilities["tts"] = ServiceCapability(
-                        name="tts",
-                        status=ServiceStatus.HEALTHY,
-                        confidence=min(1.0, available_engines / 3.0),  # Full confidence with all 3 engines
-                        last_check=datetime.utcnow(),
-                        metadata=tts_health
-                    )
-                    logger.info(f"✅ Enhanced TTS Manager integrated with {available_engines} engines")
-                else:
-                    self.service_capabilities["tts"] = ServiceCapability(
-                        name="tts",
-                        status=ServiceStatus.DEGRADED,
-                        confidence=0.3,  # Text-only fallback available
-                        last_check=datetime.utcnow(),
-                        metadata=tts_health,
-                        error_message="No TTS engines available, text-only responses"
-                    )
-                    logger.warning("⚠️ TTS Manager initialized but no engines available")
-            else:
-                logger.warning("⚠️ TTS Manager not initialized")
+            if available_engines > 0:
                 self.service_capabilities["tts"] = ServiceCapability(
                     name="tts",
-                    status=ServiceStatus.UNAVAILABLE,
-                    confidence=0.0,
+                    status=ServiceStatus.HEALTHY,
+                    confidence=min(1.0, available_engines / 3.0),  # Full confidence with all 3 engines
                     last_check=datetime.utcnow(),
-                    error_message="TTS service not initialized"
+                    metadata=engine_status
                 )
+                logger.info(f"✅ Enhanced TTS Manager integrated with {available_engines} engines")
+            else:
+                self.service_capabilities["tts"] = ServiceCapability(
+                    name="tts",
+                    status=ServiceStatus.DEGRADED,
+                    confidence=0.3,  # Text-only fallback available
+                    last_check=datetime.utcnow(),
+                    metadata=engine_status,
+                    error_message="No TTS engines available, text-only responses"
+                )
+                logger.warning("⚠️ TTS Manager initialized but no engines available")
         except ImportError as e:
             logger.warning(f"⚠️ TTS service import failed: {e}")
             self.service_capabilities["tts"] = ServiceCapability(
@@ -1481,20 +1467,20 @@ Based on these results, please provide a helpful response to the user's original
             logger.debug(f"🎤 Generating TTS for context: {voice_context}, user: {user_id}")
             
             tts_response = await asyncio.wait_for(
-                self.tts_manager.synthesize_for_pam(
+                synthesize_for_pam(
                     text=content,
+                    voice_profile=PAMVoiceProfile.PAM_ASSISTANT,
                     user_id=user_id,
-                    context=voice_context,
-                    stream=False
+                    context=voice_context
                 ),
                 timeout=self.config["tts_timeout_ms"] / 1000
             )
             
-            if tts_response and tts_response.success:
+            if tts_response and tts_response.get("success"):
                 return {
-                    "audio_data": tts_response.audio_data,
-                    "generation_time_ms": tts_response.generation_time_ms,
-                    "engine_used": tts_response.engine_used.value if tts_response.engine_used else "unknown"
+                    "audio_data": tts_response.get("audio_data"),
+                    "generation_time_ms": tts_response.get("duration", 0.0) * 1000,  # Convert to ms
+                    "engine_used": tts_response.get("engine_used", "unknown")
                 }
             
             return None
@@ -1527,8 +1513,8 @@ Based on these results, please provide a helpful response to the user's original
         # TTS service health check (using tts_manager instead of tts_service)
         if hasattr(self, 'tts_manager') and self.tts_manager:
             try:
-                health = self.tts_manager.get_health_status()
-                available_engines = health["system_health"]["available_engines"]
+                engine_status = self.tts_manager.get_engine_status()
+                available_engines = engine_status["available_engines"]
                 if available_engines > 0:
                     self.service_capabilities["tts"].status = ServiceStatus.HEALTHY
                     self.service_capabilities["tts"].confidence = min(1.0, available_engines / 3.0)

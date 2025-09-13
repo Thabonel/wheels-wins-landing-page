@@ -17,12 +17,35 @@ const isValidURL = (value: string) => {
   }
 };
 
+// Debug logging for staging environment
+if (import.meta.env.MODE === 'staging' || window.location.hostname.includes('staging')) {
+  console.log('🔍 Supabase Configuration Debug:', {
+    mode: import.meta.env.MODE,
+    urlLength: SUPABASE_URL?.length,
+    urlFirst20: `${SUPABASE_URL?.substring(0, 20)  }...`,
+    urlLast20: `...${  SUPABASE_URL?.substring(SUPABASE_URL.length - 20)}`,
+    hasKey: !!SUPABASE_ANON_KEY,
+    keyPrefix: `${SUPABASE_ANON_KEY?.substring(0, 10)  }...`,
+    urlHasSpaces: SUPABASE_URL?.includes(' '),
+    urlHasNewlines: SUPABASE_URL?.includes('\n'),
+    urlHasTrailingSlash: SUPABASE_URL?.endsWith('/'),
+  });
+}
+
 // Check if variables are swapped and auto-correct
 if (isJWTToken(SUPABASE_URL) && isValidURL(SUPABASE_ANON_KEY)) {
   console.warn('🔄 Detected swapped Supabase environment variables - auto-correcting...');
   const temp = SUPABASE_URL;
   SUPABASE_URL = SUPABASE_ANON_KEY;
   SUPABASE_ANON_KEY = temp;
+}
+
+// Clean up URL formatting issues
+if (SUPABASE_URL) {
+  SUPABASE_URL = SUPABASE_URL.trim().replace(/\/$/, ''); // Remove whitespace and trailing slash
+  if (SUPABASE_URL.includes(' ') || SUPABASE_URL.includes('\n')) {
+    console.error('⚠️ Supabase URL contains whitespace or newlines - this will cause authentication to fail');
+  }
 }
 
 // Enhanced validation with better error messaging for Netlify deployment debugging

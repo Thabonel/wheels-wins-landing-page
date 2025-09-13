@@ -269,7 +269,7 @@ export async function triggerTripScraping(region: Region): Promise<TripTemplate[
     // Check if backend scraper service is available
     const backendUrl = import.meta.env.VITE_API_URL || 
                        import.meta.env.VITE_BACKEND_URL || 
-                       'https://wheels-wins-backend-staging.onrender.com';
+                       'https://pam-backend.onrender.com';
     
     const response = await fetch(`${backendUrl}/api/v1/scrape/trip-templates`, {
       method: 'POST',

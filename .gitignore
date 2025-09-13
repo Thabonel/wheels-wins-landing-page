@@ -14,6 +14,10 @@ coverage/
 .env.staging
 .env.ai-agents.local
 
+# Package lock files (prevent accidental dependency updates)
+package-lock.json
+yarn.lock
+
 # Git Safety Systems - Generated Files (DO NOT COMMIT)
 .git/git-safe/
 .git/git-network-resilient/
@@ -23,9 +27,3 @@ coverage/
 REPO_HEALTH_CHECK.md
 scripts/git-safe-config
 git-safety-functions.sh
-
-# Platform-specific Rollup packages (cause deployment conflicts)
-node_modules/@rollup/rollup-darwin-x64/
-node_modules/@rollup/rollup-linux-x64-gnu/
-@rollup/rollup-darwin-x64
-@rollup/rollup-linux-x64-gnu

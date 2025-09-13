@@ -303,7 +303,7 @@ export class GoogleImageService {
       
       return {
         imageUrl: this.getPlaceholderImage(template),
-        searchUrl: searchUrl,
+        searchUrl,
         isVerified: false,
         isStored: false
       };
@@ -358,7 +358,7 @@ export class GoogleImageService {
     // Return a placeholder with search URL
     return {
       imageUrl: this.getPlaceholderImage(template),
-      searchUrl: searchUrl,
+      searchUrl,
       isVerified: false
     };
   }

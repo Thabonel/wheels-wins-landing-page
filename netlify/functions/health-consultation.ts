@@ -81,7 +81,7 @@ const checkEmergencyTool = tool({
         emergency: true,
         action: '🚨 SEEK IMMEDIATE MEDICAL ATTENTION',
         message: 'Call 911 immediately or go to the nearest emergency room. Do not delay.',
-        symptoms: symptoms,
+        symptoms,
         reason: 'These symptoms may indicate a life-threatening condition'
       };
     }
@@ -91,7 +91,7 @@ const checkEmergencyTool = tool({
         emergency: false,
         action: 'See a doctor soon',
         message: 'Schedule an appointment with a healthcare provider within 24-48 hours',
-        symptoms: symptoms
+        symptoms
       };
     }
 
@@ -99,7 +99,7 @@ const checkEmergencyTool = tool({
       emergency: false,
       action: 'Monitor symptoms',
       message: 'Keep track of symptoms. See a doctor if they worsen or persist',
-      symptoms: symptoms
+      symptoms
     };
   }
 });
@@ -278,7 +278,7 @@ Remember: Use this context for information only. Do not diagnose based on this d
     const messages: CoreMessage[] = [
       {
         role: 'system',
-        content: HEALTH_SYSTEM_PROMPT + '\n\n' + contextInfo
+        content: `${HEALTH_SYSTEM_PROMPT  }\n\n${  contextInfo}`
       }
     ];
 

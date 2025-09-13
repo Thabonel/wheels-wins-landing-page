@@ -18,6 +18,8 @@ from app.services.database import get_database_service
 from app.services.ai_service import get_ai_service
 from app.services.pam.context_manager import ContextManager
 from app.core.intelligent_conversation import IntelligentConversationHandler
+from app.services.pam.rag_integration_mixin import RAGIntegrationMixin
+from app.services.pam.tools.weather_tool import WeatherTool
 
 logger = get_logger(__name__)
 
@@ -53,7 +55,7 @@ class UnifiedResponse:
     context_used: Optional[str] = None
 
 
-class UnifiedPamOrchestrator:
+class UnifiedPamOrchestrator(RAGIntegrationMixin):
     """
     Unified orchestrator that combines all capabilities:
     - Context-aware responses (no hardcoded RV bias)
@@ -62,14 +64,21 @@ class UnifiedPamOrchestrator:
     - AI service integration with fallbacks
     - Node-based data access when needed
     - Analytics and monitoring
+    - RAG-enhanced conversation memory and context retrieval
     """
     
     def __init__(self):
+        # Initialize RAG mixin first
+        super().__init__()
+        
         # Core services
         self.ai_service = None
         self.database_service = None
         self.context_manager = ContextManager()
         self.conversation_handler = IntelligentConversationHandler()
+        
+        # Initialize tools
+        self.weather_tool = None
         
         # State management
         self.initialized = False
@@ -78,6 +87,7 @@ class UnifiedPamOrchestrator:
         self.enable_streaming = True
         self.enable_analytics = True
         self.enable_memory = True
+        self.enable_rag = True  # Enable RAG by default
         
     async def initialize(self):
         """Initialize all required services"""
@@ -91,6 +101,15 @@ class UnifiedPamOrchestrator:
             
             # Initialize database service
             self.database_service = get_database_service()
+            
+            # Initialize weather tool
+            self.weather_tool = WeatherTool()
+            await self.weather_tool.initialize()
+            
+            # Register weather tool with AI service if it has a tool registry
+            if hasattr(self.ai_service, 'tool_registry') and self.ai_service.tool_registry:
+                self.ai_service.tool_registry.register_tool(self.weather_tool)
+                logger.info("🌤️ Weather tool registered with AI service")
             
             logger.info("✅ Unified PAM Orchestrator initialized successfully")
             self.initialized = True
@@ -169,8 +188,13 @@ Focus on: routes, destinations, camping, RV considerations if relevant."""
             base_prompt += """For this financial query, provide budget and expense management assistance.
 Focus on: budgeting, expense tracking, financial planning."""
         elif query_context == QueryContext.WEATHER:
-            base_prompt += """For this weather query, provide accurate weather information.
-Focus on: current conditions, forecasts, weather impacts."""
+            base_prompt += """For weather queries, provide DIRECT, CONCISE weather information.
+- Use weather tool to get actual data
+- Give temperatures, conditions, and key details in bullet points
+- NO location explanations (user knows where they are)
+- NO disclaimers about data access
+- BE BRIEF and SPECIFIC like: "Tomorrow: 19-20°C high, 10°C low, mostly sunny, 10% rain chance"
+Available tools: weather_advisor for current weather and forecasts."""
         elif query_context == QueryContext.SOCIAL:
             base_prompt += """For this social query, help with community and social features.
 Focus on: connections, groups, events, community."""
@@ -228,9 +252,57 @@ Be conversational and friendly without forcing specialized knowledge."""
         if self._is_simple_greeting(message):
             return self._handle_simple_greeting(message, context)
         
+        # Enhance context with RAG if enabled
+        if self.enable_rag and self._rag_enabled:
+            try:
+                context = await self.enhance_message_with_rag(
+                    message=message,
+                    user_id=user_id,
+                    session_id=session_id,
+                    context=context
+                )
+                logger.info(f"🧠 Context enhanced with RAG (confidence: {context.get('confidence_score', 0):.2f})")
+            except Exception as e:
+                logger.warning(f"RAG enhancement failed, continuing without: {e}")
+        
+        # Handle weather queries directly with tool if possible
+        if query_context == QueryContext.WEATHER and self.weather_tool:
+            try:
+                weather_response = await self._handle_weather_query_direct(message, context)
+                if weather_response:
+                    return weather_response
+            except Exception as e:
+                logger.warning(f"Direct weather handling failed, using AI: {e}")
+        
         # For complex queries, use AI service
         try:
             response = await self._process_with_ai(message, context, query_context)
+            
+            # Store conversation with RAG context if available
+            if self.enable_rag and context.get('rag_enabled') and isinstance(response, dict):
+                try:
+                    # Convert context back to EnhancedContext for storage
+                    from app.services.pam.enhanced_context_retriever import EnhancedContext
+                    enhanced_obj = EnhancedContext(
+                        similar_conversations=context.get('similar_conversations', []),
+                        relevant_preferences=context.get('relevant_preferences', []),
+                        contextual_memories=context.get('contextual_memories', []),
+                        user_knowledge=context.get('user_knowledge', []),
+                        context_summary=context.get('context_summary', ''),
+                        confidence_score=context.get('confidence_score', 0.0),
+                        retrieval_time_ms=context.get('retrieval_time_ms', 0)
+                    )
+                    
+                    await self.store_rag_enhanced_conversation(
+                        user_id=user_id,
+                        user_message=message,
+                        assistant_response=response.get('content', ''),
+                        session_id=session_id,
+                        enhanced_context=enhanced_obj
+                    )
+                except Exception as store_error:
+                    logger.warning(f"Failed to store RAG-enhanced conversation: {store_error}")
+            
             return response
         except Exception as e:
             logger.error(f"AI processing failed: {e}")
@@ -349,6 +421,100 @@ Be conversational and friendly without forcing specialized knowledge."""
         }
         
         return suggestions_map.get(query_context, suggestions_map[QueryContext.GENERAL])
+    
+    async def _handle_weather_query_direct(self, message: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Handle weather queries directly with weather tool for fast, concise responses"""
+        try:
+            # Extract location from context
+            location = None
+            user_location = context.get('user_location') or context.get('location')
+            if user_location:
+                if isinstance(user_location, dict):
+                    if 'address' in user_location:
+                        location = user_location['address']
+                    elif 'city' in user_location:
+                        location = user_location['city']
+                    elif 'lat' in user_location and 'lng' in user_location:
+                        location = [user_location['lat'], user_location['lng']]
+                elif isinstance(user_location, str):
+                    location = user_location
+            
+            if not location:
+                return None  # Fall back to AI service
+            
+            message_lower = message.lower()
+            
+            # Determine if asking for forecast or current weather
+            if any(word in message_lower for word in ['tomorrow', 'forecast', 'week', 'weekend', 'days']):
+                # Get forecast
+                result = await self.weather_tool.execute(
+                    user_id=context.get('user_id', ''),
+                    parameters={
+                        "action": "get_forecast",
+                        "location": location,
+                        "days": 7 if 'week' in message_lower else 3
+                    }
+                )
+            else:
+                # Get current weather
+                result = await self.weather_tool.execute(
+                    user_id=context.get('user_id', ''),
+                    parameters={
+                        "action": "get_current",
+                        "location": location
+                    }
+                )
+            
+            if result.success:
+                return {
+                    "content": self._format_weather_response(result.result, message_lower),
+                    "actions": [],
+                    "confidence": 0.95,
+                    "requires_followup": False,
+                    "suggestions": [
+                        "Extended forecast",
+                        "Travel conditions", 
+                        "Weather alerts"
+                    ],
+                    "context_used": "weather_tool"
+                }
+            
+        except Exception as e:
+            logger.error(f"Weather tool direct handling error: {e}")
+        
+        return None  # Fall back to AI service
+    
+    def _format_weather_response(self, weather_data: Dict[str, Any], query: str) -> str:
+        """Format weather data into a concise, direct response"""
+        try:
+            if 'current' in weather_data:
+                # Current weather response
+                current = weather_data['current']
+                return f"{current['conditions']}, {current['temperature']} (feels like {current['feels_like']}). {current['wind']}, {current['humidity']} humidity."
+            
+            elif 'forecast' in weather_data:
+                # Forecast response
+                forecast = weather_data['forecast']
+                location = weather_data.get('location', '')
+                
+                if 'tomorrow' in query:
+                    # Tomorrow's weather
+                    tomorrow = forecast[1] if len(forecast) > 1 else forecast[0]
+                    return f"Tomorrow: {tomorrow['high']} high, {tomorrow['low']} low, {tomorrow['conditions']}. Rain chance: {tomorrow['rain_chance']}."
+                else:
+                    # Multi-day forecast
+                    response_parts = []
+                    for i, day in enumerate(forecast[:3]):
+                        day_name = ["Today", "Tomorrow", "Day after"][i] if i < 3 else f"Day {i+1}"
+                        response_parts.append(f"{day_name}: {day['high']}/{day['low']}, {day['conditions']}")
+                    return ". ".join(response_parts) + "."
+            
+            # Fallback
+            return weather_data.get('message', 'Weather information retrieved.')
+            
+        except Exception as e:
+            logger.error(f"Weather formatting error: {e}")
+            return weather_data.get('message', 'Weather information available.')
     
     def _fallback_response(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Fallback response when AI is unavailable"""
