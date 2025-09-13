@@ -23,6 +23,7 @@ import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { pamAgenticService } from "@/services/pamAgenticService";
 import { logger } from '../lib/logger';
+import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
 
 
 // Extend Window interface for SpeechRecognition
@@ -3205,9 +3206,25 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                   }`}>
                     <div className="flex items-start gap-2">
                       <div className="flex-1">
-                        <p className={`text-sm ${msg.content === 'PAM is thinking' ? 'animate-pulse text-blue-600' : ''}`}>
-                          {msg.content}
-                        </p>
+                        {/* Format PAM messages for better readability */}
+                        {msg.sender === "pam" ? (
+                          <div>
+                            <div className={`text-sm whitespace-pre-line ${msg.content === 'PAM is thinking' ? 'animate-pulse text-blue-600' : ''}`}>
+                              {formatPamMessage(msg.content).content}
+                            </div>
+                            {/* Show travel summary if available */}
+                            {(() => {
+                              const summary = extractTravelSummary(msg.content);
+                              return summary ? (
+                                <div className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded mt-1 border-l-2 border-blue-300">
+                                  {summary}
+                                </div>
+                              ) : null;
+                            })()}
+                          </div>
+                        ) : (
+                          <p className="text-sm">{msg.content}</p>
+                        )}
                         {/* Streaming indicator */}
                         {msg.isStreaming && (
                           <div className="flex items-center mt-1 text-xs text-gray-500">

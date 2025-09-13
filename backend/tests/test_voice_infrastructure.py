@@ -218,7 +218,7 @@ class TestAudioStreamProcessor:
         """Mock audio chunk for testing"""
         return AudioChunk(
             id="test_chunk_001",
-            timestamp=time.time(),
+            timestamp=str(time.time()),
             data=b"mock_audio_data",
             format=AudioFormat.WAV,
             sample_rate=16000,
@@ -435,7 +435,7 @@ class TestVoiceStreamingManager:
             # Test chunk data
             chunk_data = {
                 'id': 'chunk_001',
-                'timestamp': time.time(),
+                'timestamp': str(time.time()),
                 'duration': 50,
                 'is_speech': True,
                 'is_end_of_utterance': False
