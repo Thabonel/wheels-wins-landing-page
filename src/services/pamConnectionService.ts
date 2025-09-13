@@ -25,13 +25,34 @@ class PamConnectionService {
   private healthCheckInterval?: NodeJS.Timeout;
   private retryTimeout?: NodeJS.Timeout;
 
-  // Backend URLs in priority order - Production first for main branch
-  private backends = [
-    import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com',
-    import.meta.env.VITE_API_URL || 'https://pam-backend.onrender.com',
-    'https://pam-backend.onrender.com',  // Primary production
-    'https://wheels-wins-backend-staging.onrender.com'  // Staging fallback for testing
-  ].filter(Boolean);
+  // Environment-aware backend URLs in priority order
+  private backends = (() => {
+    // Check for explicit environment variables first
+    if (import.meta.env.VITE_BACKEND_URL) {
+      return [import.meta.env.VITE_BACKEND_URL];
+    }
+    
+    if (import.meta.env.VITE_API_URL) {
+      return [import.meta.env.VITE_API_URL];
+    }
+    
+    // Auto-detect based on current domain
+    const currentDomain = window.location.hostname;
+    
+    if (currentDomain.includes('staging') || currentDomain.includes('netlify')) {
+      // Staging environment - prioritize staging backend
+      return [
+        'https://wheels-wins-backend-staging.onrender.com',
+        'https://pam-backend.onrender.com'  // Production fallback
+      ];
+    }
+    
+    // Production environment - prioritize production backend
+    return [
+      'https://pam-backend.onrender.com',
+      'https://wheels-wins-backend-staging.onrender.com'  // Staging fallback
+    ];
+  })();
 
   private currentBackendIndex = 0;
 
