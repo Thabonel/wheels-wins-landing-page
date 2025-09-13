@@ -68,23 +68,24 @@ class Settings(BaseSettings):
     # CORE CONFIGURATION (REQUIRED)
     # =====================================================
     
-    # AI Provider Configuration
+    # OpenAI Configuration (Optional - for fallback)
     OPENAI_API_KEY: Optional[SecretStr] = Field(
-        None,
-        description="OpenAI API key (primary AI provider)"
+        default=None,
+        description="OpenAI API key (optional - for fallback AI functionality)"
     )
     
-    ANTHROPIC_API_KEY: Optional[SecretStr] = Field(
-        None,
-        description="Anthropic API key (backup AI provider)"
+    # Anthropic Configuration (Primary AI Provider)
+    ANTHROPIC_API_KEY: SecretStr = Field(
+        ...,
+        description="Anthropic API key (required for PAM AI functionality with Claude)"
     )
     
     @field_validator("OPENAI_API_KEY", mode="before")
     @classmethod
     def validate_openai_api_key(cls, v):
-        """Validate OpenAI API key format and provide helpful error messages"""
+        """Validate OpenAI API key format if provided (optional)"""
         if not v:
-            return None  # Allow None for optional key
+            return None  # OpenAI is now optional
         
         # Convert to string for validation if it's a SecretStr
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
@@ -107,9 +108,13 @@ class Settings(BaseSettings):
     @field_validator("ANTHROPIC_API_KEY", mode="before")
     @classmethod
     def validate_anthropic_api_key(cls, v):
-        """Validate Anthropic API key format"""
+        """Validate Anthropic API key format and provide helpful error messages"""
         if not v:
-            return None  # Allow None for optional key
+            raise ValueError(
+                "Anthropic API key is required for PAM functionality. "
+                "Please set ANTHROPIC_API_KEY environment variable. "
+                "Get your API key from https://console.anthropic.com/settings/keys"
+            )
         
         # Convert to string for validation if it's a SecretStr
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
@@ -118,10 +123,33 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Invalid Anthropic API key format. "
                 "Anthropic API keys should start with 'sk-ant-'. "
-                "Please check your key at https://console.anthropic.com/"
+                "Please check your key at https://console.anthropic.com/settings/keys"
+            )
+        
+        if len(key_str) < 20:
+            raise ValueError(
+                "Anthropic API key appears to be too short. "
+                "Please verify your key at https://console.anthropic.com/settings/keys"
             )
         
         return v
+    
+    # Anthropic Model Configuration
+    ANTHROPIC_DEFAULT_MODEL: str = Field(
+        default="claude-3-5-sonnet-20241022",
+        description="Default Anthropic model (always Sonnet for cost control)"
+    )
+    
+    @field_validator("ANTHROPIC_DEFAULT_MODEL", mode="before")
+    @classmethod
+    def validate_anthropic_model(cls, v):
+        """Ensure only Sonnet models are used (never Opus for cost reasons)"""
+        if v and "opus" in v.lower():
+            raise ValueError(
+                "Opus models are not allowed due to high costs. "
+                "Use Claude 3.5 Sonnet (claude-3-5-sonnet-20241022) instead."
+            )
+        return v or "claude-3-5-sonnet-20241022"
     
     OPENAI_MODEL: str = Field(
         default=DEFAULT_MODEL,
@@ -486,6 +514,10 @@ class Settings(BaseSettings):
         
         # Check required settings with detailed validation
         required_settings = {
+            "OPENAI_API_KEY": {
+                "message": "OpenAI API key is required for PAM functionality",
+                "validation": self._validate_openai_key
+            },
             "SUPABASE_URL": {
                 "message": "Supabase URL is required for authentication",
                 "validation": None
@@ -517,20 +549,6 @@ class Settings(BaseSettings):
                         config['validation'](value)
                     except Exception as e:
                         issues.append(f"{setting}: {str(e)}")
-        
-        # Check AI provider availability (at least one required for PAM)
-        openai_available = self.OPENAI_API_KEY and self.OPENAI_API_KEY.get_secret_value() if self.OPENAI_API_KEY else False
-        anthropic_available = self.ANTHROPIC_API_KEY and self.ANTHROPIC_API_KEY.get_secret_value() if self.ANTHROPIC_API_KEY else False
-        
-        if not openai_available and not anthropic_available:
-            issues.append(
-                "AI Provider: At least one AI provider API key is required for PAM functionality "
-                "(OPENAI_API_KEY or ANTHROPIC_API_KEY). Please configure at least one."
-            )
-        elif not openai_available:
-            warnings.append("OpenAI not configured - using Anthropic Claude as primary AI provider")
-        elif not anthropic_available:
-            warnings.append("Anthropic not configured - no backup AI provider available")
         
         # Check production-specific requirements
         if self.NODE_ENV == Environment.PRODUCTION:
@@ -722,7 +740,7 @@ def get_settings() -> Settings:
         
         # Check for critical vs non-critical errors
         critical_fields = {
-            "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"
+            "OPENAI_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"
         }
         
         critical_errors = [

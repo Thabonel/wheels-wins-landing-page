@@ -71,7 +71,7 @@ async def synthesize_speech(
         
         # Import TTS service - use new TTS Manager if available
         try:
-            from app.services.tts.tts_manager import get_tts_manager
+            from app.services.tts.manager import get_tts_manager
             tts_service = get_tts_manager()
             use_new_manager = True
         except ImportError:
@@ -349,32 +349,60 @@ async def get_tts_health():
     try:
         # Try new TTS Manager first
         try:
-            from app.services.tts.tts_manager import get_tts_manager
+            from app.services.tts.manager import get_tts_manager
             tts_manager = get_tts_manager()
             
-            if not tts_manager.is_initialized:
-                return {
-                    "status": "initializing",
-                    "system_health": {
-                        "available_engines": 0,
-                        "total_engines": 3,  # Expected: edge, coqui, system
-                        "initialization_status": "pending"
-                    },
-                    "timestamp": "now",
-                    "recovery_info": {
-                        "fallback_chain": ["edge", "coqui", "system"],
-                        "error_recovery_enabled": True
-                    }
+            # Get engine status from new TTS Manager
+            engine_status = tts_manager.get_engine_status()
+            is_healthy = tts_manager.health_check()
+            
+            # Convert to expected format for compatibility
+            health_status = {
+                "system_health": {
+                    "total_engines": engine_status["total_engines"],
+                    "available_engines": engine_status["available_engines"],
+                    "initialized_engines": engine_status["available_engines"]
+                },
+                "engines": {}
+            }
+            
+            # Map engine status to old format
+            for engine_name, engine_data in engine_status["engines"].items():
+                health_status["engines"][engine_name.lower()] = {
+                    "available": engine_data["available"],
+                    "initialized": engine_data["available"],
+                    "priority": 1 if engine_name == "ElevenLabs" else (2 if engine_name == "EdgeTTS" else 3),
+                    "last_used": engine_data["last_used"],
+                    "success_rate": engine_data["success_rate"],
+                    "avg_response_time_ms": engine_data["avg_response_time"] * 1000 if engine_data["avg_response_time"] else 0.0
                 }
             
-            # Get comprehensive health status from TTS Manager
-            health_status = tts_manager.get_health_status()
-            
-            # Add recovery-specific information
+            # Add circuit breaker and recovery info
             health_status.update({
+                "circuit_breaker": {
+                    "total_circuits": 0,
+                    "healthy_circuits": engine_status["available_engines"],
+                    "degraded_circuits": 0,
+                    "failed_circuits": engine_status["total_engines"] - engine_status["available_engines"],
+                    "overall_health": "healthy" if is_healthy else "degraded"
+                },
+                "performance": {
+                    "total_requests": sum(engine_data["requests"] for engine_data in engine_status["engines"].values()),
+                    "successful_requests": sum(engine_data["requests"] - engine_data.get("failures", 0) for engine_data in engine_status["engines"].values()),
+                    "fallback_requests": 0,
+                    "text_only_responses": 0,
+                    "success_rate": 0.0
+                },
+                "voice_profiles": ["pam_assistant", "navigation", "emergency"],
                 "recovery_info": {
-                    "fallback_chain": ["edge", "coqui", "system"],
-                    "circuit_breaker_status": health_status.get("circuit_breaker", {}),
+                    "fallback_chain": ["elevenlabs", "edgetts", "systemtts"],
+                    "circuit_breaker_status": {
+                        "total_circuits": 0,
+                        "healthy_circuits": engine_status["available_engines"],
+                        "degraded_circuits": 0,
+                        "failed_circuits": engine_status["total_engines"] - engine_status["available_engines"],
+                        "overall_health": "healthy" if is_healthy else "degraded"
+                    },
                     "last_health_check": "now",
                     "error_recovery_enabled": True,
                     "manual_recovery_available": True
@@ -449,7 +477,7 @@ async def trigger_tts_recovery(
         
         # Try new TTS Manager first
         try:
-            from app.services.tts.tts_manager import get_tts_manager
+            from app.services.tts.manager import get_tts_manager
             tts_manager = get_tts_manager()
             
             if recovery_type == "full":

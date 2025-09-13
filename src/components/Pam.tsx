@@ -5,10 +5,10 @@ import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
 const pamEnabled = true;
 
 // Regular imports
-import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2 } from "lucide-react";
+import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
-import { getWebSocketUrl, apiFetch, authenticatedFetch } from "@/services/api";
+import { getWebSocketUrl, apiFetch, authenticatedFetch, API_BASE_URL } from "@/services/api";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -52,6 +52,7 @@ interface PamMessage {
   voicePriority?: 'low' | 'normal' | 'high' | 'urgent';
   isStreaming?: boolean;  // Indicates if this message is currently being streamed
   tts?: TTSAudio;  // Phase 5A: TTS audio data from backend
+  feedback?: 1 | -1;  // Simple feedback: 1 = helpful, -1 = not helpful
 }
 
 interface PamProps {
@@ -626,12 +627,53 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
+  const handleFeedback = async (messageId: string, rating: 1 | -1) => {
+    try {
+      logger.debug('👍👎 Processing feedback:', { messageId, rating });
+      
+      // Update message feedback in state
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, feedback: rating } : msg
+      ));
+
+      // Save feedback to user preferences in backend
+      if (user?.id) {
+        const response = await authenticatedFetch('/api/v1/user/preferences', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            preferences: {
+              feedback_history: {
+                action: 'append',
+                value: {
+                  response_id: messageId,
+                  rating,
+                  timestamp: new Date().toISOString()
+                }
+              }
+            }
+          })
+        });
+
+        if (response.ok) {
+          logger.debug('✅ Feedback saved successfully');
+        } else {
+          logger.warn('⚠️ Failed to save feedback to backend');
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Failed to handle feedback:', error);
+    }
+  };
+
   const testRestApiConnection = async () => {
     try {
       logger.debug('🔄 Testing REST API connection...');
       
       // First try the health endpoint (no auth required)
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      const backendUrl = API_BASE_URL;
       const healthResponse = await fetch(`${backendUrl}/health`);
       if (!healthResponse.ok) {
         throw new Error('Backend health check failed');
@@ -698,7 +740,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
 
     logger.debug('🏥 PAM DEBUG: ==================== HEALTH CHECK ====================');
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+    const backendUrl = API_BASE_URL;
     logger.debug('🏥 PAM DEBUG: Backend URL:', backendUrl);
     logger.debug('🏥 PAM DEBUG: Health check URL:', `${backendUrl}/health`);
     
@@ -713,7 +755,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       });
       
       const healthTime = Date.now() - healthStartTime;
-      logger.debug('🏥 PAM DEBUG: Health check completed in:', healthTime + 'ms');
+      logger.debug('🏥 PAM DEBUG: Health check completed in:', `${healthTime  }ms`);
       logger.debug('🏥 PAM DEBUG: Health response status:', healthResponse.status);
       logger.debug('🏥 PAM DEBUG: Health response ok:', healthResponse.ok);
       
@@ -785,7 +827,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       logger.debug('✅ PAM DEBUG: Valid JWT token obtained:', {
         tokenLength: pamToken.value.length,
-        tokenPreview: pamToken.value.substring(0, 30) + '...',
+        tokenPreview: `${pamToken.value.substring(0, 30)  }...`,
         tokenKind: pamToken.kind,
         expiresAt: expiresAt?.toISOString()
       });
@@ -820,7 +862,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       if (!wsUrl.includes('/api/v1/pam/ws')) {
         logger.error('❌ PAM DEBUG: URL validation failed!');
         logger.error('❌ PAM DEBUG: Expected /api/v1/pam/ws in URL');
-        logger.error('❌ PAM DEBUG: Actual URL:', wsUrl.substring(0, 100) + '...');
+        logger.error('❌ PAM DEBUG: Actual URL:', `${wsUrl.substring(0, 100)  }...`);
         throw new Error('WebSocket endpoint validation failed');
       }
       
@@ -855,7 +897,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         const connectionTime = Date.now() - connectionStartTimeRef.current;
         logger.debug('✅ PAM DEBUG: ==================== CONNECTION SUCCESS ====================');
         logger.debug('✅ PAM DEBUG: WebSocket OPENED successfully!');
-        logger.debug('✅ PAM DEBUG: Connection time:', connectionTime + 'ms');
+        logger.debug('✅ PAM DEBUG: Connection time:', `${connectionTime  }ms`);
         logger.debug('✅ PAM DEBUG: Event:', event);
         logger.debug('✅ PAM DEBUG: WebSocket readyState:', wsRef.current?.readyState);
         logger.debug('✅ PAM DEBUG: WebSocket URL:', wsRef.current?.url);
@@ -915,8 +957,33 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           // Handle streaming chat responses
           if (message.type === 'chat_response_start') {
             logger.debug('🌊 PAM DEBUG: Streaming response started');
-            // Show immediate processing indicator
-            addMessage(message.message || "🔍 Processing your request...", "pam", undefined, false, 'normal');
+            // Replace the thinking message with streaming response
+            setMessages(prev => {
+              // Find and replace the last thinking message
+              const updated = [...prev];
+              const lastPamIndex = updated.findIndex((msg, index) => 
+                index === updated.length - 1 && msg.sender === 'pam' && 
+                (msg.content === 'PAM is thinking' || msg.isStreaming)
+              );
+              
+              if (lastPamIndex !== -1) {
+                updated[lastPamIndex] = {
+                  ...updated[lastPamIndex],
+                  content: message.message || "🔍 Processing your request...",
+                  isStreaming: true
+                };
+              } else {
+                // Fallback: add new message if thinking message not found
+                updated.push({
+                  id: Date.now().toString(),
+                  content: message.message || "🔍 Processing your request...",
+                  sender: "pam",
+                  timestamp: new Date().toISOString(),
+                  isStreaming: true
+                });
+              }
+              return updated;
+            });
             return;
           }
           
@@ -968,7 +1035,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           // Handle traditional chat responses (non-streaming fallback)
           if (message.type === 'chat_response' || message.type === 'response') {
             const content = message.content || message.message || message.response;
-            logger.debug('💬 PAM DEBUG: Response received:', { type: message.type, content: content?.substring(0, 100) + '...' });
+            logger.debug('💬 PAM DEBUG: Response received:', { type: message.type, content: `${content?.substring(0, 100)  }...` });
             
             // Phase 5A: Extract TTS data if present
             const ttsData = message.tts;
@@ -982,8 +1049,37 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             }
             
             if (content && content.trim()) {
-              // Phase 5A: Add message with TTS data
-              const newMessage = addMessage(content, "pam");
+              // Replace thinking message with actual response
+              let newMessage: PamMessage;
+              setMessages(prev => {
+                const updated = [...prev];
+                const thinkingIndex = updated.findIndex((msg, index) => 
+                  index === updated.length - 1 && msg.sender === 'pam' && 
+                  (msg.content === 'PAM is thinking' || msg.isStreaming)
+                );
+                
+                if (thinkingIndex !== -1) {
+                  // Replace thinking message
+                  updated[thinkingIndex] = {
+                    ...updated[thinkingIndex],
+                    content,
+                    isStreaming: false
+                  };
+                  newMessage = updated[thinkingIndex];
+                } else {
+                  // Fallback: add new message
+                  newMessage = {
+                    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    content,
+                    sender: "pam",
+                    timestamp: new Date().toISOString(),
+                    shouldSpeak: false,
+                    isStreaming: false
+                  };
+                  updated.push(newMessage);
+                }
+                return updated;
+              });
               
               // Phase 5A: Update message with TTS data if available
               if (ttsData) {
@@ -997,62 +1093,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 });
               }
               
-              // Check if PAM is asking for location and offer to get it automatically
-              const locationKeywords = [
-                'current location', 'your location', 'where you are', 'share your location',
-                'tell me your location', 'location manually', 'provide your location'
-              ];
-              
-              const needsLocation = locationKeywords.some(keyword => 
-                content.toLowerCase().includes(keyword)
-              );
-              
-              if (needsLocation && !userContext?.current_location) {
-                logger.debug('📍 PAM is asking for location, offering automatic request');
-                
-                // Add a helpful message with location request button
-                setTimeout(() => {
-                  addMessage(
-                    "I can automatically get your current location if you'd like. Would you like me to request access to your location?",
-                    "pam"
-                  );
-                  
-                  // Auto-request location after a brief delay
-                  setTimeout(async () => {
-                    logger.debug('📍 Auto-requesting location for better assistance');
-                    const location = await requestUserLocation();
-                    
-                    if (location) {
-                      // Re-send the original user message with updated location context
-                      const lastUserMessage = messages[messages.length - 1];
-                      if (lastUserMessage && lastUserMessage.sender === 'user') {
-                        const messageData = {
-                          type: "chat",
-                          message: lastUserMessage.content,
-                          context: {
-                            user_id: user?.id,
-                            userLocation: `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`,
-                            vehicleInfo: userContext?.vehicle_info,
-                            travelStyle: userContext?.travel_style,
-                            conversation_history: messages.slice(-5).map(msg => ({
-                              role: msg.sender === "user" ? "user" : "assistant",
-                              content: msg.content
-                            })),
-                            timestamp: new Date().toISOString(),
-                            session_id: sessionId,
-                            location_updated: true
-                          }
-                        };
-                        
-                        if (wsRef.current?.readyState === WebSocket.OPEN) {
-                          wsRef.current.send(JSON.stringify(messageData));
-                          addMessage("🔄 Re-processing your request with your current location...", "pam");
-                        }
-                      }
-                    }
-                  }, 2000); // 2 second delay to allow user to read the message
-                }, 500); // Short delay for better UX
-              }
+              // Let PAM handle location requests naturally through backend responses
               // REMOVED duplicate addMessage call here - message was already added at line 969
             } else {
               logger.warn('⚠️ Empty content in response:', message);
@@ -1163,7 +1204,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         try {
           localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
             messages: messages.slice(-10),
-            sessionId: sessionId,
+            sessionId,
             timestamp: new Date().toISOString()
           }));
           logger.debug('💾 PAM DEBUG: Conversation state saved');
@@ -1377,7 +1418,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: text,
+          text,
           voice: voiceSettings.voice,
           rate: voiceSettings.rate,
           pitch: voiceSettings.pitch,
@@ -1552,7 +1593,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         const currentIsContinuousMode = isContinuousModeRef.current;
         
         logger.debug('🎙️ Speech detected:', {
-          transcript: transcript,
+          transcript,
           isFinal: latest.isFinal,
           confidence: latest[0].confidence,
           isWakeWordListening: currentIsWakeWordListening,
@@ -1604,8 +1645,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         logger.error('⚠️ Speech recognition error:', {
           error: event.error,
           message: event.message,
-          isWakeWordListening: isWakeWordListening,
-          isContinuousMode: isContinuousMode
+          isWakeWordListening,
+          isContinuousMode
         });
         
         if (event.error === 'not-allowed') {
@@ -1875,13 +1916,19 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         };
 
         recorder.onstop = async () => {
-          logger.debug('🛑 Recording stopped, processing audio...');
+          logger.debug('🛑 Recording stopped, processing audio with auto-send...');
           setVoiceStatus("processing");
+          
+          // Clean up VAD if it was initialized
+          if ((recorder as any).vadCleanup) {
+            (recorder as any).vadCleanup();
+          }
           
           const audioBlob = new Blob(chunks, { type: recorder.mimeType });
           logger.debug('📦 Audio blob created:', audioBlob.size, 'bytes');
           
-          await handleVoiceSubmission(audioBlob);
+          // Auto-send the voice message immediately
+          await handleVoiceSubmission(audioBlob, true); // Pass true for auto-send
           
           // Stop all tracks to release microphone
           stream.getTracks().forEach(track => {
@@ -1909,22 +1956,101 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         // Setup audio level monitoring
         await setupAudioLevelMonitoring(stream);
         
-        logger.debug('🎤 Started voice recording');
-        addMessage("🟢 Recording... Click the green microphone to stop recording.", "pam");
+        logger.debug('🎤 Started voice recording with intelligent auto-send');
+        addMessage("🎙️ Speak now... I'll send your message when you finish speaking.", "pam");
         
-        // Auto-stop after 30 seconds to prevent infinite recording
+        // Initialize VAD for intelligent auto-stop and auto-send
+        // Check user preference for auto-send (default: enabled for better UX)
+        const autoSendEnabled = settings?.pam_preferences?.voice_auto_send ?? true;
+        
+        if (autoSendEnabled) {
+          try {
+            await vadService.initialize(stream);
+            setIsVADActive(true);
+          
+          let speechTimer: NodeJS.Timeout | null = null;
+          let silenceTimer: NodeJS.Timeout | null = null;
+          let hasSpeechDetected = false;
+          const SILENCE_THRESHOLD = 2000; // 2 seconds of silence to auto-send
+          const MIN_SPEECH_DURATION = 500; // Minimum 0.5 seconds of speech required
+          
+          // Track speech activity for intelligent auto-send
+          const speechStartHandler = (result: any) => {
+            logger.debug('🎤 VAD: Speech detected during recording');
+            hasSpeechDetected = true;
+            
+            // Clear any silence timer
+            if (silenceTimer) {
+              clearTimeout(silenceTimer);
+              silenceTimer = null;
+            }
+            
+            // Start minimum speech duration timer
+            if (!speechTimer) {
+              speechTimer = setTimeout(() => {
+                logger.debug('✅ VAD: Minimum speech duration met');
+              }, MIN_SPEECH_DURATION);
+            }
+          };
+          
+          const speechEndHandler = (result: any) => {
+            logger.debug('🔇 VAD: Speech ended, starting silence countdown for auto-send');
+            
+            // Only start silence timer if we've detected speech and met minimum duration
+            if (hasSpeechDetected && speechTimer) {
+              silenceTimer = setTimeout(() => {
+                logger.debug('🚀 VAD: Auto-sending message after natural speech pause');
+                if (recorder.state === 'recording') {
+                  recorder.stop(); // This triggers onstop handler which auto-sends
+                  setIsListening(false);
+                }
+              }, SILENCE_THRESHOLD);
+            }
+          };
+          
+          // Set up VAD listeners for this recording session
+          vadService.onSpeechStart(speechStartHandler);
+          vadService.onSpeechEnd(speechEndHandler);
+          
+          // Store cleanup function for when recording ends
+          const vadCleanup = () => {
+            if (speechTimer) clearTimeout(speechTimer);
+            if (silenceTimer) clearTimeout(silenceTimer);
+            vadService.cleanup();
+            setIsVADActive(false);
+            logger.debug('🧹 VAD cleanup completed');
+          };
+          
+          // Store cleanup function on recorder for later use
+          (recorder as any).vadCleanup = vadCleanup;
+          
+          logger.debug('✅ Intelligent auto-send enabled with VAD');
+          } catch (vadError) {
+            logger.warn('⚠️ VAD initialization failed, using manual control:', vadError);
+            addMessage("🎤 Recording... Click the microphone when done speaking.", "pam");
+          }
+        } else {
+          logger.debug('🔧 Auto-send disabled by user preference - using manual control');
+          addMessage("🎤 Recording... Click the microphone when done speaking.", "pam");
+        }
+        
+        // Safety auto-stop after 30 seconds to prevent infinite recording
         setTimeout(() => {
           if (isListening && recorder.state === 'recording') {
-            logger.debug('⏰ Auto-stopping recording after 30 seconds');
+            logger.debug('⏰ Safety auto-stop after 30 seconds');
             recorder.stop();
             setIsListening(false);
           }
         }, 30000);
         
       } else {
-        // Stop recording
-        logger.debug('🛑 Stopping voice recording...');
+        // Manual stop recording
+        logger.debug('🛑 Manual stop of voice recording...');
         if (mediaRecorder && mediaRecorder.state === 'recording') {
+          // Clean up VAD if it was initialized
+          if ((mediaRecorder as any).vadCleanup) {
+            (mediaRecorder as any).vadCleanup();
+          }
           mediaRecorder.stop();
           setIsListening(false);
         }
@@ -1946,13 +2072,16 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const handleVoiceSubmission = async (audioBlob: Blob) => {
+  const handleVoiceSubmission = async (audioBlob: Blob, autoSend: boolean = false) => {
     try {
       logger.debug('🎤 Processing voice message...', `${audioBlob.size} bytes`);
       setIsProcessingVoice(true);
       
       // Remove the temporary processing message and add a better one
-      const processingMessage = addMessage("🎤 Processing your voice message...", "pam");
+      const processingMessage = addMessage(
+        autoSend ? "🚀 Auto-sending your voice message..." : "🎤 Processing your voice message...", 
+        "pam"
+      );
 
       const formData = new FormData();
       formData.append('audio', audioBlob, `recording.${audioBlob.type.includes('webm') ? 'webm' : 'mp4'}`);
@@ -2430,7 +2559,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           setIsSpeaking(false);
           vadService.setPAMSpeaking(false);
           setCurrentAudio(null);
-          return;
+          
         }
       } else {
         // Normal manual TTS playback (user clicked a voice button)
@@ -2499,7 +2628,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       try {
         localStorage.setItem(`pam_conversation_${user?.id}`, JSON.stringify({
           messages: updatedMessages.slice(-10), // Keep last 10 messages
-          sessionId: sessionId,
+          sessionId,
           timestamp: new Date().toISOString()
         }));
       } catch (error) {
@@ -2534,52 +2663,58 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     // Note: PAM backend automatically saves all conversation history
     setInputMessage("");
     
-    // Always try agentic planning first with intelligent fallbacks
-    logger.debug('🧠 Using agentic planning with intelligent fallbacks for all queries');
-    try {
-      // Show planning indicator
-      const planningMsgId = Date.now().toString();
-      addMessage("🧠 Planning your request...", "pam");
-      
-      const result = await pamAgenticService.planAndExecute(message, {
-        conversation_history: messages.slice(-5).map(m => ({
-          content: m.content,
-          role: m.sender === 'user' ? 'user' : 'assistant'
-        })),
-        user_context: {
-          ...userContext,
-          travel_mode: 'RV', // Explicitly indicate RV travel
-          travel_type: 'recreational_vehicle',
-        },
-        user_preferences: settings,
-        rv_context: {
-          is_rv_traveler: true,
-          vehicle_type: userContext?.vehicle_info?.type || 'caravan',
-          vehicle_specs: userContext?.vehicle_info || {},
-          travel_preferences: userContext?.travel_preferences || {},
-          needs_rv_specific_planning: true
-        }
-      });
-      
-      if (result.execution.success && result.execution.execution_result) {
-        // Remove planning message and add result
-        setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-        addMessage(result.execution.execution_result.response, "pam");
+    // Immediately show thinking message for better UX
+    const thinkingMessage = addMessage("PAM is thinking", "pam");
+    thinkingMessage.isStreaming = true;  // Use streaming flag for pulsing effect
+    
+    // Check if we should use agentic planning for complex queries
+    if (needsAgenticPlanning(message)) {
+      logger.debug('🧠 Using agentic planning for complex query');
+      try {
+        // Show planning indicator
+        const planningMsgId = Date.now().toString();
+        addMessage("🧠 Planning your request...", "pam");
         
-        // If voice is enabled, speak the response
-        if (settings?.pam_preferences?.voice_enabled) {
-          await speakText(result.execution.execution_result.response);
+        const result = await pamAgenticService.planAndExecute(message, {
+          conversation_history: messages.slice(-5).map(m => ({
+            content: m.content,
+            role: m.sender === 'user' ? 'user' : 'assistant'
+          })),
+          user_context: {
+            ...userContext,
+            travel_mode: 'RV', // Explicitly indicate RV travel
+            travel_type: 'recreational_vehicle',
+          },
+          user_preferences: settings,
+          rv_context: {
+            is_rv_traveler: true,
+            vehicle_type: userContext?.vehicle_info?.type || 'caravan',
+            vehicle_specs: userContext?.vehicle_info || {},
+            travel_preferences: userContext?.travel_preferences || {},
+            needs_rv_specific_planning: true
+          }
+        });
+        
+        if (result.execution.success && result.execution.execution_result) {
+          // Remove planning message and add result
+          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+          addMessage(result.execution.execution_result.response, "pam");
+          
+          // If voice is enabled, speak the response
+          if (settings?.pam_preferences?.voice_enabled) {
+            await speakText(result.execution.execution_result.response);
+          }
+          return; // Exit early, we've handled the message
+        } else {
+          // Remove planning message
+          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
+          logger.debug('Agentic planning unsuccessful, falling back to WebSocket');
         }
-        return; // Exit early, we've handled the message
-      } else {
-        // Remove planning message
+      } catch (error) {
+        logger.error('Agentic planning error:', error);
         setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-        logger.debug('Agentic planning unsuccessful, falling back to WebSocket/REST');
+        // Fall through to WebSocket
       }
-    } catch (error) {
-      logger.error('Agentic planning error:', error);
-      setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-      // Fall through to WebSocket/REST fallback
     }
 
     // Check if user is asking for location-based services and we don't have location
@@ -2621,7 +2756,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     const messageData = {
       type: "chat",
-      message: message,  // Backend expects 'message' not 'content'
+      message,  // Backend expects 'message' not 'content'
       stream: true,  // Request streaming response for better UX
       context: {
         user_id: user?.id,  // Move userId into context as expected by backend
@@ -2652,7 +2787,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     try {
       // Show thinking indicator with pulsing animation
       const thinkingMsgId = Date.now().toString();
-      addMessage("🤔 <span class='animate-pulse'>PAM is thinking...</span>", "pam");
+      addMessage("PAM is thinking", "pam");
       
       const response = await authenticatedFetch('/api/v1/pam/chat', {
         method: 'POST',
@@ -2848,7 +2983,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                     
                     // Test backend health
                     try {
-                      const healthResponse = await fetch('https://wheels-wins-backend-staging.onrender.com/health');
+                      const healthResponse = await fetch(`${API_BASE_URL}/health`);
                       logger.debug('🧪 Backend health:', healthResponse.ok ? 'HEALTHY' : 'UNHEALTHY');
                     } catch (error) {
                       logger.debug('🧪 Backend health: ERROR', error);
@@ -2891,7 +3026,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 <div className={`max-w-[80%] px-3 py-2 rounded-lg ${
                   msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
                 }`}>
-                  <p className="text-sm">{msg.content}</p>
+                  <p className={`text-sm ${msg.content === 'PAM is thinking' ? 'animate-pulse text-blue-600' : ''}`}>
+                    {msg.content}
+                  </p>
                   {/* Streaming indicator */}
                   {msg.isStreaming && (
                     <div className="flex items-center mt-1 text-xs text-gray-500">
@@ -2901,9 +3038,34 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                       <span>thinking...</span>
                     </div>
                   )}
-                  <p className="text-xs opacity-70 mt-1">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
-                  </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs opacity-70">
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </p>
+                    {/* Simple feedback buttons for PAM responses */}
+                    {msg.sender === "pam" && !msg.isStreaming && (
+                      <div className="flex items-center gap-1 ml-2">
+                        <button
+                          onClick={() => handleFeedback(msg.id, 1)}
+                          className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                            msg.feedback === 1 ? 'text-green-600 bg-green-100' : 'text-gray-400 hover:text-green-600'
+                          }`}
+                          title="Helpful"
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(msg.id, -1)}
+                          className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                            msg.feedback === -1 ? 'text-red-600 bg-red-100' : 'text-gray-400 hover:text-red-600'
+                          }`}
+                          title="Not helpful"
+                        >
+                          <ThumbsDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -3047,7 +3209,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                         {/* Format PAM messages for better readability */}
                         {msg.sender === "pam" ? (
                           <div>
-                            <div className="text-sm whitespace-pre-line">
+                            <div className={`text-sm whitespace-pre-line ${msg.content === 'PAM is thinking' ? 'animate-pulse text-blue-600' : ''}`}>
                               {formatPamMessage(msg.content).content}
                             </div>
                             {/* Show travel summary if available */}
@@ -3072,9 +3234,34 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                             <span>thinking...</span>
                           </div>
                         )}
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(msg.timestamp).toLocaleTimeString()}
-                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs opacity-70">
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </p>
+                          {/* Simple feedback buttons for PAM responses */}
+                          {msg.sender === "pam" && !msg.isStreaming && (
+                            <div className="flex items-center gap-1 ml-2">
+                              <button
+                                onClick={() => handleFeedback(msg.id, 1)}
+                                className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                                  msg.feedback === 1 ? 'text-green-600 bg-green-100' : 'text-gray-400 hover:text-green-600'
+                                }`}
+                                title="Helpful"
+                              >
+                                <ThumbsUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleFeedback(msg.id, -1)}
+                                className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                                  msg.feedback === -1 ? 'text-red-600 bg-red-100' : 'text-gray-400 hover:text-red-600'
+                                }`}
+                                title="Not helpful"
+                              >
+                                <ThumbsDown className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       {/* Phase 5A: TTS Controls for PAM messages */}
                       {msg.sender === "pam" && msg.tts && (

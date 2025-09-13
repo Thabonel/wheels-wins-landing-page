@@ -25,13 +25,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-// Import enhanced trip planner (replaces old IntegratedTripPlanner)
-import EnhancedTripPlanner from './trip-planner/enhanced/TripPlanner';
-import { useTripPlannerIntegration } from './trip-planner/enhanced/hooks/useTripPlannerIntegration';
-import SocialTripCoordinator from './trip-planner/SocialTripCoordinator';
-import NavigationExportHub from './trip-planner/NavigationExportHub';
+// Import Fresh trip planner - the modern implementation
+import FreshTripPlanner from './trip-planner/fresh/FreshTripPlanner';
 import TripTemplates from './TripTemplates';
-import { useIntegratedTripState } from './trip-planner/hooks/useIntegratedTripState';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { incrementTemplateUsage, TripTemplate as ServiceTripTemplate } from '@/services/tripTemplateService';
@@ -63,11 +59,9 @@ export default function TripPlannerApp() {
   const [selectedTemplate, setSelectedTemplate] = useState<TripTemplate | null>(null);
   const [showWelcome, setShowWelcome] = useState(!auth?.user);
   
-  // Initialize integrated state
-  const integratedState = useIntegratedTripState(false);
-  
-  // Initialize trip planner integration
-  const tripIntegration = useTripPlannerIntegration(integratedState);
+  // State for simplified integration
+  const [routeData, setRouteData] = useState<any>(null);
+  const [budgetData, setBudgetData] = useState<any>(null);
 
   useEffect(() => {
     if (user && showWelcome) {
@@ -100,12 +94,11 @@ export default function TripPlannerApp() {
     // Increment usage count
     await incrementTemplateUsage(template.id);
     
-    // Pre-populate the trip planner with template data
-    integratedState.setBudget(prev => ({
-      ...prev,
+    // Pre-populate budget data
+    setBudgetData({
       totalBudget: template.suggestedBudget,
       dailyBudget: Math.round(template.suggestedBudget / template.estimatedDays)
-    }));
+    });
 
     // If template has route data, populate the map
     if (template.route) {
@@ -115,33 +108,12 @@ export default function TripPlannerApp() {
         // Extract route data from template
         const { origin, destination, waypoints } = template.route;
 
-        if (origin) {
-          console.log('🅰️ Setting template origin:', origin.name);
-          integratedState.setOriginName(origin.name);
-          
-          // Store coordinates for later use by map
-          // Store origin coords for template usage (route state is handled by map component)
-        }
-
-        if (destination) {
-          console.log('🅱️ Setting template destination:', destination.name);
-          integratedState.setDestName(destination.name);
-          
-          // Store coordinates for later use by map
-          // Store destination coords for template usage (route state is handled by map component)
-        }
-
-        if (waypoints && waypoints.length > 0) {
-          console.log('📍 Setting template waypoints:', waypoints.length);
-          
-          // Convert template waypoints to the expected format
-          const formattedWaypoints = waypoints.map((wp: any, index: number) => ({
-            coords: wp.coords as [number, number],
-            name: wp.name || `Stop ${index + 1}`
-          }));
-          
-          integratedState.setWaypoints(formattedWaypoints);
-        }
+        // Set route data for FreshTripPlanner to use
+        setRouteData({
+          origin,
+          destination, 
+          waypoints: waypoints || []
+        });
 
         // Set template metadata
         // Store template metadata (route display is handled by integrated state)
@@ -260,30 +232,23 @@ export default function TripPlannerApp() {
           </TabsContent>
 
           <TabsContent value="plan-trip" className="mt-0">
-            <EnhancedTripPlanner 
-              templateData={selectedTemplate}
-              integratedState={integratedState}
-              onRouteUpdate={tripIntegration.handleRouteUpdate}
-              onBudgetUpdate={tripIntegration.handleBudgetUpdate}
-            />
+            <div className="h-[600px] relative rounded-lg overflow-hidden">
+              <FreshTripPlanner 
+                initialTemplate={selectedTemplate}
+                onSaveTrip={(tripData) => {
+                  console.log('Trip saved:', tripData);
+                  toast({
+                    title: "Trip Saved",
+                    description: "Your trip has been saved successfully!"
+                  });
+                }}
+              />
+            </div>
           </TabsContent>
         </Tabs>
 
 
-        {/* Plan My Meetup Modal */}
-        <SocialTripCoordinator
-          isOpen={integratedState.ui.showMeetupPlanner}
-          onClose={() => integratedState.toggleFeature('meetup')}
-          currentRoute={integratedState.route}
-          currentBudget={integratedState.budget}
-        />
-
-        <NavigationExportHub
-          isOpen={integratedState.ui.showExportModal}
-          onClose={() => integratedState.toggleFeature('export')}
-          currentRoute={integratedState.route}
-          currentBudget={integratedState.budget}
-        />
+        {/* Social and export features are now integrated into FreshTripPlanner */}
       </div>
     </div>
   );

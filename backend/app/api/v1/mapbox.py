@@ -232,6 +232,51 @@ async def reverse_geocoding_proxy(
     
     return await proxy_mapbox_request("search/geocode/v6/reverse", params)
 
+@router.get("/directions/advanced")
+async def enhanced_directions_proxy(
+    coordinates: str = Query(..., description="Semicolon-separated coordinates"),
+    profile: str = Query("driving", description="Routing profile"),
+    alternatives: Optional[bool] = Query(True, description="Include alternative routes"),
+    geometries: Optional[str] = Query("geojson", description="Geometry format"),
+    overview: Optional[str] = Query("full", description="Overview detail level"),
+    steps: Optional[bool] = Query(True, description="Include turn-by-turn instructions"),
+    language: Optional[str] = Query("en", description="Instruction language"),
+    annotations: Optional[str] = Query(None, description="Additional annotations"),
+    exclude: Optional[str] = Query(None, description="Road types to exclude"),
+    waypoints: Optional[str] = Query(None, description="Waypoint indices"),
+    radiuses: Optional[str] = Query(None, description="Snap radiuses for magnetic routing"),
+    bearings: Optional[str] = Query(None, description="Bearing constraints"),
+    approaches: Optional[str] = Query(None, description="Approach restrictions"),
+    waypoint_snapping: Optional[str] = Query(None, description="Waypoint snapping preference"),
+):
+    """
+    Enhanced Mapbox Directions API proxy with magnetic snapping and RV optimizations
+    """
+    params = {}
+    
+    # Add all non-None query parameters
+    for key, value in {
+        "alternatives": alternatives,
+        "geometries": geometries,
+        "overview": overview,
+        "steps": steps,
+        "language": language,
+        "annotations": annotations,
+        "exclude": exclude,
+        "waypoints": waypoints,
+        "radiuses": radiuses,
+        "bearings": bearings,
+        "approaches": approaches,
+        "waypoint_snapping": waypoint_snapping
+    }.items():
+        if value is not None:
+            params[key] = value
+    
+    # Log enhanced directions request for debugging
+    logger.info(f"Enhanced directions request - Coordinates: {coordinates}, Profile: {profile}, Magnetic routing: {bool(radiuses)}")
+    
+    return await proxy_mapbox_request(f"directions/v5/mapbox/{profile}/{coordinates}", params)
+
 @router.get("/health")
 async def mapbox_proxy_health():
     """

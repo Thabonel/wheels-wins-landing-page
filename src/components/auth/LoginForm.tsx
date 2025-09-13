@@ -35,14 +35,30 @@ const LoginForm = ({ loading, setLoading, error, setError, onSuccess }: LoginFor
     } catch (err: any) {
       console.error('Login error:', err);
       
-      // Provide user-friendly error messages
+      // Enhanced error detection for HTML responses
       let errorMessage = "Failed to login";
-      if (err.message?.includes("Invalid login credentials")) {
+      
+      if (err.message?.includes("<!doctype") || err.message?.includes("Unexpected token '<'")) {
+        errorMessage = "Authentication service configuration error. The Supabase URL may be incorrect or malformed. Please check the browser console for debug information.";
+        
+        // Log additional debug info for staging
+        if (window.location.hostname.includes('staging')) {
+          console.error('🔴 Authentication Error Details:', {
+            error: err.message,
+            errorType: err.name,
+            supabaseConfigured: !!(window as any).supabase,
+            currentUrl: window.location.href,
+            hint: 'Check Netlify environment variables for VITE_SUPABASE_URL - it may have spaces, newlines, or be incorrect'
+          });
+        }
+      } else if (err.message?.includes("Invalid login credentials")) {
         errorMessage = "Invalid email or password. Please check your credentials and try again.";
       } else if (err.message?.includes("permission denied")) {
         errorMessage = "There was an authentication issue. Please try again or contact support.";
       } else if (err.message?.includes("Email not confirmed")) {
         errorMessage = "Please check your email and click the confirmation link before logging in.";
+      } else if (err.message?.includes("NetworkError") || err.message?.includes("Failed to fetch")) {
+        errorMessage = "Network error. Please check your internet connection and try again.";
       } else if (err.message) {
         errorMessage = err.message;
       }

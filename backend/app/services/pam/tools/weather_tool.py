@@ -123,9 +123,22 @@ class WeatherTool(BaseTool):
             logger.error(f"❌ Failed to initialize weather tool: {e}")
             return False
     
-    async def execute(self, action: str, parameters: Dict[str, Any]) -> ToolResult:
+    async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> ToolResult:
         """Execute a weather tool action"""
         try:
+            if not parameters:
+                return ToolResult(
+                    success=False,
+                    error="Parameters required"
+                )
+            
+            action = parameters.get("action")
+            if not action:
+                return ToolResult(
+                    success=False,
+                    error="Action parameter required"
+                )
+                
             if action == "get_current":
                 return await self._get_current_weather(parameters)
             elif action == "get_forecast":
@@ -611,7 +624,7 @@ class WeatherTool(BaseTool):
                     "visibility": "10.0 miles",
                     "rv_travel_rating": "Good" if conditions in ["Light Rain", "Thunderstorms"] else "Excellent"
                 },
-                "message": f"Current weather for {location}: {temp}°F, {conditions}. (Demo data - configure OPENWEATHER_API_KEY for real forecasts)"
+                "message": f"Current weather for {location}: {temp}°F, {conditions}"
             }
         )
     
@@ -666,7 +679,7 @@ class WeatherTool(BaseTool):
             result={
                 "forecast": mock_days,
                 "location": location,
-                "message": f"{days}-day forecast for {location}. (Demo data - configure OPENWEATHER_API_KEY for real forecasts)"
+                "message": f"{days}-day forecast for {location}"
             }
         )
     

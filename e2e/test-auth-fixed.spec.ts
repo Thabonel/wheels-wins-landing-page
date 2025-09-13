@@ -69,7 +69,7 @@ test.describe('Authentication Test - Verify Supabase Fix', () => {
     console.log(`   Client context: ${supabaseCheck ? '✓ Available' : '❌ Not available'}`);
     
     // Final Summary
-    console.log('\n' + '='.repeat(50));
+    console.log(`\n${  '='.repeat(50)}`);
     console.log('📊 AUTHENTICATION TEST SUMMARY');
     console.log('='.repeat(50));
     

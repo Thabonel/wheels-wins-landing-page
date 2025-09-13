@@ -89,7 +89,7 @@ export interface AgenticCapabilitiesResponse {
 const API_BASE_URL = 
   import.meta.env.VITE_API_URL || 
   import.meta.env.VITE_BACKEND_URL || 
-  'https://wheels-wins-backend-staging.onrender.com';
+  'https://pam-backend.onrender.com';
 const AGENTIC_BASE = `${API_BASE_URL}/api/v1/pam/agentic`;
 
 // Error handling wrapper
@@ -137,9 +137,6 @@ export const pamAgenticService = {
     try {
       console.log('🧠 Creating agentic plan for goal:', goal);
       
-      // Sanitize context to prevent timestamp conflicts
-      const sanitizedContext = this.sanitizeContext(context);
-      
       const headers = await getAuthHeaders();
       const response = await fetch(`${AGENTIC_BASE}/plan`, {
         method: 'POST',
@@ -147,7 +144,7 @@ export const pamAgenticService = {
         body: JSON.stringify({
           goal,
           context: {
-            ...sanitizedContext,
+            ...context,
             timestamp: new Date().toISOString(),
             source: 'frontend'
           }
@@ -175,9 +172,6 @@ export const pamAgenticService = {
     try {
       console.log('🚀 Executing agentic plan:', { goal, planId });
       
-      // Sanitize context to prevent timestamp conflicts
-      const sanitizedContext = this.sanitizeContext(context);
-      
       const headers = await getAuthHeaders();
       const response = await fetch(`${AGENTIC_BASE}/execute`, {
         method: 'POST',
@@ -186,7 +180,7 @@ export const pamAgenticService = {
           goal,
           plan_id: planId,
           context: {
-            ...sanitizedContext,
+            ...context,
             timestamp: new Date().toISOString(),
             source: 'frontend'
           }
@@ -261,408 +255,8 @@ export const pamAgenticService = {
       
       return { plan, execution };
     } catch (error) {
-      console.warn('❌ Agentic planning failed, attempting graceful fallback');
-      
-      // Graceful degradation: Try to provide immediate helpful response
-      const fallbackResponse = await this.provideFallbackResponse(goal, context);
-      if (fallbackResponse) {
-        return fallbackResponse;
-      }
-      
       handleApiError(error, 'Plan And Execute');
       throw error;
-    }
-  },
-
-  /**
-   * Provide immediate helpful response when agentic planning fails
-   * This ensures PAM is always helpful, even when advanced features are unavailable
-   */
-  async provideFallbackResponse(goal: string, context: Record<string, any> = {}): Promise<{
-    plan: AgenticPlanResponse;
-    execution: AgenticExecutionResponse;
-  } | null> {
-    try {
-      console.log('🔄 Providing fallback response for:', goal);
-      
-      // Check if this is a trip planning request
-      if (this.isTripPlanningRequest(goal)) {
-        const tripResponse = this.generateTripPlanningResponse(goal, context);
-        
-        return {
-          plan: {
-            success: true,
-            plan: {
-              user_goal: goal,
-              complexity: 'moderate',
-              steps: [
-                { action: 'analyze_route', description: 'Analyze the requested route' },
-                { action: 'provide_recommendations', description: 'Provide travel recommendations' },
-                { action: 'deliver_response', description: 'Deliver structured travel information' }
-              ],
-              tools_required: ['trip_planner'],
-              estimated_time: 'immediate',
-              success_probability: 0.9
-            },
-            agent_reasoning: 'Using fallback trip planning with structured recommendations',
-            can_execute: true,
-            fallback_available: true
-          },
-          execution: {
-            success: true,
-            execution_result: {
-              response: tripResponse,
-              steps_completed: 3,
-              tools_used: ['fallback_trip_planner'],
-              execution_time: 'immediate'
-            },
-            agent_insights: 'Provided comprehensive trip planning using fallback system',
-            learning_captured: true
-          }
-        };
-      }
-      
-      // Check if this is a financial planning request
-      if (this.isFinancialPlanningRequest(goal)) {
-        const financialResponse = this.generateFinancialPlanningResponse(goal, context);
-        
-        return {
-          plan: {
-            success: true,
-            plan: {
-              user_goal: goal,
-              complexity: 'moderate',
-              steps: [
-                { action: 'analyze_request', description: 'Analyze financial planning request' },
-                { action: 'provide_guidance', description: 'Provide financial guidance' }
-              ],
-              tools_required: ['financial_planner'],
-              estimated_time: 'immediate',
-              success_probability: 0.8
-            },
-            agent_reasoning: 'Using fallback financial planning guidance',
-            can_execute: true,
-            fallback_available: true
-          },
-          execution: {
-            success: true,
-            execution_result: {
-              response: financialResponse,
-              steps_completed: 2,
-              tools_used: ['fallback_financial_planner'],
-              execution_time: 'immediate'
-            },
-            agent_insights: 'Provided financial planning guidance using fallback system',
-            learning_captured: true
-          }
-        };
-      }
-      
-      // Generic helpful response for other requests
-      const genericResponse = this.generateGenericHelpfulResponse(goal, context);
-      if (genericResponse) {
-        return {
-          plan: {
-            success: true,
-            plan: {
-              user_goal: goal,
-              complexity: 'simple',
-              steps: [
-                { action: 'provide_assistance', description: 'Provide helpful assistance' }
-              ],
-              tools_required: ['basic_chat'],
-              estimated_time: 'immediate',
-              success_probability: 0.7
-            },
-            agent_reasoning: 'Using fallback assistance mode',
-            can_execute: true,
-            fallback_available: true
-          },
-          execution: {
-            success: true,
-            execution_result: {
-              response: genericResponse,
-              steps_completed: 1,
-              tools_used: ['fallback_assistant'],
-              execution_time: 'immediate'
-            },
-            agent_insights: 'Provided general assistance using fallback system',
-            learning_captured: true
-          }
-        };
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('❌ Fallback response failed:', error);
-      return null;
-    }
-  },
-
-  /**
-   * Check if the goal is a trip planning request
-   */
-  isTripPlanningRequest(goal: string): boolean {
-    const tripKeywords = [
-      'trip', 'travel', 'plan', 'route', 'journey', 'visit', 'go to', 'drive to',
-      'vacation', 'holiday', 'road trip', 'fly to', 'directions'
-    ];
-    
-    const lowerGoal = goal.toLowerCase();
-    return tripKeywords.some(keyword => lowerGoal.includes(keyword));
-  },
-
-  /**
-   * Check if the goal is a financial planning request
-   */
-  isFinancialPlanningRequest(goal: string): boolean {
-    const financialKeywords = [
-      'budget', 'money', 'save', 'invest', 'expense', 'income', 'financial',
-      'cost', 'price', 'afford', 'spend', 'earn', 'profit', 'loss', 'debt'
-    ];
-    
-    const lowerGoal = goal.toLowerCase();
-    return financialKeywords.some(keyword => lowerGoal.includes(keyword));
-  },
-
-  /**
-   * Generate intelligent trip planning response based on the request
-   */
-  generateTripPlanningResponse(goal: string, context: Record<string, any>): string {
-    return this.generateIntelligentResponse(goal, context, 'trip_planning');
-  },
-
-  /**
-   * Generate financial planning response
-   */
-  generateFinancialPlanningResponse(goal: string, context: Record<string, any>): string {
-    return this.generateIntelligentResponse(goal, context, 'financial_planning');
-  },
-
-  /**
-   * Generate generic helpful response
-   */
-  generateGenericHelpfulResponse(goal: string, context: Record<string, any>): string {
-    return this.generateIntelligentResponse(goal, context, 'general');
-  },
-
-  /**
-   * Generate intelligent responses based on the user's actual request
-   * This replaces hard-coded responses with contextual understanding
-   */
-  generateIntelligentResponse(goal: string, context: Record<string, any>, category: string): string {
-    const lowerGoal = goal.toLowerCase();
-    
-    // Weather requests
-    if (lowerGoal.includes('weather') || lowerGoal.includes('temperature') || lowerGoal.includes('forecast')) {
-      return `I'd love to help with weather information! However, I don't have access to current weather data right now.
-
-For accurate weather forecasts, I recommend:
-- **Bureau of Meteorology**: bom.gov.au (official Australian weather)
-- **Weather app** on your phone for location-specific forecasts
-- **Local news** for detailed regional conditions
-
-If you're planning travel, I can help with general seasonal guidance for different Australian regions instead!`;
-    }
-    
-    // Trip planning with intelligent route detection
-    if (category === 'trip_planning') {
-      // Extract locations from the request
-      const locations = this.extractLocationsFromRequest(lowerGoal);
-      
-      if (locations.origin && locations.destination) {
-        return this.generateRouteResponse(locations.origin, locations.destination, context);
-      }
-      
-      return `# 🗺️ Trip Planning Assistant
-
-I'd be happy to help plan your trip! For the most helpful recommendations, I'll need a few details:
-
-## What I Need to Know:
-- **Starting location**: Where are you departing from?
-- **Destination**: Where would you like to go?
-- **Duration**: How long do you have for this trip?
-- **Travel style**: Road trip, flying, or combination?
-- **Interests**: What do you enjoy? (nature, culture, food, adventure)
-
-## I Can Help With:
-✅ **Route planning** with optimal stops
-✅ **Accommodation suggestions** along the way  
-✅ **Budget estimates** for your journey
-✅ **Timing recommendations** for best experience
-✅ **Local highlights** and must-see attractions
-✅ **Practical tips** for Australian travel
-
-Just let me know your preferences and I'll create a detailed itinerary for you!`;
-    }
-    
-    // Financial planning
-    if (category === 'financial_planning') {
-      return `# 💰 Financial Planning Assistant
-
-I'm here to help with your financial planning needs! 
-
-## What I Can Help With:
-✅ **Budget creation** and expense tracking
-✅ **Savings goals** and strategies
-✅ **Investment guidance** for beginners
-✅ **Cost analysis** for major purchases
-✅ **Income optimization** ideas
-
-## To Provide the Best Advice:
-- What's your specific financial goal?
-- What's your current situation?
-- What timeframe are you working with?
-
-Let me know more details and I'll provide personalized financial guidance!`;
-    }
-    
-    // General requests - try to be helpful based on content
-    if (lowerGoal.includes('help') || lowerGoal.includes('what') || lowerGoal.includes('how')) {
-      return `I'm here to help with your question: "${goal}"
-
-## I Can Assist With:
-✅ **Trip Planning** - Routes, destinations, and travel advice
-✅ **Financial Guidance** - Budgeting and money management  
-✅ **General Information** - Questions about Australia, travel, etc.
-✅ **App Navigation** - Using Wheels & Wins features
-
-Could you be more specific about what you're looking for? The more details you provide, the better I can help!`;
-    }
-    
-    // Default response
-    return `Thanks for your question: "${goal}"
-
-I'm here to help! While my advanced AI system is temporarily unavailable, I can still provide assistance with:
-
-✅ **Travel planning** and route advice
-✅ **Financial guidance** and budgeting tips
-✅ **General questions** about using the app
-✅ **Information** about Australian destinations
-
-What specifically would you like help with?`;
-  },
-
-  /**
-   * Extract origin and destination from trip planning requests
-   */
-  extractLocationsFromRequest(goal: string): { origin?: string, destination?: string } {
-    const locations: { origin?: string, destination?: string } = {};
-    
-    // Common patterns: "from X to Y", "X to Y", "plan trip X Y"
-    const patterns = [
-      /from\s+(.+?)\s+to\s+(.+)/i,
-      /(.+?)\s+to\s+(.+)/i,
-    ];
-    
-    for (const pattern of patterns) {
-      const match = goal.match(pattern);
-      if (match) {
-        locations.origin = match[1].trim();
-        locations.destination = match[2].trim();
-        break;
-      }
-    }
-    
-    return locations;
-  },
-
-  /**
-   * Generate intelligent route responses based on detected locations
-   */
-  generateRouteResponse(origin: string, destination: string, context: Record<string, any>): string {
-    const lowerOrigin = origin.toLowerCase();
-    const lowerDest = destination.toLowerCase();
-    
-    // Sydney to Hobart
-    if (lowerOrigin.includes('sydney') && lowerDest.includes('hobart')) {
-      return `# 🗺️ ${origin} to ${destination} Trip Plan
-
-## Route Overview
-- **Distance**: ~1,100km (680 miles via Melbourne + ferry)
-- **Driving Time**: ~15-17 hours (including ferry crossing)
-- **Recommended Duration**: 3-4 days with stops
-
-## Recommended Route
-1. **Sydney** → Goulburn (2h) → Albury (3h) → **Melbourne** (3h)
-2. **Melbourne** → Spirit of Tasmania ferry (overnight)
-3. **Devonport, TAS** → Launceston (1h) → **Hobart** (2.5h)
-
-## Key Highlights
-- **Goulburn**: Famous Big Merino, rest stop
-- **Melbourne**: Cultural capital, overnight recommended
-- **Spirit of Tasmania**: Vehicle ferry, book advance
-- **Launceston**: Historic city, Cataract Gorge
-- **Hobart**: MONA, Salamanca Markets, Mt Wellington
-
-## Budget Estimate
-- Fuel: ~$250-350
-- Ferry: ~$500-800 (car + passengers)
-- Accommodation: ~$150-250/night
-- Food: ~$100-150/day
-
-Would you like specific details about any part of this journey?`;
-    }
-    
-    // Generic route response
-    return `# 🗺️ ${origin} to ${destination} Route
-
-I can help plan your journey from ${origin} to ${destination}! 
-
-## What I Need to Know:
-- **Travel dates** - When are you planning to go?
-- **Travel style** - Driving, flying, or combination?
-- **Duration** - How many days do you have?
-- **Interests** - Scenic routes, cities, nature, food?
-
-## I Can Provide:
-✅ Best route options and timing
-✅ Recommended stops along the way
-✅ Budget estimates for your journey
-✅ Accommodation suggestions
-✅ Local highlights and attractions
-
-Let me know your preferences and I'll create a detailed itinerary!`;
-  },
-
-  /**
-   * Sanitize context object to prevent timestamp conflicts and other issues
-   */
-  sanitizeContext(context: Record<string, any>): Record<string, any> {
-    try {
-      const sanitized: Record<string, any> = {};
-      
-      for (const [key, value] of Object.entries(context)) {
-        // Skip any existing timestamp fields to avoid conflicts
-        if (key === 'timestamp') {
-          continue;
-        }
-        
-        // Handle different types of values
-        if (value === null || value === undefined) {
-          sanitized[key] = value;
-        } else if (typeof value === 'object') {
-          // Recursively sanitize nested objects, but avoid circular references
-          try {
-            sanitized[key] = JSON.parse(JSON.stringify(value));
-          } catch (error) {
-            console.warn(`❌ Failed to sanitize context key "${key}":`, error);
-            sanitized[key] = String(value);
-          }
-        } else if (typeof value === 'function') {
-          // Skip functions as they can't be JSON serialized
-          continue;
-        } else {
-          // Keep primitive values as-is
-          sanitized[key] = value;
-        }
-      }
-      
-      return sanitized;
-    } catch (error) {
-      console.error('❌ Context sanitization failed:', error);
-      // Return empty object if sanitization fails completely
-      return {};
     }
   }
 };

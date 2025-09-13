@@ -42,7 +42,7 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
 
     const mapContainer = this.map.getContainer();
     // Find the main trip planner root container using data attribute
-    let tripPlannerWrapper = mapContainer.closest('[data-trip-planner-root="true"]') as HTMLElement | null;
+    const tripPlannerWrapper = mapContainer.closest('[data-trip-planner-root="true"]') as HTMLElement | null;
 
     if (!tripPlannerWrapper) {
       console.error('Could not find trip planner root container');

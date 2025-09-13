@@ -1,6 +1,6 @@
 import React from "react";
-import Pam from "@/components/Pam"; // Main PAM component with avatar - fixing input issues
-// import PamSimple from "@/components/PamSimple"; // Has input bug - only allows one character
+import Pam from "@/components/Pam"; // Advanced PAM with voice, location, calendar, agentic services
+// import PamSimple from "@/components/PamSimple"; // Disabled - was text-only simplified version
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Header from "@/components/header/Header";

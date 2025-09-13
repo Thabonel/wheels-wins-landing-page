@@ -228,7 +228,7 @@ export function usePamErrorRecovery(): ErrorRecoveryState & ErrorRecoveryActions
     
     try {
       // Check if the backend is reachable
-      const healthResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com'}/health`, {
+      const healthResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://pam-backend.onrender.com'}/health`, {
         method: 'GET',
         signal: AbortSignal.timeout(5000),
       });

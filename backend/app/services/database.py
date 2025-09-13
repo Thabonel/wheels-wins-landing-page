@@ -1384,30 +1384,25 @@ class DatabaseService:
             thirty_days_ago = datetime.now() - timedelta(days=30)
             
             # User statistics
-            users_result = self.client.table('profiles').select('id, created_at').execute()
-            total_users = len(users_result.data) if users_result.data else 0
+            # Use optimized database function instead of 5+ separate queries + Python aggregation
+            stats_result = self.client.rpc('get_dashboard_statistics').execute()
             
-            new_users = len([u for u in users_result.data 
-                           if u.get('created_at') and u['created_at'] > thirty_days_ago.isoformat()]) if users_result.data else 0
-            
-            # Trip statistics
-            trips_result = self.client.table('group_trips').select('id, created_at').execute()
-            total_trips = len(trips_result.data) if trips_result.data else 0
-            
-            recent_trips = len([t for t in trips_result.data 
-                              if t.get('created_at') and t['created_at'] > thirty_days_ago.isoformat()]) if trips_result.data else 0
-            
-            # Expense statistics
-            expenses_result = self.client.table('expenses').select('amount, date').execute()
-            total_expenses_tracked = len(expenses_result.data) if expenses_result.data else 0
-            total_amount_tracked = sum(e.get('amount', 0) for e in expenses_result.data) if expenses_result.data else 0
-            
-            # Social statistics
-            posts_result = self.client.table('social_posts').select('id, created_at').execute()
-            total_posts = len(posts_result.data) if posts_result.data else 0
-            
-            groups_result = self.client.table('social_groups').select('id').execute()
-            total_groups = len(groups_result.data) if groups_result.data else 0
+            if stats_result.data and not stats_result.data.get('error'):
+                stats = stats_result.data
+                total_users = stats.get('total_users', 0)
+                new_users = stats.get('new_users_30d', 0)
+                total_trips = stats.get('total_trips', 0)
+                recent_trips = stats.get('recent_trips_30d', 0)
+                total_expenses_tracked = stats.get('total_expenses', 0)
+                total_amount_tracked = float(stats.get('total_amount_tracked', 0))
+                total_posts = stats.get('total_posts', 0)
+                total_groups = stats.get('total_groups', 0)
+            else:
+                # Fallback if function fails
+                logger.error("Dashboard statistics function failed, using fallback")
+                total_users = new_users = total_trips = recent_trips = 0
+                total_expenses_tracked = total_posts = total_groups = 0
+                total_amount_tracked = 0.0
             
             return {
                 'users': {

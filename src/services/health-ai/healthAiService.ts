@@ -67,7 +67,7 @@ export const healthConsultationTools = {
           emergency: true,
           action: 'SEEK IMMEDIATE MEDICAL ATTENTION',
           message: 'Call 911 or go to the nearest emergency room immediately',
-          symptoms: symptoms
+          symptoms
         };
       }
 
@@ -75,7 +75,7 @@ export const healthConsultationTools = {
         emergency: false,
         action: 'Monitor symptoms',
         message: 'Consider scheduling a doctor appointment if symptoms persist or worsen',
-        symptoms: symptoms
+        symptoms
       };
     }
   }),
@@ -228,7 +228,7 @@ Remember: This context is for information only. Do not diagnose based on this da
   const messages: CoreMessage[] = [
     {
       role: 'system',
-      content: HEALTH_SYSTEM_PROMPT + '\n\n' + contextInfo
+      content: `${HEALTH_SYSTEM_PROMPT  }\n\n${  contextInfo}`
     },
     {
       role: 'assistant',

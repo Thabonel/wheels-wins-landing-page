@@ -30,7 +30,7 @@ class LoadUserProfileTool(BaseTool):
                 self.logger.error(f"Input validation failed: {ve.errors()}")
                 return self._create_error_response("Invalid parameters")
 
-            self.logger.info(f"Loading profile for user {user_id}")
+            self.logger.info(f"🔍 PROFILE DEBUG: Loading profile for user {user_id}")
             
             # Get comprehensive user profile from unified profiles table
             # This now includes all onboarding data (vehicle, travel preferences, etc.)
@@ -41,6 +41,18 @@ class LoadUserProfileTool(BaseTool):
                 .single()
                 .execute()
             )
+            
+            self.logger.info(f"🔍 PROFILE DEBUG: Raw profile response: {profile_response.data}")
+            
+            # Debug vehicle-specific fields
+            if profile_response.data:
+                vehicle_fields = {
+                    'vehicle_type': profile_response.data.get('vehicle_type'),
+                    'make_model_year': profile_response.data.get('make_model_year'),
+                    'fuel_type': profile_response.data.get('fuel_type'),
+                    'towing_info': profile_response.data.get('towing_info')
+                }
+                self.logger.info(f"🚐 VEHICLE DEBUG: Vehicle fields found: {vehicle_fields}")
             
             if not profile_response.data:
                 # Return basic profile structure if none exists
@@ -77,6 +89,12 @@ class LoadUserProfileTool(BaseTool):
                 "family_details": self._extract_family_details(profile)
             }
             
+            # Debug the extracted vehicle info
+            vehicle_info = enhanced_profile.get('vehicle_info', {})
+            self.logger.info(f"🚐 VEHICLE DEBUG: Extracted vehicle_info: {vehicle_info}")
+            self.logger.info(f"🚐 VEHICLE DEBUG: Is RV detected: {vehicle_info.get('is_rv', False)}")
+            self.logger.info(f"🚐 VEHICLE DEBUG: Vehicle type: {vehicle_info.get('type')}")
+            
             self.logger.info(f"Successfully loaded profile for user {user_id}")
             return self._create_success_response(enhanced_profile)
             
@@ -104,9 +122,20 @@ class LoadUserProfileTool(BaseTool):
     def _extract_vehicle_info(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract and structure vehicle information from unified profile"""
         # Now reads directly from onboarding fields in the unified profile
+        vehicle_type = profile.get("vehicle_type", "caravan")
+        make_model = profile.get("make_model_year", "")
+        
+        # Enhanced vehicle type detection for better context
+        enhanced_type = vehicle_type
+        if 'unimog' in make_model.lower():
+            enhanced_type = "Unimog RV"  # Special handling for Unimogs
+        elif vehicle_type.lower() == "4 x 4" and make_model:
+            enhanced_type = f"4WD RV ({make_model})"
+        
         return {
-            "type": profile.get("vehicle_type", "caravan"),  # Direct from onboarding: unimog, motorhome, etc.
-            "make_model_year": profile.get("make_model_year", ""),  # Direct from onboarding
+            "type": enhanced_type,  # Enhanced vehicle type for better AI context
+            "original_type": vehicle_type,  # Keep original for compatibility
+            "make_model_year": make_model,  # Direct from onboarding
             "fuel_type": profile.get("fuel_type", "diesel"),  # Direct from onboarding
             "towing_info": profile.get("towing_info", ""),  # Direct from onboarding
             "second_vehicle": profile.get("second_vehicle", ""),  # Direct from onboarding
@@ -121,11 +150,16 @@ class LoadUserProfileTool(BaseTool):
             "solar_panels": profile.get("solar_panels", False),
             "generator": profile.get("generator", False),
             
-            # Add explicit RV detection
-            "is_rv": profile.get("vehicle_type", "").lower() in [
-                'motorhome', 'caravan', 'travel_trailer', 'fifth_wheel', 
-                'truck_camper', 'van', 'unimog', 'camper_trailer'
-            ]
+            # Add explicit RV detection - check both vehicle_type and make_model_year
+            "is_rv": (
+                profile.get("vehicle_type", "").lower() in [
+                    'motorhome', 'caravan', 'travel_trailer', 'fifth_wheel', 
+                    'truck_camper', 'van', 'unimog', 'camper_trailer', 'rv', '4 x 4'
+                ] or 
+                'unimog' in profile.get("make_model_year", "").lower() or
+                any(rv_keyword in profile.get("make_model_year", "").lower() 
+                    for rv_keyword in ['motorhome', 'caravan', 'camper'])
+            )
         }
     
     def _extract_budget_preferences(self, profile: Dict[str, Any]) -> Dict[str, Any]:
