@@ -10,23 +10,28 @@ import { logger } from '../lib/logger';
 const getApiBaseUrl = () => {
   // Check for explicit API URL first
   if (import.meta.env.VITE_API_URL) {
+    console.log('🔧 Using VITE_API_URL:', import.meta.env.VITE_API_URL);
     return import.meta.env.VITE_API_URL;
   }
   
   // Check for explicit backend URL
   if (import.meta.env.VITE_BACKEND_URL) {
+    console.log('🔧 Using VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL);
     return import.meta.env.VITE_BACKEND_URL;
   }
   
   // Auto-detect based on current domain for staging vs production
   const currentDomain = window.location.hostname;
+  console.log('🔧 Detecting domain:', currentDomain);
   
   if (currentDomain.includes('staging') || currentDomain.includes('netlify')) {
     // Staging environment - use staging backend
+    console.log('🔧 Staging detected - using staging backend');
     return 'https://wheels-wins-backend-staging.onrender.com';
   }
   
   // Production environment - use production backend
+  console.log('🔧 Production detected - using production backend');
   return 'https://pam-backend.onrender.com';
 };
 
