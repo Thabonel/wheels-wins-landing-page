@@ -76,6 +76,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [isNavigating, setIsNavigating] = useState(false);
   const [isAddingWaypoint, setIsAddingWaypoint] = useState(false);
   const isAddingWaypointRef = useRef(false);
+  const [hasDirectionsRoute, setHasDirectionsRoute] = useState(false);
   const [mapOverlays, setMapOverlays] = useState([
     { id: 'traffic', name: 'Traffic', enabled: false },
     { id: 'fires', name: 'Active Fires', enabled: false },
@@ -295,11 +296,18 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           if (event.route && event.route.length > 0) {
             const route = event.route[0];
             console.log('🛣️ Route updated via drag:', route);
+            setHasDirectionsRoute(true);
             // Update internal route state with the modified route
             if (typeof waypointManager.updateRouteFromDrag === 'function') {
               waypointManager.updateRouteFromDrag(route);
             }
           }
+        });
+        
+        // Listen for route clear events
+        directionsRef.current.on('clear', () => {
+          console.log('🧹 Directions route cleared');
+          setHasDirectionsRoute(false);
         });
         
         // Debug: Confirm markers are hidden
@@ -617,8 +625,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Save trip handler
   const handleSaveTrip = async () => {
-    if (waypointManager.waypoints.length < 2) {
-      toast.error('Please add at least 2 waypoints');
+    if (waypointManager.waypoints.length < 2 && !hasDirectionsRoute) {
+      toast.error('Please add at least 2 waypoints or create a route');
       return;
     }
     
@@ -632,15 +640,15 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Share trip handler
   const handleExportRoute = () => {
-    if (waypointManager.waypoints.length < 2) {
-      toast.error('Add at least 2 waypoints to export a route');
+    if (waypointManager.waypoints.length < 2 && !hasDirectionsRoute) {
+      toast.error('Add at least 2 waypoints or create a route to export');
       return;
     }
     setShowExportHub(true);
   };
   
   const handleShareTrip = () => {
-    if (waypointManager.waypoints.length < 2) {
+    if (waypointManager.waypoints.length < 2 && !hasDirectionsRoute) {
       toast.error('Please create a route first');
       return;
     }
@@ -658,7 +666,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Navigation handler
   const handleStartNavigation = () => {
-    if (waypointManager.waypoints.length < 2) {
+    if (waypointManager.waypoints.length < 2 && !hasDirectionsRoute) {
       toast.error('Please create a route first');
       return;
     }
@@ -670,6 +678,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Clear route handler
   const handleClearRoute = () => {
     waypointManager.clearWaypoints();
+    // Also clear the Directions control route if it exists
+    if (directionsRef.current) {
+      directionsRef.current.removeRoutes();
+    }
+    setHasDirectionsRoute(false);
     toast.info('Route cleared');
   };
   
@@ -888,7 +901,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         showPOI={showPOI}
         showTemplates={showTemplates}
         isAddingWaypoint={isAddingWaypoint}
-        hasRoute={waypointManager.waypoints.length >= 2}
+        hasRoute={waypointManager.waypoints.length >= 2 || hasDirectionsRoute}
       />
       
       {/* Add waypoint indicator */}
