@@ -290,9 +290,17 @@ class RequestValidator:
         
         elif rule.rule_type == ValidationRuleType.DATETIME:
             try:
-                datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+                # Handle string, float, or int timestamps
+                if isinstance(value, (int, float)):
+                    # Convert timestamp to datetime
+                    datetime.fromtimestamp(value)
+                elif isinstance(value, str):
+                    # Parse ISO format datetime
+                    datetime.fromisoformat(value.replace('Z', '+00:00'))
+                else:
+                    return {"type": "type_error", "message": "Field must be a valid datetime string or timestamp"}
             except ValueError:
-                return {"type": "format", "message": "Field must be a valid datetime (ISO format)"}
+                return {"type": "format", "message": "Field must be a valid datetime (ISO format) or timestamp"}
         
         elif rule.rule_type == ValidationRuleType.ARRAY:
             if not isinstance(value, list):
@@ -354,12 +362,23 @@ class RequestValidator:
             except:
                 pass  # Keep original if decoding fails
         
+        elif isinstance(value, (int, float)):
+            # For timestamps, ensure they're converted to string if needed
+            if rule.rule_type == ValidationRuleType.DATETIME:
+                # Convert timestamp to ISO string for consistency
+                try:
+                    dt = datetime.fromtimestamp(value)
+                    value = dt.isoformat()
+                except (ValueError, OSError):
+                    # Keep original if conversion fails
+                    pass
+        
         elif isinstance(value, list):
             # Recursively sanitize array items
             value = [self._sanitize_field(item, rule) for item in value]
         
         elif isinstance(value, dict):
-            # Recursively sanitize object values
+            # Recursively sanitize object values  
             value = {k: self._sanitize_field(v, rule) for k, v in value.items()}
         
         return value

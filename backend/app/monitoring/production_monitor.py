@@ -153,10 +153,13 @@ class ProductionMonitor:
                     except Exception:
                         error_context.request_body = "Unable to decode request body"
             
-            # Add to buffer
-            self.error_buffer.append(error_context)
-            if len(self.error_buffer) > self.max_buffer_size:
-                self.error_buffer.pop(0)
+            # Add to buffer with validation
+            if self._validate_buffer_object(error_context, ErrorContext):
+                self.error_buffer.append(error_context)
+                if len(self.error_buffer) > self.max_buffer_size:
+                    self.error_buffer.pop(0)
+            else:
+                logger.error(f"Invalid object type for error buffer: {type(error_context)}")
             
             # Log structured error
             logger.error(
@@ -203,10 +206,13 @@ class ProductionMonitor:
                 user_id=user_id
             )
             
-            # Add to buffer
-            self.performance_buffer.append(metrics)
-            if len(self.performance_buffer) > self.max_buffer_size:
-                self.performance_buffer.pop(0)
+            # Add to buffer with validation
+            if self._validate_buffer_object(metrics, PerformanceMetrics):
+                self.performance_buffer.append(metrics)
+                if len(self.performance_buffer) > self.max_buffer_size:
+                    self.performance_buffer.pop(0)
+            else:
+                logger.error(f"Invalid object type for performance buffer: {type(metrics)}")
             
             # Log slow requests
             if duration_ms > 1000:  # 1 second
@@ -255,12 +261,12 @@ class ProductionMonitor:
             
             recent_errors = [
                 e for e in self.error_buffer 
-                if datetime.fromisoformat(e.timestamp.replace('Z', '+00:00')) > five_min_ago
+                if self._extract_timestamp_datetime(e) > five_min_ago
             ]
             
             recent_performance = [
                 p for p in self.performance_buffer 
-                if datetime.fromisoformat(p.timestamp.replace('Z', '+00:00')) > five_min_ago
+                if self._extract_timestamp_datetime(p) > five_min_ago
             ]
             
             error_rate_5min = len(recent_errors)
@@ -330,13 +336,13 @@ class ProductionMonitor:
                 # Clean error buffer
                 self.error_buffer = [
                     e for e in self.error_buffer
-                    if datetime.fromisoformat(e.timestamp.replace('Z', '+00:00')) > one_hour_ago
+                    if self._extract_timestamp_datetime(e) > one_hour_ago
                 ]
                 
                 # Clean performance buffer
                 self.performance_buffer = [
                     p for p in self.performance_buffer
-                    if datetime.fromisoformat(p.timestamp.replace('Z', '+00:00')) > one_hour_ago
+                    if self._extract_timestamp_datetime(p) > one_hour_ago
                 ]
                 
                 await asyncio.sleep(600)  # 10 minutes
@@ -398,6 +404,62 @@ class ProductionMonitor:
             return request.client.host
         
         return "unknown"
+    
+    def _extract_timestamp_datetime(self, obj) -> datetime:
+        """
+        Safely extract datetime from mixed timestamp types.
+        Handles both dataclass objects with timestamp strings and raw float timestamps.
+        """
+        try:
+            # If it's a dataclass with a timestamp attribute (expected case)
+            if hasattr(obj, 'timestamp'):
+                timestamp_val = obj.timestamp
+                # Handle string timestamps (ISO format)
+                if isinstance(timestamp_val, str):
+                    return datetime.fromisoformat(timestamp_val.replace('Z', '+00:00'))
+                # Handle float timestamps (Unix time)
+                elif isinstance(timestamp_val, (int, float)):
+                    return datetime.fromtimestamp(timestamp_val)
+                else:
+                    logger.warning(f"Unexpected timestamp type: {type(timestamp_val)} for {obj}")
+                    return datetime.utcnow()
+            
+            # If obj itself is a float timestamp (error case that needs fixing)
+            elif isinstance(obj, (int, float)):
+                logger.warning(f"Found raw timestamp in buffer: {obj} - this should be a dataclass object")
+                return datetime.fromtimestamp(obj)
+            
+            # If it's something else entirely
+            else:
+                logger.error(f"Unexpected object type in monitoring buffer: {type(obj)} - {obj}")
+                return datetime.utcnow()
+                
+        except Exception as e:
+            logger.error(f"Failed to extract timestamp from {obj}: {e}")
+            return datetime.utcnow()  # Fallback to current time
+    
+    def _validate_buffer_object(self, obj, expected_type) -> bool:
+        """
+        Validate that an object is of the expected type before adding to buffer.
+        This prevents raw timestamps or other incorrect types from being added.
+        """
+        try:
+            # Check if it's an instance of the expected type
+            if isinstance(obj, expected_type):
+                # Additional validation: ensure timestamp is a string as expected
+                if hasattr(obj, 'timestamp') and not isinstance(obj.timestamp, str):
+                    logger.warning(f"Object has non-string timestamp: {type(obj.timestamp)} - {obj.timestamp}")
+                    # Convert to string if it's a valid timestamp
+                    if isinstance(obj.timestamp, (int, float)):
+                        obj.timestamp = datetime.fromtimestamp(obj.timestamp).isoformat()
+                        logger.info(f"Converted timestamp to ISO string: {obj.timestamp}")
+                return True
+            else:
+                logger.error(f"Expected {expected_type.__name__}, got {type(obj).__name__}: {obj}")
+                return False
+        except Exception as e:
+            logger.error(f"Buffer validation error: {e}")
+            return False
     
     def get_debug_info(self) -> Dict[str, Any]:
         """Get debug information for troubleshooting."""
