@@ -48,6 +48,8 @@
     "ai:status": "npm run ai-agents status",
     "ai:security": "npm run ai-agents security",
     "ai:tests": "npm run ai-agents tests",
+    "validate:main": "node scripts/validate-main-deployment.js",
+    "pre-push:main": "npm run validate:main && npm run build",
     "ai:docs": "npm run ai-agents docs",
     "ai:pam": "npm run ai-agents pam",
     "ai:all": "npm run ai-agents all",
