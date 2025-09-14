@@ -155,7 +155,7 @@ const FEATURE_FLAGS: FeatureFlags = {
   // Migration Features - Direct Claude API
   PAM_DIRECT_CLAUDE_API: {
     enabled: true,
-    rolloutPercentage: 0, // Start with 0% for gradual rollout
+    rolloutPercentage: 100, // Enable for testing on staging
     environments: ['development', 'staging', 'production'],
     description: 'Direct Claude API integration replacing WebSocket infrastructure'
   }

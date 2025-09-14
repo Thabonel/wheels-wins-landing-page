@@ -22,7 +22,7 @@ console.log('🔧 API Configuration Debug:', {
  * WebSocket endpoint for PAM connections - uses environment variable or derives from API_BASE_URL
  * @constant {string}
  */
-const WS_BASE_URL = import.meta.env.VITE_PAM_WEBSOCKET_URL || API_BASE_URL.replace(/^http/, 'ws');
+const WS_BASE_URL = import.meta.env.VITE_PAM_WEBSOCKET_URL?.replace('/api/v1/pam/ws', '') || API_BASE_URL.replace(/^http/, 'ws');
 
 /**
  * Default timeout in milliseconds for fetch requests
