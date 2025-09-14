@@ -88,7 +88,7 @@ export class ClaudeService {
 
     this.config = {
       apiKey,
-      model: config?.model || 'claude-3-5-sonnet-20241022',
+      model: config?.model || 'claude-3-5-sonnet-20241022', // Web search available on newer models
       maxTokens: config?.maxTokens || 1024,
       temperature: config?.temperature || 0.7,
       ...config
