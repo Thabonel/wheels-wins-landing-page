@@ -192,9 +192,6 @@
     "lodash.template": "npm:lodash@^4.17.21",
     "esbuild": "^0.25.9",
     "vite": "^5.4.19",
-    "@mapbox/mapbox-gl-directions": {
-      "lodash.template": "npm:lodash@^4.17.21"
-    },
     "lodash": "^4.17.21"
   },
   "engines": {
