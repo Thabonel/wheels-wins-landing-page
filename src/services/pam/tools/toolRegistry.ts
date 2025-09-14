@@ -454,7 +454,7 @@ export const PAM_TOOLS: ToolDefinition[] = [
   // ===================
   {
     name: 'getCurrentWeather',
-    description: 'Get current weather conditions for a specific location. Use user\'s current location if no location is specified. Provides temperature, conditions, humidity, wind speed, and other current weather data.',
+    description: 'IMMEDIATELY get current weather conditions when users ask about weather, temperature, or conditions. Always use this for weather queries. Provides temperature, conditions, humidity, wind speed, and detailed weather data.',
     category: 'weather',
     input_schema: {
       type: 'object',
