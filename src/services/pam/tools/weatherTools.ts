@@ -1,12 +1,12 @@
 /**
  * PAM Weather Tools with Hybrid Approach
- * 1. Try Claude web search first (if available)
- * 2. Fall back to OpenWeatherMap API (if configured)
+ * 1. Try backend Google API search first (if available)
+ * 2. Fall back to OpenWeatherMap API (if configured) 
  * 3. Provide helpful guidance (final fallback)
  */
 
 import { logger } from '@/lib/logger';
-import { claudeService } from '@/services/claude/claudeService';
+import { searchCurrentWeather, searchWeatherForecast } from './webSearchTools';
 
 export interface WeatherCondition {
   temperature: number;
@@ -70,42 +70,21 @@ export async function getCurrentWeather(
 
     const targetLocation = location || 'Sydney, Australia';
 
-    // Strategy 1: Try Claude web search first
+    // Strategy 1: Try backend Google API search first
     try {
-      logger.debug('🔍 Attempting Claude web search for weather');
+      logger.debug('🔍 Attempting backend Google API search for weather');
       
-      const webSearchPrompt = `What is the current weather in ${targetLocation}? Please provide:
-- Temperature (in ${units === 'metric' ? 'Celsius' : units === 'imperial' ? 'Fahrenheit' : 'Kelvin'})
-- Weather conditions (clear, cloudy, rainy, etc.)
-- Humidity if available
-- Wind speed and direction if available
-- Any weather alerts or warnings
-
-Please format the response in a clear, concise way and include your sources.`;
-
-      const webSearchResponse = await claudeService.sendMessage(
-        webSearchPrompt,
-        'You are PAM, a helpful weather assistant. Use web search to get current, accurate weather information. Always cite your sources.',
-        {
-          maxTokens: 500,
-          temperature: 0.1,
-          tools: [{
-            type: 'web_search_20250305',
-            name: 'web_search',
-            max_uses: 3
-          }]
-        }
-      );
-
-      if (webSearchResponse && webSearchResponse.trim().length > 50) {
-        logger.info('✅ Claude web search weather successful');
+      const webSearchResult = await searchCurrentWeather(targetLocation, userId);
+      
+      if (webSearchResult.success && webSearchResult.formattedResponse) {
+        logger.info('✅ Backend Google search weather successful');
         return {
           success: true,
-          formattedResponse: `🌤️ **Current Weather in ${targetLocation}**\n\n${webSearchResponse}\n\n*Weather data obtained via Claude web search*`
+          formattedResponse: webSearchResult.formattedResponse
         };
       }
     } catch (webSearchError) {
-      logger.debug('⚠️ Claude web search not available, trying OpenWeatherMap API', { error: webSearchError });
+      logger.debug('⚠️ Backend Google search not available, trying OpenWeatherMap API', { error: webSearchError });
     }
 
     // Strategy 2: Fall back to OpenWeatherMap API
@@ -238,42 +217,21 @@ export async function getWeatherForecast(
 
     const targetLocation = location || 'Sydney, Australia';
 
-    // Strategy 1: Try Claude web search first
+    // Strategy 1: Try backend Google API search first
     try {
-      logger.debug('🔍 Attempting Claude web search for weather forecast');
+      logger.debug('🔍 Attempting backend Google API search for weather forecast');
       
-      const webSearchPrompt = `What is the ${days}-day weather forecast for ${targetLocation}? Please provide:
-- Daily high and low temperatures (in ${units === 'metric' ? 'Celsius' : units === 'imperial' ? 'Fahrenheit' : 'Kelvin'})
-- Weather conditions for each day
-- Chance of precipitation
-- Any significant weather patterns or alerts
-${includeHourly ? '- Hourly breakdown if available' : ''}
-
-Please format the response clearly and include your sources.`;
-
-      const webSearchResponse = await claudeService.sendMessage(
-        webSearchPrompt,
-        'You are PAM, a helpful weather assistant. Use web search to get current, accurate weather forecast information. Always cite your sources.',
-        {
-          maxTokens: 800,
-          temperature: 0.1,
-          tools: [{
-            type: 'web_search_20250305',
-            name: 'web_search',
-            max_uses: 3
-          }]
-        }
-      );
-
-      if (webSearchResponse && webSearchResponse.trim().length > 50) {
-        logger.info('✅ Claude web search forecast successful');
+      const webSearchResult = await searchWeatherForecast(targetLocation, days, userId);
+      
+      if (webSearchResult.success && webSearchResult.formattedResponse) {
+        logger.info('✅ Backend Google search forecast successful');
         return {
           success: true,
-          formattedResponse: `📅 **${days}-Day Weather Forecast for ${targetLocation}**\n\n${webSearchResponse}\n\n*Forecast data obtained via Claude web search*`
+          formattedResponse: webSearchResult.formattedResponse
         };
       }
     } catch (webSearchError) {
-      logger.debug('⚠️ Claude web search not available for forecast, trying fallback', { error: webSearchError });
+      logger.debug('⚠️ Backend Google search not available for forecast, trying fallback', { error: webSearchError });
     }
 
     // Strategy 2: Fall back to current weather + forecast guidance
