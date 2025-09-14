@@ -1,7 +1,7 @@
 /**
  * PAM Weather Tools with Hybrid Approach
- * 1. Try backend Google API search first (if available)
- * 2. Fall back to OpenWeatherMap API (if configured) 
+ * 1. Try OpenWeatherMap API first (fast, reliable)
+ * 2. Fall back to backend Google API search (if OpenWeatherMap fails)
  * 3. Provide helpful guidance (final fallback)
  */
 
@@ -70,9 +70,17 @@ export async function getCurrentWeather(
 
     const targetLocation = location || 'Sydney, Australia';
 
-    // Strategy 1: Try backend Google API search first
+    // Strategy 1: Try OpenWeatherMap API first (fast and reliable)
+    // Strategy 2: Try OpenWeatherMap API
+    const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+    if (apiKey && apiKey !== 'your-openweathermap-api-key-here') {
+      logger.debug('🌐 Using OpenWeatherMap API fallback');
+      return await getWeatherFromOpenWeatherMap(targetLocation, units, apiKey);
+    }
+
+    // Strategy 2: Try backend Google API search as fallback
     try {
-      logger.debug('🔍 Attempting backend Google API search for weather');
+      logger.debug('🔍 Trying backend Google API search as fallback');
       
       const webSearchResult = await searchCurrentWeather(targetLocation, userId);
       
@@ -84,14 +92,7 @@ export async function getCurrentWeather(
         };
       }
     } catch (webSearchError) {
-      logger.debug('⚠️ Backend Google search not available, trying OpenWeatherMap API', { error: webSearchError });
-    }
-
-    // Strategy 2: Fall back to OpenWeatherMap API
-    const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
-    if (apiKey && apiKey !== 'your-openweathermap-api-key-here') {
-      logger.debug('🌐 Using OpenWeatherMap API fallback');
-      return await getWeatherFromOpenWeatherMap(targetLocation, units, apiKey);
+      logger.debug('⚠️ Backend Google search also failed', { error: webSearchError });
     }
 
     // Strategy 3: Final fallback - helpful guidance
