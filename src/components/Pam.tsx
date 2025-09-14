@@ -27,8 +27,7 @@ import { pamAgenticService } from "@/services/pamAgenticService";
 import { logger } from '../lib/logger';
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
 
-// Get API_BASE_URL from environment
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+// Using Direct Claude API - no backend URL needed
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -63,26 +62,7 @@ interface PamProps {
   mode?: "floating" | "sidebar" | "modal";
 }
 
-// Helper function for authenticated fetch
-const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  
-  if (!token) {
-    throw new Error('No authentication token available');
-  }
-
-  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
-  
-  return fetch(fullUrl, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-};
+// Removed authenticatedFetch - using Direct Claude API only
 
 // The actual PAM implementation
 const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
@@ -228,7 +208,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     };
   }, [isSpeaking, currentAudio]);
 
-  // Load user context and memory when component mounts
+  // Initialize PAM with Direct Claude API when component mounts
   useEffect(() => {
     // Guard: Don't run side effects if PAM is disabled
     if (!pamEnabled) return;
@@ -244,12 +224,12 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
     
     if (user?.id) {
-      logger.debug('📋 PAM: Loading user context and connecting...');
+      logger.debug('📋 PAM: Initializing with Direct Claude API...');
       
       // Persist session ID for conversation continuity
       localStorage.setItem('pam_session_id', sessionId);
       
-      loadUserContext();
+      // Load conversation from localStorage only (no backend calls)
       loadConversationMemory();
       connectToBackend();
     } else {
@@ -326,86 +306,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     };
   }, []); // Empty dependency array - register once
 
-  const loadUserContext = async () => {
-    try {
-      // Load comprehensive user profile using the load_user_profile tool
-      const response = await authenticatedFetch('/api/v1/pam/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          message: 'Load my complete profile and travel preferences',
-          context: {
-            user_id: user?.id,
-            request_type: 'load_user_profile',
-            use_tool: 'load_user_profile'
-          }
-        })
-      });
-      
-      let contextData = {};
-      if (response.ok) {
-        const data = await response.json();
-        logger.debug('📋 Loaded user profile context:', data);
-        
-        // Extract profile data from tool response
-        if (data?.tool_responses?.load_user_profile?.result) {
-          const profileData = data.tool_responses.load_user_profile.result;
-          contextData = {
-            user_profile: profileData,
-            is_rv_traveler: true, // Flag to indicate RV travel focus
-            vehicle_info: profileData.vehicle_info,
-            travel_preferences: profileData.travel_preferences,
-            budget_preferences: profileData.budget_preferences,
-            personal_details: profileData.personal_details
-          };
-        } else {
-          // Fallback to basic context if profile tool didn't work
-          contextData = data?.context_updates || data?.actions || data;
-        }
-      }
-
-      // Try to get location on PAM startup
-      let locationObtained = false;
-      
-      // First try: Check if user has location tracking enabled from trip planner
-      if (user?.id && locationState?.isTracking) {
-        try {
-          const userLocation = await locationService.getUserLocation(user.id);
-          if (userLocation && userLocation.current_latitude && userLocation.current_longitude) {
-            const { current_latitude, current_longitude } = userLocation;
-            const locationString = `${current_latitude.toFixed(4)}, ${current_longitude.toFixed(4)}`;
-            contextData = {
-              ...contextData,
-              current_location: locationString,
-              location_source: 'trip_planner'
-            };
-            logger.debug('📍 Added location from trip planner:', locationString);
-            locationObtained = true;
-          }
-        } catch (error) {
-          logger.warn('⚠️ Failed to fetch location from trip planner:', error);
-        }
-      }
-      
-      // Second try: If no location from trip planner, request fresh location
-      if (!locationObtained) {
-        logger.debug('📍 No location from trip planner, requesting fresh location for PAM');
-        const location = await requestUserLocation();
-        if (location) {
-          const locationString = `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
-          contextData = {
-            ...contextData,
-            current_location: locationString,
-            location_source: 'geolocation'
-          };
-          logger.debug('📍 Got fresh location for PAM:', locationString);
-        }
-      }
-
-      setUserContext(contextData);
-    } catch (error) {
-      logger.error('Failed to load user context:', error);
-    }
-  };
+  // Removed loadUserContext - using Direct Claude API only
 
   const requestUserLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
     if (isRequestingLocation) {
@@ -509,7 +410,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const loadConversationMemory = async () => {
     try {
-      // ROBUST MEMORY: First try to restore from localStorage
+      // ROBUST MEMORY: Restore from localStorage only (Direct Claude API mode)
       const savedState = localStorage.getItem(`pam_conversation_${user?.id}`);
       if (savedState) {
         try {
@@ -529,47 +430,15 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       }
       
-      // Fallback to backend memory system
-      const response = await authenticatedFetch('/api/v1/pam/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          message: 'What is my conversation history?',
-          context: {
-            user_id: user?.id,
-            request_type: 'load_conversation_memory'
-          }
-        })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const memoryMessages = data.memories?.map((m: any) => ({
-          id: m.id,
-          content: m.content,
-          sender: m.topic === 'user_message' ? 'user' : 'pam',
-          timestamp: m.created_at,
-          context: m.context
-        })) || [];
-        setMessages(memoryMessages);
-        logger.debug('📚 PAM: Loaded conversation from backend:', memoryMessages.length, 'messages');
-      }
+      // No backend fallback - using Direct Claude API only
+      logger.debug('📚 PAM: No saved conversation found, starting fresh');
+      
     } catch (error) {
       logger.error('Failed to load conversation memory:', error);
     }
   };
 
-  const saveToMemory = async (message: string, sender: 'user' | 'pam', context?: any) => {
-    try {
-      // Use PAM's built-in memory system instead of generic actions endpoint
-      // The PAM chat endpoint automatically saves conversation history
-      logger.debug('💾 Saving to PAM memory:', { message: message.substring(0, 100), sender, user_id: user?.id });
-      
-      // PAM automatically saves messages when processing them through the chat endpoint
-      // No need for explicit memory saving as it's handled by the agentic orchestrator
-      
-    } catch (error) {
-      logger.error('Failed to save to memory:', error);
-    }
-  };
+  // Removed saveToMemory - using localStorage only in Direct Claude API mode
 
   const handleFeedback = async (messageId: string, rating: 1 | -1) => {
     try {
@@ -580,31 +449,20 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         msg.id === messageId ? { ...msg, feedback: rating } : msg
       ));
 
-      // Save feedback to user preferences in backend
+      // Save feedback to localStorage only (Direct Claude API mode)
       if (user?.id) {
-        const response = await authenticatedFetch('/api/v1/user/preferences', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            preferences: {
-              feedback_history: {
-                action: 'append',
-                value: {
-                  response_id: messageId,
-                  rating,
-                  timestamp: new Date().toISOString()
-                }
-              }
-            }
-          })
-        });
-
-        if (response.ok) {
-          logger.debug('✅ Feedback saved successfully');
-        } else {
-          logger.warn('⚠️ Failed to save feedback to backend');
+        try {
+          const feedbackKey = `pam_feedback_${user.id}`;
+          const existingFeedback = JSON.parse(localStorage.getItem(feedbackKey) || '[]');
+          existingFeedback.push({
+            response_id: messageId,
+            rating,
+            timestamp: new Date().toISOString()
+          });
+          localStorage.setItem(feedbackKey, JSON.stringify(existingFeedback.slice(-50))); // Keep last 50 feedbacks
+          logger.debug('✅ Feedback saved to localStorage');
+        } catch (error) {
+          logger.warn('⚠️ Failed to save feedback to localStorage:', error);
         }
       }
     } catch (error) {
