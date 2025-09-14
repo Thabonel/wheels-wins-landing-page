@@ -1,5 +1,5 @@
 import React from "react";
-import { PamSimplified } from "@/components/PamSimplified"; // Direct Claude API with location-aware weather integration
+import Pam from "@/components/Pam"; // Original beautiful PAM interface with Direct Claude API integration
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Header from "@/components/header/Header";
@@ -36,8 +36,8 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </main>
       
-      {/* PAM - Direct Claude API with location-aware weather integration */}
-      {!hidePam && <PamSimplified mode="floating" />}
+      {/* PAM - Original beautiful interface with Direct Claude API integration */}
+      {!hidePam && <Pam mode="floating" />}
       
       <footer className="bg-white text-gray-600 py-4 border-t">
         <Footer />
