@@ -220,7 +220,22 @@ export const usePamClaudeChat = (options: UsePamChatOptions = {}): UsePamChatRet
 
       // Add tools if enabled
       if (enableTools) {
-        chatOptions.tools = getToolsForClaude();
+        const pamTools = getToolsForClaude();
+        
+        // Add web search tool for real-time information
+        const webSearchTool = {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 5 // Limit to prevent excessive searches
+        };
+        
+        chatOptions.tools = [webSearchTool, ...pamTools];
+        
+        logger.debug('PAM tools configured', {
+          totalTools: chatOptions.tools.length,
+          webSearchEnabled: true,
+          pamToolsCount: pamTools.length
+        });
       }
 
       // Convert messages for Claude
@@ -305,7 +320,22 @@ export const usePamClaudeChat = (options: UsePamChatOptions = {}): UsePamChatRet
 
       // Add tools if enabled
       if (enableTools) {
-        chatOptions.tools = getToolsForClaude();
+        const pamTools = getToolsForClaude();
+        
+        // Add web search tool for real-time information
+        const webSearchTool = {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 5 // Limit to prevent excessive searches
+        };
+        
+        chatOptions.tools = [webSearchTool, ...pamTools];
+        
+        logger.debug('PAM streaming tools configured', {
+          totalTools: chatOptions.tools.length,
+          webSearchEnabled: true,
+          pamToolsCount: pamTools.length
+        });
       }
 
       // Convert messages for Claude
