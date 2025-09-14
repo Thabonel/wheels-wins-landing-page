@@ -8,7 +8,9 @@ const pamEnabled = true;
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
-import { getWebSocketUrl, apiFetch, authenticatedFetch, API_BASE_URL } from "@/services/api";
+// WebSocket removed - using Direct Claude API instead
+import { claudeService } from "@/services/claude/claudeService";
+import { getToolsForClaude } from "@/services/pam/tools/toolRegistry";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -721,15 +723,46 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const connectToBackend = useCallback(async () => {
-    logger.debug('🚀 PAM DEBUG: ==================== CONNECTION START ====================');
-    logger.debug('🚀 PAM DEBUG: connectToBackend called');
-    logger.debug('🚀 PAM DEBUG: User context:', { 
-      userId: user?.id, 
-      userEmail: user?.email,
-      hasUser: !!user,
-      hasSession: !!session, 
-      hasToken: !!sessionToken,
-      tokenLength: sessionToken?.length || 0
+    // Direct Claude API - no backend connection needed
+    logger.debug('🤖 PAM: Using Direct Claude API - no backend connection required');
+    
+    // Check if Claude service is ready
+    if (claudeService.isReady()) {
+      setConnectionStatus("Connected");
+      
+      // Show welcome message if first time
+      if (messages.length === 0 && !hasShownWelcomeRef.current) {
+        logger.debug('💬 PAM: Adding greeting message');
+        addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
+        hasShownWelcomeRef.current = true;
+      }
+      
+      logger.debug('✅ PAM: Direct Claude API ready');
+      return;
+    } else {
+      setConnectionStatus("Disconnected");
+      addMessage("🤖 Hi! I'm PAM. Claude service is initializing...", "pam");
+      logger.warn('⚠️ PAM: Claude service not ready');
+    }
+    
+    // Original function was complex WebSocket setup - removed for Direct API
+  }, [user?.id, sessionToken]);
+
+  // Minimal test function for debugging Direct API connection
+  const testMinimalConnection = useCallback(async () => {
+    logger.debug('🧪 PAM MINIMAL TEST: Direct Claude API Test');
+    
+    // Test Claude service readiness
+    const isReady = claudeService.isReady();
+    logger.debug('🤖 Claude Service Ready:', isReady);
+    
+    if (isReady) {
+      setConnectionStatus("Connected");
+      logger.debug('✅ PAM: Direct API test successful');
+    } else {
+      setConnectionStatus("Disconnected");
+      logger.debug('❌ PAM: Direct API test failed - Claude service not ready');
+    }
     });
     
     if (!user?.id) {
@@ -2660,164 +2693,116 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     
     const message = inputMessage.trim();
     addMessage(message, "user");
-    // Note: PAM backend automatically saves all conversation history
     setInputMessage("");
     
-    // Immediately show thinking message for better UX
+    // Show thinking message for better UX
     const thinkingMessage = addMessage("PAM is thinking", "pam");
-    thinkingMessage.isStreaming = true;  // Use streaming flag for pulsing effect
-    
-    // Check if we should use agentic planning for complex queries
-    if (needsAgenticPlanning(message)) {
-      logger.debug('🧠 Using agentic planning for complex query');
-      try {
-        // Show planning indicator
-        const planningMsgId = Date.now().toString();
-        addMessage("🧠 Planning your request...", "pam");
-        
-        const result = await pamAgenticService.planAndExecute(message, {
-          conversation_history: messages.slice(-5).map(m => ({
-            content: m.content,
-            role: m.sender === 'user' ? 'user' : 'assistant'
-          })),
-          user_context: {
-            ...userContext,
-            travel_mode: 'RV', // Explicitly indicate RV travel
-            travel_type: 'recreational_vehicle',
-          },
-          user_preferences: settings,
-          rv_context: {
-            is_rv_traveler: true,
-            vehicle_type: userContext?.vehicle_info?.type || 'caravan',
-            vehicle_specs: userContext?.vehicle_info || {},
-            travel_preferences: userContext?.travel_preferences || {},
-            needs_rv_specific_planning: true
-          }
-        });
-        
-        if (result.execution.success && result.execution.execution_result) {
-          // Remove planning message and add result
-          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-          addMessage(result.execution.execution_result.response, "pam");
-          
-          // If voice is enabled, speak the response
-          if (settings?.pam_preferences?.voice_enabled) {
-            await speakText(result.execution.execution_result.response);
-          }
-          return; // Exit early, we've handled the message
-        } else {
-          // Remove planning message
-          setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-          logger.debug('Agentic planning unsuccessful, falling back to WebSocket');
-        }
-      } catch (error) {
-        logger.error('Agentic planning error:', error);
-        setMessages(prev => prev.filter(m => m.content !== "🧠 Planning your request..."));
-        // Fall through to WebSocket
-      }
-    }
+    thinkingMessage.isStreaming = true;
 
-    // Check if user is asking for location-based services and we don't have location
-    const locationQueries = [
-      'near me', 'nearby', 'close to me', 'in my area', 'around here',
-      'pizza', 'restaurant', 'food', 'gas station', 'hotel', 'attraction',
-      'next town', 'distance to', 'how far', 'directions to'
-    ];
-    
-    const isLocationQuery = locationQueries.some(query => 
-      message.toLowerCase().includes(query)
-    );
-    
-    // If it's a location-based query and we don't have location, request it proactively
-    if (isLocationQuery && !userContext?.current_location) {
-      logger.debug('📍 Location-based query detected, requesting location proactively');
-      const location = await requestUserLocation();
+    try {
+      // Check if user is asking for location-based services and we don't have location
+      const locationQueries = [
+        'weather', 'forecast', 'temperature', 'near me', 'nearby', 'close to me', 'in my area', 'around here',
+        'pizza', 'restaurant', 'food', 'gas station', 'hotel', 'attraction',
+        'next town', 'distance to', 'how far', 'directions to'
+      ];
       
-      if (location) {
-        // Update context with precise location
-        setUserContext(prev => ({
-          ...prev,
-          current_location: `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
-        }));
-      } else {
-        // Fallback to approximate location detection
-        logger.debug('📍 Precise location failed, trying fallback detection');
-        const fallbackLocation = await detectFallbackLocation();
-        if (fallbackLocation) {
+      const isLocationQuery = locationQueries.some(query => 
+        message.toLowerCase().includes(query)
+      );
+      
+      // Get user location for weather and location-based queries
+      let currentLocation = userContext?.current_location;
+      
+      if (isLocationQuery && !currentLocation) {
+        logger.debug('📍 Location-based query detected, requesting location proactively');
+        const location = await requestUserLocation();
+        
+        if (location) {
+          currentLocation = `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
           setUserContext(prev => ({
             ...prev,
-            current_location: fallbackLocation,
-            location_type: 'approximate'
+            current_location: currentLocation
           }));
-          addMessage(`I'll use your approximate location (${fallbackLocation}) based on your timezone. For more accurate results, you can share your precise location.`, "pam");
         }
       }
-    }
 
-    const messageData = {
-      type: "chat",
-      message,  // Backend expects 'message' not 'content'
-      stream: true,  // Request streaming response for better UX
-      context: {
-        user_id: user?.id,  // Move userId into context as expected by backend
-        userLocation: userContext?.current_location,
-        vehicleInfo: userContext?.vehicle_info,
-        travelStyle: userContext?.travel_style,
-        conversation_history: messages.slice(-5).map(msg => ({
-          role: msg.sender === "user" ? "user" : "assistant",
-          content: msg.content
-        })),
-        timestamp: new Date().toISOString(),
-        session_id: sessionId,
-        location_request_attempted: isLocationQuery && !userContext?.current_location
-      }
-    };
+      // Prepare conversation history for Claude
+      const conversationHistory = messages.slice(-5).map(msg => ({
+        role: msg.sender === "user" ? "user" : "assistant",
+        content: msg.content,
+        timestamp: msg.timestamp
+      }));
 
-    // Try WebSocket first if connected
-    if (connectionStatus === "Connected" && wsRef.current?.readyState === WebSocket.OPEN) {
-      try {
-        wsRef.current.send(JSON.stringify(messageData));
-        return;
-      } catch (error) {
-        logger.error('❌ Failed to send via WebSocket:', error);
-      }
-    }
+      // Create location-aware system prompt for weather and location queries
+      const locationContext = currentLocation 
+        ? `\n\n**Current User Location:**\n- Coordinates: ${currentLocation}\n- Current time: ${new Date().toLocaleString()}\n\n**IMPORTANT: When users ask about weather, use this location to provide current weather conditions and forecasts directly. You have access to real-time weather data - use it to give immediate, helpful weather information.**`
+        : '';
 
-    // Fallback to REST API
-    try {
-      // Show thinking indicator with pulsing animation
-      const thinkingMsgId = Date.now().toString();
-      addMessage("PAM is thinking", "pam");
+      const systemPrompt = `You are PAM (Personal Assistant Manager), an AI assistant for the Wheels & Wins platform - a comprehensive personal finance and travel management app.
+
+**Your Role:**
+- Help users manage their finances, track expenses, plan trips, and achieve their goals
+- Provide personalized insights based on their data
+- Use available tools to access user information and perform actions
+- Be conversational, helpful, and proactive
+- Provide real-time weather information based on user's location
+
+**Available Data & Tools:**
+- User expenses, budgets, income, and financial goals
+- Trip history, vehicle data, and fuel consumption
+- User profiles, settings, and preferences
+- Calendar events and upcoming plans
+- User's current location for weather and local information
+- Direct access to weather data and forecasts
+
+**Weather & Location Capabilities:**
+- When users ask about weather, immediately provide current conditions and forecast
+- Use their location context to give relevant local information
+- No need to ask for location - it's provided in the system context
+- Give detailed, helpful weather insights for travel and daily planning
+
+**Guidelines:**
+- Always be helpful and accurate
+- Use tools when you need specific user data
+- Keep responses concise but informative
+- Ask clarifying questions when needed
+- Suggest actionable insights when relevant
+- For weather queries, be immediate and specific
+
+**Context:** You are integrated into a React application where users can chat with you to get help with their personal finances and travel planning. You have access to their location and can provide weather information directly.${locationContext}`;
+
+      // Use Direct Claude API instead of WebSocket/REST
+      logger.debug('🤖 Sending message to Claude Direct API');
       
-      const response = await authenticatedFetch('/api/v1/pam/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          message,
-          context: messageData.context
-        })
+      const claudeResponse = await claudeService.chat(conversationHistory.concat([{
+        role: "user",
+        content: message,
+        timestamp: new Date()
+      }]), {
+        model: 'claude-3-5-sonnet-20241022',
+        maxTokens: 1024,
+        temperature: 0.7,
+        systemPrompt,
+        tools: getToolsForClaude(),
+        userId: user?.id
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const pamResponse = data.response || data.message || data.content || "I'm sorry, I couldn't process that request.";
-        
-        // Remove thinking indicator and add actual response
-        setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-        addMessage(pamResponse, "pam", message);
-        // Note: PAM backend automatically saves all conversation history
-        
-        // Handle any UI actions from the response
-        if (data.ui_action) {
-          handleUIAction(data.ui_action);
-        }
-      } else {
-        setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-        addMessage("I'm having trouble connecting to the server. Please try again later.", "pam");
-      }
-    } catch (error) {
-      logger.error('❌ Failed to send message via REST API:', error);
+      // Remove thinking indicator and add Claude's response
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-      addMessage("I'm experiencing connection issues. Please check your internet connection and try again.", "pam");
+      addMessage(claudeResponse.content, "pam", message);
+
+      // If voice is enabled, speak the response
+      if (settings?.pam_preferences?.voice_enabled) {
+        await speakText(claudeResponse.content);
+      }
+
+      logger.debug('✅ Direct Claude API response received successfully');
+
+    } catch (error) {
+      logger.error('❌ Failed to send message via Direct Claude API:', error);
+      setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
+      addMessage("I'm having trouble processing your request. Please try again.", "pam");
     }
   };
 
