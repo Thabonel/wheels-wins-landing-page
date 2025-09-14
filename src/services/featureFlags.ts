@@ -36,6 +36,9 @@ interface FeatureFlags {
   PAM_AI_SUGGESTIONS: FeatureFlag;
   PAM_PROACTIVE_ASSISTANCE: FeatureFlag;
   PAM_MULTI_LANGUAGE: FeatureFlag;
+  
+  // Migration Features
+  PAM_DIRECT_CLAUDE_API: FeatureFlag;
 }
 
 // Feature flag configuration
@@ -147,6 +150,14 @@ const FEATURE_FLAGS: FeatureFlags = {
     rolloutPercentage: 0, // Planned for future release
     environments: ['development'],
     description: 'Multi-language support for voice and text (planned)'
+  },
+  
+  // Migration Features - Direct Claude API
+  PAM_DIRECT_CLAUDE_API: {
+    enabled: true,
+    rolloutPercentage: 0, // Start with 0% for gradual rollout
+    environments: ['development', 'staging', 'production'],
+    description: 'Direct Claude API integration replacing WebSocket infrastructure'
   }
 };
 
@@ -346,6 +357,22 @@ export const PAM_ROLLOUT_SCHEDULE = {
     PAM_VOICE_FEATURES: 100,
     PAM_CONTEXT_MANAGEMENT: 100,
     PAM_RESPONSE_CACHING: 100
+  }
+};
+
+// Direct Claude API Migration Schedule
+export const PAM_DIRECT_API_ROLLOUT_SCHEDULE = {
+  phase1_dev: {
+    PAM_DIRECT_CLAUDE_API: 100 // Full rollout in development for testing
+  },
+  phase2_staging: {
+    PAM_DIRECT_CLAUDE_API: 50 // 50% rollout in staging
+  },
+  phase3_production_pilot: {
+    PAM_DIRECT_CLAUDE_API: 10 // 10% rollout in production
+  },
+  phase4_production_full: {
+    PAM_DIRECT_CLAUDE_API: 100 // Full migration complete
   }
 };
 

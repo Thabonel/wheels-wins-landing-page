@@ -46,7 +46,7 @@
     "optimize:images": "node scripts/optimize-images.js",
     "postbuild": "npm run seo:sitemap",
     "prepare": "husky install",
-    "postinstall": "husky install && node -e \"try{require.resolve('@esbuild/linux-x64')}catch(e){require('child_process').execSync('npm install @esbuild/linux-x64 --no-save',{stdio:'inherit'})}\" && node -e \"try{require.resolve('@rollup/rollup-linux-x64-gnu')}catch(e){require('child_process').execSync('npm install @rollup/rollup-linux-x64-gnu --no-save',{stdio:'inherit'})}\"",
+    "postinstall": "husky install && node scripts/ensure-native-deps.js",
     "ai-agents": "node scripts/ai-agents.js",
     "ai:status": "npm run ai-agents status",
     "ai:security": "npm run ai-agents security",
@@ -202,8 +202,14 @@
   },
   "optionalDependencies": {
     "@esbuild/darwin-x64": "^0.25.9",
+    "@esbuild/darwin-arm64": "^0.25.9",
     "@esbuild/linux-x64": "^0.25.8",
+    "@esbuild/linux-arm64": "^0.25.8",
+    "@esbuild/win32-x64": "^0.25.8",
     "@rollup/rollup-darwin-x64": "^4.50.1",
-    "@rollup/rollup-linux-x64-gnu": "^4.24.0"
+    "@rollup/rollup-darwin-arm64": "^4.50.1",
+    "@rollup/rollup-linux-x64-gnu": "^4.24.0",
+    "@rollup/rollup-linux-arm64-gnu": "^4.24.0",
+    "@rollup/rollup-win32-x64-msvc": "^4.24.0"
   }
 }
