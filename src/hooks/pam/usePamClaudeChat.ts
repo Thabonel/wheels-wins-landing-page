@@ -220,21 +220,11 @@ export const usePamClaudeChat = (options: UsePamChatOptions = {}): UsePamChatRet
 
       // Add tools if enabled
       if (enableTools) {
-        const pamTools = getToolsForClaude();
-        
-        // Add web search tool for real-time information
-        const webSearchTool = {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 5 // Limit to prevent excessive searches
-        };
-        
-        chatOptions.tools = [webSearchTool, ...pamTools];
+        chatOptions.tools = getToolsForClaude();
         
         logger.debug('PAM tools configured', {
-          totalTools: chatOptions.tools.length,
-          webSearchEnabled: true,
-          pamToolsCount: pamTools.length
+          totalTools: chatOptions.tools?.length || 0,
+          backendWebSearchEnabled: true
         });
       }
 
@@ -320,21 +310,11 @@ export const usePamClaudeChat = (options: UsePamChatOptions = {}): UsePamChatRet
 
       // Add tools if enabled
       if (enableTools) {
-        const pamTools = getToolsForClaude();
-        
-        // Add web search tool for real-time information
-        const webSearchTool = {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 5 // Limit to prevent excessive searches
-        };
-        
-        chatOptions.tools = [webSearchTool, ...pamTools];
+        chatOptions.tools = getToolsForClaude();
         
         logger.debug('PAM streaming tools configured', {
-          totalTools: chatOptions.tools.length,
-          webSearchEnabled: true,
-          pamToolsCount: pamTools.length
+          totalTools: chatOptions.tools?.length || 0,
+          backendWebSearchEnabled: true
         });
       }
 
