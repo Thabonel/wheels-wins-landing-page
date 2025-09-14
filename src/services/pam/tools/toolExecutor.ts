@@ -15,6 +15,7 @@ import {
 import profileTools, { type ToolResponse as ProfileToolResponse } from './profileTools';
 import tripTools, { type ToolResponse as TripToolResponse } from './tripTools';
 import weatherTools from './weatherTools';
+import webSearchTools from './webSearchTools';
 
 // ===================
 // TYPE DEFINITIONS
@@ -336,6 +337,27 @@ async function routeToolCall(
         parameters.days || 5,
         parameters.units || 'metric',
         parameters.include_hourly || false,
+        userId
+      );
+
+    // Web Search tools
+    case 'performWebSearch':
+      return await webSearchTools.performWebSearch(
+        parameters.query,
+        parameters.num_results || 5,
+        parameters.search_type,
+        userId
+      );
+
+    case 'searchCurrentWeather':
+      return await webSearchTools.searchCurrentWeather(
+        parameters.location,
+        userId
+      );
+
+    case 'searchNews':
+      return await webSearchTools.searchNews(
+        parameters.topic,
         userId
       );
 

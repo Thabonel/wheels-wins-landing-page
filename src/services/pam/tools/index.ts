@@ -15,6 +15,9 @@ export * from './tripTools';
 // Weather Tools
 export * from './weatherTools';
 
+// Web Search Tools
+export * from './webSearchTools';
+
 // Tool Executor
 export * from './toolExecutor';
 
@@ -22,6 +25,7 @@ export * from './toolExecutor';
 export { default as profileTools } from './profileTools';
 export { default as tripTools } from './tripTools';
 export { default as weatherTools } from './weatherTools';
+export { default as webSearchTools } from './webSearchTools';
 export { default as PAM_TOOLS } from './toolRegistry';
 export { default as toolExecutor } from './toolExecutor';
 
@@ -49,5 +53,10 @@ export const TOOL_EXECUTION_MAP = {
   
   // Weather tools
   getCurrentWeather: 'weatherTools.getCurrentWeather',
-  getWeatherForecast: 'weatherTools.getWeatherForecast'
+  getWeatherForecast: 'weatherTools.getWeatherForecast',
+  
+  // Web Search tools
+  performWebSearch: 'webSearchTools.performWebSearch',
+  searchCurrentWeather: 'webSearchTools.searchCurrentWeather',
+  searchNews: 'webSearchTools.searchNews'
 } as const;

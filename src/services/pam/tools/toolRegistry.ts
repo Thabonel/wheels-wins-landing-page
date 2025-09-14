@@ -29,7 +29,7 @@ export interface ToolDefinition {
   name: string;
   description: string;
   input_schema: ToolInputSchema;
-  category: 'financial' | 'profile' | 'calendar' | 'trip' | 'vehicle' | 'settings' | 'weather';
+  category: 'financial' | 'profile' | 'calendar' | 'trip' | 'vehicle' | 'settings' | 'weather' | 'search';
   examples?: string[];
 }
 
@@ -518,6 +518,84 @@ export const PAM_TOOLS: ToolDefinition[] = [
       'What\'s the forecast for Sydney this weekend?',
       'Should I bring an umbrella tomorrow?'
     ]
+  },
+
+  // ===================
+  // WEB SEARCH TOOLS
+  // ===================
+  {
+    name: 'performWebSearch',
+    description: 'Search the web for current information, news, facts, and real-time data using Google API. Use this for any queries requiring up-to-date information beyond your knowledge cutoff.',
+    category: 'search',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The search query to find information about'
+        },
+        num_results: {
+          type: 'integer',
+          description: 'Number of search results to return',
+          minimum: 1,
+          maximum: 10
+        },
+        search_type: {
+          type: 'string',
+          description: 'Type of specialized search to perform',
+          enum: ['news', 'local', 'how-to', 'product', 'travel']
+        }
+      },
+      required: ['query'],
+      additionalProperties: false
+    },
+    examples: [
+      'What are the latest news about electric vehicles?',
+      'Search for current cryptocurrency prices',
+      'Find information about Sydney traffic conditions today',
+      'What are the best restaurants near me?'
+    ]
+  },
+  {
+    name: 'searchCurrentWeather',
+    description: 'Search for current weather conditions using web search. Use this as an alternative to weather APIs for real-time weather data.',
+    category: 'search',
+    input_schema: {
+      type: 'object',
+      properties: {
+        location: {
+          type: 'string',
+          description: 'Location to search weather for (city, state/country)'
+        }
+      },
+      additionalProperties: false
+    },
+    examples: [
+      'What\'s the current weather in Sydney?',
+      'Search for weather conditions in New York',
+      'Find today\'s weather forecast'
+    ]
+  },
+  {
+    name: 'searchNews',
+    description: 'Search for current news and events on a specific topic using Google News.',
+    category: 'search',
+    input_schema: {
+      type: 'object',
+      properties: {
+        topic: {
+          type: 'string',
+          description: 'The news topic to search for'
+        }
+      },
+      required: ['topic'],
+      additionalProperties: false
+    },
+    examples: [
+      'Search for latest technology news',
+      'Find news about climate change',
+      'What\'s happening in the stock market today?'
+    ]
   }
 ];
 
@@ -531,7 +609,8 @@ export const TOOL_CATEGORIES = {
   trip: 'Travel & Trip Planning',
   vehicle: 'Vehicle & Transportation',
   settings: 'Settings & Preferences',
-  weather: 'Weather & Location Services'
+  weather: 'Weather & Location Services',
+  search: 'Web Search & Real-time Information'
 } as const;
 
 /**
