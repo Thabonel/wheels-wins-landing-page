@@ -12,12 +12,16 @@ export * from './profileTools';
 // Trip Tools  
 export * from './tripTools';
 
+// Weather Tools
+export * from './weatherTools';
+
 // Tool Executor
 export * from './toolExecutor';
 
 // Re-export key functions for easy access
 export { default as profileTools } from './profileTools';
 export { default as tripTools } from './tripTools';
+export { default as weatherTools } from './weatherTools';
 export { default as PAM_TOOLS } from './toolRegistry';
 export { default as toolExecutor } from './toolExecutor';
 
@@ -41,5 +45,9 @@ export const TOOL_EXECUTION_MAP = {
   calculateSavings: 'financialTools.calculateSavings',
   
   // Calendar tools (to be implemented)
-  getUpcomingEvents: 'calendarTools.getUpcomingEvents'
+  getUpcomingEvents: 'calendarTools.getUpcomingEvents',
+  
+  // Weather tools
+  getCurrentWeather: 'weatherTools.getCurrentWeather',
+  getWeatherForecast: 'weatherTools.getWeatherForecast'
 } as const;

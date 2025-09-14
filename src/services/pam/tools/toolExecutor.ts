@@ -14,6 +14,7 @@ import {
 // Import tool implementations
 import profileTools, { type ToolResponse as ProfileToolResponse } from './profileTools';
 import tripTools, { type ToolResponse as TripToolResponse } from './tripTools';
+import weatherTools from './weatherTools';
 
 // ===================
 // TYPE DEFINITIONS
@@ -320,6 +321,23 @@ async function routeToolCall(
         error: 'Tool not yet implemented',
         message: 'Calendar tools are coming in the next implementation phase.'
       };
+
+    // Weather tools
+    case 'getCurrentWeather':
+      return await weatherTools.getCurrentWeather(
+        parameters.location,
+        parameters.units || 'metric',
+        userId
+      );
+
+    case 'getWeatherForecast':
+      return await weatherTools.getWeatherForecast(
+        parameters.location,
+        parameters.days || 5,
+        parameters.units || 'metric',
+        parameters.include_hourly || false,
+        userId
+      );
 
     default:
       return {

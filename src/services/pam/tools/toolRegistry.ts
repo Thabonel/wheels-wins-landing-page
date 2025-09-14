@@ -29,7 +29,7 @@ export interface ToolDefinition {
   name: string;
   description: string;
   input_schema: ToolInputSchema;
-  category: 'financial' | 'profile' | 'calendar' | 'trip' | 'vehicle' | 'settings';
+  category: 'financial' | 'profile' | 'calendar' | 'trip' | 'vehicle' | 'settings' | 'weather';
   examples?: string[];
 }
 
@@ -447,6 +447,77 @@ export const PAM_TOOLS: ToolDefinition[] = [
       'What is my average fuel efficiency?',
       'Which gas stations do I use most?'
     ]
+  },
+
+  // ===================
+  // WEATHER TOOLS
+  // ===================
+  {
+    name: 'getCurrentWeather',
+    description: 'Get current weather conditions for a specific location. Use user\'s current location if no location is specified. Provides temperature, conditions, humidity, wind speed, and other current weather data.',
+    category: 'weather',
+    input_schema: {
+      type: 'object',
+      properties: {
+        location: {
+          type: 'string',
+          description: 'Location to get weather for (city, coordinates, etc.). If not provided, uses user\'s current location.'
+        },
+        units: {
+          type: 'string',
+          description: 'Temperature units for the response',
+          enum: ['metric', 'imperial', 'kelvin']
+        },
+        include_forecast: {
+          type: 'boolean',
+          description: 'Include short-term forecast data (next few hours)'
+        }
+      },
+      additionalProperties: false
+    },
+    examples: [
+      'What\'s the weather like?',
+      'What\'s the current weather in Sydney?',
+      'How hot is it outside?',
+      'Is it raining right now?'
+    ]
+  },
+
+  {
+    name: 'getWeatherForecast',
+    description: 'Get weather forecast for a specific location for the next several days. Includes daily highs/lows, conditions, precipitation chance, and other forecast data.',
+    category: 'weather',
+    input_schema: {
+      type: 'object',
+      properties: {
+        location: {
+          type: 'string',
+          description: 'Location to get forecast for (city, coordinates, etc.). If not provided, uses user\'s current location.'
+        },
+        days: {
+          type: 'number',
+          description: 'Number of forecast days to retrieve (1-7)',
+          minimum: 1,
+          maximum: 7
+        },
+        units: {
+          type: 'string',
+          description: 'Temperature units for the response',
+          enum: ['metric', 'imperial', 'kelvin']
+        },
+        include_hourly: {
+          type: 'boolean',
+          description: 'Include hourly forecast data for today'
+        }
+      },
+      additionalProperties: false
+    },
+    examples: [
+      'What\'s the weather forecast for this week?',
+      'Will it rain tomorrow?',
+      'What\'s the forecast for Sydney this weekend?',
+      'Should I bring an umbrella tomorrow?'
+    ]
   }
 ];
 
@@ -459,7 +530,8 @@ export const TOOL_CATEGORIES = {
   calendar: 'Calendar & Events',
   trip: 'Travel & Trip Planning',
   vehicle: 'Vehicle & Transportation',
-  settings: 'Settings & Preferences'
+  settings: 'Settings & Preferences',
+  weather: 'Weather & Location Services'
 } as const;
 
 /**
