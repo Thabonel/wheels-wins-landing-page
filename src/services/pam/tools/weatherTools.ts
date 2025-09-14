@@ -1,9 +1,12 @@
 /**
- * PAM Weather Tools
- * Provides real-time weather data and forecasts using OpenWeatherMap API
+ * PAM Weather Tools with Hybrid Approach
+ * 1. Try Claude web search first (if available)
+ * 2. Fall back to OpenWeatherMap API (if configured)
+ * 3. Provide helpful guidance (final fallback)
  */
 
 import { logger } from '@/lib/logger';
+import { claudeService } from '@/services/claude/claudeService';
 
 export interface WeatherCondition {
   temperature: number;
@@ -52,7 +55,10 @@ export interface HourlyForecast {
 }
 
 /**
- * Get current weather conditions for a location
+ * Get current weather conditions using hybrid approach:
+ * 1. Try Claude web search first (if available)
+ * 2. Fall back to OpenWeatherMap API (if configured)
+ * 3. Provide helpful guidance (final fallback)
  */
 export async function getCurrentWeather(
   location?: string,
@@ -60,39 +66,93 @@ export async function getCurrentWeather(
   userId?: string
 ): Promise<{ success: boolean; data?: WeatherCondition; error?: string; formattedResponse?: string }> {
   try {
-    logger.debug('🌤️ Getting current weather', { location, units, userId });
+    logger.debug('🌤️ Getting current weather with hybrid approach', { location, units, userId });
 
-    // Get OpenWeatherMap API key
-    const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
-    if (!apiKey) {
-      logger.warn('⚠️ OpenWeatherMap API key not configured');
+    const targetLocation = location || 'Sydney, Australia';
+
+    // Strategy 1: Try Claude web search first
+    try {
+      logger.debug('🔍 Attempting Claude web search for weather');
       
-      // Return a helpful fallback response
-      const fallbackLocation = location || 'your location';
-      return {
-        success: true,
-        formattedResponse: `I don't currently have access to real-time weather data for ${fallbackLocation}. To get weather information, you can:
+      const webSearchPrompt = `What is the current weather in ${targetLocation}? Please provide:
+- Temperature (in ${units === 'metric' ? 'Celsius' : units === 'imperial' ? 'Fahrenheit' : 'Kelvin'})
+- Weather conditions (clear, cloudy, rainy, etc.)
+- Humidity if available
+- Wind speed and direction if available
+- Any weather alerts or warnings
 
-1. Check your local weather app
-2. Visit weather.com or bom.gov.au (for Australia)
-3. Ask me about other topics like your expenses, trips, or vehicle data
+Please format the response in a clear, concise way and include your sources.`;
+
+      const webSearchResponse = await claudeService.sendMessage(
+        webSearchPrompt,
+        'You are PAM, a helpful weather assistant. Use web search to get current, accurate weather information. Always cite your sources.',
+        {
+          maxTokens: 500,
+          temperature: 0.1,
+          tools: [{
+            type: 'web_search_20250305',
+            name: 'web_search',
+            max_uses: 3
+          }]
+        }
+      );
+
+      if (webSearchResponse && webSearchResponse.trim().length > 50) {
+        logger.info('✅ Claude web search weather successful');
+        return {
+          success: true,
+          formattedResponse: `🌤️ **Current Weather in ${targetLocation}**\n\n${webSearchResponse}\n\n*Weather data obtained via Claude web search*`
+        };
+      }
+    } catch (webSearchError) {
+      logger.debug('⚠️ Claude web search not available, trying OpenWeatherMap API', { error: webSearchError });
+    }
+
+    // Strategy 2: Fall back to OpenWeatherMap API
+    const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+    if (apiKey && apiKey !== 'your-openweathermap-api-key-here') {
+      logger.debug('🌐 Using OpenWeatherMap API fallback');
+      return await getWeatherFromOpenWeatherMap(targetLocation, units, apiKey);
+    }
+
+    // Strategy 3: Final fallback - helpful guidance
+    logger.warn('⚠️ No weather APIs configured - providing guidance');
+    return {
+      success: true,
+      formattedResponse: `I don't currently have access to real-time weather data for ${targetLocation}. To get weather information, you can:
+
+1. **Enable Claude Web Search**: Contact your administrator to enable web search in the Anthropic Console
+2. **Configure OpenWeatherMap API**: Sign up at https://openweathermap.org/api for a free API key
+3. **Check external sources**: Visit weather.com, bom.gov.au (Australia), or your local weather app
+4. **Ask me about other topics**: I can help with your expenses, trips, or vehicle data
 
 Would you like me to help with something else from your Wheels & Wins data?`
-      };
-    }
+    };
 
-    // Determine location - use provided location or default coordinates
-    let weatherLocation = location;
-    if (!weatherLocation) {
-      // Default to Sydney coordinates if no location provided
-      // In a full implementation, this would use the user's actual location
-      weatherLocation = 'Sydney,AU';
-    }
+  } catch (error) {
+    logger.error('❌ Failed to get current weather', error);
+    
+    return {
+      success: false,
+      error: `Sorry, I couldn't get weather information right now. Please try again later.`,
+      formattedResponse: `I'm having trouble accessing weather data at the moment. You can check your local weather app or try asking me about other topics like your expenses or travel plans.`
+    };
+  }
+}
 
+/**
+ * Get weather from OpenWeatherMap API (fallback method)
+ */
+async function getWeatherFromOpenWeatherMap(
+  location: string,
+  units: 'metric' | 'imperial' | 'kelvin' = 'metric',
+  apiKey: string
+): Promise<{ success: boolean; data?: WeatherCondition; error?: string; formattedResponse?: string }> {
+  try {
     // Build OpenWeatherMap API URL
     const baseUrl = 'https://api.openweathermap.org/data/2.5/weather';
     const params = new URLSearchParams({
-      q: weatherLocation,
+      q: location,
       appid: apiKey,
       units: units
     });
@@ -105,7 +165,7 @@ Would you like me to help with something else from your Wheels & Wins data?`
       
       return {
         success: false,
-        error: `Weather data not available for ${weatherLocation}. Please check the location name.`
+        error: `Weather data not available for ${location}. Please check the location name.`
       };
     }
 
@@ -142,7 +202,7 @@ Would you like me to help with something else from your Wheels & Wins data?`
 **Pressure:** ${condition.pressure} hPa
 ${condition.visibility > 0 ? `**Visibility:** ${condition.visibility} km` : ''}
 
-*Last updated: ${new Date().toLocaleString()}*`;
+*Weather data from OpenWeatherMap • Last updated: ${new Date().toLocaleString()}*`;
 
     logger.debug('✅ Weather data retrieved successfully', { location: condition.location });
 
@@ -153,18 +213,18 @@ ${condition.visibility > 0 ? `**Visibility:** ${condition.visibility} km` : ''}
     };
 
   } catch (error) {
-    logger.error('❌ Failed to get current weather', error);
+    logger.error('❌ OpenWeatherMap API failed', error);
     
     return {
       success: false,
-      error: `Sorry, I couldn't get weather information right now. Please try again later.`,
-      formattedResponse: `I'm having trouble accessing weather data at the moment. You can check your local weather app or try asking me about other topics like your expenses or travel plans.`
+      error: `OpenWeatherMap API error: ${error.message || 'Unknown error'}`,
+      formattedResponse: `I'm having trouble accessing OpenWeatherMap data. You can check your local weather app or try asking me about other topics.`
     };
   }
 }
 
 /**
- * Get weather forecast for a location
+ * Get weather forecast using hybrid approach
  */
 export async function getWeatherForecast(
   location?: string,
@@ -174,44 +234,64 @@ export async function getWeatherForecast(
   userId?: string
 ): Promise<{ success: boolean; data?: WeatherForecast; error?: string; formattedResponse?: string }> {
   try {
-    logger.debug('🌤️ Getting weather forecast', { location, days, units, includeHourly, userId });
+    logger.debug('🌤️ Getting weather forecast with hybrid approach', { location, days, units, includeHourly, userId });
 
-    // Get OpenWeatherMap API key
-    const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
-    if (!apiKey) {
-      logger.warn('⚠️ OpenWeatherMap API key not configured');
+    const targetLocation = location || 'Sydney, Australia';
+
+    // Strategy 1: Try Claude web search first
+    try {
+      logger.debug('🔍 Attempting Claude web search for weather forecast');
       
-      const fallbackLocation = location || 'your location';
+      const webSearchPrompt = `What is the ${days}-day weather forecast for ${targetLocation}? Please provide:
+- Daily high and low temperatures (in ${units === 'metric' ? 'Celsius' : units === 'imperial' ? 'Fahrenheit' : 'Kelvin'})
+- Weather conditions for each day
+- Chance of precipitation
+- Any significant weather patterns or alerts
+${includeHourly ? '- Hourly breakdown if available' : ''}
+
+Please format the response clearly and include your sources.`;
+
+      const webSearchResponse = await claudeService.sendMessage(
+        webSearchPrompt,
+        'You are PAM, a helpful weather assistant. Use web search to get current, accurate weather forecast information. Always cite your sources.',
+        {
+          maxTokens: 800,
+          temperature: 0.1,
+          tools: [{
+            type: 'web_search_20250305',
+            name: 'web_search',
+            max_uses: 3
+          }]
+        }
+      );
+
+      if (webSearchResponse && webSearchResponse.trim().length > 50) {
+        logger.info('✅ Claude web search forecast successful');
+        return {
+          success: true,
+          formattedResponse: `📅 **${days}-Day Weather Forecast for ${targetLocation}**\n\n${webSearchResponse}\n\n*Forecast data obtained via Claude web search*`
+        };
+      }
+    } catch (webSearchError) {
+      logger.debug('⚠️ Claude web search not available for forecast, trying fallback', { error: webSearchError });
+    }
+
+    // Strategy 2: Fall back to current weather + forecast guidance
+    const currentWeatherResult = await getCurrentWeather(location, units, userId);
+    
+    if (currentWeatherResult.success) {
+      const forecastResponse = `${currentWeatherResult.formattedResponse}\n\n📅 **${days}-Day Forecast**\n\n*For detailed ${days}-day forecast information, I recommend:*\n\n1. **Enable Claude Web Search** for real-time forecast data\n2. **Check weather.com, bom.gov.au (Australia), or your local weather service**\n3. **Use your phone's weather app** for the most up-to-date forecasts\n\nI'm here to help with your travel planning, expenses, and other Wheels & Wins data!`;
+
       return {
         success: true,
-        formattedResponse: `I don't currently have access to weather forecast data for ${fallbackLocation}. For weather forecasts, you can:
-
-1. Check your local weather app
-2. Visit weather.com or bom.gov.au (for Australia)  
-3. Ask me about other topics like planning your trips or checking expenses
-
-Would you like me to help with something else?`
+        formattedResponse: forecastResponse
       };
     }
 
-    // For demo purposes, return current weather + a simple forecast message
-    // In a full implementation, this would call the forecast API endpoint
-    const currentWeatherResult = await getCurrentWeather(location, units, userId);
-    
-    if (!currentWeatherResult.success) {
-      return currentWeatherResult;
-    }
-
-    const forecastResponse = `${currentWeatherResult.formattedResponse}
-
-📅 **${days}-Day Forecast**
-*Weather forecast data would appear here with daily highs, lows, and conditions for the next ${days} days.*
-
-For detailed forecast information, please check your local weather service. I'm here to help with your travel planning, expenses, and other Wheels & Wins data!`;
-
+    // Strategy 3: Final fallback
     return {
       success: true,
-      formattedResponse: forecastResponse
+      formattedResponse: `I don't currently have access to weather forecast data for ${targetLocation}. For ${days}-day forecasts, you can:\n\n1. **Enable Claude Web Search**: Contact your administrator to enable web search\n2. **Check external sources**: Visit weather.com, bom.gov.au, or your local weather app\n3. **Ask me about other topics**: I can help with travel planning, expenses, or vehicle data\n\nWould you like me to help with something else?`
     };
 
   } catch (error) {
