@@ -75,12 +75,21 @@ const DEFAULT_SYSTEM_PROMPT = `You are PAM (Personal Assistant Manager), an AI a
 - Provide personalized insights based on their data
 - Use available tools to access user information and perform actions
 - Be conversational, helpful, and proactive
+- Provide real-time weather information based on user's location
 
 **Available Data & Tools:**
 - User expenses, budgets, income, and financial goals
 - Trip history, vehicle data, and fuel consumption
 - User profiles, settings, and preferences
 - Calendar events and upcoming plans
+- User's current location for weather and local information
+- Direct access to weather data and forecasts
+
+**Weather & Location Capabilities:**
+- When users ask about weather, immediately provide current conditions and forecast
+- Use their location context to give relevant local information
+- No need to ask for location - it's provided in the system context
+- Give detailed, helpful weather insights for travel and daily planning
 
 **Guidelines:**
 - Always be helpful and accurate
@@ -88,8 +97,9 @@ const DEFAULT_SYSTEM_PROMPT = `You are PAM (Personal Assistant Manager), an AI a
 - Keep responses concise but informative
 - Ask clarifying questions when needed
 - Suggest actionable insights when relevant
+- For weather queries, be immediate and specific
 
-**Context:** You are integrated into a React application where users can chat with you to get help with their personal finances and travel planning.`;
+**Context:** You are integrated into a React application where users can chat with you to get help with their personal finances and travel planning. You have access to their location and can provide weather information directly.`;
 
 // ===================
 // HOOK IMPLEMENTATION
@@ -110,6 +120,7 @@ export const usePamClaudeChat = (options: UsePamChatOptions = {}): UsePamChatRet
   const [messages, setMessages] = useState<PamMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{lat: number, lon: number, city?: string} | null>(null);
 
   // Refs
   const messageIdCounter = useRef(0);
@@ -191,12 +202,19 @@ export const usePamClaudeChat = (options: UsePamChatOptions = {}): UsePamChatRet
       const userMessage = createMessage(messageText, 'user');
       addMessage(userMessage);
 
+      // Create location-aware system prompt
+      const locationContext = userLocation 
+        ? `\n\n**Current User Location:**\n- Latitude: ${userLocation.lat}\n- Longitude: ${userLocation.lon}${userLocation.city ? `\n- City: ${userLocation.city}` : ''}\n- Current time: ${new Date().toLocaleString()}\n\n**IMPORTANT: When users ask about weather, use this location to provide current weather conditions and forecasts directly. You have access to real-time weather data - use it to give immediate, helpful weather information without asking the user for their location.**`
+        : '';
+
+      const enhancedSystemPrompt = systemPrompt + locationContext;
+
       // Prepare Claude chat options
       const chatOptions: ChatOptions = {
         model: 'claude-3-5-sonnet-20241022',
         maxTokens,
         temperature,
-        systemPrompt,
+        systemPrompt: enhancedSystemPrompt,
         userId: user?.id
       };
 
@@ -270,12 +288,19 @@ export const usePamClaudeChat = (options: UsePamChatOptions = {}): UsePamChatRet
       const pamMessage = createMessage('', 'pam', { isStreaming: true });
       addMessage(pamMessage);
 
+      // Create location-aware system prompt  
+      const locationContext = userLocation 
+        ? `\n\n**Current User Location:**\n- Latitude: ${userLocation.lat}\n- Longitude: ${userLocation.lon}${userLocation.city ? `\n- City: ${userLocation.city}` : ''}\n- Current time: ${new Date().toLocaleString()}\n\n**IMPORTANT: When users ask about weather, use this location to provide current weather conditions and forecasts directly. You have access to real-time weather data - use it to give immediate, helpful weather information without asking the user for their location.**`
+        : '';
+
+      const enhancedSystemPrompt = systemPrompt + locationContext;
+
       // Prepare Claude chat options
       const chatOptions: ChatOptions = {
         model: 'claude-3-5-sonnet-20241022',
         maxTokens,
         temperature,
-        systemPrompt
+        systemPrompt: enhancedSystemPrompt
       };
 
       // Add tools if enabled
@@ -352,6 +377,41 @@ export const usePamClaudeChat = (options: UsePamChatOptions = {}): UsePamChatRet
     setError(null);
     lastUserMessage.current = '';
   }, [updateMessages]);
+
+  // Get user location for weather context
+  const getCurrentLocation = useCallback(async () => {
+    return new Promise<{lat: number, lon: number, city?: string} | null>((resolve) => {
+      if (!navigator.geolocation) {
+        logger.warn('Geolocation not supported');
+        resolve(null);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          // Simple location without city name for now
+          resolve({ lat: latitude, lon: longitude });
+        },
+        (error) => {
+          logger.warn('Geolocation error:', error.message);
+          resolve(null);
+        },
+        { timeout: 10000, enableHighAccuracy: false }
+      );
+    });
+  }, []);
+
+  // Initialize location on mount
+  useEffect(() => {
+    getCurrentLocation().then(location => {
+      if (location) {
+        setUserLocation(location);
+        logger.info('User location obtained:', location);
+      }
+    });
+  }, [getCurrentLocation]);
 
   // Check if Claude service is ready
   const isReady = claudeService.isReady();

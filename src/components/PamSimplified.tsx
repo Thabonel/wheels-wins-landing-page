@@ -69,6 +69,21 @@ export const PamSimplified: React.FC<PamSimplifiedProps> = ({ mode = "floating" 
 
   // Choose which implementation to use based on feature flag
   const activeChat = useDirectAPI ? claudeChat : websocketChat;
+
+  // Request location permission when PAM opens for weather functionality
+  useEffect(() => {
+    if (isOpen && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          logger.info('Location permission granted for weather features');
+        },
+        (error) => {
+          logger.warn('Location permission denied:', error.message);
+        },
+        { enableHighAccuracy: false, timeout: 5000 }
+      );
+    }
+  }, [isOpen]);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
