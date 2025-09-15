@@ -338,7 +338,7 @@ class RealAttractionsScraperService:
             if 'name' not in tags:
                 return None
 
-            # Get coordinates safely
+            # Get coordinates safely using the existing safe method
             coords = self._extract_coordinates_safely(element, element_type)
             if coords is None:
                 return None
@@ -458,19 +458,36 @@ class RealAttractionsScraperService:
         """Parse viewpoint data"""
         try:
             tags = element.tags
-            
+
             if 'name' not in tags:
                 return None
-            
-            country = self._determine_country_from_coords(element.lat, element.lon)
+
+            # Safely extract coordinates
+            lat = getattr(element, 'lat', None)
+            lng = getattr(element, 'lon', None)
+
+            if lat is None or lng is None:
+                return None
+
+            # Validate coordinates
+            try:
+                lat_float = float(lat)
+                lng_float = float(lng)
+
+                if not (-90 <= lat_float <= 90) or not (-180 <= lng_float <= 180):
+                    return None
+            except (ValueError, TypeError):
+                return None
+
+            country = self._determine_country_from_coords(lat_float, lng_float)
             
             return {
                 'name': tags.get('name'),
                 'data_type': 'attractions',
                 'attraction_type': 'viewpoint',
                 'country': country,
-                'latitude': element.lat,
-                'longitude': element.lon,
+                'latitude': lat_float,
+                'longitude': lng_float,
                 'description': tags.get('description', 'Scenic viewpoint'),
                 'elevation': tags.get('ele'),
                 'direction': tags.get('direction'),
@@ -552,22 +569,20 @@ class RealAttractionsScraperService:
         """Parse historical site data"""
         try:
             tags = element.tags
-            
+
             if 'name' not in tags:
                 return None
-            
-            # Get coordinates
-            if element_type == 'node':
-                lat, lng = element.lat, element.lon
-            else:
-                if hasattr(element, 'center_lat'):
-                    lat, lng = element.center_lat, element.center_lon
-                else:
-                    return None
+
+            # Get coordinates safely using the existing safe method
+            coords = self._extract_coordinates_safely(element, element_type)
+            if coords is None:
+                return None
+
+            lat, lng = coords
             
             # Determine site type
             site_type = tags.get('historic', tags.get('tourism', 'historical_site'))
-            
+
             country = self._determine_country_from_coords(lat, lng)
             
             return {
