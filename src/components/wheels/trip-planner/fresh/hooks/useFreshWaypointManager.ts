@@ -206,36 +206,64 @@ export function useFreshWaypointManager({
   // Update map markers function (moved before setWaypoints)
   const updateMapMarkers = useCallback((waypoints: Waypoint[]) => {
     if (!map) return;
-    
+
     console.log(`🗺️ Updating markers for ${waypoints.length} waypoints`);
-    
+
     // Remove old markers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current.clear();
-    
+
     // Add new markers with proper z-index and visibility
     waypoints.forEach((waypoint, index) => {
       const isStart = index === 0;
       const isEnd = index === waypoints.length - 1;
       const isWaypoint = !isStart && !isEnd;
-      
+
+      // COLLISION DETECTION: Check if this coordinate is too close to previous waypoints
+      let adjustedCoordinates = [...waypoint.coordinates] as [number, number];
+      const minDistance = 0.0001; // ~11 meters at equator
+
+      for (let i = 0; i < index; i++) {
+        const existingWaypoint = waypoints[i];
+        const distance = Math.sqrt(
+          Math.pow(waypoint.coordinates[0] - existingWaypoint.coordinates[0], 2) +
+          Math.pow(waypoint.coordinates[1] - existingWaypoint.coordinates[1], 2)
+        );
+
+        if (distance < minDistance) {
+          // Apply small offset to prevent overlap
+          const offsetDirection = index % 4; // 0=right, 1=up, 2=left, 3=down
+          const offsetAmount = minDistance * 1.5;
+
+          switch (offsetDirection) {
+            case 0: adjustedCoordinates[0] += offsetAmount; break; // Right
+            case 1: adjustedCoordinates[1] += offsetAmount; break; // Up
+            case 2: adjustedCoordinates[0] -= offsetAmount; break; // Left
+            case 3: adjustedCoordinates[1] -= offsetAmount; break; // Down
+          }
+
+          console.log(`⚠️ Waypoint ${index} too close to waypoint ${i}, applying offset:`, offsetDirection);
+          break;
+        }
+      }
+
       // Enhanced color scheme for better visibility - using Mapbox built-in colors
       const color = isStart ? '#22c55e' : // Bright green for start (A)
-                   isEnd ? '#ef4444' : // Bright red for end (B)  
+                   isEnd ? '#ef4444' : // Bright red for end (B)
                    '#3b82f6'; // Bright blue for waypoints
-      
+
       // COMMUNITY SOLUTION: Use Mapbox color option for built-in marker styling
-      const marker = new mapboxgl.Marker({ 
+      const marker = new mapboxgl.Marker({
         color, // This provides default SVG styling that's visible
-        scale: 1.0, // Use default scale for consistency
+        scale: 1.2, // Slightly larger for better visibility
         draggable: false
       })
-        .setLngLat(waypoint.coordinates)
+        .setLngLat(adjustedCoordinates)
         .setPopup(
-          new mapboxgl.Popup({ 
+          new mapboxgl.Popup({
             offset: 25,
             closeButton: false,
-            closeOnClick: true 
+            closeOnClick: true
           }).setText(
             isStart ? `🅰️ Start: ${waypoint.name}` :
             isEnd ? `🅱️ End: ${waypoint.name}` :
@@ -243,16 +271,16 @@ export function useFreshWaypointManager({
           )
         )
         .addTo(map);
-      
+
       // Apply CSS classes for proper styling and z-index
       const markerElement = marker.getElement();
       if (markerElement) {
-        markerElement.style.zIndex = '1000';
+        markerElement.style.zIndex = isStart ? '1002' : isEnd ? '1001' : '1000'; // Layer start > end > waypoints
         markerElement.style.position = 'relative';
-        
+
         // Add specific classes for trip planner markers (fallback for CSS styling)
         markerElement.classList.add('trip-planner-marker');
-        
+
         if (isStart) {
           markerElement.classList.add('trip-planner-start');
         } else if (isEnd) {
@@ -260,15 +288,15 @@ export function useFreshWaypointManager({
         } else {
           markerElement.classList.add('trip-planner-waypoint');
         }
-        
+
         console.log(`✅ Applied styling classes to ${isStart ? 'START' : isEnd ? 'END' : 'WAYPOINT'} marker`);
       }
-      
+
       markersRef.current.set(waypoint.id, marker);
-      
-      console.log(`✅ Added ${isStart ? 'START' : isEnd ? 'END' : 'WAYPOINT'} marker at`, waypoint.coordinates);
+
+      console.log(`✅ Added ${isStart ? 'START' : isEnd ? 'END' : 'WAYPOINT'} marker at`, adjustedCoordinates);
     });
-    
+
     console.log(`✅ Total markers created: ${markersRef.current.size}`);
   }, [map]);
   
@@ -580,7 +608,7 @@ export function useFreshWaypointManager({
     currentRoute,
     isLoadingRoute,
     routeProfile,
-    
+
     // Main functions - all properly exposed
     setWaypoints,       // ✅ Exposed for external use
     addWaypoint,
@@ -588,13 +616,14 @@ export function useFreshWaypointManager({
     reorderWaypoints,
     clearWaypoints,
     setRouteProfile,
-    
+    calculateRoute,     // ✅ CRITICAL FIX: Export calculateRoute function
+
     // Undo/Redo - working functions
     undo,               // ✅ Working function
     redo,               // ✅ Working function
     canUndo: historyIndex > 0,
     canRedo: historyIndex < history.length - 1,
-    
+
     // Utility & Debug
     historyLength: history.length,
     currentHistoryIndex: historyIndex,
