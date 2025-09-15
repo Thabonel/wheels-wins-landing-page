@@ -302,12 +302,27 @@ class RealParksScraperService:
             if 'name' not in tags:
                 return None
             
-            # Determine location
+            # Determine location with null safety
             if hasattr(element, 'center_lat'):
                 lat, lng = element.center_lat, element.center_lon
             else:
                 return None
-            
+
+            # Validate coordinates - ensure they are not None
+            if lat is None or lng is None:
+                return None
+
+            # Convert to float and validate range
+            try:
+                lat_float = float(lat)
+                lng_float = float(lng)
+
+                # Validate coordinate ranges
+                if not (-90 <= lat_float <= 90) or not (-180 <= lng_float <= 180):
+                    return None
+            except (ValueError, TypeError):
+                return None
+
             # Determine park type
             park_type = 'park'
             if tags.get('boundary') == 'national_park':
@@ -325,15 +340,15 @@ class RealParksScraperService:
                 if tags.get(key) == 'yes':
                     amenities.append(key)
             
-            # Determine country from coordinates
-            country = self._determine_country_from_coords(lat, lng)
-            
+            # Determine country from coordinates using converted values
+            country = self._determine_country_from_coords(lat_float, lng_float)
+
             return {
                 'name': tags.get('name'),
                 'data_type': 'parks',
                 'country': country,
-                'latitude': lat,
-                'longitude': lng,
+                'latitude': lat_float,
+                'longitude': lng_float,
                 'description': tags.get('description', ''),
                 'park_type': park_type,
                 'amenities': amenities,

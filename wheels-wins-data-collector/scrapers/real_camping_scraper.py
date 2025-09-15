@@ -274,7 +274,7 @@ class RealCampingScraperService:
             if 'name' not in tags:
                 return None
             
-            # Determine location
+            # Determine location with null safety
             if element_type == 'node':
                 lat, lng = element.lat, element.lon
             else:  # way
@@ -283,7 +283,22 @@ class RealCampingScraperService:
                     lat, lng = element.center_lat, element.center_lon
                 else:
                     return None
-            
+
+            # Validate coordinates - ensure they are not None
+            if lat is None or lng is None:
+                return None
+
+            # Convert to float and validate range
+            try:
+                lat_float = float(lat)
+                lng_float = float(lng)
+
+                # Validate coordinate ranges
+                if not (-90 <= lat_float <= 90) or not (-180 <= lng_float <= 180):
+                    return None
+            except (ValueError, TypeError):
+                return None
+
             # Parse amenities
             amenities = {}
             if tags.get('toilets') == 'yes':
@@ -298,15 +313,15 @@ class RealCampingScraperService:
             # Determine if free
             is_free = tags.get('fee') == 'no' or tags.get('cost') == 'free'
             
-            # Determine country from coordinates
-            country = self._determine_country_from_coords(lat, lng)
-            
+            # Determine country from coordinates using converted values
+            country = self._determine_country_from_coords(lat_float, lng_float)
+
             return {
                 'name': tags.get('name'),
                 'data_type': 'camping_spots',
                 'country': country,
-                'latitude': lat,
-                'longitude': lng,
+                'latitude': lat_float,
+                'longitude': lng_float,
                 'description': tags.get('description', ''),
                 'camping_type': tags.get('tourism', 'camp_site'),
                 'is_free': is_free,
