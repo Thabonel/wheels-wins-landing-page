@@ -90,6 +90,39 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// PREMIUM SAAS: Create fallback route data for export
+function createFallbackRoute(routeData: any): RouteData {
+  // Extract waypoints from the route data
+  const waypoints = routeData?.waypoints || [];
+
+  if (waypoints.length >= 2) {
+    return {
+      origin: {
+        name: waypoints[0]?.name || 'Start Location',
+        lat: waypoints[0]?.coordinates?.[1] || 0,
+        lng: waypoints[0]?.coordinates?.[0] || 0
+      },
+      destination: {
+        name: waypoints[waypoints.length - 1]?.name || 'End Location',
+        lat: waypoints[waypoints.length - 1]?.coordinates?.[1] || 0,
+        lng: waypoints[waypoints.length - 1]?.coordinates?.[0] || 0
+      },
+      waypoints: waypoints.slice(1, -1).map((wp: any) => ({
+        name: wp?.name || 'Waypoint',
+        lat: wp?.coordinates?.[1] || 0,
+        lng: wp?.coordinates?.[0] || 0
+      }))
+    };
+  }
+
+  // Fallback to basic route data
+  return {
+    origin: { name: 'Start Location', lat: 0, lng: 0 },
+    destination: { name: 'End Location', lat: 0, lng: 0 },
+    waypoints: []
+  };
+}
+
 export default function FreshNavigationExport({ isOpen, onClose, currentRoute, currentBudget }: FreshNavigationExportProps) {
   // Check if we have route data from hooks (different structure)
   const hasOriginDest = currentRoute?.originName && currentRoute?.destName;
@@ -113,41 +146,19 @@ export default function FreshNavigationExport({ isOpen, onClose, currentRoute, c
 
   const hasValidRoute = hasRoutePoints || hasOriginDest;
 
+  // PREMIUM SAAS: Always create export data, even with minimal route info
+  const finalRoute = hasValidRoute ? transformedRoute : createFallbackRoute(currentRoute);
+  const showLimitedMessage = !hasValidRoute;
+
   const handleGPXDownload = () => {
-    if (!hasValidRoute) return;
-    const gpx = buildGPX(transformedRoute);
+    const gpx = buildGPX(finalRoute);
     downloadBlob(new Blob([gpx], { type: 'application/gpx+xml' }), 'route.gpx');
   };
 
   const handlePDFDownload = async () => {
-    if (!hasValidRoute) return;
-    const pdf = await buildPDF(transformedRoute, transformedBudget);
+    const pdf = await buildPDF(finalRoute, transformedBudget);
     downloadBlob(pdf, 'itinerary.pdf');
   };
-
-  if (!hasValidRoute) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Export Trip</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Card>
-              <CardContent className="p-4 text-sm text-muted-foreground">
-                <div>No route data available. Please plan a trip first.</div>
-              </CardContent>
-            </Card>
-          </div>
-          <DialogFooter className="pt-4">
-            <DialogClose asChild>
-              <Button variant="secondary" onClick={onClose}>Close</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   const displayRoute = transformedRoute;
   const displayBudget = transformedBudget;
