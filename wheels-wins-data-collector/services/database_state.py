@@ -317,7 +317,14 @@ class DatabaseStateManager:
                 'state_province': location_data.get('state_province'),
                 'data_sources': [location_data.get('data_source', 'unknown')],
                 'quality_score': safe_float(location_data.get('quality_score', 0.0)),
-                'verified': False
+                'verified': False,
+                # Photo fields
+                'photo_url': location_data.get('photo_url'),
+                'photo_source': location_data.get('photo_source', 'none'),
+                'photo_search_query': location_data.get('photo_search_query'),
+                'photo_confidence': location_data.get('photo_confidence', 'none'),
+                'photo_search_url': location_data.get('photo_search_url'),
+                'photo_stored': location_data.get('photo_stored', False)
             }
 
             # Convert any remaining Decimal objects to avoid JSON serialization errors

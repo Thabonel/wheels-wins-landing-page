@@ -15,6 +15,11 @@ import overpy
 from bs4 import BeautifulSoup
 import re
 
+# Import photo services
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services.photo_scraper import add_photos_to_locations
+
 logger = logging.getLogger(__name__)
 
 class RealAttractionsScraperService:
@@ -731,21 +736,34 @@ class RealAttractionsScraperService:
     async def collect_osm_attractions(self) -> List[Dict]:
         """Main method to collect all OSM attractions"""
         all_attractions = []
-        
+
         # Collect each type
         waterfalls = await self.collect_waterfalls()
         swimming = await self.collect_swimming_spots()
         viewpoints = await self.collect_scenic_viewpoints()
         historical = await self.collect_historical_sites()
         tourist = await self.collect_tourist_attractions()
-        
+
         all_attractions.extend(waterfalls)
         all_attractions.extend(swimming)
         all_attractions.extend(viewpoints)
         all_attractions.extend(historical)
         all_attractions.extend(tourist)
-        
-        return all_attractions
+
+        # Deduplicate before photo processing
+        unique_attractions = self._deduplicate_attractions(all_attractions)
+
+        # Add photos to attractions
+        logger.info(f"🔍 Starting photo collection for {len(unique_attractions)} unique attractions")
+        try:
+            attractions_with_photos = await add_photos_to_locations(unique_attractions)
+            photo_count = sum(1 for attr in attractions_with_photos if attr.get('photo_url'))
+            logger.info(f"✅ Added photos to {photo_count}/{len(unique_attractions)} attractions")
+            return attractions_with_photos
+        except Exception as e:
+            logger.error(f"❌ Photo collection failed: {e}")
+            # Return attractions without photos if photo collection fails
+            return unique_attractions
     
     def _deduplicate_attractions(self, attractions: List[Dict]) -> List[Dict]:
         """Remove duplicate attractions based on location"""
