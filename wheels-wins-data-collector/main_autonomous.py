@@ -20,7 +20,7 @@ sys.path.append(str(Path(__file__).parent))
 from scrapers.real_camping_scraper import RealCampingScraperService
 from scrapers.real_parks_scraper import RealParksScraperService
 from scrapers.real_attractions_scraper import RealAttractionsScraperService
-from services.database_state import DatabaseStateManager
+from services.database_state import DatabaseStateManager, clean_decimal_data
 from services.monitoring import MonitoringService
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -306,8 +306,11 @@ class AutonomousCollector:
                         templates.append(template)
                 
                 if templates:
+                    # Clean decimal data from templates before upload
+                    clean_templates = [clean_decimal_data(template) for template in templates]
+
                     # Upload to Supabase
-                    result = self.supabase.table('trip_templates').insert(templates).execute()
+                    result = self.supabase.table('trip_templates').insert(clean_templates).execute()
                     
                     if result.data:
                         uploaded.extend(result.data)
@@ -345,8 +348,11 @@ class AutonomousCollector:
                             templates.append(template)
                 
                 if templates:
+                    # Clean decimal data from templates before upload
+                    clean_templates = [clean_decimal_data(template) for template in templates]
+
                     # Upload to Supabase
-                    result = self.supabase.table('trip_templates').insert(templates).execute()
+                    result = self.supabase.table('trip_templates').insert(clean_templates).execute()
                     
                     if result.data:
                         uploaded_count += len(result.data)

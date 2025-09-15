@@ -38,6 +38,18 @@ def safe_json_serialize(obj):
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
+def clean_decimal_data(data):
+    """Recursively convert all Decimal objects to floats in nested data structures"""
+    if isinstance(data, dict):
+        return {key: clean_decimal_data(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [clean_decimal_data(item) for item in data]
+    elif isinstance(data, Decimal):
+        return float(data)
+    else:
+        return data
+
+
 class DatabaseStateManager:
     """Manages collector state in Supabase instead of files"""
     
@@ -293,13 +305,16 @@ class DatabaseStateManager:
     async def insert_location(self, location_data: Dict) -> Optional[str]:
         """Insert a new location with deduplication check"""
         try:
+            # First, clean all Decimal objects from the input data
+            clean_input = clean_decimal_data(location_data)
+
             # Convert coordinates to safe floats
-            lat_safe = safe_float(location_data['latitude'])
-            lng_safe = safe_float(location_data['longitude'])
+            lat_safe = safe_float(clean_input['latitude'])
+            lng_safe = safe_float(clean_input['longitude'])
 
             # Check if location exists
             if await self.check_location_exists(lat_safe, lng_safe):
-                logger.debug(f"Location already exists: {location_data.get('name')}")
+                logger.debug(f"Location already exists: {clean_input.get('name')}")
                 return None
 
             # Generate location hash
@@ -309,29 +324,29 @@ class DatabaseStateManager:
 
             # Prepare location record with safe type conversion
             location_record = {
-                'name': location_data.get('name', 'Unnamed Location'),
+                'name': clean_input.get('name', 'Unnamed Location'),
                 'latitude': lat_safe,  # Use converted float
                 'longitude': lng_safe,  # Use converted float
                 'location_hash': location_hash,
-                'country': location_data.get('country'),
-                'state_province': location_data.get('state_province'),
-                'data_sources': [location_data.get('data_source', 'unknown')],
-                'quality_score': safe_float(location_data.get('quality_score', 0.0)),
+                'country': clean_input.get('country'),
+                'state_province': clean_input.get('state_province'),
+                'data_sources': [clean_input.get('data_source', 'unknown')],
+                'quality_score': safe_float(clean_input.get('quality_score', 0.0)),
                 'verified': False,
                 # Photo fields
-                'photo_url': location_data.get('photo_url'),
-                'photo_source': location_data.get('photo_source', 'none'),
-                'photo_search_query': location_data.get('photo_search_query'),
-                'photo_confidence': location_data.get('photo_confidence', 'none'),
-                'photo_search_url': location_data.get('photo_search_url'),
-                'photo_stored': location_data.get('photo_stored', False)
+                'photo_url': clean_input.get('photo_url'),
+                'photo_source': clean_input.get('photo_source', 'none'),
+                'photo_search_query': clean_input.get('photo_search_query'),
+                'photo_confidence': clean_input.get('photo_confidence', 'none'),
+                'photo_search_url': clean_input.get('photo_search_url'),
+                'photo_stored': clean_input.get('photo_stored', False)
             }
 
-            # Convert any remaining Decimal objects to avoid JSON serialization errors
-            clean_record = json.loads(json.dumps(location_record, default=safe_json_serialize))
+            # Double-clean to ensure no Decimal objects remain
+            final_clean_record = clean_decimal_data(location_record)
 
             result = self.supabase.table('trip_locations')\
-                .insert(clean_record)\
+                .insert(final_clean_record)\
                 .execute()
 
             if result.data:
@@ -346,12 +361,15 @@ class DatabaseStateManager:
     async def batch_insert_locations(self, locations: List[Dict]) -> int:
         """Batch insert locations with deduplication"""
         inserted_count = 0
-        
-        for location in locations:
+
+        # Clean all location data before processing
+        clean_locations = [clean_decimal_data(location) for location in locations]
+
+        for location in clean_locations:
             location_id = await self.insert_location(location)
             if location_id:
                 inserted_count += 1
-        
+
         logger.info(f"Inserted {inserted_count} of {len(locations)} locations (deduped)")
         return inserted_count
     
