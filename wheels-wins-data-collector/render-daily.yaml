@@ -1,20 +1,21 @@
-# Render configuration for autonomous data collector
-# This runs independently as a cron job, collecting travel data WEEKLY
+# Alternative Render configuration for DAILY data collection
+# Use this if weekly collection isn't hitting the 500/week target
+# Collects ~72 trips/day × 7 days = 504 trips/week
 
 services:
   - type: cron
-    name: wheels-wins-data-collector
+    name: wheels-wins-data-collector-daily
     runtime: python
     repo: https://github.com/yourusername/wheels-wins-landing-page
     rootDir: wheels-wins-data-collector
     buildCommand: pip install -r requirements.txt
 
-    # Run every Sunday at 2 AM UTC (weekly collection for 500 trips/week)
-    schedule: "0 2 * * 0"
-    
-    # Main collection command (autonomous collector)
-    command: python main_autonomous.py
-    
+    # Run daily at 2:00 AM UTC (daily collection for 500 trips/week)
+    schedule: "0 2 * * *"
+
+    # Main collection command (daily collector)
+    command: python main_daily.py
+
     # Environment variables
     envVars:
       - key: SUPABASE_URL
@@ -33,9 +34,9 @@ services:
         value: production
       - key: PYTHON_VERSION
         value: 3.11
-    
+
     # Health check
     healthCheckPath: /health
-    
+
     # Notifications
     notificationEmail: your-email@example.com

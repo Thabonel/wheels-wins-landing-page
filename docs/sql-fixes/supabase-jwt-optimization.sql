@@ -26,6 +26,8 @@ WHERE phone = '' OR phone IS NULL;
 CREATE OR REPLACE FUNCTION auth.jwt_claims_override(user_data jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = auth, public
 AS $$
 DECLARE
   claims jsonb;
@@ -35,15 +37,15 @@ BEGIN
     'sub', user_data->>'id',
     'email', user_data->>'email',
     'role', COALESCE(user_data->'app_metadata'->>'role', 'authenticated'),
-    'exp', extract(epoch from now() + interval '1 hour')::int,
-    'iat', extract(epoch from now())::int
+    'exp', pg_catalog.extract(epoch from pg_catalog.now() + interval '1 hour')::int,
+    'iat', pg_catalog.extract(epoch from pg_catalog.now())::int
   );
-  
+
   -- Only add session_id if it exists and is needed
   IF user_data ? 'session_id' THEN
     claims := claims || jsonb_build_object('session_id', user_data->>'session_id');
   END IF;
-  
+
   RETURN claims;
 END;
 $$;

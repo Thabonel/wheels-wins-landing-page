@@ -63,7 +63,8 @@ class AutonomousCollector:
         self.supabase = self._init_supabase()
         self.state_manager = DatabaseStateManager(self.supabase)
         self.monitor = MonitoringService()
-        self.weekly_target = 500  # Collect 500 items per week (to reach 5000+ faster)
+        self.weekly_target = 500  # Collect 500 items per week (target for Wheels & Wins)
+        self.daily_target = 72   # If running daily: 500 ÷ 7 = ~72 per day
         
         # Initialize scrapers
         self.scrapers = {
@@ -190,11 +191,31 @@ class AutonomousCollector:
                         warning
                     )
             
+            # Performance analysis
+            performance_pct = (total_collected / self.weekly_target) * 100
+            status_emoji = "✅" if total_collected >= self.weekly_target else "⚠️" if total_collected >= 400 else "❌"
+
             logger.info("\n" + "=" * 60)
             logger.info(f"✅ Weekly collection complete!")
             logger.info(f"📊 Collected: {total_collected} new locations")
+            logger.info(f"🎯 Target: {self.weekly_target} locations/week")
+            logger.info(f"📈 Performance: {performance_pct:.1f}% of target {status_emoji}")
             logger.info(f"📈 Total in database: {stats.get('total_locations', 0)}")
             logger.info(f"✓ Verified locations: {stats.get('verified_locations', 0)}")
+
+            # Add performance alert
+            if total_collected < 400:
+                logger.warning(f"🚨 PERFORMANCE ALERT: Only {total_collected}/500 target achieved ({performance_pct:.1f}%)")
+                await self.monitor.send_warning_notification(
+                    'performance_below_target',
+                    {
+                        'collected': total_collected,
+                        'target': self.weekly_target,
+                        'percentage': performance_pct,
+                        'status': 'critical' if total_collected < 300 else 'warning'
+                    }
+                )
+
             logger.info("=" * 60)
             
         except Exception as e:

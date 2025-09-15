@@ -1,0 +1,11 @@
+CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id);
+CREATE INDEX IF NOT EXISTS idx_trips_user_id ON trips(user_id);
+CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
+CREATE INDEX IF NOT EXISTS idx_posts_trip_id ON posts(trip_id);
+CREATE INDEX IF NOT EXISTS idx_pam_conversations_user_id ON pam_conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_income_entries_user_id ON income_entries(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_affiliate_sales_user_id ON affiliate_sales(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_wishlists_user_id ON user_wishlists(user_id);
+CREATE INDEX IF NOT EXISTS idx_budgets_user_id ON budgets(user_id);
+CREATE INDEX IF NOT EXISTS idx_pam_feedback_user_id ON pam_feedback(user_id);

@@ -1,0 +1,11 @@
+ANALYZE expenses;
+ANALYZE trips;
+ANALYZE posts;
+ANALYZE pam_conversations;
+ANALYZE income_entries;
+ANALYZE user_settings;
+ANALYZE affiliate_sales;
+ANALYZE user_wishlists;
+ANALYZE budgets;
+ANALYZE pam_feedback;
+ANALYZE profiles;

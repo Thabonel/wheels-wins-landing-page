@@ -1,0 +1,1 @@
+ALTER TABLE user_subscriptions_backup ADD COLUMN IF NOT EXISTS id UUID DEFAULT gen_random_uuid() PRIMARY KEY;
