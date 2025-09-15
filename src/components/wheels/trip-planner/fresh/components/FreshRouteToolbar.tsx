@@ -13,6 +13,7 @@ import {
   DollarSign,
   Users,
   Download,
+  Send,
   MapPin,
   Search,
   Sparkles
@@ -227,9 +228,9 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
               onClick={onExportRoute}
               disabled={!hasRoute}
               className="p-2 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              title="Export to Navigation Apps"
+              title="Send to Navigation Apps"
             >
-              <Download className="w-4 h-4" />
+              <Send className="w-4 h-4" />
             </button>
           )}
         </div>
