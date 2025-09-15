@@ -140,6 +140,140 @@ export const NAVIGATION_APPS: NavigationApp[] = [
     fileFormats: ['gpx', 'itn']
   },
 
+  // Popular GPS Device Brands for 2025
+  {
+    id: 'navman',
+    name: 'Navman',
+    description: 'Australian GPS navigation specialist',
+    icon: '🇦🇺',
+    category: 'gps',
+    platforms: ['desktop'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'hema',
+    name: 'Hema Navigator',
+    description: 'Australian off-road GPS mapping',
+    icon: '🏞️',
+    category: 'gps',
+    platforms: ['ios', 'android', 'desktop'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx', 'kml']
+  },
+  {
+    id: 'vms4x4',
+    name: 'VMS 4x4',
+    description: 'Vehicle monitoring and tracking',
+    icon: '🚙',
+    category: 'gps',
+    platforms: ['web', 'ios', 'android'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'family1st',
+    name: 'Family1st',
+    description: 'Family GPS tracking devices',
+    icon: '👨‍👩‍👧‍👦',
+    category: 'gps',
+    platforms: ['web', 'ios', 'android'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'tkstar',
+    name: 'TKStar',
+    description: 'GPS tracking solutions',
+    icon: '⭐',
+    category: 'gps',
+    platforms: ['web', 'android'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'itrack',
+    name: 'iTrack',
+    description: 'Real-time GPS tracking',
+    icon: '📍',
+    category: 'gps',
+    platforms: ['web', 'ios', 'android'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'sinotrack',
+    name: 'SinoTrack',
+    description: 'Professional GPS tracking',
+    icon: '🛰️',
+    category: 'gps',
+    platforms: ['web', 'android'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'queclink',
+    name: 'Queclink',
+    description: 'IoT and GPS tracking solutions',
+    icon: '📡',
+    category: 'gps',
+    platforms: ['web'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'xgps',
+    name: 'X-GPS',
+    description: 'GPS navigation and tracking',
+    icon: '❌',
+    category: 'gps',
+    platforms: ['desktop', 'android'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'amcrest',
+    name: 'Amcrest',
+    description: 'Security and GPS tracking',
+    icon: '🔒',
+    category: 'gps',
+    platforms: ['web', 'ios', 'android'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+
+  // Smart Tags & Tracking
+  {
+    id: 'airtag',
+    name: 'Apple AirTag',
+    description: 'Find My network tracking',
+    icon: '🏷️',
+    category: 'gps',
+    platforms: ['ios'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'smarttag',
+    name: 'Samsung SmartTag',
+    description: 'Galaxy Find network tracking',
+    icon: '🔍',
+    category: 'gps',
+    platforms: ['android'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'tile',
+    name: 'Tile Tracker',
+    description: 'Bluetooth tracking network',
+    icon: '🔲',
+    category: 'gps',
+    platforms: ['ios', 'android'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+
   // File Downloads
   {
     id: 'file',
@@ -211,10 +345,13 @@ export const generateAppleMapsUrl = (route: RouteExport): string => {
 };
 
 export const generateWazeUrl = (route: RouteExport): string => {
+  // Waze works better with origin and destination for full route planning
+  const origin = route.origin.coordinates;
   const destination = route.destination.coordinates;
 
   const params = new URLSearchParams({
-    ll: `${destination[1]},${destination[0]}`,
+    from: `${origin[1]},${origin[0]}`,
+    to: `${destination[1]},${destination[0]}`,
     navigate: 'yes'
   });
 
@@ -222,10 +359,11 @@ export const generateWazeUrl = (route: RouteExport): string => {
 };
 
 export const generateHereUrl = (route: RouteExport): string => {
-  const origin = `${route.origin.coordinates[1]},${route.origin.coordinates[0]}`;
-  const destination = `${route.destination.coordinates[1]},${route.destination.coordinates[0]}`;
+  // HERE WeGo supports waypoints in URL
+  const waypoints = [route.origin, ...route.waypoints.slice(1, -1), route.destination];
+  const coordinates = waypoints.map(wp => `${wp.coordinates[1]},${wp.coordinates[0]}`).join('/');
 
-  return `https://share.here.com/r/${origin},${destination}`;
+  return `https://share.here.com/r/${coordinates}`;
 };
 
 export const generateMapsMeUrl = (route: RouteExport): string => {
