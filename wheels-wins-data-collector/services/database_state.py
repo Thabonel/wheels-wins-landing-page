@@ -12,8 +12,30 @@ from uuid import uuid4
 from supabase import Client
 import asyncio
 from tenacity import retry, stop_after_attempt, wait_exponential
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
+
+
+def safe_float(value) -> float:
+    """Safely convert Decimal or any numeric type to float"""
+    if value is None:
+        return 0.0
+    if isinstance(value, Decimal):
+        return float(value)
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def safe_json_serialize(obj):
+    """Custom JSON serializer that handles Decimal objects"""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 class DatabaseStateManager:
@@ -238,22 +260,32 @@ class DatabaseStateManager:
     async def check_location_exists(self, latitude: float, longitude: float) -> bool:
         """Check if a location already exists (for deduplication)"""
         try:
+            # Convert to safe float in case we receive Decimal objects
+            lat_safe = safe_float(latitude)
+            lng_safe = safe_float(longitude)
+
             # Round coordinates for fuzzy matching
-            lat_rounded = round(latitude, 4)
-            lng_rounded = round(longitude, 4)
-            
+            lat_rounded = round(lat_safe, 4)
+            lng_rounded = round(lng_safe, 4)
+
             # Check within a small radius (approximately 11 meters)
+            # Use safe float conversion for arithmetic operations
+            lat_min = lat_rounded - 0.0001
+            lat_max = lat_rounded + 0.0001
+            lng_min = lng_rounded - 0.0001
+            lng_max = lng_rounded + 0.0001
+
             result = self.supabase.table('trip_locations')\
                 .select('id')\
-                .gte('latitude', lat_rounded - 0.0001)\
-                .lte('latitude', lat_rounded + 0.0001)\
-                .gte('longitude', lng_rounded - 0.0001)\
-                .lte('longitude', lng_rounded + 0.0001)\
+                .gte('latitude', lat_min)\
+                .lte('latitude', lat_max)\
+                .gte('longitude', lng_min)\
+                .lte('longitude', lng_max)\
                 .limit(1)\
                 .execute()
-            
+
             return len(result.data) > 0 if result.data else False
-            
+
         except Exception as e:
             logger.error(f"Failed to check location existence: {e}")
             return False
@@ -261,41 +293,45 @@ class DatabaseStateManager:
     async def insert_location(self, location_data: Dict) -> Optional[str]:
         """Insert a new location with deduplication check"""
         try:
+            # Convert coordinates to safe floats
+            lat_safe = safe_float(location_data['latitude'])
+            lng_safe = safe_float(location_data['longitude'])
+
             # Check if location exists
-            if await self.check_location_exists(
-                location_data['latitude'],
-                location_data['longitude']
-            ):
+            if await self.check_location_exists(lat_safe, lng_safe):
                 logger.debug(f"Location already exists: {location_data.get('name')}")
                 return None
-            
+
             # Generate location hash
-            lat_rounded = round(location_data['latitude'], 4)
-            lng_rounded = round(location_data['longitude'], 4)
+            lat_rounded = round(lat_safe, 4)
+            lng_rounded = round(lng_safe, 4)
             location_hash = hashlib.md5(f"{lat_rounded},{lng_rounded}".encode()).hexdigest()
-            
-            # Prepare location record
+
+            # Prepare location record with safe type conversion
             location_record = {
                 'name': location_data.get('name', 'Unnamed Location'),
-                'latitude': location_data['latitude'],
-                'longitude': location_data['longitude'],
+                'latitude': lat_safe,  # Use converted float
+                'longitude': lng_safe,  # Use converted float
                 'location_hash': location_hash,
                 'country': location_data.get('country'),
                 'state_province': location_data.get('state_province'),
                 'data_sources': [location_data.get('data_source', 'unknown')],
-                'quality_score': location_data.get('quality_score', 0.0),
+                'quality_score': safe_float(location_data.get('quality_score', 0.0)),
                 'verified': False
             }
-            
+
+            # Convert any remaining Decimal objects to avoid JSON serialization errors
+            clean_record = json.loads(json.dumps(location_record, default=safe_json_serialize))
+
             result = self.supabase.table('trip_locations')\
-                .insert(location_record)\
+                .insert(clean_record)\
                 .execute()
-            
+
             if result.data:
                 return result.data[0]['id']
-            
+
             return None
-            
+
         except Exception as e:
             logger.error(f"Failed to insert location: {e}")
             return None

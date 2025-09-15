@@ -158,11 +158,17 @@ Double-check these files before pushing:
 
 ## 🚀 **DEPLOYMENT PROCESS**
 
-### **Step 1: Pre-flight Check**
+### **Step 1: Quick Check**
 ```bash
-# Run this before pushing to main
+# REQUIRED before pushing to main
+npm run check-main
+```
+
+### **Step 1.5: Manual Verification**
+The automated tools will catch most issues, but still verify:
+```bash
+# Double-check manually
 npm run quality:check:full
-npm run build
 ```
 
 ### **Step 2: Update URLs for Production**
@@ -247,3 +253,51 @@ Database: Same Supabase (staging context)
 
 **✅ Checklist completed? Safe to push to main!**
 **❌ Missing items? Fix in staging first, then retry this checklist.**
+
+---
+
+## 🤖 **AUTOMATED SAFEGUARDS** 
+
+We've implemented multiple layers of protection to prevent deployment mistakes:
+
+### **1. Pre-Push Git Hook** 
+- **Triggers**: Automatically when pushing to main branch
+- **Actions**: 
+  - Scans for staging URLs in critical files
+  - Validates API_BASE_URL configuration  
+  - Requires manual confirmation
+  - Blocks push if staging URLs found
+
+### **2. NPM Scripts**
+```bash
+npm run validate:main     # Validates PUSH_TO_MAIN.md compliance
+npm run pre-push:main     # Full pre-push validation + build test
+```
+
+### **3. GitHub Actions**
+- **Triggers**: On pull requests and pushes to main
+- **Actions**:
+  - Validates production URL configuration
+  - Tests production build
+  - Runs quality checks
+  - Searches for staging URLs
+  - Blocks merge if validation fails
+
+### **4. Manual Override** (Emergency Only)
+If you need to bypass automation in emergency:
+```bash
+git push origin main --no-verify    # Skips pre-push hook
+```
+⚠️ **Use only in emergencies!** You take full responsibility for any production issues.
+
+---
+
+## 📝 **FOR CLAUDE CODE USERS**
+
+When using Claude Code, remember:
+1. **Always run**: `npm run pre-push:main` before pushing to main
+2. **Look for**: The automated validation output
+3. **If blocked**: Read the error messages and fix the highlighted issues
+4. **Double-check**: That production URLs are correct
+
+The automation will catch most issues, but always verify manually too!

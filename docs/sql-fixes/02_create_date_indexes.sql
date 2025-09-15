@@ -1,0 +1,12 @@
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+CREATE INDEX IF NOT EXISTS idx_expenses_created_at ON expenses(created_at);
+CREATE INDEX IF NOT EXISTS idx_income_entries_date ON income_entries(date);
+CREATE INDEX IF NOT EXISTS idx_income_entries_created_at ON income_entries(created_at);
+CREATE INDEX IF NOT EXISTS idx_trips_start_date ON trips(start_date);
+CREATE INDEX IF NOT EXISTS idx_trips_end_date ON trips(end_date);
+CREATE INDEX IF NOT EXISTS idx_trips_created_at ON trips(created_at);
+CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at);
+CREATE INDEX IF NOT EXISTS idx_pam_conversations_created_at ON pam_conversations(created_at);
+CREATE INDEX IF NOT EXISTS idx_affiliate_sales_created_at ON affiliate_sales(created_at);
+CREATE INDEX IF NOT EXISTS idx_budgets_start_date ON budgets(start_date);
+CREATE INDEX IF NOT EXISTS idx_budgets_end_date ON budgets(end_date);

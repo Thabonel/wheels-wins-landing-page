@@ -1,0 +1,10 @@
+CREATE INDEX IF NOT EXISTS idx_pg_class_relname ON pg_catalog.pg_class(relname);
+CREATE INDEX IF NOT EXISTS idx_pg_attribute_attrelid_attnum ON pg_catalog.pg_attribute(attrelid, attnum);
+CREATE INDEX IF NOT EXISTS idx_pg_constraint_conrelid ON pg_catalog.pg_constraint(conrelid);
+CREATE INDEX IF NOT EXISTS idx_pg_index_indrelid ON pg_catalog.pg_index(indrelid);
+CREATE INDEX IF NOT EXISTS idx_information_schema_columns_table_name ON information_schema.columns(table_name);
+CREATE INDEX IF NOT EXISTS idx_information_schema_tables_table_schema ON information_schema.tables(table_schema);
+ANALYZE pg_catalog.pg_class;
+ANALYZE pg_catalog.pg_attribute;
+ANALYZE pg_catalog.pg_constraint;
+ANALYZE pg_catalog.pg_index;

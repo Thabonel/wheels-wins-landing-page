@@ -1,0 +1,10 @@
+CREATE INDEX IF NOT EXISTS idx_manual_metadata_approved_by ON manual_metadata(approved_by);
+CREATE INDEX IF NOT EXISTS idx_manual_metadata_uploaded_by ON manual_metadata(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_manuals_approved_by ON manuals(approved_by);
+CREATE INDEX IF NOT EXISTS idx_manuals_uploaded_by ON manuals(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_pending_manual_uploads_approved_by ON pending_manual_uploads(approved_by);
+CREATE INDEX IF NOT EXISTS idx_processed_manuals_approved_by ON processed_manuals(approved_by);
+CREATE INDEX IF NOT EXISTS idx_processed_manuals_uploaded_by ON processed_manuals(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_profiles_granted_by ON profiles(granted_by);
+CREATE INDEX IF NOT EXISTS idx_qa_issues_closed_by ON qa_issues(closed_by);
+CREATE INDEX IF NOT EXISTS idx_saved_content_content_id ON saved_content(content_id);

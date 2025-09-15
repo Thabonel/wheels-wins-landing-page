@@ -1,5 +1,5 @@
 # Render configuration for autonomous data collector
-# This runs independently as a cron job, collecting travel data monthly
+# This runs independently as a cron job, collecting travel data WEEKLY
 
 services:
   - type: cron
@@ -8,8 +8,8 @@ services:
     repo: https://github.com/yourusername/wheels-wins-landing-page
     rootDir: wheels-wins-data-collector
     buildCommand: pip install -r requirements.txt
-    
-    # Run every Sunday at 2 AM UTC (weekly collection)
+
+    # Run every Sunday at 2 AM UTC (weekly collection for 500 trips/week)
     schedule: "0 2 * * 0"
     
     # Main collection command (autonomous collector)

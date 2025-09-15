@@ -7,15 +7,15 @@ import { logger } from '../lib/logger';
  * @constant {string}
  */
 export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 
-  import.meta.env.VITE_BACKEND_URL || 
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
   'https://pam-backend.onrender.com';  // Always use production backend for main
 
 /**
- * WebSocket endpoint override for PAM connections
- * @constant {string | undefined}
+ * WebSocket endpoint for PAM connections - uses environment variable or derives from API_BASE_URL
+ * @constant {string}
  */
-const WS_OVERRIDE = import.meta.env.VITE_PAM_WEBSOCKET_URL;
+const WS_BASE_URL = import.meta.env.VITE_PAM_WEBSOCKET_URL?.replace('/api/v1/pam/ws', '') || API_BASE_URL.replace(/^http/, 'ws');
 
 /**
  * Default timeout in milliseconds for fetch requests
@@ -48,32 +48,18 @@ export async function fetchWithTimeout(
 
 /**
  * Enhanced API fetch with SaaS-standard authentication
- * Uses reference tokens (industry best practice) for minimal header size
- * Falls back to optimized JWTs when needed
+ * Simplified version to avoid network issues
  */
 export async function authenticatedFetch(path: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${path}`;
   
-  // Check for reference token preference from cookies
-  const getCookie = (name: string): string | null => {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-    return null;
-  };
+  logger.debug('🌐 Authenticated fetch to:', url);
   
-  // Check if we should use reference token (SaaS industry standard)
-  const useReferenceTokens = getCookie('use_reference_tokens') === 'true';
-  
-  if (useReferenceTokens) {
-    logger.debug('🎫 Reference token authentication not available, falling back to JWT');
-    // Reference token authentication has been removed, fall back to JWT
-  }
-  
-  // Fallback to JWT with optimization
+  // Get session token
   const { data: { session }, error } = await supabase.auth.getSession();
   
   if (error) {
+    logger.error('Authentication error:', error.message);
     throw new Error(`Authentication error: ${error.message}`);
   }
   
@@ -86,89 +72,55 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
     throw new Error('No valid session found. Please log in.');
   }
   
-  // Check JWT size and warn if large
-  const jwtSize = session.access_token.length;
-  const headerSize = jwtSize + 7; // + "Bearer "
+  logger.debug('🔐 Token length:', session.access_token.length, 'characters');
   
-  logger.debug('🔐 API: JWT size analysis');
-  logger.debug('🔐 Token length:', jwtSize, 'characters');
-  logger.debug('🔐 Header size:', headerSize, 'characters');
-  logger.debug('🔐 Status:', headerSize > 500 ? '⚠️ LARGE (consider reference tokens)' : '✅ Optimal size');
-  
-  // Generate a CSRF token from the JWT token
-  let csrfToken = 'xhr-token';
-  try {
-    // Create a simple CSRF token using JWT hash and timestamp
-    const tokenHash = btoa(session.access_token.substring(0, 20)).replace(/[^a-zA-Z0-9]/g, '');
-    csrfToken = `${tokenHash}-${Date.now()}`;
-  } catch (error) {
-    logger.warn('Could not generate CSRF token, using fallback');
-  }
-
-  // Standard Authorization header approach with CSRF protection
+  // Simplified headers - only include essential ones
   const authenticatedOptions: RequestInit = {
     ...options,
-    credentials: 'include', // Include cookies for authentication
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
-      'X-Auth-Type': 'jwt', // Signal authentication method
-      'X-Requested-With': 'XMLHttpRequest', // CSRF protection
-      'X-CSRF-Token': csrfToken, // CSRF token
-      'Origin': window.location.origin, // CORS origin
-      'Referer': window.location.href, // Additional security
+      'Accept': 'application/json',
       ...options.headers,
     },
   };
   
-  const response = await fetchWithTimeout(url, authenticatedOptions);
-  
-  // Debug: Log response details
-  logger.debug('🔐 API: Response status:', response.status);
-  logger.debug('🔐 API: Response headers:', Object.fromEntries(response.headers.entries()));
-  
-  // Handle 401/440 responses with automatic token refresh
-  if (response.status === 401 || response.status === 440) {
-    // Token expired, attempt to refresh
-    logger.debug('🔄 Retrying request with refreshed token');
+  try {
+    const response = await fetchWithTimeout(url, authenticatedOptions);
     
-    // Get the new session after refresh
-    const { data: { session: newSession }, error: newSessionError } = 
-      await supabase.auth.getSession();
+    logger.debug('🔐 API: Response status:', response.status);
     
-    if (newSessionError || !newSession?.access_token) {
-      throw new Error('Session refresh succeeded but new session unavailable');
+    // Handle 401 responses with automatic token refresh
+    if (response.status === 401) {
+      logger.debug('🔄 Token expired, retrying with refreshed session');
+      
+      // Get the new session after refresh
+      const { data: { session: newSession }, error: newSessionError } = 
+        await supabase.auth.getSession();
+      
+      if (newSessionError || !newSession?.access_token) {
+        throw new Error('Session refresh failed');
+      }
+      
+      // Retry with new token
+      const retryOptions: RequestInit = {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${newSession.access_token}`,
+          'Accept': 'application/json',
+          ...options.headers,
+        },
+      };
+      
+      return fetchWithTimeout(url, retryOptions);
     }
     
-    // Generate CSRF token for retry
-    let retryCsrfToken = 'xhr-retry-token';
-    try {
-      const tokenHash = btoa(newSession.access_token.substring(0, 20)).replace(/[^a-zA-Z0-9]/g, '');
-      retryCsrfToken = `${tokenHash}-${Date.now()}`;
-    } catch (error) {
-      logger.warn('Could not generate retry CSRF token, using fallback');
-    }
-
-    // Retry with new token
-    const retryOptions: RequestInit = {
-      ...options,
-      credentials: 'include', // Include cookies for authentication
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${newSession.access_token}`,
-        'X-Auth-Type': 'jwt', // Signal authentication method
-        'X-Requested-With': 'XMLHttpRequest', // CSRF protection
-        'X-CSRF-Token': retryCsrfToken, // CSRF token
-        'Origin': window.location.origin, // CORS origin
-        'Referer': window.location.href, // Additional security
-        ...options.headers,
-      },
-    };
-    
-    return fetchWithTimeout(url, retryOptions);
+    return response;
+  } catch (fetchError: any) {
+    logger.error('🔐 Authenticated fetch failed:', fetchError.message);
+    throw fetchError;
   }
-  
-  return response;
 }
 
 /**
@@ -183,44 +135,19 @@ export function apiFetch(path: string, options: RequestInit = {}) {
  * Get WebSocket URL without token (token handled via subprotocol)
  */
 export async function getAuthenticatedWebSocketUrl(path: string): Promise<string> {
-  let baseUrl: string;
-  
-  // Use explicit WebSocket override if provided
-  if (WS_OVERRIDE) {
-    baseUrl = WS_OVERRIDE;
-  } else {
-    // Otherwise derive from the HTTP base URL
-    baseUrl = API_BASE_URL.replace(/^http/, 'ws');
-  }
-  
-  // Return clean WebSocket URL without token
-  return `${baseUrl}${path}`;
+  return `${WS_BASE_URL}${path}`;
 }
 
 export function getWebSocketUrl(path: string) {
+  const finalUrl = `${WS_BASE_URL}${path}`;
+  
   logger.debug('🔌 WebSocket URL Construction Debug:', {
     path,
-    WS_OVERRIDE,
+    WS_BASE_URL,
+    VITE_PAM_WEBSOCKET_URL: import.meta.env.VITE_PAM_WEBSOCKET_URL,
     API_BASE_URL,
-    env_ws_url: import.meta.env.VITE_PAM_WEBSOCKET_URL
+    finalUrl
   });
-
-  // Use explicit WebSocket override if provided
-  if (WS_OVERRIDE) {
-    logger.debug('✅ Using WebSocket override:', WS_OVERRIDE);
-    // IMPORTANT: Never use the override as-is if it contains a partial path
-    // We need to properly construct the URL with the user ID
-    // Strip any existing /api/v1/pam/ws from the override
-    const cleanOverride = WS_OVERRIDE.replace(/\/api\/v1\/pam\/ws.*$/, '');
-    const finalUrl = cleanOverride + path;
-    logger.debug('🔗 Constructed WebSocket URL from override:', finalUrl);
-    return finalUrl;
-  }
-
-  // Otherwise derive from the HTTP base URL
-  logger.debug('⚠️ No WebSocket override found, deriving from API_BASE_URL');
-  const baseUrl = API_BASE_URL.replace(/^http/, 'ws');
-  const finalUrl = `${baseUrl}${path}`;
-  logger.debug('🔗 Derived WebSocket URL:', finalUrl);
+  
   return finalUrl;
 }
