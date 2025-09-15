@@ -120,6 +120,56 @@ export const NAVIGATION_APPS: NavigationApp[] = [
     fileFormats: ['gpx']
   },
   {
+    id: 'opencpn',
+    name: 'OpenCPN',
+    description: 'Open source chartplotter navigation',
+    icon: '⚓',
+    category: 'gps',
+    platforms: ['web', 'desktop'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx', 'kml']
+  },
+  {
+    id: 'viewranger',
+    name: 'ViewRanger',
+    description: 'Outdoor GPS navigation and tracking',
+    icon: '🥾',
+    category: 'gps',
+    platforms: ['ios', 'android', 'web'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
+    id: 'backcountry',
+    name: 'Backcountry Navigator',
+    description: 'GPS navigation for outdoor adventures',
+    icon: '🏕️',
+    category: 'gps',
+    platforms: ['android', 'web'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx', 'kml']
+  },
+  {
+    id: 'locus',
+    name: 'Locus Map',
+    description: 'Professional outdoor navigation',
+    icon: '🗺️',
+    category: 'gps',
+    platforms: ['android', 'web'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx', 'kml']
+  },
+  {
+    id: 'basemap',
+    name: 'BaseMap',
+    description: 'Outdoor navigation with offline maps',
+    icon: '🧭',
+    category: 'gps',
+    platforms: ['ios', 'android', 'web'],
+    deepLinkSupport: false,
+    fileFormats: ['gpx']
+  },
+  {
     id: 'osmand',
     name: 'OsmAnd',
     description: 'Open source offline maps',
