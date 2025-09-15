@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, MapPin, Car, Bike, PersonStanding } from 'lucide-react';
 import { Waypoint } from '../types';
 
@@ -23,11 +23,36 @@ const FreshTrackPanel: React.FC<FreshTrackPanelProps> = ({
   onRVServiceToggle,
   rvServices = {}
 }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelHeight, setPanelHeight] = useState('calc(100vh - 5rem)');
+
+  useEffect(() => {
+    const updatePanelHeight = () => {
+      if (panelRef.current) {
+        const viewportHeight = window.innerHeight;
+        const topOffset = 64; // top-16 = 4rem = 64px
+        const bottomMargin = 16; // 1rem = 16px for breathing room
+        const availableHeight = viewportHeight - topOffset - bottomMargin;
+        setPanelHeight(`${availableHeight}px`);
+      }
+    };
+
+    // Update on mount and resize
+    updatePanelHeight();
+    window.addEventListener('resize', updatePanelHeight);
+
+    return () => {
+      window.removeEventListener('resize', updatePanelHeight);
+    };
+  }, []);
+
   return (
-    <div 
-      className={`absolute top-16 right-4 bottom-4 w-80 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg transition-transform duration-300 z-[10001] ${
+    <div
+      ref={panelRef}
+      className={`absolute top-16 right-4 w-80 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg transition-transform duration-300 z-[10001] ${
         isOpen ? 'translate-x-0' : 'translate-x-[calc(100%+1rem)]'
       }`}
+      style={{ height: panelHeight }}
     >
       <div className="h-full overflow-hidden flex flex-col">
         {/* Header */}
