@@ -152,10 +152,11 @@ function transformDatabaseToTemplate(dbRecord: any): TripTemplate | null {
       isPublic: Boolean(dbRecord.is_public),
       createdBy: templateData.createdBy,
       // Check for images in template_data JSONB first, then fall back to columns
-      imageUrl: templateData.imageUrl || dbRecord.image_url,
-      image_url: templateData.imageUrl || dbRecord.image_url,
-      thumbnailUrl: templateData.thumbnailUrl || dbRecord.thumbnail_url,
-      thumbnail_url: templateData.thumbnailUrl || dbRecord.thumbnail_url
+      // Support both legacy naming (imageUrl) and new data collector naming (photo_url)
+      imageUrl: templateData.imageUrl || templateData.photo_url || dbRecord.image_url,
+      image_url: templateData.imageUrl || templateData.photo_url || dbRecord.image_url,
+      thumbnailUrl: templateData.thumbnailUrl || templateData.thumbnail_url || dbRecord.thumbnail_url,
+      thumbnail_url: templateData.thumbnailUrl || templateData.thumbnail_url || dbRecord.thumbnail_url
     };
     
     console.log(`✅ Transformed template: ${transformed.name} (${transformed.estimatedDays} days, $${transformed.suggestedBudget})`);

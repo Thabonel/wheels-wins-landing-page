@@ -71,7 +71,196 @@ class RealAttractionsScraperService:
 
         except Exception:
             return None
-    
+
+    async def search_google_places(self, location: tuple, radius: int, place_type: str, country: str, region_name: str) -> List[Dict]:
+        """Search Google Places API for attractions in a specific area"""
+        try:
+            if not self.api_keys.get('google_places'):
+                return []
+
+            lat, lng = location
+
+            # Google Places Nearby Search API
+            url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+
+            params = {
+                'location': f"{lat},{lng}",
+                'radius': min(radius, 50000),  # Max 50km for Google Places
+                'type': place_type,
+                'key': self.api_keys['google_places']
+            }
+
+            logger.debug(f"🔍 Searching Google Places: {region_name} - {place_type}")
+
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    logger.error(f"Google Places API error: {response.status}")
+                    return []
+
+                data = await response.json()
+
+                if data.get('status') != 'OK':
+                    if data.get('status') == 'ZERO_RESULTS':
+                        logger.debug(f"No {place_type} results in {region_name}")
+                        return []
+                    else:
+                        logger.error(f"Google Places API status: {data.get('status')}")
+                        return []
+
+                places = data.get('results', [])
+                attractions = []
+
+                for place in places:
+                    try:
+                        attraction = await self._parse_google_place(place, country, place_type)
+                        if attraction:
+                            attractions.append(attraction)
+                    except Exception as e:
+                        logger.error(f"Error parsing Google Place: {e}")
+                        continue
+
+                logger.info(f"✅ Found {len(attractions)} {place_type} attractions in {region_name}")
+                return attractions
+
+        except Exception as e:
+            logger.error(f"Error searching Google Places for {place_type} in {region_name}: {e}")
+            return []
+
+    async def _parse_google_place(self, place: Dict, country: str, place_type: str) -> Optional[Dict]:
+        """Parse a Google Places result into our attraction format"""
+        try:
+            # Required fields
+            if not place.get('place_id') or not place.get('geometry', {}).get('location'):
+                return None
+
+            location = place['geometry']['location']
+            lat = location.get('lat')
+            lng = location.get('lng')
+
+            if lat is None or lng is None:
+                return None
+
+            # Build attraction data
+            attraction = {
+                'name': place.get('name', 'Unknown Attraction'),
+                'data_type': 'attractions',
+                'attraction_type': self._map_google_type_to_attraction_type(place_type, place.get('types', [])),
+                'country': country,
+                'latitude': float(lat),  # Ensure it's a regular float, not Decimal
+                'longitude': float(lng),  # Ensure it's a regular float, not Decimal
+                'description': self._build_description(place),
+                'website': place.get('website'),
+                'opening_hours': self._format_opening_hours(place.get('opening_hours')),
+                'rating': place.get('rating'),
+                'user_ratings_total': place.get('user_ratings_total'),
+                'price_level': place.get('price_level'),
+                'vicinity': place.get('vicinity'),
+                'place_id': place.get('place_id'),
+                'data_source': 'google_places',
+                'source_id': f"google_place_{place.get('place_id')}",
+                'collected_at': datetime.now().isoformat(),
+                'quality_score': self._calculate_quality_score(place)
+            }
+
+            # Add photos if available
+            if place.get('photos'):
+                photo_reference = place['photos'][0].get('photo_reference')
+                if photo_reference:
+                    attraction['google_photo_reference'] = photo_reference
+
+            return attraction
+
+        except Exception as e:
+            logger.error(f"Error parsing Google Place {place.get('name', 'unknown')}: {e}")
+            return None
+
+    def _map_google_type_to_attraction_type(self, primary_type: str, all_types: List[str]) -> str:
+        """Map Google Places types to our attraction types"""
+        type_mapping = {
+            'tourist_attraction': 'attraction',
+            'natural_feature': 'natural',
+            'park': 'park',
+            'museum': 'museum',
+            'amusement_park': 'entertainment',
+            'zoo': 'entertainment',
+            'aquarium': 'entertainment',
+            'art_gallery': 'cultural',
+            'landmark': 'landmark'
+        }
+
+        # Check for more specific types in the full types list
+        for gtype in all_types:
+            if 'waterfall' in gtype.lower():
+                return 'waterfall'
+            elif 'beach' in gtype.lower() or 'swimming' in gtype.lower():
+                return 'swimming_spot'
+            elif 'viewpoint' in gtype.lower() or 'lookout' in gtype.lower():
+                return 'viewpoint'
+            elif 'historical' in gtype.lower() or 'heritage' in gtype.lower():
+                return 'historical'
+
+        return type_mapping.get(primary_type, 'attraction')
+
+    def _build_description(self, place: Dict) -> str:
+        """Build a description from Google Places data"""
+        desc_parts = []
+
+        if place.get('rating'):
+            rating = place['rating']
+            reviews = place.get('user_ratings_total', 0)
+            desc_parts.append(f"Rated {rating}/5 stars ({reviews} reviews)")
+
+        if place.get('price_level') is not None:
+            price_symbols = ['Free', '$', '$$', '$$$', '$$$$']
+            price_level = int(place['price_level'])
+            if 0 <= price_level < len(price_symbols):
+                desc_parts.append(f"Price level: {price_symbols[price_level]}")
+
+        # Add place types as description
+        types = place.get('types', [])
+        relevant_types = [t.replace('_', ' ').title() for t in types[:3]
+                         if t not in ['establishment', 'point_of_interest']]
+        if relevant_types:
+            desc_parts.append(f"Categories: {', '.join(relevant_types)}")
+
+        return ' | '.join(desc_parts) if desc_parts else 'Popular attraction from Google Places'
+
+    def _format_opening_hours(self, opening_hours: Dict) -> Optional[str]:
+        """Format opening hours from Google Places format"""
+        if not opening_hours or not opening_hours.get('weekday_text'):
+            return None
+
+        # Take first few days as example
+        weekdays = opening_hours['weekday_text'][:3]
+        return '; '.join(weekdays)
+
+    def _calculate_quality_score(self, place: Dict) -> float:
+        """Calculate quality score based on Google Places data"""
+        score = 0.5  # Base score
+
+        # Rating boost
+        if place.get('rating'):
+            rating = place['rating']
+            score += (rating - 2.5) * 0.2  # Scale 1-5 rating to -0.3 to +0.5
+
+        # Review count boost
+        reviews = place.get('user_ratings_total', 0)
+        if reviews > 100:
+            score += 0.2
+        elif reviews > 20:
+            score += 0.1
+
+        # Photos boost
+        if place.get('photos'):
+            score += 0.1
+
+        # Website boost
+        if place.get('website'):
+            score += 0.1
+
+        # Ensure score is between 0 and 1
+        return max(0.0, min(1.0, score))
+
     async def __aenter__(self):
         timeout = aiohttp.ClientTimeout(total=60)
         self.session = aiohttp.ClientSession(
@@ -87,33 +276,77 @@ class RealAttractionsScraperService:
     async def collect_all_countries(self, limit: int = 5000) -> List[Dict]:
         """Collect attractions from all sources up to limit"""
         logger.info(f"Starting real attractions data collection (target: {limit} attractions)")
-        
+
         all_attractions = []
-        
+
         async with self:
-            # Collect from each source in parallel
-            tasks = [
-                self.collect_osm_attractions(),
-                self.collect_waterfalls(),
-                self.collect_swimming_spots(),
-                self.collect_scenic_viewpoints(),
-                self.collect_historical_sites(),
-                self.collect_tourist_attractions()
-            ]
-            
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            for result in results:
-                if isinstance(result, list):
-                    all_attractions.extend(result)
-                elif isinstance(result, Exception):
-                    logger.error(f"Error in collection task: {result}")
-            
-            # Deduplicate
+            # Use Google Places API as primary source, OSM methods as fallback
+            try:
+                # Primary collection via Google Places API
+                google_places_attractions = await self.collect_google_places_attractions()
+                all_attractions.extend(google_places_attractions)
+                logger.info(f"Collected {len(google_places_attractions)} attractions from Google Places API")
+
+                # If we haven't reached the limit, supplement with OSM data
+                if len(all_attractions) < limit:
+                    remaining_limit = limit - len(all_attractions)
+                    logger.info(f"Supplementing with OSM data (need {remaining_limit} more)")
+
+                    # Collect from OSM sources in parallel (as fallback/supplement)
+                    osm_tasks = [
+                        self.collect_waterfalls(),
+                        self.collect_swimming_spots(),
+                        self.collect_scenic_viewpoints(),
+                        self.collect_historical_sites(),
+                        self.collect_tourist_attractions()
+                    ]
+
+                    osm_results = await asyncio.gather(*osm_tasks, return_exceptions=True)
+
+                    for result in osm_results:
+                        if isinstance(result, list):
+                            all_attractions.extend(result)
+                        elif isinstance(result, Exception):
+                            logger.error(f"Error in OSM collection task: {result}")
+
+            except Exception as e:
+                logger.error(f"Error in primary Google Places collection: {e}")
+                logger.info("Falling back to OSM-only collection")
+
+                # Fallback to OSM-only if Google Places fails
+                osm_tasks = [
+                    self.collect_osm_attractions(),
+                    self.collect_waterfalls(),
+                    self.collect_swimming_spots(),
+                    self.collect_scenic_viewpoints(),
+                    self.collect_historical_sites(),
+                    self.collect_tourist_attractions()
+                ]
+
+                results = await asyncio.gather(*osm_tasks, return_exceptions=True)
+
+                for result in results:
+                    if isinstance(result, list):
+                        all_attractions.extend(result)
+                    elif isinstance(result, Exception):
+                        logger.error(f"Error in fallback OSM collection task: {result}")
+
+            # Deduplicate by location and name
             unique_attractions = self._deduplicate_attractions(all_attractions)
-            
-            logger.info(f"Collected {len(unique_attractions)} unique attractions")
-            
+
+            logger.info(f"Collected {len(unique_attractions)} unique attractions (from {len(all_attractions)} total)")
+
+            # Add photos to attractions if enabled
+            if unique_attractions:
+                try:
+                    from services.photo_scraper import add_photos_to_locations
+                    logger.info("Adding photos to attractions...")
+                    unique_attractions = await add_photos_to_locations(unique_attractions)
+                    photo_count = sum(1 for item in unique_attractions if item.get('photo_url'))
+                    logger.info(f"Added photos to {photo_count} attractions")
+                except Exception as e:
+                    logger.error(f"Error adding photos: {e}")
+
             return unique_attractions[:limit]
     
     async def collect_waterfalls(self) -> List[Dict]:
@@ -733,8 +966,250 @@ class RealAttractionsScraperService:
             logger.error(f"Error parsing tourist attraction: {e}")
             return None
     
+    async def collect_google_places_attractions(self) -> List[Dict]:
+        """Main method to collect attractions using Google Places API"""
+        all_attractions = []
+
+        if not self.api_keys.get('google_places'):
+            logger.warning("No Google Places API key - falling back to OSM")
+            return await self.collect_osm_attractions()
+
+        logger.info("🗺️ Using Google Places API for attraction data")
+
+        # Major regions to search across
+        search_regions = [
+            # Australia - major cities and tourist areas
+            {'name': 'Sydney', 'location': (-33.8688, 151.2093), 'radius': 50000, 'country': 'australia'},
+            {'name': 'Melbourne', 'location': (-37.8136, 144.9631), 'radius': 50000, 'country': 'australia'},
+            {'name': 'Brisbane', 'location': (-27.4698, 153.0251), 'radius': 50000, 'country': 'australia'},
+            {'name': 'Perth', 'location': (-31.9505, 115.8605), 'radius': 50000, 'country': 'australia'},
+            {'name': 'Adelaide', 'location': (-34.9285, 138.6007), 'radius': 40000, 'country': 'australia'},
+            {'name': 'Gold Coast', 'location': (-28.0167, 153.4000), 'radius': 30000, 'country': 'australia'},
+            {'name': 'Cairns', 'location': (-16.9186, 145.7781), 'radius': 30000, 'country': 'australia'},
+            {'name': 'Darwin', 'location': (-12.4634, 130.8456), 'radius': 30000, 'country': 'australia'},
+
+            # New Zealand
+            {'name': 'Auckland', 'location': (-36.8485, 174.7633), 'radius': 40000, 'country': 'new_zealand'},
+            {'name': 'Wellington', 'location': (-41.2865, 174.7762), 'radius': 30000, 'country': 'new_zealand'},
+            {'name': 'Christchurch', 'location': (-43.5321, 172.6362), 'radius': 30000, 'country': 'new_zealand'},
+            {'name': 'Queenstown', 'location': (-45.0312, 168.6626), 'radius': 25000, 'country': 'new_zealand'},
+
+            # USA - major tourist areas
+            {'name': 'San Francisco', 'location': (37.7749, -122.4194), 'radius': 50000, 'country': 'united_states'},
+            {'name': 'Los Angeles', 'location': (34.0522, -118.2437), 'radius': 60000, 'country': 'united_states'},
+            {'name': 'New York', 'location': (40.7128, -74.0060), 'radius': 50000, 'country': 'united_states'},
+            {'name': 'Las Vegas', 'location': (36.1699, -115.1398), 'radius': 30000, 'country': 'united_states'},
+
+            # Canada
+            {'name': 'Toronto', 'location': (43.6532, -79.3832), 'radius': 40000, 'country': 'canada'},
+            {'name': 'Vancouver', 'location': (49.2827, -123.1207), 'radius': 40000, 'country': 'canada'},
+
+            # UK
+            {'name': 'London', 'location': (51.5074, -0.1278), 'radius': 50000, 'country': 'great_britain'},
+        ]
+
+        # Place types to search for
+        place_types = [
+            'tourist_attraction',
+            'natural_feature',
+            'park',
+            'museum',
+            'amusement_park',
+            'zoo',
+            'aquarium',
+            'art_gallery',
+            'landmark'
+        ]
+
+        logger.info(f"🔍 Searching {len(search_regions)} regions for {len(place_types)} place types")
+
+        for region in search_regions:
+            for place_type in place_types:
+                try:
+                    region_attractions = await self.search_google_places(
+                        location=region['location'],
+                        radius=region['radius'],
+                        place_type=place_type,
+                        country=region['country'],
+                        region_name=region['name']
+                    )
+                    all_attractions.extend(region_attractions)
+
+                    # Rate limiting - Google Places has strict limits
+                    await asyncio.sleep(0.1)
+
+                    # Stop if we have enough data
+                    if len(all_attractions) >= 1000:
+                        logger.info(f"✅ Collected {len(all_attractions)} attractions, stopping")
+                        break
+
+                except Exception as e:
+                    logger.error(f"Error searching {region['name']} for {place_type}: {e}")
+                    continue
+
+            if len(all_attractions) >= 1000:
+                break
+
+        logger.info(f"✅ Google Places API collected {len(all_attractions)} attractions")
+        return all_attractions
+
+    async def search_google_places(
+        self,
+        location: tuple,
+        radius: int,
+        place_type: str,
+        country: str,
+        region_name: str,
+        max_results: int = 20
+    ) -> List[Dict]:
+        """Search Google Places API for attractions in a specific location"""
+        attractions = []
+
+        try:
+            url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+
+            params = {
+                'location': f"{location[0]},{location[1]}",
+                'radius': radius,
+                'type': place_type,
+                'key': self.api_keys['google_places']
+            }
+
+            logger.debug(f"🔍 Searching Google Places: {region_name} for {place_type}")
+
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    logger.warning(f"Google Places API error {response.status} for {region_name}")
+                    return []
+
+                data = await response.json()
+
+                if data.get('status') != 'OK':
+                    if data.get('status') == 'ZERO_RESULTS':
+                        logger.debug(f"No {place_type} results for {region_name}")
+                    else:
+                        logger.warning(f"Google Places API status: {data.get('status')} for {region_name}")
+                    return []
+
+                # Process results
+                for place in data.get('results', [])[:max_results]:
+                    try:
+                        attraction = await self._parse_google_place(place, country, place_type, region_name)
+                        if attraction:
+                            attractions.append(attraction)
+                    except Exception as e:
+                        logger.error(f"Error parsing Google place: {e}")
+                        continue
+
+                logger.debug(f"✅ Found {len(attractions)} {place_type}s in {region_name}")
+
+        except Exception as e:
+            logger.error(f"Error searching Google Places for {region_name}: {e}")
+
+        return attractions
+
+    async def _parse_google_place(self, place: dict, country: str, place_type: str, region_name: str) -> Optional[Dict]:
+        """Parse a Google Places API result into our format"""
+        try:
+            geometry = place.get('geometry', {})
+            location = geometry.get('location', {})
+
+            lat = location.get('lat')
+            lng = location.get('lng')
+
+            if not lat or not lng:
+                return None
+
+            # Basic place data
+            name = place.get('name')
+            if not name:
+                return None
+
+            # Calculate quality score based on Google data
+            rating = place.get('rating', 0)
+            user_ratings_total = place.get('user_ratings_total', 0)
+            price_level = place.get('price_level', 0)
+
+            # Quality scoring algorithm
+            quality_score = 0.5  # Base score
+            if rating > 0:
+                quality_score += (rating / 5.0) * 0.3  # Max +0.3 for rating
+            if user_ratings_total > 10:
+                quality_score += min(user_ratings_total / 1000, 0.2)  # Max +0.2 for popularity
+
+            # Google photo URL if available
+            photo_url = None
+            if place.get('photos') and len(place['photos']) > 0:
+                photo_reference = place['photos'][0].get('photo_reference')
+                if photo_reference:
+                    photo_url = (
+                        f"https://maps.googleapis.com/maps/api/place/photo"
+                        f"?maxwidth=800&photoreference={photo_reference}"
+                        f"&key={self.api_keys['google_places']}"
+                    )
+
+            return {
+                'name': name,
+                'data_type': 'attractions',
+                'attraction_type': self._map_google_place_type(place_type, place.get('types', [])),
+                'country': country,
+                'state_province': region_name,
+                'latitude': float(lat),
+                'longitude': float(lng),
+                'description': f"{name} in {region_name}",
+                'rating': rating,
+                'user_ratings_total': user_ratings_total,
+                'price_level': price_level,
+                'quality_score': min(quality_score, 1.0),
+                'opening_hours': place.get('opening_hours', {}).get('open_now'),
+                'address': place.get('vicinity'),
+                'place_id': place.get('place_id'),
+                'photo_url': photo_url,
+                'photo_source': 'google_places' if photo_url else 'none',
+                'data_source': 'google_places',
+                'source_id': f"google_places_{place.get('place_id')}",
+                'collected_at': datetime.now().isoformat(),
+                'google_types': place.get('types', []),
+                'is_free': price_level == 0,
+                'last_verified': datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Error parsing Google place {place.get('name')}: {e}")
+            return None
+
+    def _map_google_place_type(self, primary_type: str, all_types: list) -> str:
+        """Map Google Places types to our attraction types"""
+        # Primary type mapping
+        type_mapping = {
+            'tourist_attraction': 'tourist_attraction',
+            'natural_feature': 'natural_attraction',
+            'park': 'park',
+            'museum': 'cultural',
+            'amusement_park': 'entertainment',
+            'zoo': 'wildlife',
+            'aquarium': 'wildlife',
+            'art_gallery': 'cultural',
+            'landmark': 'landmark'
+        }
+
+        # Check all types for more specific mapping
+        for gtype in all_types:
+            if gtype in ['national_park', 'state_park']:
+                return 'national_park'
+            elif gtype in ['beach', 'lake', 'waterfall']:
+                return 'natural_attraction'
+            elif gtype in ['church', 'temple', 'monastery']:
+                return 'religious'
+            elif gtype in ['shopping_mall', 'store']:
+                return 'shopping'
+            elif gtype in ['restaurant', 'cafe', 'bar']:
+                return 'food_drink'
+
+        return type_mapping.get(primary_type, 'attraction')
+
     async def collect_osm_attractions(self) -> List[Dict]:
-        """Main method to collect all OSM attractions"""
+        """Fallback method to collect OSM attractions if Google Places unavailable"""
         all_attractions = []
 
         # Collect each type
