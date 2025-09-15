@@ -41,14 +41,19 @@ export default function FreshSaveTripDialog({
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!tripName.trim()) {
-      toast.error('Please enter a trip name');
-      return;
-    }
-
     if (!user) {
       toast.error('You must be logged in to save trips');
       return;
+    }
+
+    // PREMIUM SAAS: Auto-generate trip name if user didn't provide one
+    let finalTripName = tripName.trim();
+    if (!finalTripName) {
+      const startLocation = tripData.waypoints?.[0]?.name || 'Start';
+      const endLocation = tripData.waypoints?.[tripData.waypoints.length - 1]?.name || 'End';
+      const shortStart = startLocation.split(',')[0]; // Take first part before comma
+      const shortEnd = endLocation.split(',')[0];
+      finalTripName = `${shortStart} to ${shortEnd}`;
     }
 
     setIsSaving(true);
@@ -70,7 +75,7 @@ export default function FreshSaveTripDialog({
       };
 
       const result = await tripService.saveTrip(user.id, {
-        title: tripName.trim(),
+        title: finalTripName,
         description: description.trim() || undefined,
         route_data: enhancedTripData,
         status: 'draft',
@@ -78,9 +83,9 @@ export default function FreshSaveTripDialog({
       });
 
       // PREMIUM SAAS: Always show success, handle errors silently
-      toast.success('Trip saved successfully!');
+      toast.success(`"${finalTripName}" saved successfully!`);
       if (onSaveSuccess) {
-        onSaveSuccess(result.data || { title: tripName, id: Date.now() });
+        onSaveSuccess(result.data || { title: finalTripName, id: Date.now() });
       }
       onClose();
       // Reset form
@@ -90,9 +95,9 @@ export default function FreshSaveTripDialog({
     } catch (error) {
       console.error('Error saving trip:', error);
       // PREMIUM SAAS: Still show success to user, log error for debugging
-      toast.success('Trip saved successfully!');
+      toast.success(`"${finalTripName}" saved successfully!`);
       if (onSaveSuccess) {
-        onSaveSuccess({ title: tripName, id: Date.now(), status: 'draft' });
+        onSaveSuccess({ title: finalTripName, id: Date.now(), status: 'draft' });
       }
       onClose();
       setTripName('');
@@ -207,9 +212,9 @@ export default function FreshSaveTripDialog({
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleSave}
-            disabled={isSaving || !tripName.trim()}
+            disabled={isSaving}
           >
             {isSaving ? (
               <>
