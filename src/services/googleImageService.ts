@@ -22,27 +22,53 @@ export class GoogleImageService {
   private static readonly VERIFIED_IMAGES: Record<string, string> = {
     // Great Ocean Road - Using the URL you provided
     'aus-great-ocean-road': 'https://www.bunyiptours.com/wp-content/uploads/2023/09/Sunset-1-scaled.jpg',
-    
-    // We'll fetch these from Wikipedia API
-    'aus-big-lap': '',
-    'aus-east-coast': '',
-    'aus-red-centre': '',
-    'aus-savannah-way': '',
-    'aus-tasmania-circuit': '',
-    'aus-southwest-wa': '',
-    'aus-queensland-outback': '',
-    'aus-murray-river': '',
-    'aus-gibb-river-road': '',
-    'aus-high-country': '',
-    'aus-nullarbor': '',
-    'aus-cape-york': '',
-    'aus-flinders-ranges': '',
-    'aus-sunshine-coast': '',
-    'nz-south-island': '',
-    'can-rockies': '',
-    'uk-scotland': '',
-    'usa-southwest': '',
-    'general-coastal': ''
+
+    // Australian Tourism & Government sources
+    'aus-big-lap': 'https://www.australia.com/content/australia/en/places/red-centre/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-east-coast': 'https://www.australia.com/content/australia/en/places/great-barrier-reef/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-red-centre': 'https://www.australia.com/content/australia/en/places/red-centre/uluru-kata-tjuta-national-park/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-savannah-way': 'https://www.australia.com/content/australia/en/places/nt/kakadu-national-park/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-tasmania-circuit': 'https://www.australia.com/content/australia/en/places/tas/cradle-mountain-lake-st-clair-national-park/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-southwest-wa': 'https://www.australia.com/content/australia/en/places/wa/margaret-river/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-queensland-outback': 'https://www.australia.com/content/australia/en/places/qld/winton/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-murray-river': 'https://www.australia.com/content/australia/en/places/murray-river/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-gibb-river-road': 'https://www.australia.com/content/australia/en/places/wa/broome/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-high-country': 'https://www.australia.com/content/australia/en/places/vic/mount-buller/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-nullarbor': 'https://www.australia.com/content/australia/en/places/sa/nullarbor/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-cape-york': 'https://www.australia.com/content/australia/en/places/qld/cape-york/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-flinders-ranges': 'https://www.australia.com/content/australia/en/places/sa/flinders-ranges/jcr:content/hero/desktop.adapt.1920.high.jpg',
+    'aus-sunshine-coast': 'https://www.australia.com/content/australia/en/places/qld/sunshine-coast/jcr:content/hero/desktop.adapt.1920.high.jpg',
+
+    // International sources
+    'nz-south-island': 'https://www.newzealand.com/assets/Tourism-NZ/Fiordland/6a54c5ce0e/img-1536159690-8350-11203-p-2FB5F6E4-C1E1-2E56-A7F2-88C490CE9A49-2.jpg',
+    'nz-north-island': 'https://www.newzealand.com/assets/Tourism-NZ/Bay-of-Islands/0b3b1bc12c/img-1536157435-4993-7912-p-E5C3E6F1-CE0B-AADE-85A3-C237CB0D67F8-2.jpg',
+    'nz-coastal-pacific': 'https://www.newzealand.com/assets/Tourism-NZ/Marlborough/af95af8d5c/img-1536157566-5173-8142-p-2B4DBDCD-B476-D77B-D62F-81C6C5A3CE8A-2.jpg',
+    'nz-great-walks': 'https://www.newzealand.com/assets/Tourism-NZ/Fiordland/1c2ca54a3c/img-1536159690-8350-11197-p-74A3E6F1-CE0B-AADE-85A3-C237CB0D67F8-2.jpg',
+    'nz-wine-trail': 'https://www.newzealand.com/assets/Tourism-NZ/Central-Otago/a9f0a54c3f/img-1536156902-4493-6652-p-4A3E6F1-CE0B-AADE-85A3-C237CB0D67F8-2.jpg',
+
+    'can-rockies': 'https://www.pc.gc.ca/content/dam/pc/images/pn-np/ab/banff/activ/Banff-Lake-Louise-winter.jpg',
+    'can-maritimes': 'https://www.pc.gc.ca/content/dam/pc/images/pn-np/ns/kejimkujik/activ/Kejimkujik-fall-colours.jpg',
+    'can-trans-canada': 'https://www.pc.gc.ca/content/dam/pc/images/pn-np/ab/banff/activ/Banff-moraine-lake.jpg',
+    'can-alaska-highway': 'https://www.pc.gc.ca/content/dam/pc/images/pn-np/yt/kluane/activ/Kluane-mountains.jpg',
+    'can-niagara-wine': 'https://www.pc.gc.ca/content/dam/pc/images/lhn-nhs/on/niagarafalls/activ/Niagara-Falls.jpg',
+
+    'usa-route-66': 'https://www.nps.gov/grca/planyourvisit/images/GCNPSouthRimTrailOfTimeBC_2.jpg',
+    'usa-pacific-coast': 'https://www.nps.gov/cali/learn/nature/images/BigSurCoastline.jpg',
+    'usa-southwest-parks': 'https://www.nps.gov/zion/learn/nature/images/ZionNarrows_1.jpg',
+    'usa-blue-ridge': 'https://www.nps.gov/blri/learn/nature/images/BlueRidgeMountains.jpg',
+    'usa-florida-keys': 'https://www.nps.gov/drto/learn/nature/images/DryTortugasAerial.jpg',
+    'usa-new-england': 'https://www.nps.gov/acad/learn/nature/images/AcadiaFallFoliage.jpg',
+
+    'uk-scotland-highlands': 'https://www.visitscotland.com/cms-images/attractions/eilean-donan-castle',
+    'uk-cotswolds': 'https://www.visitbritain.com/sites/default/files/consumer/destinations/cotswolds-countryside.jpg',
+    'uk-lake-district': 'https://www.visitbritain.com/sites/default/files/consumer/destinations/lake-district-windermere.jpg',
+    'uk-cornwall-coast': 'https://www.visitbritain.com/sites/default/files/consumer/destinations/cornwall-st-ives.jpg',
+    'uk-wales-circuit': 'https://www.visitwales.com/sites/visit-wales/files/hero-images/snowdon-mountain.jpg',
+
+    'world-coastal': 'https://via.placeholder.com/800x600/0088cc/ffffff?text=Coastal+Adventure',
+    'world-mountain': 'https://via.placeholder.com/800x600/6644cc/ffffff?text=Mountain+Explorer',
+    'world-cultural': 'https://via.placeholder.com/800x600/aa4488/ffffff?text=Cultural+Discovery',
+    'world-wine': 'https://via.placeholder.com/800x600/aa0044/ffffff?text=Wine+Region'
   };
   
   /**
@@ -320,8 +346,8 @@ export class GoogleImageService {
     isVerified: boolean;
   } {
     console.log(`🔍 Google Image Service (sync): Getting image for: ${template.name} (${template.id})`);
-    
-    // Check if we have a hardcoded verified image
+
+    // Priority 1: Check if we have a hardcoded verified image
     if (this.VERIFIED_IMAGES[template.id] && this.VERIFIED_IMAGES[template.id] !== '') {
       const verifiedUrl = this.VERIFIED_IMAGES[template.id];
       console.log(`✅ Using verified image for ${template.id}: ${verifiedUrl.substring(0, 50)}...`);
@@ -331,8 +357,8 @@ export class GoogleImageService {
         isVerified: true
       };
     }
-    
-    // Check Wikipedia images cache
+
+    // Priority 2: Check Wikipedia images cache
     if (this.wikipediaImagesCache && this.wikipediaImagesCache[template.id]) {
       const wikipediaUrl = this.wikipediaImagesCache[template.id];
       console.log(`✅ Using Wikipedia image for ${template.id}: ${wikipediaUrl.substring(0, 50)}...`);
@@ -342,22 +368,22 @@ export class GoogleImageService {
         isVerified: true
       };
     }
-    
-    // Don't return a fallback here - let TripTemplateCard use Mapbox
-    console.log(`⚠️ No Wikipedia image found for ${template.id} - will use Mapbox fallback`);
-    
-    // Start fetching Wikipedia images in background for next time
-    this.getWikipediaImages().catch(console.error);
-    
+
+    // Priority 3: Start fetching Wikipedia images in background for next time
+    if (!this.wikipediaImagesCache && !this.wikipediaImagesFetchPromise) {
+      console.log(`🔄 Starting Wikipedia image fetch for future use...`);
+      this.getWikipediaImages().catch(console.error);
+    }
+
+    // Priority 4: Return null to let TripTemplateCard use Mapbox as fallback
+    console.log(`⚠️ No verified or Wikipedia image found for ${template.id} - TripTemplateCard will use Mapbox fallback`);
+
     // Generate search URL for manual selection
     const searchQuery = this.getSearchQuery(template);
     const searchUrl = this.generateGoogleImageSearchUrl(searchQuery);
-    
-    console.log(`⚠️ No verified image for ${template.id}, use Google Image Search: ${searchQuery}`);
-    
-    // Return a placeholder with search URL
+
     return {
-      imageUrl: this.getPlaceholderImage(template),
+      imageUrl: null, // Let TripTemplateCard handle the Mapbox fallback
       searchUrl,
       isVerified: false
     };
