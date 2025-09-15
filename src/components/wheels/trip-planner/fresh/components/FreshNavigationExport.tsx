@@ -160,7 +160,7 @@ export default function FreshNavigationExport({ isOpen, onClose, currentRoute, c
     downloadBlob(pdf, 'itinerary.pdf');
   };
 
-  const displayRoute = transformedRoute;
+  const displayRoute = finalRoute;
   const displayBudget = transformedBudget;
 
   return (
@@ -172,12 +172,12 @@ export default function FreshNavigationExport({ isOpen, onClose, currentRoute, c
         <div className="space-y-4">
           <Card>
             <CardContent className="p-4 text-sm">
-              <div>Origin: {displayRoute.origin?.name || currentRoute.originName}</div>
-              <div>Destination: {displayRoute.destination?.name || currentRoute.destName}</div>
-              {((displayRoute.waypoints && displayRoute.waypoints.length > 0) || 
-                (currentRoute.waypoints && currentRoute.waypoints.length > 0)) && (
+              <div>Origin: {displayRoute?.origin?.name || currentRoute?.originName || 'Start Location'}</div>
+              <div>Destination: {displayRoute?.destination?.name || currentRoute?.destName || 'End Location'}</div>
+              {((displayRoute?.waypoints && displayRoute.waypoints.length > 0) ||
+                (currentRoute?.waypoints && currentRoute.waypoints.length > 0)) && (
                 <div>Waypoints: {
-                  (displayRoute.waypoints || currentRoute.waypoints)
+                  (displayRoute?.waypoints || currentRoute?.waypoints || [])
                     ?.map((w: any) => w.name || 'Waypoint')
                     .join(', ')
                 }</div>
