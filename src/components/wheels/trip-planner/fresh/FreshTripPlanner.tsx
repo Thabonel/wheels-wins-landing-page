@@ -21,6 +21,7 @@ import FreshTemplatesPanel from './components/FreshTemplatesPanel';
 import FreshRouteComparison from './components/FreshRouteComparison';
 import FreshElevationProfile from './components/FreshElevationProfile';
 import FreshDraggableWaypoints from './components/FreshDraggableWaypoints';
+import ShareTripModal from './components/ShareTripModal';
 import BudgetSidebar from '../BudgetSidebar';
 import SocialSidebar from '../SocialSidebar';
 import { useSocialTripState } from '../hooks/useSocialTripState';
@@ -57,6 +58,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [showPOI, setShowPOI] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showRouteComparison, setShowRouteComparison] = useState(false);
   const [showElevationProfile, setShowElevationProfile] = useState(false);
@@ -603,12 +605,12 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       const pointLabel = waypointManager.waypoints.length === 0 ? 'Point A (Start)' : 'Point B (End)';
       toast.success(`${pointLabel} added: ${placeName}`);
       
-      // If we now have 2 waypoints, calculate the route and turn off adding mode
-      if (waypointManager.waypoints.length === 1) {
+      // If we now have 2 waypoints, calculate the route automatically
+      if (waypointManager.waypoints.length + 1 === 2) {
         // Calculate route after adding the second point
         setTimeout(() => {
           if (typeof waypointManager.calculateRoute === 'function') {
-            waypointManager.calculateRoute();
+            waypointManager.calculateRoute(waypointManager.waypoints);
           }
         }, 500);
       }
@@ -647,20 +649,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   };
   
   const handleShareTrip = () => {
-    if (waypointManager.waypoints.length < 2 && !hasDirectionsRoute) {
-      toast.error('Please create a route first');
-      return;
-    }
-    
-    // Create shareable link or export data
-    const shareData = {
-      waypoints: waypointManager.waypoints,
-      route: waypointManager.currentRoute
-    };
-    
-    // Copy to clipboard
-    navigator.clipboard.writeText(JSON.stringify(shareData, null, 2));
-    toast.success('Route copied to clipboard');
+    // PREMIUM SAAS: Always allow sharing, even with minimal data
+    setShowShareModal(true);
   };
   
   // Navigation handler
@@ -1070,7 +1060,20 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           }
         }}
       />
-      
+
+      {/* Share Trip Modal */}
+      <ShareTripModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        tripData={{
+          waypoints: waypointManager.waypoints,
+          route: waypointManager.currentRoute,
+          profile: waypointManager.routeProfile,
+          distance: waypointManager.currentRoute?.distance,
+          duration: waypointManager.currentRoute?.duration
+        }}
+      />
+
       {/* Route Comparison Dialog */}
       <FreshRouteComparison
         isOpen={showRouteComparison}
