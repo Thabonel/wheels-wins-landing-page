@@ -287,7 +287,7 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
           <span>•</span>
           <span>Ctrl+Y: Redo</span>
           <span>•</span>
-          <span>Click map to add stops</span>
+          <span>Drag trip line to change route</span>
         </span>
       </div>
     </div>
