@@ -207,7 +207,7 @@ export default function ShareTripModal({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Trip Summary */}
+          {/* Trip Overview */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Trip Overview</CardTitle>

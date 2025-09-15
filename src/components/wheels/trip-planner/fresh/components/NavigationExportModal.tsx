@@ -228,7 +228,7 @@ export default function NavigationExportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[800px] z-[9999] mt-24 max-h-[80vh] overflow-hidden">
+      <DialogContent className="sm:max-w-[800px] z-[9999] mt-40 max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Navigation className="w-5 h-5" />
@@ -241,28 +241,42 @@ export default function NavigationExportModal({
 
         <div className="space-y-4 overflow-y-auto max-h-[60vh]">
           {/* Trip Information Header */}
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-lg font-semibold">Send To Navigation</h3>
-              <p className="text-sm text-muted-foreground">Export your trip to GPS apps, devices, or download as files</p>
-            </div>
+          <Card className="bg-muted/50">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-lg font-semibold">Send To Navigation</h3>
+                  <p className="text-sm text-muted-foreground">Export your trip to GPS apps, devices, or download as files</p>
+                </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">From:</span>
-                <span>{tripSummary.startLocation}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="w-4 h-4 text-green-600" />
+                    <span className="font-medium">From:</span>
+                    <span>{tripSummary.startLocation}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Route className="w-4 h-4 text-red-600" />
+                    <span className="font-medium">To:</span>
+                    <span>{tripSummary.endLocation}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Route className="w-3 h-3" />
+                      {tripSummary.distance}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {tripSummary.duration}
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {tripSummary.waypointCount} stops
+                    </Badge>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">To:</span>
-                <span>{tripSummary.endLocation}</span>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{tripSummary.distance}</span>
-                <span>{tripSummary.duration}</span>
-                <span>{tripSummary.waypointCount} stops</span>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Export Options */}
           <Tabs defaultValue="mobile" className="w-full">
