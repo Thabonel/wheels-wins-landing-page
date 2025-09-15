@@ -61,10 +61,8 @@ export class FreshMapOptionsControl {
       border-radius: 4px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
       width: 280px;
-      max-width: calc(100vw - 40px);
-      max-height: calc(100vh - 120px);
       display: none;
-      overflow-y: auto;
+      overflow: hidden;
     `;
     
     // Build dropdown content
@@ -166,7 +164,7 @@ export class FreshMapOptionsControl {
     
     // Map Overlays section
     const overlaysSection = document.createElement('div');
-    overlaysSection.style.cssText = 'padding: 12px; max-height: 300px; overflow-y: auto;';
+    overlaysSection.style.cssText = 'padding: 12px;';
     
     const overlaysTitle = document.createElement('div');
     overlaysTitle.textContent = '📍 Map Overlays';
