@@ -12,7 +12,7 @@ import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 import { FreshTrackControl } from './controls/FreshTrackControl';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 import FreshStatusBar from './components/FreshStatusBar';
-import FreshNavigationExport from './components/FreshNavigationExport';
+import NavigationExportModal from './components/NavigationExportModal';
 import FreshPOILayer from './components/FreshPOILayer';
 import FreshPOIPanel from './components/FreshPOIPanel';
 import FreshGeocodeSearch from './components/FreshGeocodeSearch';
@@ -54,7 +54,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [showBudget, setShowBudget] = useState(false);
   const [showSocial, setShowSocial] = useState(false);
   const [showTraffic, setShowTraffic] = useState(false);
-  const [showExportHub, setShowExportHub] = useState(false);
+  const [showNavigationExport, setShowNavigationExport] = useState(false);
   const [showPOI, setShowPOI] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -639,13 +639,13 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     setShowSaveDialog(true);
   };
   
-  // Share trip handler
+  // Export to navigation apps handler
   const handleExportRoute = () => {
     if (waypointManager.waypoints.length < 2 && !hasDirectionsRoute) {
       toast.error('Add at least 2 waypoints or create a route to export');
       return;
     }
-    setShowExportHub(true);
+    setShowNavigationExport(true);
   };
   
   const handleShareTrip = () => {
@@ -1004,29 +1004,22 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         </div>
       )}
       
-      {/* Navigation Export Hub */}
-      <FreshNavigationExport
-        isOpen={showExportHub}
-        onClose={() => setShowExportHub(false)}
-        currentRoute={waypointManager.waypoints.length >= 2 ? {
-          origin: {
-            name: waypointManager.waypoints[0]?.name || 'Start',
-            lat: waypointManager.waypoints[0]?.coordinates[1],
-            lng: waypointManager.waypoints[0]?.coordinates[0]
-          },
-          destination: {
-            name: waypointManager.waypoints[waypointManager.waypoints.length - 1]?.name || 'End',
-            lat: waypointManager.waypoints[waypointManager.waypoints.length - 1]?.coordinates[1],
-            lng: waypointManager.waypoints[waypointManager.waypoints.length - 1]?.coordinates[0]
-          },
-          waypoints: waypointManager.waypoints.slice(1, -1).map(wp => ({
-            name: wp.name || 'Waypoint',
-            lat: wp.coordinates[1],
-            lng: wp.coordinates[0]
-          }))
-        } : null}
+      {/* Navigation Export Modal */}
+      <NavigationExportModal
+        isOpen={showNavigationExport}
+        onClose={() => setShowNavigationExport(false)}
+        tripData={{
+          waypoints: waypointManager.waypoints,
+          route: waypointManager.currentRoute,
+          profile: waypointManager.routeProfile,
+          distance: waypointManager.currentRoute?.distance,
+          duration: waypointManager.currentRoute?.duration,
+          tripName: waypointManager.waypoints.length >= 2 ?
+            `${waypointManager.waypoints[0]?.name || 'Start'} to ${waypointManager.waypoints[waypointManager.waypoints.length - 1]?.name || 'End'}` :
+            'RV Trip'
+        }}
       />
-      
+
       {/* Geocode Search Panel */}
       <FreshGeocodeSearch
         isOpen={showSearch}
