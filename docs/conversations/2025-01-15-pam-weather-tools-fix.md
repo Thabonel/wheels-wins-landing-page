@@ -64,7 +64,7 @@ Reordered weather strategies for speed:
 3. **Helpful guidance** (final fallback)
 
 ## API Keys Configuration
-- **OpenWeatherMap**: `2f25748c9ac6ea44a765a9a9c801df24` (Wheels & Wins specific)
+- **OpenWeatherMap**: `[REDACTED - API key removed for security]` (Wheels & Wins specific)
 - **Location**: Configured in both Netlify environments
 - **Testing**: Confirmed working with 15.6°C clear sky response for Sydney
 
