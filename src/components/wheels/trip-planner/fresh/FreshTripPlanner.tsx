@@ -648,6 +648,41 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     setShowNavigationExport(true);
   };
   
+  // Extract waypoints for export (from either waypoint manager or Directions control)
+  const getExportWaypoints = () => {
+    // If we have waypoints in manager, use those
+    if (waypointManager.waypoints.length >= 2) {
+      return waypointManager.waypoints;
+    }
+
+    // If we have a directions route, extract origin/destination
+    if (hasDirectionsRoute && directionsRef.current) {
+      try {
+        const origin = directionsRef.current.getOrigin();
+        const destination = directionsRef.current.getDestination();
+
+        if (origin && destination) {
+          return [
+            {
+              coordinates: origin.geometry.coordinates,
+              name: origin.place_name || origin.text || 'Start',
+              address: origin.place_name || origin.text
+            },
+            {
+              coordinates: destination.geometry.coordinates,
+              name: destination.place_name || destination.text || 'End',
+              address: destination.place_name || destination.text
+            }
+          ];
+        }
+      } catch (error) {
+        console.error('Error extracting waypoints from Directions control:', error);
+      }
+    }
+
+    return [];
+  };
+
   const handleShareTrip = () => {
     // PREMIUM SAAS: Always allow sharing, even with minimal data
     setShowShareModal(true);
@@ -1009,14 +1044,17 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         isOpen={showNavigationExport}
         onClose={() => setShowNavigationExport(false)}
         tripData={{
-          waypoints: waypointManager.waypoints,
+          waypoints: getExportWaypoints(),
           route: waypointManager.currentRoute,
           profile: waypointManager.routeProfile,
           distance: waypointManager.currentRoute?.distance,
           duration: waypointManager.currentRoute?.duration,
-          tripName: waypointManager.waypoints.length >= 2 ?
-            `${waypointManager.waypoints[0]?.name || 'Start'} to ${waypointManager.waypoints[waypointManager.waypoints.length - 1]?.name || 'End'}` :
-            'RV Trip'
+          tripName: (() => {
+            const exportWaypoints = getExportWaypoints();
+            return exportWaypoints.length >= 2 ?
+              `${exportWaypoints[0]?.name || 'Start'} to ${exportWaypoints[exportWaypoints.length - 1]?.name || 'End'}` :
+              'RV Trip';
+          })()
         }}
       />
 
@@ -1059,7 +1097,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
         tripData={{
-          waypoints: waypointManager.waypoints,
+          waypoints: getExportWaypoints(),
           route: waypointManager.currentRoute,
           profile: waypointManager.routeProfile,
           distance: waypointManager.currentRoute?.distance,

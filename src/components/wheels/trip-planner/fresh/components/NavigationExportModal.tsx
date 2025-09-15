@@ -228,7 +228,7 @@ export default function NavigationExportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[800px] z-[9999] max-h-[90vh] overflow-hidden">
+      <DialogContent className="sm:max-w-[800px] z-[9999] mt-24 max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Navigation className="w-5 h-5" />
