@@ -19,20 +19,53 @@ logger = logging.getLogger(__name__)
 
 class RealAttractionsScraperService:
     """Production attractions scraper with real API integrations"""
-    
+
     def __init__(self):
         self.session = None
         self.overpass = overpy.Overpass()
-        
+
         # API keys from environment
         self.api_keys = {
             'google_places': os.getenv('GOOGLE_PLACES_KEY'),
             'openweather': os.getenv('OPENWEATHER_API_KEY'),
             'foursquare': os.getenv('FOURSQUARE_API_KEY')
         }
-        
+
         self.collected_count = 0
         self.target_per_source = 200
+
+    def _extract_coordinates_safely(self, element, element_type: str) -> Optional[tuple]:
+        """Safely extract coordinates from OSM element with null checking"""
+        try:
+            lat, lng = None, None
+
+            if element_type == 'node':
+                lat, lng = getattr(element, 'lat', None), getattr(element, 'lon', None)
+            else:
+                if hasattr(element, 'center_lat'):
+                    lat, lng = getattr(element, 'center_lat', None), getattr(element, 'center_lon', None)
+                else:
+                    return None
+
+            # Validate coordinates are not None
+            if lat is None or lng is None:
+                return None
+
+            # Ensure coordinates are numeric and within valid ranges
+            try:
+                lat_float = float(lat)
+                lng_float = float(lng)
+
+                if not (-90 <= lat_float <= 90) or not (-180 <= lng_float <= 180):
+                    return None
+
+                return (lat_float, lng_float)
+
+            except (ValueError, TypeError):
+                return None
+
+        except Exception:
+            return None
     
     async def __aenter__(self):
         timeout = aiohttp.ClientTimeout(total=60)
@@ -157,24 +190,22 @@ class RealAttractionsScraperService:
         """Parse waterfall data from OSM"""
         try:
             tags = element.tags
-            
+
             if 'name' not in tags:
                 return None
-            
-            # Get coordinates
-            if element_type == 'node':
-                lat, lng = element.lat, element.lon
-            else:
-                if hasattr(element, 'center_lat'):
-                    lat, lng = element.center_lat, element.center_lon
-                else:
-                    return None
-            
+
+            # Get coordinates safely
+            coords = self._extract_coordinates_safely(element, element_type)
+            if coords is None:
+                return None
+
+            lat, lng = coords
+
             # Extract waterfall properties
             height = tags.get('height', '')
             if height and height.replace('.', '').isdigit():
                 height = f"{height}m"
-            
+
             # Determine country
             country = self._determine_country_from_coords(lat, lng)
             
@@ -303,19 +334,17 @@ class RealAttractionsScraperService:
         """Parse swimming spot data"""
         try:
             tags = element.tags
-            
+
             if 'name' not in tags:
                 return None
-            
-            # Get coordinates
-            if element_type == 'node':
-                lat, lng = element.lat, element.lon
-            else:
-                if hasattr(element, 'center_lat'):
-                    lat, lng = element.center_lat, element.center_lon
-                else:
-                    return None
-            
+
+            # Get coordinates safely
+            coords = self._extract_coordinates_safely(element, element_type)
+            if coords is None:
+                return None
+
+            lat, lng = coords
+
             # Determine spot type
             spot_type = 'swimming_spot'
             if tags.get('natural') == 'beach':
@@ -628,28 +657,47 @@ class RealAttractionsScraperService:
         """Parse tourist attraction data"""
         try:
             tags = element.tags
-            
+
             if 'name' not in tags:
                 return None
-            
-            # Get coordinates
+
+            # Get coordinates with null safety
+            lat, lng = None, None
             if element_type == 'node':
-                lat, lng = element.lat, element.lon
+                lat, lng = getattr(element, 'lat', None), getattr(element, 'lon', None)
             else:
                 if hasattr(element, 'center_lat'):
-                    lat, lng = element.center_lat, element.center_lon
+                    lat, lng = getattr(element, 'center_lat', None), getattr(element, 'center_lon', None)
                 else:
                     return None
-            
-            country = self._determine_country_from_coords(lat, lng)
-            
+
+            # Validate coordinates are not None
+            if lat is None or lng is None:
+                logger.debug(f"Skipping attraction {tags.get('name')} - missing coordinates")
+                return None
+
+            # Ensure coordinates are numeric
+            try:
+                lat_float = float(lat)
+                lng_float = float(lng)
+            except (ValueError, TypeError):
+                logger.debug(f"Skipping attraction {tags.get('name')} - invalid coordinates: lat={lat}, lng={lng}")
+                return None
+
+            # Validate coordinate ranges
+            if not (-90 <= lat_float <= 90) or not (-180 <= lng_float <= 180):
+                logger.debug(f"Skipping attraction {tags.get('name')} - coordinates out of range: lat={lat_float}, lng={lng_float}")
+                return None
+
+            country = self._determine_country_from_coords(lat_float, lng_float)
+
             return {
                 'name': tags.get('name'),
                 'data_type': 'attractions',
                 'attraction_type': tags.get('tourism', 'attraction'),
                 'country': country,
-                'latitude': lat,
-                'longitude': lng,
+                'latitude': lat_float,
+                'longitude': lng_float,
                 'description': tags.get('description', 'Popular tourist attraction'),
                 'website': tags.get('website'),
                 'opening_hours': tags.get('opening_hours'),
@@ -660,7 +708,7 @@ class RealAttractionsScraperService:
                 'source_id': f"osm_attraction_{element.id}",
                 'collected_at': datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Error parsing tourist attraction: {e}")
             return None
@@ -703,15 +751,29 @@ class RealAttractionsScraperService:
     
     def _determine_country_from_coords(self, lat: float, lng: float) -> str:
         """Determine country from coordinates (simplified)"""
-        if 24 <= lat <= 49 and -125 <= lng <= -66:
-            return 'united_states'
-        elif 41 <= lat <= 84 and -141 <= lng <= -52:
-            return 'canada'
-        elif -44 <= lat <= -10 and 113 <= lng <= 154:
-            return 'australia'
-        elif -47 <= lat <= -34 and 166 <= lng <= 179:
-            return 'new_zealand'
-        elif 49 <= lat <= 61 and -8 <= lng <= 2:
-            return 'great_britain'
-        else:
+        # Safety check for None values
+        if lat is None or lng is None:
+            return 'unknown'
+
+        try:
+            # Ensure coordinates are numeric
+            lat_safe = float(lat)
+            lng_safe = float(lng)
+
+            # Country boundary checks with safe comparisons
+            if 24 <= lat_safe <= 49 and -125 <= lng_safe <= -66:
+                return 'united_states'
+            elif 41 <= lat_safe <= 84 and -141 <= lng_safe <= -52:
+                return 'canada'
+            elif -44 <= lat_safe <= -10 and 113 <= lng_safe <= 154:
+                return 'australia'
+            elif -47 <= lat_safe <= -34 and 166 <= lng_safe <= 179:
+                return 'new_zealand'
+            elif 49 <= lat_safe <= 61 and -8 <= lng_safe <= 2:
+                return 'great_britain'
+            else:
+                return 'unknown'
+
+        except (ValueError, TypeError):
+            logger.debug(f"Invalid coordinates for country determination: lat={lat}, lng={lng}")
             return 'unknown'

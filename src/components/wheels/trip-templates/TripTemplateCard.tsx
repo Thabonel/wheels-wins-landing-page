@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
+import { googleImageService } from '@/services/googleImageService';
 import TripRatingWidget from './TripRatingWidget';
 
 interface TripTemplateCardProps {
@@ -47,19 +48,30 @@ export default function TripTemplateCard({
     'advanced': 'bg-red-100 text-red-800'
   };
 
-  // Image fallback chain: Database URL → Mapbox Map → Placeholder
+  // Image fallback chain: Database URL → Google Image Service → Mapbox Map → Placeholder
   const getTemplateImage = () => {
     // Priority 1: If template has an image URL from database, use it
     if (template.imageUrl || template.image_url) {
       return template.imageUrl || template.image_url;
     }
-    
+
     // Priority 2: If template has thumbnail from database for performance
     if (template.thumbnailUrl || template.thumbnail_url) {
       return template.thumbnailUrl || template.thumbnail_url;
     }
-    
-    // Priority 3: Generate intelligent route-specific Mapbox map (excellent fallback!)
+
+    // Priority 3: Try to get from Google Image Service (sync version)
+    try {
+      const { imageUrl } = googleImageService.getTemplateImageSync(template);
+      if (imageUrl) {
+        console.log(`📸 Using Google Image Service URL for ${template.id}`);
+        return imageUrl;
+      }
+    } catch (error) {
+      console.warn(`Failed to get image from Google Image Service for ${template.id}:`, error);
+    }
+
+    // Priority 4: Generate intelligent route-specific Mapbox map (excellent fallback!)
     const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!mapboxToken) {
       console.warn('No Mapbox token available for map generation');

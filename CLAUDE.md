@@ -329,6 +329,13 @@ Follow this structured approach for all features and fixes:
 - **Accessibility**: WCAG compliance
 - **No mock data**: Production-ready code only
 
+### SQL File Guidelines
+- **No Comments**: When creating SQL files, write only clean SQL statements
+- **No Instructions**: Never include "run separately" or other execution instructions
+- **Batch Execution**: All SQL should be designed to run as a complete script
+- **Clean Format**: One statement per line, no explanatory text
+- **Location**: Always save SQL files in `docs/sql-fixes/` folder
+
 ### Bundle Strategy (vite.config.ts)
 ```javascript
 {

@@ -10,8 +10,38 @@
   # Disable secrets scanning for staging builds
   # This should be enabled only in production
   SECRETS_SCAN_ENABLED = "false"
-  # Ensure correct backend URL is used
-  VITE_BACKEND_URL = "https://pam-backend.onrender.com"
+
+# Production deployment (main branch)
+[context.production]
+  [context.production.environment]
+    VITE_BACKEND_URL = "https://pam-backend.onrender.com"
+    VITE_API_URL = "https://pam-backend.onrender.com"
+    VITE_PAM_WEBSOCKET_URL = "wss://pam-backend.onrender.com/api/v1/pam/ws"
+    VITE_ENVIRONMENT = "production"
+
+# Staging branch deployment
+[context.staging]
+  [context.staging.environment]
+    VITE_BACKEND_URL = "https://wheels-wins-backend-staging.onrender.com"
+    VITE_API_URL = "https://wheels-wins-backend-staging.onrender.com" 
+    VITE_PAM_WEBSOCKET_URL = "wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws"
+    VITE_ENVIRONMENT = "staging"
+
+# Branch deploy previews (non-staging branches)
+[context.branch-deploy]
+  [context.branch-deploy.environment]
+    VITE_BACKEND_URL = "https://wheels-wins-backend-staging.onrender.com"
+    VITE_API_URL = "https://wheels-wins-backend-staging.onrender.com"
+    VITE_PAM_WEBSOCKET_URL = "wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws"
+    VITE_ENVIRONMENT = "staging"
+
+# Deploy previews (for PRs)
+[context.deploy-preview]
+  [context.deploy-preview.environment]
+    VITE_BACKEND_URL = "https://wheels-wins-backend-staging.onrender.com"
+    VITE_API_URL = "https://wheels-wins-backend-staging.onrender.com"
+    VITE_PAM_WEBSOCKET_URL = "wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws"
+    VITE_ENVIRONMENT = "preview"
 
 [[redirects]]
   from = "/*"
@@ -26,7 +56,7 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; font-src 'self' https: data:; connect-src 'self' https: wss: wss://pam-backend.onrender.com wss://api.wheelsandwins.com;"
+    Content-Security-Policy = "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; font-src 'self' https: data:; connect-src 'self' https: wss: wss://pam-backend.onrender.com wss://wheels-wins-backend-staging.onrender.com wss://api.wheelsandwins.com;"
     Permissions-Policy = "camera=(), microphone=(self), geolocation=(self), interest-cohort=()"
     X-DNS-Prefetch-Control = "on"
     
