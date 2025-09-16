@@ -14,6 +14,7 @@ import SupportTickets from './SupportTickets';
 import UserFeedback from './UserFeedback';
 import Settings from './Settings';
 import DataCollectorMonitor from './DataCollectorMonitor';
+import AuthDebugAdmin from './AuthDebugAdmin';
 
 interface AdminContentProps {
   activeSection: string;
@@ -42,6 +43,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <ObservabilityDashboard />;
       case 'Testing Dashboard':
         return <TestingDashboard />;
+      case 'Auth Debug':
+        return <AuthDebugAdmin />;
       case 'Shop Management':
         return <ShopManagement />;
       case 'Trip Templates':

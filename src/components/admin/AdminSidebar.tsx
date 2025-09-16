@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Settings, 
-  MessageSquare, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Users,
+  Settings,
+  MessageSquare,
+  BarChart3,
   Shield,
   FileText,
   ShoppingCart,
@@ -18,7 +18,8 @@ import {
   TestTube,
   MessageCircle,
   Database,
-  MapPin
+  MapPin,
+  Bug
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -48,6 +49,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { name: 'Learning Dashboard', icon: Brain },
     { name: 'AI Observability', icon: Activity },
     { name: 'Testing Dashboard', icon: TestTube },
+    { name: 'Auth Debug', icon: Bug },
     { name: 'Shop Management', icon: ShoppingCart },
     { name: 'Trip Templates', icon: MapPin },
     { name: 'Support Tickets', icon: FileText },
