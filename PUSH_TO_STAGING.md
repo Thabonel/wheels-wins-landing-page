@@ -17,12 +17,11 @@ gitleaks detect --verbose
 
 If secrets found: **STOP** - Fix before continuing!
 
-#### ✅ **2. Pre-commit Hooks Active**
-Verify hooks are installed:
+#### ✅ **2. Pre-commit Hooks Active** (Local Development)
+If you have pre-commit installed locally:
 ```bash
-pre-commit run --all-files
+pre-commit run --all-files  # Optional - only if installed
 ```
-**MUST pass**: All checks ✅
 
 #### ✅ **3. Forbidden: No Bypass Commits**
 **NEVER use**: `git commit --no-verify`

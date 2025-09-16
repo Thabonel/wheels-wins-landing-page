@@ -77,10 +77,13 @@ config/database.yml
 service-account*.json
 gcloud-service-key*.json
 
-# Secret scanning tools
+# Secret scanning tools (local development only)
 .secrets.baseline
 .gitleaks.toml
 .detect-secrets-baseline
+
+# Local pre-commit cache (don't deploy to Netlify)
+.pre-commit/
 
 # Console logs and debug output (may contain secrets)
 docs/maintenance/*.txt
