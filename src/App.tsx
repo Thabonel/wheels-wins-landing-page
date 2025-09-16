@@ -38,6 +38,7 @@ import { logEnvironmentStatus } from './config/env-validator';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import { RouteMonitor } from './components/common/RouteMonitor';
+import { AuthDebugPanel } from './components/debug/AuthDebugPanel';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
@@ -78,6 +79,7 @@ function App() {
                       {/* <LazyPamIntegrationProvider> */}
                         <ScrollToTop />
                         <RouteMonitor />
+                        <AuthDebugPanel />
                         <Layout>
                           <div className="route-container">
                             <Suspense fallback={
