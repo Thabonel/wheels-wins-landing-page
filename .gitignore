@@ -82,6 +82,14 @@ gcloud-service-key*.json
 .gitleaks.toml
 .detect-secrets-baseline
 
+# Console logs and debug output (may contain secrets)
+docs/maintenance/*.txt
+docs/maintenance/*.log
+*console*.txt
+*console*.log
+*debug*.txt
+*debug*.log
+
 # Backup files that might contain secrets
 *.backup
 *.bak
