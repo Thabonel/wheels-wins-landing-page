@@ -100,13 +100,19 @@ export const useUserSettings = () => {
             await testDatabaseAccess();
 
             const result = await supabase
-          .from('user_settings')
-          .select('*')
-          .maybeSingle();
-        data = result.data;
-        error = result.error;
-      }
-      
+              .from('user_settings')
+              .select('*')
+              .maybeSingle();
+            data = result.data;
+            error = result.error;
+          }
+
+          return { data, error };
+        }
+      );
+
+      const { data, error } = result;
+
       if (error) {
         if (error.code === 'PGRST116') {
           // No settings found, create defaults
