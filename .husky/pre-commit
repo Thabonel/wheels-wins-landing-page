@@ -1,2 +1,27 @@
-# Run quality checks before commit
+# Run quality checks and security scans before commit
+# Quality checks (currently disabled - uncomment if needed)
 # npm run quality:check
+
+# 🔒 SECURITY SCAN - Prevent secrets from being committed
+echo "🔍 Scanning for secrets and credentials..."
+if command -v gitleaks &> /dev/null; then
+    gitleaks protect --verbose --redact --staged
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "❌ COMMIT BLOCKED: Secrets detected!"
+        echo "💡 Fix the issues above and try again"
+        echo "💡 To bypass (emergency only): SKIP=gitleaks git commit -m 'message'"
+        exit 1
+    fi
+    echo "✅ No secrets detected"
+else
+    echo "⚠️ Warning: gitleaks not installed - install with: brew install gitleaks"
+fi
+
+# Additional secret detection with detect-secrets (if available)
+if command -v detect-secrets &> /dev/null; then
+    detect-secrets scan --baseline .secrets.baseline --force-use-all-plugins . 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "⚠️ Additional secrets may be present - review carefully"
+    fi
+fi

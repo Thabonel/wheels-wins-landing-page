@@ -27,3 +27,64 @@ yarn.lock
 REPO_HEALTH_CHECK.md
 scripts/git-safe-config
 git-safety-functions.sh
+
+# 🔒 Security & Secrets Prevention (DO NOT COMMIT)
+# Environment files with potential secrets
+*.env*
+.env
+.env.*
+.environment
+*.secrets
+*secret.*
+*secret_*
+*_secret*
+*credential*
+*password*
+*private*
+
+# Exception: Allow documentation files
+!*PREVENTION*
+
+# API Keys and tokens
+*api-key*
+*api_key*
+*apikey*
+*access-token*
+*access_token*
+*auth-token*
+*auth_token*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Database and service credentials
+database.yml
+config/database.yml
+*connection-string*
+*database-url*
+*db-url*
+*db_url*
+
+# Cloud provider credentials
+*aws-credentials*
+*gcp-credentials*
+*azure-credentials*
+.aws/credentials
+.azure/credentials
+service-account*.json
+gcloud-service-key*.json
+
+# Secret scanning tools
+.secrets.baseline
+.gitleaks.toml
+.detect-secrets-baseline
+
+# Backup files that might contain secrets
+*.backup
+*.bak
+*.old
+*_backup
+*_bak
