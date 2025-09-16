@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { withRetry, shouldRetry, clearErrorCache, logError, getUserFriendlyMessage } from '@/utils/errorHandling';
 
 interface UserSettings {
   notification_preferences: {
@@ -55,28 +56,33 @@ export const useUserSettings = () => {
 
   const fetchSettings = async () => {
     console.log('fetchSettings called, user:', user);
-    
+
     if (!user) {
       console.log('No user found, setting loading to false');
       setLoading(false);
       return;
     }
-    
+
+    const operationKey = `fetch-settings-${user.id}`;
     console.log('User found, fetching settings for user ID:', user.id);
     setLoading(true);
+
     try {
-      // Use Supabase directly for better reliability
-      // Try both approaches - with and without explicit user_id filter
-      let { data, error } = await supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      // If permission denied, try without the filter (RLS will handle it)
-      if (error?.code === '42501') {
-        console.log('Permission denied with explicit filter, trying without...');
-        const result = await supabase
+      const result = await withRetry(
+        operationKey,
+        async () => {
+          // Use Supabase directly for better reliability
+          // Try both approaches - with and without explicit user_id filter
+          let { data, error } = await supabase
+            .from('user_settings')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          // If permission denied, try without the filter (RLS will handle it)
+          if (error?.code === '42501') {
+            console.log('Permission denied with explicit filter, trying without...');
+            const result = await supabase
           .from('user_settings')
           .select('*')
           .maybeSingle();
