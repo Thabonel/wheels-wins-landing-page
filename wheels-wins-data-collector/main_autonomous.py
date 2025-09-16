@@ -22,6 +22,8 @@ from scrapers.real_parks_scraper import RealParksScraperService
 from scrapers.real_attractions_scraper import RealAttractionsScraperService
 from services.database_state import DatabaseStateManager, clean_decimal_data
 from services.monitoring import MonitoringService
+from services.photo_scraper import add_photos_to_locations
+from services.photo_storage import store_location_photos
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import sentry_sdk
@@ -126,13 +128,18 @@ class AutonomousCollector:
                 source_start = time.time()
                 try:
                     items = await self._collect_with_retry(data_type, target_count)
-                    
+
                     if items:
+                        # Add photos to items using existing photo infrastructure
+                        logger.info(f"🖼️ Adding photos to {len(items)} {data_type} locations...")
+                        items_with_photos = await add_photos_to_locations(items)
+                        photos_stored = await store_location_photos(self.supabase, items_with_photos)
+
                         # Process and upload to database with deduplication
                         if config.get('enable_deduplication', True):
-                            uploaded_count = await self._process_and_upload_dedupe(items, data_type)
+                            uploaded_count = await self._process_and_upload_dedupe(photos_stored, data_type)
                         else:
-                            uploaded = await self._process_and_upload(items, data_type)
+                            uploaded = await self._process_and_upload(photos_stored, data_type)
                             uploaded_count = len(uploaded)
                             collected_items.extend(uploaded)
                         
@@ -393,13 +400,20 @@ class AutonomousCollector:
             tags.extend(item.get('tags', []))
             tags = [tag for tag in tags if tag]  # Remove empty
             
+            # Include photo URLs if available (JSONB array format)
+            media_urls = []
+            if item.get('photo_url') and item.get('photo_stored'):
+                media_urls.append(item['photo_url'])
+
             template = {
-                'name': item.get('name', 'Unnamed Location'),
+                'user_id': None,  # System-generated template (NULL user_id)
+                'title': item.get('name', 'Unnamed Location'),
                 'description': item.get('description', '')[:500],
-                'category': category_map.get(data_type, 'nature_wildlife'),
+                'category': category_map.get(data_type, 'adventure'),
                 'is_public': True,
                 'tags': tags[:10],  # Limit tags
-                'template_data': {
+                'media_urls': media_urls,  # JSONB array of photo URLs
+                'route_data': {
                     'type': data_type,
                     'coordinates': {
                         'latitude': item.get('latitude'),
@@ -412,10 +426,22 @@ class AutonomousCollector:
                     'verified': item.get('last_verified'),
                     'rating': item.get('rating'),
                     'is_free': item.get('is_free', False),
-                    'price': item.get('price')
+                    'price': item.get('price'),
+                    'photo_metadata': {
+                        'source': item.get('photo_source', 'none'),
+                        'confidence': item.get('photo_confidence', 'none')
+                    } if item.get('photo_url') else {}
                 },
-                'usage_count': 0,
-                'created_at': datetime.now().isoformat()
+                'waypoints': [
+                    {
+                        'latitude': item.get('latitude'),
+                        'longitude': item.get('longitude'),
+                        'name': item.get('name', 'Location'),
+                        'type': data_type
+                    }
+                ] if item.get('latitude') and item.get('longitude') else [],
+                'duration_days': 1,  # Default single day trip
+                'difficulty_level': 'moderate'
             }
             
             return template
