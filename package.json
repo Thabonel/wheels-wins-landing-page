@@ -45,7 +45,7 @@
     "seo:lighthouse": "lhci autorun",
     "optimize:images": "node scripts/optimize-images.js",
     "postbuild": "npm run seo:sitemap",
-    "prepare": "husky && pre-commit install",
+    "prepare": "husky",
     "postinstall": "husky && node scripts/ensure-native-deps.js",
     "ai-agents": "node scripts/ai-agents.js",
     "ai:status": "npm run ai-agents status",
