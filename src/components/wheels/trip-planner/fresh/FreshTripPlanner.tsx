@@ -224,6 +224,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
     
     try {
+      // Ensure map container is empty before initialization
+      if (mapContainerRef.current && mapContainerRef.current.children.length > 0) {
+        mapContainerRef.current.innerHTML = '';
+      }
+
       const newMap = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: MAP_STYLES[mapStyle],

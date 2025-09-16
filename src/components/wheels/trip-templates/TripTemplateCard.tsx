@@ -189,10 +189,14 @@ export default function TripTemplateCard({
     <Card className="hover:shadow-lg transition-all duration-200 overflow-hidden group">
       {/* Static Map Preview */}
       <div className="relative h-48 overflow-hidden">
-        <img 
-          src={mapUrl} 
+        <img
+          src={mapUrl}
           alt={`${template.name} route map`}
+          width={400}
+          height={192}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+          decoding="async"
         />
         <div className="absolute top-2 right-2">
           <Badge className={cn(difficultyColor[template.difficulty])}>
