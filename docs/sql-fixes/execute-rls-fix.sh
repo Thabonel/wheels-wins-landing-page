@@ -7,9 +7,25 @@
 
 set -e  # Exit on any error
 
-# Configuration
-SUPABASE_URL="https://kycoklimpzkyrecbjecn.supabase.co"
-DB_URL="postgresql://postgres.kycoklimpzkyrecbjecn:Wkb2YgBBXEqP9bNS@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
+# Configuration - SECURITY: Use environment variables for credentials
+SUPABASE_URL="${SUPABASE_URL:-}"
+DB_URL="${DATABASE_URL:-}"
+DB_HOST="${DB_HOST:-}"
+DB_USER="${DB_USER:-}"
+DB_PASSWORD="${DB_PASSWORD:-}"
+DB_NAME="${DB_NAME:-postgres}"
+DB_PORT="${DB_PORT:-6543}"
+
+# Validate required environment variables
+if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+    echo "❌ Error: Required environment variables not set!"
+    echo "Please set: DB_HOST, DB_USER, DB_PASSWORD"
+    echo "Example:"
+    echo "  export DB_HOST='your-host'"
+    echo "  export DB_USER='your-user'"
+    echo "  export DB_PASSWORD='your-password'"
+    exit 1
+fi
 
 echo "🚀 Starting RLS Performance Optimization..."
 echo "📊 Target: Fix 142 tables with inefficient auth.uid() usage"
@@ -45,7 +61,7 @@ SQL
 
 # Run analysis
 echo "🔍 Analyzing database..."
-PGPASSWORD="Wkb2YgBBXEqP9bNS" psql -h aws-0-us-west-1.pooler.supabase.com -p 6543 -U postgres.kycoklimpzkyrecbjecn -d postgres -f /tmp/rls_analysis.sql
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /tmp/rls_analysis.sql
 
 echo ""
 echo "📋 Step 2: Creating backup of current policies..."
@@ -69,13 +85,13 @@ WHERE schemaname = 'public';
 SELECT 'Backup created successfully' as status;
 SQL
 
-PGPASSWORD="Wkb2YgBBXEqP9bNS" psql -h aws-0-us-west-1.pooler.supabase.com -p 6543 -U postgres.kycoklimpzkyrecbjecn -d postgres -f /tmp/rls_backup.sql
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /tmp/rls_backup.sql
 
 echo ""
 echo "📋 Step 3: Applying RLS optimizations..."
 
 # Apply the main optimization script
-PGPASSWORD="Wkb2YgBBXEqP9bNS" psql -h aws-0-us-west-1.pooler.supabase.com -p 6543 -U postgres.kycoklimpzkyrecbjecn -d postgres -f docs/sql-fixes/final-rls-optimization.sql
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f docs/sql-fixes/final-rls-optimization.sql
 
 echo ""
 echo "📋 Step 4: Verifying optimizations..."
@@ -113,7 +129,7 @@ EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
 SELECT count(*) FROM expenses WHERE user_id = (select auth.uid());
 SQL
 
-PGPASSWORD="Wkb2YgBBXEqP9bNS" psql -h aws-0-us-west-1.pooler.supabase.com -p 6543 -U postgres.kycoklimpzkyrecbjecn -d postgres -f /tmp/rls_verification.sql
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /tmp/rls_verification.sql
 
 echo ""
 echo "🎉 RLS Performance Optimization Complete!"
