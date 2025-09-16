@@ -1,0 +1,10 @@
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_profiles_id_auth ON profiles(id) WHERE id = auth.uid();
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_expenses_user_id_auth ON expenses(user_id) WHERE user_id = auth.uid();
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_expenses_user_date ON expenses(user_id, date DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_income_entries_user_id_auth ON income_entries(user_id) WHERE user_id = auth.uid();
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_income_entries_user_date ON income_entries(user_id, date DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_trips_user_id_auth ON trips(user_id) WHERE user_id = auth.uid();
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_trips_user_created ON trips(user_id, created_at DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_posts_user_id_auth ON posts(user_id) WHERE user_id = auth.uid();
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_pam_conversations_user_id_auth ON pam_conversations(user_id) WHERE user_id = auth.uid();
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_pam_conversations_user_updated ON pam_conversations(user_id, updated_at DESC);

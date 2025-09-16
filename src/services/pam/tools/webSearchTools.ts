@@ -34,7 +34,7 @@ export async function performWebSearch(
     logger.debug('🔍 Performing web search via backend Google API', { query, numResults, searchType, userId });
 
     // Get backend URL from environment
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com';
     
     // Build search URL
     const searchUrl = new URL('/api/v1/search', backendUrl);
