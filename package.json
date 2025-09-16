@@ -4,7 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "prepare": "pre-commit install",
     "dev": "vite",
     "build": "node scripts/build-debug.js && vite build",
     "build:netlify": "node scripts/netlify-build.js",
@@ -46,7 +45,7 @@
     "seo:lighthouse": "lhci autorun",
     "optimize:images": "node scripts/optimize-images.js",
     "postbuild": "npm run seo:sitemap",
-    "prepare": "husky",
+    "prepare": "husky && pre-commit install",
     "postinstall": "husky && node scripts/ensure-native-deps.js",
     "ai-agents": "node scripts/ai-agents.js",
     "ai:status": "npm run ai-agents status",
