@@ -30,7 +30,7 @@ class PamConnectionService {
     import.meta.env.VITE_BACKEND_URL || 'https://pam-backend.onrender.com',
     import.meta.env.VITE_API_URL || 'https://pam-backend.onrender.com',
     'https://pam-backend.onrender.com',  // Primary production
-    'https://wheels-wins-backend-staging.onrender.com'  // Staging fallback for testing
+    'https://pam-backend.onrender.com'  // Production fallback
   ].filter(Boolean);
 
   private currentBackendIndex = 0;

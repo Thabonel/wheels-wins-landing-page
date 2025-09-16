@@ -57,7 +57,9 @@ export const tripTemplateServiceSafe = {
           category: 'coastal',
           tags: ['australia', 'coastal', 'scenic', 'victoria'],
           usageCount: 0,
-          isPublic: true
+          isPublic: true,
+          imageUrl: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/templates/great-ocean-road-classic.jpg',
+          image_url: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/templates/great-ocean-road-classic.jpg'
         },
         {
           id: 'aus-big-lap',
@@ -89,7 +91,9 @@ export const tripTemplateServiceSafe = {
           category: 'coastal',
           tags: ['australia', 'beaches', 'reef', 'queensland'],
           usageCount: 0,
-          isPublic: true
+          isPublic: true,
+          imageUrl: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/templates/east-coast-discovery.jpg',
+          image_url: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/templates/east-coast-discovery.jpg'
         },
         {
           id: 'aus-red-centre',
