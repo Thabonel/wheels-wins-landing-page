@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prepare": "pre-commit install",
     "dev": "vite",
     "build": "node scripts/build-debug.js && vite build",
     "build:netlify": "node scripts/netlify-build.js",
