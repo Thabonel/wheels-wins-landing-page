@@ -69,58 +69,79 @@ export async function testRealJWTTransmission(): Promise<{
       findings.specificError = jwtError.message;
     }
 
-    // Step 3: Test if database receives JWT through application request
+    // Step 3: Test if database receives JWT through real application request
     try {
-      // This makes a REAL request through the Supabase client (not SQL Editor)
-      const { data: testData, error: testError } = await supabase
-        .rpc('auth_diagnostics_test');
+      // Test 1: Try accessing profiles table (has RLS that depends on auth.uid())
+      console.log('🔍 Testing auth.uid() with profiles table...');
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, user_id')
+        .limit(1);
 
-      if (testError && testError.message?.includes('function auth_diagnostics_test() does not exist')) {
-        // Function doesn't exist, let's create a simple test
-        console.log('Creating test function...');
+      if (profileError) {
+        findings.databaseReceivesJWT = true; // Request reached database
 
-        // First, try to create the test function
-        const { error: createError } = await supabase
-          .from('profiles') // Use any accessible table
-          .select('count')
-          .limit(0); // Don't return data, just test the request
+        if (profileError.code === '42501') {
+          // Permission denied - auth.uid() is NULL
+          findings.authUidWorks = false;
+          recommendations.push('❌ auth.uid() returns NULL - RLS permission denied on profiles table');
+          findings.specificError = 'Permission denied (42501) - auth.uid() is NULL in database context';
 
-        if (createError) {
-          if (createError.code === '42501') {
-            // Permission denied - this means JWT is not working
-            findings.databaseReceivesJWT = false;
-            findings.authUidWorks = false;
-            recommendations.push('Database rejects request - auth.uid() is NULL');
-            findings.specificError = 'Permission denied (42501) - JWT not processed by database';
+          // Test 2: Try a table that might not have RLS
+          console.log('🔍 Testing with trip_templates (non-RLS table)...');
+          const { data: templateData, error: templateError } = await supabase
+            .from('trip_templates')
+            .select('id')
+            .limit(1);
+
+          if (templateError) {
+            recommendations.push('❌ Even non-RLS table access failed - deeper auth issue');
           } else {
-            findings.databaseReceivesJWT = true; // Request reached database
-            findings.authUidWorks = false; // But auth didn't work
-            recommendations.push('Database receives request but auth.uid() still NULL');
-            findings.specificError = createError.message;
+            recommendations.push('✅ Non-RLS table works - confirms auth.uid() RLS issue');
           }
         } else {
-          // No error - this means the request worked
-          findings.databaseReceivesJWT = true;
-          findings.authUidWorks = true;
-          recommendations.push('✅ JWT transmission is working! auth.uid() should be functional');
-        }
-      } else if (testError) {
-        findings.databaseReceivesJWT = true; // Function call reached database
-        findings.specificError = testError.message;
-
-        if (testError.code === '42501') {
           findings.authUidWorks = false;
-          recommendations.push('Database receives JWT but auth.uid() returns NULL');
-        } else {
-          recommendations.push('Database error (not auth related): ' + testError.message);
+          recommendations.push('Database error (not auth related): ' + profileError.message);
+          findings.specificError = profileError.message;
         }
-      } else {
+      } else if (profileData) {
+        // Success! This means auth.uid() is working
         findings.databaseReceivesJWT = true;
         findings.authUidWorks = true;
-        recommendations.push('✅ JWT transmission working properly');
+        recommendations.push('✅ auth.uid() is working! Retrieved profile data successfully');
+
+        // Test 3: Verify the user ID matches
+        if (session?.user?.id && profileData[0]?.user_id === session.user.id) {
+          recommendations.push('✅ User ID matches between session and database - auth context is correct');
+        } else {
+          recommendations.push('⚠️ User ID mismatch between session and database');
+        }
+      } else {
+        // No data but no error - might be empty table
+        findings.databaseReceivesJWT = true;
+        findings.authUidWorks = true;
+        recommendations.push('✅ Database access successful (no data found, but no permission error)');
+      }
+
+      // Test 4: Try user_settings table (this was the original failing table)
+      console.log('🔍 Testing auth.uid() with user_settings table...');
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('user_settings')
+        .select('user_id')
+        .limit(1);
+
+      if (settingsError) {
+        if (settingsError.code === '42501') {
+          recommendations.push('❌ user_settings table also has RLS permission denied - confirms auth.uid() issue');
+        } else {
+          recommendations.push(`⚠️ user_settings error: ${settingsError.message}`);
+        }
+      } else {
+        recommendations.push('✅ user_settings table accessible - auth.uid() working for this table too');
       }
 
     } catch (dbError) {
+      findings.databaseReceivesJWT = false;
       recommendations.push('Cannot connect to database: ' + dbError.message);
       findings.specificError = dbError.message;
     }
