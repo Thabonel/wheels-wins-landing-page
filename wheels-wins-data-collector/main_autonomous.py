@@ -410,7 +410,9 @@ class AutonomousCollector:
                 'title': item.get('name', 'Unnamed Location'),
                 'description': item.get('description', '')[:500],
                 'category': category_map.get(data_type, 'adventure'),
+                'template_type': 'system',  # Mark as system template
                 'is_public': True,
+                'is_featured': item.get('rating', 0) >= 4.0,  # Feature high-rated locations
                 'tags': tags[:10],  # Limit tags
                 'media_urls': media_urls,  # JSONB array of photo URLs
                 'route_data': {
@@ -440,8 +442,9 @@ class AutonomousCollector:
                         'type': data_type
                     }
                 ] if item.get('latitude') and item.get('longitude') else [],
-                'duration_days': 1,  # Default single day trip
-                'difficulty_level': 'moderate'
+                'estimated_duration': self._estimate_duration(data_type, item),
+                'difficulty_level': self._estimate_difficulty(data_type, item),
+                'usage_count': 0
             }
             
             return template
@@ -457,6 +460,51 @@ class AutonomousCollector:
             data_type = item.get('category', 'unknown')
             counts[data_type] = counts.get(data_type, 0) + 1
         return counts
+
+    def _estimate_duration(self, data_type: str, item: Dict) -> int:
+        """Estimate trip duration in hours based on type and features"""
+        base_durations = {
+            'camping': 24,      # Full day/overnight
+            'parks': 8,         # Day visit
+            'attractions': 4,   # Half day
+            'swimming': 3       # Few hours
+        }
+
+        base = base_durations.get(data_type, 6)
+
+        # Adjust based on features
+        if item.get('amenities', {}).get('overnight_camping'):
+            base += 16  # Add overnight component
+        if item.get('amenities', {}).get('hiking_trails'):
+            base += 2   # Add hiking time
+        if item.get('is_free'):
+            base += 1   # Free spots often require more time to access
+
+        return min(base, 72)  # Cap at 3 days
+
+    def _estimate_difficulty(self, data_type: str, item: Dict) -> str:
+        """Estimate difficulty level based on type and accessibility"""
+        # Default difficulties by type
+        defaults = {
+            'camping': 'moderate',
+            'parks': 'easy',
+            'attractions': 'easy',
+            'swimming': 'easy'
+        }
+
+        difficulty = defaults.get(data_type, 'easy')
+
+        # Increase difficulty based on features
+        if item.get('access_requirements') == '4wd_only':
+            difficulty = 'hard'
+        elif item.get('amenities', {}).get('remote_location'):
+            difficulty = 'moderate' if difficulty == 'easy' else 'hard'
+        elif not item.get('amenities', {}).get('facilities'):
+            # No facilities = higher difficulty
+            if difficulty == 'easy':
+                difficulty = 'moderate'
+
+        return difficulty
 
 async def main():
     """Main entry point for Render cron job"""
