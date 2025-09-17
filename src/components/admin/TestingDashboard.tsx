@@ -18,7 +18,7 @@ import {
 import { useTestMetrics } from '../../hooks/useTestMetrics';
 import { SentryDemo } from './SentryDemo';
 
-export function TestingDashboard() {
+function TestingDashboard() {
   const { metrics, testFiles, isLoading, lastRefresh, refreshMetrics, runTests } = useTestMetrics();
 
   const getCoverageColor = (percentage: number) => {
@@ -322,3 +322,5 @@ export function TestingDashboard() {
     </div>
   );
 }
+
+export default TestingDashboard;
