@@ -19,7 +19,8 @@ import {
   MessageCircle,
   Database,
   MapPin,
-  Bug
+  Bug,
+  Zap
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -49,6 +50,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { name: 'Learning Dashboard', icon: Brain },
     { name: 'AI Observability', icon: Activity },
     { name: 'Testing Dashboard', icon: TestTube },
+    { name: 'Performance Test', icon: Zap },
     { name: 'Auth Debug', icon: Bug },
     { name: 'Shop Management', icon: ShoppingCart },
     { name: 'Trip Templates', icon: MapPin },
