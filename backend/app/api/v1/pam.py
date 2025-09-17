@@ -4713,3 +4713,313 @@ async def pam_debug_endpoint(current_user = Depends(get_current_user)):
             "message": "The debug endpoint encountered an error",
             "error": str(e)
         }
+
+
+# =====================================================
+# PAM SAVINGS GUARANTEE ENDPOINTS
+# =====================================================
+
+from decimal import Decimal
+from app.services.savings_calculator import (
+    PamSavingsCalculator,
+    SavingsEvent,
+    SavingsType,
+    VerificationMethod,
+    GuaranteeStatus
+)
+
+# Initialize savings calculator
+savings_calculator = PamSavingsCalculator()
+
+
+class RecordSavingsRequest(BaseModel):
+    """Request model for recording a savings event"""
+    savings_type: str
+    predicted_savings: float
+    actual_savings: float
+    baseline_cost: float
+    optimized_cost: float
+    description: str
+    verification_method: str
+    confidence_score: Optional[float] = 0.8
+    location: Optional[List[float]] = None
+    category: Optional[str] = "other"
+    recommendation_id: Optional[str] = None
+
+
+class CreateRecommendationRequest(BaseModel):
+    """Request model for creating a recommendation with savings prediction"""
+    title: str
+    description: str
+    category: str
+    predicted_savings: float
+    confidence: Optional[float] = 0.7
+
+
+class DetectSavingsRequest(BaseModel):
+    """Request model for automatic savings detection"""
+    expense_amount: float
+    category: str
+    location: Optional[List[float]] = None
+    description: Optional[str] = ""
+
+
+@router.post("/savings/record", response_model=SuccessResponse)
+async def record_savings_event(
+    request: RecordSavingsRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Record a PAM savings event when the AI helps a user save money
+    """
+    try:
+        # Create savings event
+        savings_event = SavingsEvent(
+            user_id=str(current_user.id),
+            savings_type=SavingsType(request.savings_type),
+            predicted_savings=Decimal(str(request.predicted_savings)),
+            actual_savings=Decimal(str(request.actual_savings)),
+            baseline_cost=Decimal(str(request.baseline_cost)),
+            optimized_cost=Decimal(str(request.optimized_cost)),
+            description=request.description,
+            verification_method=VerificationMethod(request.verification_method),
+            confidence_score=request.confidence_score,
+            location=tuple(request.location) if request.location else None,
+            category=request.category,
+            recommendation_id=request.recommendation_id
+        )
+
+        # Record the event
+        event_id = await savings_calculator.record_savings_event(savings_event)
+
+        logger.info(f"Recorded savings event {event_id} for user {current_user.id}")
+
+        return SuccessResponse(
+            success=True,
+            message=f"Savings event recorded successfully",
+            data={"event_id": event_id}
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to record savings event: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to record savings event: {str(e)}"
+        )
+
+
+@router.get("/savings/monthly-summary")
+async def get_monthly_savings_summary(
+    month: Optional[str] = Query(None, description="YYYY-MM-DD format"),
+    current_user = Depends(get_current_user)
+):
+    """
+    Get monthly savings summary for the user
+    """
+    try:
+        # Parse month or use current month
+        if month:
+            target_month = date.fromisoformat(month)
+        else:
+            target_month = date.today().replace(day=1)
+
+        # Get monthly summary
+        summary = await savings_calculator.get_monthly_savings_summary(
+            str(current_user.id),
+            target_month
+        )
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "success": True,
+                "summary": summary
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get monthly savings summary: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to get monthly savings summary: {str(e)}"
+        )
+
+
+@router.get("/savings/guarantee-status")
+async def get_guarantee_status(
+    month: Optional[str] = Query(None, description="YYYY-MM-DD format"),
+    current_user = Depends(get_current_user)
+):
+    """
+    Check savings guarantee status for a billing period
+    """
+    try:
+        # Parse month or use current month
+        if month:
+            target_month = date.fromisoformat(month)
+        else:
+            target_month = date.today().replace(day=1)
+
+        # Evaluate guarantee status
+        guarantee_status = await savings_calculator.evaluate_savings_guarantee(
+            str(current_user.id),
+            target_month
+        )
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "success": True,
+                "guarantee_status": {
+                    "guarantee_met": guarantee_status.guarantee_met,
+                    "total_savings": float(guarantee_status.total_savings),
+                    "subscription_cost": float(guarantee_status.subscription_cost),
+                    "savings_shortfall": float(guarantee_status.savings_shortfall),
+                    "savings_events_count": guarantee_status.savings_events_count,
+                    "billing_period_start": guarantee_status.billing_period_start.isoformat(),
+                    "billing_period_end": guarantee_status.billing_period_end.isoformat(),
+                    "percentage_achieved": guarantee_status.percentage_achieved
+                }
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get guarantee status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to get guarantee status: {str(e)}"
+        )
+
+
+@router.post("/recommendations/with-savings-prediction", response_model=SuccessResponse)
+async def create_recommendation_with_savings(
+    request: CreateRecommendationRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Create a PAM recommendation with savings prediction
+    """
+    try:
+        # Create recommendation with savings
+        recommendation_id = await savings_calculator.create_recommendation_with_savings(
+            user_id=str(current_user.id),
+            title=request.title,
+            description=request.description,
+            category=request.category,
+            predicted_savings=Decimal(str(request.predicted_savings)),
+            confidence=request.confidence
+        )
+
+        logger.info(f"Created recommendation {recommendation_id} with ${request.predicted_savings} predicted savings")
+
+        return SuccessResponse(
+            success=True,
+            message="Recommendation created successfully",
+            data={
+                "recommendation_id": recommendation_id,
+                "predicted_savings": request.predicted_savings
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to create recommendation: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create recommendation: {str(e)}"
+        )
+
+
+@router.post("/savings/detect")
+async def detect_savings(
+    request: DetectSavingsRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Automatically detect potential savings from an expense
+    """
+    try:
+        # Detect savings based on expense category
+        savings_event = None
+
+        if request.category == "fuel":
+            savings_event = await savings_calculator.detect_fuel_savings(
+                user_id=str(current_user.id),
+                expense_amount=Decimal(str(request.expense_amount)),
+                location=tuple(request.location) if request.location else (0, 0),
+                description=request.description or ""
+            )
+        elif request.category in ["camping", "lodging"]:
+            savings_event = await savings_calculator.detect_camping_savings(
+                user_id=str(current_user.id),
+                expense_amount=Decimal(str(request.expense_amount)),
+                location=tuple(request.location) if request.location else (0, 0),
+                description=request.description or ""
+            )
+
+        if savings_event:
+            # Record the detected savings
+            event_id = await savings_calculator.record_savings_event(savings_event)
+
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    "success": True,
+                    "savings_detected": True,
+                    "savings_event": {
+                        "event_id": event_id,
+                        "actual_savings": float(savings_event.actual_savings),
+                        "baseline_cost": float(savings_event.baseline_cost),
+                        "optimized_cost": float(savings_event.optimized_cost),
+                        "description": savings_event.description,
+                        "confidence_score": savings_event.confidence_score
+                    }
+                }
+            )
+        else:
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    "success": True,
+                    "savings_detected": False,
+                    "message": "No significant savings detected for this expense"
+                }
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to detect savings: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to detect savings: {str(e)}"
+        )
+
+
+@router.get("/savings/recent")
+async def get_recent_savings(
+    limit: int = Query(10, description="Number of recent savings events to return"),
+    current_user = Depends(get_current_user)
+):
+    """
+    Get recent savings events for the user
+    """
+    try:
+        # Get recent savings events
+        recent_events = await savings_calculator.get_recent_savings_events(
+            user_id=str(current_user.id),
+            limit=limit
+        )
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "success": True,
+                "events": recent_events,
+                "count": len(recent_events)
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get recent savings: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to get recent savings: {str(e)}"
+        )
