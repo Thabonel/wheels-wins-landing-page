@@ -319,32 +319,32 @@ const AuthDebugAdmin: React.FC = () => {
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
               <Badge variant="outline">Emergency</Badge>
-              <code className="text-xs">docs/sql-fixes/20250916_emergency_auth_fix.sql</code>
+              <code className="text-xs">launch-preparation/sql-scripts/20250916_emergency_auth_fix.sql</code>
               <span className="text-gray-600">- Apply temporary permissive policies</span>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline">Diagnostic</Badge>
-              <code className="text-xs">docs/sql-fixes/20250916_targeted_auth_uid_fix.sql</code>
+              <code className="text-xs">launch-preparation/sql-scripts/20250916_targeted_auth_uid_fix.sql</code>
               <span className="text-gray-600">- Diagnose auth.uid() issues</span>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline">Restore</Badge>
-              <code className="text-xs">docs/sql-fixes/20250916_restore_proper_rls_policies.sql</code>
+              <code className="text-xs">launch-preparation/sql-scripts/20250916_restore_proper_rls_policies.sql</code>
               <span className="text-gray-600">- Restore proper RLS policies when fixed</span>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline">User Settings</Badge>
-              <code className="text-xs">docs/sql-fixes/20250117_diagnose_user_settings.sql</code>
+              <code className="text-xs">launch-preparation/sql-scripts/20250117_diagnose_user_settings.sql</code>
               <span className="text-gray-600">- Diagnose user_settings RLS issues</span>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline">Fix Settings</Badge>
-              <code className="text-xs">docs/sql-fixes/20250117_fix_user_settings_rls.sql</code>
+              <code className="text-xs">launch-preparation/sql-scripts/20250117_fix_user_settings_rls.sql</code>
               <span className="text-gray-600">- Fix user_settings table RLS policies</span>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline">CORRECTED Fix</Badge>
-              <code className="text-xs">docs/sql-fixes/20250117_fix_user_settings_rls_corrected.sql</code>
+              <code className="text-xs">launch-preparation/sql-scripts/20250117_fix_user_settings_rls_corrected.sql</code>
               <span className="text-gray-600">- Clean fix for conflicting RLS policies</span>
             </div>
           </div>
