@@ -123,7 +123,7 @@ export async function testRealJWTTransmission(): Promise<{
         recommendations.push('✅ Database access successful (no data found, but no permission error)');
       }
 
-      // Test 4: Try user_settings table (this was the original failing table)
+      // Test 4: Try user_settings table (RLS policies were recently fixed)
       console.log('🔍 Testing auth.uid() with user_settings table...');
       const { data: settingsData, error: settingsError } = await supabase
         .from('user_settings')
@@ -132,12 +132,14 @@ export async function testRealJWTTransmission(): Promise<{
 
       if (settingsError) {
         if (settingsError.code === '42501') {
-          recommendations.push('❌ user_settings table also has RLS permission denied - confirms auth.uid() issue');
+          recommendations.push('❌ user_settings table RLS permission denied - may need to run CORRECTED Fix script');
         } else {
           recommendations.push(`⚠️ user_settings error: ${settingsError.message}`);
         }
+      } else if (settingsData && settingsData.length > 0) {
+        recommendations.push('✅ user_settings table accessible with data - RLS policies working correctly');
       } else {
-        recommendations.push('✅ user_settings table accessible - auth.uid() working for this table too');
+        recommendations.push('✅ user_settings table accessible - RLS policies allow access (no data found)');
       }
 
     } catch (dbError) {
