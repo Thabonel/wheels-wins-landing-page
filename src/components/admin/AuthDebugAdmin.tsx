@@ -332,6 +332,16 @@ const AuthDebugAdmin: React.FC = () => {
               <code className="text-xs">docs/sql-fixes/20250916_restore_proper_rls_policies.sql</code>
               <span className="text-gray-600">- Restore proper RLS policies when fixed</span>
             </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">User Settings</Badge>
+              <code className="text-xs">docs/sql-fixes/20250117_diagnose_user_settings.sql</code>
+              <span className="text-gray-600">- Diagnose user_settings RLS issues</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">Fix Settings</Badge>
+              <code className="text-xs">docs/sql-fixes/20250117_fix_user_settings_rls.sql</code>
+              <span className="text-gray-600">- Fix user_settings table RLS policies</span>
+            </div>
           </div>
         </CardContent>
       </Card>
