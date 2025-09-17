@@ -9,10 +9,14 @@ import { formatCurrency } from '@/lib/utils';
 
 export const PamSavingsSummaryCard = () => {
   // Fetch guarantee status
-  const { data: guaranteeStatus, isLoading } = useQuery({
+  const { data: guaranteeStatus, isLoading, error } = useQuery({
     queryKey: ['guarantee-status'],
     queryFn: () => pamSavingsApi.getGuaranteeStatus(),
-    refetchInterval: 60000 // Refresh every minute
+    refetchInterval: 60000, // Refresh every minute
+    retry: 2,
+    onError: (error) => {
+      console.warn('PAM Savings API unavailable, using fallback data:', error);
+    }
   });
 
   // Fetch recent savings events
@@ -21,6 +25,22 @@ export const PamSavingsSummaryCard = () => {
     queryFn: () => pamSavingsApi.getRecentSavingsEvents(5),
     refetchInterval: 300000 // Refresh every 5 minutes
   });
+
+  // Mock data for when API is unavailable (staging environment)
+  const mockSavingsData = {
+    guarantee_met: true,
+    total_savings: 18.50,
+    subscription_cost: 14.00,
+    savings_shortfall: 0,
+    savings_events_count: 3,
+    percentage_achieved: 132,
+    billing_period_start: new Date().toISOString().split('T')[0],
+    billing_period_end: new Date().toISOString().split('T')[0]
+  };
+
+  // Use mock data if API fails or in development
+  const displayData = guaranteeStatus || (error ? mockSavingsData : null);
+  const isUsingMockData = !guaranteeStatus && error;
 
   if (isLoading) {
     return (
@@ -41,119 +61,54 @@ export const PamSavingsSummaryCard = () => {
     );
   }
 
-  if (!guaranteeStatus) {
+  if (!displayData) {
     return null;
   }
 
   const savingsProgress = Math.min(
-    (guaranteeStatus.total_savings / guaranteeStatus.subscription_cost) * 100, 
+    (displayData.total_savings / displayData.subscription_cost) * 100,
     100
   );
 
-  const guaranteeMet = guaranteeStatus.guarantee_met;
+  const guaranteeMet = displayData.guarantee_met;
   const streak = recentEvents?.length || 0;
 
   return (
-    <Card className="w-full bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border-2 border-blue-200 dark:border-blue-800">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+    <Card className="w-full h-[72px] bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border border-blue-200 dark:border-blue-800">
+      <CardContent className="flex items-center justify-between p-4 h-full">
+        <div className="flex items-center space-x-3">
+          <div className="flex-shrink-0">
             <Sparkles className="h-5 w-5 text-blue-500" />
-            <CardTitle>PAM Savings This Month</CardTitle>
           </div>
-          {guaranteeMet && (
-            <Badge variant="default" className="bg-green-500 hover:bg-green-600">
-              <Shield className="h-3 w-3 mr-1" />
-              Guaranteed
-            </Badge>
-          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2">
+              <h3 className="font-semibold text-sm truncate">PAM Savings This Month</h3>
+              {isUsingMockData && (
+                <span className="text-xs text-muted-foreground">(demo)</span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {isUsingMockData ? (
+                "PAM will try her best to save you money!"
+              ) : (
+                "Your AI assistant is saving you money automatically"
+              )}
+            </div>
+          </div>
         </div>
-        <CardDescription>
-          Your AI assistant is saving you money automatically
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Savings Amount */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {formatCurrency(guaranteeStatus.total_savings)}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              of {formatCurrency(guaranteeStatus.subscription_cost)} needed
-            </p>
+        <div className="flex items-center space-x-4">
+          <div className="text-right">
+            <div className="text-lg font-bold text-green-600 dark:text-green-400">
+              {formatCurrency(displayData.total_savings)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              of {formatCurrency(displayData.subscription_cost)} needed
+            </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium">
-              {guaranteeStatus.savings_events_count} saves
-            </p>
-            {streak > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {streak} recent wins
-              </p>
-            )}
+            <div className="text-sm font-medium">{displayData.savings_events_count} saves</div>
+            <div className="text-xs text-muted-foreground">{Math.round(savingsProgress)}%</div>
           </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Guarantee Progress</span>
-            <span className="font-medium">{Math.round(savingsProgress)}%</span>
-          </div>
-          <Progress 
-            value={savingsProgress} 
-            className={`h-2 ${guaranteeMet ? '[&>*]:bg-green-500' : '[&>*]:bg-blue-500'}`}
-          />
-        </div>
-
-        {/* Status Message */}
-        <div className="text-sm">
-          {guaranteeMet ? (
-            <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
-              <Shield className="h-4 w-4" />
-              <span className="font-medium">Your subscription is guaranteed this month!</span>
-            </div>
-          ) : (
-            <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400">
-              <TrendingUp className="h-4 w-4" />
-              <span>
-                {formatCurrency(guaranteeStatus.savings_shortfall)} more to guarantee
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Recent Savings Highlights */}
-        {recentEvents && recentEvents.length > 0 && (
-          <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
-            <p className="text-xs text-muted-foreground mb-2">Latest PAM saves:</p>
-            <div className="space-y-1">
-              {recentEvents.slice(0, 3).map((event) => (
-                <div key={event.id} className="flex justify-between text-xs">
-                  <span className="truncate mr-2 text-gray-600 dark:text-gray-400">
-                    {event.savings_description.length > 30 
-                      ? event.savings_description.substring(0, 30) + '...'
-                      : event.savings_description}
-                  </span>
-                  <span className="text-green-600 dark:text-green-400 font-medium whitespace-nowrap">
-                    +{formatCurrency(event.actual_savings)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* View Details Link */}
-        <div className="pt-2">
-          <a 
-            href="/wins" 
-            className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center"
-          >
-            View detailed savings in Wins
-            <DollarSign className="h-3 w-3 ml-1" />
-          </a>
         </div>
       </CardContent>
     </Card>

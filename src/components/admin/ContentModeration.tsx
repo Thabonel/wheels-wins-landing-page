@@ -41,10 +41,21 @@ const ContentModeration = () => {
 
       setFlaggedContent(data || []);
       toast.success("Flagged content refreshed");
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching flagged content:', err);
-      setError("Failed to fetch flagged content");
-      toast.error("Failed to fetch flagged content");
+
+      // Provide more specific error messages
+      let errorMessage = "Failed to fetch flagged content";
+      if (err?.code === '42501') {
+        errorMessage = "Permission denied: Admin access required for content moderation";
+      } else if (err?.code === '42P01') {
+        errorMessage = "Content moderation table not found - database setup needed";
+      } else if (err?.message) {
+        errorMessage = `Error: ${err.message}`;
+      }
+
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -189,8 +200,25 @@ const ContentModeration = () => {
               <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
             </div>
           ) : error ? (
-            <div className="text-center py-8">
-              <p className="text-red-500">Error: {error}</p>
+            <div className="text-center py-8 space-y-4">
+              <div className="max-w-md mx-auto">
+                <p className="text-red-500 font-medium">{error}</p>
+                {error.includes("Permission denied") && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Database Setup Required:</strong><br/>
+                      Run the SQL fix in <code>docs/sql-fixes/fix-content-moderation-rls.sql</code> to enable admin access to content moderation.
+                    </p>
+                  </div>
+                )}
+                {error.includes("table not found") && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-sm text-blue-800">
+                      The content_moderation table needs to be created in the database.
+                    </p>
+                  </div>
+                )}
+              </div>
               <Button onClick={fetchFlaggedContent} className="mt-4">
                 Retry
               </Button>
