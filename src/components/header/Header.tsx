@@ -38,12 +38,16 @@ const Header = () => {
       {/* Navigation - Show when authenticated */}
       <NavigationLinks isVisible={showNavigation} />
       {/* Auth Buttons */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-2 sm:space-x-4">
         {/* Show Shop and Login buttons on homepage when not authenticated */}
         {isHomePage && !isAuthenticated && !isDevMode && (
           <>
             <Link to="/shop">
-              <Button variant="outline" className="bg-white text-primary border-primary hover:bg-primary/10">
+              <Button
+                variant="outline"
+                className="bg-white text-primary border-primary hover:bg-primary/10 min-h-[44px] px-3 sm:px-4"
+                size="sm"
+              >
                 Shop
               </Button>
             </Link>
@@ -52,11 +56,17 @@ const Header = () => {
         )}
         {/* Show user menu when authenticated */}
         {showUserMenu && <UserMenu />}
-        
+
         {/* Show auth link for non-homepage, non-authenticated users */}
         {!isHomePage && !isAuthenticated && !isDevMode && (
           <Link to="/login">
-            <Button variant="default">Sign In</Button>
+            <Button
+              variant="default"
+              className="min-h-[44px] px-3 sm:px-4"
+              size="sm"
+            >
+              Sign In
+            </Button>
           </Link>
         )}
       </div>
