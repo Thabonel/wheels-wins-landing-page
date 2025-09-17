@@ -1,5 +1,4 @@
-// PAM Service Configuration - Simplified for Phase 1
-// WebSocket implementation moved to usePamWebSocket hook
+// PAM Service Configuration - WebSocket handled by usePamWebSocketCore hook
 
 export const PAM_CONFIG = {
   // Primary PAM WebSocket endpoints (production ready)

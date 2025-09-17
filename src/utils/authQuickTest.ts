@@ -88,20 +88,22 @@ export async function quickAuthTest(): Promise<{
     });
   }
 
-  // Step 4: Test custom RPC function if it exists
+  // Step 4: Test user_settings table (the main problematic table)
   try {
     const { data, error } = await supabase
-      .rpc('get_user_id_alternative');
+      .from('user_settings')
+      .select('user_id')
+      .limit(1);
 
     results.push({
-      step: '4. Alternative Auth Function',
+      step: '4. User Settings Access',
       success: !error,
-      details: { userId: data },
+      details: { data, rowCount: data?.length || 0 },
       error: error?.message
     });
   } catch (err) {
     results.push({
-      step: '4. Alternative Auth Function',
+      step: '4. User Settings Access',
       success: false,
       details: null,
       error: err.message
@@ -221,7 +223,7 @@ export async function runQuickDiagnosis(): Promise<void> {
   // Analysis
   const sessionTest = testResults.find(r => r.step.includes('Session'));
   const rlsTest = testResults.find(r => r.step.includes('RLS Protected'));
-  const altTest = testResults.find(r => r.step.includes('Alternative'));
+  const settingsTest = testResults.find(r => r.step.includes('User Settings'));
 
   console.log('\n🔍 Analysis:');
 
@@ -229,9 +231,10 @@ export async function runQuickDiagnosis(): Promise<void> {
     console.log('   ❌ PRIMARY ISSUE: Cannot get session - user needs to sign in');
   } else if (!rlsTest?.success && rlsTest?.error?.includes('42501')) {
     console.log('   ❌ PRIMARY ISSUE: RLS permission denied - auth.uid() returning null');
-    if (altTest?.success) {
-      console.log('   ✅ Alternative auth function works - use as workaround');
-    }
+  } else if (rlsTest?.success && settingsTest?.success) {
+    console.log('   ✅ Both RLS and user_settings working - authentication is functional');
+  } else if (rlsTest?.success && !settingsTest?.success) {
+    console.log('   ⚠️ RLS working but user_settings failing - check RLS policies on user_settings');
   } else if (rlsTest?.success) {
     console.log('   ✅ RLS is working - auth.uid() seems to be functional');
     console.log('   💡 Original issue may be resolved');

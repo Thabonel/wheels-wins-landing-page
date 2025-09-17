@@ -1,18 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-// import { usePamWebSocketConnection } from '@/hooks/usePamWebSocketAdapter'; // DISABLED: Using main PAM WebSocket
-
 export default function ExpenseInput() {
   const { user, token } = useAuth();
   const [input, setInput] = useState('');
-
-  // DISABLED: Using main PAM WebSocket connection instead to avoid duplicates
-  // const { isConnected, sendMessage } = usePamWebSocketConnection({
-  //   userId: user?.id || 'anonymous',
-  //   token,
-  //   onMessage: () => {},
-  //   onStatusChange: () => {}
-  // });
   
   // Temporary placeholders for disabled WebSocket
   const isConnected = false;
