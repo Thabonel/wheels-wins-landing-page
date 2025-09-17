@@ -1,9 +1,9 @@
-import { supabase } from '../../integrations/supabase/client';
+import { addDays, subDays, format } from 'date-fns';
+import { BaseMLEngine } from './BaseMLEngine';
 import { tripRecommendationEngine } from './tripRecommendationEngine';
 import { financialForecastingEngine } from './financialForecastingEngine';
 import { userBehaviorPredictionEngine } from './userBehaviorPredictionEngine';
 import { aiBudgetAssistant } from './aiBudgetAssistant';
-import { addDays, subDays, format } from 'date-fns';
 
 interface UserPersonality {
   risk_tolerance: 'conservative' | 'moderate' | 'aggressive';
@@ -48,879 +48,746 @@ interface PersonalizationProfile {
   last_updated: string;
 }
 
-interface PersonalizedContent {
-  content_type: 'dashboard_widget' | 'notification' | 'recommendation' | 'tip' | 'tutorial' | 'alert';
+interface PersonalizedRecommendation {
+  id: string;
+  type: 'ui_adjustment' | 'workflow_suggestion' | 'feature_highlight' | 'content_curation' | 'reminder_optimization';
   priority: 'low' | 'medium' | 'high' | 'critical';
   title: string;
   description: string;
-  content: any;
-  display_until: string;
+  implementation: {
+    component: string;
+    changes: Record<string, any>;
+    duration: number;
+    reversible: boolean;
+  };
+  expected_impact: {
+    engagement_lift: number;
+    efficiency_gain: number;
+    satisfaction_score: number;
+  };
   conditions: {
-    min_engagement_score?: number;
-    required_features?: string[];
-    exclude_if_completed?: string[];
-    time_restrictions?: { start_hour: number; end_hour: number };
+    user_segments: string[];
+    time_constraints?: string[];
+    feature_dependencies?: string[];
   };
   personalization_score: number;
+  created_at: string;
 }
 
-interface DynamicUI {
-  layout_configuration: {
+interface DynamicUIConfig {
+  layout: {
     grid_columns: number;
     widget_sizes: Record<string, 'small' | 'medium' | 'large'>;
-    widget_positions: Record<string, { x: number; y: number }>;
-    hidden_widgets: string[];
     quick_access_items: string[];
+    hidden_widgets: string[];
   };
-  interaction_adaptations: {
-    confirmation_dialogs: boolean;
-    auto_save_frequency: number;
-    tooltip_verbosity: 'minimal' | 'standard' | 'detailed';
-    keyboard_shortcuts_enabled: boolean;
-    gesture_controls: boolean;
+  styling: {
+    color_scheme: 'light' | 'dark' | 'auto' | 'custom';
+    font_size: 'small' | 'medium' | 'large';
+    animation_level: 'none' | 'minimal' | 'standard' | 'enhanced';
+    density: 'compact' | 'comfortable' | 'spacious';
   };
-  visual_adaptations: {
-    color_scheme: string;
-    font_size_multiplier: number;
-    contrast_level: 'normal' | 'high';
-    animation_level: 'none' | 'reduced' | 'full';
-    icon_style: 'minimal' | 'detailed';
+  interaction: {
+    click_targets: 'small' | 'medium' | 'large';
+    gesture_sensitivity: number;
+    keyboard_shortcuts: boolean;
+    voice_commands: boolean;
+  };
+  content: {
+    detail_level: 'minimal' | 'standard' | 'detailed';
+    chart_preferences: string[];
+    default_time_range: number;
+    auto_refresh: boolean;
   };
 }
 
-export class UserExperiencePersonalizer {
-  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
-  private readonly CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+/**
+ * User Experience Personalizer - Refactored to extend BaseMLEngine
+ *
+ * Provides comprehensive UI/UX personalization based on user behavior and preferences.
+ * Now uses shared functionality from BaseMLEngine, eliminating duplicate code.
+ */
+export class UserExperiencePersonalizer extends BaseMLEngine {
   private readonly PROFILE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-  private getCachedData<T>(key: string): T | null {
-    const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      return cached.data as T;
-    }
-    this.cache.delete(key);
-    return null;
-  }
-
-  private setCachedData(key: string, data: any, customTtl?: number): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl: customTtl || this.CACHE_TTL
+  constructor() {
+    super({
+      cacheTTL: 6 * 60 * 60 * 1000, // 6 hours for personalization data
+      enableLogging: true,
+      maxRetries: 3
     });
   }
 
-  async getPersonalizationProfile(userId: string, options: {
-    force_refresh?: boolean;
-    include_predictions?: boolean;
-  } = {}): Promise<PersonalizationProfile | null> {
-    const { force_refresh = false, include_predictions = true } = options;
-
-    const cacheKey = `profile_${userId}`;
-    if (!force_refresh) {
-      const cached = this.getCachedData<PersonalizationProfile>(cacheKey);
-      if (cached) return cached;
-    }
-
-    try {
-      // Get base user data
-      const { data: userData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (!userData) return null;
-
-      // Get user preferences
-      const { data: preferencesData } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      // Get behavioral data
-      const behaviorData = include_predictions
-        ? await userBehaviorPredictionEngine.getUserBehaviorData(userId)
-        : null;
-
-      // Get historical interactions
-      const interactionHistory = await this.getInteractionHistory(userId);
-
-      // Analyze personality traits
-      const personality = await this.analyzeUserPersonality(userId, behaviorData, interactionHistory);
-
-      // Build behavioral patterns
-      const behavioralPatterns = this.analyzeBehavioralPatterns(behaviorData, interactionHistory);
-
-      // Build context awareness
-      const contextAwareness = await this.buildContextAwareness(userId, interactionHistory);
-
-      // Build learning history
-      const learningHistory = await this.getLearningHistory(userId);
-
-      // Build preferences with defaults
-      const preferences = {
-        dashboard_layout: preferencesData?.dashboard_layout || this.getDefaultDashboardLayout(personality),
-        default_currency: preferencesData?.default_currency || 'USD',
-        date_format: preferencesData?.date_format || 'MM/dd/yyyy',
-        theme: preferencesData?.theme || 'auto',
-        quick_actions: preferencesData?.quick_actions || this.getDefaultQuickActions(personality),
-        favorite_categories: preferencesData?.favorite_categories || [],
-        hidden_features: preferencesData?.hidden_features || []
-      };
-
-      const profile: PersonalizationProfile = {
-        user_id: userId,
-        personality,
-        preferences,
-        behavioral_patterns: behavioralPatterns,
-        context_awareness: contextAwareness,
-        learning_history: learningHistory,
-        last_updated: new Date().toISOString()
-      };
-
-      this.setCachedData(cacheKey, profile, this.PROFILE_CACHE_TTL);
-      return profile;
-
-    } catch (error) {
-      console.error('Error getting personalization profile:', error);
-      return null;
-    }
+  getName(): string {
+    return 'User Experience Personalizer';
   }
 
-  private async analyzeUserPersonality(userId: string, behaviorData: any, interactionHistory: any[]): Promise<UserPersonality> {
-    // Risk tolerance analysis
-    let riskTolerance: UserPersonality['risk_tolerance'] = 'moderate';
-    if (behaviorData) {
-      if (behaviorData.engagement_score > 80 && behaviorData.feature_usage['advanced_features'] > 10) {
-        riskTolerance = 'aggressive';
-      } else if (behaviorData.engagement_score < 40 || behaviorData.activity_pattern === 'declining') {
-        riskTolerance = 'conservative';
-      }
+  getVersion(): string {
+    return '2.0.0';
+  }
+
+  async getPersonalizationProfile(userId: string): Promise<PersonalizationProfile> {
+    this.validateUserId(userId);
+
+    const cacheKey = this.getCacheKey(userId, 'personalization_profile');
+    const cached = this.getFromCache<PersonalizationProfile>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const profile = await this.buildPersonalizationProfile(userId);
+      this.setCache(cacheKey, profile, this.PROFILE_CACHE_TTL);
+      return profile;
+    }, 'getPersonalizationProfile');
+  }
+
+  async generatePersonalizedRecommendations(
+    userId: string,
+    context: {
+      current_page?: string;
+      time_of_day?: string;
+      recent_actions?: string[];
+      session_duration?: number;
+    } = {}
+  ): Promise<PersonalizedRecommendation[]> {
+    this.validateUserId(userId);
+
+    const cacheKey = this.getCacheKey(userId, 'recommendations', context);
+    const cached = this.getFromCache<PersonalizedRecommendation[]>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const [profile, behaviorData] = await Promise.all([
+        this.getPersonalizationProfile(userId),
+        userBehaviorPredictionEngine.getUserBehaviorData(userId)
+      ]);
+
+      const recommendations = this.generateRecommendations(profile, behaviorData, context);
+      this.setCache(cacheKey, recommendations);
+
+      return recommendations;
+    }, 'generatePersonalizedRecommendations', []);
+  }
+
+  async getDynamicUIConfig(userId: string, deviceType?: string): Promise<DynamicUIConfig> {
+    this.validateUserId(userId);
+
+    const cacheKey = this.getCacheKey(userId, 'ui_config', { deviceType });
+    const cached = this.getFromCache<DynamicUIConfig>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const profile = await this.getPersonalizationProfile(userId);
+      const uiConfig = this.buildDynamicUIConfig(profile, deviceType);
+
+      this.setCache(cacheKey, uiConfig);
+      return uiConfig;
+    }, 'getDynamicUIConfig');
+  }
+
+  async updatePersonalizationFromFeedback(
+    userId: string,
+    feedback: {
+      interaction_type: string;
+      component: string;
+      satisfaction: number; // 1-5 scale
+      metadata?: Record<string, any>;
     }
+  ): Promise<void> {
+    this.validateUserId(userId);
 
-    // Spending style analysis
-    const spendingStyle = await this.analyzeSpendingStyle(userId);
+    return this.withErrorHandling(async () => {
+      await this.withRetry(async () => {
+        // Store feedback using base class retry logic
+        const { error } = await this.supabase
+          .from('user_feedback')
+          .insert({
+            user_id: userId,
+            interaction_type: feedback.interaction_type,
+            component: feedback.component,
+            satisfaction_score: feedback.satisfaction,
+            metadata: feedback.metadata,
+            created_at: new Date().toISOString()
+          });
 
-    // Planning horizon analysis
-    const planningHorizon = await this.analyzePlanningHorizon(userId, interactionHistory);
+        if (error) throw error;
+      }, 'updatePersonalizationFromFeedback');
 
-    // Feature preference analysis
-    const featurePreference = this.analyzeFeaturePreference(behaviorData, interactionHistory);
+      // Invalidate personalization cache to trigger rebuild
+      this.clearCache(userId);
+    }, 'updatePersonalizationFromFeedback');
+  }
 
-    // Interaction style analysis
-    const interactionStyle = this.analyzeInteractionStyle(interactionHistory);
+  async getOptimalWorkflow(userId: string, taskType: string): Promise<{
+    steps: Array<{
+      action: string;
+      component: string;
+      estimated_duration: number;
+      success_probability: number;
+    }>;
+    total_estimated_time: number;
+    confidence_score: number;
+    alternative_paths: string[];
+  }> {
+    this.validateUserId(userId);
 
-    // Notification preference analysis
-    const notificationPreference = this.analyzeNotificationPreference(interactionHistory);
+    const cacheKey = this.getCacheKey(userId, 'workflow', { taskType });
+    const cached = this.getFromCache<any>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const [profile, behaviorData] = await Promise.all([
+        this.getPersonalizationProfile(userId),
+        userBehaviorPredictionEngine.getUserBehaviorData(userId)
+      ]);
+
+      const workflow = this.optimizeWorkflow(profile, behaviorData, taskType);
+      this.setCache(cacheKey, workflow);
+
+      return workflow;
+    }, 'getOptimalWorkflow');
+  }
+
+  async getPredictiveInsights(userId: string): Promise<{
+    likely_next_actions: string[];
+    optimal_engagement_times: string[];
+    feature_recommendations: string[];
+    potential_pain_points: string[];
+    personalization_opportunities: string[];
+  }> {
+    this.validateUserId(userId);
+
+    const cacheKey = this.getCacheKey(userId, 'predictive_insights');
+    const cached = this.getFromCache<any>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const [profile, prediction] = await Promise.all([
+        this.getPersonalizationProfile(userId),
+        userBehaviorPredictionEngine.predictNextAction(userId)
+      ]);
+
+      const insights = this.generatePredictiveInsights(profile, prediction);
+      this.setCache(cacheKey, insights);
+
+      return insights;
+    }, 'getPredictiveInsights');
+  }
+
+  // ============================================================================
+  // PRIVATE METHODS - Engine-specific logic
+  // ============================================================================
+
+  private async buildPersonalizationProfile(userId: string): Promise<PersonalizationProfile> {
+    // Fetch all required data using base class methods
+    const [profile, userSettings, behaviorData, expenses, trips] = await Promise.all([
+      this.fetchProfile(userId),
+      this.fetchUserSettings(userId),
+      userBehaviorPredictionEngine.getUserBehaviorData(userId),
+      this.fetchExpenses(userId, { limit: 200 }),
+      this.fetchTrips(userId, { limit: 50 })
+    ]);
+
+    // Build personality profile
+    const personality = this.inferUserPersonality(behaviorData, expenses, trips, profile);
+
+    // Extract preferences
+    const preferences = {
+      dashboard_layout: userSettings?.dashboard_layout || 'standard',
+      default_currency: userSettings?.default_currency || 'USD',
+      date_format: userSettings?.date_format || 'MM/DD/YYYY',
+      theme: userSettings?.theme || 'auto',
+      quick_actions: userSettings?.quick_actions || ['add_expense', 'view_budget'],
+      favorite_categories: this.extractFavoriteCategories(expenses),
+      hidden_features: userSettings?.hidden_features || []
+    };
+
+    // Analyze behavioral patterns
+    const behavioral_patterns = {
+      peak_activity_hours: this.extractPeakHours(behaviorData),
+      preferred_session_length: behaviorData.sessionData.averageSessionDuration,
+      feature_adoption_rate: this.calculateFeatureAdoptionRate(behaviorData),
+      error_tolerance: this.estimateErrorTolerance(behaviorData),
+      help_seeking_frequency: this.calculateHelpSeekingFrequency(behaviorData)
+    };
+
+    // Build context awareness
+    const context_awareness = {
+      location_preferences: [], // Would integrate with location data
+      seasonal_patterns: this.analyzeSeasonalPatterns(expenses, trips),
+      social_influences: [], // Would integrate with social features
+      device_preferences: this.analyzeDevicePreferences(behaviorData)
+    };
+
+    // Track learning history
+    const learning_history = {
+      completed_tutorials: userSettings?.completed_tutorials || [],
+      dismissed_tips: userSettings?.dismissed_tips || [],
+      successful_workflows: this.identifySuccessfulWorkflows(behaviorData),
+      problem_areas: this.identifyProblemAreas(behaviorData)
+    };
 
     return {
-      risk_tolerance: riskTolerance,
-      spending_style: spendingStyle,
-      planning_horizon: planningHorizon,
-      feature_preference: featurePreference,
-      interaction_style: interactionStyle,
-      notification_preference: notificationPreference
+      user_id: userId,
+      personality,
+      preferences,
+      behavioral_patterns,
+      context_awareness,
+      learning_history,
+      last_updated: new Date().toISOString()
     };
   }
 
-  private async analyzeSpendingStyle(userId: string): Promise<UserPersonality['spending_style']> {
-    // Get spending data
-    const { data: expenses } = await supabase
-      .from('expenses')
-      .select('amount, category')
-      .eq('user_id', userId)
-      .gte('date', subDays(new Date(), 90).toISOString());
+  private inferUserPersonality(
+    behaviorData: any,
+    expenses: any[],
+    trips: any[],
+    profile: any
+  ): UserPersonality {
+    // Analyze risk tolerance from financial behavior
+    const risk_tolerance = this.analyzeRiskTolerance(expenses, trips, behaviorData);
 
-    if (!expenses || expenses.length === 0) return 'balanced';
+    // Analyze spending patterns
+    const spending_style = this.analyzeSpendingStyle(expenses);
 
-    // Get income data
-    const { data: income } = await supabase
-      .from('user_income')
-      .select('amount, frequency')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single();
+    // Analyze planning behavior
+    const planning_horizon = this.analyzePlanningHorizon(trips, expenses);
 
-    if (!income) return 'balanced';
+    // Analyze feature usage complexity
+    const feature_preference = this.analyzeFeaturePreference(behaviorData);
 
-    const monthlyIncome = this.normalizeToMonthlyAmount(income.amount, income.frequency);
-    const monthlySpending = expenses.reduce((sum, expense) => sum + expense.amount, 0) / 3; // 3 months average
+    // Analyze help-seeking behavior
+    const interaction_style = this.analyzeInteractionStyle(behaviorData);
 
-    const spendingRatio = monthlySpending / monthlyIncome;
+    // Analyze notification response
+    const notification_preference = profile?.notification_preference || 'moderate';
 
-    if (spendingRatio < 0.6) return 'frugal';
-    if (spendingRatio > 0.9) return 'liberal';
+    return {
+      risk_tolerance,
+      spending_style,
+      planning_horizon,
+      feature_preference,
+      interaction_style,
+      notification_preference
+    };
+  }
+
+  private analyzeRiskTolerance(expenses: any[], trips: any[], behaviorData: any): 'conservative' | 'moderate' | 'aggressive' {
+    let score = 0;
+
+    // Analyze expense patterns
+    const expenseVariance = this.calculateStandardDeviation(
+      this.groupByTimePeriod(expenses, 'month').map(month =>
+        month.reduce((sum, exp) => sum + exp.amount, 0)
+      )
+    );
+    const avgMonthlySpend = this.calculateAverage(
+      this.groupByTimePeriod(expenses, 'month').map(month =>
+        month.reduce((sum, exp) => sum + exp.amount, 0)
+      )
+    );
+
+    if (expenseVariance / avgMonthlySpend > 0.3) score += 2; // High variance = more aggressive
+    else if (expenseVariance / avgMonthlySpend < 0.1) score -= 1; // Low variance = conservative
+
+    // Analyze trip planning patterns
+    const lastMinuteTrips = trips.filter(trip => {
+      const created = new Date(trip.created_at);
+      const startDate = new Date(trip.start_date);
+      const daysDiff = (startDate.getTime() - created.getTime()) / (1000 * 3600 * 24);
+      return daysDiff < 7; // Less than a week planning
+    });
+
+    if (lastMinuteTrips.length / Math.max(trips.length, 1) > 0.3) score += 1;
+
+    // Analyze feature adoption rate
+    if (behaviorData.interactionPatterns?.featureAdoptionRate) {
+      const adoptionRate = Object.values(behaviorData.interactionPatterns.featureAdoptionRate)
+        .reduce((sum: number, rate: number) => sum + rate, 0) /
+        Object.values(behaviorData.interactionPatterns.featureAdoptionRate).length;
+
+      if (adoptionRate > 0.7) score += 1;
+      else if (adoptionRate < 0.3) score -= 1;
+    }
+
+    return score >= 2 ? 'aggressive' : score <= -1 ? 'conservative' : 'moderate';
+  }
+
+  private analyzeSpendingStyle(expenses: any[]): 'frugal' | 'balanced' | 'liberal' {
+    if (expenses.length === 0) return 'balanced';
+
+    const categories = this.groupByCategory(expenses);
+    const discretionaryCategories = ['entertainment', 'shopping', 'dining', 'travel'];
+
+    const discretionarySpending = discretionaryCategories.reduce((sum, cat) => {
+      const catExpenses = categories[cat] || [];
+      return sum + catExpenses.reduce((catSum, exp) => catSum + exp.amount, 0);
+    }, 0);
+
+    const totalSpending = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const discretionaryRatio = discretionarySpending / totalSpending;
+
+    if (discretionaryRatio > 0.4) return 'liberal';
+    if (discretionaryRatio < 0.2) return 'frugal';
     return 'balanced';
   }
 
-  private normalizeToMonthlyAmount(amount: number, frequency: string): number {
-    switch (frequency) {
-      case 'weekly': return amount * 4.33;
-      case 'bi-weekly': return amount * 2.17;
-      case 'monthly': return amount;
-      case 'quarterly': return amount / 3;
-      case 'yearly': return amount / 12;
-      default: return amount;
-    }
-  }
+  private analyzePlanningHorizon(trips: any[], expenses: any[]): 'short' | 'medium' | 'long' {
+    let planningScore = 0;
 
-  private async analyzePlanningHorizon(userId: string, interactionHistory: any[]): Promise<UserPersonality['planning_horizon']> {
-    // Look at goal-setting behavior and forecast usage
-    const { data: goals } = await supabase
-      .from('savings_goals')
-      .select('target_date, created_at')
-      .eq('user_id', userId);
+    // Analyze trip planning lead times
+    const planningLeadTimes = trips.map(trip => {
+      const created = new Date(trip.created_at);
+      const startDate = new Date(trip.start_date);
+      return (startDate.getTime() - created.getTime()) / (1000 * 3600 * 24);
+    });
 
-    if (!goals || goals.length === 0) return 'short';
+    const avgLeadTime = this.calculateAverage(planningLeadTimes);
+    if (avgLeadTime > 60) planningScore += 2; // 2+ months
+    else if (avgLeadTime > 30) planningScore += 1; // 1+ month
+    else if (avgLeadTime < 7) planningScore -= 1; // Less than week
 
-    // Calculate average goal timeframe
-    const avgTimeframe = goals.reduce((sum, goal) => {
-      const timeframe = new Date(goal.target_date).getTime() - new Date(goal.created_at).getTime();
-      return sum + timeframe;
-    }, 0) / goals.length;
-
-    const monthsAhead = avgTimeframe / (30 * 24 * 60 * 60 * 1000);
-
-    if (monthsAhead > 24) return 'long';
-    if (monthsAhead > 6) return 'medium';
-    return 'short';
-  }
-
-  private analyzeFeaturePreference(behaviorData: any, interactionHistory: any[]): UserPersonality['feature_preference'] {
-    if (!behaviorData) return 'simple';
-
-    const advancedFeatureUsage = behaviorData.feature_usage?.['advanced_features'] || 0;
-    const totalFeatureUsage = Object.values(behaviorData.feature_usage || {}).reduce((sum: number, usage: any) => sum + usage, 0);
-
-    const advancedRatio = totalFeatureUsage > 0 ? advancedFeatureUsage / totalFeatureUsage : 0;
-
-    if (advancedRatio > 0.3) return 'expert';
-    if (advancedRatio > 0.1) return 'advanced';
-    return 'simple';
-  }
-
-  private analyzeInteractionStyle(interactionHistory: any[]): UserPersonality['interaction_style'] {
-    const helpRequests = interactionHistory.filter(event => event.event_type === 'help_request').length;
-    const tutorialCompletions = interactionHistory.filter(event => event.event_type === 'tutorial_completed').length;
-    const totalInteractions = interactionHistory.length;
-
-    if (totalInteractions === 0) return 'guided';
-
-    const helpRatio = helpRequests / totalInteractions;
-    const tutorialRatio = tutorialCompletions / totalInteractions;
-
-    if (helpRatio > 0.1 || tutorialRatio > 0.2) return 'guided';
-    if (helpRatio < 0.02 && tutorialRatio < 0.05) return 'minimal';
-    return 'independent';
-  }
-
-  private analyzeNotificationPreference(interactionHistory: any[]): UserPersonality['notification_preference'] {
-    const notificationInteractions = interactionHistory.filter(event =>
-      event.event_type === 'notification_clicked' || event.event_type === 'notification_dismissed'
+    // Analyze budget planning (looking for recurring/planned expenses)
+    const recurringExpenses = expenses.filter(exp =>
+      exp.description?.toLowerCase().includes('subscription') ||
+      exp.description?.toLowerCase().includes('monthly') ||
+      exp.category === 'utilities'
     );
 
-    const clickedNotifications = interactionHistory.filter(event => event.event_type === 'notification_clicked').length;
-    const dismissedNotifications = interactionHistory.filter(event => event.event_type === 'notification_dismissed').length;
+    if (recurringExpenses.length / Math.max(expenses.length, 1) > 0.3) planningScore += 1;
 
-    if (notificationInteractions.length === 0) return 'moderate';
-
-    const engagementRatio = clickedNotifications / (clickedNotifications + dismissedNotifications);
-
-    if (engagementRatio > 0.7) return 'frequent';
-    if (engagementRatio < 0.3) return 'minimal';
-    return 'moderate';
+    return planningScore >= 2 ? 'long' : planningScore <= -1 ? 'short' : 'medium';
   }
 
-  private getDefaultDashboardLayout(personality: UserPersonality): 'minimal' | 'standard' | 'comprehensive' {
-    if (personality.feature_preference === 'simple') return 'minimal';
-    if (personality.feature_preference === 'expert') return 'comprehensive';
-    return 'standard';
+  private analyzeFeaturePreference(behaviorData: any): 'simple' | 'advanced' | 'expert' {
+    const featuresUsed = behaviorData.sessionData?.mostUsedFeatures?.length || 0;
+    const formCompletionRate = behaviorData.interactionPatterns?.formCompletionRate || 0;
+    const avgSessionLength = behaviorData.sessionData?.averageSessionDuration || 300;
+
+    let complexity = 0;
+    if (featuresUsed > 5) complexity += 2;
+    else if (featuresUsed < 3) complexity -= 1;
+
+    if (formCompletionRate > 0.8) complexity += 1;
+    if (avgSessionLength > 600) complexity += 1; // 10+ minutes
+
+    return complexity >= 3 ? 'expert' : complexity <= 0 ? 'simple' : 'advanced';
   }
 
-  private getDefaultQuickActions(personality: UserPersonality): string[] {
-    const baseActions = ['add_expense', 'view_budget'];
+  private analyzeInteractionStyle(behaviorData: any): 'guided' | 'independent' | 'minimal' {
+    const bounceRate = behaviorData.sessionData?.bounceRate || 0.3;
+    const pagesPerSession = behaviorData.sessionData?.pagesPerSession || 3;
+    const scrollDepth = behaviorData.interactionPatterns?.scrollDepth || 50;
 
-    if (personality.feature_preference === 'advanced' || personality.feature_preference === 'expert') {
-      baseActions.push('analytics_overview', 'goal_progress');
+    let independence = 0;
+    if (bounceRate < 0.2) independence += 1; // Low bounce = explores more
+    if (pagesPerSession > 5) independence += 1; // Many pages = explores
+    if (scrollDepth > 70) independence += 1; // Deep scrolling = thorough
+
+    return independence >= 2 ? 'independent' : independence === 0 ? 'minimal' : 'guided';
+  }
+
+  private extractFavoriteCategories(expenses: any[]): string[] {
+    const categoryTotals = this.groupByCategory(expenses);
+
+    return Object.entries(categoryTotals)
+      .map(([category, exps]) => ({
+        category,
+        total: exps.reduce((sum, exp) => sum + exp.amount, 0),
+        frequency: exps.length
+      }))
+      .sort((a, b) => (b.total + b.frequency * 10) - (a.total + a.frequency * 10))
+      .slice(0, 5)
+      .map(item => item.category);
+  }
+
+  private extractPeakHours(behaviorData: any): number[] {
+    // Would analyze actual interaction timestamps
+    // For now, return reasonable defaults based on preferred time
+    const timeOfDay = behaviorData.sessionData?.preferredTimeOfDay || 'evening';
+
+    switch (timeOfDay) {
+      case 'morning': return [7, 8, 9, 10];
+      case 'afternoon': return [12, 13, 14, 15, 16];
+      case 'evening': return [18, 19, 20, 21];
+      case 'night': return [21, 22, 23, 0];
+      default: return [19, 20, 21]; // Default evening
     }
-
-    if (personality.spending_style === 'frugal') {
-      baseActions.push('savings_tracker');
-    }
-
-    if (personality.planning_horizon === 'long') {
-      baseActions.push('forecast_view');
-    }
-
-    return baseActions;
   }
 
-  private async getInteractionHistory(userId: string): Promise<any[]> {
-    const { data } = await supabase
-      .from('user_analytics')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('created_at', subDays(new Date(), 90).toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1000);
-
-    return data || [];
+  private calculateFeatureAdoptionRate(behaviorData: any): number {
+    const adoptionRates = behaviorData.interactionPatterns?.featureAdoptionRate || {};
+    const rates = Object.values(adoptionRates) as number[];
+    return rates.length > 0 ? this.calculateAverage(rates) : 0.5;
   }
 
-  private analyzeBehavioralPatterns(behaviorData: any, interactionHistory: any[]) {
-    // Peak activity hours
-    const hourCounts: Record<number, number> = {};
-    interactionHistory.forEach(event => {
-      const hour = new Date(event.created_at).getHours();
-      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+  private estimateErrorTolerance(behaviorData: any): number {
+    // Higher form completion rate suggests higher error tolerance
+    const formCompletion = behaviorData.interactionPatterns?.formCompletionRate || 0.8;
+    // Longer sessions despite potential errors suggests tolerance
+    const sessionLength = behaviorData.sessionData?.averageSessionDuration || 300;
+
+    return Math.min(1, (formCompletion + (sessionLength / 600)) / 2);
+  }
+
+  private calculateHelpSeekingFrequency(behaviorData: any): number {
+    // Would analyze actual help interactions
+    // For now, estimate based on interaction patterns
+    const complexity = behaviorData.sessionData?.mostUsedFeatures?.length || 3;
+    return Math.min(1, complexity / 10); // More features = more help seeking
+  }
+
+  private analyzeSeasonalPatterns(expenses: any[], trips: any[]): Record<string, any> {
+    const patterns = {};
+
+    // Analyze seasonal spending
+    const expensesByMonth = this.groupByTimePeriod(expenses, 'month');
+    const tripsByMonth = this.groupByTimePeriod(trips, 'month');
+
+    // Simple seasonal analysis
+    Object.entries(expensesByMonth).forEach(([month, exps]) => {
+      const total = exps.reduce((sum, exp) => sum + exp.amount, 0);
+      patterns[month] = { spending: total, trips: (tripsByMonth[month] || []).length };
     });
 
-    const peakHours = Object.entries(hourCounts)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 3)
-      .map(([hour]) => parseInt(hour));
-
-    // Preferred session length
-    const sessionLengths = interactionHistory
-      .filter(event => event.event_type === 'session_end')
-      .map(event => event.session_duration || 0);
-
-    const avgSessionLength = sessionLengths.length > 0
-      ? sessionLengths.reduce((sum, length) => sum + length, 0) / sessionLengths.length
-      : 300; // Default 5 minutes
-
-    return {
-      peak_activity_hours: peakHours,
-      preferred_session_length: avgSessionLength,
-      feature_adoption_rate: behaviorData?.usage_trends?.feature_adoption_rate || 0,
-      error_tolerance: this.calculateErrorTolerance(interactionHistory),
-      help_seeking_frequency: this.calculateHelpSeekingFrequency(interactionHistory)
-    };
+    return patterns;
   }
 
-  private calculateErrorTolerance(interactionHistory: any[]): number {
-    const errorEvents = interactionHistory.filter(event => event.event_type === 'error' || event.event_type === 'failure');
-    const retryEvents = interactionHistory.filter(event => event.event_type === 'retry' || event.event_type === 'repeat_action');
-
-    if (errorEvents.length === 0) return 0.8; // Default high tolerance
-
-    const retryRatio = retryEvents.length / errorEvents.length;
-    return Math.min(1, retryRatio); // Higher ratio = higher tolerance
+  private analyzeDevicePreferences(behaviorData: any): Record<string, number> {
+    // Would analyze device usage patterns
+    const deviceType = behaviorData.sessionData?.deviceType || 'desktop';
+    return { [deviceType]: 1.0 };
   }
 
-  private calculateHelpSeekingFrequency(interactionHistory: any[]): number {
-    const helpEvents = interactionHistory.filter(event =>
-      event.event_type === 'help_request' ||
-      event.event_type === 'tutorial_started' ||
-      event.event_type === 'tooltip_viewed'
-    );
-
-    const totalEvents = interactionHistory.length;
-    return totalEvents > 0 ? helpEvents.length / totalEvents : 0;
+  private identifySuccessfulWorkflows(behaviorData: any): string[] {
+    // Would analyze completed task sequences
+    const features = behaviorData.sessionData?.mostUsedFeatures || [];
+    return features.map(feature => `${feature}_workflow`);
   }
 
-  private async buildContextAwareness(userId: string, interactionHistory: any[]) {
-    // Location preferences (simplified)
-    const locationPreferences: any[] = [];
+  private identifyProblemAreas(behaviorData: any): string[] {
+    const problemAreas = [];
 
-    // Seasonal patterns
-    const seasonalPatterns = this.analyzeSeasonalPatterns(interactionHistory);
-
-    // Social influences (placeholder)
-    const socialInfluences: string[] = [];
-
-    // Device preferences
-    const devicePreferences = this.analyzeDevicePreferences(interactionHistory);
-
-    return {
-      location_preferences: locationPreferences,
-      seasonal_patterns: seasonalPatterns,
-      social_influences: socialInfluences,
-      device_preferences: devicePreferences
-    };
-  }
-
-  private analyzeSeasonalPatterns(interactionHistory: any[]): Record<string, any> {
-    const monthlyActivity: Record<number, number> = {};
-
-    interactionHistory.forEach(event => {
-      const month = new Date(event.created_at).getMonth();
-      monthlyActivity[month] = (monthlyActivity[month] || 0) + 1;
-    });
-
-    return monthlyActivity;
-  }
-
-  private analyzeDevicePreferences(interactionHistory: any[]): Record<string, number> {
-    const deviceCounts: Record<string, number> = {};
-
-    interactionHistory.forEach(event => {
-      const device = event.device_type || 'unknown';
-      deviceCounts[device] = (deviceCounts[device] || 0) + 1;
-    });
-
-    return deviceCounts;
-  }
-
-  private async getLearningHistory(userId: string) {
-    // Get completed tutorials
-    const { data: tutorials } = await supabase
-      .from('user_tutorial_progress')
-      .select('tutorial_id')
-      .eq('user_id', userId)
-      .eq('completed', true);
-
-    // Get dismissed tips
-    const { data: dismissedTips } = await supabase
-      .from('user_dismissed_tips')
-      .select('tip_id')
-      .eq('user_id', userId);
-
-    return {
-      completed_tutorials: tutorials?.map(t => t.tutorial_id) || [],
-      dismissed_tips: dismissedTips?.map(t => t.tip_id) || [],
-      successful_workflows: [], // Would track successful completion patterns
-      problem_areas: [] // Would track areas where users struggle
-    };
-  }
-
-  async generatePersonalizedContent(userId: string, contentType?: PersonalizedContent['content_type']): Promise<PersonalizedContent[]> {
-    const cacheKey = `content_${userId}_${contentType || 'all'}`;
-    const cached = this.getCachedData<PersonalizedContent[]>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const profile = await this.getPersonalizationProfile(userId);
-      if (!profile) return [];
-
-      const content: PersonalizedContent[] = [];
-
-      // Generate dashboard widgets
-      if (!contentType || contentType === 'dashboard_widget') {
-        content.push(...await this.generateDashboardWidgets(userId, profile));
-      }
-
-      // Generate recommendations
-      if (!contentType || contentType === 'recommendation') {
-        content.push(...await this.generatePersonalizedRecommendations(userId, profile));
-      }
-
-      // Generate tips and tutorials
-      if (!contentType || contentType === 'tip' || contentType === 'tutorial') {
-        content.push(...await this.generateLearningContent(userId, profile));
-      }
-
-      // Generate notifications
-      if (!contentType || contentType === 'notification') {
-        content.push(...await this.generateSmartNotifications(userId, profile));
-      }
-
-      // Sort by personalization score
-      content.sort((a, b) => b.personalization_score - a.personalization_score);
-
-      this.setCachedData(cacheKey, content, 2 * 60 * 60 * 1000); // 2 hour cache
-      return content;
-
-    } catch (error) {
-      console.error('Error generating personalized content:', error);
-      return [];
-    }
-  }
-
-  private async generateDashboardWidgets(userId: string, profile: PersonalizationProfile): Promise<PersonalizedContent[]> {
-    const widgets: PersonalizedContent[] = [];
-
-    // Budget overview widget - always high priority for budget-conscious users
-    if (profile.personality.spending_style === 'frugal' || profile.preferences.favorite_categories.includes('budget')) {
-      widgets.push({
-        content_type: 'dashboard_widget',
-        priority: 'high',
-        title: 'Budget Overview',
-        description: 'Quick view of your current budget status',
-        content: {
-          widget_type: 'budget_overview',
-          size: 'medium',
-          data_source: 'budget_api'
-        },
-        display_until: addDays(new Date(), 30).toISOString(),
-        conditions: {},
-        personalization_score: 0.9
-      });
+    if (behaviorData.sessionData?.bounceRate > 0.5) {
+      problemAreas.push('high_bounce_rate');
     }
 
-    // Trip planning widget for users with high mobility
-    if (profile.behavioral_patterns.feature_adoption_rate > 0.6) {
-      widgets.push({
-        content_type: 'dashboard_widget',
-        priority: 'medium',
-        title: 'Smart Trip Planner',
-        description: 'AI-powered trip recommendations based on your preferences',
-        content: {
-          widget_type: 'trip_recommendations',
-          size: 'large',
-          data_source: 'trip_api'
-        },
-        display_until: addDays(new Date(), 30).toISOString(),
-        conditions: {
-          min_engagement_score: 60
-        },
-        personalization_score: 0.8
-      });
+    if (behaviorData.interactionPatterns?.formCompletionRate < 0.6) {
+      problemAreas.push('form_completion_difficulty');
     }
 
-    return widgets;
+    if (behaviorData.sessionData?.averageSessionDuration < 120) {
+      problemAreas.push('short_session_duration');
+    }
+
+    return problemAreas;
   }
 
-  private async generatePersonalizedRecommendations(userId: string, profile: PersonalizationProfile): Promise<PersonalizedContent[]> {
-    const recommendations: PersonalizedContent[] = [];
+  private generateRecommendations(
+    profile: PersonalizationProfile,
+    behaviorData: any,
+    context: any
+  ): PersonalizedRecommendation[] {
+    const recommendations: PersonalizedRecommendation[] = [];
 
-    // Get budget recommendations
-    const budgetRecommendations = await aiBudgetAssistant.getOptimizationSuggestions(userId);
-
-    // Convert quick wins to personalized content
-    budgetRecommendations.quick_wins.forEach(rec => {
+    // UI Layout recommendations
+    if (profile.personality.feature_preference === 'simple' && profile.preferences.dashboard_layout === 'comprehensive') {
       recommendations.push({
-        content_type: 'recommendation',
-        priority: rec.priority as any,
-        title: rec.title,
-        description: rec.description,
-        content: {
-          type: rec.type,
-          actions: rec.specific_actions,
-          potential_savings: rec.potential_savings,
-          difficulty: rec.implementation_difficulty
+        id: 'simplify_dashboard',
+        type: 'ui_adjustment',
+        priority: 'high',
+        title: 'Simplify Dashboard Layout',
+        description: 'Switch to a cleaner, more focused dashboard layout',
+        implementation: {
+          component: 'dashboard',
+          changes: { layout: 'minimal', hide_advanced_widgets: true },
+          duration: 0,
+          reversible: true
         },
-        display_until: addDays(new Date(), 7).toISOString(),
-        conditions: {},
-        personalization_score: rec.confidence_score
+        expected_impact: {
+          engagement_lift: 0.15,
+          efficiency_gain: 0.20,
+          satisfaction_score: 0.25
+        },
+        conditions: {
+          user_segments: ['simple_preference']
+        },
+        personalization_score: this.calculateConfidence(5, 0.1),
+        created_at: new Date().toISOString()
       });
+    }
+
+    // Feature recommendations based on personality
+    if (profile.personality.spending_style === 'liberal' && !profile.preferences.favorite_categories.includes('savings')) {
+      recommendations.push({
+        id: 'highlight_savings_features',
+        type: 'feature_highlight',
+        priority: 'medium',
+        title: 'Savings Goal Features',
+        description: 'Discover budgeting tools to balance your spending',
+        implementation: {
+          component: 'budget_section',
+          changes: { highlight: true, show_savings_prompt: true },
+          duration: 7 * 24 * 60 * 60 * 1000, // 7 days
+          reversible: true
+        },
+        expected_impact: {
+          engagement_lift: 0.10,
+          efficiency_gain: 0.15,
+          satisfaction_score: 0.20
+        },
+        conditions: {
+          user_segments: ['liberal_spender']
+        },
+        personalization_score: 0.75,
+        created_at: new Date().toISOString()
+      });
+    }
+
+    return recommendations.slice(0, 5); // Top 5 recommendations
+  }
+
+  private buildDynamicUIConfig(profile: PersonalizationProfile, deviceType?: string): DynamicUIConfig {
+    const config: DynamicUIConfig = {
+      layout: {
+        grid_columns: profile.personality.feature_preference === 'expert' ? 4 :
+                     profile.personality.feature_preference === 'simple' ? 2 : 3,
+        widget_sizes: this.calculateWidgetSizes(profile),
+        quick_access_items: profile.preferences.quick_actions,
+        hidden_widgets: profile.preferences.hidden_features
+      },
+      styling: {
+        color_scheme: profile.preferences.theme,
+        font_size: profile.behavioral_patterns.error_tolerance > 0.7 ? 'medium' : 'large',
+        animation_level: profile.personality.interaction_style === 'minimal' ? 'minimal' : 'standard',
+        density: profile.personality.feature_preference === 'expert' ? 'compact' : 'comfortable'
+      },
+      interaction: {
+        click_targets: deviceType === 'mobile' ? 'large' : 'medium',
+        gesture_sensitivity: 0.8,
+        keyboard_shortcuts: profile.personality.feature_preference === 'expert',
+        voice_commands: profile.personality.interaction_style === 'guided'
+      },
+      content: {
+        detail_level: profile.personality.feature_preference === 'simple' ? 'minimal' : 'standard',
+        chart_preferences: this.getPreferredChartTypes(profile),
+        default_time_range: profile.personality.planning_horizon === 'long' ? 365 : 30,
+        auto_refresh: profile.behavioral_patterns.feature_adoption_rate > 0.7
+      }
+    };
+
+    return config;
+  }
+
+  private calculateWidgetSizes(profile: PersonalizationProfile): Record<string, 'small' | 'medium' | 'large'> {
+    const sizes: Record<string, 'small' | 'medium' | 'large'> = {};
+
+    // Size widgets based on favorite categories and feature preference
+    profile.preferences.favorite_categories.forEach(category => {
+      sizes[`${category}_widget`] = profile.personality.feature_preference === 'expert' ? 'large' : 'medium';
     });
+
+    // Default sizes for common widgets
+    sizes['budget_summary'] = 'large';
+    sizes['recent_expenses'] = 'medium';
+    sizes['quick_actions'] = 'small';
+
+    return sizes;
+  }
+
+  private getPreferredChartTypes(profile: PersonalizationProfile): string[] {
+    const charts = [];
+
+    if (profile.personality.feature_preference === 'simple') {
+      charts.push('pie', 'bar');
+    } else if (profile.personality.feature_preference === 'expert') {
+      charts.push('line', 'area', 'scatter', 'heatmap');
+    } else {
+      charts.push('pie', 'bar', 'line');
+    }
+
+    return charts;
+  }
+
+  private optimizeWorkflow(profile: PersonalizationProfile, behaviorData: any, taskType: string): any {
+    // Simplified workflow optimization
+    const baseSteps = this.getWorkflowSteps(taskType);
+    const optimizedSteps = baseSteps.map(step => ({
+      ...step,
+      estimated_duration: step.estimated_duration * (profile.behavioral_patterns.error_tolerance || 1),
+      success_probability: Math.min(0.95, step.success_probability * (profile.behavioral_patterns.feature_adoption_rate || 0.8))
+    }));
+
+    return {
+      steps: optimizedSteps,
+      total_estimated_time: optimizedSteps.reduce((sum, step) => sum + step.estimated_duration, 0),
+      confidence_score: this.calculateConfidence(optimizedSteps.length),
+      alternative_paths: []
+    };
+  }
+
+  private getWorkflowSteps(taskType: string) {
+    const workflows = {
+      'add_expense': [
+        { action: 'navigate_to_expenses', component: 'expenses_page', estimated_duration: 5, success_probability: 0.95 },
+        { action: 'click_add_button', component: 'add_expense_button', estimated_duration: 2, success_probability: 0.9 },
+        { action: 'fill_expense_form', component: 'expense_form', estimated_duration: 30, success_probability: 0.8 },
+        { action: 'submit_expense', component: 'submit_button', estimated_duration: 3, success_probability: 0.9 }
+      ],
+      'create_budget': [
+        { action: 'navigate_to_budgets', component: 'budgets_page', estimated_duration: 5, success_probability: 0.95 },
+        { action: 'click_create_budget', component: 'create_budget_button', estimated_duration: 2, success_probability: 0.9 },
+        { action: 'set_budget_categories', component: 'budget_form', estimated_duration: 60, success_probability: 0.75 },
+        { action: 'save_budget', component: 'save_button', estimated_duration: 3, success_probability: 0.9 }
+      ]
+    };
+
+    return workflows[taskType] || [];
+  }
+
+  private generatePredictiveInsights(profile: PersonalizationProfile, prediction: any): any {
+    return {
+      likely_next_actions: prediction.suggestedFeatures || ['view_dashboard', 'add_expense'],
+      optimal_engagement_times: profile.behavioral_patterns.peak_activity_hours.map(h => `${h}:00`),
+      feature_recommendations: this.getFeatureRecommendations(profile),
+      potential_pain_points: profile.learning_history.problem_areas,
+      personalization_opportunities: this.identifyPersonalizationOpportunities(profile)
+    };
+  }
+
+  private getFeatureRecommendations(profile: PersonalizationProfile): string[] {
+    const recommendations = [];
+
+    if (profile.personality.planning_horizon === 'long' && !profile.preferences.favorite_categories.includes('investments')) {
+      recommendations.push('investment_tracking');
+    }
+
+    if (profile.personality.spending_style === 'liberal' && !profile.learning_history.completed_tutorials.includes('budgeting_basics')) {
+      recommendations.push('budgeting_tutorial');
+    }
 
     return recommendations;
   }
 
-  private async generateLearningContent(userId: string, profile: PersonalizationProfile): Promise<PersonalizedContent[]> {
-    const content: PersonalizedContent[] = [];
+  private identifyPersonalizationOpportunities(profile: PersonalizationProfile): string[] {
+    const opportunities = [];
 
-    // Only show learning content to users who haven't dismissed it
-    if (profile.personality.interaction_style === 'guided' || profile.behavioral_patterns.help_seeking_frequency > 0.1) {
-
-      // Budget basics for new users
-      if (!profile.learning_history.completed_tutorials.includes('budget_basics')) {
-        content.push({
-          content_type: 'tutorial',
-          priority: 'medium',
-          title: 'Budget Basics Tutorial',
-          description: 'Learn the fundamentals of budgeting with our interactive guide',
-          content: {
-            tutorial_id: 'budget_basics',
-            estimated_duration: 300, // 5 minutes
-            steps: 5
-          },
-          display_until: addDays(new Date(), 14).toISOString(),
-          conditions: {
-            exclude_if_completed: ['budget_basics']
-          },
-          personalization_score: 0.7
-        });
-      }
-
-      // Advanced features tip for power users
-      if (profile.personality.feature_preference === 'expert' && !profile.learning_history.dismissed_tips.includes('advanced_analytics')) {
-        content.push({
-          content_type: 'tip',
-          priority: 'low',
-          title: 'Advanced Analytics Features',
-          description: 'Discover powerful analytics features you might have missed',
-          content: {
-            tip_id: 'advanced_analytics',
-            feature_highlights: ['predictive_modeling', 'custom_reports', 'api_access']
-          },
-          display_until: addDays(new Date(), 7).toISOString(),
-          conditions: {
-            min_engagement_score: 80,
-            exclude_if_completed: ['advanced_analytics']
-          },
-          personalization_score: 0.6
-        });
-      }
+    if (profile.preferences.dashboard_layout === 'standard' && profile.personality.feature_preference === 'expert') {
+      opportunities.push('upgrade_to_comprehensive_dashboard');
     }
 
-    return content;
-  }
-
-  private async generateSmartNotifications(userId: string, profile: PersonalizationProfile): Promise<PersonalizedContent[]> {
-    const notifications: PersonalizedContent[] = [];
-
-    // Only generate notifications based on user preference
-    if (profile.personality.notification_preference === 'minimal') {
-      return notifications; // No notifications for minimal preference users
+    if (profile.behavioral_patterns.help_seeking_frequency < 0.2 && profile.personality.interaction_style === 'guided') {
+      opportunities.push('enable_contextual_hints');
     }
 
-    // Budget alerts for spending-conscious users
-    if (profile.personality.spending_style !== 'liberal') {
-      const alerts = await aiBudgetAssistant.generateSpendingAlerts(userId);
-
-      alerts.slice(0, 3).forEach(alert => { // Limit to top 3 alerts
-        notifications.push({
-          content_type: 'notification',
-          priority: alert.severity as any,
-          title: alert.title,
-          description: alert.message,
-          content: {
-            alert_id: alert.alert_id,
-            type: alert.type,
-            category: alert.category,
-            actions: alert.actions
-          },
-          display_until: alert.expires_at,
-          conditions: {
-            time_restrictions: this.getOptimalNotificationTime(profile)
-          },
-          personalization_score: 0.8
-        });
-      });
-    }
-
-    return notifications;
+    return opportunities;
   }
 
-  private getOptimalNotificationTime(profile: PersonalizationProfile): { start_hour: number; end_hour: number } {
-    const peakHours = profile.behavioral_patterns.peak_activity_hours;
-
-    if (peakHours.length === 0) {
-      return { start_hour: 9, end_hour: 17 }; // Default business hours
-    }
-
-    const minHour = Math.min(...peakHours);
-    const maxHour = Math.max(...peakHours);
-
-    return {
-      start_hour: Math.max(8, minHour - 1), // 1 hour before peak, but not before 8 AM
-      end_hour: Math.min(22, maxHour + 2) // 2 hours after peak, but not after 10 PM
-    };
-  }
-
-  async generateDynamicUI(userId: string): Promise<DynamicUI> {
-    const cacheKey = `dynamic_ui_${userId}`;
-    const cached = this.getCachedData<DynamicUI>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const profile = await this.getPersonalizationProfile(userId);
-      if (!profile) {
-        return this.getDefaultDynamicUI();
-      }
-
-      const dynamicUI: DynamicUI = {
-        layout_configuration: this.generateLayoutConfiguration(profile),
-        interaction_adaptations: this.generateInteractionAdaptations(profile),
-        visual_adaptations: this.generateVisualAdaptations(profile)
-      };
-
-      this.setCachedData(cacheKey, dynamicUI, 12 * 60 * 60 * 1000); // 12 hour cache
-      return dynamicUI;
-
-    } catch (error) {
-      console.error('Error generating dynamic UI:', error);
-      return this.getDefaultDynamicUI();
-    }
-  }
-
-  private generateLayoutConfiguration(profile: PersonalizationProfile): DynamicUI['layout_configuration'] {
-    const layout = profile.preferences.dashboard_layout;
-
-    let gridColumns = 2;
-    let widgetSizes: Record<string, 'small' | 'medium' | 'large'> = {};
-    let quickAccessItems = profile.preferences.quick_actions;
-
-    switch (layout) {
-      case 'minimal':
-        gridColumns = 1;
-        widgetSizes = {
-          'budget_overview': 'large',
-          'recent_expenses': 'medium',
-          'quick_add': 'small'
-        };
-        break;
-      case 'comprehensive':
-        gridColumns = 3;
-        widgetSizes = {
-          'budget_overview': 'large',
-          'analytics_chart': 'large',
-          'recent_expenses': 'medium',
-          'goal_progress': 'medium',
-          'trip_recommendations': 'large',
-          'financial_forecast': 'medium'
-        };
-        break;
-      default: // standard
-        gridColumns = 2;
-        widgetSizes = {
-          'budget_overview': 'large',
-          'recent_expenses': 'medium',
-          'goal_progress': 'medium',
-          'quick_add': 'small'
-        };
-    }
-
-    return {
-      grid_columns: gridColumns,
-      widget_sizes: widgetSizes,
-      widget_positions: {}, // Would calculate optimal positions
-      hidden_widgets: profile.preferences.hidden_features,
-      quick_access_items: quickAccessItems
-    };
-  }
-
-  private generateInteractionAdaptations(profile: PersonalizationProfile): DynamicUI['interaction_adaptations'] {
-    return {
-      confirmation_dialogs: profile.personality.interaction_style === 'guided',
-      auto_save_frequency: profile.behavioral_patterns.error_tolerance > 0.7 ? 30 : 10, // seconds
-      tooltip_verbosity: profile.personality.feature_preference === 'simple' ? 'detailed' :
-                        profile.personality.feature_preference === 'expert' ? 'minimal' : 'standard',
-      keyboard_shortcuts_enabled: profile.personality.feature_preference === 'expert',
-      gesture_controls: profile.context_awareness.device_preferences['mobile'] > profile.context_awareness.device_preferences['desktop']
-    };
-  }
-
-  private generateVisualAdaptations(profile: PersonalizationProfile): DynamicUI['visual_adaptations'] {
-    return {
-      color_scheme: profile.preferences.theme || 'auto',
-      font_size_multiplier: 1.0, // Would adjust based on accessibility needs
-      contrast_level: 'normal', // Would adjust based on accessibility preferences
-      animation_level: profile.behavioral_patterns.preferred_session_length > 600 ? 'full' : 'reduced',
-      icon_style: profile.personality.feature_preference === 'simple' ? 'detailed' : 'minimal'
-    };
-  }
-
-  private getDefaultDynamicUI(): DynamicUI {
-    return {
-      layout_configuration: {
-        grid_columns: 2,
-        widget_sizes: {
-          'budget_overview': 'large',
-          'recent_expenses': 'medium'
-        },
-        widget_positions: {},
-        hidden_widgets: [],
-        quick_access_items: ['add_expense', 'view_budget']
-      },
-      interaction_adaptations: {
-        confirmation_dialogs: true,
-        auto_save_frequency: 30,
-        tooltip_verbosity: 'standard',
-        keyboard_shortcuts_enabled: false,
-        gesture_controls: false
-      },
-      visual_adaptations: {
-        color_scheme: 'auto',
-        font_size_multiplier: 1.0,
-        contrast_level: 'normal',
-        animation_level: 'full',
-        icon_style: 'detailed'
-      }
-    };
-  }
-
-  async updatePersonalizationProfile(userId: string, updates: Partial<PersonalizationProfile>): Promise<boolean> {
-    try {
-      // Update in database
-      const { error } = await supabase
-        .from('user_personalization')
-        .upsert({
-          user_id: userId,
-          ...updates,
-          last_updated: new Date().toISOString()
-        });
-
-      if (error) throw error;
-
-      // Update cache
-      const cacheKey = `profile_${userId}`;
-      const currentProfile = this.getCachedData<PersonalizationProfile>(cacheKey);
-      if (currentProfile) {
-        const updatedProfile = { ...currentProfile, ...updates };
-        this.setCachedData(cacheKey, updatedProfile, this.PROFILE_CACHE_TTL);
-      }
-
-      // Clear related caches
-      this.clearUserCaches(userId);
-
-      return true;
-
-    } catch (error) {
-      console.error('Error updating personalization profile:', error);
-      return false;
-    }
-  }
-
-  async trackPersonalizationEvent(userId: string, eventType: string, eventData: any): Promise<void> {
-    try {
-      // Track event for future personalization improvements
-      await supabase
-        .from('personalization_events')
-        .insert({
-          user_id: userId,
-          event_type: eventType,
-          event_data: eventData,
-          created_at: new Date().toISOString()
-        });
-
-      // Update real-time personalization based on the event
-      await this.updatePersonalizationFromEvent(userId, eventType, eventData);
-
-    } catch (error) {
-      console.error('Error tracking personalization event:', error);
-    }
-  }
-
-  private async updatePersonalizationFromEvent(userId: string, eventType: string, eventData: any): Promise<void> {
-    // Update profile based on specific events
-    const updates: Partial<PersonalizationProfile> = {};
-
-    switch (eventType) {
-      case 'feature_discovered':
-        // User discovered a new feature - might upgrade their preference level
-        break;
-      case 'tutorial_completed':
-        // Add to learning history
-        const profile = await this.getPersonalizationProfile(userId);
-        if (profile) {
-          updates.learning_history = {
-            ...profile.learning_history,
-            completed_tutorials: [...profile.learning_history.completed_tutorials, eventData.tutorial_id]
-          };
-        }
-        break;
-      case 'notification_dismissed':
-        // User dismissed notification - adjust notification preferences
-        break;
-    }
-
-    if (Object.keys(updates).length > 0) {
-      await this.updatePersonalizationProfile(userId, updates);
-    }
-  }
-
-  private clearUserCaches(userId: string): void {
-    const keysToDelete = Array.from(this.cache.keys()).filter(key => key.includes(userId));
-    keysToDelete.forEach(key => this.cache.delete(key));
-  }
-
-  // Memory management
-  clearCache(): void {
-    this.cache.clear();
-  }
-
-  getCacheStats(): { size: number; hitRate: number } {
-    return {
-      size: this.cache.size,
-      hitRate: 0.82 // Placeholder - would track actual hit rate
-    };
+  // Add supabase property for direct access
+  private get supabase() {
+    const { supabase } = require('../../integrations/supabase/client');
+    return supabase;
   }
 }
 
+// Export singleton instance
 export const userExperiencePersonalizer = new UserExperiencePersonalizer();

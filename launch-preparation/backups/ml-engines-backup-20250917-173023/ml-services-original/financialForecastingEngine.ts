@@ -1,5 +1,5 @@
 /**
- * Advanced Financial Forecasting Engine with Predictive Models - Refactored to extend BaseMLEngine
+ * Advanced Financial Forecasting Engine with Predictive Models
  *
  * Provides intelligent financial predictions and insights using:
  * - Time series analysis for spending pattern prediction
@@ -8,11 +8,8 @@
  * - Seasonal trend analysis and adjustment
  * - Multi-variate prediction with external factors
  * - Risk assessment and early warning systems
- *
- * Now uses shared functionality from BaseMLEngine, eliminating duplicate code.
  */
 
-import { BaseMLEngine } from './BaseMLEngine';
 import { financialDataPipeline } from '@/services/dataPipeline/financialDataPipeline';
 import { userBehaviorAnalytics } from '@/services/analytics/userBehaviorAnalytics';
 import { collectUserAction, collectResponseTime } from '@/services/pam/analytics/analyticsCollector';
@@ -121,21 +118,18 @@ interface FinancialAlert {
 // FINANCIAL FORECASTING ENGINE
 // =====================================================
 
-export class FinancialForecastingEngine extends BaseMLEngine {
+export class FinancialForecastingEngine {
   private static instance: FinancialForecastingEngine;
   private userModels = new Map<string, PredictiveModel[]>();
   private spendingPatterns = new Map<string, SpendingPattern[]>();
+  private forecastCache = new Map<string, FinancialForecast>();
   private activeAlerts = new Map<string, FinancialAlert[]>();
 
+  private readonly CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
   private readonly MIN_DATA_POINTS = 10; // Minimum transactions for reliable prediction
   private readonly RETRAINING_INTERVAL = 1000 * 60 * 60 * 24 * 7; // Weekly
 
   private constructor() {
-    super({
-      cacheTTL: 6 * 60 * 60 * 1000, // 6 hours for financial forecasts
-      enableLogging: true,
-      maxRetries: 3
-    });
     this.initializeEngine();
   }
 
@@ -146,14 +140,6 @@ export class FinancialForecastingEngine extends BaseMLEngine {
     return FinancialForecastingEngine.instance;
   }
 
-  getName(): string {
-    return 'Financial Forecasting Engine';
-  }
-
-  getVersion(): string {
-    return '2.0.0';
-  }
-
   private initializeEngine(): void {
     // Start model retraining schedule
     setInterval(() => this.retrainModels(), this.RETRAINING_INTERVAL);
@@ -161,9 +147,10 @@ export class FinancialForecastingEngine extends BaseMLEngine {
     // Alert monitoring
     setInterval(() => this.checkForAlerts(), 1000 * 60 * 60); // Hourly
 
-    if (this.config.enableLogging) {
-      logger.debug('💰 Financial Forecasting Engine initialized');
-    }
+    // Cache cleanup
+    setInterval(() => this.cleanupCache(), 1000 * 60 * 30); // Every 30 minutes
+
+    logger.debug('💰 Financial Forecasting Engine initialized');
   }
 
   // =====================================================
@@ -182,15 +169,13 @@ export class FinancialForecastingEngine extends BaseMLEngine {
       force_retrain?: boolean;
     } = {}
   ): Promise<FinancialForecast> {
-    this.validateUserId(userId);
-
     const startTime = Date.now();
-    const cacheKey = this.getCacheKey(userId, 'financial_forecast', forecastPeriod);
+    const cacheKey = this.generateCacheKey(userId, forecastPeriod);
 
-    return this.withErrorHandling(async () => {
+    try {
       // Check cache first
       if (!options.force_retrain) {
-        const cached = this.getFromCache<FinancialForecast>(cacheKey);
+        const cached = this.getCachedForecast(cacheKey);
         if (cached) {
           collectResponseTime({
             operation: 'financial_forecast_cached',
@@ -219,8 +204,8 @@ export class FinancialForecastingEngine extends BaseMLEngine {
         options
       );
 
-      // Cache results using base class
-      this.setCache(cacheKey, forecast);
+      // Cache results
+      this.cacheForecast(cacheKey, forecast);
 
       // Track analytics
       collectResponseTime({
@@ -237,47 +222,11 @@ export class FinancialForecastingEngine extends BaseMLEngine {
       });
 
       return forecast;
-    }, 'generateForecast', this.getDefaultForecast(userId, forecastPeriod));
-  }
 
-  private getDefaultForecast(userId: string, forecastPeriod: any): FinancialForecast {
-    const now = new Date();
-    const endDate = this.calculateEndDate(now, forecastPeriod);
-
-    return {
-      forecast_id: `default_forecast_${userId}_${Date.now()}`,
-      user_id: userId,
-      forecast_period: {
-        start_date: now.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        period_type: forecastPeriod.period_type
-      },
-      predictions: {
-        total_spending: {
-          predicted_amount: 500,
-          confidence_interval: [400, 600],
-          probability_distribution: [{ amount: 500, probability: 1.0 }]
-        },
-        category_breakdown: {
-          fuel: { predicted_amount: 200, confidence_interval: [150, 250], trend_direction: 'stable', risk_level: 'low' },
-          food: { predicted_amount: 300, confidence_interval: [250, 350], trend_direction: 'stable', risk_level: 'low' }
-        },
-        cash_flow: [],
-        budget_recommendations: []
-      },
-      risk_assessment: this.getDefaultRiskAssessment(),
-      external_factors: {
-        seasonal_adjustments: {},
-        economic_indicators: {},
-        personal_life_events: []
-      },
-      model_metadata: {
-        model_version: 'v2.0',
-        training_data_points: 0,
-        accuracy_metrics: { mae: 0, rmse: 0, mape: 0 },
-        last_updated: now.toISOString()
-      }
-    };
+    } catch (error) {
+      logger.error('Error generating financial forecast:', error);
+      throw error;
+    }
   }
 
   // =====================================================
@@ -285,16 +234,15 @@ export class FinancialForecastingEngine extends BaseMLEngine {
   // =====================================================
 
   private async getFinancialData(userId: string): Promise<any[]> {
-    return this.withErrorHandling(async () => {
-      const { startDate } = this.getDateRange(6); // 6 months using base class method
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-      const result = await financialDataPipeline.getExpenses(userId, {
-        start_date: startDate,
-        include_analytics: true
-      });
+    const result = await financialDataPipeline.getExpenses(userId, {
+      start_date: sixMonthsAgo.toISOString().split('T')[0],
+      include_analytics: true
+    });
 
-      return result.data || [];
-    }, 'getFinancialData', []);
+    return result.data || [];
   }
 
   private async analyzeSpendingPatterns(userId: string, financialData: any[]): Promise<SpendingPattern[]> {
@@ -318,15 +266,17 @@ export class FinancialForecastingEngine extends BaseMLEngine {
   }
 
   private groupByCategory(transactions: any[]): Map<string, any[]> {
-    // Use base class groupByCategory method
-    const grouped = super.groupByCategory(transactions);
-    const categoryMap = new Map<string, any[]>();
+    const categories = new Map<string, any[]>();
 
-    for (const [category, items] of Object.entries(grouped)) {
-      categoryMap.set(category, items);
+    for (const transaction of transactions) {
+      const category = transaction.category || 'other';
+      if (!categories.has(category)) {
+        categories.set(category, []);
+      }
+      categories.get(category)!.push(transaction);
     }
 
-    return categoryMap;
+    return categories;
   }
 
   private analyzeCategory(category: string, transactions: any[]): SpendingPattern {
@@ -363,8 +313,9 @@ export class FinancialForecastingEngine extends BaseMLEngine {
   private calculateVolatility(amounts: number[]): number {
     if (amounts.length < 2) return 0;
 
-    const mean = this.calculateAverage(amounts);
-    const stdDev = this.calculateStandardDeviation(amounts);
+    const mean = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+    const variance = amounts.reduce((sum, amount) => sum + Math.pow(amount - mean, 2), 0) / amounts.length;
+    const stdDev = Math.sqrt(variance);
 
     return mean > 0 ? stdDev / mean : 0; // Coefficient of variation
   }
@@ -535,26 +486,22 @@ export class FinancialForecastingEngine extends BaseMLEngine {
     userId: string,
     financialData: any[]
   ): Promise<PredictiveModel> {
-    return this.withErrorHandling(async () => {
-      // Simplified model training (in reality, this would use actual ML libraries)
-      const features = this.extractFeatures(financialData);
-      const accuracyScore = this.simulateModelTraining(modelType, features);
+    // Simplified model training (in reality, this would use actual ML libraries)
+    const features = this.extractFeatures(financialData);
+    const accuracyScore = this.simulateModelTraining(modelType, features);
 
-      const model: PredictiveModel = {
-        model_id: `${modelType}_${userId}_${Date.now()}`,
-        model_type: modelType,
-        parameters: this.generateModelParameters(modelType),
-        accuracy_score: accuracyScore,
-        last_trained: new Date().toISOString(),
-        feature_importance: this.calculateFeatureImportance(features)
-      };
+    const model: PredictiveModel = {
+      model_id: `${modelType}_${userId}_${Date.now()}`,
+      model_type: modelType,
+      parameters: this.generateModelParameters(modelType),
+      accuracy_score: accuracyScore,
+      last_trained: new Date().toISOString(),
+      feature_importance: this.calculateFeatureImportance(features)
+    };
 
-      if (this.config.enableLogging) {
-        logger.debug(`Trained ${modelType} model with accuracy: ${accuracyScore.toFixed(3)}`);
-      }
+    logger.debug(`Trained ${modelType} model with accuracy: ${accuracyScore.toFixed(3)}`);
 
-      return model;
-    }, `trainModel_${modelType}`, null);
+    return model;
   }
 
   private extractFeatures(financialData: any[]): Record<string, number[]> {
@@ -1174,58 +1121,94 @@ export class FinancialForecastingEngine extends BaseMLEngine {
   // =====================================================
 
   private async retrainModels(): Promise<void> {
-    if (this.config.enableLogging) {
-      logger.debug('🔄 Starting scheduled model retraining');
-    }
+    logger.debug('🔄 Starting scheduled model retraining');
 
     let retrainedCount = 0;
 
     for (const [userId, models] of this.userModels) {
-      await this.withErrorHandling(async () => {
+      try {
         if (this.shouldRetrainModels(models)) {
           const financialData = await this.getFinancialData(userId);
           const newModels = await this.trainModels(userId, financialData);
           this.userModels.set(userId, newModels);
           retrainedCount++;
         }
-      }, `retrainModels_${userId}`);
+      } catch (error) {
+        logger.error(`Error retraining models for user ${userId}:`, error);
+      }
     }
 
-    if (this.config.enableLogging) {
-      logger.debug(`🎓 Retrained models for ${retrainedCount} users`);
-    }
+    logger.debug(`🎓 Retrained models for ${retrainedCount} users`);
   }
 
   // =====================================================
-  // CACHE MANAGEMENT - Now handled by BaseMLEngine
+  // CACHE MANAGEMENT
   // =====================================================
+
+  private generateCacheKey(userId: string, forecastPeriod: any): string {
+    return `forecast_${userId}_${forecastPeriod.period_type}_${forecastPeriod.periods_ahead || 1}`;
+  }
+
+  private getCachedForecast(cacheKey: string): FinancialForecast | null {
+    const cached = this.forecastCache.get(cacheKey);
+    if (!cached) return null;
+
+    // Check if cache is still valid (simplified)
+    const cacheAge = Date.now() - new Date(cached.model_metadata.last_updated).getTime();
+    if (cacheAge > this.CACHE_TTL) {
+      this.forecastCache.delete(cacheKey);
+      return null;
+    }
+
+    return cached;
+  }
+
+  private cacheForecast(cacheKey: string, forecast: FinancialForecast): void {
+    this.forecastCache.set(cacheKey, forecast);
+
+    // Cleanup if cache gets too large
+    if (this.forecastCache.size > 100) {
+      const keysToDelete = Array.from(this.forecastCache.keys()).slice(0, 20);
+      keysToDelete.forEach(key => this.forecastCache.delete(key));
+    }
+  }
+
+  private cleanupCache(): void {
+    let cleanedCount = 0;
+
+    for (const [key, forecast] of this.forecastCache) {
+      const age = Date.now() - new Date(forecast.model_metadata.last_updated).getTime();
+      if (age > this.CACHE_TTL) {
+        this.forecastCache.delete(key);
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      logger.debug(`🧹 Cleaned ${cleanedCount} expired forecast cache entries`);
+    }
+  }
 
   // =====================================================
   // PUBLIC API
   // =====================================================
 
   async getFinancialAlerts(userId: string): Promise<FinancialAlert[]> {
-    this.validateUserId(userId);
     return this.activeAlerts.get(userId) || [];
   }
 
   async dismissAlert(userId: string, alertId: string): Promise<void> {
-    this.validateUserId(userId);
+    const alerts = this.activeAlerts.get(userId) || [];
+    const filteredAlerts = alerts.filter(alert => alert.alert_id !== alertId);
+    this.activeAlerts.set(userId, filteredAlerts);
 
-    return this.withErrorHandling(async () => {
-      const alerts = this.activeAlerts.get(userId) || [];
-      const filteredAlerts = alerts.filter(alert => alert.alert_id !== alertId);
-      this.activeAlerts.set(userId, filteredAlerts);
-
-      collectUserAction('financial_alert_dismissed', {
-        user_id: userId,
-        alert_id: alertId
-      });
-    }, 'dismissAlert');
+    collectUserAction('financial_alert_dismissed', {
+      user_id: userId,
+      alert_id: alertId
+    });
   }
 
   getUserSpendingPatterns(userId: string): SpendingPattern[] {
-    this.validateUserId(userId);
     return this.spendingPatterns.get(userId) || [];
   }
 
@@ -1233,29 +1216,31 @@ export class FinancialForecastingEngine extends BaseMLEngine {
     total_users: number;
     models_trained: number;
     avg_accuracy: number;
-    cache_stats: { size: number; keys: string[] };
+    cache_size: number;
   } {
     const allModels = Array.from(this.userModels.values()).flat();
     const avgAccuracy = allModels.length > 0 ?
-      this.calculateAverage(allModels.map(m => m.accuracy_score)) : 0;
+      allModels.reduce((sum, model) => sum + model.accuracy_score, 0) / allModels.length : 0;
 
     return {
       total_users: this.userModels.size,
       models_trained: allModels.length,
       avg_accuracy: Math.round(avgAccuracy * 1000) / 1000,
-      cache_stats: this.getCacheStats()
+      cache_size: this.forecastCache.size
     };
   }
 
   clearUserData(userId: string): void {
-    this.validateUserId(userId);
-
     this.userModels.delete(userId);
     this.spendingPatterns.delete(userId);
     this.activeAlerts.delete(userId);
 
-    // Clear user-specific cache using base class method
-    this.clearCache(userId);
+    // Clear user's forecast cache
+    for (const [key, forecast] of this.forecastCache) {
+      if (forecast.user_id === userId) {
+        this.forecastCache.delete(key);
+      }
+    }
   }
 }
 
