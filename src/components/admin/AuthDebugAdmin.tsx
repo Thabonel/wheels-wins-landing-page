@@ -342,6 +342,11 @@ const AuthDebugAdmin: React.FC = () => {
               <code className="text-xs">docs/sql-fixes/20250117_fix_user_settings_rls.sql</code>
               <span className="text-gray-600">- Fix user_settings table RLS policies</span>
             </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">CORRECTED Fix</Badge>
+              <code className="text-xs">docs/sql-fixes/20250117_fix_user_settings_rls_corrected.sql</code>
+              <span className="text-gray-600">- Clean fix for conflicting RLS policies</span>
+            </div>
           </div>
         </CardContent>
       </Card>
