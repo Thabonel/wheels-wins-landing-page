@@ -5,12 +5,12 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { 
-  DollarSign, 
-  Fuel, 
-  Tent, 
-  UtensilsCrossed, 
-  MapPin, 
+import {
+  DollarSign,
+  Fuel,
+  Tent,
+  UtensilsCrossed,
+  MapPin,
   AlertTriangle,
   CheckCircle,
   TrendingUp,
@@ -19,19 +19,24 @@ import {
   Mountain,
   Settings,
   MessageSquare,
-  X
+  X,
+  Brain,
+  Sparkles,
+  Target
 } from 'lucide-react';
 import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
-import { 
-  BudgetCalculator, 
-  BudgetSettings, 
-  RouteData, 
-  CostBreakdown, 
-  BudgetStatus, 
-  PAMSuggestion 
+import {
+  BudgetCalculator,
+  BudgetSettings,
+  RouteData,
+  CostBreakdown,
+  BudgetStatus,
+  PAMSuggestion
 } from './services/BudgetCalculator';
 import { Waypoint } from './types';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { aiBudgetAssistant } from '@/services/ml/aiBudgetAssistant';
 
 interface BudgetSidebarProps {
   directionsControl?: React.MutableRefObject<MapboxDirections | undefined>;
@@ -51,13 +56,16 @@ const iconMap = {
   'route': MapPin,
 };
 
-export default function BudgetSidebar({ 
-  directionsControl, 
-  isVisible, 
-  onClose, 
-  waypoints = [] 
+export default function BudgetSidebar({
+  directionsControl,
+  isVisible,
+  onClose,
+  waypoints = []
 }: BudgetSidebarProps) {
+  const { user } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
+  const [aiRecommendations, setAiRecommendations] = useState<any[]>([]);
+  const [loadingAiRecommendations, setLoadingAiRecommendations] = useState(false);
   const [settings, setSettings] = useState<BudgetSettings>({
     totalBudget: 1500,
     fuelPrice: 3.89,
@@ -121,6 +129,28 @@ export default function BudgetSidebar({
   const pamSuggestions = useMemo((): PAMSuggestion[] => {
     return BudgetCalculator.generatePAMSuggestions(costBreakdown, budgetStatus, settings, routeData);
   }, [costBreakdown, budgetStatus, settings, routeData]);
+
+  // Load AI Budget Recommendations
+  useEffect(() => {
+    const loadAiRecommendations = async () => {
+      if (!user?.id) return;
+
+      setLoadingAiRecommendations(true);
+      try {
+        const suggestions = await aiBudgetAssistant.getOptimizationSuggestions(user.id);
+        setAiRecommendations(suggestions.quick_wins || []);
+      } catch (error) {
+        console.error('Error loading AI budget recommendations:', error);
+        setAiRecommendations([]);
+      } finally {
+        setLoadingAiRecommendations(false);
+      }
+    };
+
+    if (isVisible && user?.id) {
+      loadAiRecommendations();
+    }
+  }, [isVisible, user?.id, costBreakdown.total]); // Refresh when trip cost changes
 
   const StatusIcon = iconMap[BudgetCalculator.getStatusIcon(budgetStatus.status) as keyof typeof iconMap];
   const statusColor = BudgetCalculator.getStatusColor(budgetStatus.status);
@@ -299,6 +329,62 @@ export default function BudgetSidebar({
             </div>
           </div>
         </div>
+
+        {/* AI Budget Recommendations */}
+        {(aiRecommendations.length > 0 || loadingAiRecommendations) && (
+          <div className="space-y-4">
+            <h4 className="font-semibold text-base flex items-center gap-2">
+              <Brain className="w-4 h-4 text-blue-600" />
+              🧠 AI Budget Optimizer
+            </h4>
+            {loadingAiRecommendations ? (
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="text-sm text-blue-700">Analyzing your budget patterns...</div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {aiRecommendations.map((recommendation, index) => (
+                  <div key={index} className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Target className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm text-blue-700 mb-1">
+                          {recommendation.title}
+                        </div>
+                        <div className="text-xs text-blue-600 mb-2">
+                          {recommendation.description}
+                        </div>
+                        {recommendation.potential_savings > 0 && (
+                          <div className="text-xs font-medium text-green-600 mb-2">
+                            💰 Potential savings: ${recommendation.potential_savings.toFixed(2)}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 text-xs">
+                          <Badge variant="outline" className="text-xs px-2 py-0.5">
+                            {recommendation.implementation_difficulty || 'medium'} effort
+                          </Badge>
+                          <Badge variant="outline" className={cn(
+                            "text-xs px-2 py-0.5",
+                            recommendation.priority === 'high' && "border-red-200 text-red-700",
+                            recommendation.priority === 'medium' && "border-yellow-200 text-yellow-700",
+                            recommendation.priority === 'low' && "border-green-200 text-green-700"
+                          )}>
+                            {recommendation.priority || 'medium'} priority
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* PAM AI Suggestions */}
         {pamSuggestions.length > 0 && (
