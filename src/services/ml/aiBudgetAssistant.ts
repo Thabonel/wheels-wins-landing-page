@@ -1,5 +1,5 @@
-import { supabase } from '../../integrations/supabase/client';
 import { addDays, subDays, startOfMonth, endOfMonth, differenceInDays, format } from 'date-fns';
+import { BaseMLEngine } from './BaseMLEngine';
 import { financialForecastingEngine } from './financialForecastingEngine';
 import { userBehaviorAnalytics } from '../analytics/userBehaviorAnalytics';
 
@@ -48,738 +48,666 @@ interface PersonalizedBudgetPlan {
   spending_limits: {
     category: string;
     limit: number;
-    current_spent: number;
-    days_remaining: number;
-    projected_overspend: number;
+    warning_threshold: number;
+    reasoning: string;
   }[];
-  insights: SmartBudgetInsight[];
+  emergency_fund: {
+    current_amount: number;
+    recommended_amount: number;
+    monthly_contribution: number;
+  };
+  debt_payoff_strategy?: {
+    debts: {
+      name: string;
+      balance: number;
+      interest_rate: number;
+      minimum_payment: number;
+      recommended_payment: number;
+    }[];
+    total_payoff_time: number;
+    total_interest_saved: number;
+  };
+}
+
+interface BudgetOptimizationResult {
+  current_efficiency_score: number;
+  optimized_efficiency_score: number;
+  potential_monthly_savings: number;
   recommendations: BudgetRecommendation[];
-  confidence_level: number;
+  insights: SmartBudgetInsight[];
+  personalized_plan: PersonalizedBudgetPlan;
+  risk_assessment: {
+    financial_health_score: number;
+    risk_factors: string[];
+    mitigation_strategies: string[];
+  };
 }
 
-interface SpendingAlert {
-  alert_id: string;
-  user_id: string;
-  type: 'overspending' | 'unusual_pattern' | 'goal_at_risk' | 'saving_opportunity' | 'budget_variance';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  title: string;
-  message: string;
-  category?: string;
-  amount?: number;
-  created_at: string;
-  expires_at: string;
-  actions: {
-    label: string;
-    action: string;
-    data: any;
-  }[];
-  is_read: boolean;
-  is_dismissed: boolean;
-}
-
-export class AIBudgetAssistant {
-  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
-  private readonly CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+/**
+ * AI Budget Assistant - Refactored to extend BaseMLEngine
+ *
+ * Provides intelligent budget optimization and recommendations.
+ * Now uses shared functionality from BaseMLEngine, eliminating duplicate code.
+ */
+export class AIBudgetAssistant extends BaseMLEngine {
   private readonly INSIGHTS_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
 
-  private getCachedData<T>(key: string): T | null {
-    const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      return cached.data as T;
-    }
-    this.cache.delete(key);
-    return null;
-  }
-
-  private setCachedData(key: string, data: any, customTtl?: number): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl: customTtl || this.CACHE_TTL
+  constructor() {
+    super({
+      cacheTTL: 2 * 60 * 60 * 1000, // 2 hours for budget data
+      enableLogging: true,
+      maxRetries: 3
     });
   }
 
-  async generatePersonalizedBudgetPlan(userId: string, options: {
-    include_forecasting?: boolean;
-    include_behavior_analysis?: boolean;
-    planning_horizon_months?: number;
-  } = {}): Promise<PersonalizedBudgetPlan | null> {
-    const {
-      include_forecasting = true,
-      include_behavior_analysis = true,
-      planning_horizon_months = 3
-    } = options;
-
-    const cacheKey = `budget_plan_${userId}_${planning_horizon_months}`;
-    const cached = this.getCachedData<PersonalizedBudgetPlan>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      // Get user's financial data
-      const financialData = await this.getUserFinancialData(userId);
-      if (!financialData) return null;
-
-      // Get spending patterns
-      const spendingPatterns = await this.analyzeSpendingPatterns(userId);
-
-      // Get behavior insights if requested
-      const behaviorInsights = include_behavior_analysis
-        ? await userBehaviorAnalytics.getUserEngagementMetrics(userId)
-        : null;
-
-      // Get financial forecast if requested
-      const forecast = include_forecasting
-        ? await financialForecastingEngine.generateForecast(userId, { period_type: 'month', periods_ahead: planning_horizon_months })
-        : null;
-
-      // Generate budget allocations
-      const recommendedAllocations = this.generateBudgetAllocations(financialData, spendingPatterns, behaviorInsights);
-
-      // Generate savings goals
-      const savingsGoals = await this.generateSavingsGoals(userId, financialData, forecast);
-
-      // Generate spending limits
-      const spendingLimits = this.generateSpendingLimits(financialData, spendingPatterns, forecast);
-
-      // Generate insights
-      const insights = await this.generateBudgetInsights(userId, financialData, spendingPatterns, forecast);
-
-      // Generate recommendations
-      const recommendations = await this.generateBudgetRecommendations(userId, financialData, spendingPatterns, behaviorInsights);
-
-      // Calculate confidence level
-      const confidenceLevel = this.calculatePlanConfidence(financialData, spendingPatterns, behaviorInsights);
-
-      const budgetPlan: PersonalizedBudgetPlan = {
-        user_id: userId,
-        plan_date: new Date().toISOString(),
-        monthly_income: financialData.monthly_income,
-        recommended_allocations: recommendedAllocations,
-        savings_goals: savingsGoals,
-        spending_limits: spendingLimits,
-        insights: insights,
-        recommendations: recommendations,
-        confidence_level: confidenceLevel
-      };
-
-      this.setCachedData(cacheKey, budgetPlan);
-      return budgetPlan;
-
-    } catch (error) {
-      console.error('Error generating personalized budget plan:', error);
-      return null;
-    }
+  getName(): string {
+    return 'AI Budget Assistant';
   }
 
-  private async getUserFinancialData(userId: string) {
-    // Get current income
-    const { data: incomeData } = await supabase
-      .from('user_income')
-      .select('amount, frequency')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single();
+  getVersion(): string {
+    return '2.0.0';
+  }
 
-    // Get recent expenses (last 3 months)
-    const threeMonthsAgo = subDays(new Date(), 90);
-    const { data: expensesData } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('date', threeMonthsAgo.toISOString())
-      .order('date', { ascending: false });
+  async generateBudgetRecommendations(
+    userId: string,
+    options: {
+      includeGoals?: boolean;
+      includeRiskAssessment?: boolean;
+      timeframe?: 'monthly' | 'quarterly' | 'yearly';
+    } = {}
+  ): Promise<BudgetOptimizationResult> {
+    this.validateUserId(userId);
 
-    // Get current budgets
-    const { data: budgetsData } = await supabase
-      .from('budgets')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true);
+    const cacheKey = this.getCacheKey(userId, 'budget_recommendations', options);
+    const cached = this.getFromCache<BudgetOptimizationResult>(cacheKey);
+    if (cached) return cached;
 
-    // Calculate monthly income
-    const monthlyIncome = incomeData
-      ? this.normalizeToMonthlyAmount(incomeData.amount, incomeData.frequency)
-      : 0;
+    return this.withErrorHandling(async () => {
+      // Fetch all required data using base class methods
+      const [expenses, budgets, profile, userSettings] = await Promise.all([
+        this.fetchExpenses(userId, { limit: 1000 }),
+        this.fetchBudgets(userId, { active: true }),
+        this.fetchProfile(userId),
+        this.fetchUserSettings(userId)
+      ]);
+
+      // Generate comprehensive budget analysis
+      const result = await this.performBudgetOptimization(
+        userId,
+        expenses,
+        budgets,
+        profile,
+        userSettings,
+        options
+      );
+
+      this.setCache(cacheKey, result);
+      return result;
+    }, 'generateBudgetRecommendations');
+  }
+
+  async getSmartInsights(userId: string): Promise<SmartBudgetInsight[]> {
+    this.validateUserId(userId);
+
+    const cacheKey = this.getCacheKey(userId, 'smart_insights');
+    const cached = this.getFromCache<SmartBudgetInsight[]>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const { startDate, endDate } = this.getDateRange(6); // 6 months
+      const expenses = await this.fetchExpenses(userId, { startDate, endDate });
+
+      const insights = this.analyzeSpendingPatterns(expenses, userId);
+      this.setCache(cacheKey, insights, this.INSIGHTS_CACHE_TTL);
+
+      return insights;
+    }, 'getSmartInsights', []);
+  }
+
+  async optimizeBudgetCategories(userId: string): Promise<{
+    current_allocations: Record<string, number>;
+    recommended_allocations: Record<string, number>;
+    savings_potential: number;
+    reasoning: string[];
+  }> {
+    this.validateUserId(userId);
+
+    const cacheKey = this.getCacheKey(userId, 'optimize_categories');
+    const cached = this.getFromCache<any>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const { startDate, endDate } = this.getDateRange(3); // 3 months
+      const expenses = await this.fetchExpenses(userId, { startDate, endDate });
+
+      const categorySpending = this.groupByCategory(expenses);
+      const optimization = this.calculateOptimalAllocations(categorySpending);
+
+      this.setCache(cacheKey, optimization);
+      return optimization;
+    }, 'optimizeBudgetCategories');
+  }
+
+  async generatePersonalizedPlan(
+    userId: string,
+    monthlyIncome: number,
+    options: {
+      riskTolerance?: 'conservative' | 'moderate' | 'aggressive';
+      primaryGoals?: string[];
+    } = {}
+  ): Promise<PersonalizedBudgetPlan> {
+    this.validateUserId(userId);
+    this.validateAmount(monthlyIncome);
+
+    const cacheKey = this.getCacheKey(userId, 'personalized_plan', { monthlyIncome, ...options });
+    const cached = this.getFromCache<PersonalizedBudgetPlan>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const { startDate, endDate } = this.getDateRange(6);
+      const [expenses, profile, userSettings] = await Promise.all([
+        this.fetchExpenses(userId, { startDate, endDate }),
+        this.fetchProfile(userId),
+        this.fetchUserSettings(userId)
+      ]);
+
+      const plan = this.createPersonalizedPlan(
+        userId,
+        monthlyIncome,
+        expenses,
+        profile,
+        userSettings,
+        options
+      );
+
+      this.setCache(cacheKey, plan);
+      return plan;
+    }, 'generatePersonalizedPlan');
+  }
+
+  // ============================================================================
+  // PRIVATE ANALYSIS METHODS (Engine-specific logic)
+  // ============================================================================
+
+  private async performBudgetOptimization(
+    userId: string,
+    expenses: any[],
+    budgets: any[],
+    profile: any,
+    userSettings: any,
+    options: any
+  ): Promise<BudgetOptimizationResult> {
+    const categorySpending = this.groupByCategory(expenses);
+    const monthlySpending = this.groupByTimePeriod(expenses, 'month');
+
+    // Calculate efficiency scores
+    const currentEfficiency = this.calculateEfficiencyScore(expenses, budgets);
+    const recommendations = this.generateRecommendations(
+      categorySpending,
+      monthlySpending,
+      profile,
+      userSettings
+    );
+
+    // Estimate optimized efficiency
+    const optimizedEfficiency = Math.min(100, currentEfficiency + 15);
+    const potentialSavings = this.calculatePotentialSavings(recommendations);
+
+    // Generate insights
+    const insights = this.analyzeSpendingPatterns(expenses, userId);
+
+    // Create personalized plan if income data available
+    const monthlyIncome = profile?.monthly_income || this.estimateIncomeFromSpending(expenses);
+    const personalizedPlan = this.createPersonalizedPlan(
+      userId,
+      monthlyIncome,
+      expenses,
+      profile,
+      userSettings,
+      options
+    );
+
+    // Risk assessment
+    const riskAssessment = this.assessFinancialRisk(expenses, monthlyIncome, profile);
 
     return {
-      monthly_income: monthlyIncome,
-      recent_expenses: expensesData || [],
-      current_budgets: budgetsData || [],
-      total_monthly_spending: this.calculateMonthlySpending(expensesData || [])
+      current_efficiency_score: currentEfficiency,
+      optimized_efficiency_score: optimizedEfficiency,
+      potential_monthly_savings: potentialSavings,
+      recommendations,
+      insights,
+      personalized_plan: personalizedPlan,
+      risk_assessment: riskAssessment
     };
   }
 
-  private normalizeToMonthlyAmount(amount: number, frequency: string): number {
-    switch (frequency) {
-      case 'weekly': return amount * 4.33;
-      case 'bi-weekly': return amount * 2.17;
-      case 'monthly': return amount;
-      case 'quarterly': return amount / 3;
-      case 'yearly': return amount / 12;
-      default: return amount;
-    }
-  }
+  private calculateEfficiencyScore(expenses: any[], budgets: any[]): number {
+    if (!expenses.length) return 50;
 
-  private calculateMonthlySpending(expenses: any[]): number {
-    if (expenses.length === 0) return 0;
+    const categoryTotals = this.groupByCategory(expenses);
+    const totalSpending = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
-    // Group expenses by month and calculate average
-    const monthlyTotals: Record<string, number> = {};
+    // Score based on spending distribution and budget adherence
+    let score = 70; // Base score
 
-    expenses.forEach(expense => {
-      const monthKey = format(new Date(expense.date), 'yyyy-MM');
-      monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + expense.amount;
-    });
+    // Check spending distribution
+    const categories = Object.keys(categoryTotals);
+    const averageSpending = totalSpending / categories.length;
+    const variance = this.calculateStandardDeviation(
+      Object.values(categoryTotals).map(arr => arr.reduce((sum: number, exp: any) => sum + exp.amount, 0))
+    );
 
-    const totals = Object.values(monthlyTotals);
-    return totals.reduce((sum, total) => sum + total, 0) / totals.length;
-  }
+    // Lower variance = better distribution
+    score += Math.max(-20, Math.min(20, 20 - (variance / averageSpending) * 10));
 
-  private async analyzeSpendingPatterns(userId: string) {
-    const { data: expenses } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('date', subDays(new Date(), 90).toISOString())
-      .order('date', { ascending: false });
-
-    if (!expenses || expenses.length === 0) {
-      return { categoryBreakdown: {}, trends: {}, anomalies: [] };
+    // Budget adherence bonus
+    if (budgets.length > 0) {
+      const adherenceScore = this.calculateBudgetAdherence(categoryTotals, budgets);
+      score += adherenceScore * 0.3;
     }
 
-    // Calculate category breakdown
-    const categoryBreakdown: Record<string, { total: number; count: number; average: number }> = {};
-    expenses.forEach(expense => {
-      const category = expense.category || 'Other';
-      if (!categoryBreakdown[category]) {
-        categoryBreakdown[category] = { total: 0, count: 0, average: 0 };
-      }
-      categoryBreakdown[category].total += expense.amount;
-      categoryBreakdown[category].count++;
-    });
-
-    // Calculate averages
-    Object.keys(categoryBreakdown).forEach(category => {
-      categoryBreakdown[category].average = categoryBreakdown[category].total / categoryBreakdown[category].count;
-    });
-
-    // Analyze trends (simplified)
-    const trends = this.calculateSpendingTrends(expenses);
-
-    // Detect anomalies
-    const anomalies = this.detectSpendingAnomalies(expenses);
-
-    return { categoryBreakdown, trends, anomalies };
+    return Math.max(0, Math.min(100, score));
   }
 
-  private calculateSpendingTrends(expenses: any[]): Record<string, number> {
-    // Group by category and calculate trend
-    const categoryTrends: Record<string, number> = {};
+  private calculateBudgetAdherence(categoryTotals: Record<string, any[]>, budgets: any[]): number {
+    let totalAdherence = 0;
+    let categoriesWithBudgets = 0;
 
-    const categories = [...new Set(expenses.map(e => e.category || 'Other'))];
+    budgets.forEach(budget => {
+      const categorySpending = categoryTotals[budget.category] || [];
+      const totalSpent = categorySpending.reduce((sum, exp) => sum + exp.amount, 0);
 
-    categories.forEach(category => {
-      const categoryExpenses = expenses.filter(e => (e.category || 'Other') === category);
-
-      if (categoryExpenses.length >= 4) {
-        // Calculate simple trend (recent vs older)
-        const recent = categoryExpenses.slice(0, Math.floor(categoryExpenses.length / 2));
-        const older = categoryExpenses.slice(Math.floor(categoryExpenses.length / 2));
-
-        const recentAvg = recent.reduce((sum, e) => sum + e.amount, 0) / recent.length;
-        const olderAvg = older.reduce((sum, e) => sum + e.amount, 0) / older.length;
-
-        categoryTrends[category] = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg) * 100 : 0;
-      }
-    });
-
-    return categoryTrends;
-  }
-
-  private detectSpendingAnomalies(expenses: any[]): any[] {
-    const anomalies: any[] = [];
-
-    // Group by category
-    const categoryGroups: Record<string, any[]> = {};
-    expenses.forEach(expense => {
-      const category = expense.category || 'Other';
-      if (!categoryGroups[category]) categoryGroups[category] = [];
-      categoryGroups[category].push(expense);
-    });
-
-    // Detect anomalies in each category
-    Object.entries(categoryGroups).forEach(([category, categoryExpenses]) => {
-      if (categoryExpenses.length < 5) return; // Need enough data
-
-      const amounts = categoryExpenses.map(e => e.amount);
-      const mean = amounts.reduce((sum, amt) => sum + amt, 0) / amounts.length;
-      const stdDev = Math.sqrt(amounts.reduce((sum, amt) => sum + Math.pow(amt - mean, 2), 0) / amounts.length);
-
-      categoryExpenses.forEach(expense => {
-        const zScore = Math.abs((expense.amount - mean) / stdDev);
-        if (zScore > 2) { // More than 2 standard deviations
-          anomalies.push({
-            expense_id: expense.id,
-            category,
-            amount: expense.amount,
-            date: expense.date,
-            z_score: zScore,
-            type: expense.amount > mean ? 'high_spending' : 'low_spending'
-          });
-        }
-      });
-    });
-
-    return anomalies.sort((a, b) => b.z_score - a.z_score).slice(0, 10); // Top 10 anomalies
-  }
-
-  private generateBudgetAllocations(financialData: any, spendingPatterns: any, behaviorInsights: any | null) {
-    const income = financialData.monthly_income;
-    const currentSpending = financialData.total_monthly_spending;
-
-    // Base allocation percentages (50/30/20 rule adapted)
-    const baseAllocations = [
-      { category: 'Housing', percentage: 30, essential: true },
-      { category: 'Transportation', percentage: 15, essential: true },
-      { category: 'Food', percentage: 12, essential: true },
-      { category: 'Utilities', percentage: 8, essential: true },
-      { category: 'Insurance', percentage: 5, essential: true },
-      { category: 'Savings', percentage: 20, essential: false },
-      { category: 'Entertainment', percentage: 5, essential: false },
-      { category: 'Shopping', percentage: 3, essential: false },
-      { category: 'Other', percentage: 2, essential: false }
-    ];
-
-    // Adjust based on actual spending patterns
-    const adjustedAllocations = baseAllocations.map(allocation => {
-      const categoryData = spendingPatterns.categoryBreakdown[allocation.category];
-      const actualPercentage = categoryData ? (categoryData.total / currentSpending) * 100 : 0;
-
-      let adjustedPercentage = allocation.percentage;
-
-      // If user consistently spends more in a category, adjust upward (but cap it)
-      if (actualPercentage > allocation.percentage * 1.5 && allocation.essential) {
-        adjustedPercentage = Math.min(allocation.percentage * 1.3, actualPercentage);
+      if (totalSpent <= budget.amount) {
+        totalAdherence += 100;
+      } else {
+        const overspend = totalSpent - budget.amount;
+        const adherencePercentage = Math.max(0, 100 - (overspend / budget.amount) * 100);
+        totalAdherence += adherencePercentage;
       }
 
-      // Adjust based on behavior insights
-      if (behaviorInsights && behaviorInsights.risk_level === 'high') {
-        // More conservative allocations for high-risk users
-        if (allocation.category === 'Savings') adjustedPercentage *= 1.2;
-        if (!allocation.essential) adjustedPercentage *= 0.8;
-      }
-
-      return {
-        category: allocation.category,
-        percentage: Math.round(adjustedPercentage * 100) / 100,
-        amount: Math.round((income * adjustedPercentage) / 100),
-        reasoning: this.generateAllocationReasoning(allocation, actualPercentage, adjustedPercentage)
-      };
+      categoriesWithBudgets++;
     });
 
-    // Ensure percentages add up to 100%
-    const totalPercentage = adjustedAllocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
-    if (totalPercentage !== 100) {
-      const adjustment = (100 - totalPercentage) / adjustedAllocations.length;
-      adjustedAllocations.forEach(alloc => {
-        alloc.percentage += adjustment;
-        alloc.amount = Math.round((income * alloc.percentage) / 100);
-      });
-    }
-
-    return adjustedAllocations;
+    return categoriesWithBudgets > 0 ? totalAdherence / categoriesWithBudgets : 50;
   }
 
-  private generateAllocationReasoning(allocation: any, actualPercentage: number, adjustedPercentage: number): string {
-    if (Math.abs(allocation.percentage - adjustedPercentage) < 1) {
-      return `Standard ${allocation.percentage}% allocation maintained based on typical spending patterns.`;
-    }
+  private generateRecommendations(
+    categorySpending: Record<string, any[]>,
+    monthlySpending: Record<string, any[]>,
+    profile: any,
+    userSettings: any
+  ): BudgetRecommendation[] {
+    const recommendations: BudgetRecommendation[] = [];
 
-    if (adjustedPercentage > allocation.percentage) {
-      return `Increased to ${adjustedPercentage}% based on your consistent spending of ${actualPercentage.toFixed(1)}% in this category.`;
-    }
+    // Analyze each category for optimization opportunities
+    Object.entries(categorySpending).forEach(([category, expenses]) => {
+      const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const avgMonthly = totalSpent / 6; // 6 months of data
 
-    return `Reduced to ${adjustedPercentage}% to optimize your budget and increase savings potential.`;
-  }
-
-  private async generateSavingsGoals(userId: string, financialData: any, forecast: any) {
-    // Get existing goals
-    const { data: existingGoals } = await supabase
-      .from('savings_goals')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true);
-
-    const income = financialData.monthly_income;
-    const disposableIncome = income - financialData.total_monthly_spending;
-
-    const goals = [];
-
-    // Emergency fund goal
-    if (!existingGoals?.some(g => g.type === 'emergency_fund')) {
-      goals.push({
-        name: 'Emergency Fund',
-        target_amount: income * 6, // 6 months of income
-        target_date: addDays(new Date(), 365).toISOString(), // 1 year
-        monthly_contribution: Math.max(100, disposableIncome * 0.3),
-        progress_percentage: 0
-      });
-    }
-
-    // Add existing goals with updated progress
-    if (existingGoals) {
-      existingGoals.forEach(goal => {
-        goals.push({
-          name: goal.name,
-          target_amount: goal.target_amount,
-          target_date: goal.target_date,
-          monthly_contribution: goal.monthly_contribution || Math.max(50, disposableIncome * 0.2),
-          progress_percentage: Math.min(100, (goal.current_amount / goal.target_amount) * 100)
+      if (avgMonthly > 500 && category !== 'housing' && category !== 'transportation') {
+        recommendations.push({
+          id: `optimize_${category}`,
+          type: 'category_optimization',
+          priority: avgMonthly > 1000 ? 'high' : 'medium',
+          title: `Optimize ${category} spending`,
+          description: `You're spending $${avgMonthly.toFixed(2)}/month on ${category}. Consider reviewing these expenses.`,
+          potential_savings: avgMonthly * 0.15, // 15% potential savings
+          implementation_difficulty: 'medium',
+          timeframe: 'short_term',
+          category,
+          specific_actions: [
+            `Review recent ${category} purchases`,
+            'Look for subscription services to cancel',
+            'Compare prices with alternatives',
+            'Set a monthly limit for this category'
+          ],
+          confidence_score: this.calculateConfidence(expenses.length, 0.1),
+          impact_score: Math.min(100, (avgMonthly / 100) * 10)
         });
+      }
+    });
+
+    // Add savings recommendations based on spending patterns
+    const trends = this.analyzeSpendingTrends(monthlySpending);
+    if (trends.direction === 'up' && trends.strength > 0.1) {
+      recommendations.push({
+        id: 'spending_trend_alert',
+        type: 'spending_limit',
+        priority: 'high',
+        title: 'Rising spending trend detected',
+        description: `Your spending has increased by ${(trends.percentChange).toFixed(1)}% recently`,
+        potential_savings: 200, // Estimated
+        implementation_difficulty: 'easy',
+        timeframe: 'immediate',
+        specific_actions: [
+          'Review recent purchases',
+          'Set stricter weekly spending limits',
+          'Use cash for discretionary spending',
+          'Enable spending alerts'
+        ],
+        confidence_score: trends.strength,
+        impact_score: Math.min(100, Math.abs(trends.percentChange))
       });
     }
 
-    return goals;
+    return recommendations.slice(0, 5); // Top 5 recommendations
   }
 
-  private generateSpendingLimits(financialData: any, spendingPatterns: any, forecast: any) {
-    const limits = [];
-    const currentDate = new Date();
-    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    const daysRemaining = daysInMonth - currentDate.getDate();
+  private analyzeSpendingTrends(monthlySpending: Record<string, any[]>): {
+    direction: 'up' | 'down' | 'stable';
+    strength: number;
+    percentChange: number;
+  } {
+    const monthlyTotals = Object.entries(monthlySpending)
+      .map(([month, expenses]) => ({
+        month,
+        total: expenses.reduce((sum, exp) => sum + exp.amount, 0)
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .map(item => item.total);
 
-    Object.entries(spendingPatterns.categoryBreakdown).forEach(([category, data]: [string, any]) => {
-      // Calculate recommended limit (10% buffer on average spending)
-      const recommendedLimit = data.average * 1.1;
-
-      // Get current month spending
-      const currentMonthStart = startOfMonth(currentDate);
-      const currentSpent = data.total; // Simplified - would filter by current month
-
-      // Project overspend based on current trajectory
-      const dailyRate = currentSpent / (daysInMonth - daysRemaining);
-      const projectedTotal = currentSpent + (dailyRate * daysRemaining);
-      const projectedOverspend = Math.max(0, projectedTotal - recommendedLimit);
-
-      limits.push({
-        category,
-        limit: Math.round(recommendedLimit),
-        current_spent: Math.round(currentSpent),
-        days_remaining: daysRemaining,
-        projected_overspend: Math.round(projectedOverspend)
-      });
-    });
-
-    return limits.sort((a, b) => b.projected_overspend - a.projected_overspend);
+    return this.calculateTrend(monthlyTotals);
   }
 
-  private async generateBudgetInsights(userId: string, financialData: any, spendingPatterns: any, forecast: any): Promise<SmartBudgetInsight[]> {
+  private calculatePotentialSavings(recommendations: BudgetRecommendation[]): number {
+    return recommendations.reduce((total, rec) => total + rec.potential_savings, 0);
+  }
+
+  private analyzeSpendingPatterns(expenses: any[], userId: string): SmartBudgetInsight[] {
     const insights: SmartBudgetInsight[] = [];
+    const categoryTotals = this.groupByCategory(expenses);
 
-    // Spending pattern insights
-    Object.entries(spendingPatterns.trends).forEach(([category, trend]: [string, any]) => {
-      if (Math.abs(trend) > 20) { // 20% change threshold
-        insights.push({
-          insight_type: 'spending_pattern',
-          title: `${category} Spending ${trend > 0 ? 'Increase' : 'Decrease'}`,
-          description: `Your ${category.toLowerCase()} spending has ${trend > 0 ? 'increased' : 'decreased'} by ${Math.abs(trend).toFixed(1)}% compared to previous periods.`,
-          data_points: [{ category, trend_percentage: trend }],
-          severity: Math.abs(trend) > 50 ? 'critical' : Math.abs(trend) > 30 ? 'warning' : 'info',
-          actionable: true,
-          related_recommendations: []
-        });
-      }
-    });
+    // Find highest spending categories
+    const sortedCategories = Object.entries(categoryTotals)
+      .map(([category, exps]) => ({
+        category,
+        total: exps.reduce((sum, exp) => sum + exp.amount, 0),
+        count: exps.length
+      }))
+      .sort((a, b) => b.total - a.total);
 
-    // Budget utilization insight
-    const utilizationRate = (financialData.total_monthly_spending / financialData.monthly_income) * 100;
-    if (utilizationRate > 80) {
+    if (sortedCategories.length > 0) {
+      const topCategory = sortedCategories[0];
       insights.push({
-        insight_type: 'budget_risk',
-        title: 'High Budget Utilization',
-        description: `You're using ${utilizationRate.toFixed(1)}% of your monthly income. Consider optimizing spending to increase savings.`,
-        data_points: [{ utilization_rate: utilizationRate }],
-        severity: utilizationRate > 95 ? 'critical' : 'warning',
+        insight_type: 'spending_pattern',
+        title: `Highest spending: ${topCategory.category}`,
+        description: `You've spent $${topCategory.total.toFixed(2)} on ${topCategory.category} recently (${topCategory.count} transactions)`,
+        data_points: [{ category: topCategory.category, amount: topCategory.total, transactions: topCategory.count }],
+        severity: topCategory.total > 1000 ? 'warning' : 'info',
         actionable: true,
-        related_recommendations: []
-      });
-    }
-
-    // Savings opportunity insight
-    const savingsRate = ((financialData.monthly_income - financialData.total_monthly_spending) / financialData.monthly_income) * 100;
-    if (savingsRate < 20) {
-      insights.push({
-        insight_type: 'saving_opportunity',
-        title: 'Low Savings Rate',
-        description: `Your current savings rate is ${savingsRate.toFixed(1)}%. Financial experts recommend saving at least 20% of income.`,
-        data_points: [{ savings_rate: savingsRate, recommended_rate: 20 }],
-        severity: savingsRate < 10 ? 'critical' : 'warning',
-        actionable: true,
-        related_recommendations: []
+        related_recommendations: [`optimize_${topCategory.category}`]
       });
     }
 
     return insights;
   }
 
-  private async generateBudgetRecommendations(userId: string, financialData: any, spendingPatterns: any, behaviorInsights: any | null): Promise<BudgetRecommendation[]> {
-    const recommendations: BudgetRecommendation[] = [];
+  private calculateOptimalAllocations(categorySpending: Record<string, any[]>): {
+    current_allocations: Record<string, number>;
+    recommended_allocations: Record<string, number>;
+    savings_potential: number;
+    reasoning: string[];
+  } {
+    const currentAllocations: Record<string, number> = {};
+    let totalSpending = 0;
 
-    // High spending category recommendation
-    const highestSpendingCategory = Object.entries(spendingPatterns.categoryBreakdown)
-      .sort(([,a], [,b]) => (b as any).total - (a as any).total)[0];
+    // Calculate current allocations
+    Object.entries(categorySpending).forEach(([category, expenses]) => {
+      const categoryTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      currentAllocations[category] = categoryTotal;
+      totalSpending += categoryTotal;
+    });
 
-    if (highestSpendingCategory) {
-      const [category, data] = highestSpendingCategory as [string, any];
-      recommendations.push({
-        id: `optimize_${category.toLowerCase()}`,
-        type: 'category_optimization',
-        priority: 'high',
-        title: `Optimize ${category} Spending`,
-        description: `${category} is your highest spending category at $${data.total.toFixed(2)}/month. Consider finding ways to reduce this by 10-15%.`,
-        potential_savings: data.total * 0.125, // 12.5% potential savings
-        implementation_difficulty: 'medium',
-        timeframe: 'short_term',
-        category: category,
-        specific_actions: [
-          `Review all ${category.toLowerCase()} expenses for necessary vs. optional items`,
-          'Compare prices and look for alternatives',
-          'Set a monthly spending limit for this category'
-        ],
-        confidence_score: 0.8,
-        impact_score: 0.7
-      });
-    }
+    // Convert to percentages
+    const currentPercentages: Record<string, number> = {};
+    Object.entries(currentAllocations).forEach(([category, amount]) => {
+      currentPercentages[category] = (amount / totalSpending) * 100;
+    });
+
+    // Recommend optimal allocations based on financial best practices
+    const recommendedAllocations = this.getOptimalCategoryAllocations(currentPercentages);
+
+    // Calculate potential savings
+    const savingsPotential = this.calculateAllocationSavings(
+      currentAllocations,
+      recommendedAllocations,
+      totalSpending
+    );
+
+    return {
+      current_allocations: currentPercentages,
+      recommended_allocations: recommendedAllocations,
+      savings_potential: savingsPotential,
+      reasoning: this.generateAllocationReasoning(currentPercentages, recommendedAllocations)
+    };
+  }
+
+  private getOptimalCategoryAllocations(current: Record<string, number>): Record<string, number> {
+    // Based on 50/30/20 rule and financial best practices
+    const optimal: Record<string, number> = {
+      housing: 30,
+      transportation: 15,
+      food: 12,
+      utilities: 8,
+      entertainment: 8,
+      shopping: 7,
+      healthcare: 5,
+      education: 5,
+      savings: 10
+    };
+
+    // Adjust based on current categories
+    const result: Record<string, number> = {};
+    Object.keys(current).forEach(category => {
+      result[category] = optimal[category] || optimal.shopping; // Default to shopping percentage
+    });
+
+    return result;
+  }
+
+  private calculateAllocationSavings(
+    current: Record<string, number>,
+    recommended: Record<string, number>,
+    totalSpending: number
+  ): number {
+    let potentialSavings = 0;
+
+    Object.entries(current).forEach(([category, currentAmount]) => {
+      const recommendedPercentage = recommended[category] || 10;
+      const recommendedAmount = (recommendedPercentage / 100) * totalSpending;
+
+      if (currentAmount > recommendedAmount) {
+        potentialSavings += currentAmount - recommendedAmount;
+      }
+    });
+
+    return potentialSavings;
+  }
+
+  private generateAllocationReasoning(
+    current: Record<string, number>,
+    recommended: Record<string, number>
+  ): string[] {
+    const reasoning: string[] = [];
+
+    Object.entries(current).forEach(([category, currentPerc]) => {
+      const recommendedPerc = recommended[category];
+      if (currentPerc > recommendedPerc + 5) {
+        reasoning.push(
+          `Consider reducing ${category} spending from ${currentPerc.toFixed(1)}% to ${recommendedPerc.toFixed(1)}%`
+        );
+      }
+    });
+
+    return reasoning;
+  }
+
+  private createPersonalizedPlan(
+    userId: string,
+    monthlyIncome: number,
+    expenses: any[],
+    profile: any,
+    userSettings: any,
+    options: any
+  ): PersonalizedBudgetPlan {
+    const categorySpending = this.groupByCategory(expenses);
+    const riskTolerance = options.riskTolerance || profile?.risk_tolerance || 'moderate';
+
+    // Calculate recommended allocations based on income
+    const recommendedAllocations = this.calculateIncomeBasedAllocations(
+      monthlyIncome,
+      categorySpending,
+      riskTolerance
+    );
+
+    // Generate savings goals
+    const savingsGoals = this.generateSavingsGoals(monthlyIncome, profile, options);
+
+    // Calculate spending limits
+    const spendingLimits = this.calculateSpendingLimits(recommendedAllocations);
 
     // Emergency fund recommendation
-    const emergencyFundRecommendation = await this.checkEmergencyFund(userId, financialData.monthly_income);
-    if (emergencyFundRecommendation) {
-      recommendations.push(emergencyFundRecommendation);
-    }
+    const emergencyFund = this.calculateEmergencyFund(monthlyIncome, expenses, riskTolerance);
 
-    // Debt optimization (if applicable)
-    const debtRecommendation = await this.analyzeDebtOptimization(userId);
-    if (debtRecommendation) {
-      recommendations.push(debtRecommendation);
-    }
-
-    // Behavioral recommendations based on churn risk
-    if (behaviorInsights && behaviorInsights.risk_level === 'high') {
-      recommendations.push({
-        id: 'engagement_budget',
-        type: 'goal_setting',
-        priority: 'medium',
-        title: 'Set Simple Budget Goals',
-        description: 'Start with simple, achievable budget goals to build confidence and engagement with financial planning.',
-        potential_savings: 0,
-        implementation_difficulty: 'easy',
-        timeframe: 'immediate',
-        specific_actions: [
-          'Set one small daily spending limit',
-          'Track expenses for just one category',
-          'Celebrate small wins'
-        ],
-        confidence_score: 0.9,
-        impact_score: 0.5
-      });
-    }
-
-    return recommendations.sort((a, b) => {
-      // Sort by priority and impact
-      const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-      const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
-      if (priorityDiff !== 0) return priorityDiff;
-      return b.impact_score - a.impact_score;
-    });
-  }
-
-  private async checkEmergencyFund(userId: string, monthlyIncome: number): Promise<BudgetRecommendation | null> {
-    const { data: emergencyGoal } = await supabase
-      .from('savings_goals')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('type', 'emergency_fund')
-      .single();
-
-    const targetAmount = monthlyIncome * 6; // 6 months of income
-    const currentAmount = emergencyGoal?.current_amount || 0;
-
-    if (currentAmount < targetAmount * 0.5) { // Less than 50% of target
-      return {
-        id: 'emergency_fund',
-        type: 'goal_setting',
-        priority: 'high',
-        title: 'Build Emergency Fund',
-        description: `You have $${currentAmount.toFixed(2)} in emergency savings. Experts recommend 6 months of income ($${targetAmount.toFixed(2)}).`,
-        potential_savings: 0,
-        implementation_difficulty: 'medium',
-        timeframe: 'long_term',
-        specific_actions: [
-          'Automatically transfer 10% of income to emergency fund',
-          'Use windfalls (tax refunds, bonuses) for emergency fund',
-          'Start with a smaller goal of $1,000'
-        ],
-        confidence_score: 0.9,
-        impact_score: 0.9
-      };
-    }
-
-    return null;
-  }
-
-  private async analyzeDebtOptimization(userId: string): Promise<BudgetRecommendation | null> {
-    // Get user debts (would integrate with debt tracking system)
-    // Simplified implementation
-    return null;
-  }
-
-  private calculatePlanConfidence(financialData: any, spendingPatterns: any, behaviorInsights: any | null): number {
-    let confidence = 70; // Base confidence
-
-    // Increase confidence with more data
-    const dataPoints = Object.values(spendingPatterns.categoryBreakdown).reduce((sum: number, cat: any) => sum + cat.count, 0);
-    if (dataPoints > 50) confidence += 15;
-    else if (dataPoints > 20) confidence += 10;
-    else if (dataPoints < 10) confidence -= 20;
-
-    // Income stability
-    if (financialData.monthly_income > 0) confidence += 10;
-    else confidence -= 30;
-
-    // Spending consistency
-    const spendingVariability = Object.values(spendingPatterns.trends).reduce((sum: number, trend: any) => sum + Math.abs(trend), 0) / Object.keys(spendingPatterns.trends).length;
-    if (spendingVariability < 20) confidence += 10;
-    else if (spendingVariability > 50) confidence -= 15;
-
-    // User engagement
-    if (behaviorInsights) {
-      if (behaviorInsights.risk_level === 'low') confidence += 10;
-      else if (behaviorInsights.risk_level === 'high') confidence -= 10;
-    }
-
-    return Math.max(30, Math.min(95, confidence));
-  }
-
-  async generateSpendingAlerts(userId: string): Promise<SpendingAlert[]> {
-    const alerts: SpendingAlert[] = [];
-
-    try {
-      // Get budget plan
-      const budgetPlan = await this.generatePersonalizedBudgetPlan(userId);
-      if (!budgetPlan) return alerts;
-
-      // Check for overspending alerts
-      budgetPlan.spending_limits.forEach(limit => {
-        if (limit.projected_overspend > 0) {
-          const severity = limit.projected_overspend > limit.limit * 0.5 ? 'critical' :
-                          limit.projected_overspend > limit.limit * 0.25 ? 'high' :
-                          limit.projected_overspend > limit.limit * 0.1 ? 'medium' : 'low';
-
-          alerts.push({
-            alert_id: `overspend_${limit.category}_${Date.now()}`,
-            user_id: userId,
-            type: 'overspending',
-            severity: severity as any,
-            title: `${limit.category} Budget Alert`,
-            message: `You're projected to overspend by $${limit.projected_overspend.toFixed(2)} in ${limit.category} this month.`,
-            category: limit.category,
-            amount: limit.projected_overspend,
-            created_at: new Date().toISOString(),
-            expires_at: endOfMonth(new Date()).toISOString(),
-            actions: [
-              { label: 'Review Expenses', action: 'view_expenses', data: { category: limit.category } },
-              { label: 'Adjust Budget', action: 'edit_budget', data: { category: limit.category } }
-            ],
-            is_read: false,
-            is_dismissed: false
-          });
-        }
-      });
-
-      // Check goal progress alerts
-      budgetPlan.savings_goals.forEach(goal => {
-        const daysToTarget = differenceInDays(new Date(goal.target_date), new Date());
-        const monthsToTarget = daysToTarget / 30;
-        const requiredMonthlyContribution = (goal.target_amount * (1 - goal.progress_percentage / 100)) / monthsToTarget;
-
-        if (requiredMonthlyContribution > goal.monthly_contribution * 1.5) {
-          alerts.push({
-            alert_id: `goal_risk_${goal.name}_${Date.now()}`,
-            user_id: userId,
-            type: 'goal_at_risk',
-            severity: 'medium',
-            title: `${goal.name} Goal at Risk`,
-            message: `You need to increase contributions to $${requiredMonthlyContribution.toFixed(2)}/month to reach your ${goal.name} goal on time.`,
-            amount: requiredMonthlyContribution,
-            created_at: new Date().toISOString(),
-            expires_at: addDays(new Date(), 30).toISOString(),
-            actions: [
-              { label: 'Adjust Goal', action: 'edit_goal', data: { goal_name: goal.name } },
-              { label: 'Increase Contribution', action: 'increase_contribution', data: { goal_name: goal.name } }
-            ],
-            is_read: false,
-            is_dismissed: false
-          });
-        }
-      });
-
-    } catch (error) {
-      console.error('Error generating spending alerts:', error);
-    }
-
-    return alerts.sort((a, b) => {
-      const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-      return severityOrder[b.severity] - severityOrder[a.severity];
-    });
-  }
-
-  async getOptimizationSuggestions(userId: string): Promise<{
-    quick_wins: BudgetRecommendation[];
-    long_term_strategies: BudgetRecommendation[];
-    behavioral_insights: string[];
-  }> {
-    try {
-      const budgetPlan = await this.generatePersonalizedBudgetPlan(userId, { include_behavior_analysis: true });
-      if (!budgetPlan) {
-        return { quick_wins: [], long_term_strategies: [], behavioral_insights: [] };
-      }
-
-      // Separate recommendations by timeframe
-      const quickWins = budgetPlan.recommendations.filter(rec =>
-        rec.timeframe === 'immediate' && rec.implementation_difficulty === 'easy'
-      );
-
-      const longTermStrategies = budgetPlan.recommendations.filter(rec =>
-        rec.timeframe === 'long_term' || rec.implementation_difficulty === 'hard'
-      );
-
-      // Generate behavioral insights
-      const behaviorInsights = await userBehaviorAnalytics.getUserEngagementMetrics(userId);
-      const behavioralInsightTexts = behaviorInsights ? ['User engagement metrics available'] : [];
-
-      return {
-        quick_wins: quickWins.slice(0, 3), // Top 3 quick wins
-        long_term_strategies: longTermStrategies.slice(0, 5), // Top 5 strategies
-        behavioral_insights: behavioralInsightTexts
-      };
-
-    } catch (error) {
-      console.error('Error getting optimization suggestions:', error);
-      return { quick_wins: [], long_term_strategies: [], behavioral_insights: [] };
-    }
-  }
-
-  // Memory management
-  clearCache(): void {
-    this.cache.clear();
-  }
-
-  getCacheStats(): { size: number; hitRate: number } {
     return {
-      size: this.cache.size,
-      hitRate: 0.78 // Placeholder - would track actual hit rate
+      user_id: userId,
+      plan_date: new Date().toISOString(),
+      monthly_income: monthlyIncome,
+      recommended_allocations: recommendedAllocations,
+      savings_goals: savingsGoals,
+      spending_limits: spendingLimits,
+      emergency_fund: emergencyFund
     };
+  }
+
+  private calculateIncomeBasedAllocations(
+    monthlyIncome: number,
+    categorySpending: Record<string, any[]>,
+    riskTolerance: string
+  ) {
+    const allocations = [];
+    const baseAllocations = {
+      housing: { percentage: 30, reasoning: 'Housing should be 25-30% of income' },
+      transportation: { percentage: 15, reasoning: 'Transportation costs including car payments, gas, insurance' },
+      food: { percentage: 12, reasoning: 'Groceries and dining out' },
+      utilities: { percentage: 8, reasoning: 'Electricity, water, internet, phone' },
+      entertainment: { percentage: 8, reasoning: 'Recreation and entertainment' },
+      healthcare: { percentage: 5, reasoning: 'Medical expenses and insurance' },
+      savings: { percentage: 20, reasoning: 'Emergency fund and long-term savings' },
+      miscellaneous: { percentage: 2, reasoning: 'Other expenses' }
+    };
+
+    // Adjust based on risk tolerance
+    if (riskTolerance === 'conservative') {
+      baseAllocations.savings.percentage = 25;
+      baseAllocations.entertainment.percentage = 5;
+    } else if (riskTolerance === 'aggressive') {
+      baseAllocations.savings.percentage = 15;
+      baseAllocations.entertainment.percentage = 10;
+    }
+
+    Object.entries(baseAllocations).forEach(([category, config]) => {
+      allocations.push({
+        category,
+        percentage: config.percentage,
+        amount: (monthlyIncome * config.percentage) / 100,
+        reasoning: config.reasoning
+      });
+    });
+
+    return allocations;
+  }
+
+  private generateSavingsGoals(monthlyIncome: number, profile: any, options: any) {
+    const goals = [];
+    const savingsCapacity = monthlyIncome * 0.2; // 20% for savings
+
+    // Emergency fund goal
+    goals.push({
+      name: 'Emergency Fund',
+      target_amount: monthlyIncome * 6, // 6 months of expenses
+      target_date: addDays(new Date(), 365).toISOString(), // 1 year
+      monthly_contribution: savingsCapacity * 0.5,
+      progress_percentage: 0
+    });
+
+    // Additional goals based on user preferences
+    if (options.primaryGoals?.includes('vacation')) {
+      goals.push({
+        name: 'Vacation Fund',
+        target_amount: 3000,
+        target_date: addDays(new Date(), 180).toISOString(), // 6 months
+        monthly_contribution: savingsCapacity * 0.3,
+        progress_percentage: 0
+      });
+    }
+
+    return goals;
+  }
+
+  private calculateSpendingLimits(recommendedAllocations: any[]) {
+    return recommendedAllocations
+      .filter(alloc => alloc.category !== 'savings')
+      .map(alloc => ({
+        category: alloc.category,
+        limit: alloc.amount,
+        warning_threshold: alloc.amount * 0.8, // 80% warning
+        reasoning: `Based on recommended ${alloc.percentage}% allocation`
+      }));
+  }
+
+  private calculateEmergencyFund(monthlyIncome: number, expenses: any[], riskTolerance: string) {
+    const monthlyExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0) / 6; // Average monthly
+    const recommendedMonths = riskTolerance === 'conservative' ? 8 : riskTolerance === 'aggressive' ? 4 : 6;
+
+    return {
+      current_amount: 0, // Would need to fetch from savings accounts
+      recommended_amount: monthlyExpenses * recommendedMonths,
+      monthly_contribution: monthlyIncome * 0.1 // 10% of income
+    };
+  }
+
+  private assessFinancialRisk(expenses: any[], monthlyIncome: number, profile: any) {
+    const monthlyExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0) / 6;
+    const savingsRate = (monthlyIncome - monthlyExpenses) / monthlyIncome;
+
+    let healthScore = 70; // Base score
+    const riskFactors = [];
+    const mitigationStrategies = [];
+
+    // Analyze savings rate
+    if (savingsRate < 0.1) {
+      healthScore -= 20;
+      riskFactors.push('Low savings rate (less than 10%)');
+      mitigationStrategies.push('Increase monthly savings to at least 10% of income');
+    }
+
+    // Analyze spending volatility
+    const monthlySpending = this.groupByTimePeriod(expenses, 'month');
+    const spendingAmounts = Object.values(monthlySpending).map(
+      expenses => expenses.reduce((sum, exp) => sum + exp.amount, 0)
+    );
+    const spendingVolatility = this.calculateStandardDeviation(spendingAmounts);
+
+    if (spendingVolatility > monthlyExpenses * 0.3) {
+      healthScore -= 15;
+      riskFactors.push('High spending volatility');
+      mitigationStrategies.push('Create a more consistent monthly budget');
+    }
+
+    return {
+      financial_health_score: Math.max(0, Math.min(100, healthScore)),
+      risk_factors: riskFactors,
+      mitigation_strategies: mitigationStrategies
+    };
+  }
+
+  private estimateIncomeFromSpending(expenses: any[]): number {
+    const monthlySpending = expenses.reduce((sum, exp) => sum + exp.amount, 0) / 6;
+    // Estimate income as spending / 0.8 (assuming 80% spending rate)
+    return monthlySpending / 0.8;
   }
 }
 
+// Export singleton instance
 export const aiBudgetAssistant = new AIBudgetAssistant();
