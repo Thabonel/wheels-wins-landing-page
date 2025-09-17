@@ -3,6 +3,7 @@ import React from 'react';
 import DashboardOverview from './DashboardOverview';
 import AuthDebugAdmin from './AuthDebugAdmin';
 import AuthTestingPanel from './AuthTestingPanel';
+import IntegrationTestingDashboard from './IntegrationTestingDashboard';
 import {
   LearningDashboard,
   UserManagement,
@@ -47,6 +48,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <ObservabilityDashboard />;
       case 'Testing Dashboard':
         return <TestingDashboard />;
+      case 'Integration Testing':
+        return <IntegrationTestingDashboard />;
       case 'Performance Test':
         return <PerformanceTestPage />;
       case 'Auth Debug':
