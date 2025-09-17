@@ -275,7 +275,7 @@ export const pamSavingsApi = {
       .lt('saved_date', endOfMonth.toISOString().slice(0, 10));
 
     const totalSavings = events?.reduce((sum, event) => sum + event.actual_savings, 0) || 0;
-    const subscriptionCost = 29.99;
+    const subscriptionCost = 14.00; // Updated to AU$14/month
     const guaranteeMet = totalSavings >= subscriptionCost;
     const savingsShortfall = Math.max(0, subscriptionCost - totalSavings);
     const percentageAchieved = Math.min(100, (totalSavings / subscriptionCost) * 100);
@@ -475,12 +475,12 @@ export const pamSavingsApi = {
 // =====================================================
 
 /**
- * Format savings amount for display
+ * Format savings amount for display in Australian Dollars
  */
 export const formatSavingsAmount = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-AU', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'AUD',
     minimumFractionDigits: 2,
   }).format(amount);
 };
