@@ -1,5 +1,5 @@
-import { supabase } from '../../integrations/supabase/client';
 import { addDays, subDays, format, parseISO, differenceInDays } from 'date-fns';
+import { BaseMLEngine } from './BaseMLEngine';
 
 interface UserBehaviorData {
   sessionData: {
@@ -37,69 +37,164 @@ interface UserSegment {
   predictions: string[];
 }
 
-class UserBehaviorPredictionEngine {
-  private cache = new Map<string, { data: any; timestamp: number }>();
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+/**
+ * User Behavior Prediction Engine - Refactored to extend BaseMLEngine
+ *
+ * Provides behavioral analytics, user segmentation, and next action prediction.
+ * Now uses shared functionality from BaseMLEngine, eliminating duplicate code.
+ */
+class UserBehaviorPredictionEngine extends BaseMLEngine {
 
-  private getFromCache<T>(key: string): T | null {
-    const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      return cached.data as T;
-    }
-    return null;
+  constructor() {
+    super({
+      cacheTTL: 5 * 60 * 1000, // 5 minutes
+      enableLogging: true,
+      maxRetries: 3
+    });
   }
 
-  private setCache<T>(key: string, data: T): void {
-    this.cache.set(key, { data, timestamp: Date.now() });
+  getName(): string {
+    return 'User Behavior Prediction Engine';
+  }
+
+  getVersion(): string {
+    return '2.0.0';
   }
 
   async getUserBehaviorData(userId: string): Promise<UserBehaviorData> {
-    const cacheKey = `behavior_data_${userId}`;
+    this.validateUserId(userId);
+
+    const cacheKey = this.getCacheKey(userId, 'behavior_data');
     const cached = this.getFromCache<UserBehaviorData>(cacheKey);
     if (cached) return cached;
 
-    try {
-      // Get user session data
-      const { data: sessions } = await supabase
+    return this.withErrorHandling(async () => {
+      // Fetch user session and interaction data using base class error handling
+      const [sessions, interactions, preferences] = await Promise.all([
+        this.fetchUserSessions(userId),
+        this.fetchUserInteractions(userId),
+        this.fetchUserSettings(userId)
+      ]);
+
+      const behaviorData = this.analyzeBehaviorData(sessions || [], interactions || [], preferences);
+      this.setCache(cacheKey, behaviorData);
+
+      return behaviorData;
+    }, 'getUserBehaviorData', this.getDefaultBehaviorData());
+  }
+
+  async predictNextAction(userId: string): Promise<BehaviorPrediction> {
+    this.validateUserId(userId);
+
+    const cacheKey = this.getCacheKey(userId, 'next_action');
+    const cached = this.getFromCache<BehaviorPrediction>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const behaviorData = await this.getUserBehaviorData(userId);
+      const prediction = this.generateActionPrediction(behaviorData);
+
+      this.setCache(cacheKey, prediction);
+      return prediction;
+    }, 'predictNextAction', {
+      nextAction: 'view_dashboard',
+      confidence: 0.5,
+      timeToAction: 60,
+      suggestedFeatures: ['budgets', 'trips']
+    });
+  }
+
+  async segmentUser(userId: string): Promise<UserSegment> {
+    this.validateUserId(userId);
+
+    const cacheKey = this.getCacheKey(userId, 'user_segment');
+    const cached = this.getFromCache<UserSegment>(cacheKey);
+    if (cached) return cached;
+
+    return this.withErrorHandling(async () => {
+      const behaviorData = await this.getUserBehaviorData(userId);
+      const segment = this.classifyUserSegment(behaviorData);
+
+      this.setCache(cacheKey, segment);
+      return segment;
+    }, 'segmentUser', {
+      segment: 'casual_user',
+      characteristics: ['Standard usage patterns', 'Moderate engagement'],
+      predictions: ['May benefit from guided onboarding', 'Likely to use basic features']
+    });
+  }
+
+  async trackUserBehavior(userId: string, eventData: {
+    eventType: string;
+    featureName?: string;
+    elementId?: string;
+    metadata?: Record<string, any>;
+  }): Promise<void> {
+    this.validateUserId(userId);
+
+    return this.withErrorHandling(async () => {
+      // Track interaction using base class retry logic
+      await this.withRetry(async () => {
+        const { data, error } = await this.supabase
+          .from('user_interactions')
+          .insert({
+            user_id: userId,
+            event_type: eventData.eventType,
+            feature_name: eventData.featureName,
+            element_id: eventData.elementId,
+            metadata: eventData.metadata,
+            created_at: new Date().toISOString()
+          });
+
+        if (error) throw error;
+        return data;
+      }, 'trackUserBehavior');
+
+      // Invalidate cache for this user
+      this.clearCache(userId);
+    }, 'trackUserBehavior');
+  }
+
+  // ============================================================================
+  // PRIVATE METHODS - Engine-specific logic
+  // ============================================================================
+
+  private async fetchUserSessions(userId: string) {
+    return this.withErrorHandling(async () => {
+      const { data, error } = await this.supabase
         .from('user_sessions')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(100);
 
-      // Get user interactions
-      const { data: interactions } = await supabase
+      if (error) throw error;
+      return data;
+    }, 'fetchUserSessions', []);
+  }
+
+  private async fetchUserInteractions(userId: string) {
+    return this.withErrorHandling(async () => {
+      const { data, error } = await this.supabase
         .from('user_interactions')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1000);
 
-      // Get user preferences
-      const { data: preferences } = await supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      const behaviorData = this.analyzeBehaviorData(sessions || [], interactions || [], preferences);
-      this.setCache(cacheKey, behaviorData);
-
-      return behaviorData;
-    } catch (error) {
-      console.error('Error fetching user behavior data:', error);
-      return this.getDefaultBehaviorData();
-    }
+      if (error) throw error;
+      return data;
+    }, 'fetchUserInteractions', []);
   }
 
   private analyzeBehaviorData(sessions: any[], interactions: any[], preferences: any): UserBehaviorData {
     // Analyze session data
     const sessionData = {
       averageSessionDuration: sessions.length > 0
-        ? sessions.reduce((sum, s) => sum + (s.duration || 0), 0) / sessions.length
+        ? this.calculateAverage(sessions.map(s => s.duration || 300))
         : 300, // Default 5 minutes
       pagesPerSession: sessions.length > 0
-        ? sessions.reduce((sum, s) => sum + (s.page_views || 1), 0) / sessions.length
+        ? this.calculateAverage(sessions.map(s => s.page_views || 1))
         : 3,
       bounceRate: sessions.filter(s => (s.page_views || 1) === 1).length / Math.max(sessions.length, 1),
       preferredTimeOfDay: this.getMostCommonTimeOfDay(sessions),
@@ -115,7 +210,7 @@ class UserBehaviorPredictionEngine {
       featureAdoptionRate: this.calculateFeatureAdoptionRate(interactions)
     };
 
-    // Extract preferences
+    // Extract preferences using base class error handling
     const userPreferences = {
       navigationStyle: preferences?.navigation_style || 'tabs',
       dataVisualization: preferences?.data_visualization || 'charts',
@@ -165,7 +260,7 @@ class UserBehaviorPredictionEngine {
     }, {});
 
     return Object.entries(featureCounts)
-      .sort(([,a]: any, [,b]: any) => b - a)
+      .sort(([, a]: any, [, b]: any) => b - a)
       .slice(0, 5)
       .map(([feature]) => feature);
   }
@@ -183,11 +278,8 @@ class UserBehaviorPredictionEngine {
     const scrollEvents = interactions.filter(i => i.event_type === 'scroll');
     if (scrollEvents.length === 0) return 50; // Default 50%
 
-    const totalScrollDepth = scrollEvents.reduce((sum, event) => {
-      return sum + (event.scroll_depth || 50);
-    }, 0);
-
-    return totalScrollDepth / scrollEvents.length;
+    const scrollDepths = scrollEvents.map(event => event.scroll_depth || 50);
+    return this.calculateAverage(scrollDepths);
   }
 
   private calculateFormCompletionRate(interactions: any[]): number {
@@ -212,34 +304,15 @@ class UserBehaviorPredictionEngine {
     return adoptionRates;
   }
 
-  async predictNextAction(userId: string): Promise<BehaviorPrediction> {
-    const cacheKey = `next_action_${userId}`;
-    const cached = this.getFromCache<BehaviorPrediction>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const behaviorData = await this.getUserBehaviorData(userId);
-      const prediction = this.generateActionPrediction(behaviorData);
-
-      this.setCache(cacheKey, prediction);
-      return prediction;
-    } catch (error) {
-      console.error('Error predicting next action:', error);
-      return {
-        nextAction: 'view_dashboard',
-        confidence: 0.5,
-        timeToAction: 60,
-        suggestedFeatures: ['budgets', 'trips']
-      };
-    }
-  }
-
   private generateActionPrediction(behaviorData: UserBehaviorData): BehaviorPrediction {
     const { sessionData, interactionPatterns } = behaviorData;
 
     // Predict based on most used features and interaction patterns
     const mostLikelyFeature = sessionData.mostUsedFeatures[0] || 'dashboard';
-    const confidence = Math.min(0.9, 0.5 + (interactionPatterns.formCompletionRate * 0.4));
+    const confidence = this.calculateConfidence(
+      sessionData.mostUsedFeatures.length,
+      interactionPatterns.formCompletionRate
+    );
 
     // Estimate time to next action based on session patterns
     const timeToAction = Math.max(30, sessionData.averageSessionDuration / sessionData.pagesPerSession);
@@ -255,27 +328,6 @@ class UserBehaviorPredictionEngine {
       timeToAction,
       suggestedFeatures: suggestedFeatures.slice(0, 3)
     };
-  }
-
-  async segmentUser(userId: string): Promise<UserSegment> {
-    const cacheKey = `user_segment_${userId}`;
-    const cached = this.getFromCache<UserSegment>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const behaviorData = await this.getUserBehaviorData(userId);
-      const segment = this.classifyUserSegment(behaviorData);
-
-      this.setCache(cacheKey, segment);
-      return segment;
-    } catch (error) {
-      console.error('Error segmenting user:', error);
-      return {
-        segment: 'casual_user',
-        characteristics: ['Standard usage patterns', 'Moderate engagement'],
-        predictions: ['May benefit from guided onboarding', 'Likely to use basic features']
-      };
-    }
   }
 
   private classifyUserSegment(behaviorData: UserBehaviorData): UserSegment {
@@ -391,48 +443,13 @@ class UserBehaviorPredictionEngine {
     };
   }
 
-  async trackUserBehavior(userId: string, eventData: {
-    eventType: string;
-    featureName?: string;
-    elementId?: string;
-    metadata?: Record<string, any>;
-  }): Promise<void> {
-    try {
-      await supabase
-        .from('user_interactions')
-        .insert({
-          user_id: userId,
-          event_type: eventData.eventType,
-          feature_name: eventData.featureName,
-          element_id: eventData.elementId,
-          metadata: eventData.metadata,
-          created_at: new Date().toISOString()
-        });
-
-      // Invalidate cache for this user
-      const keys = Array.from(this.cache.keys()).filter(key => key.includes(userId));
-      keys.forEach(key => this.cache.delete(key));
-
-    } catch (error) {
-      console.error('Error tracking user behavior:', error);
-    }
-  }
-
-  // Clear expired cache entries
-  private cleanCache(): void {
-    const now = Date.now();
-    for (const [key, { timestamp }] of this.cache.entries()) {
-      if (now - timestamp > this.CACHE_DURATION) {
-        this.cache.delete(key);
-      }
-    }
+  // Add supabase property for direct access (used in trackUserBehavior)
+  private get supabase() {
+    // Import here to avoid circular dependencies
+    const { supabase } = require('../../integrations/supabase/client');
+    return supabase;
   }
 }
 
 // Export singleton instance
 export const userBehaviorPredictionEngine = new UserBehaviorPredictionEngine();
-
-// Clean cache every 10 minutes
-setInterval(() => {
-  (userBehaviorPredictionEngine as any).cleanCache();
-}, 10 * 60 * 1000);
