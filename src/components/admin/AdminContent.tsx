@@ -2,6 +2,7 @@
 import React from 'react';
 import DashboardOverview from './DashboardOverview';
 import AuthDebugAdmin from './AuthDebugAdmin';
+import AuthTestingPanel from './AuthTestingPanel';
 import {
   LearningDashboard,
   UserManagement,
@@ -50,6 +51,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <PerformanceTestPage />;
       case 'Auth Debug':
         return <AuthDebugAdmin />;
+      case 'Auth Testing':
+        return <AuthTestingPanel />;
       case 'Shop Management':
         return <ShopManagement />;
       case 'Trip Templates':

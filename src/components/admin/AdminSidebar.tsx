@@ -20,7 +20,8 @@ import {
   Database,
   MapPin,
   Bug,
-  Zap
+  Zap,
+  UserCheck
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -52,6 +53,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { name: 'Testing Dashboard', icon: TestTube },
     { name: 'Performance Test', icon: Zap },
     { name: 'Auth Debug', icon: Bug },
+    { name: 'Auth Testing', icon: UserCheck },
     { name: 'Shop Management', icon: ShoppingCart },
     { name: 'Trip Templates', icon: MapPin },
     { name: 'Support Tickets', icon: FileText },
