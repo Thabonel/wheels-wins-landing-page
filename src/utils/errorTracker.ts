@@ -138,7 +138,7 @@ class SafeErrorTracker {
     return this.SAFE_ROUTES.some(safeRoute => route.startsWith(safeRoute)) || route === '/';
   }
 
-  private classifyErrorSeverity(error: Error): 'low' | 'medium' | 'high' | 'critical' {
+  public classifyErrorSeverity(error: Error): 'low' | 'medium' | 'high' | 'critical' {
     if (!error) return 'low';
 
     const message = error.message?.toLowerCase() || '';
