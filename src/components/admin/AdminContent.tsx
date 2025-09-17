@@ -15,7 +15,8 @@ import {
   SupportTickets,
   UserFeedback,
   Settings,
-  DataCollectorMonitor
+  DataCollectorMonitor,
+  PerformanceTestPage
 } from './LazyAdminComponents';
 
 interface AdminContentProps {
@@ -45,6 +46,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <ObservabilityDashboard />;
       case 'Testing Dashboard':
         return <TestingDashboard />;
+      case 'Performance Test':
+        return <PerformanceTestPage />;
       case 'Auth Debug':
         return <AuthDebugAdmin />;
       case 'Shop Management':
