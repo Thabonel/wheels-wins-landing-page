@@ -1,5 +1,5 @@
 /**
- * Smart Trip Recommendation Engine with ML-Based Optimization - Refactored to extend BaseMLEngine
+ * Smart Trip Recommendation Engine with ML-Based Optimization
  *
  * Provides intelligent trip planning recommendations using:
  * - Machine learning models for route optimization
@@ -7,11 +7,8 @@
  * - Real-time data integration (weather, traffic, events)
  * - Multi-objective optimization (cost, time, experience)
  * - Collaborative filtering for social recommendations
- *
- * Now uses shared functionality from BaseMLEngine, eliminating duplicate code.
  */
 
-import { BaseMLEngine } from './BaseMLEngine';
 import { tripDataPipeline } from '@/services/dataPipeline/tripDataPipeline';
 import { userBehaviorAnalytics } from '@/services/analytics/userBehaviorAnalytics';
 import { collectUserAction, collectResponseTime } from '@/services/pam/analytics/analyticsCollector';
@@ -129,9 +126,10 @@ interface MLModelWeights {
 // TRIP RECOMMENDATION ENGINE
 // =====================================================
 
-export class TripRecommendationEngine extends BaseMLEngine {
+export class TripRecommendationEngine {
   private static instance: TripRecommendationEngine;
   private userProfiles = new Map<string, UserPreferenceProfile>();
+  private recommendationCache = new Map<string, RouteRecommendation[]>();
   private modelWeights: MLModelWeights = {
     user_preference_weight: 0.3,
     historical_pattern_weight: 0.25,
@@ -141,15 +139,11 @@ export class TripRecommendationEngine extends BaseMLEngine {
     cost_sensitivity_weight: 0.05
   };
 
+  private readonly CACHE_TTL = 1000 * 60 * 30; // 30 minutes
   private readonly MAX_RECOMMENDATIONS = 5;
   private readonly MIN_CONFIDENCE_THRESHOLD = 0.6;
 
   private constructor() {
-    super({
-      cacheTTL: 30 * 60 * 1000, // 30 minutes
-      enableLogging: true,
-      maxRetries: 3
-    });
     this.initializeEngine();
   }
 
@@ -160,21 +154,14 @@ export class TripRecommendationEngine extends BaseMLEngine {
     return TripRecommendationEngine.instance;
   }
 
-  getName(): string {
-    return 'Trip Recommendation Engine';
-  }
-
-  getVersion(): string {
-    return '2.0.0';
-  }
-
   private initializeEngine(): void {
     // Start model training and updating
     setInterval(() => this.updateModelWeights(), 1000 * 60 * 60 * 24); // Daily
 
-    if (this.config.enableLogging) {
-      logger.debug('🤖 Trip Recommendation Engine initialized');
-    }
+    // Clear expired cache
+    setInterval(() => this.cleanupCache(), 1000 * 60 * 15); // Every 15 minutes
+
+    logger.debug('🤖 Trip Recommendation Engine initialized');
   }
 
   // =====================================================
@@ -190,20 +177,13 @@ export class TripRecommendationEngine extends BaseMLEngine {
       force_refresh?: boolean;
     } = {}
   ): Promise<RouteRecommendation[]> {
-    this.validateUserId(userId);
-
     const startTime = Date.now();
-    const cacheKey = this.getCacheKey(userId, 'trip_recommendations', {
-      origin: tripContext.origin,
-      destination: tripContext.destination,
-      departure_date: tripContext.departure_date,
-      budget_range: tripContext.budget_range
-    });
+    const cacheKey = this.generateCacheKey(userId, tripContext);
 
-    return this.withErrorHandling(async () => {
+    try {
       // Check cache first (unless force refresh)
       if (!options.force_refresh) {
-        const cached = this.getFromCache<RouteRecommendation[]>(cacheKey);
+        const cached = this.getCachedRecommendations(cacheKey);
         if (cached) {
           collectResponseTime({
             operation: 'trip_recommendations_cached',
@@ -239,8 +219,8 @@ export class TripRecommendationEngine extends BaseMLEngine {
         .filter(rec => rec.confidence_score >= this.MIN_CONFIDENCE_THRESHOLD)
         .slice(0, options.max_recommendations || this.MAX_RECOMMENDATIONS);
 
-      // Cache results using base class
-      this.setCache(cacheKey, finalRecommendations);
+      // Cache results
+      this.cacheRecommendations(cacheKey, finalRecommendations);
 
       // Track analytics
       collectResponseTime({
@@ -257,7 +237,11 @@ export class TripRecommendationEngine extends BaseMLEngine {
       });
 
       return finalRecommendations;
-    }, 'generateRecommendations', []);
+
+    } catch (error) {
+      logger.error('Error generating trip recommendations:', error);
+      throw error;
+    }
   }
 
   // =====================================================
@@ -276,7 +260,7 @@ export class TripRecommendationEngine extends BaseMLEngine {
   }
 
   private async buildUserProfile(userId: string): Promise<UserPreferenceProfile> {
-    return this.withErrorHandling(async () => {
+    try {
       // Get user's historical trip data
       const userTrips = await tripDataPipeline.getUserTrips(userId, {
         include_analytics: true,
@@ -290,7 +274,13 @@ export class TripRecommendationEngine extends BaseMLEngine {
       const profile = this.analyzeUserPatterns(userTrips.data || [], behaviorData);
 
       return profile;
-    }, 'buildUserProfile', this.getDefaultProfile());
+
+    } catch (error) {
+      logger.error('Error building user profile:', error);
+
+      // Return default profile
+      return this.getDefaultProfile();
+    }
   }
 
   private analyzeUserPatterns(trips: any[], behaviorData: any[]): UserPreferenceProfile {
@@ -340,8 +330,7 @@ export class TripRecommendationEngine extends BaseMLEngine {
   }
 
   private calculateVariance(numbers: number[]): number {
-    if (numbers.length === 0) return 0;
-    const mean = this.calculateAverage(numbers);
+    const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
     return numbers.reduce((sum, num) => sum + Math.pow(num - mean, 2), 0) / numbers.length;
   }
 
@@ -516,7 +505,7 @@ export class TripRecommendationEngine extends BaseMLEngine {
     tripContext: TripContext,
     externalFactors: ExternalFactors
   ): Promise<RouteRecommendation | null> {
-    return this.withErrorHandling(async () => {
+    try {
       // Apply ML algorithm based on strategy
       const optimizationWeights = this.getOptimizationWeights(strategy, userProfile);
 
@@ -531,10 +520,12 @@ export class TripRecommendationEngine extends BaseMLEngine {
       // Calculate route metrics
       const metrics = this.calculateRouteMetrics(waypoints, tripContext, externalFactors);
 
-      // Calculate confidence score using base class method
-      const confidenceScore = this.calculateConfidence(
-        waypoints.length,
-        metrics.weather_risk_score
+      // Calculate confidence score
+      const confidenceScore = this.calculateConfidenceScore(
+        userProfile,
+        tripContext,
+        metrics,
+        strategy
       );
 
       const recommendation: RouteRecommendation = {
@@ -554,7 +545,11 @@ export class TripRecommendationEngine extends BaseMLEngine {
       };
 
       return recommendation;
-    }, `generateRouteWithStrategy_${strategy}`, null);
+
+    } catch (error) {
+      logger.error(`Error generating route with strategy ${strategy}:`, error);
+      return null;
+    }
   }
 
   private getOptimizationWeights(strategy: string, userProfile: UserPreferenceProfile): RouteRecommendation['optimization_factors'] {
@@ -801,6 +796,24 @@ export class TripRecommendationEngine extends BaseMLEngine {
     return degrees * (Math.PI / 180);
   }
 
+  private calculateConfidenceScore(
+    userProfile: UserPreferenceProfile,
+    tripContext: TripContext,
+    metrics: any,
+    strategy: string
+  ): number {
+    let confidence = 0.7; // Base confidence
+
+    // Adjust based on data quality
+    if (userProfile.travel_style !== 'leisure') confidence += 0.1; // More specific profile
+    if (tripContext.destination) confidence += 0.1; // Clear destination
+    if (tripContext.budget_range[1] > 0) confidence += 0.1; // Budget specified
+
+    // Adjust based on strategy alignment
+    if (strategy === 'balanced') confidence += 0.05;
+
+    return Math.min(0.95, confidence);
+  }
 
   // =====================================================
   // PERSONALIZATION AND RANKING
@@ -937,9 +950,7 @@ export class TripRecommendationEngine extends BaseMLEngine {
       actual_duration?: number;
     }
   ): Promise<void> {
-    this.validateUserId(userId);
-
-    return this.withErrorHandling(async () => {
+    try {
       // Store feedback for learning
       collectUserAction('trip_recommendation_feedback', {
         user_id: userId,
@@ -952,10 +963,11 @@ export class TripRecommendationEngine extends BaseMLEngine {
       // Update user profile based on feedback
       await this.updateUserProfileFromFeedback(userId, feedback);
 
-      if (this.config.enableLogging) {
-        logger.debug('📚 Learning from user feedback', { userId, recommendationId, rating: feedback.rating });
-      }
-    }, 'learnFromUserFeedback');
+      logger.debug('📚 Learning from user feedback', { userId, recommendationId, rating: feedback.rating });
+
+    } catch (error) {
+      logger.error('Error learning from user feedback:', error);
+    }
   }
 
   private async updateUserProfileFromFeedback(userId: string, feedback: any): Promise<void> {
@@ -975,29 +987,64 @@ export class TripRecommendationEngine extends BaseMLEngine {
   }
 
   // =====================================================
-  // CACHE MANAGEMENT - Now handled by BaseMLEngine
+  // CACHE MANAGEMENT
   // =====================================================
+
+  private generateCacheKey(userId: string, tripContext: TripContext): string {
+    const contextHash = this.hashObject({
+      origin: tripContext.origin,
+      destination: tripContext.destination,
+      departure_date: tripContext.departure_date,
+      budget_range: tripContext.budget_range,
+      travel_party_size: tripContext.travel_party_size
+    });
+
+    return `trip_rec_${userId}_${contextHash}`;
+  }
+
+  private hashObject(obj: any): string {
+    return btoa(JSON.stringify(obj)).replace(/[+/=]/g, '').substring(0, 16);
+  }
+
+  private getCachedRecommendations(cacheKey: string): RouteRecommendation[] | null {
+    const cached = this.recommendationCache.get(cacheKey);
+    if (!cached) return null;
+
+    // Check if cache is still valid (simplified - should check timestamp)
+    return cached;
+  }
+
+  private cacheRecommendations(cacheKey: string, recommendations: RouteRecommendation[]): void {
+    this.recommendationCache.set(cacheKey, recommendations);
+
+    // Cleanup if cache gets too large
+    if (this.recommendationCache.size > 1000) {
+      const keysToDelete = Array.from(this.recommendationCache.keys()).slice(0, 100);
+      keysToDelete.forEach(key => this.recommendationCache.delete(key));
+    }
+  }
+
+  private cleanupCache(): void {
+    // In a real implementation, this would check timestamps and remove expired entries
+    if (this.recommendationCache.size > 500) {
+      const keysToDelete = Array.from(this.recommendationCache.keys()).slice(0, 100);
+      keysToDelete.forEach(key => this.recommendationCache.delete(key));
+    }
+  }
 
   // =====================================================
   // PUBLIC API
   // =====================================================
 
   async updateUserPreferences(userId: string, preferences: Partial<UserPreferenceProfile>): Promise<void> {
-    this.validateUserId(userId);
+    const existingProfile = this.userProfiles.get(userId) || this.getDefaultProfile();
+    const updatedProfile = { ...existingProfile, ...preferences };
+    this.userProfiles.set(userId, updatedProfile);
 
-    return this.withErrorHandling(async () => {
-      const existingProfile = this.userProfiles.get(userId) || this.getDefaultProfile();
-      const updatedProfile = { ...existingProfile, ...preferences };
-      this.userProfiles.set(userId, updatedProfile);
-
-      // Clear user-specific cache when preferences change
-      this.clearCache(userId);
-
-      collectUserAction('user_preferences_updated', {
-        user_id: userId,
-        updated_fields: Object.keys(preferences)
-      });
-    }, 'updateUserPreferences');
+    collectUserAction('user_preferences_updated', {
+      user_id: userId,
+      updated_fields: Object.keys(preferences)
+    });
   }
 
   getUserPreferences(userId: string): UserPreferenceProfile | null {
@@ -1008,23 +1055,23 @@ export class TripRecommendationEngine extends BaseMLEngine {
     cached_recommendations: number;
     user_profiles: number;
     model_weights: MLModelWeights;
-    cache_stats: { size: number; keys: string[] };
   } {
     return {
-      cached_recommendations: this.getCacheStats().size,
+      cached_recommendations: this.recommendationCache.size,
       user_profiles: this.userProfiles.size,
-      model_weights: { ...this.modelWeights },
-      cache_stats: this.getCacheStats()
+      model_weights: { ...this.modelWeights }
     };
   }
 
   clearUserData(userId: string): void {
-    this.validateUserId(userId);
-
     this.userProfiles.delete(userId);
 
-    // Clear user-specific cache using base class method
-    this.clearCache(userId);
+    // Remove user-specific cache entries
+    for (const [key, value] of this.recommendationCache) {
+      if (key.includes(userId)) {
+        this.recommendationCache.delete(key);
+      }
+    }
   }
 }
 
