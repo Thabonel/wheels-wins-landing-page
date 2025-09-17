@@ -9,10 +9,7 @@ SELECT EXISTS (
 ) AS table_exists;
 
 -- 2. Check table structure
-SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns
-WHERE table_name = 'user_settings'
-ORDER BY ordinal_position;
+\d user_settings;
 
 -- 3. Check if RLS is enabled
 SELECT tablename, rowsecurity
