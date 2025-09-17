@@ -1,20 +1,22 @@
 
 import React from 'react';
 import DashboardOverview from './DashboardOverview';
-import LearningDashboard from './LearningDashboard';
-import UserManagement from './UserManagement';
-import ContentModeration from './ContentModeration';
-import ReportsAnalytics from './ReportsAnalytics';
-import PAMAnalyticsDashboard from './PAMAnalyticsDashboard';
-import ObservabilityDashboard from './observability/ObservabilityDashboard';
-import { TestingDashboard } from './TestingDashboard';
-import ShopManagement from './ShopManagement';
-import TripTemplateManagement from './TripTemplateManagement';
-import SupportTickets from './SupportTickets';
-import UserFeedback from './UserFeedback';
-import Settings from './Settings';
-import DataCollectorMonitor from './DataCollectorMonitor';
 import AuthDebugAdmin from './AuthDebugAdmin';
+import {
+  LearningDashboard,
+  UserManagement,
+  ContentModeration,
+  ReportsAnalytics,
+  PAMAnalyticsDashboard,
+  ObservabilityDashboard,
+  TestingDashboard,
+  ShopManagement,
+  TripTemplateManagement,
+  SupportTickets,
+  UserFeedback,
+  Settings,
+  DataCollectorMonitor
+} from './LazyAdminComponents';
 
 interface AdminContentProps {
   activeSection: string;

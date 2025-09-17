@@ -9,9 +9,16 @@ interface PAMErrorFallbackProps {
 }
 
 function PAMErrorFallback({ error, resetError }: PAMErrorFallbackProps) {
-  const isNetworkError = error.message.toLowerCase().includes('network') || 
-                        error.message.toLowerCase().includes('fetch') ||
-                        error.message.toLowerCase().includes('websocket');
+  const errorMessage = error.message.toLowerCase();
+  const isNetworkError = errorMessage.includes('network') ||
+                        errorMessage.includes('fetch') ||
+                        errorMessage.includes('websocket');
+  const isDNSError = errorMessage.includes('name_not_resolved') ||
+                    errorMessage.includes('dns') ||
+                    errorMessage.includes('failed to fetch');
+  const isAuthError = errorMessage.includes('auth') ||
+                     errorMessage.includes('token') ||
+                     errorMessage.includes('unauthorized');
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -23,7 +30,13 @@ function PAMErrorFallback({ error, resetError }: PAMErrorFallbackProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-center text-gray-600">
-          PAM AI assistant is currently experiencing issues. This might be related to AI service connectivity or authentication.
+          {isDNSError
+            ? "PAM is having trouble connecting due to DNS resolution issues. This is often a temporary network problem."
+            : isAuthError
+            ? "PAM authentication is failing. This might be due to expired tokens or service configuration."
+            : isNetworkError
+            ? "PAM is having trouble connecting to the backend service."
+            : "PAM AI assistant is currently experiencing issues."}
         </p>
         
         <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -35,10 +48,24 @@ function PAMErrorFallback({ error, resetError }: PAMErrorFallbackProps) {
             )}
             <div>
               <h4 className="text-sm font-medium text-red-800">
-                {isNetworkError ? 'Connection Issues:' : 'Possible causes:'}
+                {isDNSError ? 'DNS Resolution Issues:' : isNetworkError ? 'Connection Issues:' : isAuthError ? 'Authentication Issues:' : 'Possible causes:'}
               </h4>
               <ul className="text-sm text-red-700 mt-1 space-y-1">
-                {isNetworkError ? (
+                {isDNSError ? (
+                  <>
+                    <li>• DNS cannot resolve Supabase hostname</li>
+                    <li>• Network DNS configuration issues</li>
+                    <li>• Temporary DNS server problems</li>
+                    <li>• Local network firewall blocking DNS</li>
+                  </>
+                ) : isAuthError ? (
+                  <>
+                    <li>• Supabase authentication token expired</li>
+                    <li>• Invalid Supabase credentials</li>
+                    <li>• Authentication service unavailable</li>
+                    <li>• Session timeout or corruption</li>
+                  </>
+                ) : isNetworkError ? (
                   <>
                     <li>• WebSocket connection failed</li>
                     <li>• PAM backend service unavailable</li>
@@ -63,10 +90,28 @@ function PAMErrorFallback({ error, resetError }: PAMErrorFallbackProps) {
             <div>
               <h4 className="text-sm font-medium text-blue-800">Recovery steps:</h4>
               <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                <li>• Check your internet connection</li>
-                <li>• Allow microphone permissions for voice features</li>
-                <li>• Try refreshing the page</li>
-                <li>• PAM may automatically reconnect in a few moments</li>
+                {isDNSError ? (
+                  <>
+                    <li>• Use the Mock Development Mode for local testing</li>
+                    <li>• Check your DNS settings or try different DNS servers</li>
+                    <li>• Wait a few minutes and try again</li>
+                    <li>• Contact your network administrator if this persists</li>
+                  </>
+                ) : isAuthError ? (
+                  <>
+                    <li>• Try logging out and logging back in</li>
+                    <li>• Clear browser cache and cookies</li>
+                    <li>• Check if environment variables are properly set</li>
+                    <li>• Verify Supabase service is running</li>
+                  </>
+                ) : (
+                  <>
+                    <li>• Check your internet connection</li>
+                    <li>• Allow microphone permissions for voice features</li>
+                    <li>• Try refreshing the page</li>
+                    <li>• PAM may automatically reconnect in a few moments</li>
+                  </>
+                )}
               </ul>
             </div>
           </div>
@@ -92,13 +137,23 @@ function PAMErrorFallback({ error, resetError }: PAMErrorFallbackProps) {
           </details>
         )}
 
-        <div className="flex gap-2 justify-center">
+        <div className="flex gap-2 justify-center flex-wrap">
           <Button onClick={resetError} className="flex items-center gap-2">
             <RefreshCw className="h-4 w-4" />
             Restart PAM
           </Button>
-          <Button 
-            variant="outline" 
+          {isDNSError && (
+            <Button
+              variant="default"
+              onClick={() => window.location.href = '/pam-dev-test'}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <Bot className="h-4 w-4" />
+              Use Mock Mode
+            </Button>
+          )}
+          <Button
+            variant="outline"
             onClick={() => window.location.reload()}
             className="flex items-center gap-2"
           >
