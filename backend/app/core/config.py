@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     
     # Anthropic Configuration (Primary and Only AI Provider)
     ANTHROPIC_API_KEY: SecretStr = Field(
-        ...,
+        default="",
         description="Anthropic API key (required for PAM AI functionality with Claude)"
     )
     
@@ -122,11 +122,8 @@ class Settings(BaseSettings):
     
     # OpenAI configuration removed - migrated to Claude 3.5 Sonnet
     
-    # Anthropic Configuration (Primary AI Provider)
-    ANTHROPIC_API_KEY: SecretStr = Field(
-        ...,
-        description="Anthropic API key (required for PAM AI functionality with Claude)"
-    )
+    # Anthropic Configuration (Primary AI Provider) - handled by fallback logic
+    # ANTHROPIC_API_KEY: Already defined above
 
     @property
     def anthropic_api_key(self) -> str:
@@ -167,11 +164,17 @@ class Settings(BaseSettings):
                     break
 
             if not v:
-                raise ValueError(
-                    "Anthropic API key is required for PAM functionality. "
-                    "Please set ANTHROPIC_API_KEY environment variable. "
-                    "Get your API key from https://console.anthropic.com/settings/keys"
-                )
+                # Import here to avoid circular imports
+                import os
+                # Check if the actual environment variable we're using exists
+                if not os.getenv('ANTHROPIC-WHEELS-KEY'):
+                    raise ValueError(
+                        "Anthropic API key is required for PAM functionality. "
+                        "Please set ANTHROPIC_API_KEY or ANTHROPIC-WHEELS-KEY environment variable. "
+                        "Get your API key from https://console.anthropic.com/settings/keys"
+                    )
+                # If ANTHROPIC-WHEELS-KEY exists, use it
+                v = os.getenv('ANTHROPIC-WHEELS-KEY')
 
         # Convert to string for validation if it's a SecretStr
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
