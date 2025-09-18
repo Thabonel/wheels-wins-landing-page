@@ -3,7 +3,7 @@
  * Based on industry testing patterns from:
  * - Microsoft Magentic-One supervisor testing
  * - LangChain multi-agent orchestration tests
- * - OpenAI Assistant API integration tests
+ * - Anthropic Claude API integration tests
  * - MakeMyTrip Myra end-to-end validation
  */
 

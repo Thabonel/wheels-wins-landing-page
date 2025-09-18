@@ -116,7 +116,7 @@ export const useAnalyticsData = (dateRange: string) => {
         {
           timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
           error_type: 'API_TIMEOUT',
-          error_message: 'OpenAI API request timeout',
+          error_message: 'Claude API request timeout',
           intent: 'travel_planning',
           user_id: 'user_123'
         },

@@ -22,7 +22,7 @@ interface ObservabilityConfig {
   environment: string;
   langfuse_host: string;
   platforms: {
-    openai: {
+    anthropic: {
       configured: boolean;
       key_preview?: string;
     };
@@ -165,15 +165,15 @@ export default function APIKeyManagement() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* OpenAI */}
+            {/* Anthropic Claude */}
             <div className="p-4 border rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
-                  {getStatusIcon(config.platforms.openai.configured, testResults.openai?.connected)}
-                  <span className="font-medium">OpenAI</span>
+                  {getStatusIcon(config.platforms.anthropic.configured, testResults.anthropic?.connected)}
+                  <span className="font-medium">Anthropic Claude</span>
                 </div>
                 <a
-                  href="https://platform.openai.com/api-keys"
+                  href="https://console.anthropic.com/settings/keys"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-500 hover:text-blue-700"
@@ -183,44 +183,44 @@ export default function APIKeyManagement() {
               </div>
               
               <div className="space-y-2">
-                <Badge variant={config.platforms.openai.configured ? "default" : "outline"}>
-                  {config.platforms.openai.configured ? "Configured" : "Not Configured"}
+                <Badge variant={config.platforms.anthropic.configured ? "default" : "outline"}>
+                  {config.platforms.anthropic.configured ? "Configured" : "Not Configured"}
                 </Badge>
-                
-                {config.platforms.openai.key_preview && (
+
+                {config.platforms.anthropic.key_preview && (
                   <div className="text-sm">
                     <Label>API Key:</Label>
                     <div className="flex items-center space-x-2">
                       <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                        {showKeys.openai ? config.platforms.openai.key_preview : "sk-••••••••"}
+                        {showKeys.anthropic ? config.platforms.anthropic.key_preview : "sk-ant-••••••••"}
                       </code>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => toggleKeyVisibility('openai')}
+                        onClick={() => toggleKeyVisibility('anthropic')}
                       >
-                        {showKeys.openai ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        {showKeys.anthropic ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                       </Button>
                     </div>
                   </div>
                 )}
-                
+
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => testPlatformConnection('openai')}
-                  disabled={!config.platforms.openai.configured || testing === 'openai'}
+                  onClick={() => testPlatformConnection('anthropic')}
+                  disabled={!config.platforms.anthropic.configured || testing === 'anthropic'}
                   className="w-full"
                 >
-                  {testing === 'openai' ? (
+                  {testing === 'anthropic' ? (
                     <RefreshCw className="h-3 w-3 animate-spin mr-2" />
                   ) : null}
                   Test Connection
                 </Button>
-                
-                {testResults.openai && (
-                  <p className={`text-xs ${testResults.openai.connected ? 'text-green-600' : 'text-red-600'}`}>
-                    {testResults.openai.message}
+
+                {testResults.anthropic && (
+                  <p className={`text-xs ${testResults.anthropic.connected ? 'text-green-600' : 'text-red-600'}`}>
+                    {testResults.anthropic.message}
                   </p>
                 )}
               </div>
@@ -314,7 +314,7 @@ export default function APIKeyManagement() {
                 
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <code className="text-sm">
-                    <div>OPENAI_API_KEY=sk-your-openai-key-here</div>
+                    <div>ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here</div>
                     <div>LANGFUSE_SECRET_KEY=sk-lf-your-secret-key-here</div>
                     <div>LANGFUSE_PUBLIC_KEY=pk-lf-your-public-key-here</div>
                     <div>LANGFUSE_HOST=https://cloud.langfuse.com</div>
@@ -327,12 +327,12 @@ export default function APIKeyManagement() {
             <TabsContent value="platforms" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <h4 className="font-medium">OpenAI Setup</h4>
+                  <h4 className="font-medium">Anthropic Claude Setup</h4>
                   <ol className="text-sm text-gray-600 space-y-1">
-                    <li>1. Visit platform.openai.com</li>
+                    <li>1. Visit console.anthropic.com</li>
                     <li>2. Go to API Keys section</li>
                     <li>3. Create new secret key</li>
-                    <li>4. Copy key starting with "sk-"</li>
+                    <li>4. Copy key starting with "sk-ant-"</li>
                   </ol>
                 </div>
                 
