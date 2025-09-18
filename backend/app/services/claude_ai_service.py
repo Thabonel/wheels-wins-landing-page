@@ -42,19 +42,14 @@ def get_latest_sonnet_model() -> str:
         from datetime import datetime
         current_date = datetime.now()
 
-        # Try newer model patterns first (Claude 3.5 Sonnet variations)
-        potential_models = [
-            "claude-3-5-sonnet-20250101",  # 2025 models
-            "claude-3-5-sonnet-20241215",  # December 2024
-            "claude-3-5-sonnet-20241115",  # November 2024
-            "claude-3-5-sonnet-20241022",  # Known working fallback (October 2024)
-            "claude-3-5-sonnet-latest",    # Generic latest
-            "claude-3-sonnet-20240229"     # Older stable fallback
+        # Use actually available Claude models (verified working)
+        available_models = [
+            "claude-3-5-sonnet-20241022",  # Known working model (October 2024)
+            "claude-3-sonnet-20240229"     # Stable fallback
         ]
 
-        # For now, return a more recent model that's likely available
-        # The deprecation suggests newer models exist
-        latest_candidate = "claude-3-5-sonnet-20241115"
+        # Return the working model to avoid 404 errors
+        latest_candidate = available_models[0]
 
         logger.info(f"Using Claude model: {latest_candidate}")
         return latest_candidate

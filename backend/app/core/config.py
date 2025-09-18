@@ -118,15 +118,14 @@ class Settings(BaseSettings):
                 "Opus models are not allowed due to high costs. "
                 "Use Claude 3.5 Sonnet instead."
             )
-        # Return latest Sonnet model (never Opus due to cost)
+        # Return working Sonnet model (never Opus due to cost)
         if not v:
-            # Default to latest available Sonnet model
-            latest_models = [
-                "claude-3-5-sonnet-20241215",  # December 2024
-                "claude-3-5-sonnet-20241115",  # November 2024
-                "claude-3-5-sonnet-20241022",  # Fallback (October 2024)
+            # Use actually available models to avoid 404 errors
+            available_models = [
+                "claude-3-5-sonnet-20241022",  # Known working (October 2024)
+                "claude-3-sonnet-20240229",    # Stable fallback
             ]
-            v = latest_models[0]  # Use latest available
+            v = available_models[0]  # Use verified working model
         return v
     
     # OpenAI configuration removed - migrated to Claude 3.5 Sonnet
@@ -224,15 +223,14 @@ class Settings(BaseSettings):
                 "Opus models are not allowed due to high costs. "
                 "Use Claude 3.5 Sonnet instead."
             )
-        # Return latest Sonnet model (never Opus due to cost)
+        # Return working Sonnet model (never Opus due to cost)
         if not v:
-            # Default to latest available Sonnet model
-            latest_models = [
-                "claude-3-5-sonnet-20241215",  # December 2024
-                "claude-3-5-sonnet-20241115",  # November 2024
-                "claude-3-5-sonnet-20241022",  # Fallback (October 2024)
+            # Use actually available models to avoid 404 errors
+            available_models = [
+                "claude-3-5-sonnet-20241022",  # Known working (October 2024)
+                "claude-3-sonnet-20240229",    # Stable fallback
             ]
-            v = latest_models[0]  # Use latest available
+            v = available_models[0]  # Use verified working model
         return v
 
     # Supabase Configuration (Required)
