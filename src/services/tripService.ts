@@ -24,7 +24,7 @@ export const tripService = {
           user_id: userId,
           title: tripData.title,
           description: tripData.description,
-          status: tripData.status || 'draft',
+          status: tripData.status || 'planning',
           privacy_level: tripData.privacy_level || 'private',
           // Store route data in metadata since route_data column may not exist
           metadata: {
