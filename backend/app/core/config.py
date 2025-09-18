@@ -116,9 +116,18 @@ class Settings(BaseSettings):
         if v and "opus" in v.lower():
             raise ValueError(
                 "Opus models are not allowed due to high costs. "
-                "Use Claude 3.5 Sonnet (claude-3-5-sonnet-20241022) instead."
+                "Use Claude 3.5 Sonnet instead."
             )
-        return v or "claude-3-5-sonnet-20241022"
+        # Return latest Sonnet model (never Opus due to cost)
+        if not v:
+            # Default to latest available Sonnet model
+            latest_models = [
+                "claude-3-5-sonnet-20241215",  # December 2024
+                "claude-3-5-sonnet-20241115",  # November 2024
+                "claude-3-5-sonnet-20241022",  # Fallback (October 2024)
+            ]
+            v = latest_models[0]  # Use latest available
+        return v
     
     # OpenAI configuration removed - migrated to Claude 3.5 Sonnet
     
@@ -213,9 +222,18 @@ class Settings(BaseSettings):
         if v and "opus" in v.lower():
             raise ValueError(
                 "Opus models are not allowed due to high costs. "
-                "Use Claude 3.5 Sonnet (claude-3-5-sonnet-20241022) instead."
+                "Use Claude 3.5 Sonnet instead."
             )
-        return v or "claude-3-5-sonnet-20241022"
+        # Return latest Sonnet model (never Opus due to cost)
+        if not v:
+            # Default to latest available Sonnet model
+            latest_models = [
+                "claude-3-5-sonnet-20241215",  # December 2024
+                "claude-3-5-sonnet-20241115",  # November 2024
+                "claude-3-5-sonnet-20241022",  # Fallback (October 2024)
+            ]
+            v = latest_models[0]  # Use latest available
+        return v
 
     # Supabase Configuration (Required)
     SUPABASE_URL: AnyHttpUrl = Field(
