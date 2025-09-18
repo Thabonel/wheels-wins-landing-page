@@ -21,7 +21,7 @@ export const LazyUserFeedback = lazy(() => import('./UserFeedback'));
 export const LazySupportTickets = lazy(() => import('./SupportTickets'));
 export const LazyLearningDashboard = lazy(() => import('./LearningDashboard'));
 export const LazySettings = lazy(() => import('./Settings'));
-export const LazyPerformanceTestPage = lazy(() => import('../../pages/PerformanceTestPage'));
+export const LazyPerformanceTestPage = lazy(() => import('../../dev/PerformanceTestPage'));
 
 // Loading component for admin sections
 const AdminSectionLoader = ({ section }: { section: string }) => (
