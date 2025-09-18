@@ -17,8 +17,8 @@ const isValidURL = (value: string) => {
   }
 };
 
-// Debug logging for staging environment
-if (import.meta.env.MODE === 'staging' || window.location.hostname.includes('staging')) {
+// Debug logging for staging environment (skip in test environment)
+if ((import.meta.env.MODE === 'staging' || (typeof window !== 'undefined' && window.location.hostname.includes('staging'))) && typeof window !== 'undefined') {
   console.log('🔍 Supabase Configuration Debug:', {
     mode: import.meta.env.MODE,
     urlLength: SUPABASE_URL?.length,
