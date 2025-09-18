@@ -16,13 +16,13 @@ from pydantic import Field, field_validator, SecretStr, ValidationError
 from pydantic_settings import BaseSettings
 from pydantic.networks import AnyHttpUrl, PostgresDsn, RedisDsn
 
-# Import AI models configuration
+# AI models configuration - Claude only
 try:
     from .ai_models_config import DEFAULT_MODEL, FALLBACK_MODELS
 except ImportError:
-    # Fallback if the new config doesn't exist yet
-    DEFAULT_MODEL = "gpt-4o"
-    FALLBACK_MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+    # Fallback configuration - Claude 3.5 Sonnet only
+    DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+    FALLBACK_MODELS = ["claude-3-5-sonnet-20241022"]
 
 
 class Environment(str, Enum):
@@ -68,42 +68,11 @@ class Settings(BaseSettings):
     # CORE CONFIGURATION (REQUIRED)
     # =====================================================
     
-    # OpenAI Configuration (Optional - for fallback)
-    OPENAI_API_KEY: Optional[SecretStr] = Field(
-        default=None,
-        description="OpenAI API key (optional - for fallback AI functionality)"
-    )
-    
-    # Anthropic Configuration (Primary AI Provider)
+    # Anthropic Configuration (Primary and Only AI Provider)
     ANTHROPIC_API_KEY: SecretStr = Field(
         ...,
         description="Anthropic API key (required for PAM AI functionality with Claude)"
     )
-    
-    @field_validator("OPENAI_API_KEY", mode="before")
-    @classmethod
-    def validate_openai_api_key(cls, v):
-        """Validate OpenAI API key format if provided (optional)"""
-        if not v:
-            return None  # OpenAI is now optional
-        
-        # Convert to string for validation if it's a SecretStr
-        key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
-        
-        if not (key_str.startswith('sk-') or key_str.startswith('sk-proj-')):
-            raise ValueError(
-                "Invalid OpenAI API key format. "
-                "OpenAI API keys should start with 'sk-' or 'sk-proj-'. "
-                "Please check your key at https://platform.openai.com/api-keys"
-            )
-        
-        if len(key_str) < 20:
-            raise ValueError(
-                "OpenAI API key appears to be too short. "
-                "Please verify your key is correct and complete."
-            )
-        
-        return v
     
     @field_validator("ANTHROPIC_API_KEY", mode="before")
     @classmethod
@@ -151,29 +120,7 @@ class Settings(BaseSettings):
             )
         return v or "claude-3-5-sonnet-20241022"
     
-    OPENAI_MODEL: str = Field(
-        default=DEFAULT_MODEL,
-        description="OpenAI model to use (auto-updated to latest)"
-    )
-    
-    OPENAI_FALLBACK_MODELS: List[str] = Field(
-        default_factory=lambda: FALLBACK_MODELS,
-        description="Fallback models in order of preference"
-    )
-    
-    OPENAI_MAX_TOKENS: int = Field(
-        default=4000,
-        ge=100,
-        le=8000,
-        description="Maximum tokens for OpenAI responses"
-    )
-    
-    OPENAI_TEMPERATURE: float = Field(
-        default=0.7,
-        ge=0,
-        le=2,
-        description="OpenAI temperature setting"
-    )
+    # OpenAI configuration removed - migrated to Claude 3.5 Sonnet
     
     # Anthropic Configuration (Primary AI Provider)
     ANTHROPIC_API_KEY: SecretStr = Field(
@@ -586,9 +533,9 @@ class Settings(BaseSettings):
         
         # Check required settings with detailed validation
         required_settings = {
-            "OPENAI_API_KEY": {
-                "message": "OpenAI API key is required for PAM functionality",
-                "validation": self._validate_openai_key
+            "ANTHROPIC_API_KEY": {
+                "message": "Anthropic API key is required for PAM functionality",
+                "validation": self._validate_anthropic_key
             },
             "SUPABASE_URL": {
                 "message": "Supabase URL is required for authentication",
@@ -671,7 +618,7 @@ class Settings(BaseSettings):
             "environment": self.NODE_ENV.value,
             "debug": self.DEBUG,
             "services": {
-                "openai": bool(self.OPENAI_API_KEY),
+                "anthropic": bool(self.ANTHROPIC_API_KEY),
                 "supabase": bool(self.SUPABASE_URL and self.SUPABASE_SERVICE_ROLE_KEY),
                 "redis": bool(self.REDIS_URL),
                 "sentry": self.SENTRY_ENABLED,
@@ -680,18 +627,18 @@ class Settings(BaseSettings):
             }
         }
     
-    def _validate_openai_key(self, key_value):
-        """Validate OpenAI key format at runtime"""
+    def _validate_anthropic_key(self, key_value):
+        """Validate Anthropic key format at runtime"""
         if isinstance(key_value, SecretStr):
             key_str = key_value.get_secret_value()
         else:
             key_str = str(key_value)
-        
-        if not (key_str.startswith('sk-') or key_str.startswith('sk-proj-')):
-            raise ValueError("Invalid OpenAI API key format (should start with 'sk-' or 'sk-proj-')")
-        
+
+        if not key_str.startswith('sk-ant-'):
+            raise ValueError("Invalid Anthropic API key format (should start with 'sk-ant-')")
+
         if len(key_str) < 20:
-            raise ValueError("OpenAI API key appears to be too short")
+            raise ValueError("Anthropic API key appears to be too short")
     
     def print_startup_info(self):
         """Print configuration info at startup"""
@@ -812,7 +759,7 @@ def get_settings() -> Settings:
         
         # Check for critical vs non-critical errors
         critical_fields = {
-            "OPENAI_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"
+            "ANTHROPIC_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"
         }
         
         critical_errors = [
