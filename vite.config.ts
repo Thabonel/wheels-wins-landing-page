@@ -67,8 +67,11 @@ export default defineConfig(({ mode }) => {
           // Data fetching and state management
           'query-vendor': ['@tanstack/react-query'],
           
-          // Map libraries - large and specific to trip planning
+          // Map libraries - large and specific to trip planning (now lazy loaded)
           'mapbox-vendor': ['mapbox-gl', '@mapbox/mapbox-gl-directions', '@mapbox/mapbox-gl-geocoder'],
+
+          // Heavy PDF and analysis libraries - lazy load these
+          'heavy-vendor': ['pdf-lib', 'pdf-parse'],
           
           // Charts - only used in financial sections
           'chart-vendor': ['recharts'],
@@ -114,10 +117,24 @@ export default defineConfig(({ mode }) => {
         } : undefined,
       },
     },
-    // Optimize for production
+    // Advanced production optimizations
     ...(isProduction && {
       reportCompressedSize: false,
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 800, // Stricter limit for better performance
+      // Enable tree shaking and dead code elimination
+      terserOptions: {
+        compress: {
+          drop_console: true, // Remove console logs in production
+          drop_debugger: true,
+          pure_funcs: ['console.log', 'console.info', 'console.debug'],
+        },
+        mangle: {
+          safari10: true,
+        },
+      },
+      // Additional optimizations
+      assetsInlineLimit: 4096,
+      reportCompressedSize: false,
     }),
   },
 };

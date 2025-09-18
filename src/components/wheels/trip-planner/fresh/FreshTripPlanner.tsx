@@ -9,7 +9,7 @@ import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 // Removed custom FreshFullscreenControl - using native Mapbox control instead
-import { FreshTrackControl } from './controls/FreshTrackControl';
+import FreshTrackPanel from './components/FreshTrackPanel';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 import FreshStatusBar from './components/FreshStatusBar';
 import NavigationExportModal from './components/NavigationExportModal';
@@ -73,7 +73,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     dump_station: false,
     water: false,
   });
-  const trackControlRef = useRef<FreshTrackControl | null>(null);
+  const [showTrackPanel, setShowTrackPanel] = useState(false);
   const mapOptionsControlRef = useRef<FreshMapOptionsControl | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isAddingWaypoint, setIsAddingWaypoint] = useState(false);
@@ -326,30 +326,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         });
       }
       
-      // Create track management control (but don't add to map - controlled by toolbar)
-      const trackControl = new FreshTrackControl({
-        waypoints: [],
-        routeProfile: 'driving',
-        rvServices: {},
-        onRemoveWaypoint: (id: string) => {
-          // This will be updated with waypointManager reference
-        },
-        onSetRouteProfile: (profile: 'driving' | 'walking' | 'cycling') => {
-          // This will be updated with waypointManager reference
-        },
-        onRVServiceToggle: (service: string, enabled: boolean) => {
-          setRvServices(prev => ({ ...prev, [service]: enabled }));
-        }
-      });
-      // Initialize without adding to map controls
-      if (typeof trackControl.initialize === 'function') {
-        trackControl.initialize(newMap, mapContainerRef.current);
-      } else {
-        // Fallback for old implementation
-        console.warn('TrackControl does not have initialize method, using as map control');
-        newMap.addControl(trackControl as any, 'top-right');
-      }
-      trackControlRef.current = trackControl;
+      // Track management is now handled by React component FreshTrackPanel
+      // No need for vanilla JS control initialization
       
       // Create map options control and initialize it
       const mapOptionsControl = new FreshMapOptionsControl({
@@ -453,10 +431,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         mapRef.current.removeControl(geolocateControlRef.current);
         geolocateControlRef.current = null;
       }
-      if (trackControlRef.current && typeof trackControlRef.current.cleanup === 'function') {
-        trackControlRef.current.cleanup();
-        trackControlRef.current = null;
-      }
+      // Track management cleanup handled by React component lifecycle
       if (mapOptionsControlRef.current && typeof mapOptionsControlRef.current.cleanup === 'function') {
         mapOptionsControlRef.current.cleanup();
         mapOptionsControlRef.current = null;
@@ -468,21 +443,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     };
   }, []); // Only run once on mount
   
-  // Update track control callbacks when waypoint manager is ready
-  useEffect(() => {
-    if (trackControlRef.current && waypointManager) {
-      trackControlRef.current.updateOptions({
-        waypoints: waypointManager.waypoints,
-        routeProfile: waypointManager.routeProfile,
-        rvServices,
-        onRemoveWaypoint: waypointManager.removeWaypoint,
-        onSetRouteProfile: waypointManager.setRouteProfile,
-        onRVServiceToggle: (service: string, enabled: boolean) => {
-          setRvServices(prev => ({ ...prev, [service]: enabled }));
-        }
-      });
-    }
-  }, [waypointManager.waypoints, waypointManager.routeProfile, rvServices]);
+  // Track panel state is now managed by React component directly
+  // No need for manual control updates
   
   // Sync waypoints with Directions control
   useEffect(() => {
@@ -894,17 +856,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         onToggleTraffic={() => setShowTraffic(!showTraffic)}
         showTraffic={showTraffic}
         onToggleSidebar={() => {
-          setShowSidebar(prev => {
-            const newState = !prev;
-            if (trackControlRef.current) {
-              if (newState) {
-                trackControlRef.current.openPanel();
-              } else {
-                trackControlRef.current.closePanel();
-              }
-            }
-            return newState;
-          });
+          setShowSidebar(prev => !prev);
+          setShowTrackPanel(prev => !prev);
         }}
         showSidebar={showSidebar}
         onToggleMapStyle={() => {
@@ -1151,6 +1104,23 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
             });
           }
         }}
+      />
+
+      {/* Track Management Panel - Modern React Component */}
+      <FreshTrackPanel
+        isOpen={showTrackPanel}
+        onClose={() => {
+          setShowTrackPanel(false);
+          setShowSidebar(false);
+        }}
+        waypoints={waypointManager.waypoints}
+        onRemoveWaypoint={waypointManager.removeWaypoint}
+        routeProfile={waypointManager.routeProfile}
+        onSetRouteProfile={waypointManager.setRouteProfile}
+        onRVServiceToggle={(service: string, enabled: boolean) => {
+          setRvServices(prev => ({ ...prev, [service]: enabled }));
+        }}
+        rvServices={rvServices}
       />
     </div>
   );
