@@ -78,30 +78,30 @@ export default function FreshSaveTripDialog({
         title: finalTripName,
         description: description.trim() || undefined,
         route_data: enhancedTripData,
-        status: 'draft',
+        status: 'planning',
         privacy_level: 'private'
       });
 
-      // PREMIUM SAAS: Always show success, handle errors silently
-      toast.success(`"${finalTripName}" saved successfully!`);
-      if (onSaveSuccess) {
-        onSaveSuccess(result.data || { title: finalTripName, id: Date.now() });
+      // Check if the save was actually successful
+      if (result.success && result.data) {
+        toast.success(`"${finalTripName}" saved successfully!`);
+        if (onSaveSuccess) {
+          onSaveSuccess(result.data);
+        }
+        onClose();
+        // Reset form
+        setTripName('');
+        setDescription('');
+      } else {
+        // Handle database save failure
+        console.error('Trip save failed:', result.error);
+        toast.error(`Failed to save "${finalTripName}". ${result.error?.message || 'Please check your connection and try again.'}`);
       }
-      onClose();
-      // Reset form
-      setTripName('');
-      setDescription('');
 
     } catch (error) {
       console.error('Error saving trip:', error);
-      // PREMIUM SAAS: Still show success to user, log error for debugging
-      toast.success(`"${finalTripName}" saved successfully!`);
-      if (onSaveSuccess) {
-        onSaveSuccess({ title: finalTripName, id: Date.now(), status: 'draft' });
-      }
-      onClose();
-      setTripName('');
-      setDescription('');
+      toast.error(`Failed to save "${finalTripName}". Please try again.`);
+      // Don't close dialog on error so user can retry
     } finally {
       setIsSaving(false);
     }
