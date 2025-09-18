@@ -48,8 +48,8 @@ const PamVoiceTest = lazy(() => import('./pages/PamVoiceTest'));
 // const PamWebSocketTest = lazy(() => import('./pages/PamWebSocketTest')); // Disabled - using unified PAM service
 const PAMTestingPage = lazy(() => import('./pages/PAMTestingPage'));
 const PAMDevTestPage = lazy(() => import('./pages/PAMDevTestPage'));
-const PAMFallbackTestPage = lazy(() => import('./pages/PAMFallbackTestPage'));
-const PerformanceTestPage = lazy(() => import('./pages/PerformanceTestPage'));
+const PAMFallbackTestPage = lazy(() => import('./dev/PAMFallbackTestPage'));
+const PerformanceTestPage = lazy(() => import('./dev/PerformanceTestPage'));
 const SiteQALog = lazy(() => import('./pages/SiteQALog'));
 const FreshTripPlannerTest = lazy(() => import('./pages/FreshTripPlannerTest'));
 const WheelsSimple = lazy(() => import('./pages/WheelsSimple'));
