@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import PAMWebSocketTester from '@/components/pam/PAMWebSocketTester';
+import PAMWebSocketTester from '@/dev/PAMWebSocketTester';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
