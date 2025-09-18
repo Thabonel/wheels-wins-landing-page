@@ -2486,43 +2486,43 @@ async def pam_health_check():
                 from app.core.config import get_settings
                 settings = get_settings()
                 
-                has_openai_key = bool(getattr(settings, 'OPENAI_API_KEY', None))
-                
-                if not has_openai_key:
+                has_anthropic_key = bool(getattr(settings, 'ANTHROPIC_API_KEY', None))
+
+                if not has_anthropic_key:
                     return {
                         "status": "degraded",
                         "timestamp": datetime.utcnow().isoformat(),
                         "service": "PAM",
-                        "openai_api": "not_configured",
-                        "message": "PAM available in text-only mode - OpenAI API key not configured"
+                        "claude_api": "not_configured",
+                        "message": "PAM service degraded - Anthropic API key not configured"
                     }
-                
-                # Quick OpenAI connectivity test (no actual API call)
+
+                # Quick Anthropic library test (no actual API call)
                 try:
-                    import openai
-                    openai_available = True
+                    import anthropic
+                    anthropic_available = True
                 except ImportError:
-                    openai_available = False
-                
+                    anthropic_available = False
+
                 # Determine status based on available components
-                if openai_available and has_openai_key:
+                if anthropic_available and has_anthropic_key:
                     status = "healthy"
-                    openai_status = "available"
-                    message = "PAM service operational"
-                elif has_openai_key:
+                    claude_status = "available"
+                    message = "PAM service operational with Claude 3.5 Sonnet"
+                elif has_anthropic_key:
                     status = "degraded"
-                    openai_status = "library_missing"
-                    message = "OpenAI library not available"
+                    claude_status = "library_missing"
+                    message = "Anthropic library not available"
                 else:
                     status = "degraded"
-                    openai_status = "not_configured"
-                    message = "OpenAI API not configured"
-                
+                    claude_status = "not_configured"
+                    message = "Anthropic API not configured"
+
                 return {
                     "status": status,
                     "timestamp": datetime.utcnow().isoformat(),
                     "service": "PAM",
-                    "openai_api": openai_status,
+                    "claude_api": claude_status,
                     "message": message,
                     "performance": {
                         "optimized": True,
