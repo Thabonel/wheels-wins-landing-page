@@ -56,28 +56,28 @@ async def pam_health():
     checks = {}
     issues = []
     
-    # Check OpenAI
+    # Check Anthropic (Claude)
     try:
-        if settings.OPENAI_API_KEY:
+        if settings.ANTHROPIC_API_KEY:
             # Verify API key exists (minimal check)
-            checks["openai"] = {
+            checks["anthropic"] = {
                 "status": HealthStatus.HEALTHY,
                 "configured": True,
-                "model": settings.OPENAI_MODEL
+                "model": settings.CLAUDE_MODEL
             }
         else:
-            checks["openai"] = {
+            checks["anthropic"] = {
                 "status": HealthStatus.UNHEALTHY,
                 "configured": False,
                 "error": "API key not configured"
             }
-            issues.append("OpenAI API key not configured")
+            issues.append("Anthropic API key not configured")
     except Exception as e:
-        checks["openai"] = {
+        checks["anthropic"] = {
             "status": HealthStatus.UNHEALTHY,
             "error": str(e)
         }
-        issues.append(f"OpenAI check failed: {e}")
+        issues.append(f"Anthropic check failed: {e}")
     
     # Check TTS
     try:

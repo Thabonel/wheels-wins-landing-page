@@ -15,7 +15,7 @@ from app.core.logging import get_logger
 from app.core.config import settings
 from app.models.domain.pam import PamContext, PamResponse
 from app.services.database import get_database_service
-from app.services.ai_service import get_ai_service
+from app.services.claude_ai_service import get_claude_ai_service
 from app.services.pam.context_manager import ContextManager
 from app.core.intelligent_conversation import IntelligentConversationHandler
 from app.services.pam.rag_integration_mixin import RAGIntegrationMixin
@@ -96,7 +96,7 @@ class UnifiedPamOrchestrator(RAGIntegrationMixin):
             
         try:
             # Initialize AI service
-            self.ai_service = get_ai_service()
+            self.ai_service = await get_claude_ai_service()
             await self.ai_service.initialize()
             
             # Initialize database service
