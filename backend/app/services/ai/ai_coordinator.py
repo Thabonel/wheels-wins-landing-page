@@ -173,10 +173,9 @@ class AICoordinator:
             logger.error(f"Failed to track metrics: {e}")
     
     async def get_model_status(self) -> Dict[str, Any]:
-        """Get status of both AI services"""
+        """Get status of AI services"""
         status = {
             "claude": await self.claude.health_check(),
-            "openai": await self.openai.health_check(),
             "routing_available": list(self.routing_map.keys()),
             "cache_enabled": True
         }

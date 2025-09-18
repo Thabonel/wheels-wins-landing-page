@@ -27,7 +27,7 @@ export const safeImageService = {
       'aus-sunshine-coast': 'https://picsum.photos/seed/sunshine/400/250',
     };
 
-    return imageMap[templateId] || this.getFallbackImage(templateId);
+    return imageMap[templateId] || safeImageService.getFallbackImage(templateId);
   },
 
   // Check if an image URL is safe (doesn't cause CORS issues)
@@ -51,11 +51,11 @@ export const safeImageService = {
 
   // Get a safe image URL, falling back if needed
   getSafeImageUrl: (originalUrl: string, templateId: string): string => {
-    if (this.isSafeImageUrl(originalUrl)) {
+    if (safeImageService.isSafeImageUrl(originalUrl)) {
       return originalUrl;
     }
 
     console.warn(`Replacing unsafe image URL for template ${templateId}:`, originalUrl);
-    return this.getTemplateImage(templateId);
+    return safeImageService.getTemplateImage(templateId);
   }
 };

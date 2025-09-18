@@ -88,7 +88,7 @@ export class TripDataPipeline {
     // Start cache cleanup process
     setInterval(() => this.cleanupCache(), 1000 * 60 * 5); // Every 5 minutes
 
-    // Prefetch popular trips
+    // Prefetch popular user_trips
     setInterval(() => this.prefetchPopularTrips(), 1000 * 60 * 10); // Every 10 minutes
 
     logger.debug('🚗 Trip Data Pipeline initialized');
@@ -348,8 +348,8 @@ export class TripDataPipeline {
     return (distance / 1000) * factor;
   }
 
-  private calculateAggregateMetrics(trips: any[]): TripMetrics {
-    const totals = trips.reduce((acc, trip) => {
+  private calculateAggregateMetrics(user_trips: any[]): TripMetrics {
+    const totals = user_trips.reduce((acc, trip) => {
       const metrics = trip.enhanced_metrics || {};
       return {
         distance: acc.distance + (metrics.distance || 0),
@@ -366,7 +366,7 @@ export class TripDataPipeline {
 
     return {
       ...totals,
-      complexity_score: totals.complexity_score / trips.length // Average complexity
+      complexity_score: totals.complexity_score / user_trips.length // Average complexity
     };
   }
 
@@ -452,10 +452,10 @@ export class TripDataPipeline {
   }
 
   private async prefetchPopularTrips(): Promise<void> {
-    // Find trips with high popularity scores that aren't cached
+    // Find user_trips with high popularity scores that aren't cached
     const popularThreshold = this.PREFETCH_THRESHOLD;
 
-    // This would typically analyze user patterns and prefetch likely-to-be-accessed trips
+    // This would typically analyze user patterns and prefetch likely-to-be-accessed user_trips
     // For now, we'll implement a simple strategy
 
     for (const [key, cached] of this.cache) {
@@ -516,7 +516,7 @@ export class TripDataPipeline {
   }
 
   private analyzeAccessPatterns(analytics: TripAnalytics, tripData: any): void {
-    // Track when trips are typically accessed
+    // Track when user_trips are typically accessed
     const hour = new Date().getHours();
     const timeSlot = hour < 6 ? 'night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
 
@@ -550,7 +550,7 @@ export class TripDataPipeline {
     // Waypoint suggestions
     const avgWaypoints = analytics.user_preferences.avg_waypoints || 0;
     if (avgWaypoints > 8) {
-      suggestions.push('Consider breaking complex trips into segments');
+      suggestions.push('Consider breaking complex user_trips into segments');
     }
 
     // Time-based suggestions

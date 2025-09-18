@@ -37,7 +37,7 @@ export class TripService {
     mode: string,
     waypoints: Waypoint[]
   ): Promise<string | null> {
-    // Save to user_trips table (user's personal trips)
+    // Save to user_trips table (user's personal user_trips)
     const { data, error } = await supabase
       .from("user_trips")
       .insert({
