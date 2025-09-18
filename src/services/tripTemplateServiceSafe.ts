@@ -749,7 +749,8 @@ export const tripTemplateServiceSafe = {
           thumbnail_url: safeImageUrl,
           imageVerified: true,
           imageStored: false
-        });
+        };
+      });
 
       console.log(`🖼️ Successfully enhanced ${enhancedTemplates.length} templates with safe images`);
       return enhancedTemplates;

@@ -48,6 +48,18 @@ git-safety-functions.sh
 # API Keys and tokens
 *api-key*
 *api_key*
+*token*
+*jwt*
+
+# Scripts with database connections
+*execute*.sh
+*db-connect*.sh
+*pgpassword*.sh
+
+# Temporary files that may contain secrets
+docs/maintenance/*.txt
+*.backup.sql
+*.dump.sql
 *apikey*
 *access-token*
 *access_token*
