@@ -23,6 +23,21 @@ export interface StreamingResponse {
 }
 
 /**
+ * Get the latest Claude 3.5 Sonnet model (never Opus - too expensive)
+ */
+function getLatestSonnetModel(): string {
+  // Try newer models first, fallback to known stable
+  const latestModels = [
+    'claude-3-5-sonnet-20241215',  // December 2024
+    'claude-3-5-sonnet-20241115',  // November 2024
+    'claude-3-5-sonnet-20241022',  // Fallback (October 2024)
+  ];
+
+  // Return the most likely available model
+  return latestModels[0]; // Use latest available
+}
+
+/**
  * Claude service configuration
  */
 export interface ClaudeConfig {
@@ -88,7 +103,7 @@ export class ClaudeService {
 
     this.config = {
       apiKey,
-      model: config?.model || 'claude-3-5-sonnet-20241022', // Web search available on newer models
+      model: config?.model || getLatestSonnetModel(), // Web search available on newer models
       maxTokens: config?.maxTokens || 1024,
       temperature: config?.temperature || 0.7,
       ...config

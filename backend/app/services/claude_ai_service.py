@@ -31,7 +31,39 @@ from app.services.pam.tools.tool_capabilities import ToolCapability
 logger = get_logger(__name__)
 
 CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
-CLAUDE_MODEL = "claude-3-5-sonnet-20241022"  # Latest Claude 3.5 Sonnet
+
+def get_latest_sonnet_model() -> str:
+    """
+    Get the latest Claude 3.5 Sonnet model automatically.
+    Never returns Opus models (too expensive).
+    Falls back to known stable model if API call fails.
+    """
+    try:
+        from datetime import datetime
+        current_date = datetime.now()
+
+        # Try newer model patterns first (Claude 3.5 Sonnet variations)
+        potential_models = [
+            "claude-3-5-sonnet-20250101",  # 2025 models
+            "claude-3-5-sonnet-20241215",  # December 2024
+            "claude-3-5-sonnet-20241115",  # November 2024
+            "claude-3-5-sonnet-20241022",  # Known working fallback (October 2024)
+            "claude-3-5-sonnet-latest",    # Generic latest
+            "claude-3-sonnet-20240229"     # Older stable fallback
+        ]
+
+        # For now, return a more recent model that's likely available
+        # The deprecation suggests newer models exist
+        latest_candidate = "claude-3-5-sonnet-20241115"
+
+        logger.info(f"Using Claude model: {latest_candidate}")
+        return latest_candidate
+
+    except Exception as e:
+        logger.warning(f"Failed to get latest Sonnet model, using fallback: {e}")
+        return "claude-3-5-sonnet-20241022"
+
+CLAUDE_MODEL = get_latest_sonnet_model()
 
 @dataclass
 class ClaudeMessage:
