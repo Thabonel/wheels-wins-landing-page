@@ -162,7 +162,7 @@ const setWaypoints = useCallback((newWaypoints: Waypoint[]) => {
 ### Mapbox Token
 Verified configuration in `.env`:
 ```
-VITE_MAPBOX_TOKEN=<MAPBOX_PUBLIC_TOKEN>
+VITE_MAPBOX_TOKEN=[REDACTED-MAPBOX-TOKEN]
 ```
 
 The component checks multiple environment variables for compatibility:
