@@ -25,7 +25,7 @@ import {
 import { performanceMonitor, usePerformanceTracking } from '@/utils/performanceMonitor';
 import { cacheManager } from '@/utils/cacheManager';
 import { errorTracker } from '@/utils/errorTracker';
-import { usePamWebSocketOptimized } from '@/hooks/pam/usePamWebSocketOptimized';
+import { usePamWebSocketUnified } from '@/hooks/pam/usePamWebSocketUnified';
 
 interface TestResult {
   name: string;
@@ -44,7 +44,12 @@ export default function PerformanceTestPage() {
   // Mock user for WebSocket testing
   const mockUserId = 'test_user_performance';
   const mockToken = 'test_token';
-  const { isConnected, connectionQuality, metrics, sendMessage, connect, disconnect } = usePamWebSocketOptimized(mockUserId, mockToken);
+  const { isConnected, connectionQuality, performanceMetrics, sendMessage, connect, disconnect } = usePamWebSocketUnified({
+    userId: mockUserId,
+    token: mockToken,
+    enablePerformanceMonitoring: true,
+    enableOptimizations: true
+  });
 
   useEffect(() => {
     recordLoad();
@@ -227,7 +232,7 @@ export default function PerformanceTestPage() {
       // If actual WebSocket is available, use real metrics
       let realDetails = '';
       if (isConnected) {
-        realDetails = `Connection: ${connectionQuality}, Messages: Live WebSocket, Latency: ${metrics.averageLatency}ms`;
+        realDetails = `Connection: ${connectionQuality}, Messages: Live WebSocket, Latency: ${performanceMetrics?.averageLatency || 0}ms`;
       } else {
         realDetails = `Connection: ${mockConnectionResult.quality} (simulated), Messages: ${mockConnectionResult.messagesSucceeded}/${mockConnectionResult.messagesSent}, Latency: ${mockConnectionResult.latency}ms`;
       }
@@ -545,7 +550,7 @@ export default function PerformanceTestPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Latency:</span>
-                    <span>{metrics.averageLatency}ms</span>
+                    <span>{performanceMetrics?.averageLatency || 0}ms</span>
                   </div>
                 </div>
               </CardContent>

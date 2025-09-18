@@ -24,7 +24,7 @@ import {
 import PAMFallbackInterface from '@/components/pam/PAMFallbackInterface';
 import PAMUnavailableState from '@/components/pam/PAMUnavailableState';
 import usePamMessageOptimization from '@/hooks/pam/usePamMessageOptimization';
-import { PamMessage } from '@/hooks/pam/usePamWebSocketCore';
+import { PamMessage } from '@/hooks/pam/usePamWebSocketUnified';
 
 const PAMFallbackTestPage: React.FC = () => {
   const [testScenario, setTestScenario] = useState<'online' | 'degraded' | 'offline' | 'error' | 'maintenance'>('online');
