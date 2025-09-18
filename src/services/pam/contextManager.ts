@@ -12,7 +12,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { PAMMemoryService, type Memory, type UserPreference } from './memoryService';
-import type { PamMessage } from '@/hooks/pam/usePamWebSocketCore';
+import type { PamMessage } from '@/hooks/pam/usePamWebSocketUnified';
 
 // Context Types
 export interface UserContext {
