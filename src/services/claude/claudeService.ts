@@ -26,15 +26,14 @@ export interface StreamingResponse {
  * Get the latest Claude 3.5 Sonnet model (never Opus - too expensive)
  */
 function getLatestSonnetModel(): string {
-  // Try newer models first, fallback to known stable
-  const latestModels = [
-    'claude-3-5-sonnet-20241215',  // December 2024
-    'claude-3-5-sonnet-20241115',  // November 2024
-    'claude-3-5-sonnet-20241022',  // Fallback (October 2024)
+  // Use actually available Claude models (verified working)
+  const availableModels = [
+    'claude-3-5-sonnet-20241022',  // Known working model (October 2024)
+    'claude-3-sonnet-20240229',    // Stable fallback
   ];
 
-  // Return the most likely available model
-  return latestModels[0]; // Use latest available
+  // Return the working model (avoid 404 errors)
+  return availableModels[0]; // Use verified working model
 }
 
 /**
