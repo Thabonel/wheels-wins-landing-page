@@ -175,26 +175,98 @@ class Settings(BaseSettings):
         description="OpenAI temperature setting"
     )
     
-    # Anthropic Configuration (Optional)
-    ANTHROPIC_API_KEY: Optional[SecretStr] = Field(
-        default=None,
-        description="Anthropic API key (optional)"
+    # Anthropic Configuration (Primary AI Provider)
+    ANTHROPIC_API_KEY: SecretStr = Field(
+        ...,
+        description="Anthropic API key (required for PAM AI functionality with Claude)"
     )
-    
+
+    @property
+    def anthropic_api_key(self) -> str:
+        """Get Anthropic API key with fallback to alternative environment variable names"""
+        if hasattr(self, 'ANTHROPIC_API_KEY') and self.ANTHROPIC_API_KEY:
+            return self.ANTHROPIC_API_KEY.get_secret_value()
+
+        # Check for alternative environment variable names
+        import os
+        alternative_names = [
+            'ANTHROPIC_API_KEY',
+            'VITE_ANTHROPIC_API_KEY',
+            'ANTHROPIC-WHEELS-KEY',
+            'ANTHROPIC_WHEELS_KEY'
+        ]
+        for alt_name in alternative_names:
+            alt_value = os.getenv(alt_name)
+            if alt_value and alt_value != "sk-ant-api03-your-api-key-here":
+                return alt_value
+        return None
+
     @field_validator("ANTHROPIC_API_KEY", mode="before")
     @classmethod
     def validate_anthropic_api_key(cls, v):
-        """Check for alternative environment variable names for Anthropic API key"""
+        """Validate Anthropic API key format and check alternative environment variables"""
         if not v:
             # Check for alternative environment variable names
             import os
-            alternative_names = ['ANTHROPIC-WHEELS-KEY', 'ANTHROPIC_WHEELS_KEY']
+            alternative_names = [
+                'VITE_ANTHROPIC_API_KEY',
+                'ANTHROPIC-WHEELS-KEY',
+                'ANTHROPIC_WHEELS_KEY'
+            ]
             for alt_name in alternative_names:
                 alt_value = os.getenv(alt_name)
-                if alt_value:
-                    return alt_value
+                if alt_value and alt_value != "sk-ant-api03-your-api-key-here":
+                    v = alt_value
+                    break
+
+            if not v:
+                raise ValueError(
+                    "Anthropic API key is required for PAM functionality. "
+                    "Please set ANTHROPIC_API_KEY environment variable. "
+                    "Get your API key from https://console.anthropic.com/settings/keys"
+                )
+
+        # Convert to string for validation if it's a SecretStr
+        key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+
+        if key_str == "sk-ant-api03-your-api-key-here":
+            raise ValueError(
+                "Please replace the placeholder Anthropic API key with your actual key. "
+                "Get your API key from https://console.anthropic.com/settings/keys"
+            )
+
+        if not key_str.startswith('sk-ant-'):
+            raise ValueError(
+                "Invalid Anthropic API key format. "
+                "Anthropic API keys should start with 'sk-ant-'. "
+                "Please check your key at https://console.anthropic.com/settings/keys"
+            )
+
+        if len(key_str) < 20:
+            raise ValueError(
+                "Anthropic API key appears to be too short. "
+                "Please verify your key at https://console.anthropic.com/settings/keys"
+            )
+
         return v
-    
+
+    # Anthropic Model Configuration
+    ANTHROPIC_DEFAULT_MODEL: str = Field(
+        default="claude-3-5-sonnet-20241022",
+        description="Default Anthropic model (always Sonnet for cost control)"
+    )
+
+    @field_validator("ANTHROPIC_DEFAULT_MODEL", mode="before")
+    @classmethod
+    def validate_anthropic_model(cls, v):
+        """Ensure only Sonnet models are used (never Opus for cost reasons)"""
+        if v and "opus" in v.lower():
+            raise ValueError(
+                "Opus models are not allowed due to high costs. "
+                "Use Claude 3.5 Sonnet (claude-3-5-sonnet-20241022) instead."
+            )
+        return v or "claude-3-5-sonnet-20241022"
+
     # Supabase Configuration (Required)
     SUPABASE_URL: AnyHttpUrl = Field(
         ...,

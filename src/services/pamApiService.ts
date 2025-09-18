@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './api';
 import { CircuitBreaker } from '../utils/circuitBreaker';
+import { getPamLocationContext, formatLocationForPam } from '@/utils/pamLocationContext';
 
 export interface PamApiMessage {
   message: string;
@@ -8,6 +9,8 @@ export interface PamApiMessage {
     region?: string;
     current_page?: string;
     session_data?: any;
+    location?: any;
+    userLocation?: any;
   };
 }
 
@@ -37,6 +40,8 @@ export class PamApiService {
   }
 
   async sendMessage(message: PamApiMessage, token?: string): Promise<PamApiResponse> {
+    // Enhance message with location context
+    const enhancedMessage = await this.enhanceMessageWithLocation(message);
     const endpoints = [
       `${API_BASE_URL}/api/v1/pam/chat`,
       // n8n webhook discontinued - removed n8n endpoint
@@ -59,7 +64,7 @@ export class PamApiService {
           {
             method: 'POST',
             headers,
-            body: JSON.stringify(message)
+            body: JSON.stringify(enhancedMessage)
           }
         );
 
@@ -77,6 +82,36 @@ export class PamApiService {
     }
 
     throw new Error('All PAM HTTP endpoints failed');
+  }
+
+  private async enhanceMessageWithLocation(message: PamApiMessage): Promise<PamApiMessage> {
+    try {
+      console.log('🌍 Enhancing PAM message with location context...');
+
+      // Get location context for this user
+      const locationContext = await getPamLocationContext(message.user_id);
+
+      if (locationContext) {
+        const locationData = formatLocationForPam(locationContext);
+        console.log(`📍 Adding location to PAM: ${locationContext.city}, ${locationContext.country} (${locationContext.source})`);
+
+        return {
+          ...message,
+          context: {
+            ...message.context,
+            ...locationData,
+            // Also add as userLocation for backward compatibility
+            userLocation: locationContext
+          }
+        };
+      } else {
+        console.log('🌍 No location context available for PAM');
+        return message;
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to enhance message with location:', error);
+      return message;
+    }
   }
 
   async testConnection(): Promise<boolean> {

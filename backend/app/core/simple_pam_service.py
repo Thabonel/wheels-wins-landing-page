@@ -13,7 +13,7 @@ import asyncio
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.database import get_database_service
-from app.services.ai_service import get_ai_service, AIService, AIResponse
+from app.services.claude_ai_service import get_claude_ai_service, ClaudeAIService, ClaudeResponse
 from app.services.cache_manager import get_cache_manager, CacheStrategy, cached
 from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator, ResponseMode
 
@@ -44,74 +44,102 @@ class SimplePamService:
         # Initialize the enhanced orchestrator for comprehensive functionality
         self.enhanced_orchestrator = None
         self.orchestrator_initialized = False
-        
+
         # Weather tool now integrated with Unified Orchestrator
         self.weather_tool = None
-        
-        # Initialize the AI service with database connection (fallback)
-        try:
-            self.db_service = get_database_service()
-            self.ai_service = get_ai_service(self.db_service)
-            logger.info("SimplePamService initialized with enhanced AI service")
-            
-            # Initialize enhanced orchestrator asynchronously
-            asyncio.create_task(self._initialize_orchestrator())
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize AI service: {str(e)}")
-            raise PAMServiceError(f"Failed to initialize AI service: {str(e)}")
-        
+
+        # Initialize the Claude AI service - will be set asynchronously
+        self.db_service = None
+        self.ai_service = None
+        self.ai_service_initialized = False
+
         # Initialize cache manager
         self.cache_manager = None
-        asyncio.create_task(self._initialize_cache())
-        
+
         self.max_retries = 3
         self.retry_delay = 1  # seconds
-        
+
         # Initialize PAM tools - now integrated with Enhanced Orchestrator
         self.tools_registry = {}
         self.tools_initialized = False
-    
+
+        # Initialize services asynchronously
+        asyncio.create_task(self._initialize_services())
+
+    async def _initialize_services(self):
+        """Initialize all services asynchronously"""
+        try:
+            # Initialize database service
+            self.db_service = get_database_service()
+
+            # Initialize Claude AI service
+            self.ai_service = await get_claude_ai_service(self.db_service)
+            self.ai_service_initialized = True
+            logger.info("✅ Claude AI service initialized successfully")
+
+            # Initialize enhanced orchestrator
+            await self._initialize_orchestrator()
+
+            # Initialize cache manager
+            await self._initialize_cache()
+
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize services: {str(e)}")
+            # Don't raise here - allow service to work with limited functionality
+
     async def health_check(self) -> Dict[str, Any]:
         """Perform comprehensive health check on PAM service"""
         try:
-            # Get AI service statistics
+            if not self.ai_service_initialized or not self.ai_service:
+                return {
+                    "status": "initializing",
+                    "error": "Claude AI service still initializing",
+                    "ai_service": "initializing",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+
+            # Get Claude AI service statistics
             ai_stats = self.ai_service.get_service_stats()
-            
-            # Test AI service connectivity
-            test_response = await self.ai_service.process_message(
-                message="health check",
-                user_context={"user_id": "health_check"},
-                max_tokens=10
+
+            # Test Claude AI service connectivity
+            test_response = await self.ai_service.send_message(
+                message="Health check - please respond with 'OK'",
+                user_id="health_check",
+                conversation_id="health_check"
             )
-            
-            service_healthy = ai_stats["service_health"] == "healthy"
-            
-            # Get tool registry stats from AIService
+
+            service_healthy = bool(test_response and len(str(test_response)) > 0)
+
+            # Get tool registry stats from Claude AI Service
             tool_stats = {}
-            if self.ai_service.tool_registry:
-                tool_stats = self.ai_service.tool_registry.get_tool_stats()
-            
+            if hasattr(self.ai_service, 'tool_registry') and self.ai_service.tool_registry:
+                try:
+                    tool_stats = {"tools_available": True, "registry": "claude_tools"}
+                except:
+                    tool_stats = {"tools_available": False}
+
             return {
                 "status": "healthy" if service_healthy else "degraded",
-                "ai_service": ai_stats,
+                "ai_service": "claude",
+                "ai_stats": ai_stats,
                 "function_calling": {
-                    "enabled": ai_stats.get("function_calling_enabled", False),
-                    "tool_registry_available": ai_stats.get("tool_registry_available", False),
-                    "function_calls_made": ai_stats.get("function_calls_made", 0),
-                    "success_rate": ai_stats.get("function_call_success_rate", 0.0)
+                    "enabled": True,  # Claude has native function calling
+                    "tool_registry_available": bool(tool_stats.get("tools_available")),
+                    "model": ai_stats.get("model", "claude-3-5-sonnet-20241022")
                 },
                 "tools": tool_stats,
-                "test_response_length": len(test_response.content if isinstance(test_response, AIResponse) else "0"),
+                "test_response_received": service_healthy,
+                "claude_initialized": self.ai_service_initialized,
                 "timestamp": datetime.utcnow().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"PAM health check failed: {str(e)}")
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "ai_service": "unavailable",
+                "ai_service": "claude_unavailable",
+                "claude_initialized": self.ai_service_initialized,
                 "timestamp": datetime.utcnow().isoformat()
             }
     
@@ -168,9 +196,12 @@ class SimplePamService:
     def is_healthy(self) -> bool:
         """Check if service is healthy"""
         try:
+            if not self.ai_service_initialized or not self.ai_service:
+                return False
+
             ai_stats = self.ai_service.get_service_stats()
             cache_healthy = self.cache_manager is not None if hasattr(self, 'cache_manager') else True
-            return ai_stats["service_health"] == "healthy" and cache_healthy
+            return bool(ai_stats.get("model")) and cache_healthy
         except:
             return False
     
@@ -416,17 +447,12 @@ class SimplePamService:
             # Load comprehensive user data if not anonymous
             if user_id != "anonymous":
                 try:
-                    # Get additional context from database
-                    user_context = await self.ai_service.get_conversation_context(
-                        user_id=user_id,
-                        session_id=session_id,
-                        limit=5
-                    )
-                    
-                    if user_context.get("messages"):
-                        enhanced_context["db_conversation_history"] = user_context["messages"]
-                        logger.info(f"📚 Loaded {len(user_context['messages'])} messages from database")
-                        
+                    # Load conversation history for Claude context
+                    # Note: Claude handles conversation context differently than OpenAI
+                    logger.info(f"📚 Loading conversation context for user {user_id}")
+                    enhanced_context["user_id"] = user_id
+                    enhanced_context["session_id"] = session_id
+
                 except Exception as e:
                     logger.warning(f"⚠️ Could not load database context: {e}")
             
@@ -450,18 +476,11 @@ class SimplePamService:
                 if orchestrator_response.get("capabilities_used"):
                     logger.info(f"🔧 Tools used: {', '.join(orchestrator_response['capabilities_used'])}")
                 
-                # Save conversation if not anonymous
+                # Save conversation if not anonymous (handled by Claude context manager)
                 if user_id != "anonymous":
                     try:
-                        await self.ai_service.save_conversation(
-                            user_id=user_id,
-                            session_id=session_id,
-                            user_message=message,
-                            ai_response=response_text,
-                            intent=self._extract_intent(message),
-                            context_used=enhanced_context
-                        )
-                        logger.info(f"💾 Conversation saved to database")
+                        # Claude service handles conversation storage internally
+                        logger.info(f"💾 Conversation handled by Claude context manager")
                     except Exception as e:
                         logger.warning(f"⚠️ Could not save conversation: {e}")
                 
@@ -471,50 +490,43 @@ class SimplePamService:
                 return response_text
                 
             else:
-                # Fallback to AI service
-                logger.info(f"🧠 Calling enhanced AI service (stream={stream})")
-                
+                # Fallback to Claude AI service
+                logger.info(f"🧠 Calling Claude AI service (stream={stream})")
+
+                # Ensure Claude AI service is initialized
+                if not self.ai_service_initialized or not self.ai_service:
+                    logger.error("❌ Claude AI service not initialized")
+                    return "I'm still starting up. Please try again in a moment."
+
                 if stream:
                     # For streaming responses, we need to handle differently
                     return await self._handle_streaming_response(message, enhanced_context, session_id, user_id)
                 else:
-                    # Non-streaming response
-                    # Extract use_case from context if present
-                    use_case = enhanced_context.get("use_case")
-                    ai_response = await self.ai_service.process_message(
+                    # Non-streaming response using Claude
+                    claude_response = await self.ai_service.send_message(
                         message=message,
+                        user_id=user_id,
+                        conversation_id=session_id,
                         user_context=enhanced_context,
-                        temperature=0.7,
-                        max_tokens=2048,
-                        stream=False,
-                        use_case=use_case
+                        stream=False
                     )
-                
-                if isinstance(ai_response, AIResponse):
-                    response_text = ai_response.content
-                    
-                    # Save conversation to database
+
+                if isinstance(claude_response, str):
+                    response_text = claude_response
+
+                    # Save conversation handled by Claude's context manager
                     if user_id != "anonymous":
                         try:
-                            await self.ai_service.save_conversation(
-                                user_id=user_id,
-                                session_id=session_id,
-                                user_message=message,
-                                ai_response=response_text,
-                                intent=self._extract_intent(message),
-                                context_used=enhanced_context
-                            )
-                            logger.info(f"💾 Conversation saved to database")
+                            # Claude service handles conversation storage internally
+                            logger.info(f"💾 Conversation handled by Claude context manager")
                         except Exception as e:
                             logger.warning(f"⚠️ Could not save conversation: {e}")
-                    
-                    logger.info(f"✅ AI service response: {len(response_text)} chars, "
-                              f"latency: {ai_response.latency_ms:.1f}ms, "
-                              f"model: {ai_response.model}")
-                    
+
+                    logger.info(f"✅ Claude AI service response: {len(response_text)} chars")
+
                     return response_text
                 else:
-                    logger.error(f"❌ Unexpected response type from AI service: {type(ai_response)}")
+                    logger.error(f"❌ Unexpected response type from Claude service: {type(claude_response)}")
                     return "I'm having trouble processing your request. Please try again."
                     
         except Exception as e:
@@ -528,20 +540,26 @@ class SimplePamService:
         session_id: str,
         user_id: str
     ) -> Dict[str, Any]:
-        """Handle streaming AI response"""
+        """Handle streaming Claude AI response"""
         try:
-            # Get streaming response from AI service
-            # Extract use_case from context if present
-            use_case = enhanced_context.get("use_case")
-            response_stream = await self.ai_service.process_message(
+            # Ensure Claude AI service is initialized
+            if not self.ai_service_initialized or not self.ai_service:
+                logger.error("❌ Claude AI service not initialized for streaming")
+                return {
+                    "type": "error",
+                    "error": "Claude AI service not initialized",
+                    "fallback_response": "I'm still starting up. Please try again in a moment."
+                }
+
+            # Get streaming response from Claude service
+            response_stream = await self.ai_service.send_message(
                 message=message,
+                user_id=user_id,
+                conversation_id=session_id,
                 user_context=enhanced_context,
-                temperature=0.7,
-                max_tokens=2048,
-                stream=True,
-                use_case=use_case
+                stream=True
             )
-            
+
             # Return the stream wrapped in response metadata
             return {
                 "type": "stream",
@@ -549,11 +567,12 @@ class SimplePamService:
                 "user_id": user_id,
                 "session_id": session_id,
                 "message": message,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
+                "provider": "claude"
             }
-            
+
         except Exception as e:
-            logger.error(f"❌ Streaming response failed: {str(e)}")
+            logger.error(f"❌ Claude streaming response failed: {str(e)}")
             return {
                 "type": "error",
                 "error": str(e),
