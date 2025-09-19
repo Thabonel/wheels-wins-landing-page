@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { usePamWebSocketCore, type ConnectionStatus, type PamMessage } from '@/hooks/pam/usePamWebSocketCore';
+import { usePamWebSocketUnified, type ConnectionStatus, type PamMessage } from '@/hooks/pam/usePamWebSocketUnified';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,7 +51,9 @@ const ConnectionTester: React.FC<{
   onStatusChange: (connectionId: number, status: ConnectionStatus) => void;
   onError: (connectionId: number, error: string) => void;
 }> = ({ id, userId, token, onMessage, onStatusChange, onError }) => {
-  const websocket = usePamWebSocketCore(userId, token, {
+  const websocket = usePamWebSocketUnified({
+    userId: userId,
+    token: token,
     onMessage: (message) => onMessage(id, message),
     onStatusChange: (status) => onStatusChange(id, status),
     autoReconnect: true,

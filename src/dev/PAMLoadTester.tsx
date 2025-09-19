@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { usePamWebSocketCore } from '@/hooks/pam/usePamWebSocketCore';
+import { usePamWebSocketUnified } from '@/hooks/pam/usePamWebSocketUnified';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
