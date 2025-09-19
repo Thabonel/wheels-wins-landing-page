@@ -720,6 +720,11 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
 **Context:** You are integrated into a React application where users can chat with you to get help with their personal finances and travel planning. You have access to their location and can provide weather information directly.${locationContext}`;
 
+      // Ensure user is authenticated for backend API
+      if (!user || !session?.access_token) {
+        throw new Error('User authentication required');
+      }
+
       // Use Backend PersonalizedPamAgent API with user authentication context
       logger.debug('🤖 Sending message to Backend PersonalizedPamAgent API');
 
@@ -752,8 +757,15 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     } catch (error) {
       logger.error('❌ Failed to send message via Backend PersonalizedPamAgent API:', error);
+      logger.error('❌ PAM Error Details:', {
+        message: error?.message,
+        user: !!user,
+        hasToken: !!session?.access_token,
+        tokenLength: session?.access_token?.length
+      });
+
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-      addMessage("I'm having trouble processing your request. Please try again.", "pam");
+      addMessage(`I encountered an error: ${error?.message || 'Unknown error'}. Please try again or contact support if this continues.`, "pam");
     }
   };
 
