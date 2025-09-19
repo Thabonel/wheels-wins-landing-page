@@ -4,15 +4,16 @@
 **Dev Server**: http://localhost:8080 (NOT 3000!)
 **Stack**: React 18.3 + TypeScript + Vite + Tailwind + Supabase + FastAPI
 
-## 🎯 Strategic AI Decision (January 2025)
+## 🎯 Strategic AI Decision (September 2025)
 
-**PAM AI Provider**: **Anthropic Claude 3.5 Sonnet** (Primary)
-- ✅ **Native MCP Support**: Direct integration with financial data tools
-- ✅ **Cost Effective**: $3/M input tokens vs OpenAI's higher costs
-- ✅ **Superior Performance**: Better reasoning and conversation quality
-- ✅ **Model Lock**: ONLY Sonnet models allowed (never Opus due to costs)
-- 🔄 **Future Ready**: MCP server archived for ChatGPT Pro integration when scaling
-- 🔄 **OpenAI Fallback**: Available if needed, but Anthropic is primary
+**PAM AI Provider**: **Google Gemini 1.5 Flash** (Primary)
+- ✅ **Ultra Cost Effective**: $0.075/M input tokens (25x cheaper than Claude)
+- ✅ **Lightning Fast**: Optimized for sub-second response times
+- ✅ **Massive Context**: 1M token context window vs 200K for Claude
+- ✅ **Superior Multimodal**: Native vision, audio, and document processing
+- ✅ **Google Infrastructure**: Reliable global scaling and availability
+- 🔄 **Claude Fallback**: Available if needed, but Gemini is primary
+- 🔄 **OpenAI Deprecated**: Removed due to high costs and complexity
 
 ## Critical Commands
 ```bash
@@ -105,15 +106,15 @@ We operate **two complete separate systems** sharing one Supabase database:
 Production:
 Frontend (wheelsandwins.com) ◄──► Backend (pam-backend) ◄──► Shared Services
 ├── React/TS/PWA (Netlify)         ├── FastAPI/Redis               ├── Supabase DB
-├── Vite 5.4.19                    ├── Celery Workers              ├── Mapbox GL  
-├── Tailwind 3.4.11                ├── WebSocket                   ├── Anthropic Claude 3.5
+├── Vite 5.4.19                    ├── Celery Workers              ├── Mapbox GL
+├── Tailwind 3.4.11                ├── WebSocket                   ├── Google Gemini Flash
 └── PWA Manifest                   └── TTS/STT                     └── Data Collector
 
 Staging:
 Frontend (staging.netlify.app) ◄──► Backend (staging.onrender.com) ◄──► Shared Services
 ├── React/TS/PWA (Netlify)          ├── FastAPI/Redis                ├── Supabase DB
 ├── Vite 5.4.19                     ├── Celery Workers               ├── Mapbox GL
-├── Tailwind 3.4.11                 ├── WebSocket                    ├── Anthropic Claude 3.5  
+├── Tailwind 3.4.11                 ├── WebSocket                    ├── Google Gemini Flash
 └── PWA Manifest                    └── TTS/STT                      └── Data Collector
 ```
 
@@ -124,13 +125,15 @@ Frontend (staging.netlify.app) ◄──► Backend (staging.onrender.com) ◄�
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
 VITE_MAPBOX_TOKEN=pk.your_mapbox_token
+VITE_GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ### Backend (backend/.env)
 ```bash
 DATABASE_URL=postgresql://...
 SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
-OPENAI_API_KEY=<OPENAI_API_KEY>
+GEMINI_API_KEY=your_gemini_api_key
+ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>
 TTS_ENABLED=true
 REDIS_URL=redis://localhost:6379
 ```

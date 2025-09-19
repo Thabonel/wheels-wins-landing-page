@@ -15,7 +15,8 @@ opentelemetry-sdk>=1.20.0
 opentelemetry-instrumentation-fastapi>=0.41b0
 
 # AI Providers
-anthropic>=0.40.0  # Primary AI provider with native MCP support
+google-generativeai>=0.8.0  # Primary AI provider - Gemini Flash
+anthropic>=0.40.0  # Fallback AI provider with native MCP support
 
 # AI Agent Observability (stable versions)
 langfuse>=2.0.0
