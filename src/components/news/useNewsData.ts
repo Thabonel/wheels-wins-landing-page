@@ -9,11 +9,12 @@ export const useNewsData = (selectedSources: string[]) => {
   const [loading, setLoading] = useState(false);
 
   const fetchWithProxy = async (url: string): Promise<string> => {
-    // Multiple CORS proxy fallbacks
+    // Multiple CORS proxy fallbacks - reordered for better reliability
     const corsProxies = [
-      `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
       `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      `https://cors-anywhere.herokuapp.com/${url}`
+      `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+      `https://cors-anywhere.herokuapp.com/${url}`,
+      `https://proxy.cors.sh/${url}`
     ];
     
     for (let i = 0; i < corsProxies.length; i++) {
@@ -26,7 +27,7 @@ export const useNewsData = (selectedSources: string[]) => {
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
         
         const response = await fetch(corsProxy, {
-          headers: i === 0 ? {
+          headers: i === 1 ? {
             'Accept': 'application/json'
           } : {
             'Accept': 'text/xml, application/xml, application/rss+xml, */*'
@@ -42,12 +43,12 @@ export const useNewsData = (selectedSources: string[]) => {
         
         // Handle different proxy response formats
         let content = '';
-        if (i === 0) {
-          // allorigins format - returns JSON with contents field
+        if (i === 1) {
+          // allorigins format (now at index 1) - returns JSON with contents field
           const data = await response.json();
           content = data.contents || '';
         } else {
-          // corsproxy.io and cors-anywhere return direct XML content
+          // corsproxy.io, cors-anywhere, and proxy.cors.sh return direct XML content
           content = await response.text();
         }
         

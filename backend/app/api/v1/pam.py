@@ -1956,6 +1956,17 @@ async def verify_pam_security(
 ) -> dict:
     """Advanced security verification for PAM endpoints with rate limiting"""
     client_ip = request.client.host if request.client else "unknown"
+
+    # Extract JWT token for user-context database operations
+    from fastapi.security.http import HTTPAuthorizationCredentials
+    from fastapi.security import HTTPBearer
+
+    security = HTTPBearer()
+    credentials: HTTPAuthorizationCredentials = await security(request)
+    user_jwt_token = credentials.credentials if credentials else None
+
+    # Add JWT token to current_user for downstream use
+    current_user["jwt_token"] = user_jwt_token
     user_id = current_user.get("sub")
     
     # Check IP reputation
@@ -2110,14 +2121,21 @@ async def chat_endpoint(
         
         logger.info(f"Processing chat request for user {user_id} with PersonalizedPamAgent")
         
-        # 🚀 NEW: Use unified PersonalizedPamAgent instead of competing services
-        logger.info(f"🤖 Processing with PersonalizedPamAgent - profile loading and context injection handled internally")
-        
-        # Import and use the unified agent
-        from app.core.personalized_pam_agent import personalized_pam_agent
-        
-        # Process message with unified agent (replaces all competing implementations)
-        pam_response = await personalized_pam_agent.process_message(
+        # 🚀 NEW: Use unified PersonalizedPamAgent with user authentication context
+        user_jwt = current_user.get("jwt_token")
+        if user_jwt:
+            logger.info(f"🔐 Creating user-context PAM agent for enhanced database authentication")
+            from app.core.personalized_pam_agent import create_user_context_pam_agent
+            user_pam_agent = create_user_context_pam_agent(user_jwt)
+        else:
+            logger.warning(f"⚠️ No JWT token available, using service role fallback")
+            from app.core.personalized_pam_agent import personalized_pam_agent
+            user_pam_agent = personalized_pam_agent
+
+        logger.info(f"🤖 Processing with PersonalizedPamAgent - profile loading and context injection with proper RLS authentication")
+
+        # Process message with user-context agent (fixes authentication issues)
+        pam_response = await user_pam_agent.process_message(
             user_id=str(user_id),
             message=request.message,
             session_id=request.conversation_id,

@@ -6,15 +6,17 @@ from datetime import datetime, timedelta
 from pydantic import ValidationError
 from .base_tool import BaseTool
 from app.services.database import get_database_service
+from app.core.database import get_user_context_supabase_client
 from app.services.cache import cache_service
 from .validation_models import RecentMemoryParams
 
 class LoadRecentMemoryTool(BaseTool):
     """Tool to load recent conversation memory and context"""
-    
-    def __init__(self):
-        super().__init__("load_recent_memory")
+
+    def __init__(self, user_jwt: str = None):
+        super().__init__("load_recent_memory", user_jwt=user_jwt)
         self.database_service = None
+        self.user_jwt = user_jwt
     
     def initialize_sync(self):
         """Initialize with database service"""
