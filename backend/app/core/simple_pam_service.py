@@ -214,41 +214,13 @@ class SimplePamService:
         self.tools_registry = {}
         tools_success_count = 0
         
-        # Initialize Google Places tool
-        try:
-            from app.services.pam.tools import google_places_tool
-            logger.info("🔍 Initializing Google Places tool...")
-            await google_places_tool.initialize()
-            
-            if google_places_tool.initialized:
-                self.tools_registry['google_places'] = google_places_tool
-                tools_success_count += 1
-                logger.info("✅ Google Places tool initialized successfully")
-            else:
-                logger.warning("⚠️ Google Places tool initialized but not fully functional")
-                # Still register it - it can provide mock data
-                self.tools_registry['google_places'] = google_places_tool
-                
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize Google Places tool: {e}")
+        # Google Places tool removed - Claude discusses locations through conversation
+        # Provides more natural location advice without API dependencies
+        logger.info("📍 Location research handled by Claude conversation")
         
-        # Initialize Web Scraper tool
-        try:
-            from app.services.pam.tools import webscraper_tool
-            logger.info("🌐 Initializing Web Scraper tool...")
-            await webscraper_tool.initialize()
-            
-            if webscraper_tool.initialized:
-                self.tools_registry['webscraper'] = webscraper_tool
-                tools_success_count += 1
-                logger.info("✅ Web Scraper tool initialized successfully")
-            else:
-                logger.warning("⚠️ Web Scraper tool initialized but not fully functional")
-                # Still register it for graceful error handling
-                self.tools_registry['webscraper'] = webscraper_tool
-                
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize Web Scraper tool: {e}")
+        # Web Scraper tool removed - Claude handles web research through conversation
+        # This provides better, more natural responses than generic scraping
+        logger.info("🌐 Web research handled by Claude conversation")
         
         # Set initialization status
         self.tools_initialized = len(self.tools_registry) > 0
