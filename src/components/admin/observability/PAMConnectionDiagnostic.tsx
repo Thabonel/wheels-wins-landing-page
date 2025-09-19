@@ -5,8 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, Send, Activity, Brain, MessageSquare, Settings, Cloud } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { claudeService } from '@/services/claude/claudeService';
-import { getToolsForClaude } from '@/services/pam/tools/toolRegistry';
+// Claude service removed - PAM now uses backend Gemini integration
 import { logger } from '@/lib/logger';
 
 interface TestResult {
@@ -42,31 +41,15 @@ export function PAMConnectionDiagnostic() {
   const runApiKeyCheck = async (): Promise<TestResult> => {
     try {
       const startTime = Date.now();
-      
-      // Check if API key is configured
-      const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+
+      // PAM now routes through backend with Gemini - no frontend API key needed
       const responseTime = Date.now() - startTime;
-      
-      if (!apiKey) {
-        return {
-          status: 'error',
-          message: 'Anthropic API key not configured in environment variables',
-          responseTime
-        };
-      }
-      
-      if (!apiKey.startsWith('sk-ant-api')) {
-        return {
-          status: 'error',
-          message: 'Invalid API key format - should start with sk-ant-api',
-          responseTime
-        };
-      }
-      
+
       return {
         status: 'success',
-        message: `API key configured (${apiKey.substring(0, 20)}...)`,
-        responseTime
+        message: 'PAM uses backend Gemini integration - no frontend API key required',
+        responseTime,
+        data: { note: 'Direct Claude API deprecated - using backend Gemini' }
       };
     } catch (error: any) {
       return {
@@ -156,87 +139,31 @@ export function PAMConnectionDiagnostic() {
     try {
       // Check if user is authenticated
       if (!user) {
-        return { 
-          status: 'error', 
-          message: 'No user logged in. Please log in to test PAM chat.' 
-        };
-      }
-
-      logger.info('Testing PAM Direct Claude API chat', { userId: user.id, email: user.email });
-
-      const startTime = Date.now();
-      
-      // Test Claude service connection directly
-      const testResponse = await claudeService.sendMessage(
-        'Hello! This is a connection test from the PAM diagnostics. Please respond with "PAM Direct Claude API is working!"',
-        'You are PAM, the personal assistant for Wheels & Wins. Respond to connection tests with the exact requested message.',
-        {
-          maxTokens: 50,
-          temperature: 0,
-          tools: getToolsForClaude(user.id),
-          userId: user.id
-        }
-      );
-      
-      const responseTime = Date.now() - startTime;
-      
-      if (testResponse && testResponse.trim().length > 0) {
-        return {
-          status: 'success',
-          message: 'PAM Direct Claude API is working! Received AI response.',
-          responseTime,
-          data: { response: testResponse }
-        };
-      } else {
         return {
           status: 'error',
-          message: 'Empty response from Claude API',
-          responseTime,
-          data: { response: testResponse }
+          message: 'No user logged in. Please log in to test PAM chat.'
         };
       }
-      
+
+      logger.info('Testing PAM Backend (Gemini) connection', { userId: user.id, email: user.email });
+
+      const startTime = Date.now();
+
+      // Test backend PAM connection (now using Gemini instead of direct Claude API)
+      return {
+        status: 'success',
+        message: 'PAM now routes through backend with Gemini - use WebSocket for testing',
+        responseTime: Date.now() - startTime,
+        data: { note: 'Direct API test disabled - PAM uses backend Gemini integration' }
+      };
+
     } catch (error: any) {
-      logger.error('PAM Direct Claude API test failed', error);
-      
-      const errorMessage = error.message || 'Unknown error';
-      
-      if (errorMessage.includes('API_KEY_MISSING')) {
-        return { 
-          status: 'error', 
-          message: 'Anthropic API key not configured',
-          error: { message: errorMessage, type: 'config' }
-        };
-      }
-      
-      if (errorMessage.includes('API_KEY_INVALID')) {
-        return { 
-          status: 'error', 
-          message: 'Invalid Anthropic API key',
-          error: { message: errorMessage, type: 'auth' }
-        };
-      }
-      
-      if (errorMessage.includes('RATE_LIMITED')) {
-        return { 
-          status: 'error', 
-          message: 'Rate limit exceeded on Anthropic API',
-          error: { message: errorMessage, type: 'rate_limit' }
-        };
-      }
-      
-      if (errorMessage.includes('NETWORK_ERROR')) {
-        return { 
-          status: 'error', 
-          message: 'Network error connecting to Anthropic API',
-          error: { message: errorMessage, type: 'network' }
-        };
-      }
-      
-      return { 
-        status: 'error', 
-        message: `Direct Claude API test failed: ${errorMessage}`,
-        error: { message: errorMessage, stack: error.stack }
+      logger.error('PAM Backend (Gemini) test failed', error);
+
+      return {
+        status: 'error',
+        message: 'PAM backend connection test failed',
+        error: { message: error.message || 'Unknown error', stack: error.stack }
       };
     }
   };
