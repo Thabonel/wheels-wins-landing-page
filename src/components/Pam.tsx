@@ -8,9 +8,8 @@ const pamEnabled = true;
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
-// WebSocket removed - using Direct Claude API instead
-import { claudeService } from "@/services/claude/claudeService";
-import { getToolsForClaude } from "@/services/pam/tools/toolRegistry";
+// Use Backend API instead of Direct Claude API to leverage PersonalizedPamAgent
+import { PamApiService } from "@/services/pamApiService";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -27,7 +26,7 @@ import { pamAgenticService } from "@/services/pamAgenticService";
 import { logger } from '../lib/logger';
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
 
-// Using Direct Claude API - no backend URL needed
+// Using Backend PersonalizedPamAgent API for proper authentication and tool execution
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -721,35 +720,38 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
 **Context:** You are integrated into a React application where users can chat with you to get help with their personal finances and travel planning. You have access to their location and can provide weather information directly.${locationContext}`;
 
-      // Use Direct Claude API instead of WebSocket/REST
-      logger.debug('🤖 Sending message to Claude Direct API');
-      
-      const claudeResponse = await claudeService.chat(conversationHistory.concat([{
-        role: "user",
-        content: message,
-        timestamp: new Date()
-      }]), {
-        model: 'claude-3-5-sonnet-20241022',
-        maxTokens: 1024,
-        temperature: 0.7,
-        systemPrompt,
-        tools: getToolsForClaude(),
-        userId: user?.id
-      });
+      // Use Backend PersonalizedPamAgent API with user authentication context
+      logger.debug('🤖 Sending message to Backend PersonalizedPamAgent API');
 
-      // Remove thinking indicator and add Claude's response
+      const pamApiService = PamApiService.getInstance();
+      const pamResponse = await pamApiService.sendMessage({
+        message: message,
+        user_id: user?.id || '',
+        context: {
+          region: userContext?.region,
+          current_page: 'pam_chat',
+          location: currentLocation,
+          userLocation: currentLocation,
+          conversation_history: conversationHistory.slice(-3) // Send last 3 messages for context
+        }
+      }, sessionToken);
+
+      // Remove thinking indicator and add PAM's response
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-      addMessage(claudeResponse.content, "pam", message);
+
+      // Extract response content from various possible response formats
+      const responseContent = pamResponse.response || pamResponse.message || pamResponse.content || "I encountered an issue processing your request.";
+      addMessage(responseContent, "pam", message);
 
       // If voice is enabled, speak the response
       if (settings?.pam_preferences?.voice_enabled) {
-        await speakText(claudeResponse.content);
+        await speakText(responseContent);
       }
 
-      logger.debug('✅ Direct Claude API response received successfully');
+      logger.debug('✅ Backend PersonalizedPamAgent API response received successfully');
 
     } catch (error) {
-      logger.error('❌ Failed to send message via Direct Claude API:', error);
+      logger.error('❌ Failed to send message via Backend PersonalizedPamAgent API:', error);
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
       addMessage("I'm having trouble processing your request. Please try again.", "pam");
     }
