@@ -77,26 +77,24 @@ class ObservabilityConfig:
         self.tracer = trace.get_tracer(__name__)
         logger.info("✅ OpenTelemetry tracing initialized")
 
-    def initialize_openai(self) -> Optional[OpenAI]:
-        """Initialize OpenAI client with tracing"""
-        if not self.settings.OPENAI_API_KEY:
+    def initialize_gemini(self) -> bool:
+        """Initialize Gemini client with tracing"""
+        if not self.settings.GEMINI_API_KEY:
             logger.info(
-                "OpenAI API key not configured - set OPENAI_API_KEY to enable OpenAI observability"
+                "Gemini API key not configured - set GEMINI_API_KEY to enable Gemini observability"
             )
-            return None
+            return False
 
         try:
-            self.openai_client = OpenAI(api_key=self.settings.OPENAI_API_KEY)
-
             # Ensure tracing is configured
             self.initialize_tracing()
 
-            logger.info("✅ OpenAI observability initialized")
-            return self.openai_client
+            logger.info("✅ Gemini observability initialized")
+            return True
 
         except Exception as e:
-            logger.warning(f"Failed to initialize OpenAI observability: {e}")
-            return None
+            logger.warning(f"Failed to initialize Gemini observability: {e}")
+            return False
 
     def initialize_langfuse(self) -> Optional["Langfuse"]:
         """Initialize Langfuse for LLM observability"""

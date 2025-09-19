@@ -130,7 +130,8 @@ def get_action_status():
         settings = get_settings()
         
         platform_status = {
-            "openai": "configured" if getattr(settings, 'OPENAI_API_KEY', None) else "not_configured",
+            "gemini": "configured" if getattr(settings, 'GEMINI_API_KEY', None) else "not_configured",
+            "anthropic": "configured" if getattr(settings, 'ANTHROPIC_API_KEY', None) else "not_configured",
             "langfuse": "configured" if (getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)) else "not_configured"
         }
         
@@ -140,7 +141,8 @@ def get_action_status():
     except Exception as e:
         logger.warning(f"Could not get platform status: {e}")
         basic_status["platform_status"] = {
-            "openai": "unknown",
+            "gemini": "unknown",
+            "anthropic": "unknown",
             "langfuse": "unknown"
         }
     
