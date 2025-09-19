@@ -140,7 +140,7 @@ class ObservabilityConfig:
         if self._initialized:
             return
 
-        logger.info("🚀 Initializing AI agent observability stack...")
+        logger.info("🚀 Initializing AI agent observability stack (Gemini + Langfuse)...")
         self.initialize_tracing()
         self.initialize_gemini()
         self.initialize_langfuse()
