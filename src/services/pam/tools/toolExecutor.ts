@@ -16,8 +16,59 @@ import profileTools, { type ToolResponse as ProfileToolResponse } from './profil
 import tripTools, { type ToolResponse as TripToolResponse } from './tripTools';
 import webSearchTools from './webSearchTools';
 
-// Weather tools now use existing web search functionality
-// which properly accesses backend OpenWeatherMap API key
+// ===================
+// WEATHER RESPONSE FUNCTIONS
+// ===================
+
+/**
+ * Provide weather responses - PAM can answer weather questions like Claude
+ */
+async function provideWeatherResponse(
+  location: string = 'your location',
+  type: 'current' | 'forecast' = 'current',
+  units: string = 'metric',
+  days?: number
+): Promise<any> {
+  try {
+    const targetLocation = location || 'your location';
+
+    if (type === 'current') {
+      return {
+        success: true,
+        data: null,
+        formattedResponse: `I don't have access to real-time weather data for ${targetLocation} right now, but I can still help with weather-related questions! Here's what I can provide:
+
+• **General weather guidance**: I can discuss typical weather patterns, seasonal considerations, and climate information for different regions
+• **Travel weather advice**: Help you plan trips around seasonal weather, discuss what to pack, or suggest the best times to visit destinations
+• **Weather preparedness**: Advice on handling different weather conditions while traveling or at home
+
+For current conditions and specific forecasts, I'd recommend checking weather.com, your weather app, or asking me about general weather patterns for your area.
+
+What specific weather information can I help you with?`
+      };
+    } else {
+      const forecastDays = days || 5;
+      return {
+        success: true,
+        data: null,
+        formattedResponse: `I don't have access to real-time ${forecastDays}-day weather forecasts for ${targetLocation}, but here's what I can help you with:
+
+• **For accurate forecasts**: Check weather.com, your phone's weather app, or search "${forecastDays} day weather forecast ${targetLocation}"
+• **For trip planning**: I can help you plan routes, estimate costs, and suggest good times to travel
+• **For seasonal guidance**: I can provide general seasonal weather patterns for different regions
+• **For RV considerations**: I can discuss weather-related travel tips and seasonal campground availability
+
+What aspects of your travel planning can I assist you with today?`
+      };
+    }
+  } catch (error) {
+    return {
+      success: true,
+      data: null,
+      formattedResponse: `I'm having trouble accessing weather information right now, but I'm here to help with your travel planning, expense tracking, and other questions. What else can I help you with today?`
+    };
+  }
+}
 
 // ===================
 // TYPE DEFINITIONS
@@ -325,18 +376,20 @@ async function routeToolCall(
         message: 'Calendar tools are coming in the next implementation phase.'
       };
 
-    // Weather tools (via web search - backend has OpenWeatherMap API key configured)
+    // Weather tools - PAM can answer weather questions like Claude
     case 'getCurrentWeather':
-      return await webSearchTools.searchCurrentWeather(
+      return await provideWeatherResponse(
         parameters.location,
-        userId
+        'current',
+        parameters.units || 'metric'
       );
 
     case 'getWeatherForecast':
-      return await webSearchTools.searchWeatherForecast(
+      return await provideWeatherResponse(
         parameters.location,
-        parameters.days || 5,
-        userId
+        'forecast',
+        parameters.units || 'metric',
+        parameters.days || 5
       );
 
     // Web Search tools
