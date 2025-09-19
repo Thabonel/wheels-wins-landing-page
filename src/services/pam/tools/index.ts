@@ -12,8 +12,7 @@ export * from './profileTools';
 // Trip Tools  
 export * from './tripTools';
 
-// Weather Tools
-export * from './weatherTools';
+// Weather Tools (now handled via backend API in toolExecutor)
 
 // Web Search Tools
 export * from './webSearchTools';
@@ -24,7 +23,7 @@ export * from './toolExecutor';
 // Re-export key functions for easy access
 export { default as profileTools } from './profileTools';
 export { default as tripTools } from './tripTools';
-export { default as weatherTools } from './weatherTools';
+// weatherTools now handled via backend API in toolExecutor
 export { default as webSearchTools } from './webSearchTools';
 export { default as PAM_TOOLS } from './toolRegistry';
 export { default as toolExecutor } from './toolExecutor';
@@ -51,9 +50,9 @@ export const TOOL_EXECUTION_MAP = {
   // Calendar tools (to be implemented)
   getUpcomingEvents: 'calendarTools.getUpcomingEvents',
   
-  // Weather tools
-  getCurrentWeather: 'weatherTools.getCurrentWeather',
-  getWeatherForecast: 'weatherTools.getWeatherForecast',
+  // Weather tools (handled via backend API)
+  getCurrentWeather: 'backendWeatherProxy.getCurrentWeather',
+  getWeatherForecast: 'backendWeatherProxy.getWeatherForecast',
   
   // Web Search tools
   performWebSearch: 'webSearchTools.performWebSearch',
