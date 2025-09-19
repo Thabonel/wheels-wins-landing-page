@@ -450,8 +450,10 @@ export const PAM_TOOLS: ToolDefinition[] = [
   },
 
   // ===================
-  // WEATHER TOOLS
+  // WEATHER TOOLS - TEMPORARILY DISABLED
+  // Allow Claude to respond naturally to weather questions
   // ===================
+  /*
   {
     name: 'getCurrentWeather',
     description: 'IMMEDIATELY get current weather conditions when users ask about weather, temperature, or conditions. Always use this for weather queries. Provides temperature, conditions, humidity, wind speed, and detailed weather data.',
@@ -519,6 +521,7 @@ export const PAM_TOOLS: ToolDefinition[] = [
       'Should I bring an umbrella tomorrow?'
     ]
   },
+  */
 
   // ===================
   // WEB SEARCH TOOLS
