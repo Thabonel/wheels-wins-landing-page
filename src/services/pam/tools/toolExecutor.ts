@@ -14,8 +14,66 @@ import {
 // Import tool implementations
 import profileTools, { type ToolResponse as ProfileToolResponse } from './profileTools';
 import tripTools, { type ToolResponse as TripToolResponse } from './tripTools';
-import weatherTools from './weatherTools';
 import webSearchTools from './webSearchTools';
+
+// ===================
+// BACKEND WEATHER PROXY FUNCTIONS
+// ===================
+
+/**
+ * Proxy weather requests to backend weather API
+ */
+async function callBackendWeather(endpoint: string, params: Record<string, any>, userId: string): Promise<any> {
+  try {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+    const url = `${backendUrl}/api/v1/pam/tools/weather/${endpoint}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-ID': userId
+      },
+      body: JSON.stringify(params)
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.result,
+        formattedResponse: data.result?.message || JSON.stringify(data.result)
+      };
+    } else {
+      const errorText = await response.text();
+      return {
+        success: false,
+        error: `Backend weather API error: ${response.status} ${errorText}`,
+        formattedResponse: `I couldn't get weather information right now. Please try again later.`
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: `Weather request failed: ${error.message || 'Unknown error'}`,
+      formattedResponse: `I'm having trouble accessing weather data. Please try again later or ask about other topics.`
+    };
+  }
+}
+
+/**
+ * Get current weather via backend API
+ */
+async function getCurrentWeatherFromBackend(location?: string, units: string = 'metric', userId?: string) {
+  return await callBackendWeather('current', { location, units }, userId);
+}
+
+/**
+ * Get weather forecast via backend API
+ */
+async function getWeatherForecastFromBackend(location?: string, days: number = 5, units: string = 'metric', includeHourly: boolean = false, userId?: string) {
+  return await callBackendWeather('forecast', { location, days, units, includeHourly }, userId);
+}
 
 // ===================
 // TYPE DEFINITIONS
@@ -323,16 +381,16 @@ async function routeToolCall(
         message: 'Calendar tools are coming in the next implementation phase.'
       };
 
-    // Weather tools
+    // Weather tools (via backend API)
     case 'getCurrentWeather':
-      return await weatherTools.getCurrentWeather(
+      return await getCurrentWeatherFromBackend(
         parameters.location,
         parameters.units || 'metric',
         userId
       );
 
     case 'getWeatherForecast':
-      return await weatherTools.getWeatherForecast(
+      return await getWeatherForecastFromBackend(
         parameters.location,
         parameters.days || 5,
         parameters.units || 'metric',
