@@ -1,6 +1,7 @@
 """
 PAM Backend Main Application
 High-performance FastAPI application with comprehensive monitoring and security.
+Updated: September 2025 - Gemini Flash Integration
 """
 
 import os
