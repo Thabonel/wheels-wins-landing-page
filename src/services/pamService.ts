@@ -481,5 +481,4 @@ class PamService {
 // =====================================================
 
 export const pamService = PamService.getInstance();
-export { PAM_CONFIG };
 export default pamService;
