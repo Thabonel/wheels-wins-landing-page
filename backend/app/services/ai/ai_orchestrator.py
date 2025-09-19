@@ -18,6 +18,7 @@ from .provider_interface import (
 )
 from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
+from .gemini_provider import GeminiProvider
 from app.core.config import get_settings
 from app.services.mcp_config import mcp_config
 
@@ -77,7 +78,26 @@ class AIOrchestrator:
         
         logger.info("Initializing AI Orchestrator...")
         
-        # Initialize Anthropic provider FIRST (primary AI provider)
+        # Initialize Gemini provider FIRST (primary AI provider - fastest and cheapest)
+        if hasattr(settings, 'GEMINI_API_KEY') and settings.GEMINI_API_KEY:
+            try:
+                gemini_config = ProviderConfig(
+                    name="gemini",
+                    api_key=settings.GEMINI_API_KEY.get_secret_value() if hasattr(settings.GEMINI_API_KEY, 'get_secret_value') else str(settings.GEMINI_API_KEY),
+                    default_model=getattr(settings, 'GEMINI_DEFAULT_MODEL', 'gemini-1.5-flash'),
+                    max_retries=3,
+                    timeout_seconds=30
+                )
+                gemini_provider = GeminiProvider(gemini_config)
+                if await gemini_provider.initialize():
+                    self.providers.append(gemini_provider)
+                    logger.info("✅ Gemini provider initialized successfully (primary)")
+                else:
+                    logger.error("❌ Failed to initialize Gemini provider")
+            except Exception as e:
+                logger.error(f"Error initializing Gemini provider: {e}")
+
+        # Initialize Anthropic provider as fallback
         if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:
             try:
                 anthropic_config = ProviderConfig(

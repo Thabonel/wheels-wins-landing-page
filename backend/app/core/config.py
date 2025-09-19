@@ -7,10 +7,13 @@ Fixed for Pydantic v2 compatibility
 import os
 import sys
 import json
+import logging
 from typing import Optional, Dict, Any, List, Union
 from pathlib import Path
 from enum import Enum
 import secrets
+
+logger = logging.getLogger(__name__)
 
 from pydantic import Field, field_validator, SecretStr, ValidationError
 from pydantic_settings import BaseSettings
@@ -68,12 +71,74 @@ class Settings(BaseSettings):
     # CORE CONFIGURATION (REQUIRED)
     # =====================================================
     
-    # Anthropic Configuration (Primary and Only AI Provider)
+    # Gemini Configuration (Primary AI Provider)
+    GEMINI_API_KEY: SecretStr = Field(
+        default="",
+        description="Google Gemini API key (required for PAM AI functionality with Gemini Flash)"
+    )
+
+    @field_validator("GEMINI_API_KEY", mode="before")
+    @classmethod
+    def validate_gemini_api_key(cls, v):
+        """Validate Gemini API key format and provide helpful error messages"""
+        if not v:
+            raise ValueError(
+                "Gemini API key is required for PAM functionality. "
+                "Please set GEMINI_API_KEY environment variable. "
+                "Get your API key from https://makersuite.google.com/app/apikey"
+            )
+
+        # Convert to string for validation if it's a SecretStr
+        key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+
+        # Basic validation - Gemini API keys typically start with 'AIza'
+        if not key_str.startswith('AIza'):
+            logger.warning(
+                "Gemini API key format may be incorrect. "
+                "Google API keys typically start with 'AIza'. "
+                "Please verify your key at https://makersuite.google.com/app/apikey"
+            )
+
+        if len(key_str) < 20:
+            raise ValueError(
+                "Gemini API key appears to be too short. "
+                "Please verify your key at https://makersuite.google.com/app/apikey"
+            )
+
+        return v
+
+    # Gemini Model Configuration
+    GEMINI_DEFAULT_MODEL: str = Field(
+        default="gemini-1.5-flash",
+        description="Default Gemini model (Flash for optimal speed/cost ratio)"
+    )
+
+    @field_validator("GEMINI_DEFAULT_MODEL", mode="before")
+    @classmethod
+    def validate_gemini_model(cls, v):
+        """Ensure valid Gemini model selection"""
+        if not v:
+            v = "gemini-1.5-flash"  # Default to Flash
+
+        valid_models = [
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-pro",
+            "gemini-pro-vision"
+        ]
+
+        if v not in valid_models:
+            logger.warning(f"Unknown Gemini model '{v}', using default 'gemini-1.5-flash'")
+            v = "gemini-1.5-flash"
+
+        return v
+
+    # Anthropic Configuration (Fallback AI Provider)
     ANTHROPIC_API_KEY: SecretStr = Field(
         default="",
-        description="Anthropic API key (required for PAM AI functionality with Claude)"
+        description="Anthropic API key (fallback for PAM AI functionality with Claude)"
     )
-    
+
     @field_validator("ANTHROPIC_API_KEY", mode="before")
     @classmethod
     def validate_anthropic_api_key(cls, v):
