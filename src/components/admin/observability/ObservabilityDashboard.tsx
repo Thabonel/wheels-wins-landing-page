@@ -25,6 +25,7 @@ import {
 interface ObservabilityData {
   status: string;
   platforms: {
+    gemini: boolean;
     anthropic: boolean;
     langfuse: boolean;
   };
@@ -384,12 +385,24 @@ export default function ObservabilityDashboard() {
                     <Badge variant={status.ready ? "default" : "destructive"}>
                       {status.status}
                     </Badge>
+                    {platform === 'gemini' && (
+                      <a
+                        href="https://makersuite.google.com/app/usage"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-700"
+                        title="Gemini API Console"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
                     {platform === 'anthropic' && (
                       <a
                         href="https://console.anthropic.com/usage"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-500 hover:text-blue-700"
+                        title="Anthropic Console (Fallback)"
                       >
                         <ExternalLink className="h-4 w-4" />
                       </a>
