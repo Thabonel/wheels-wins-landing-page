@@ -22,6 +22,10 @@ interface ObservabilityConfig {
   environment: string;
   langfuse_host: string;
   platforms: {
+    gemini: {
+      configured: boolean;
+      key_preview?: string;
+    };
     anthropic: {
       configured: boolean;
       key_preview?: string;
@@ -165,12 +169,80 @@ export default function APIKeyManagement() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Anthropic Claude */}
+            {/* Google Gemini Flash (Primary) */}
+            <div className="p-4 border-2 border-blue-200 rounded-lg bg-blue-50">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  {getStatusIcon(config.platforms.gemini?.configured, testResults.gemini?.connected)}
+                  <span className="font-medium text-blue-700">Google Gemini Flash</span>
+                  <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">PRIMARY</Badge>
+                </div>
+                <a
+                  href="https://makersuite.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:text-blue-700"
+                  title="Get Gemini API Key"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </div>
+
+              <div className="space-y-2">
+                <Badge variant={config.platforms.gemini?.configured ? "default" : "outline"}>
+                  {config.platforms.gemini?.configured ? "Configured" : "Not Configured"}
+                </Badge>
+
+                {config.platforms.gemini?.key_preview && (
+                  <div className="text-sm">
+                    <Label>API Key:</Label>
+                    <div className="flex items-center space-x-2">
+                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        {showKeys.gemini ? config.platforms.gemini.key_preview : "AIza••••••••"}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => toggleKeyVisibility('gemini')}
+                      >
+                        {showKeys.gemini ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => testPlatformConnection('gemini')}
+                  disabled={!config.platforms.gemini?.configured || testing === 'gemini'}
+                  className="w-full"
+                >
+                  {testing === 'gemini' ? (
+                    <RefreshCw className="h-3 w-3 animate-spin mr-2" />
+                  ) : null}
+                  Test Connection
+                </Button>
+
+                {testResults.gemini && (
+                  <p className={`text-xs ${testResults.gemini.connected ? 'text-green-600' : 'text-red-600'}`}>
+                    {testResults.gemini.message}
+                  </p>
+                )}
+
+                <p className="text-xs text-blue-600 mt-2">
+                  💰 25x cheaper • ⚡ 5x faster • 🧠 1M context
+                </p>
+              </div>
+            </div>
+
+            {/* Anthropic Claude (Fallback) */}
             <div className="p-4 border rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(config.platforms.anthropic.configured, testResults.anthropic?.connected)}
                   <span className="font-medium">Anthropic Claude</span>
+                  <Badge variant="outline" className="text-xs">FALLBACK</Badge>
                 </div>
                 <a
                   href="https://console.anthropic.com/settings/keys"
