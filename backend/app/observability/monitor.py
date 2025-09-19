@@ -142,7 +142,7 @@ class ObservabilityMonitor:
                 logger.warning(f"Failed to initialize observability during health check: {e}")
         
         # Check each platform
-        for platform in ["openai", "langfuse"]:
+        for platform in ["gemini", "anthropic", "langfuse"]:
             platform_status = status.get(platform, {})
             configured = platform_status.get("configured", False)
             ready = platform_status.get("client_ready", False) or platform_status.get("initialized", False)
@@ -169,8 +169,10 @@ class ObservabilityMonitor:
             elif not configured:
                 if platform == "langfuse":
                     health["issues"].append(f"{platform} is not configured - set LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY")
-                elif platform == "openai":
-                    health["issues"].append(f"{platform} is not configured - set OPENAI_API_KEY environment variable")
+                elif platform == "gemini":
+                    health["issues"].append(f"{platform} is not configured - set GEMINI_API_KEY environment variable")
+                elif platform == "anthropic":
+                    health["issues"].append(f"{platform} is not configured - set ANTHROPIC_API_KEY environment variable")
         
         # Overall health determination - be more lenient since observability is optional
         healthy_platforms = sum(1 for p in health["platforms"].values() if p["status"] == "healthy")
