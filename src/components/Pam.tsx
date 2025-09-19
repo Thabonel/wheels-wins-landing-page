@@ -470,47 +470,47 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const connectToBackend = useCallback(async () => {
-    // Direct Claude API - no backend connection needed
-    logger.debug('🤖 PAM: Using Direct Claude API - no backend connection required');
-    
-    // Check if Claude service is ready
-    if (claudeService.isReady()) {
+    // Backend PersonalizedPamAgent API - uses authentication context
+    logger.debug('🤖 PAM: Using Backend PersonalizedPamAgent API');
+
+    // Check if we have user authentication and backend is accessible
+    if (user && sessionToken) {
       setConnectionStatus("Connected");
-      
+
       // Show welcome message if first time
       if (messages.length === 0 && !hasShownWelcomeRef.current) {
         logger.debug('💬 PAM: Adding greeting message');
         addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
         hasShownWelcomeRef.current = true;
       }
-      
-      logger.debug('✅ PAM: Direct Claude API ready');
+
+      logger.debug('✅ PAM: Backend PersonalizedPamAgent API ready');
       return;
     } else {
       setConnectionStatus("Disconnected");
-      addMessage("🤖 Hi! I'm PAM. Claude service is initializing...", "pam");
-      logger.warn('⚠️ PAM: Claude service not ready');
+      addMessage("🤖 Hi! I'm PAM. Please sign in to continue...", "pam");
+      logger.warn('⚠️ PAM: Backend API not ready - missing user authentication');
     }
     
     // Original function was complex WebSocket setup - removed for Direct API
   }, [user?.id, sessionToken]);
 
-  // Minimal test function for debugging Direct API connection
+  // Minimal test function for debugging Backend API connection
   const testMinimalConnection = useCallback(async () => {
-    logger.debug('🧪 PAM MINIMAL TEST: Direct Claude API Test');
-    
-    // Test Claude service readiness
-    const isReady = claudeService.isReady();
-    logger.debug('🤖 Claude Service Ready:', isReady);
-    
+    logger.debug('🧪 PAM MINIMAL TEST: Backend PersonalizedPamAgent API Test');
+
+    // Test backend API availability
+    const isReady = user && sessionToken;
+    logger.debug('🤖 Backend API Ready:', isReady);
+
     if (isReady) {
       setConnectionStatus("Connected");
-      logger.debug('✅ PAM: Direct API test successful');
+      logger.debug('✅ PAM: Backend API test successful');
     } else {
       setConnectionStatus("Disconnected");
-      logger.debug('❌ PAM: Direct API test failed - Claude service not ready');
+      logger.debug('❌ PAM: Backend API test failed - no user authentication');
     }
-  }, []);
+  }, [user, sessionToken]);
 
   // Placeholder functions for voice and audio features
   const stopAudioLevelMonitoring = () => {
