@@ -61,16 +61,18 @@ class PersonalizedPamAgent:
     5. Personalized response generation
     """
     
-    def __init__(self):
-        self.profile_tool = LoadUserProfileTool()
+    def __init__(self, user_jwt: str = None):
+        # Initialize tools with user JWT for proper database authentication
+        self.user_jwt = user_jwt
+        self.profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
         self.vehicle_mapper = VehicleCapabilityMapper()
         self.travel_detector = TravelModeDetector()
         self.response_personalizer = TravelResponsePersonalizer()
-        
+
         # Context cache for conversation persistence
         self.user_contexts: Dict[str, UserContext] = {}
-        
-        logger.info("🤖 PersonalizedPamAgent initialized")
+
+        logger.info(f"🤖 PersonalizedPamAgent initialized {'with user authentication context' if user_jwt else 'with service role fallback'}")
     
     async def process_message(
         self,
@@ -357,5 +359,10 @@ Respond naturally and conversationally, always considering the user's specific c
         }
 
 
-# Global instance
+# Global instance (service role fallback)
 personalized_pam_agent = PersonalizedPamAgent()
+
+
+def create_user_context_pam_agent(user_jwt: str) -> PersonalizedPamAgent:
+    """Create a PersonalizedPamAgent with user authentication context"""
+    return PersonalizedPamAgent(user_jwt=user_jwt)

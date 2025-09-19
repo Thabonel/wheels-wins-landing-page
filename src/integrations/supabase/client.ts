@@ -17,8 +17,8 @@ const isValidURL = (value: string) => {
   }
 };
 
-// Debug logging for staging environment
-if (import.meta.env.MODE === 'staging' || window.location.hostname.includes('staging')) {
+// Debug logging for staging environment (skip in test environment)
+if ((import.meta.env.MODE === 'staging' || (typeof window !== 'undefined' && window.location.hostname.includes('staging'))) && typeof window !== 'undefined') {
   console.log('🔍 Supabase Configuration Debug:', {
     mode: import.meta.env.MODE,
     urlLength: SUPABASE_URL?.length,
@@ -86,6 +86,7 @@ export const supabase = createClient<Database>(
       // Optimize JWT claims for minimal size
       detectSessionInUrl: false, // Reduce auth metadata
       flowType: 'pkce', // Use more efficient flow
+      debug: import.meta.env.MODE === 'development', // Enable debug logging in dev
     },
     realtime: {
       params: {
@@ -97,7 +98,81 @@ export const supabase = createClient<Database>(
         'X-Client-Info': 'pam-mobile',
       },
     },
+    db: {
+      schema: 'public'
+    }
   }
 );
+
+// Add auth debugging for development
+if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'staging') {
+  console.log('🔧 Supabase Client Configuration:', {
+    url: SUPABASE_URL,
+    hasAnonKey: !!SUPABASE_ANON_KEY,
+    keyPrefix: SUPABASE_ANON_KEY?.substring(0, 10) + '...',
+    authStorageKey: 'pam-auth-token',
+    flowType: 'pkce'
+  });
+
+  // Monitor auth state changes in Supabase client
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log('📡 Supabase Auth State Change:', {
+      event,
+      hasSession: !!session,
+      hasAccessToken: !!session?.access_token,
+      tokenExpiry: session?.expires_at,
+      userId: session?.user?.id,
+      timestamp: new Date().toISOString()
+    });
+
+    // Log JWT token details for debugging auth.uid() issues
+    if (session?.access_token) {
+      try {
+        // Decode JWT header to check if it's properly formatted
+        const parts = session.access_token.split('.');
+        if (parts.length === 3) {
+          const header = JSON.parse(atob(parts[0]));
+          const payload = JSON.parse(atob(parts[1]));
+
+          console.log('🔍 JWT Debug:', {
+            algorithm: header.alg,
+            type: header.typ,
+            issuer: payload.iss,
+            subject: payload.sub,
+            audience: payload.aud,
+            role: payload.role,
+            expirationTime: new Date(payload.exp * 1000).toISOString(),
+            issuedAt: new Date(payload.iat * 1000).toISOString(),
+            claims: Object.keys(payload)
+          });
+
+          // Check if the JWT contains the required claims for auth.uid()
+          if (!payload.sub) {
+            console.error('❌ JWT missing "sub" claim - this will cause auth.uid() to return null');
+          }
+          if (!payload.role) {
+            console.error('❌ JWT missing "role" claim - this may cause permission issues');
+          }
+          // Enhanced role detection with proper admin role support
+          if (payload.role === 'admin') {
+            console.info('🔐 JWT role is "admin" - this is supported and will work with database RLS policies');
+            console.info('📊 Admin role provides equivalent access to "authenticated" role for user data');
+          } else if (payload.role === 'authenticated') {
+            console.info('🔐 JWT role is "authenticated" - standard user role');
+          } else if (payload.role !== 'service_role' && payload.role !== 'anon') {
+            console.warn('⚠️ JWT role is unexpected:', payload.role);
+            console.warn('💡 Expected roles: "authenticated", "admin", "service_role", or "anon"');
+          }
+        } else {
+          console.error('❌ Invalid JWT format - token does not have 3 parts');
+        }
+      } catch (error) {
+        console.error('❌ Failed to decode JWT token:', error);
+      }
+    } else {
+      console.log('⚠️ No access token in session');
+    }
+  });
+}
 
 export default supabase;

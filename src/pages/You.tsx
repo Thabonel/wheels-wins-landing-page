@@ -5,9 +5,9 @@ import DashboardCards from "@/components/DashboardCards";
 import WidgetArea from "@/components/WidgetArea";
 import TrialStatusBanner from "@/components/subscription/TrialStatusBanner";
 import SubscriptionStatusWidget from "@/components/subscription/SubscriptionStatusWidget";
-// PAM Savings integration removed - will be replaced with simplified approach
 import { EmotionalIntelligence } from "@/components/pam/EmotionalIntelligence";
 import { PamHelpButton } from "@/components/pam/PamHelpButton";
+import { PamSavingsSummaryCard } from "@/components/pam/PamSavingsSummaryCard";
 import { MedicalDashboard } from "@/components/you/medical/MedicalDashboard";
 import { MedicalProvider } from "@/contexts/MedicalContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,7 +32,10 @@ const You = () => {
         {/* Trial Status Banner */}
         <TrialStatusBanner />
 
-        {/* PAM Savings integration will be added back with simplified approach */}
+        {/* PAM Savings Summary - Prominent placement at top */}
+        <div className="mb-6">
+          <PamSavingsSummaryCard />
+        </div>
 
         {/* Tabs for Calendar and Medical */}
         <Tabs defaultValue="calendar" className="space-y-6">
@@ -56,12 +59,9 @@ const You = () => {
                 <DashboardCards />
                 <WidgetArea />
               </div>
-              
-              {/* Right Column - Subscription Status Widget + Emotional Intelligence */}
-              <div className="w-full lg:w-1/4 space-y-6">
-                {/* PAM Emotional Intelligence - You Node */}
-                <EmotionalIntelligence />
-                
+
+              {/* Right Column - Subscription Status Widget */}
+              <div className="w-full lg:w-1/4">
                 <SubscriptionStatusWidget />
               </div>
             </div>

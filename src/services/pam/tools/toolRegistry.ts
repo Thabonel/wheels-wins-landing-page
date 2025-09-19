@@ -1,6 +1,13 @@
 /**
  * PAM Tool Registry - Complete tool definitions for Claude API integration
- * 
+ *
+ * ⚠️ DEPRECATED: Frontend tool execution disabled in favor of backend PersonalizedPamAgent
+ *
+ * This registry is no longer actively used by Pam.tsx, which now calls the backend
+ * /api/v1/pam/chat endpoint where PersonalizedPamAgent handles all tool execution
+ * with proper user authentication context. This avoids 403 database errors and
+ * ensures tools have access to auth.uid() for RLS policies.
+ *
  * This registry defines all available tools that Claude can use to access
  * user data and perform calculations within the Wheels & Wins platform.
  * Each tool follows Anthropic's tool definition format with JSON Schema.
@@ -450,8 +457,10 @@ export const PAM_TOOLS: ToolDefinition[] = [
   },
 
   // ===================
-  // WEATHER TOOLS
+  // WEATHER TOOLS - TEMPORARILY DISABLED
+  // Allow Claude to respond naturally to weather questions
   // ===================
+  /*
   {
     name: 'getCurrentWeather',
     description: 'IMMEDIATELY get current weather conditions when users ask about weather, temperature, or conditions. Always use this for weather queries. Provides temperature, conditions, humidity, wind speed, and detailed weather data.',
@@ -519,6 +528,7 @@ export const PAM_TOOLS: ToolDefinition[] = [
       'Should I bring an umbrella tomorrow?'
     ]
   },
+  */
 
   // ===================
   // WEB SEARCH TOOLS

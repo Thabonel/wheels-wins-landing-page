@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import claudeService, { type ChatMessage as ClaudeMessage } from '@/services/claude';
-import { getToolsForClaude } from '@/services/pam/tools/toolRegistry';
-import { useUser } from '@supabase/auth-helpers-react';
+// import claudeService, { type ChatMessage as ClaudeMessage } from '@/services/claude';
+// import { getToolsForClaude } from '@/services/pam/tools/toolRegistry';
+import { PamApiService } from '@/services/pamApiService';
+import { useUser, useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
 import { cn } from '@/lib/utils';
 import { VoiceSettings } from './voice/VoiceSettings';
 import { VoiceToggle } from './voice/VoiceToggle';
@@ -73,6 +74,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
 
   // Hooks
   const user = useUser();
+  const session = useSession();
   const tts = useTextToSpeech({
     rate: 1.0,
     pitch: 1.0,
@@ -95,17 +97,9 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
   const generateId = () => `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   /**
-   * Convert internal messages to Claude format
+   * Get PAM API service instance
    */
-  const toClaudeMessages = (msgs: PAMMessage[]): ClaudeMessage[] => {
-    return msgs
-      .filter(msg => !msg.isError && !msg.isLoading && msg.role !== 'assistant' || msg.id !== 'welcome')
-      .map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'assistant',
-        content: msg.content,
-        timestamp: msg.timestamp
-      }));
-  };
+  const pamApiService = PamApiService.getInstance();
 
   /**
    * Handle voice input from VoiceToggle
@@ -240,93 +234,69 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
     setMessages(prev => [...prev, loadingMessage]);
 
     try {
-      // Prepare messages for Claude
-      const claudeMessages = toClaudeMessages([...messages, userMessage]);
-      
-      // Set system prompt based on user context
-      const systemPrompt = `You are PAM (Personal AI Manager), a helpful AI assistant for the Wheels & Wins platform.
-      ${user ? `The user is logged in with email: ${user.email}` : 'The user is not logged in.'}
-      
-      Your role:
-      - Help users with financial tracking, budgeting, and expense analysis
-      - Assist with trip planning, fuel tracking, and travel expenses
-      - Provide personalized insights and recommendations using the available tools
-      - Be conversational, helpful, and concise
-      
-      Available Tools:
-      You have access to 10 powerful tools to help users:
-      
-      Financial Tools:
-      - getUserExpenses: Get expense data with filtering by date, category, or amount
-      - getUserBudgets: Get budget information and spending analysis
-      - getIncomeData: Retrieve income information for financial planning
-      - calculateSavings: Calculate savings rates and goal progress
-      
-      Profile & Settings:
-      - getUserProfile: Get user profile and financial goals
-      - getUserSettings: Access user preferences and settings
-      
-      Calendar & Events:
-      - getUpcomingEvents: Get upcoming trips, bills, and financial deadlines
-      
-      Travel & Vehicle:
-      - getTripHistory: Analyze past trips, costs, and travel patterns
-      - getVehicleData: Get vehicle info, maintenance, and insurance details
-      - getFuelData: Analyze fuel consumption, costs, and efficiency
-      
-      When users ask questions about their data, use the appropriate tools to provide accurate, personalized responses. Always explain what data you're retrieving and why it's helpful for their situation.
-      
-      Keep responses friendly and focused on practical advice.`;
+      // Ensure user is authenticated for backend API
+      if (!user || !session?.access_token) {
+        throw new Error('User authentication required');
+      }
 
-      // Get PAM tools for Claude
-      const pamTools = getToolsForClaude();
-      
-      // Get response from Claude with tool support
-      const response = await claudeService.chat(claudeMessages, {
-        systemPrompt,
-        maxTokens: 500,
-        temperature: 0.7,
-        tools: pamTools,
-        userId: user?.id // Pass user ID for tool execution
-      });
+      // Use backend PAM API service for authenticated users
+      const response = await pamApiService.sendMessage({
+        message: textToSend,
+        user_id: user.id,
+        context: {
+          current_page: 'simple-pam-test',
+          session_data: {
+            conversation_length: messages.length
+          }
+        }
+      }, session.access_token);
 
       // Remove loading message and add response
+      const responseContent = response.response || response.message || response.content || 'Sorry, I did not receive a proper response.';
+
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.id !== 'loading');
         return [...filtered, {
           id: generateId(),
           role: 'assistant',
-          content: response.content,
-          timestamp: response.timestamp || new Date()
+          content: responseContent,
+          timestamp: new Date()
         }];
       });
 
       // Speak the response if voice output is enabled
       setTimeout(() => {
-        speakResponse(response.content);
+        speakResponse(responseContent);
       }, 100);
 
       // Call callback if provided
       if (onMessageSent) {
-        onMessageSent(textToSend, response.content);
+        onMessageSent(textToSend, responseContent);
       }
 
     } catch (error) {
       console.error('PAM Error:', error);
-      
+      console.error('PAM Error Details:', {
+        message: error?.message,
+        stack: error?.stack,
+        user: !!user,
+        hasToken: !!session?.access_token,
+        tokenLength: session?.access_token?.length
+      });
+
       // Remove loading message and add error message
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.id !== 'loading');
         return [...filtered, {
           id: generateId(),
           role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again or contact support if this continues.',
+          content: `Sorry, I encountered an error: ${error?.message || 'Unknown error'}. Please try again or contact support if this continues.`,
           timestamp: new Date(),
           isError: true
         }];
       });
 
-      setError('Failed to get response from PAM. Please try again.');
+      setError(`Failed to get response from PAM: ${error?.message || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
       // Focus input for next message
@@ -520,12 +490,6 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
           </Button>
         </div>
         
-        {/* Helper Text */}
-        {!user && (
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            Log in to get personalized financial insights and access your data
-          </p>
-        )}
       </div>
     </Card>
   );

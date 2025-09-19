@@ -1,7 +1,7 @@
 /**
  * Phase 6 Learning System Integration Tests
  * Based on industry testing patterns from:
- * - OpenAI's RLHF testing framework
+ * - Anthropic Claude's constitutional AI testing framework
  * - LangChain's evaluation test suites
  * - Microsoft Magentic-One validation tests
  * - Google Assistant's feedback loop testing
@@ -92,7 +92,7 @@ describe('Phase 6: Learning System Integration Tests', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Feedback Processing (OpenAI RLHF Pattern)', () => {
+  describe('Feedback Processing (Claude RLHF Pattern)', () => {
     test('should process positive feedback and update confidence scores', async () => {
       // Arrange
       const agentResponse = createMockAgentResponse('wheels', 0.7);

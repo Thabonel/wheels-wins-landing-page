@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { PamApiService } from '@/services/pamApiService';
+import { pamService } from '@/services/pamService';
 import { useTripStatus } from './useTripStatus';
 import { useBudgetSummary } from './useBudgetSummary';
 
@@ -139,9 +139,8 @@ export function usePamSuggestions() {
     if (!user) return [];
 
     try {
-      const pamService = PamApiService.getInstance();
       const token = await user.getIdToken();
-      
+
       // Request contextual suggestions from PAM
       const response = await pamService.sendMessage({
         message: 'Generate dashboard suggestions',

@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Tuple
 from pydantic import BaseModel, Field, ValidationError
 from datetime import datetime, timedelta
 from .base_tool import BaseTool
-from app.core.database import get_supabase_client
+from app.core.database import get_supabase_client, get_user_context_supabase_client
 
 
 class _ExecuteParams(BaseModel):
@@ -17,10 +17,15 @@ class _ExecuteParams(BaseModel):
 
 class LoadSocialContextTool(BaseTool):
     """Tool to load social context including friends' locations and nearby events"""
-    
-    def __init__(self):
-        super().__init__("load_social_context")
-        self.supabase = get_supabase_client()
+
+    def __init__(self, user_jwt: str = None):
+        super().__init__("load_social_context", user_jwt=user_jwt)
+        # Use user-context client for proper RLS authentication
+        if user_jwt:
+            self.supabase = get_user_context_supabase_client(user_jwt)
+        else:
+            # Fallback to service role (for backward compatibility)
+            self.supabase = get_supabase_client()
     
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
         """Load social context for travel planning"""

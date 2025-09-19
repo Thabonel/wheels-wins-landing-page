@@ -31,9 +31,9 @@ const FreshTrackPanel: React.FC<FreshTrackPanelProps> = ({
       if (panelRef.current) {
         const viewportHeight = window.innerHeight;
         const topOffset = 64; // top-16 = 4rem = 64px
-        const bottomMargin = 16; // 1rem = 16px for breathing room
-        const availableHeight = viewportHeight - topOffset - bottomMargin;
-        setPanelHeight(`${availableHeight}px`);
+        const bottomMargin = 32; // More breathing room
+        const maxHeight = Math.min(600, viewportHeight - topOffset - bottomMargin); // Cap at 600px
+        setPanelHeight(`${maxHeight}px`);
       }
     };
 
@@ -68,7 +68,7 @@ const FreshTrackPanel: React.FC<FreshTrackPanelProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6" style={{scrollBehavior: 'smooth'}}>
           {/* Waypoints section */}
           <div>
             <h4 className="font-medium text-sm text-gray-700 mb-3">Waypoints ({waypoints.length})</h4>
@@ -157,9 +157,13 @@ const FreshTrackPanel: React.FC<FreshTrackPanelProps> = ({
                 { id: 'dumpStations', label: 'Dump Stations', icon: '🚽' },
                 { id: 'propane', label: 'Propane', icon: '🔥' },
                 { id: 'waterFill', label: 'Water Fill', icon: '💧' },
-                { id: 'rvRepair', label: 'RV Repair', icon: '🔧' }
+                { id: 'rvRepair', label: 'RV Repair', icon: '🔧' },
+                { id: 'rvSupplies', label: 'RV Supplies', icon: '🛒' },
+                { id: 'laundry', label: 'Laundry', icon: '👕' },
+                { id: 'groceries', label: 'Groceries', icon: '🍎' },
+                { id: 'pharmacy', label: 'Pharmacy', icon: '💊' }
               ].map(service => (
-                <label 
+                <label
                   key={service.id}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                 >
@@ -175,6 +179,9 @@ const FreshTrackPanel: React.FC<FreshTrackPanelProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Scroll padding at bottom */}
+          <div className="h-4"></div>
         </div>
       </div>
     </div>

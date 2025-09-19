@@ -113,7 +113,7 @@ Located existing MCP configurations in `/Users/thabonel/Documents`:
 /Users/thabonel/Code/wheels-wins-landing-page/render-mcp-server/.env
 ```
 ```env
-RENDER_API_KEY=rnd_7LEnX6dD9NQGgQzKDsvIZjOhwarJ
+RENDER_API_KEY=[REDACTED-RENDER-KEY]
 LOG_LEVEL=info
 RENDER_API_TIMEOUT=30000
 RENDER_API_BASE_URL=https://api.render.com/v1
@@ -135,7 +135,7 @@ Added to `/Users/thabonel/Library/Application Support/Claude/claude_desktop_conf
     "/Users/thabonel/Code/wheels-wins-landing-page/render-mcp-server/dist/index.js"
   ],
   "env": {
-    "RENDER_API_KEY": "rnd_7LEnX6dD9NQGgQzKDsvIZjOhwarJ"
+    "RENDER_API_KEY": "[REDACTED-RENDER-KEY]"
   }
 }
 ```

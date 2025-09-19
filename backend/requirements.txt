@@ -15,11 +15,12 @@ opentelemetry-sdk>=1.20.0
 opentelemetry-instrumentation-fastapi>=0.41b0
 
 # AI Providers
-anthropic>=0.40.0  # Primary AI provider with native MCP support
+google-generativeai>=0.8.0  # Primary AI provider - Gemini Flash
+anthropic>=0.40.0  # Fallback AI provider with native MCP support
 
 # AI Agent Observability (stable versions)
 langfuse>=2.0.0
-# agentops>=0.4.15,<0.5.0  # Temporarily disabled - incompatible with OpenAI 1.99.6
+# agentops>=0.4.15,<0.5.0  # Temporarily disabled - migration to Claude complete
 
 # Graph Database (Optional - for Graph RAG)
 neo4j>=5.14.0,<6.0.0
