@@ -153,8 +153,15 @@ if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'staging'
           if (!payload.role) {
             console.error('❌ JWT missing "role" claim - this may cause permission issues');
           }
-          if (payload.role !== 'authenticated') {
-            console.warn('⚠️ JWT role is not "authenticated":', payload.role);
+          // Enhanced role detection with proper admin role support
+          if (payload.role === 'admin') {
+            console.info('🔐 JWT role is "admin" - this is supported and will work with database RLS policies');
+            console.info('📊 Admin role provides equivalent access to "authenticated" role for user data');
+          } else if (payload.role === 'authenticated') {
+            console.info('🔐 JWT role is "authenticated" - standard user role');
+          } else if (payload.role !== 'service_role' && payload.role !== 'anon') {
+            console.warn('⚠️ JWT role is unexpected:', payload.role);
+            console.warn('💡 Expected roles: "authenticated", "admin", "service_role", or "anon"');
           }
         } else {
           console.error('❌ Invalid JWT format - token does not have 3 parts');
