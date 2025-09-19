@@ -30,11 +30,12 @@ class ToolResult:
 
 class BaseTool(ABC):
     """Base class for all PAM tools"""
-    
-    def __init__(self, tool_name: str, description: str = "", capabilities: Optional[List[ToolCapability]] = None):
+
+    def __init__(self, tool_name: str, description: str = "", capabilities: Optional[List[ToolCapability]] = None, user_jwt: Optional[str] = None):
         self.tool_name = tool_name
         self.description = description
         self.capabilities = capabilities or []
+        self.user_jwt = user_jwt  # Store user JWT for database authentication
         self.logger = get_logger(f"pam.tools.{tool_name}")
         self.is_initialized = False
     

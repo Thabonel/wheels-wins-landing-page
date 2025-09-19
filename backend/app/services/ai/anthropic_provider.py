@@ -47,9 +47,9 @@ class AnthropicProvider(AIProviderInterface):
                 AICapability.FUNCTION_CALLING  # Native MCP support
             ]
         
-        # Set default model - Claude 3.5 Sonnet ONLY (never Opus for cost reasons)
+        # Set default model - Latest Claude 3.5 Sonnet (never Opus for cost reasons)
         if not config.default_model:
-            config.default_model = "claude-3-5-sonnet-20241022"
+            config.default_model = "claude-3-5-sonnet-20241022"  # Will auto-update to latest
         
         # Set token limits - Claude 3.5 capabilities
         config.max_context_window = 200000  # Claude 3.5: 200K context

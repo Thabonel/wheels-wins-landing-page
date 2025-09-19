@@ -3,8 +3,8 @@ import { X, Send, Mic, MicOff, VolumeX, Volume2, ThumbsUp, ThumbsDown, Loader2 }
 import { useAuth } from "@/context/AuthContext";
 import { featureFlags } from "@/services/featureFlags";
 import { usePamClaudeChat } from "@/hooks/pam/usePamClaudeChat";
-// Import existing WebSocket hook for fallback
-import { usePamWebSocketCore } from "@/hooks/pam/usePamWebSocketCore";
+// Import unified WebSocket hook for fallback
+import { usePamWebSocketUnified } from "@/hooks/pam/usePamWebSocketUnified";
 import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { logger } from '../lib/logger';
@@ -53,19 +53,18 @@ export const PamSimplified: React.FC<PamSimplifiedProps> = ({ mode = "floating" 
   });
 
   // WebSocket Hook (fallback)
-  const websocketChat = usePamWebSocketCore(
-    user?.id || null,
-    session?.access_token || null,
-    {
-      autoReconnect: true,
-      onStatusChange: (status) => {
-        logger.debug('WebSocket Status:', status);
-      },
-      onMessage: (message) => {
-        logger.debug('WebSocket Message:', message);
-      }
+  const websocketChat = usePamWebSocketUnified({
+    userId: user?.id || null,
+    token: session?.access_token || null,
+    autoReconnect: true,
+    enablePerformanceMonitoring: true,
+    onStatusChange: (status) => {
+      logger.debug('WebSocket Status:', status);
+    },
+    onMessage: (message) => {
+      logger.debug('WebSocket Message:', message);
     }
-  );
+  });
 
   // Choose which implementation to use based on feature flag
   const activeChat = useDirectAPI ? claudeChat : websocketChat;

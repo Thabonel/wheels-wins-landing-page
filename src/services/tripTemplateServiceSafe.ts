@@ -1,6 +1,7 @@
 import { Region } from '@/context/RegionContext';
 import { TripTemplate } from './tripTemplateService';
 import { googleImageService } from './googleImageService';
+import { safeImageService } from './safeImageService';
 
 // Safe wrapper for trip template service that handles permission errors
 export const tripTemplateServiceSafe = {
@@ -726,70 +727,32 @@ export const tripTemplateServiceSafe = {
    */
   async enhanceTemplatesWithImages(templates: TripTemplate[]): Promise<TripTemplate[]> {
     try {
-      console.log(`🖼️ Enhancing ${templates.length} templates with images using storage service...`);
-      
-      // Ensure images are stored for all templates
-      await googleImageService.ensureImagesStored(templates);
-      
-      // Process templates with async image loading
-      const enhancedTemplates = await Promise.all(
-        templates.map(async (template) => {
-          console.log(`  Processing template: ${template.name} (${template.id})`);
-          
-          // Skip if image already exists
-          if (template.imageUrl || template.image_url) {
-            console.log(`    ⚠️ Template already has image, skipping: ${template.imageUrl || template.image_url}`);
-            return template;
-          }
-          
-          try {
-            // Get verified image from storage service (async)
-            const imageResult = await googleImageService.getTemplateImage(template);
-            
-            // Log image source
-            const source = imageResult.isStored ? 'stored in Supabase' : 'verified URL';
-            console.log(`    ✅ Template "${template.name}" has ${source}: ${imageResult.imageUrl?.substring(0, 60)}...`);
-            
-            return {
-              ...template,
-              imageUrl: imageResult.imageUrl,
-              image_url: imageResult.imageUrl,
-              thumbnailUrl: imageResult.imageUrl,
-              thumbnail_url: imageResult.imageUrl,
-              googleImageSearchUrl: imageResult.searchUrl,
-              imageVerified: imageResult.isVerified,
-              imageStored: imageResult.isStored
-            };
-            
-          } catch (error) {
-            console.error(`    ❌ Failed to get image for ${template.name}:`, error);
-            
-            // Fallback to sync method for this template
-            const fallbackResult = googleImageService.getTemplateImageSync(template);
-            
-            return {
-              ...template,
-              imageUrl: fallbackResult.imageUrl,
-              image_url: fallbackResult.imageUrl,
-              thumbnailUrl: fallbackResult.imageUrl,
-              thumbnail_url: fallbackResult.imageUrl,
-              googleImageSearchUrl: fallbackResult.searchUrl,
-              imageVerified: fallbackResult.isVerified,
-              imageStored: false
-            };
-          }
-        })
-      );
-      
-      // Log unverified templates
-      const unverified = googleImageService.getUnverifiedTemplates(templates);
-      if (unverified.length > 0) {
-        console.log('📸 Templates needing image verification:');
-        unverified.forEach(({ template, searchUrl }) => {
-          console.log(`  - ${template.name}: ${searchUrl}`);
-        });
-      }
-      
+      console.log(`🖼️ Enhancing ${templates.length} templates with safe images...`);
+
+      // Process templates with safe image URLs
+      const enhancedTemplates = templates.map((template) => {
+        console.log(`  Processing template: ${template.name} (${template.id})`);
+
+        // Get existing image URL or provide safe fallback
+        const existingImageUrl = template.imageUrl || template.image_url;
+        const safeImageUrl = existingImageUrl
+          ? safeImageService.getSafeImageUrl(existingImageUrl, template.id)
+          : safeImageService.getTemplateImage(template.id);
+
+        console.log(`    ✅ Template "${template.name}" using safe image: ${safeImageUrl}`);
+
+        return {
+          ...template,
+          imageUrl: safeImageUrl,
+          image_url: safeImageUrl,
+          thumbnailUrl: safeImageUrl,
+          thumbnail_url: safeImageUrl,
+          imageVerified: true,
+          imageStored: false
+        };
+      });
+
+      console.log(`🖼️ Successfully enhanced ${enhancedTemplates.length} templates with safe images`);
       return enhancedTemplates;
     } catch (error) {
       console.error('Error enhancing templates with images:', error);

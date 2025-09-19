@@ -274,28 +274,30 @@ export async function getVehicleData(
   try {
     logger.debug('Getting vehicle data', { userId, options });
 
+    // Fix: Vehicle data is stored in profiles table, not vehicles table
+    // Profiles table uses 'id' column for user_id, not 'user_id'
     let query = supabase
-      .from('vehicles')
+      .from('profiles')
       .select('*')
-      .eq('user_id', userId);
+      .eq('id', userId);
 
     // Filter by specific vehicle if requested
     if (options.vehicle_id) {
       query = query.eq('id', options.vehicle_id);
     }
 
-    const { data: vehicles, error } = await query;
+    const { data: profiles, error } = await query;
 
     if (error) {
-      logger.error('Error fetching vehicle data', error);
+      logger.error('Error fetching vehicle data from profiles', error);
       return {
         success: false,
-        error: 'Failed to fetch vehicles',
+        error: 'Failed to fetch vehicle data',
         message: 'Could not retrieve your vehicle information. Please try again.'
       };
     }
 
-    if (!vehicles || vehicles.length === 0) {
+    if (!profiles || profiles.length === 0) {
       return {
         success: true,
         data: options.vehicle_id ? undefined : [],

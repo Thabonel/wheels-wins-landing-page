@@ -22,6 +22,8 @@ from scrapers.real_parks_scraper import RealParksScraperService
 from scrapers.real_attractions_scraper import RealAttractionsScraperService
 from services.database_state import DatabaseStateManager, clean_decimal_data
 from services.monitoring import MonitoringService
+from services.photo_scraper import add_photos_to_locations
+from services.photo_storage import store_location_photos
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import sentry_sdk
@@ -126,13 +128,18 @@ class AutonomousCollector:
                 source_start = time.time()
                 try:
                     items = await self._collect_with_retry(data_type, target_count)
-                    
+
                     if items:
+                        # Add photos to items using existing photo infrastructure
+                        logger.info(f"🖼️ Adding photos to {len(items)} {data_type} locations...")
+                        items_with_photos = await add_photos_to_locations(items)
+                        photos_stored = await store_location_photos(self.supabase, items_with_photos)
+
                         # Process and upload to database with deduplication
                         if config.get('enable_deduplication', True):
-                            uploaded_count = await self._process_and_upload_dedupe(items, data_type)
+                            uploaded_count = await self._process_and_upload_dedupe(photos_stored, data_type)
                         else:
-                            uploaded = await self._process_and_upload(items, data_type)
+                            uploaded = await self._process_and_upload(photos_stored, data_type)
                             uploaded_count = len(uploaded)
                             collected_items.extend(uploaded)
                         
@@ -393,13 +400,22 @@ class AutonomousCollector:
             tags.extend(item.get('tags', []))
             tags = [tag for tag in tags if tag]  # Remove empty
             
+            # Include photo URLs if available (JSONB array format)
+            media_urls = []
+            if item.get('photo_url') and item.get('photo_stored'):
+                media_urls.append(item['photo_url'])
+
             template = {
-                'name': item.get('name', 'Unnamed Location'),
+                'user_id': None,  # System-generated template (NULL user_id)
+                'title': item.get('name', 'Unnamed Location'),
                 'description': item.get('description', '')[:500],
-                'category': category_map.get(data_type, 'nature_wildlife'),
+                'category': category_map.get(data_type, 'adventure'),
+                'template_type': 'system',  # Mark as system template
                 'is_public': True,
+                'is_featured': item.get('rating', 0) >= 4.0,  # Feature high-rated locations
                 'tags': tags[:10],  # Limit tags
-                'template_data': {
+                'media_urls': media_urls,  # JSONB array of photo URLs
+                'route_data': {
                     'type': data_type,
                     'coordinates': {
                         'latitude': item.get('latitude'),
@@ -412,10 +428,23 @@ class AutonomousCollector:
                     'verified': item.get('last_verified'),
                     'rating': item.get('rating'),
                     'is_free': item.get('is_free', False),
-                    'price': item.get('price')
+                    'price': item.get('price'),
+                    'photo_metadata': {
+                        'source': item.get('photo_source', 'none'),
+                        'confidence': item.get('photo_confidence', 'none')
+                    } if item.get('photo_url') else {}
                 },
-                'usage_count': 0,
-                'created_at': datetime.now().isoformat()
+                'waypoints': [
+                    {
+                        'latitude': item.get('latitude'),
+                        'longitude': item.get('longitude'),
+                        'name': item.get('name', 'Location'),
+                        'type': data_type
+                    }
+                ] if item.get('latitude') and item.get('longitude') else [],
+                'estimated_duration': self._estimate_duration(data_type, item),
+                'difficulty_level': self._estimate_difficulty(data_type, item),
+                'usage_count': 0
             }
             
             return template
@@ -431,6 +460,51 @@ class AutonomousCollector:
             data_type = item.get('category', 'unknown')
             counts[data_type] = counts.get(data_type, 0) + 1
         return counts
+
+    def _estimate_duration(self, data_type: str, item: Dict) -> int:
+        """Estimate trip duration in hours based on type and features"""
+        base_durations = {
+            'camping': 24,      # Full day/overnight
+            'parks': 8,         # Day visit
+            'attractions': 4,   # Half day
+            'swimming': 3       # Few hours
+        }
+
+        base = base_durations.get(data_type, 6)
+
+        # Adjust based on features
+        if item.get('amenities', {}).get('overnight_camping'):
+            base += 16  # Add overnight component
+        if item.get('amenities', {}).get('hiking_trails'):
+            base += 2   # Add hiking time
+        if item.get('is_free'):
+            base += 1   # Free spots often require more time to access
+
+        return min(base, 72)  # Cap at 3 days
+
+    def _estimate_difficulty(self, data_type: str, item: Dict) -> str:
+        """Estimate difficulty level based on type and accessibility"""
+        # Default difficulties by type
+        defaults = {
+            'camping': 'moderate',
+            'parks': 'easy',
+            'attractions': 'easy',
+            'swimming': 'easy'
+        }
+
+        difficulty = defaults.get(data_type, 'easy')
+
+        # Increase difficulty based on features
+        if item.get('access_requirements') == '4wd_only':
+            difficulty = 'hard'
+        elif item.get('amenities', {}).get('remote_location'):
+            difficulty = 'moderate' if difficulty == 'easy' else 'hard'
+        elif not item.get('amenities', {}).get('facilities'):
+            # No facilities = higher difficulty
+            if difficulty == 'easy':
+                difficulty = 'moderate'
+
+        return difficulty
 
 async def main():
     """Main entry point for Render cron job"""

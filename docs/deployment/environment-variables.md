@@ -20,7 +20,7 @@ This guide provides a complete reference for all environment variables used in t
 ### External API Keys
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `VITE_MAPBOX_ACCESS_TOKEN` | ✅ | Mapbox maps API | `pk.eyJ1IjoidXNlcm5hbWUi...` |
+| `VITE_MAPBOX_ACCESS_TOKEN` | ✅ | Mapbox maps API | `[REDACTED-MAPBOX-TOKEN]` |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | ✅ | Stripe payments | `pk_test_...` or `pk_live_...` |
 | `VITE_GOOGLE_ANALYTICS_ID` | ❌ | Google Analytics | `G-XXXXXXXXXX` |
 | `VITE_HOTJAR_ID` | ❌ | Hotjar analytics | `1234567` |

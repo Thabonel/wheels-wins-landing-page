@@ -7,22 +7,25 @@ Fixed for Pydantic v2 compatibility
 import os
 import sys
 import json
+import logging
 from typing import Optional, Dict, Any, List, Union
 from pathlib import Path
 from enum import Enum
 import secrets
 
+logger = logging.getLogger(__name__)
+
 from pydantic import Field, field_validator, SecretStr, ValidationError
 from pydantic_settings import BaseSettings
 from pydantic.networks import AnyHttpUrl, PostgresDsn, RedisDsn
 
-# Import AI models configuration
+# AI models configuration - Claude only
 try:
     from .ai_models_config import DEFAULT_MODEL, FALLBACK_MODELS
 except ImportError:
-    # Fallback if the new config doesn't exist yet
-    DEFAULT_MODEL = "gpt-4o"
-    FALLBACK_MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+    # Fallback configuration - Claude 3.5 Sonnet only
+    DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+    FALLBACK_MODELS = ["claude-3-5-sonnet-20241022"]
 
 
 class Environment(str, Enum):
@@ -68,43 +71,74 @@ class Settings(BaseSettings):
     # CORE CONFIGURATION (REQUIRED)
     # =====================================================
     
-    # OpenAI Configuration (Optional - for fallback)
-    OPENAI_API_KEY: Optional[SecretStr] = Field(
-        default=None,
-        description="OpenAI API key (optional - for fallback AI functionality)"
+    # Gemini Configuration (Primary AI Provider)
+    GEMINI_API_KEY: SecretStr = Field(
+        default="",
+        description="Google Gemini API key (required for PAM AI functionality with Gemini Flash)"
     )
-    
-    # Anthropic Configuration (Primary AI Provider)
-    ANTHROPIC_API_KEY: SecretStr = Field(
-        ...,
-        description="Anthropic API key (required for PAM AI functionality with Claude)"
-    )
-    
-    @field_validator("OPENAI_API_KEY", mode="before")
+
+    @field_validator("GEMINI_API_KEY", mode="before")
     @classmethod
-    def validate_openai_api_key(cls, v):
-        """Validate OpenAI API key format if provided (optional)"""
+    def validate_gemini_api_key(cls, v):
+        """Validate Gemini API key format and provide helpful error messages"""
         if not v:
-            return None  # OpenAI is now optional
-        
+            raise ValueError(
+                "Gemini API key is required for PAM functionality. "
+                "Please set GEMINI_API_KEY environment variable. "
+                "Get your API key from https://makersuite.google.com/app/apikey"
+            )
+
         # Convert to string for validation if it's a SecretStr
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
-        
-        if not (key_str.startswith('sk-') or key_str.startswith('sk-proj-')):
-            raise ValueError(
-                "Invalid OpenAI API key format. "
-                "OpenAI API keys should start with 'sk-' or 'sk-proj-'. "
-                "Please check your key at https://platform.openai.com/api-keys"
+
+        # Basic validation - Gemini API keys typically start with 'AIza'
+        if not key_str.startswith('AIza'):
+            logger.warning(
+                "Gemini API key format may be incorrect. "
+                "Google API keys typically start with 'AIza'. "
+                "Please verify your key at https://makersuite.google.com/app/apikey"
             )
-        
+
         if len(key_str) < 20:
             raise ValueError(
-                "OpenAI API key appears to be too short. "
-                "Please verify your key is correct and complete."
+                "Gemini API key appears to be too short. "
+                "Please verify your key at https://makersuite.google.com/app/apikey"
             )
-        
+
         return v
-    
+
+    # Gemini Model Configuration
+    GEMINI_DEFAULT_MODEL: str = Field(
+        default="gemini-1.5-flash",
+        description="Default Gemini model (Flash for optimal speed/cost ratio)"
+    )
+
+    @field_validator("GEMINI_DEFAULT_MODEL", mode="before")
+    @classmethod
+    def validate_gemini_model(cls, v):
+        """Ensure valid Gemini model selection"""
+        if not v:
+            v = "gemini-1.5-flash"  # Default to Flash
+
+        valid_models = [
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-pro",
+            "gemini-pro-vision"
+        ]
+
+        if v not in valid_models:
+            logger.warning(f"Unknown Gemini model '{v}', using default 'gemini-1.5-flash'")
+            v = "gemini-1.5-flash"
+
+        return v
+
+    # Anthropic Configuration (Fallback AI Provider)
+    ANTHROPIC_API_KEY: SecretStr = Field(
+        default="",
+        description="Anthropic API key (fallback for PAM AI functionality with Claude)"
+    )
+
     @field_validator("ANTHROPIC_API_KEY", mode="before")
     @classmethod
     def validate_anthropic_api_key(cls, v):
@@ -147,54 +181,123 @@ class Settings(BaseSettings):
         if v and "opus" in v.lower():
             raise ValueError(
                 "Opus models are not allowed due to high costs. "
-                "Use Claude 3.5 Sonnet (claude-3-5-sonnet-20241022) instead."
+                "Use Claude 3.5 Sonnet instead."
             )
-        return v or "claude-3-5-sonnet-20241022"
+        # Return working Sonnet model (never Opus due to cost)
+        if not v:
+            # Use actually available models to avoid 404 errors
+            available_models = [
+                "claude-3-5-sonnet-20241022",  # Known working (October 2024)
+                "claude-3-sonnet-20240229",    # Stable fallback
+            ]
+            v = available_models[0]  # Use verified working model
+        return v
     
-    OPENAI_MODEL: str = Field(
-        default=DEFAULT_MODEL,
-        description="OpenAI model to use (auto-updated to latest)"
-    )
+    # OpenAI configuration removed - migrated to Claude 3.5 Sonnet
     
-    OPENAI_FALLBACK_MODELS: List[str] = Field(
-        default_factory=lambda: FALLBACK_MODELS,
-        description="Fallback models in order of preference"
-    )
-    
-    OPENAI_MAX_TOKENS: int = Field(
-        default=4000,
-        ge=100,
-        le=8000,
-        description="Maximum tokens for OpenAI responses"
-    )
-    
-    OPENAI_TEMPERATURE: float = Field(
-        default=0.7,
-        ge=0,
-        le=2,
-        description="OpenAI temperature setting"
-    )
-    
-    # Anthropic Configuration (Optional)
-    ANTHROPIC_API_KEY: Optional[SecretStr] = Field(
-        default=None,
-        description="Anthropic API key (optional)"
-    )
-    
+    # Anthropic Configuration (Primary AI Provider) - handled by fallback logic
+    # ANTHROPIC_API_KEY: Already defined above
+
+    @property
+    def anthropic_api_key(self) -> str:
+        """Get Anthropic API key with fallback to alternative environment variable names"""
+        if hasattr(self, 'ANTHROPIC_API_KEY') and self.ANTHROPIC_API_KEY:
+            return self.ANTHROPIC_API_KEY.get_secret_value()
+
+        # Check for alternative environment variable names
+        import os
+        alternative_names = [
+            'ANTHROPIC_API_KEY',
+            'VITE_ANTHROPIC_API_KEY',
+            'ANTHROPIC-WHEELS-KEY',
+            'ANTHROPIC_WHEELS_KEY'
+        ]
+        for alt_name in alternative_names:
+            alt_value = os.getenv(alt_name)
+            if alt_value and alt_value != "sk-ant-api03-your-api-key-here":
+                return alt_value
+        return None
+
     @field_validator("ANTHROPIC_API_KEY", mode="before")
     @classmethod
     def validate_anthropic_api_key(cls, v):
-        """Check for alternative environment variable names for Anthropic API key"""
+        """Validate Anthropic API key format and check alternative environment variables"""
         if not v:
             # Check for alternative environment variable names
             import os
-            alternative_names = ['ANTHROPIC-WHEELS-KEY', 'ANTHROPIC_WHEELS_KEY']
+            alternative_names = [
+                'VITE_ANTHROPIC_API_KEY',
+                'ANTHROPIC-WHEELS-KEY',
+                'ANTHROPIC_WHEELS_KEY'
+            ]
             for alt_name in alternative_names:
                 alt_value = os.getenv(alt_name)
-                if alt_value:
-                    return alt_value
+                if alt_value and alt_value != "sk-ant-api03-your-api-key-here":
+                    v = alt_value
+                    break
+
+            if not v:
+                # Import here to avoid circular imports
+                import os
+                # Check if the actual environment variable we're using exists
+                if not os.getenv('ANTHROPIC-WHEELS-KEY'):
+                    raise ValueError(
+                        "Anthropic API key is required for PAM functionality. "
+                        "Please set ANTHROPIC_API_KEY or ANTHROPIC-WHEELS-KEY environment variable. "
+                        "Get your API key from https://console.anthropic.com/settings/keys"
+                    )
+                # If ANTHROPIC-WHEELS-KEY exists, use it
+                v = os.getenv('ANTHROPIC-WHEELS-KEY')
+
+        # Convert to string for validation if it's a SecretStr
+        key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+
+        if key_str == "sk-ant-api03-your-api-key-here":
+            raise ValueError(
+                "Please replace the placeholder Anthropic API key with your actual key. "
+                "Get your API key from https://console.anthropic.com/settings/keys"
+            )
+
+        if not key_str.startswith('sk-ant-'):
+            raise ValueError(
+                "Invalid Anthropic API key format. "
+                "Anthropic API keys should start with 'sk-ant-'. "
+                "Please check your key at https://console.anthropic.com/settings/keys"
+            )
+
+        if len(key_str) < 20:
+            raise ValueError(
+                "Anthropic API key appears to be too short. "
+                "Please verify your key at https://console.anthropic.com/settings/keys"
+            )
+
         return v
-    
+
+    # Anthropic Model Configuration
+    ANTHROPIC_DEFAULT_MODEL: str = Field(
+        default="claude-3-5-sonnet-20241022",
+        description="Default Anthropic model (always Sonnet for cost control)"
+    )
+
+    @field_validator("ANTHROPIC_DEFAULT_MODEL", mode="before")
+    @classmethod
+    def validate_anthropic_model(cls, v):
+        """Ensure only Sonnet models are used (never Opus for cost reasons)"""
+        if v and "opus" in v.lower():
+            raise ValueError(
+                "Opus models are not allowed due to high costs. "
+                "Use Claude 3.5 Sonnet instead."
+            )
+        # Return working Sonnet model (never Opus due to cost)
+        if not v:
+            # Use actually available models to avoid 404 errors
+            available_models = [
+                "claude-3-5-sonnet-20241022",  # Known working (October 2024)
+                "claude-3-sonnet-20240229",    # Stable fallback
+            ]
+            v = available_models[0]  # Use verified working model
+        return v
+
     # Supabase Configuration (Required)
     SUPABASE_URL: AnyHttpUrl = Field(
         ...,
@@ -514,9 +617,9 @@ class Settings(BaseSettings):
         
         # Check required settings with detailed validation
         required_settings = {
-            "OPENAI_API_KEY": {
-                "message": "OpenAI API key is required for PAM functionality",
-                "validation": self._validate_openai_key
+            "ANTHROPIC_API_KEY": {
+                "message": "Anthropic API key is required for PAM functionality",
+                "validation": self._validate_anthropic_key
             },
             "SUPABASE_URL": {
                 "message": "Supabase URL is required for authentication",
@@ -599,7 +702,7 @@ class Settings(BaseSettings):
             "environment": self.NODE_ENV.value,
             "debug": self.DEBUG,
             "services": {
-                "openai": bool(self.OPENAI_API_KEY),
+                "anthropic": bool(self.ANTHROPIC_API_KEY),
                 "supabase": bool(self.SUPABASE_URL and self.SUPABASE_SERVICE_ROLE_KEY),
                 "redis": bool(self.REDIS_URL),
                 "sentry": self.SENTRY_ENABLED,
@@ -608,18 +711,18 @@ class Settings(BaseSettings):
             }
         }
     
-    def _validate_openai_key(self, key_value):
-        """Validate OpenAI key format at runtime"""
+    def _validate_anthropic_key(self, key_value):
+        """Validate Anthropic key format at runtime"""
         if isinstance(key_value, SecretStr):
             key_str = key_value.get_secret_value()
         else:
             key_str = str(key_value)
-        
-        if not (key_str.startswith('sk-') or key_str.startswith('sk-proj-')):
-            raise ValueError("Invalid OpenAI API key format (should start with 'sk-' or 'sk-proj-')")
-        
+
+        if not key_str.startswith('sk-ant-'):
+            raise ValueError("Invalid Anthropic API key format (should start with 'sk-ant-')")
+
         if len(key_str) < 20:
-            raise ValueError("OpenAI API key appears to be too short")
+            raise ValueError("Anthropic API key appears to be too short")
     
     def print_startup_info(self):
         """Print configuration info at startup"""
@@ -740,7 +843,7 @@ def get_settings() -> Settings:
         
         # Check for critical vs non-critical errors
         critical_fields = {
-            "OPENAI_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"
+            "ANTHROPIC_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"
         }
         
         critical_errors = [

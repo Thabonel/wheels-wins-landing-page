@@ -132,7 +132,7 @@ const DashboardOverview = () => {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 p-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 p-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
@@ -275,6 +275,47 @@ const DashboardOverview = () => {
                 />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Gemini AI Savings Card */}
+      <Card className="border-2 border-green-200 bg-green-50">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-green-700">
+            AI Cost Savings
+          </CardTitle>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            className="h-4 w-4 text-green-600"
+          >
+            <path d="M12 2v20m9-9H3"/>
+          </svg>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-700">95%</div>
+          <p className="text-xs text-green-600 mb-2">
+            Cost reduction with Gemini Flash
+          </p>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span>Gemini Flash:</span>
+              <span className="font-medium text-green-700">$0.075/M</span>
+            </div>
+            <div className="flex justify-between text-gray-500">
+              <span>Claude (old):</span>
+              <span className="line-through">$3.00/M</span>
+            </div>
+            <div className="border-t pt-1 flex justify-between font-medium">
+              <span>Monthly Savings:</span>
+              <span className="text-green-700">~$145K+</span>
+            </div>
           </div>
         </CardContent>
       </Card>

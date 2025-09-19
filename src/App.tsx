@@ -46,6 +46,10 @@ const AuthTest = lazy(() => import('./pages/AuthTest'));
 // const PamAiSdkTest = lazy(() => import('./pages/PamAiSdkTest'));
 const PamVoiceTest = lazy(() => import('./pages/PamVoiceTest'));
 // const PamWebSocketTest = lazy(() => import('./pages/PamWebSocketTest')); // Disabled - using unified PAM service
+const PAMTestingPage = lazy(() => import('./pages/PAMTestingPage'));
+const PAMDevTestPage = lazy(() => import('./pages/PAMDevTestPage'));
+const PAMFallbackTestPage = lazy(() => import('./dev/PAMFallbackTestPage'));
+const PerformanceTestPage = lazy(() => import('./dev/PerformanceTestPage'));
 const SiteQALog = lazy(() => import('./pages/SiteQALog'));
 const FreshTripPlannerTest = lazy(() => import('./pages/FreshTripPlannerTest'));
 const WheelsSimple = lazy(() => import('./pages/WheelsSimple'));
@@ -115,6 +119,10 @@ function App() {
                                   {/* <Route path="/pam-ai-sdk-test" element={<PamAiSdkTest />} /> */}
                                   <Route path="/pam-voice-test" element={<PamVoiceTest />} />
                                   {/* <Route path="/pam-websocket-test" element={<PamWebSocketTest />} /> */}
+                                  <Route path="/pam-testing" element={<ProtectedRoute><PAMTestingPage /></ProtectedRoute>} />
+                                  <Route path="/pam-dev-test" element={<PAMDevTestPage />} />
+                                  <Route path="/pam-fallback-test" element={<PAMFallbackTestPage />} />
+                                  <Route path="/performance-test" element={<PerformanceTestPage />} />
                                   <Route path="/qa" element={<SiteQALog />} />
                                   <Route path="/fresh-trip-planner" element={<FreshTripPlannerTest />} />
                                   <Route path="/wheels-simple" element={<WheelsSimple />} />

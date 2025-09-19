@@ -8,9 +8,8 @@ const pamEnabled = true;
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { pamUIController } from "@/lib/PamUIController";
-// WebSocket removed - using Direct Claude API instead
-import { claudeService } from "@/services/claude/claudeService";
-import { getToolsForClaude } from "@/services/pam/tools/toolRegistry";
+// Use Backend API instead of Direct Claude API to leverage PersonalizedPamAgent
+import { PamApiService } from "@/services/pamApiService";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -27,7 +26,7 @@ import { pamAgenticService } from "@/services/pamAgenticService";
 import { logger } from '../lib/logger';
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
 
-// Using Direct Claude API - no backend URL needed
+// Using Backend PersonalizedPamAgent API for proper authentication and tool execution
 
 // Extend Window interface for SpeechRecognition
 declare global {
@@ -471,47 +470,47 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const connectToBackend = useCallback(async () => {
-    // Direct Claude API - no backend connection needed
-    logger.debug('🤖 PAM: Using Direct Claude API - no backend connection required');
-    
-    // Check if Claude service is ready
-    if (claudeService.isReady()) {
+    // Backend PersonalizedPamAgent API - uses authentication context
+    logger.debug('🤖 PAM: Using Backend PersonalizedPamAgent API');
+
+    // Check if we have user authentication and backend is accessible
+    if (user && sessionToken) {
       setConnectionStatus("Connected");
-      
+
       // Show welcome message if first time
       if (messages.length === 0 && !hasShownWelcomeRef.current) {
         logger.debug('💬 PAM: Adding greeting message');
         addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
         hasShownWelcomeRef.current = true;
       }
-      
-      logger.debug('✅ PAM: Direct Claude API ready');
+
+      logger.debug('✅ PAM: Backend PersonalizedPamAgent API ready');
       return;
     } else {
       setConnectionStatus("Disconnected");
-      addMessage("🤖 Hi! I'm PAM. Claude service is initializing...", "pam");
-      logger.warn('⚠️ PAM: Claude service not ready');
+      addMessage("🤖 Hi! I'm PAM. Please sign in to continue...", "pam");
+      logger.warn('⚠️ PAM: Backend API not ready - missing user authentication');
     }
     
     // Original function was complex WebSocket setup - removed for Direct API
   }, [user?.id, sessionToken]);
 
-  // Minimal test function for debugging Direct API connection
+  // Minimal test function for debugging Backend API connection
   const testMinimalConnection = useCallback(async () => {
-    logger.debug('🧪 PAM MINIMAL TEST: Direct Claude API Test');
-    
-    // Test Claude service readiness
-    const isReady = claudeService.isReady();
-    logger.debug('🤖 Claude Service Ready:', isReady);
-    
+    logger.debug('🧪 PAM MINIMAL TEST: Backend PersonalizedPamAgent API Test');
+
+    // Test backend API availability
+    const isReady = user && sessionToken;
+    logger.debug('🤖 Backend API Ready:', isReady);
+
     if (isReady) {
       setConnectionStatus("Connected");
-      logger.debug('✅ PAM: Direct API test successful');
+      logger.debug('✅ PAM: Backend API test successful');
     } else {
       setConnectionStatus("Disconnected");
-      logger.debug('❌ PAM: Direct API test failed - Claude service not ready');
+      logger.debug('❌ PAM: Backend API test failed - no user authentication');
     }
-  }, []);
+  }, [user, sessionToken]);
 
   // Placeholder functions for voice and audio features
   const stopAudioLevelMonitoring = () => {
@@ -721,37 +720,52 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
 **Context:** You are integrated into a React application where users can chat with you to get help with their personal finances and travel planning. You have access to their location and can provide weather information directly.${locationContext}`;
 
-      // Use Direct Claude API instead of WebSocket/REST
-      logger.debug('🤖 Sending message to Claude Direct API');
-      
-      const claudeResponse = await claudeService.chat(conversationHistory.concat([{
-        role: "user",
-        content: message,
-        timestamp: new Date()
-      }]), {
-        model: 'claude-3-5-sonnet-20241022',
-        maxTokens: 1024,
-        temperature: 0.7,
-        systemPrompt,
-        tools: getToolsForClaude(),
-        userId: user?.id
-      });
+      // Ensure user is authenticated for backend API
+      if (!user || !session?.access_token) {
+        throw new Error('User authentication required');
+      }
 
-      // Remove thinking indicator and add Claude's response
+      // Use Backend PersonalizedPamAgent API with user authentication context
+      logger.debug('🤖 Sending message to Backend PersonalizedPamAgent API');
+
+      const pamApiService = PamApiService.getInstance();
+      const pamResponse = await pamApiService.sendMessage({
+        message: message,
+        user_id: user?.id || '',
+        context: {
+          region: userContext?.region,
+          current_page: 'pam_chat',
+          location: currentLocation,
+          userLocation: currentLocation,
+          conversation_history: conversationHistory.slice(-3) // Send last 3 messages for context
+        }
+      }, sessionToken);
+
+      // Remove thinking indicator and add PAM's response
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-      addMessage(claudeResponse.content, "pam", message);
+
+      // Extract response content from various possible response formats
+      const responseContent = pamResponse.response || pamResponse.message || pamResponse.content || "I encountered an issue processing your request.";
+      addMessage(responseContent, "pam", message);
 
       // If voice is enabled, speak the response
       if (settings?.pam_preferences?.voice_enabled) {
-        await speakText(claudeResponse.content);
+        await speakText(responseContent);
       }
 
-      logger.debug('✅ Direct Claude API response received successfully');
+      logger.debug('✅ Backend PersonalizedPamAgent API response received successfully');
 
     } catch (error) {
-      logger.error('❌ Failed to send message via Direct Claude API:', error);
+      logger.error('❌ Failed to send message via Backend PersonalizedPamAgent API:', error);
+      logger.error('❌ PAM Error Details:', {
+        message: error?.message,
+        user: !!user,
+        hasToken: !!session?.access_token,
+        tokenLength: session?.access_token?.length
+      });
+
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-      addMessage("I'm having trouble processing your request. Please try again.", "pam");
+      addMessage(`I encountered an error: ${error?.message || 'Unknown error'}. Please try again or contact support if this continues.`, "pam");
     }
   };
 

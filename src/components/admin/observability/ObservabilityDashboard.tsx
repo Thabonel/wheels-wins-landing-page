@@ -25,7 +25,8 @@ import {
 interface ObservabilityData {
   status: string;
   platforms: {
-    openai: boolean;
+    gemini: boolean;
+    anthropic: boolean;
     langfuse: boolean;
   };
   key_metrics: {
@@ -384,12 +385,24 @@ export default function ObservabilityDashboard() {
                     <Badge variant={status.ready ? "default" : "destructive"}>
                       {status.status}
                     </Badge>
-                    {platform === 'openai' && (
+                    {platform === 'gemini' && (
                       <a
-                        href="https://platform.openai.com/usage"
+                        href="https://makersuite.google.com/app/usage"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-500 hover:text-blue-700"
+                        title="Gemini API Console"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+                    {platform === 'anthropic' && (
+                      <a
+                        href="https://console.anthropic.com/usage"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-700"
+                        title="Anthropic Console (Fallback)"
                       >
                         <ExternalLink className="h-4 w-4" />
                       </a>
@@ -558,8 +571,8 @@ export default function ObservabilityDashboard() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-3 border rounded-lg">
-                      <h4 className="font-medium">OpenAI</h4>
-                      <p className="text-sm text-gray-600">API key required for LLM call tracking</p>
+                      <h4 className="font-medium">Anthropic Claude</h4>
+                      <p className="text-sm text-gray-600">API key required for Claude AI tracking</p>
                     </div>
                     <div className="p-3 border rounded-lg">
                       <h4 className="font-medium">Langfuse</h4>

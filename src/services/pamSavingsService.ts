@@ -109,10 +109,13 @@ export interface DetectSavingsData {
 // =====================================================
 
 // Use the same API configuration as other services
-const API_BASE_URL = 
-  import.meta.env.VITE_API_URL || 
-  import.meta.env.VITE_BACKEND_URL || 
-  'https://pam-backend.onrender.com';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  // Smart environment detection for staging vs production
+  (typeof window !== 'undefined' && window.location.hostname.includes('staging')
+    ? 'https://wheels-wins-backend-staging.onrender.com'
+    : 'https://pam-backend.onrender.com');
 const PAM_SAVINGS_BASE = `${API_BASE_URL}/api/v1/pam`;
 
 // Circuit breaker configuration
@@ -275,7 +278,7 @@ export const pamSavingsApi = {
       .lt('saved_date', endOfMonth.toISOString().slice(0, 10));
 
     const totalSavings = events?.reduce((sum, event) => sum + event.actual_savings, 0) || 0;
-    const subscriptionCost = 29.99;
+    const subscriptionCost = 14.00; // Updated to AU$14/month
     const guaranteeMet = totalSavings >= subscriptionCost;
     const savingsShortfall = Math.max(0, subscriptionCost - totalSavings);
     const percentageAchieved = Math.min(100, (totalSavings / subscriptionCost) * 100);
@@ -475,12 +478,12 @@ export const pamSavingsApi = {
 // =====================================================
 
 /**
- * Format savings amount for display
+ * Format savings amount for display in Australian Dollars
  */
 export const formatSavingsAmount = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-AU', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'AUD',
     minimumFractionDigits: 2,
   }).format(amount);
 };

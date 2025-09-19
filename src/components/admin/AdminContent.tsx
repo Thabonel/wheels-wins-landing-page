@@ -1,19 +1,25 @@
 
 import React from 'react';
 import DashboardOverview from './DashboardOverview';
-import LearningDashboard from './LearningDashboard';
-import UserManagement from './UserManagement';
-import ContentModeration from './ContentModeration';
-import ReportsAnalytics from './ReportsAnalytics';
-import PAMAnalyticsDashboard from './PAMAnalyticsDashboard';
-import ObservabilityDashboard from './observability/ObservabilityDashboard';
-import { TestingDashboard } from './TestingDashboard';
-import ShopManagement from './ShopManagement';
-import TripTemplateManagement from './TripTemplateManagement';
-import SupportTickets from './SupportTickets';
-import UserFeedback from './UserFeedback';
-import Settings from './Settings';
-import DataCollectorMonitor from './DataCollectorMonitor';
+import AuthDebugAdmin from './AuthDebugAdmin';
+import AuthTestingPanel from './AuthTestingPanel';
+import IntegrationTestingDashboard from './IntegrationTestingDashboard';
+import {
+  LearningDashboard,
+  UserManagement,
+  ContentModeration,
+  ReportsAnalytics,
+  PAMAnalyticsDashboard,
+  ObservabilityDashboard,
+  TestingDashboard,
+  ShopManagement,
+  TripTemplateManagement,
+  SupportTickets,
+  UserFeedback,
+  Settings,
+  DataCollectorMonitor,
+  PerformanceTestPage
+} from './LazyAdminComponents';
 
 interface AdminContentProps {
   activeSection: string;
@@ -42,6 +48,14 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <ObservabilityDashboard />;
       case 'Testing Dashboard':
         return <TestingDashboard />;
+      case 'Integration Testing':
+        return <IntegrationTestingDashboard />;
+      case 'Performance Test':
+        return <PerformanceTestPage />;
+      case 'Auth Debug':
+        return <AuthDebugAdmin />;
+      case 'Auth Testing':
+        return <AuthTestingPanel />;
       case 'Shop Management':
         return <ShopManagement />;
       case 'Trip Templates':
