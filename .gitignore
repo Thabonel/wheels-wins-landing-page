@@ -111,3 +111,12 @@ docs/maintenance/*.log
 *.old
 *_backup
 *_bak
+backups/
+test_*.py
+*_test_results_*.json
+orchestrator_test_*.json
+
+# AI Migration Documentation (may contain references to keys)
+GEMINI_*.md
+ONGOING_MONITORING_*.md
+PAM_AI_*.md
