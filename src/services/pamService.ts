@@ -335,7 +335,8 @@ class PamService {
             const response = JSON.parse(event.data);
 
             // Accept any response message as the reply (backend sends type: "response" or "chat_response")
-            if (response.type === 'response' || response.type === 'chat_response' || response.content || response.message) {
+            console.log(`🔍 Checking message for response: type="${response.type}", hasContent=${!!response.content}, hasMessage=${!!response.message}`);
+            if (response.type === 'response' || response.type === 'chat_response' || (response.content && response.type !== 'connection') || (response.message && response.type !== 'connection' && response.type !== 'ping')) {
               clearTimeout(timeout);
               this.websocket?.removeEventListener('message', messageHandler);
 
@@ -353,8 +354,12 @@ class PamService {
 
               console.log(`✅ PAM WebSocket response (${latency}ms):`, response);
               resolve(response);
+            } else if (response.type === 'ping') {
+              // Respond to ping with pong to maintain connection
+              console.log(`🏓 Received ping, sending pong response`);
+              this.websocket?.send(JSON.stringify({ type: 'pong', timestamp: response.timestamp }));
             } else {
-              // Ignore other message types (connection, pong, etc.)
+              // Ignore other message types (connection, etc.)
               console.log(`🔄 Ignoring WebSocket message type: ${response.type}`);
             }
           } catch (error) {
@@ -366,7 +371,7 @@ class PamService {
 
         // Send message with required type field for backend validation
         const messageToSend = {
-          type: 'chat_message', // Required field for SecureWebSocketMessage validation
+          type: 'chat', // Backend expects 'chat' type for message processing
           message: enhancedMessage.message,
           user_id: enhancedMessage.user_id,
           context: enhancedMessage.context,
