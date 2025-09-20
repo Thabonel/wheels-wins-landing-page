@@ -18,6 +18,69 @@ from fastapi import Request
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+@router.post("/test-unimog-profile")
+async def test_unimog_profile():
+    """
+    Test if Unimog U1700 profile data can be accessed correctly
+    This tests the exact vehicle configuration the user has
+    """
+    try:
+        logger.info("🚐 Testing Unimog U1700 profile access...")
+
+        # Simulate the user's vehicle data structure
+        mock_profile_data = {
+            "success": True,
+            "data": {
+                "profile_exists": True,
+                "vehicle_info": {
+                    "type": "Unimog RV",  # Enhanced type as processed by _extract_vehicle_info
+                    "original_type": "4 X 4",
+                    "make_model_year": "Unimog U1700",
+                    "fuel_type": "Diesel"
+                },
+                "personal_details": {
+                    "full_name": "Test User",
+                    "region": "Australia"
+                }
+            }
+        }
+
+        # Test profile query detection
+        simple_service = await get_simple_gemini_service()
+        test_message = "what vehicle do i drive"
+        is_profile_query = simple_service._is_profile_query(test_message)
+
+        # Test prompt building with the mock data
+        enhanced_prompt = simple_service._build_prompt(test_message, {}, mock_profile_data)
+
+        # Test response generation
+        if simple_service.is_initialized:
+            response = await simple_service.generate_response(test_message, {}, "mock_user_id", "mock_jwt")
+        else:
+            response = "Simple Gemini Service not initialized"
+
+        return {
+            "status": "success",
+            "timestamp": datetime.utcnow().isoformat(),
+            "test_results": {
+                "vehicle_data": mock_profile_data["data"]["vehicle_info"],
+                "profile_query_detected": is_profile_query,
+                "enhanced_prompt_length": len(enhanced_prompt),
+                "prompt_contains_unimog": "Unimog" in enhanced_prompt,
+                "prompt_contains_vehicle": "Vehicle:" in enhanced_prompt,
+                "response_preview": response[:200] + "..." if len(response) > 200 else response,
+                "service_initialized": simple_service.is_initialized
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Unimog profile test failed: {e}")
+        return {
+            "status": "error",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e)
+        }
+
 @router.post("/profile-integration-debug")
 async def debug_profile_integration(
     request: Request,
