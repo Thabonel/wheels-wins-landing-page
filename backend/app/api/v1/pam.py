@@ -1215,7 +1215,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             return
         
         # Fallback to full PAM processing
-        logger.info(f"🔄 [DEBUG] Falling back to cloud processing (edge confidence: {edge_result.confidence:.2f})")
+        logger.info(f"🔄 [DEBUG] Falling back to cloud processing (edge processing disabled)")
         
         # Try LangGraph Agent processing first (if enabled)
         if pam_agent_orchestrator and is_feature_enabled("ENABLE_PAM_AGENTIC", user_id):
