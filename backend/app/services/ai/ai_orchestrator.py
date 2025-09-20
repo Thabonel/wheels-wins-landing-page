@@ -76,12 +76,21 @@ class AIOrchestrator:
     async def initialize(self):
         """Initialize all configured providers"""
         if self._initialized:
+            logger.info("AI Orchestrator already initialized")
             return
-        
-        logger.info("Initializing AI Orchestrator...")
-        
+
+        logger.info("🔄 Initializing AI Orchestrator...")
+        logger.info(f"📋 Checking available API keys...")
+
+        # Log which API keys are available (securely)
+        gemini_available = hasattr(infra_settings, 'GEMINI_API_KEY') and infra_settings.GEMINI_API_KEY
+        anthropic_available = hasattr(infra_settings, 'ANTHROPIC_API_KEY') and infra_settings.ANTHROPIC_API_KEY
+        openai_available = hasattr(infra_settings, 'OPENAI_API_KEY') and infra_settings.OPENAI_API_KEY
+
+        logger.info(f"🔑 API Keys availability: Gemini={gemini_available}, Anthropic={anthropic_available}, OpenAI={openai_available}")
+
         # Initialize Gemini provider FIRST (primary AI provider - fastest and cheapest)
-        if hasattr(infra_settings, 'GEMINI_API_KEY') and infra_settings.GEMINI_API_KEY:
+        if gemini_available:
             try:
                 gemini_config = ProviderConfig(
                     name="gemini",
@@ -155,9 +164,22 @@ class AIOrchestrator:
         
         # Start health check task
         self._health_check_task = asyncio.create_task(self._periodic_health_check())
-        
+
         self._initialized = True
-        logger.info(f"AI Orchestrator initialized with {len(self.providers)} providers")
+
+        # Detailed initialization summary
+        if self.providers:
+            provider_names = [p.name for p in self.providers]
+            logger.info(f"✅ AI Orchestrator successfully initialized with {len(self.providers)} providers: {', '.join(provider_names)}")
+            logger.info(f"🎯 Primary strategy: {self.strategy.value}")
+
+            # Log provider-specific details
+            for provider in self.providers:
+                provider_status = "✅ Ready" if provider.status.value == "healthy" else f"⚠️ {provider.status.value}"
+                logger.info(f"   - {provider.name}: {provider_status} (model: {provider.config.default_model})")
+        else:
+            logger.error("❌ AI Orchestrator initialized but NO PROVIDERS are available!")
+            logger.error("🚨 This will cause 'unable to process' errors in PAM WebSocket")
     
     async def complete(
         self,

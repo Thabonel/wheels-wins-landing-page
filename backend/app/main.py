@@ -283,6 +283,35 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"⚠️ Voice Conversation Manager initialization failed: {e}")
 
+        # Initialize Enhanced PAM Orchestrator with AI providers (CRITICAL for WebSocket chat)
+        logger.info("🧠 Initializing Enhanced PAM Orchestrator...")
+        try:
+            from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator
+
+            # This will create and initialize the AI orchestrator with all providers
+            orchestrator_instance = await get_enhanced_orchestrator()
+
+            if orchestrator_instance.is_initialized:
+                logger.info("✅ Enhanced PAM Orchestrator fully initialized")
+
+                # Log AI provider status
+                if hasattr(orchestrator_instance, 'ai_orchestrator') and orchestrator_instance.ai_orchestrator:
+                    provider_count = len(orchestrator_instance.ai_orchestrator.providers) if orchestrator_instance.ai_orchestrator.providers else 0
+                    if provider_count > 0:
+                        provider_names = [p.name for p in orchestrator_instance.ai_orchestrator.providers]
+                        logger.info(f"✅ AI Providers ready: {', '.join(provider_names)} ({provider_count} total)")
+                    else:
+                        logger.warning("⚠️ Enhanced PAM Orchestrator initialized but no AI providers available")
+                else:
+                    logger.warning("⚠️ Enhanced PAM Orchestrator initialized but ai_orchestrator is None")
+            else:
+                logger.error("❌ Enhanced PAM Orchestrator failed to initialize properly")
+
+        except Exception as orchestrator_error:
+            logger.error(f"❌ Enhanced PAM Orchestrator initialization failed: {orchestrator_error}")
+            logger.error("🚨 PAM WebSocket will respond with 'unable to process' until this is fixed")
+            # Don't fail startup - continue without PAM AI functionality
+
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
 
