@@ -312,6 +312,26 @@ async def lifespan(app: FastAPI):
             logger.error("🚨 PAM WebSocket will respond with 'unable to process' until this is fixed")
             # Don't fail startup - continue without PAM AI functionality
 
+        # Initialize Simple Gemini Service as backup (CRITICAL fallback for PAM)
+        logger.info("💎 Initializing Simple Gemini Service as backup...")
+        try:
+            from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+            # Initialize the simple service
+            simple_service = await get_simple_gemini_service()
+
+            if simple_service.is_initialized:
+                logger.info("✅ Simple Gemini Service initialized successfully (fallback ready)")
+                service_status = simple_service.get_status()
+                logger.info(f"✅ Simple Gemini status: {service_status}")
+            else:
+                logger.error("❌ Simple Gemini Service failed to initialize")
+                logger.error("🚨 No fallback available for PAM - both orchestrator and simple service failed")
+
+        except Exception as simple_error:
+            logger.error(f"❌ Simple Gemini Service initialization failed: {simple_error}")
+            logger.error("🚨 No fallback available for PAM if orchestrator fails")
+
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
 
