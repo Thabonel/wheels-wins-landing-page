@@ -1,5 +1,19 @@
 /**
- * PAM WebSocket Unified Hook - The Single Source of Truth
+ * PAM WebSocket Unified Hook - DEV/TEST ONLY
+ *
+ * 🧪 WARNING: This is for DEVELOPMENT AND TESTING ONLY
+ *
+ * 🚨 PRODUCTION CODE MUST USE: src/services/pamService.ts
+ *
+ * ❌ DO NOT use this hook in production components
+ * ❌ DO NOT import this in src/components/ (except /dev/)
+ * ❌ DO NOT extend this for production features
+ *
+ * ✅ ONLY for /dev/ testing pages
+ * ✅ ONLY for WebSocket stress testing
+ * ✅ ONLY for connection quality analysis
+ *
+ * See ADR-PAM-WEBSOCKET-ARCHITECTURE.md for architecture guidelines
  *
  * Combines the best features from all previous implementations:
  * - Core: Fixed URL construction, JWT refresh, message deduplication, heartbeat

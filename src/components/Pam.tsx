@@ -7,7 +7,6 @@ const pamEnabled = true;
 // Regular imports
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { pamUIController } from "@/lib/PamUIController";
 // Use WebSocket PAM Service for real-time communication
 import { pamService } from "@/services/pamService";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
