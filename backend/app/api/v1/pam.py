@@ -611,12 +611,13 @@ async def websocket_endpoint(
             ip_address=client_ip
         )
         
-        # Send welcome message
+        # Send welcome message with enhanced profile integration
         await safe_send_json(websocket, {
             "type": "connection",
-            "status": "connected", 
-            "message": "🤖 PAM is ready to assist you!",
-            "timestamp": datetime.utcnow().isoformat()
+            "status": "connected",
+            "message": "🤖 PAM is ready to assist you with enhanced profile access!",
+            "timestamp": datetime.utcnow().isoformat(),
+            "profile_integration": "enabled"
         })
         
         while websocket.client_state == WebSocketState.CONNECTED:
