@@ -825,11 +825,11 @@ async def websocket_endpoint(
                 # Check if streaming is requested
                 if data.get("stream", False) or data.get("streaming", False):
                     logger.info(f"🌊 [DEBUG] Streaming response requested, calling handle_websocket_chat_streaming")
-                    await handle_websocket_chat_streaming(websocket, data, user_id, orchestrator)
+                    await handle_websocket_chat_streaming(websocket, data, user_id, orchestrator, token)
                     logger.info(f"✅ [DEBUG] handle_websocket_chat_streaming completed for user {user_id}")
                 else:
                     logger.info(f"💬 [DEBUG] Non-streaming response, calling handle_websocket_chat")
-                    await handle_websocket_chat(websocket, data, user_id, orchestrator)
+                    await handle_websocket_chat(websocket, data, user_id, orchestrator, token)
                     logger.info(f"✅ [DEBUG] handle_websocket_chat completed for user {user_id}")
                 
             elif data.get("type") == "context_update":
@@ -1044,7 +1044,7 @@ async def websocket_endpoint(
         except:
             pass
 
-async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, orchestrator):
+async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, orchestrator, user_jwt: str = None):
     """Handle chat messages over WebSocket with edge processing integration"""
     try:
         # Support both 'message' and 'content' fields for backwards compatibility
@@ -1343,8 +1343,8 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                     if simple_service.is_initialized:
                         logger.info("✅ [FALLBACK] Simple Gemini Service available, generating response...")
 
-                        # Generate response using simple service
-                        fallback_response = await simple_service.generate_response(message, context)
+                        # Generate response using simple service with profile access
+                        fallback_response = await simple_service.generate_response(message, context, user_id, user_jwt)
 
                         logger.info(f"✅ [FALLBACK] Simple Gemini response: {fallback_response[:100]}...")
 
@@ -1410,8 +1410,8 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 if simple_service.is_initialized:
                     logger.info("✅ [FALLBACK] Simple Gemini Service available, generating response...")
 
-                    # Generate response using simple service
-                    response_message = await simple_service.generate_response(message, context)
+                    # Generate response using simple service with profile access
+                    response_message = await simple_service.generate_response(message, context, user_id, user_jwt)
 
                     logger.info(f"✅ [FALLBACK] Simple Gemini response: {response_message[:100]}...")
 
@@ -1544,7 +1544,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 "message": f"Sorry, I encountered an error: {str(e)}"
             })
 
-async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user_id: str, orchestrator):
+async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user_id: str, orchestrator, user_jwt: str = None):
     """Handle streaming chat messages over WebSocket with token-by-token delivery"""
     try:
         # Support both 'message' and 'content' fields for backwards compatibility
@@ -1886,7 +1886,7 @@ async def get_streaming_ai_response(message: str, context: dict, conversation_hi
                     simple_service = await get_simple_gemini_service()
 
                     if simple_service.is_initialized:
-                        response_text = await simple_service.generate_response(message, context)
+                        response_text = await simple_service.generate_response(message, context, user_id, user_jwt)
                         logger.info("✅ [SECONDARY FALLBACK] Simple Gemini Service provided response")
                     else:
                         logger.error("❌ [SECONDARY FALLBACK] Simple Gemini Service not initialized, using original response")
@@ -1924,7 +1924,7 @@ async def get_streaming_ai_response(message: str, context: dict, conversation_hi
                 simple_service = await get_simple_gemini_service()
 
                 if simple_service.is_initialized:
-                    response_text = await simple_service.generate_response(message, context)
+                    response_text = await simple_service.generate_response(message, context, user_id, user_jwt)
                     logger.info("✅ [FALLBACK] Simple Gemini Service provided response")
                 else:
                     response_text = "I'm having trouble processing your request right now. Please try again in a moment."
