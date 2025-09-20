@@ -89,12 +89,20 @@ class SimpleGeminiService:
         try:
             # Check if user is asking about their profile/personal information
             profile_data = None
-            if user_id and user_jwt and self._is_profile_query(message):
+            is_profile_query = self._is_profile_query(message)
+            logger.info(f"🔍 PROFILE QUERY DEBUG: Message: '{message}' | Is profile query: {is_profile_query}")
+            logger.info(f"🔍 PROFILE QUERY DEBUG: user_id: {user_id} | user_jwt exists: {bool(user_jwt)}")
+
+            if user_id and user_jwt and is_profile_query:
                 logger.info(f"🔍 Detected profile query, loading user data for: {user_id}")
                 profile_data = await self._load_user_profile(user_id, user_jwt)
+            elif is_profile_query:
+                logger.warning(f"⚠️ Profile query detected but missing user_id ({user_id}) or JWT ({bool(user_jwt)})")
 
             # Create enhanced prompt with context and profile data
             enhanced_prompt = self._build_prompt(message, context, profile_data)
+            logger.info(f"🔍 PROMPT DEBUG: Enhanced prompt length: {len(enhanced_prompt)} chars")
+            logger.info(f"🔍 PROMPT DEBUG: Profile data included: {bool(profile_data and profile_data.get('success'))}")
 
             logger.info(f"🤖 Generating Gemini response for: {message[:50]}...")
 
@@ -130,6 +138,8 @@ Key traits:
         # Add user profile information if available
         if profile_data and profile_data.get('success'):
             user_profile = profile_data.get('data', {})
+            logger.info(f"🔍 BUILD PROMPT DEBUG: Profile exists: {user_profile.get('profile_exists')}")
+
             if user_profile.get('profile_exists'):
                 base_prompt += "\nUser Profile Information:\n"
 
@@ -144,11 +154,17 @@ Key traits:
 
                 # Vehicle information
                 vehicle = user_profile.get('vehicle_info', {})
+                logger.info(f"🚐 BUILD PROMPT DEBUG: Vehicle info: {vehicle}")
+
                 if vehicle.get('type'):
                     base_prompt += f"- Vehicle: {vehicle['type']}"
                     if vehicle.get('make_model_year'):
                         base_prompt += f" ({vehicle['make_model_year']})"
                     base_prompt += "\n"
+                    logger.info(f"🚐 BUILD PROMPT DEBUG: Added vehicle to prompt: {vehicle['type']}")
+                else:
+                    logger.warning(f"⚠️ BUILD PROMPT DEBUG: No vehicle type found in profile")
+
                 if vehicle.get('fuel_type'):
                     base_prompt += f"- Fuel type: {vehicle['fuel_type']}\n"
 
@@ -160,6 +176,10 @@ Key traits:
                     base_prompt += f"- Preferred camping: {', '.join(travel['camp_types'])}\n"
 
                 base_prompt += "\n"
+            else:
+                logger.warning(f"⚠️ BUILD PROMPT DEBUG: Profile exists but profile_exists is False")
+        else:
+            logger.warning(f"⚠️ BUILD PROMPT DEBUG: No profile data or not successful")
 
         # Add context if available
         if context:
@@ -204,10 +224,23 @@ Key traits:
     async def _load_user_profile(self, user_id: str, user_jwt: str) -> Optional[Dict[str, Any]]:
         """Load user profile data using the profile tool"""
         try:
+            logger.info(f"🔍 SIMPLE GEMINI DEBUG: Loading profile for user_id: {user_id}")
             profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
             profile_result = await profile_tool.execute(user_id)
 
-            logger.info(f"🔍 Profile tool result: {profile_result}")
+            logger.info(f"🔍 SIMPLE GEMINI DEBUG: Profile tool result: {profile_result}")
+
+            # Debug specific vehicle data extraction
+            if profile_result and profile_result.get('success'):
+                user_data = profile_result.get('data', {})
+                vehicle_info = user_data.get('vehicle_info', {})
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Vehicle info extracted: {vehicle_info}")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Has vehicle type: {bool(vehicle_info.get('type'))}")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Vehicle type value: {vehicle_info.get('type')}")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Make/model: {vehicle_info.get('make_model_year')}")
+            else:
+                logger.warning(f"⚠️ SIMPLE GEMINI DEBUG: Profile result not successful or empty")
+
             return profile_result
 
         except Exception as e:
