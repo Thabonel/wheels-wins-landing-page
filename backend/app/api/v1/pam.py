@@ -1661,23 +1661,10 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
             "timestamp": datetime.utcnow().isoformat()
         })
         
-        # 2. Try edge processing first (still fastest path)
-        logger.info(f"⚡ [DEBUG] Attempting edge processing...")
-        edge_result = await edge_processing_service.process_query(message, context)
-        
-        if edge_result.handled and edge_result.response:
-            # Edge processing succeeded - send as streaming chunks
-            processing_time = (time.time() - start_time) * 1000
-            logger.info(f"⚡ [DEBUG] Edge processed in {processing_time:.1f}ms")
-            
-            # Send response as streaming chunks
-            await stream_response_to_websocket(websocket, edge_result.response, {
-                "source": "edge",
-                "processing_time_ms": processing_time,
-                "confidence": edge_result.confidence,
-                "metadata": edge_result.metadata
-            })
-            return
+        # 2. DISABLED: Edge processing (was incorrectly intercepting queries)
+        # Edge processing was matching "what vehicle do I have" to time queries
+        # Disabled to let Simple Gemini Service handle all queries properly
+        logger.info(f"⚡ [DEBUG] Skipping edge processing - using Simple Gemini Service for all queries")
         
         # 3. Try LangGraph Agent processing first (if enabled) - streaming mode
         if pam_agent_orchestrator and is_feature_enabled("ENABLE_PAM_AGENTIC", user_id):
