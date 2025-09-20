@@ -364,9 +364,12 @@ class PamService {
 
         this.websocket?.addEventListener('message', messageHandler);
 
-        // Send message without messageId (backend doesn't expect it)
+        // Send message with required type field for backend validation
         const messageToSend = {
-          ...enhancedMessage,
+          type: 'chat_message', // Required field for SecureWebSocketMessage validation
+          message: enhancedMessage.message,
+          user_id: enhancedMessage.user_id,
+          context: enhancedMessage.context,
           timestamp: new Date().toISOString()
         };
 
