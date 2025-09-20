@@ -2872,6 +2872,10 @@ async def profile_integration_test(request: dict):
             "message": "Failed to test profile integration"
         }
 
+# Include debug profile integration router
+from app.api.v1.debug_profile_integration import router as debug_router
+router.include_router(debug_router, prefix="/debug", tags=["debug"])
+
 # TTS Debug endpoint
 @router.get("/tts-debug")
 async def tts_debug_info():
