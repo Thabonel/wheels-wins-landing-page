@@ -141,7 +141,7 @@ Key traits:
             logger.info(f"🔍 BUILD PROMPT DEBUG: Profile exists: {user_profile.get('profile_exists')}")
 
             if user_profile.get('profile_exists'):
-                base_prompt += "\nUser Profile Information:\n"
+                base_prompt += "\n✅ CURRENT USER PROFILE DATA (use this information to answer questions about the user):\n"
 
                 # Personal details
                 personal = user_profile.get('personal_details', {})
@@ -152,25 +152,24 @@ Key traits:
                 if personal.get('region'):
                     base_prompt += f"- Region: {personal['region']}\n"
 
-                # Vehicle information
+                # Vehicle information - ALWAYS show if available
                 vehicle = user_profile.get('vehicle_info', {})
                 logger.info(f"🚐 BUILD PROMPT DEBUG: Vehicle info: {vehicle}")
 
-                if vehicle.get('type'):
-                    base_prompt += f"- Vehicle: {vehicle['type']}"
-                    if vehicle.get('make_model_year'):
-                        base_prompt += f" ({vehicle['make_model_year']})"
-                    base_prompt += "\n"
-                    logger.info(f"🚐 BUILD PROMPT DEBUG: Added vehicle to prompt: {vehicle['type']}")
-                else:
-                    logger.warning(f"⚠️ BUILD PROMPT DEBUG: No vehicle type found in profile")
-                    # Add special instruction for profile queries when no vehicle data exists
-                    if self._is_profile_query(message):
-                        base_prompt += "\n⚠️ IMPORTANT: User is asking about their vehicle but no vehicle information is found in their profile. Guide them to complete their vehicle setup in the profile section.\n"
-                        logger.info(f"🔧 BUILD PROMPT DEBUG: Added vehicle setup guidance to prompt")
+                if vehicle.get('type') and vehicle.get('make_model_year'):
+                    base_prompt += f"- Vehicle: {vehicle['type']} ({vehicle['make_model_year']})\n"
+                    if vehicle.get('fuel_type'):
+                        base_prompt += f"- Fuel type: {vehicle['fuel_type']}\n"
+                    logger.info(f"🚐 BUILD PROMPT DEBUG: Added complete vehicle info to prompt")
 
-                if vehicle.get('fuel_type'):
-                    base_prompt += f"- Fuel type: {vehicle['fuel_type']}\n"
+                    # Add explicit instruction for vehicle queries
+                    if self._is_profile_query(message):
+                        base_prompt += f"\n🚗 IMPORTANT: When asked about their vehicle, tell the user they drive a {vehicle['type']} ({vehicle['make_model_year']}) with {vehicle.get('fuel_type', 'unknown')} fuel. Use this exact information from their profile.\n"
+                else:
+                    logger.warning(f"⚠️ BUILD PROMPT DEBUG: Vehicle data incomplete or missing")
+                    # Only show guidance if vehicle data is truly missing
+                    if self._is_profile_query(message):
+                        base_prompt += "\n⚠️ IMPORTANT: User is asking about their vehicle but vehicle information is incomplete in their profile. Guide them to complete their vehicle setup in the profile section.\n"
 
                 # Travel preferences
                 travel = user_profile.get('travel_preferences', {})
@@ -190,7 +189,7 @@ Key traits:
             logger.warning(f"⚠️ BUILD PROMPT DEBUG: No profile data or not successful")
             # Handle case where no profile data is available
             if self._is_profile_query(message):
-                base_prompt += "\n⚠️ IMPORTANT: User is asking about their profile but no profile data could be loaded. Guide them to set up their profile or contact support if this persists.\n"
+                base_prompt += "\n❌ PROFILE DATA UNAVAILABLE: User is asking about their profile but no profile data could be loaded. Guide them to set up their profile or contact support if this persists.\n"
                 logger.info(f"🔧 BUILD PROMPT DEBUG: Added profile setup guidance for missing data")
 
         # Add context if available
