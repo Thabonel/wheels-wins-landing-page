@@ -2811,6 +2811,67 @@ async def simple_gemini_service_test(request: dict):
             "message": "Failed to test Simple Gemini Service"
         }
 
+# Enhanced Profile Integration Test endpoint
+@router.post("/profile-integration-test")
+async def profile_integration_test(request: dict):
+    """Test Simple Gemini Service with profile integration (requires auth)"""
+    try:
+        from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+        message = request.get("message", "what vehicle am i driving")
+        user_id = request.get("user_id")
+        user_jwt = request.get("user_jwt")
+
+        if not user_id:
+            return {
+                "status": "error",
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": "user_id is required for profile integration test",
+                "service": "Profile Integration Test"
+            }
+
+        if not user_jwt:
+            return {
+                "status": "error",
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": "user_jwt is required for profile integration test",
+                "service": "Profile Integration Test"
+            }
+
+        simple_service = await get_simple_gemini_service()
+
+        if not simple_service.is_initialized:
+            return {
+                "status": "error",
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": "Simple Gemini Service not initialized",
+                "service": "Profile Integration Test"
+            }
+
+        # Test the service with profile integration (user_id and JWT)
+        response = await simple_service.generate_response(message, {}, user_id, user_jwt)
+
+        return {
+            "status": "success",
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "Profile Integration Test",
+            "request_message": message,
+            "user_id": user_id,
+            "jwt_provided": bool(user_jwt),
+            "response_message": response,
+            "message": "Profile integration test completed - check logs for debug info"
+        }
+
+    except Exception as e:
+        pam_logger.error(f"Profile integration test failed: {e}")
+        return {
+            "status": "error",
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "Profile Integration Test",
+            "error": str(e),
+            "message": "Failed to test profile integration"
+        }
+
 # TTS Debug endpoint
 @router.get("/tts-debug")
 async def tts_debug_info():
