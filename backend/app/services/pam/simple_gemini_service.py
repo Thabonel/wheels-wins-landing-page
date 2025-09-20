@@ -164,6 +164,10 @@ Key traits:
                     logger.info(f"🚐 BUILD PROMPT DEBUG: Added vehicle to prompt: {vehicle['type']}")
                 else:
                     logger.warning(f"⚠️ BUILD PROMPT DEBUG: No vehicle type found in profile")
+                    # Add special instruction for profile queries when no vehicle data exists
+                    if self._is_profile_query(message):
+                        base_prompt += "\n⚠️ IMPORTANT: User is asking about their vehicle but no vehicle information is found in their profile. Guide them to complete their vehicle setup in the profile section.\n"
+                        logger.info(f"🔧 BUILD PROMPT DEBUG: Added vehicle setup guidance to prompt")
 
                 if vehicle.get('fuel_type'):
                     base_prompt += f"- Fuel type: {vehicle['fuel_type']}\n"
@@ -178,8 +182,16 @@ Key traits:
                 base_prompt += "\n"
             else:
                 logger.warning(f"⚠️ BUILD PROMPT DEBUG: Profile exists but profile_exists is False")
+                # Handle case where profile exists but is incomplete
+                if self._is_profile_query(message):
+                    base_prompt += "\n⚠️ IMPORTANT: User is asking about their profile but their profile setup is incomplete. Guide them to complete their profile in the settings.\n"
+                    logger.info(f"🔧 BUILD PROMPT DEBUG: Added profile completion guidance to prompt")
         else:
             logger.warning(f"⚠️ BUILD PROMPT DEBUG: No profile data or not successful")
+            # Handle case where no profile data is available
+            if self._is_profile_query(message):
+                base_prompt += "\n⚠️ IMPORTANT: User is asking about their profile but no profile data could be loaded. Guide them to set up their profile or contact support if this persists.\n"
+                logger.info(f"🔧 BUILD PROMPT DEBUG: Added profile setup guidance for missing data")
 
         # Add context if available
         if context:
