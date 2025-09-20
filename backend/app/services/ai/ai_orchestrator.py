@@ -20,10 +20,12 @@ from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
 from .gemini_provider import GeminiProvider
 from app.core.config import get_settings
+from app.core.infra_config import get_infra_settings
 from app.services.mcp_config import mcp_config
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+infra_settings = get_infra_settings()  # Use infra_settings for API keys
 
 
 class ProviderSelectionStrategy(Enum):
@@ -79,12 +81,12 @@ class AIOrchestrator:
         logger.info("Initializing AI Orchestrator...")
         
         # Initialize Gemini provider FIRST (primary AI provider - fastest and cheapest)
-        if hasattr(settings, 'GEMINI_API_KEY') and settings.GEMINI_API_KEY:
+        if hasattr(infra_settings, 'GEMINI_API_KEY') and infra_settings.GEMINI_API_KEY:
             try:
                 gemini_config = ProviderConfig(
                     name="gemini",
-                    api_key=settings.GEMINI_API_KEY.get_secret_value() if hasattr(settings.GEMINI_API_KEY, 'get_secret_value') else str(settings.GEMINI_API_KEY),
-                    default_model=getattr(settings, 'GEMINI_DEFAULT_MODEL', 'gemini-1.5-flash'),
+                    api_key=infra_settings.GEMINI_API_KEY.get_secret_value() if hasattr(infra_settings.GEMINI_API_KEY, 'get_secret_value') else str(infra_settings.GEMINI_API_KEY),
+                    default_model=getattr(infra_settings, 'GEMINI_DEFAULT_MODEL', 'gemini-1.5-flash'),
                     max_retries=3,
                     timeout_seconds=30
                 )
@@ -98,12 +100,12 @@ class AIOrchestrator:
                 logger.error(f"Error initializing Gemini provider: {e}")
 
         # Initialize Anthropic provider as fallback
-        if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:
+        if hasattr(infra_settings, 'ANTHROPIC_API_KEY') and infra_settings.ANTHROPIC_API_KEY:
             try:
                 anthropic_config = ProviderConfig(
                     name="anthropic",
-                    api_key=settings.ANTHROPIC_API_KEY.get_secret_value() if settings.ANTHROPIC_API_KEY else None,
-                    default_model=getattr(settings, 'ANTHROPIC_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022'),
+                    api_key=infra_settings.ANTHROPIC_API_KEY.get_secret_value() if infra_settings.ANTHROPIC_API_KEY else None,
+                    default_model=getattr(infra_settings, 'ANTHROPIC_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022'),
                     max_retries=3,
                     timeout_seconds=30
                 )
@@ -121,12 +123,12 @@ class AIOrchestrator:
                 logger.error(f"Error initializing Anthropic provider: {e}")
         
         # Initialize OpenAI provider as fallback (if configured)
-        if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
+        if hasattr(infra_settings, 'OPENAI_API_KEY') and infra_settings.OPENAI_API_KEY:
             try:
                 openai_config = ProviderConfig(
                     name="openai",
-                    api_key=settings.OPENAI_API_KEY.get_secret_value(),
-                    default_model=getattr(settings, 'OPENAI_DEFAULT_MODEL', 'gpt-4-turbo-preview'),
+                    api_key=infra_settings.OPENAI_API_KEY.get_secret_value(),
+                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', 'gpt-4-turbo-preview'),
                     max_retries=3,
                     timeout_seconds=30
                 )
