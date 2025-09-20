@@ -325,16 +325,17 @@ class PamService {
 
       // Send message via WebSocket and wait for response
       return new Promise((resolve, reject) => {
-        const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const timeout = setTimeout(() => {
           reject(new Error('WebSocket message timeout'));
         }, PAM_CONFIG.MESSAGE_TIMEOUT);
 
-        // Listen for response
+        // Listen for any response (backend doesn't use messageId correlation)
         const messageHandler = (event: MessageEvent) => {
           try {
             const response = JSON.parse(event.data);
-            if (response.messageId === messageId) {
+
+            // Accept any response message as the reply (backend sends type: "response" or "chat_response")
+            if (response.type === 'response' || response.type === 'chat_response' || response.content || response.message) {
               clearTimeout(timeout);
               this.websocket?.removeEventListener('message', messageHandler);
 
@@ -352,6 +353,9 @@ class PamService {
 
               console.log(`✅ PAM WebSocket response (${latency}ms):`, response);
               resolve(response);
+            } else {
+              // Ignore other message types (connection, pong, etc.)
+              console.log(`🔄 Ignoring WebSocket message type: ${response.type}`);
             }
           } catch (error) {
             console.warn('❌ Failed to parse WebSocket response:', error);
@@ -360,10 +364,9 @@ class PamService {
 
         this.websocket?.addEventListener('message', messageHandler);
 
-        // Send message with ID
+        // Send message without messageId (backend doesn't expect it)
         const messageToSend = {
           ...enhancedMessage,
-          messageId,
           timestamp: new Date().toISOString()
         };
 
