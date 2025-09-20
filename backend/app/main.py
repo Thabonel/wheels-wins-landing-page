@@ -69,7 +69,6 @@ from app.api.v1 import (
     receipts,
     pam,
     pam_ai_sdk,
-    debug_profile,
     auth,
     subscription,
     support,
@@ -652,7 +651,6 @@ app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
 app.include_router(pam_ai_sdk.router, prefix="/api/v1/pam-ai-sdk", tags=["PAM AI SDK"])
-app.include_router(debug_profile.router, prefix="/api/v1", tags=["Debug Profile"])
 
 # Import and add intent classification routes
 try:
