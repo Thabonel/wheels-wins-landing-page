@@ -1177,13 +1177,13 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         logger.info(f"✅ [DEBUG] Processing non-empty message: '{message}' for user: {user_id}")
         
         # Try edge processing first for ultra-fast responses
-        start_time = time.time()
-        logger.info(f"⚡ [DEBUG] Starting edge processing for message: '{message[:50]}...'")
-        
-        edge_result = await edge_processing_service.process_query(message, context)
-        logger.info(f"⚡ [DEBUG] Edge processing result: handled={edge_result.handled}, confidence={edge_result.confidence:.2f}")
-        
-        if edge_result.handled and edge_result.response:
+        # 2. DISABLED: Edge processing (was incorrectly intercepting queries)
+        # Edge processing was matching "what vehicle do I have" to time queries
+        # Disabled to let Simple Gemini Service handle all queries properly
+        logger.info(f"⚡ [DEBUG] Skipping edge processing - using Simple Gemini Service for all queries")
+
+        # Edge processing is disabled - skip to orchestrator
+        if False:  # Never execute edge processing
             # Edge processing succeeded - send immediate response
             processing_time = (time.time() - start_time) * 1000
             logger.info(f"⚡ [DEBUG] Edge processed in {processing_time:.1f}ms: '{edge_result.response[:100]}...'")
