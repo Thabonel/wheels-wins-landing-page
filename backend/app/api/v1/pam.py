@@ -2648,6 +2648,34 @@ async def voice_options(request: Request):
         cache_bust=True
     )
 
+# Simple Gemini Service Status endpoint
+@router.get("/simple-service-status")
+async def simple_gemini_service_status():
+    """Check Simple Gemini Service status and initialization"""
+    try:
+        from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+        simple_service = await get_simple_gemini_service()
+        status = simple_service.get_status()
+
+        return {
+            "status": "available" if status["initialized"] else "unavailable",
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "Simple Gemini Service",
+            "details": status,
+            "message": "Simple Gemini Service ready for PAM fallback" if status["initialized"] else "Simple Gemini Service not initialized"
+        }
+
+    except Exception as e:
+        pam_logger.error(f"Simple Gemini Service status check failed: {e}")
+        return {
+            "status": "error",
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "Simple Gemini Service",
+            "error": str(e),
+            "message": "Failed to check Simple Gemini Service status"
+        }
+
 # TTS Debug endpoint
 @router.get("/tts-debug")
 async def tts_debug_info():
