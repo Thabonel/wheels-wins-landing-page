@@ -1326,13 +1326,47 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             response_context = context
             
             # Check if this is an error response
-            if result.get("error") or "technical difficulties" in response_message.lower():
+            if result.get("error") or "technical difficulties" in response_message.lower() or "unable to process" in response_message.lower():
                 logger.warning(f"⚠️ [DEBUG] Orchestrator returned error/fallback response: {response_message[:100]}")
                 logger.warning(f"⚠️ [DEBUG] Error details: {result.get('error', 'No error details')}")
                 logger.warning(f"⚠️ [DEBUG] Error type: {result.get('error_type', 'Unknown')}")
                 logger.warning(f"⚠️ [DEBUG] Service status: {result.get('service_status', 'Unknown')}")
-                
-                # Send the error/fallback response ONCE and return
+
+                # 🔄 FALLBACK: Try Simple Gemini Service when orchestrator returns error response
+                logger.info("🔄 [FALLBACK] Orchestrator returned error, trying Simple Gemini Service...")
+                try:
+                    from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+                    # Get simple Gemini service
+                    simple_service = await get_simple_gemini_service()
+
+                    if simple_service.is_initialized:
+                        logger.info("✅ [FALLBACK] Simple Gemini Service available, generating response...")
+
+                        # Generate response using simple service
+                        fallback_response = await simple_service.generate_response(message, context)
+
+                        logger.info(f"✅ [FALLBACK] Simple Gemini response: {fallback_response[:100]}...")
+
+                        # Send successful response from simple service
+                        await safe_send_json(websocket, {
+                            "type": "chat_response",
+                            "message": fallback_response,
+                            "content": fallback_response,
+                            "source": "simple_gemini_fallback",
+                            "error": False,
+                            "fallback_used": True,
+                            "original_error": result.get("error", "Orchestrator error"),
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
+                        return
+                    else:
+                        logger.error("❌ [FALLBACK] Simple Gemini Service not initialized")
+
+                except Exception as fallback_error:
+                    logger.error(f"❌ [FALLBACK] Simple Gemini Service also failed: {fallback_error}")
+
+                # Final fallback: Send the orchestrator's error response
                 await safe_send_json(websocket, {
                     "type": "chat_response",
                     "message": response_message,
@@ -1349,11 +1383,11 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             logger.error(f"❌ [DEBUG] Orchestrator processing failed: {e}")
             logger.error(f"❌ [DEBUG] Exception type: {type(e).__name__}")
             logger.error(f"❌ [DEBUG] Exception details: {str(e)}")
-            
+
             # Get detailed traceback for debugging
             import traceback
             logger.error(f"❌ [DEBUG] Full traceback: {traceback.format_exc()}")
-            
+
             # Try to get orchestrator status for debugging
             try:
                 if hasattr(orchestrator, '_get_service_status_summary'):
@@ -1364,8 +1398,41 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                     logger.error(f"❌ [DEBUG] Orchestrator attributes: {dir(orchestrator)}")
             except Exception as status_e:
                 logger.error(f"❌ [DEBUG] Could not get service status: {status_e}")
-            
-            # Send a single error response with more details
+
+            # 🔄 FALLBACK: Try Simple Gemini Service when orchestrator fails
+            logger.info("🔄 [FALLBACK] Orchestrator failed, trying Simple Gemini Service...")
+            try:
+                from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+                # Get simple Gemini service
+                simple_service = await get_simple_gemini_service()
+
+                if simple_service.is_initialized:
+                    logger.info("✅ [FALLBACK] Simple Gemini Service available, generating response...")
+
+                    # Generate response using simple service
+                    response_message = await simple_service.generate_response(message, context)
+
+                    logger.info(f"✅ [FALLBACK] Simple Gemini response: {response_message[:100]}...")
+
+                    # Send successful response from simple service
+                    await safe_send_json(websocket, {
+                        "type": "chat_response",
+                        "message": response_message,
+                        "content": response_message,
+                        "source": "simple_gemini_fallback",
+                        "error": False,
+                        "fallback_used": True,
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    return
+                else:
+                    logger.error("❌ [FALLBACK] Simple Gemini Service not initialized")
+
+            except Exception as fallback_error:
+                logger.error(f"❌ [FALLBACK] Simple Gemini Service also failed: {fallback_error}")
+
+            # Final fallback: Send error response
             await safe_send_json(websocket, {
                 "type": "chat_response",
                 "message": "I apologize, but I'm having trouble processing your request right now. Please try again.",
