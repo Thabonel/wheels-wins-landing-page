@@ -1890,10 +1890,23 @@ async def get_streaming_ai_response(message: str, context: dict, conversation_hi
             if "actions" in enhanced_response:
                 context["visual_action"] = enhanced_response["actions"]
             
-            # Check if this is a fallback/error response - if so, don't try streaming
-            if "technical difficulties" in response_text.lower() or enhanced_response.get("error"):
-                logger.warning(f"Orchestrator returned fallback response, skipping streaming attempt")
-                # Just use the response text we already have
+            # Check if this is a fallback/error response - if so, try Simple Gemini Service
+            if "technical difficulties" in response_text.lower() or enhanced_response.get("error") or "unable to process" in response_text.lower():
+                logger.warning(f"Orchestrator returned fallback/error response, trying Simple Gemini Service...")
+
+                try:
+                    from app.services.pam.simple_gemini_service import get_simple_gemini_service
+                    simple_service = await get_simple_gemini_service()
+
+                    if simple_service.is_initialized:
+                        response_text = await simple_service.generate_response(message, context)
+                        logger.info("✅ [SECONDARY FALLBACK] Simple Gemini Service provided response")
+                    else:
+                        logger.error("❌ [SECONDARY FALLBACK] Simple Gemini Service not initialized, using original response")
+                        # Keep the original response_text
+                except Exception as fallback_error:
+                    logger.error(f"❌ [SECONDARY FALLBACK] Simple Gemini Service failed: {fallback_error}")
+                    # Keep the original response_text
             else:
                 # Only try streaming if we got a valid response
                 # Check if AI service supports streaming
@@ -1917,9 +1930,21 @@ async def get_streaming_ai_response(message: str, context: dict, conversation_hi
                     
         except Exception as orchestrator_error:
             logger.warning(f"Enhanced orchestrator failed: {orchestrator_error}")
-            
-            # Generate a single fallback message instead of calling orchestrator again
-            response_text = "I'm having trouble processing your request right now. Please try again in a moment."
+            logger.info("🔄 [FALLBACK] Trying Simple Gemini Service...")
+
+            try:
+                from app.services.pam.simple_gemini_service import get_simple_gemini_service
+                simple_service = await get_simple_gemini_service()
+
+                if simple_service.is_initialized:
+                    response_text = await simple_service.generate_response(message, context)
+                    logger.info("✅ [FALLBACK] Simple Gemini Service provided response")
+                else:
+                    response_text = "I'm having trouble processing your request right now. Please try again in a moment."
+                    logger.error("❌ [FALLBACK] Simple Gemini Service not initialized")
+            except Exception as fallback_error:
+                logger.error(f"❌ [FALLBACK] Simple Gemini Service failed: {fallback_error}")
+                response_text = "I'm having trouble processing your request right now. Please try again in a moment."
         
         # Simulate streaming by chunking the response
         chunks = split_response_into_chunks(response_text)
@@ -2674,6 +2699,47 @@ async def simple_gemini_service_status():
             "service": "Simple Gemini Service",
             "error": str(e),
             "message": "Failed to check Simple Gemini Service status"
+        }
+
+# Simple Gemini Service Test endpoint
+@router.post("/simple-service-test")
+async def simple_gemini_service_test(request: dict):
+    """Test Simple Gemini Service directly with a message"""
+    try:
+        from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+        message = request.get("message", "Hello! Can you help me?")
+
+        simple_service = await get_simple_gemini_service()
+
+        if not simple_service.is_initialized:
+            return {
+                "status": "error",
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": "Simple Gemini Service not initialized",
+                "service": "Simple Gemini Service Test"
+            }
+
+        # Test the service with the provided message
+        response = await simple_service.generate_response(message)
+
+        return {
+            "status": "success",
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "Simple Gemini Service Test",
+            "request_message": message,
+            "response_message": response,
+            "message": "Simple Gemini Service responding correctly"
+        }
+
+    except Exception as e:
+        pam_logger.error(f"Simple Gemini Service test failed: {e}")
+        return {
+            "status": "error",
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "Simple Gemini Service Test",
+            "error": str(e),
+            "message": "Failed to test Simple Gemini Service"
         }
 
 # TTS Debug endpoint
