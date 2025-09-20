@@ -1089,7 +1089,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         # Load user profile to ensure PAM has access to vehicle and travel info
         try:
             from app.services.pam.tools.load_user_profile import LoadUserProfileTool
-            profile_tool = LoadUserProfileTool()
+            profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
             profile_result = await profile_tool.execute(user_id)
             
             if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
@@ -1629,7 +1629,7 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
         # Load user profile to ensure PAM has access to vehicle and travel info (streaming)
         try:
             from app.services.pam.tools.load_user_profile import LoadUserProfileTool
-            profile_tool = LoadUserProfileTool()
+            profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
             profile_result = await profile_tool.execute(user_id)
             
             if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
