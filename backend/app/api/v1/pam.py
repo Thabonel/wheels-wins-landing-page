@@ -1287,15 +1287,51 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             else:
                 logger.info(f"🤖 [DEBUG] ENABLE_PAM_AGENTIC disabled for user {user_id}")
         
-        # Use enhanced orchestrator for consistent neutral responses (fallback)
-        logger.info(f"📥 [DEBUG] Using enhanced orchestrator for consistent responses...")
-        
+        # 🔄 PRIMARY: Use Simple Gemini Service with profile integration (formerly fallback)
+        # The Enhanced Orchestrator was causing issues with incorrect time responses
+        # Simple Gemini Service has proper profile integration and should be primary
+        logger.info(f"🧠 [PRIMARY] Using Simple Gemini Service with profile integration...")
+
+        try:
+            from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+            # Get simple Gemini service
+            simple_service = await get_simple_gemini_service()
+
+            if simple_service.is_initialized:
+                logger.info("✅ [PRIMARY] Simple Gemini Service available, generating response...")
+
+                # Generate response using simple service with profile access
+                response_message = await simple_service.generate_response(message, context, user_id, user_jwt)
+
+                logger.info(f"✅ [PRIMARY] Simple Gemini response: {response_message[:100]}...")
+
+                # Send successful response from simple service
+                await safe_send_json(websocket, {
+                    "type": "chat_response",
+                    "message": response_message,
+                    "content": response_message,
+                    "source": "simple_gemini_primary",
+                    "error": False,
+                    "profile_enhanced": True,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                return
+            else:
+                logger.warning("⚠️ [PRIMARY] Simple Gemini Service not initialized, falling back to orchestrator")
+
+        except Exception as simple_error:
+            logger.warning(f"⚠️ [PRIMARY] Simple Gemini Service failed: {simple_error}, falling back to orchestrator")
+
+        # FALLBACK: Use enhanced orchestrator only if Simple Gemini Service fails
+        logger.info(f"🔄 [FALLBACK] Using enhanced orchestrator as fallback...")
+
         # Process through orchestrator with error handling
         try:
             logger.info(f"🤖 [DEBUG] Calling orchestrator.process_message with message: '{message}'")
             logger.debug(f"📋 [DEBUG] Context: {context}")
             logger.debug(f"👤 [DEBUG] User ID: {user_id}")
-            
+
             # Check orchestrator initialization status
             if not hasattr(orchestrator, 'is_initialized') or not orchestrator.is_initialized:
                 logger.error("❌ [DEBUG] Enhanced orchestrator not initialized")
@@ -1732,12 +1768,58 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
             else:
                 logger.info(f"🤖 [DEBUG] ENABLE_PAM_AGENTIC disabled for user {user_id} (streaming)")
         
-        # 4. Fallback to cloud processing with streaming
-        logger.info(f"🌊 [DEBUG] Starting cloud AI streaming...")
-        
+        # 4. PRIMARY: Use Simple Gemini Service with profile integration (streaming)
+        logger.info(f"🧠 [PRIMARY] Using Simple Gemini Service with profile integration (streaming)...")
+
+        try:
+            from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+            # Get simple Gemini service
+            simple_service = await get_simple_gemini_service()
+
+            if simple_service.is_initialized:
+                logger.info("✅ [PRIMARY] Simple Gemini Service available, generating streaming response...")
+
+                # Generate response using simple service with profile access
+                response_text = await simple_service.generate_response(message, context, user_id, user_jwt)
+
+                logger.info(f"✅ [PRIMARY] Simple Gemini response: {response_text[:100]}...")
+
+                # Simulate streaming by chunking the response
+                chunks = split_response_into_chunks(response_text)
+                for i, chunk in enumerate(chunks):
+                    chunk_payload = {
+                        "type": "chunk",
+                        "content": chunk,
+                        "chunk_index": i,
+                        "is_final": i == len(chunks) - 1,
+                        "source": "simple_gemini_primary",
+                        "profile_enhanced": True,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                    await safe_send_json(websocket, chunk_payload)
+                    await asyncio.sleep(0.05)  # Small delay for streaming effect
+
+                # Send final completion message
+                await safe_send_json(websocket, {
+                    "type": "response_complete",
+                    "source": "simple_gemini_primary",
+                    "profile_enhanced": True,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                return
+            else:
+                logger.warning("⚠️ [PRIMARY] Simple Gemini Service not initialized, falling back to cloud processing")
+
+        except Exception as simple_error:
+            logger.warning(f"⚠️ [PRIMARY] Simple Gemini Service failed: {simple_error}, falling back to cloud processing")
+
+        # FALLBACK: Use cloud processing with streaming only if Simple Gemini Service fails
+        logger.info(f"🔄 [FALLBACK] Starting cloud AI streaming...")
+
         # Get conversation history
         conversation_history = context.get("conversation_history", [])
-        
+
         # Stream response from AI service
         await stream_ai_response_to_websocket(websocket, message, context, conversation_history, start_time)
         
