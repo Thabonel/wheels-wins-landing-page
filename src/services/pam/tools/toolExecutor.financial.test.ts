@@ -100,6 +100,8 @@ const supabaseHarness = vi.hoisted(() => {
     value: any;
   };
 
+  const tableErrors = new Map<string, any>();
+
   const getTableRows = (table: string) => {
     const tableData = data[table];
     if (!tableData) {
@@ -107,6 +109,24 @@ const supabaseHarness = vi.hoisted(() => {
     }
 
     return tableData.map(row => JSON.parse(JSON.stringify(row)));
+  };
+
+  const setTableError = (table: string, error: any) => {
+    tableErrors.set(table, error);
+  };
+
+  const consumeTableError = (table: string) => {
+    if (!tableErrors.has(table)) {
+      return null;
+    }
+
+    const error = tableErrors.get(table);
+    tableErrors.delete(table);
+    return error;
+  };
+
+  const resetErrors = () => {
+    tableErrors.clear();
   };
 
   const getValue = (record: any, column: string) => {
@@ -217,6 +237,11 @@ const supabaseHarness = vi.hoisted(() => {
             return builder;
           },
           single: async () => {
+            const forcedError = consumeTableError(table);
+            if (forcedError) {
+              return { data: null, error: forcedError };
+            }
+
             const rows = runQuery(table, state);
             if (rows.length === 0) {
               return { data: null, error: { code: 'PGRST116' } };
@@ -224,6 +249,11 @@ const supabaseHarness = vi.hoisted(() => {
             return { data: rows[0], error: null };
           },
           then: (onFulfilled: any, onRejected: any) => {
+            const forcedError = consumeTableError(table);
+            if (forcedError) {
+              return Promise.resolve({ data: null, error: forcedError }).then(onFulfilled, onRejected);
+            }
+
             const result = { data: runQuery(table, state), error: null };
             return Promise.resolve(result).then(onFulfilled, onRejected);
           }
@@ -236,12 +266,15 @@ const supabaseHarness = vi.hoisted(() => {
 
   return {
     data,
-    createMockSupabase
+    createMockSupabase,
+    supabaseClient: createMockSupabase(),
+    setTableError,
+    resetErrors
   };
 });
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: supabaseHarness.createMockSupabase()
+  supabase: supabaseHarness.supabaseClient
 }));
 
 const TEST_USER_ID = 'financial-user-1';
@@ -249,6 +282,7 @@ const TEST_USER_ID = 'financial-user-1';
 describe('Tool Executor Financial Tools', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    supabaseHarness.resetErrors();
   });
 
   it('returns structured expense data and formatted summary', async () => {
@@ -304,5 +338,96 @@ describe('Tool Executor Financial Tools', () => {
     const formatted = formatToolResponse('getIncomeData', result.data);
     expect(formatted).toContain('Income Overview');
     expect(formatted).toContain('Projections');
+  });
+
+  it('applies filters when retrieving expenses', async () => {
+    const result = await executeToolCall(
+      'getUserExpenses',
+      {
+        category: 'fuel',
+        min_amount: 40,
+        max_amount: 50
+      },
+      TEST_USER_ID
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data?.expenses).toHaveLength(1);
+    expect(result.data?.expenses?.[0]?.category).toBe('fuel');
+    expect(result.data?.summary?.total_amount).toBeCloseTo(42.75, 2);
+  });
+
+  it('handles Supabase errors when fetching expenses', async () => {
+    supabaseHarness.setTableError('expenses', { message: 'Temporary outage' });
+
+    const result = await executeToolCall(
+      'getUserExpenses',
+      {},
+      TEST_USER_ID
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Failed to fetch expenses');
+    expect(result.message).toContain('unable to retrieve your expense data');
+  });
+
+  it('filters budgets by category', async () => {
+    const result = await executeToolCall(
+      'getUserBudgets',
+      {
+        category: 'fuel',
+        include_summary: true,
+        include_history: true
+      },
+      TEST_USER_ID
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data?.budgets).toHaveLength(1);
+    expect(result.data?.budgets?.[0]?.category).toBe('fuel');
+    expect(result.data?.summary?.total_budgeted).toBeCloseTo(250, 2);
+  });
+
+  it('handles Supabase errors when fetching budgets', async () => {
+    supabaseHarness.setTableError('budgets', { message: 'Budget query failed' });
+
+    const result = await executeToolCall(
+      'getUserBudgets',
+      {},
+      TEST_USER_ID
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Failed to fetch budgets');
+    expect(result.message).toContain('unable to retrieve your budgets');
+  });
+
+  it('filters income entries by type', async () => {
+    const result = await executeToolCall(
+      'getIncomeData',
+      {
+        income_type: 'salary'
+      },
+      TEST_USER_ID
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data?.entries).toHaveLength(1);
+    expect(result.data?.entries?.[0]?.type).toBe('salary');
+    expect(result.data?.summary?.total_amount).toBe(2500);
+  });
+
+  it('handles Supabase errors when fetching income data', async () => {
+    supabaseHarness.setTableError('income_entries', { message: 'Income query failed' });
+
+    const result = await executeToolCall(
+      'getIncomeData',
+      {},
+      TEST_USER_ID
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Failed to fetch income data');
+    expect(result.message).toContain('unable to retrieve your income records');
   });
 });
