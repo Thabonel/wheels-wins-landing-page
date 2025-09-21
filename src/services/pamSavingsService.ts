@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { authSessionManager } from '@/context/authSessionManager';
 
 // =====================================================
 // TYPES & INTERFACES
@@ -144,14 +145,43 @@ const handleApiError = (error: any) => {
 };
 
 const getAuthHeaders = async (): Promise<HeadersInit> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session?.access_token) {
-    throw new Error('No authentication session');
+  let accessToken = authSessionManager.getToken();
+  let lastError: unknown = null;
+
+  if (!accessToken) {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error) {
+        lastError = error;
+      } else {
+        authSessionManager.setSession(session || null);
+        accessToken = session?.access_token ?? null;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!accessToken) {
+    accessToken = authSessionManager.getToken();
+  }
+
+  if (!accessToken) {
+    accessToken = authSessionManager.getSession()?.access_token ?? null;
+  }
+
+  if (!accessToken) {
+    console.error('PAM savings auth header error: missing access token', lastError);
+    const message = 'No authentication session available for PAM savings request';
+    if (lastError instanceof Error) {
+      throw new Error(`${message}: ${lastError.message}`);
+    }
+    throw new Error(message);
   }
 
   return {
-    'Authorization': `Bearer ${session.access_token}`,
+    Authorization: `Bearer ${accessToken}`,
     'Content-Type': 'application/json',
   };
 };
