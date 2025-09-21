@@ -853,17 +853,26 @@ class RealAttractionsScraperService:
         attractions = []
         
         try:
+            # Enhanced tourist attractions query
             query = """
-            [out:json][timeout:60];
+            [out:json][timeout:120];
             (
-              node["tourism"="attraction"]["name"]({{bbox}});
-              way["tourism"="attraction"]["name"]({{bbox}});
-              node["tourism"="theme_park"]["name"]({{bbox}});
-              way["tourism"="theme_park"]["name"]({{bbox}});
+              node["tourism"="attraction"]({{bbox}});
+              node["tourism"="viewpoint"]({{bbox}});
+              node["natural"="waterfall"]({{bbox}});
+              node["natural"="hot_spring"]({{bbox}});
+              node["leisure"="swimming_area"]({{bbox}});
+              node["tourism"="theme_park"]({{bbox}});
+              node["historic"="monument"]({{bbox}});
+              node["historic"="castle"]({{bbox}});
+              node["tourism"="museum"]({{bbox}});
+              node["amenity"="theatre"]({{bbox}});
+              way["tourism"="attraction"]({{bbox}});
+              way["tourism"="theme_park"]({{bbox}});
+              way["historic"="castle"]({{bbox}});
+              way["tourism"="museum"]({{bbox}});
             );
-            out body;
-            >;
-            out skel qt;
+            out center;
             """
             
             # Major tourist areas
