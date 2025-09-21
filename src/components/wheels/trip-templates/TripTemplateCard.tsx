@@ -50,17 +50,22 @@ export default function TripTemplateCard({
 
   // Image fallback chain: Database URL → Google Image Service → Mapbox Map → Placeholder
   const getTemplateImage = () => {
-    // Priority 1: If template has an image URL from database, use it
+    // Priority 1: If template has media_urls array, use the first image
+    if (template.media_urls && template.media_urls.length > 0) {
+      return template.media_urls[0];
+    }
+
+    // Priority 2: If template has an image URL from database, use it
     if (template.imageUrl || template.image_url) {
       return template.imageUrl || template.image_url;
     }
 
-    // Priority 2: If template has thumbnail from database for performance
+    // Priority 3: If template has thumbnail from database for performance
     if (template.thumbnailUrl || template.thumbnail_url) {
       return template.thumbnailUrl || template.thumbnail_url;
     }
 
-    // Priority 3: Try to get from Google Image Service (sync version)
+    // Priority 4: Try to get from Google Image Service (sync version)
     try {
       const { imageUrl } = googleImageService.getTemplateImageSync(template);
       if (imageUrl) {
@@ -71,12 +76,12 @@ export default function TripTemplateCard({
       console.warn(`Failed to get image from Google Image Service for ${template.id}:`, error);
     }
 
-    // Priority 4: Generate intelligent route-specific Mapbox map (excellent fallback!)
+    // Priority 5: Generate intelligent route-specific Mapbox map (excellent fallback!)
     const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!mapboxToken) {
       console.warn('No Mapbox token available for map generation');
-      // Use a proper placeholder from our service instead of /api/placeholder
-      return 'https://via.placeholder.com/400x200/0088cc/ffffff?text=Adventure+Awaits';
+      // Return a solid color fallback instead of placeholder service
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzBjNGE2ZSIvPjx0ZXh0IHg9IjIwMCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QWR2ZW50dXJlIEF3YWl0czwvdGV4dD48L3N2Zz4=';
     }
     
     console.log(`Generating route-specific map for ${template.id}`);
