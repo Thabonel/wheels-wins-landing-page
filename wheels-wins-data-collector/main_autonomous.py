@@ -407,7 +407,7 @@ class AutonomousCollector:
 
             template = {
                 'user_id': None,  # System-generated template (NULL user_id)
-                'title': item.get('name', 'Unnamed Location'),
+                'name': item.get('name', 'Unnamed Location'),  # Fixed: 'title' → 'name'
                 'description': item.get('description', '')[:500],
                 'category': category_map.get(data_type, 'adventure'),
                 'template_type': 'system',  # Mark as system template
@@ -415,7 +415,7 @@ class AutonomousCollector:
                 'is_featured': item.get('rating', 0) >= 4.0,  # Feature high-rated locations
                 'tags': tags[:10],  # Limit tags
                 'media_urls': media_urls,  # JSONB array of photo URLs
-                'route_data': {
+                'template_data': {  # Fixed: 'route_data' → 'template_data'
                     'type': data_type,
                     'coordinates': {
                         'latitude': item.get('latitude'),
