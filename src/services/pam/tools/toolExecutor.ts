@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
+import type { Database } from '@/integrations/supabase/types';
 import { 
   getToolByName, 
   validateToolDefinition,
@@ -78,6 +79,10 @@ What aspects of your travel planning can I assist you with today?`
 const DEFAULT_EXPENSE_LIMIT = 50;
 const MAX_EXPENSE_LIMIT = 1000;
 
+type ExpenseRow = Database['public']['Tables']['expenses']['Row'];
+type BudgetRow = Database['public']['Tables']['budgets']['Row'];
+type IncomeEntryRow = Database['public']['Tables']['income_entries']['Row'];
+
 async function getUserExpenses(
   userId: string,
   options: {
@@ -96,7 +101,7 @@ async function getUserExpenses(
 
     let query = supabase
       .from('expenses')
-      .select('*')
+      .select('id, amount, category, date, description, created_at')
       .eq('user_id', userId)
       .order('date', { ascending: false });
 
@@ -133,7 +138,9 @@ async function getUserExpenses(
       };
     }
 
-    const expenses: ExpenseRecord[] = (data || []).map(expense => ({
+    const expenseRows = (Array.isArray(data) ? data : []) as ExpenseRow[];
+
+    const expenses: ExpenseRecord[] = expenseRows.map(expense => ({
       id: expense.id,
       amount: Number(expense.amount) || 0,
       category: expense.category || 'uncategorized',
@@ -247,7 +254,7 @@ async function getUserBudgets(
 
     let query = supabase
       .from('budgets')
-      .select('*')
+      .select('id, category, name, start_date, end_date, budgeted_amount')
       .eq('user_id', userId)
       .order('start_date', { ascending: false });
 
@@ -271,7 +278,9 @@ async function getUserBudgets(
       };
     }
 
-    const budgets: BudgetRecord[] = (data || []).map(budget => ({
+    const budgetRows = (Array.isArray(data) ? data : []) as BudgetRow[];
+
+    const budgets: BudgetRecord[] = budgetRows.map(budget => ({
       id: String(budget.id),
       category: budget.category,
       name: budget.name,
@@ -310,7 +319,7 @@ async function getUserBudgets(
     try {
       let expenseQuery = supabase
         .from('expenses')
-        .select('amount, category, date')
+        .select('id, amount, category, date, description')
         .eq('user_id', userId);
 
       if (earliestStart) {
@@ -324,12 +333,14 @@ async function getUserBudgets(
       const { data: expenseData, error: expenseError } = await expenseQuery;
 
       if (!expenseError && expenseData) {
-        relatedExpenses = expenseData.map(expense => ({
+        const expenseRows = (Array.isArray(expenseData) ? expenseData : []) as ExpenseRow[];
+
+        relatedExpenses = expenseRows.map(expense => ({
           id: expense.id || `${expense.category}-${expense.date}`,
           amount: Number(expense.amount) || 0,
           category: expense.category || 'uncategorized',
           date: expense.date,
-          description: undefined
+          description: expense.description
         }));
       } else if (expenseError) {
         logger.warn('Unable to fetch related expenses for budgets', expenseError);
@@ -419,7 +430,7 @@ async function getIncomeData(
 
     let query = supabase
       .from('income_entries')
-      .select('*')
+      .select('id, amount, source, date, type, description')
       .eq('user_id', userId)
       .order('date', { ascending: false });
 
@@ -446,7 +457,9 @@ async function getIncomeData(
       };
     }
 
-    const entries: IncomeEntryRecord[] = (data || []).map(entry => ({
+    const incomeRows = (Array.isArray(data) ? data : []) as IncomeEntryRow[];
+
+    const entries: IncomeEntryRecord[] = incomeRows.map(entry => ({
       id: entry.id,
       amount: Number(entry.amount) || 0,
       source: entry.source || 'Income',
