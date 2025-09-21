@@ -189,6 +189,7 @@ class AIOrchestrator:
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        functions: Optional[List[Dict[str, Any]]] = None,
         **kwargs
     ) -> AIResponse:
         """
@@ -201,9 +202,14 @@ class AIOrchestrator:
         if not self.providers:
             raise RuntimeError("No AI providers available")
         
+        capabilities_required: Set[AICapability] = set(required_capabilities or [])
+
+        if functions:
+            capabilities_required.add(AICapability.FUNCTION_CALLING)
+
         # Get ordered list of providers to try
         providers_to_try = await self._select_providers(
-            required_capabilities,
+            capabilities_required or None,
             preferred_provider
         )
         
@@ -221,12 +227,22 @@ class AIOrchestrator:
                 
                 # Make the request
                 start_time = time.time()
+                provider_kwargs = dict(kwargs)
+
+                if functions and provider.supports(AICapability.FUNCTION_CALLING):
+                    provider_kwargs["functions"] = functions
+                elif functions:
+                    logger.debug(
+                        "Provider %s does not support function calling; omitting tool payload",
+                        provider.name
+                    )
+
                 response = await provider.complete(
                     messages=messages,
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens,
-                    **kwargs
+                    **provider_kwargs
                 )
                 
                 # Update metrics on success
