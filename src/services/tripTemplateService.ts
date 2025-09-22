@@ -22,6 +22,7 @@ export interface TripTemplate {
   image_url?: string;
   thumbnailUrl?: string;
   thumbnail_url?: string;
+  media_urls?: string[];
   average_rating?: number;
   total_ratings?: number;
   status?: 'draft' | 'published' | 'archived';
