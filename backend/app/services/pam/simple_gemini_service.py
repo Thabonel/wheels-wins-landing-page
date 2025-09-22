@@ -19,6 +19,7 @@ except ImportError:
 
 from app.core.infra_config import get_infra_settings
 from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+from app.services.ai.gemini_function_calling import get_gemini_function_handler
 
 logger = logging.getLogger(__name__)
 infra_settings = get_infra_settings()
@@ -34,6 +35,7 @@ class SimpleGeminiService:
         self.model = None
         self.is_initialized = False
         self._api_key = None
+        self.function_handler = None  # Function calling handler
 
     async def initialize(self) -> bool:
         """Initialize the simple Gemini service"""
@@ -61,6 +63,20 @@ class SimpleGeminiService:
 
             # Initialize model
             self.model = genai.GenerativeModel('gemini-1.5-flash')
+
+            # Initialize function calling handler with tool registry
+            try:
+                # Import and initialize tool registry
+                from app.services.pam.tools.tool_registry import get_tool_registry
+                tool_registry = get_tool_registry()
+
+                # Create function handler with tool registry
+                self.function_handler = get_gemini_function_handler(tool_registry=tool_registry)
+                logger.info("✅ Function calling handler initialized with tool registry")
+            except Exception as e:
+                logger.warning(f"⚠️ Function calling handler initialization failed: {e}")
+                # Continue without function calling
+                self.function_handler = None
 
             # Test the model with a simple request
             test_response = self.model.generate_content("Hello! Just testing the connection.")
@@ -106,12 +122,51 @@ class SimpleGeminiService:
 
             logger.info(f"🤖 Generating Gemini response for: {message[:50]}...")
 
-            # Generate response
+            # Generate response with function calling if available
+            if self.function_handler and user_id:
+                # Try function calling approach
+                try:
+                    logger.info("🔧 Using function calling with tool registry...")
+
+                    # Get available tools from registry
+                    from app.services.pam.tools.tool_registry import get_tool_registry
+                    tool_registry = get_tool_registry()
+                    openai_tools = tool_registry.get_openai_functions(user_context={'user_id': user_id})
+
+                    if openai_tools:
+                        # Convert tools to Gemini format
+                        gemini_tools = self.function_handler.convert_openai_tools_to_gemini(openai_tools)
+
+                        # Prepare messages for function calling
+                        messages = [{"role": "user", "content": enhanced_prompt}]
+
+                        # Handle function calling conversation
+                        response_text, function_results = await self.function_handler.handle_function_calling_conversation(
+                            model=self.model,
+                            messages=messages,
+                            tools=gemini_tools,
+                            user_id=user_id,
+                            max_function_calls=5
+                        )
+
+                        if function_results:
+                            logger.info(f"✅ Executed {len(function_results)} function calls successfully")
+
+                        if response_text:
+                            logger.info(f"✅ Gemini response with tools: {response_text[:100]}...")
+                            return response_text
+                        else:
+                            logger.warning("⚠️ Function calling returned empty response, falling back")
+
+                except Exception as e:
+                    logger.warning(f"⚠️ Function calling failed: {e}, falling back to regular generation")
+
+            # Fallback to regular generation without tools
             response = self.model.generate_content(enhanced_prompt)
 
             if response and response.text:
                 response_text = response.text.strip()
-                logger.info(f"✅ Gemini response: {response_text[:100]}...")
+                logger.info(f"✅ Gemini response (no tools): {response_text[:100]}...")
                 return response_text
             else:
                 logger.warning("⚠️ Gemini returned empty response")
