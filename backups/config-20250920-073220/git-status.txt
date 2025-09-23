@@ -1,0 +1,5 @@
+?? GEMINI_MIGRATION_STEP_BY_STEP.md
+?? PAM_AI_INTERACTION_GUIDE.md
+?? backups/config-20250920-073220/
+?? scripts/config-backup.sh
+?? scripts/emergency-rollback.sh
