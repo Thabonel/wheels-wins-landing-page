@@ -113,6 +113,7 @@ docs/maintenance/*.log
 *_bak
 backups/
 test_*.py
+!pam2_tests/test_pam2_gemini_client.py
 *_test_results_*.json
 orchestrator_test_*.json
 

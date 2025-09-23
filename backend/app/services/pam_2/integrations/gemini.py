@@ -6,7 +6,7 @@ Phase 2 Implementation: Google Gemini 1.5 Flash Client
 import logging
 from typing import Dict, Any, Optional, List
 import asyncio
-import json
+import time
 
 from ..core.types import GeminiConfig
 from ..core.exceptions import GeminiAPIError
@@ -34,26 +34,37 @@ class GeminiClient:
         logger.info(f"GeminiClient initialized with model: {self.model_name}")
 
     async def initialize(self):
-        """
-        Initialize Gemini client
-        Phase 2 implementation placeholder
-        """
+        """Initialize Gemini client"""
 
-        # TODO Phase 2: Initialize Google Generative AI client
-        # Example implementation structure:
-        #
-        # import google.generativeai as genai
-        # genai.configure(api_key=self.api_key)
-        # self._model = genai.GenerativeModel(self.model_name)
-        #
-        # # Test connection
-        # try:
-        #     test_response = await self._model.generate_content_async("Hello")
-        #     logger.info("Gemini client initialized successfully")
-        # except Exception as e:
-        #     raise GeminiAPIError(f"Failed to initialize Gemini client: {e}")
+        try:
+            import google.generativeai as genai
 
-        logger.info("Gemini client initialization pending Phase 2")
+            # Configure API key
+            genai.configure(api_key=self.api_key)
+
+            # Initialize model
+            self._model = genai.GenerativeModel(
+                model_name=self.model_name,
+                generation_config={
+                    "temperature": self.temperature,
+                    "max_output_tokens": self.max_tokens,
+                    "top_p": 0.8,
+                    "top_k": 40
+                }
+            )
+
+            # Store client reference
+            self._client = genai
+
+            # Test connection
+            test_response = await self._model.generate_content_async("Hello")
+            logger.info(
+                "Gemini client initialized successfully: %s...",
+                (test_response.text or "(no text)")[:50]
+            )
+
+        except Exception as e:
+            raise GeminiAPIError(f"Failed to initialize Gemini client: {e}")
 
     async def generate_response(
         self,
@@ -125,48 +136,76 @@ class GeminiClient:
         conversation_history: Optional[List[Dict[str, str]]] = None,
         system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Call actual Gemini API
-        Phase 2 implementation placeholder
-        """
+        """Call actual Gemini API"""
 
-        # TODO Phase 2: Implement actual Gemini API integration
-        #
-        # 1. Format conversation history for Gemini
-        # 2. Apply system prompt if provided
-        # 3. Set generation parameters (temperature, max_tokens, etc.)
-        # 4. Make API call with proper error handling
-        # 5. Parse response and extract metadata
-        # 6. Return structured response
+        start_time = time.time()
 
-        # Example structure:
-        # try:
-        #     # Format messages for Gemini
-        #     messages = self._format_conversation_for_gemini(
-        #         prompt, conversation_history, system_prompt
-        #     )
-        #
-        #     # Generate response
-        #     response = await self._model.generate_content_async(
-        #         messages,
-        #         generation_config={
-        #             "temperature": self.temperature,
-        #             "max_output_tokens": self.max_tokens
-        #         }
-        #     )
-        #
-        #     return {
-        #         "response": response.text,
-        #         "model": self.model_name,
-        #         "tokens_used": response.usage_metadata.total_token_count,
-        #         "response_time_ms": response_time,
-        #         "is_placeholder": False
-        #     }
-        #
-        # except Exception as e:
-        #     raise GeminiAPIError(f"Gemini API call failed: {e}")
+        try:
+            # Format conversation for Gemini
+            formatted_prompt = self._format_conversation_for_gemini(
+                prompt, conversation_history, system_prompt
+            )
 
-        raise NotImplementedError("Gemini API integration pending Phase 2")
+            # Generate response with timeout
+            response = await asyncio.wait_for(
+                self._model.generate_content_async(formatted_prompt),
+                timeout=self.config.timeout_seconds
+            )
+
+            response_time_ms = int((time.time() - start_time) * 1000)
+
+            # Extract response text
+            response_text = (
+                response.text
+                if getattr(response, "text", None)
+                else "I apologize, but I couldn't generate a response. Please try again."
+            )
+
+            # Get usage metadata if available
+            tokens_used = 0
+            usage_metadata = getattr(response, "usage_metadata", None)
+            if usage_metadata:
+                tokens_used = getattr(usage_metadata, "total_token_count", 0) or 0
+
+            safety_ratings: List[Dict[str, Any]] = []
+            candidates = getattr(response, "candidates", None)
+            if candidates:
+                first_candidate = candidates[0]
+
+                if isinstance(first_candidate, dict):
+                    safety_ratings = first_candidate.get("safety_ratings", []) or []
+                else:
+                    candidate_safety = getattr(first_candidate, "safety_ratings", None)
+                    if candidate_safety:
+                        serialized_ratings = []
+                        for rating in candidate_safety:
+                            if isinstance(rating, dict):
+                                serialized_ratings.append(rating)
+                            else:
+                                to_dict = getattr(rating, "to_dict", None)
+                                if callable(to_dict):
+                                    serialized_ratings.append(to_dict())
+                                else:
+                                    serialized_ratings.append(
+                                        getattr(rating, "__dict__", {})
+                                    )
+                        safety_ratings = serialized_ratings
+
+            return {
+                "response": response_text,
+                "model": self.model_name,
+                "tokens_used": tokens_used,
+                "response_time_ms": response_time_ms,
+                "is_placeholder": False,
+                "safety_ratings": safety_ratings,
+            }
+
+        except asyncio.TimeoutError:
+            raise GeminiAPIError("Gemini API request timed out")
+        except Exception as e:
+            response_time_ms = int((time.time() - start_time) * 1000)
+            logger.error(f"Gemini API error (took {response_time_ms}ms): {e}")
+            raise GeminiAPIError(f"Gemini API call failed: {e}")
 
     def _format_conversation_for_gemini(
         self,
