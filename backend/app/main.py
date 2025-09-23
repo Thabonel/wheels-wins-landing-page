@@ -650,6 +650,23 @@ app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
+# PAM 2.0 - Clean, modular implementation (Phase 1 setup)
+# PAM 2.0 - Modular AI Assistant (New Architecture)
+try:
+    from app.services.pam_2.api.routes import router as pam_2_router
+    from app.services.pam_2.api.websocket import websocket_endpoint as pam_2_websocket
+    app.include_router(pam_2_router, prefix="/api/v1/pam-2", tags=["PAM 2.0"])
+    app.websocket("/api/v1/pam-2/chat/ws/{user_id}")(pam_2_websocket)
+    logger.info("✅ PAM 2.0 modular architecture loaded successfully")
+except Exception as pam2_error:
+    logger.error(f"❌ Failed to load PAM 2.0: {pam2_error}")
+    # Fallback to old PAM 2.0 if new structure fails
+    try:
+        from app.api.v1 import pam_2
+        app.include_router(pam_2.router, prefix="/api/v1/pam-2", tags=["PAM 2.0 Fallback"])
+        logger.warning("⚠️ Using fallback PAM 2.0 implementation")
+    except Exception as fallback_error:
+        logger.error(f"❌ PAM 2.0 fallback also failed: {fallback_error}")
 app.include_router(pam_ai_sdk.router, prefix="/api/v1/pam-ai-sdk", tags=["PAM AI SDK"])
 
 # Import and add intent classification routes
