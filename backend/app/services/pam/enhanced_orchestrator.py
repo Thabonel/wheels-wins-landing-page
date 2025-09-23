@@ -21,7 +21,7 @@ from app.services.database import get_database_service
 from app.services.cache import cache_service
 from app.services.pam.context_manager import ContextManager
 from app.services.ai.ai_orchestrator import AIOrchestrator
-from app.services.ai.provider_interface import AIMessage, AIResponse
+from app.services.ai.provider_interface import AIMessage, AIResponse, AICapability
 from app.observability import observe_agent, observe_llm_call
 from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
 from app.services.pam.tools.tool_capabilities import ToolCapability
@@ -1093,19 +1093,28 @@ class EnhancedPamOrchestrator:
                 AIMessage(role="system", content="You are PAM, a helpful AI assistant with access to various tools for travel planning and expense management."),
                 AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context, cls=DateTimeEncoder)}")
             ]
-            
+
             # Note: Tool support will depend on provider capabilities
+            completion_kwargs: Dict[str, Any] = {}
+            required_capabilities = set()
+
+            if tools:
+                completion_kwargs["functions"] = tools
+                required_capabilities.add(AICapability.FUNCTION_CALLING)
+
             ai_response = await self.ai_orchestrator.complete(
                 messages=messages,
                 temperature=0.7,
-                max_tokens=2048
-                # Tools passed separately if provider supports them
+                max_tokens=2048,
+                required_capabilities=required_capabilities or None,
+                **completion_kwargs
             )
-            
+
             logger.debug(f"📤 AI service response received: {type(ai_response)}")
             logger.debug(f"📤 AI response content length: {len(str(ai_response)) if ai_response else 0}")
-            
+
             # Handle function calling if present
+            tool_results: Optional[Dict[str, Any]] = None
             if hasattr(ai_response, 'function_calls') and ai_response.function_calls:
                 tool_results = await self._execute_tool_calls(
                     ai_response.function_calls,
@@ -1152,7 +1161,11 @@ Based on these results, please provide a helpful response to the user's original
                         "finish_reason": ai_response.finish_reason
                     }
                 }
-                
+
+                if tool_results:
+                    response["ai_metadata"]["tool_results"] = tool_results
+                    response.setdefault("capabilities_used", []).append("tools")
+
                 # Add TTS enhancement if available
                 if enhanced_context.tts_available and enhanced_context.preferred_response_mode != ResponseMode.TEXT_ONLY:
                     response["audio_data"] = await self._generate_audio(

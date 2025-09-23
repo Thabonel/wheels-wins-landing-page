@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { authSessionManager } from '@/context/authSessionManager';
 
 // =====================================================
 // TYPES & INTERFACES
@@ -100,28 +101,45 @@ const handleApiError = (error: any, operation: string) => {
 
 // Get authentication headers
 const getAuthHeaders = async (): Promise<HeadersInit> => {
-  try {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      throw error;
-    }
-    
-    if (!session?.access_token) {
-      throw new Error('No authentication session');
-    }
+  let accessToken = authSessionManager.getToken();
+  let lastError: unknown = null;
 
-    return {
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-    };
-  } catch (error) {
-    console.error('Auth header error:', error);
-    // Return basic headers if auth fails
-    return {
-      'Content-Type': 'application/json',
-    };
+  if (!accessToken) {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error) {
+        lastError = error;
+      } else {
+        authSessionManager.setSession(session || null);
+        accessToken = session?.access_token ?? null;
+      }
+    } catch (error) {
+      lastError = error;
+    }
   }
+
+  if (!accessToken) {
+    accessToken = authSessionManager.getToken();
+  }
+
+  if (!accessToken) {
+    accessToken = authSessionManager.getSession()?.access_token ?? null;
+  }
+
+  if (!accessToken) {
+    console.error('Auth header error: missing access token', lastError);
+    const message = 'No authentication session available for PAM request';
+    if (lastError instanceof Error) {
+      throw new Error(`${message}: ${lastError.message}`);
+    }
+    throw new Error(message);
+  }
+
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+  };
 };
 
 // =====================================================

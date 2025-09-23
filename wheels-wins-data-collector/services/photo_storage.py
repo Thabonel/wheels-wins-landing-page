@@ -7,7 +7,7 @@ import asyncio
 import aiohttp
 import logging
 import hashlib
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from urllib.parse import urlparse
 import os
 from supabase import Client

@@ -5,6 +5,16 @@
  * - pamApiService.ts (HTTP API calls)
  * - pamConnectionService.ts (connection management)
  *
+ * 🚨 CRITICAL: This is the SINGLE SOURCE OF TRUTH for PAM WebSocket connections
+ *
+ * ❌ DO NOT CREATE ALTERNATIVE WEBSOCKET IMPLEMENTATIONS
+ * ❌ DO NOT BYPASS THIS SERVICE FOR PRODUCTION FEATURES
+ * ❌ DO NOT DUPLICATE CONNECTION LOGIC
+ *
+ * ✅ EXTEND this service for new features
+ * ✅ See ADR-PAM-WEBSOCKET-ARCHITECTURE.md for guidelines
+ * ✅ Get architectural approval for major changes
+ *
  * Features:
  * ✅ Environment-aware endpoint selection
  * ✅ Circuit breaker pattern for resilience
@@ -15,8 +25,6 @@
  * ✅ Performance metrics
  */
 
-import { API_BASE_URL } from './api';
-import { CircuitBreaker } from '../utils/circuitBreaker';
 import { getPamLocationContext, formatLocationForPam } from '@/utils/pamLocationContext';
 import { logger } from '@/lib/logger';
 
@@ -67,24 +75,14 @@ export interface PamServiceMetrics {
 // =====================================================
 
 export const PAM_CONFIG = {
-  // Environment-aware endpoint selection
+  // Environment-aware WebSocket endpoint selection
   WEBSOCKET_ENDPOINTS: {
     production: [
-      'wss://pam-backend.onrender.com',
-      'wss://api.wheelsandwins.com/pam',
+      'wss://pam-backend.onrender.com/api/v1/pam/ws',
+      'wss://api.wheelsandwins.com/api/v1/pam/ws',
     ],
     staging: [
-      'wss://wheels-wins-backend-staging.onrender.com',
-    ]
-  },
-
-  HTTP_ENDPOINTS: {
-    production: [
-      `${API_BASE_URL}/api/v1/pam/chat`,
-      'https://api.wheelsandwins.com/pam/chat'
-    ],
-    staging: [
-      'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat'
+      'wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws',
     ]
   },
 
@@ -95,12 +93,8 @@ export const PAM_CONFIG = {
   CONNECTION_TIMEOUT: 15000,
   HEALTH_CHECK_INTERVAL: 60000,
 
-  // Circuit breaker settings
-  CIRCUIT_BREAKER: {
-    failureThreshold: 3,
-    cooldownPeriod: 30000,
-    timeout: 15000
-  }
+  // WebSocket message timeout
+  MESSAGE_TIMEOUT: 30000
 };
 
 // =====================================================
@@ -109,20 +103,17 @@ export const PAM_CONFIG = {
 
 class PamService {
   private static instance: PamService;
-  private breaker: CircuitBreaker;
+  private websocket: WebSocket | null = null;
   private status: ConnectionStatus;
   private metrics: PamServiceMetrics;
   private listeners: Set<(status: ConnectionStatus) => void> = new Set();
   private healthCheckInterval?: NodeJS.Timeout;
   private retryTimeout?: NodeJS.Timeout;
   private currentEndpointIndex = 0;
+  private currentUserId: string | null = null;
+  private currentToken: string | null = null;
 
   private constructor() {
-    this.breaker = new CircuitBreaker(
-      (url: RequestInfo, options?: RequestInit) => fetch(url, options),
-      PAM_CONFIG.CIRCUIT_BREAKER
-    );
-
     this.status = {
       isConnected: false,
       isConnecting: false,
@@ -160,37 +151,32 @@ class PamService {
     return isProduction ? 'production' : 'staging';
   }
 
-  private getCurrentEndpoints(): string[] {
+  private getCurrentWebSocketEndpoints(): string[] {
     const env = this.getEnvironment();
-    return PAM_CONFIG.HTTP_ENDPOINTS[env] || PAM_CONFIG.HTTP_ENDPOINTS.staging;
+    return PAM_CONFIG.WEBSOCKET_ENDPOINTS[env] || PAM_CONFIG.WEBSOCKET_ENDPOINTS.staging;
   }
 
   // =====================================================
   // CONNECTION MANAGEMENT
   // =====================================================
 
-  async connect(): Promise<boolean> {
+  async connect(userId?: string, token?: string): Promise<boolean> {
     if (this.status.isConnecting) {
-      logger.debug('Already connecting to PAM backend...');
+      logger.debug('Already connecting to PAM WebSocket...');
+      return false;
+    }
+
+    if (!userId || !token) {
+      logger.warn('❌ Cannot connect PAM WebSocket without userId and token');
       return false;
     }
 
     this.updateStatus({ isConnecting: true, lastError: undefined });
 
     try {
-      const success = await this.testConnection();
-      if (success) {
-        this.updateStatus({
-          isConnected: true,
-          isConnecting: false,
-          retryCount: 0,
-          healthScore: 100
-        });
-        logger.info(`✅ Connected to PAM backend (${this.getEnvironment()})`);
-        return true;
-      } else {
-        throw new Error('Connection test failed');
-      }
+      await this.connectWebSocket(userId, token);
+      logger.info(`✅ Connected to PAM WebSocket backend (${this.getEnvironment()})`);
+      return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.updateStatus({
@@ -199,7 +185,7 @@ class PamService {
         lastError: errorMessage,
         healthScore: Math.max(0, this.status.healthScore - 20)
       });
-      logger.error(`❌ Failed to connect to PAM backend: ${errorMessage}`);
+      logger.error(`❌ Failed to connect to PAM WebSocket backend: ${errorMessage}`);
 
       // Schedule retry if not exceeded attempts
       if (this.status.retryCount < PAM_CONFIG.RECONNECT_ATTEMPTS) {
@@ -212,11 +198,19 @@ class PamService {
 
   private scheduleRetry(): void {
     const delay = PAM_CONFIG.RECONNECT_DELAY * Math.pow(2, this.status.retryCount);
-    logger.info(`🔄 Retrying PAM connection in ${delay}ms (attempt ${this.status.retryCount + 1}/${PAM_CONFIG.RECONNECT_ATTEMPTS})`);
+    logger.info(`🔄 Retrying PAM WebSocket connection in ${delay}ms (attempt ${this.status.retryCount + 1}/${PAM_CONFIG.RECONNECT_ATTEMPTS})`);
 
-    this.retryTimeout = setTimeout(() => {
+    this.retryTimeout = setTimeout(async () => {
       this.updateStatus({ retryCount: this.status.retryCount + 1 });
-      this.connect();
+
+      // Reconnect WebSocket if we have stored credentials
+      if (this.currentUserId && this.currentToken) {
+        try {
+          await this.connectWebSocket(this.currentUserId, this.currentToken);
+        } catch (error) {
+          console.error('❌ WebSocket retry failed:', error);
+        }
+      }
     }, delay);
   }
 
@@ -226,17 +220,101 @@ class PamService {
       this.retryTimeout = undefined;
     }
 
+    if (this.websocket) {
+      this.websocket.close(1000, 'Client disconnect');
+      this.websocket = null;
+    }
+
+    this.currentUserId = null;
+    this.currentToken = null;
+
     this.updateStatus({
       isConnected: false,
       isConnecting: false,
       retryCount: 0
     });
 
-    logger.info('🔌 Disconnected from PAM backend');
+    logger.info('🔌 Disconnected from PAM WebSocket backend');
   }
 
   // =====================================================
-  // HTTP API METHODS
+  // WEBSOCKET CONNECTION METHODS
+  // =====================================================
+
+  private async connectWebSocket(userId: string, token: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Close existing connection if any
+        if (this.websocket) {
+          this.websocket.close();
+        }
+
+        // Get WebSocket endpoints
+        const endpoints = this.getCurrentWebSocketEndpoints();
+
+        // Try first endpoint (we can add fallback logic later)
+        const endpoint = endpoints[0];
+        const wsUrl = `${endpoint}/${userId}?token=${token}`;
+
+        console.log(`🌐 Connecting to PAM WebSocket: ${wsUrl}`);
+
+        this.websocket = new WebSocket(wsUrl);
+        this.currentUserId = userId;
+        this.currentToken = token;
+
+        this.websocket.onopen = () => {
+          console.log('✅ PAM WebSocket connected');
+          this.updateStatus({
+            isConnected: true,
+            isConnecting: false,
+            retryCount: 0,
+            healthScore: Math.min(100, this.status.healthScore + 10)
+          });
+          resolve();
+        };
+
+        this.websocket.onclose = (event) => {
+          console.log('🔌 PAM WebSocket disconnected:', event.code, event.reason);
+          this.updateStatus({
+            isConnected: false,
+            isConnecting: false,
+            lastError: `WebSocket closed: ${event.reason || event.code}`
+          });
+
+          // Attempt reconnection if not a clean close
+          if (event.code !== 1000 && this.status.retryCount < PAM_CONFIG.RECONNECT_ATTEMPTS) {
+            this.scheduleRetry();
+          }
+        };
+
+        this.websocket.onerror = (error) => {
+          console.error('❌ PAM WebSocket error:', error);
+          this.updateStatus({
+            isConnected: false,
+            isConnecting: false,
+            lastError: 'WebSocket connection error'
+          });
+          reject(new Error('WebSocket connection failed'));
+        };
+
+        this.websocket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('📨 PAM WebSocket message received:', data);
+            // Message handling is done in sendMessage method
+          } catch (error) {
+            console.warn('❌ Failed to parse WebSocket message:', error);
+          }
+        };
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  // =====================================================
+  // MESSAGE API METHODS
   // =====================================================
 
   async sendMessage(message: PamApiMessage, token?: string): Promise<PamApiResponse> {
@@ -244,80 +322,80 @@ class PamService {
     this.metrics.requestCount++;
 
     try {
+      // Ensure WebSocket connection is established
+      if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+        if (!token || !message.user_id) {
+          throw new Error('WebSocket connection requires userId and JWT token');
+        }
+        await this.connectWebSocket(message.user_id, token);
+      }
+
       // Enhance message with location context
       const enhancedMessage = await this.enhanceMessageWithLocation(message);
-      const endpoints = this.getCurrentEndpoints();
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'X-Environment': this.getEnvironment(),
-        'X-Client': 'wheels-wins-frontend'
-      };
+      // Send message via WebSocket and wait for response
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('WebSocket message timeout'));
+        }, PAM_CONFIG.MESSAGE_TIMEOUT);
 
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+        // Listen for any response (backend doesn't use messageId correlation)
+        const messageHandler = (event: MessageEvent) => {
+          try {
+            const response = JSON.parse(event.data);
 
-      // Try each endpoint until one succeeds
-      let lastError: Error | null = null;
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🌐 Trying PAM HTTP endpoint: ${endpoint}`);
+            // Accept any response message as the reply (backend sends type: "response" or "chat_response")
+            console.log(`🔍 Checking message for response: type="${response.type}", hasContent=${!!response.content}, hasMessage=${!!response.message}`);
+            if (response.type === 'response' || response.type === 'chat_response' || (response.content && response.type !== 'connection') || (response.message && response.type !== 'connection' && response.type !== 'ping')) {
+              clearTimeout(timeout);
+              this.websocket?.removeEventListener('message', messageHandler);
 
-          const response = await this.breaker.call(
-            endpoint,
-            {
-              method: 'POST',
-              headers,
-              body: JSON.stringify(enhancedMessage)
+              const latency = Date.now() - startTime;
+              this.metrics.successCount++;
+              this.metrics.averageLatency = (
+                (this.metrics.averageLatency * (this.metrics.successCount - 1) + latency) /
+                this.metrics.successCount
+              );
+
+              this.updateStatus({
+                isConnected: true,
+                healthScore: Math.min(100, this.status.healthScore + 5)
+              });
+
+              console.log(`✅ PAM WebSocket response (${latency}ms):`, response);
+              resolve(response);
+            } else if (response.type === 'ping') {
+              // Respond to ping with pong to maintain connection
+              console.log(`🏓 Received ping, sending pong response`);
+              this.websocket?.send(JSON.stringify({ type: 'pong', timestamp: response.timestamp }));
+            } else {
+              // Ignore other message types (connection, etc.)
+              console.log(`🔄 Ignoring WebSocket message type: ${response.type}`);
             }
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            const latency = Date.now() - startTime;
-
-            // Update metrics
-            this.metrics.successCount++;
-            this.metrics.averageLatency = (
-              (this.metrics.averageLatency * (this.metrics.successCount - 1) + latency) /
-              this.metrics.successCount
-            );
-
-            this.updateStatus({
-              isConnected: true,
-              latency,
-              healthScore: Math.min(100, this.status.healthScore + 5)
-            });
-
-            console.log(`✅ PAM HTTP response from ${endpoint} (${latency}ms):`, data);
-            return data;
-          } else {
-            const errorText = await response.text();
-            lastError = new Error(`HTTP ${response.status}: ${errorText}`);
-            console.warn(`❌ PAM HTTP endpoint ${endpoint} returned status ${response.status}: ${errorText}`);
+          } catch (error) {
+            console.warn('❌ Failed to parse WebSocket response:', error);
           }
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
-          console.warn(`❌ PAM HTTP endpoint ${endpoint} failed:`, error);
-          continue;
-        }
-      }
+        };
 
-      // All endpoints failed
-      this.metrics.failureCount++;
-      this.updateStatus({
-        isConnected: false,
-        lastError: lastError?.message,
-        healthScore: Math.max(0, this.status.healthScore - 10)
+        this.websocket?.addEventListener('message', messageHandler);
+
+        // Send message with required type field for backend validation
+        const messageToSend = {
+          type: 'chat', // Backend expects 'chat' type for message processing
+          message: enhancedMessage.message,
+          user_id: enhancedMessage.user_id,
+          context: enhancedMessage.context,
+          timestamp: new Date().toISOString()
+        };
+
+        this.websocket?.send(JSON.stringify(messageToSend));
+        console.log(`🌐 Sent PAM WebSocket message:`, messageToSend);
       });
-
-      throw new Error(`All PAM HTTP endpoints failed. Last error: ${lastError?.message}`);
 
     } catch (error) {
       this.metrics.failureCount++;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ PAM sendMessage failed:', error);
+      logger.error('❌ PAM WebSocket sendMessage failed:', error);
 
       this.updateStatus({
         isConnected: false,
@@ -383,22 +461,21 @@ class PamService {
   async testConnection(): Promise<boolean> {
     const startTime = Date.now();
     try {
-      const response = await this.sendMessage({
-        message: 'ping',
-        user_id: 'health-check'
-      });
+      // For WebSocket, test the connection state directly
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        const latency = Date.now() - startTime;
+        this.metrics.lastHealthCheck = Date.now();
 
-      const latency = Date.now() - startTime;
-      this.metrics.lastHealthCheck = Date.now();
+        this.updateStatus({
+          healthScore: Math.min(100, this.status.healthScore + 2)
+        });
 
-      this.updateStatus({
-        latency,
-        healthScore: Math.min(100, this.status.healthScore + 2)
-      });
-
-      return !!response && !response.error;
+        return true;
+      } else {
+        return false;
+      }
     } catch (error) {
-      console.error('❌ PAM health check failed:', error);
+      console.error('❌ PAM WebSocket health check failed:', error);
       this.updateStatus({
         healthScore: Math.max(0, this.status.healthScore - 5)
       });

@@ -204,6 +204,18 @@ src/
 
 ### Available MCP Servers
 1. **Supabase**: Direct SQL operations
+   - **Capabilities**: Direct database access, table management, storage operations
+   - **Project URL**: https://ydevatqwkoccxhtejdor.supabase.co
+   - **Service Role**: Available for admin operations
+   - **Access Level**: Full read/write access via service role key
+   - **What Claude Can Do**:
+     - Read all tables (bypassing RLS)
+     - Update/INSERT/DELETE records directly
+     - Create/modify tables and schemas
+     - Execute any SQL queries
+     - Manage storage buckets
+   - **Security**: Service role key stored locally only, never in codebase
+   - **Use Cases**: Direct database fixes, data migrations, troubleshooting RLS issues
 2. **Serena**: Semantic code analysis
 3. **Render**: Deployment management
 4. **Code Analyzer**: AI-powered integration

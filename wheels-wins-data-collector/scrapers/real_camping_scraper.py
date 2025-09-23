@@ -184,29 +184,68 @@ class RealCampingScraperService:
         spots = []
         
         try:
-            # Query for different camping types
+            # Enhanced camping queries with more comprehensive search
             queries = [
+                # Enhanced camping spots query
                 """
-                [out:json][timeout:60];
+                [out:json][timeout:120];
                 (
-                  node["tourism"="camp_site"]({{bbox}});
-                  way["tourism"="camp_site"]({{bbox}});
+                  node["tourism"="camp_site"]["access"!="private"]({{bbox}});
                   node["tourism"="caravan_site"]({{bbox}});
+                  node["leisure"="park"]["camping"="yes"]({{bbox}});
+                  way["tourism"="camp_site"]["access"!="private"]({{bbox}});
                   way["tourism"="caravan_site"]({{bbox}});
                 );
-                out body;
-                >;
-                out skel qt;
+                out center;
                 """,
+
+                # National/State Parks
                 """
-                [out:json][timeout:60];
+                [out:json][timeout:120];
+                (
+                  way["leisure"="nature_reserve"]({{bbox}});
+                  way["boundary"="national_park"]({{bbox}});
+                  way["boundary"="protected_area"]({{bbox}});
+                  relation["leisure"="nature_reserve"]({{bbox}});
+                  relation["boundary"="national_park"]({{bbox}});
+                );
+                out center;
+                """,
+
+                # RV and motor home friendly spots
+                """
+                [out:json][timeout:120];
+                (
+                  node["tourism"="camp_site"]["motor_vehicle"="yes"]({{bbox}});
+                  node["tourism"="caravan_site"]["motor_vehicle"="yes"]({{bbox}});
+                  way["tourism"="camp_site"]["motor_vehicle"="yes"]({{bbox}});
+                  way["tourism"="caravan_site"]["motor_vehicle"="yes"]({{bbox}});
+                );
+                out center;
+                """,
+
+                # Free camping and rest areas
+                """
+                [out:json][timeout:120];
+                (
+                  node["tourism"="camp_site"]["fee"="no"]({{bbox}});
+                  node["highway"="rest_area"]["camping"="yes"]({{bbox}});
+                  node["amenity"="parking"]["camping"="tolerated"]({{bbox}});
+                  way["tourism"="camp_site"]["fee"="no"]({{bbox}});
+                );
+                out center;
+                """,
+
+                # Additional amenity-based camping
+                """
+                [out:json][timeout:120];
                 (
                   node["amenity"="camping"]({{bbox}});
                   way["amenity"="camping"]({{bbox}});
+                  node["leisure"="camping"]({{bbox}});
+                  way["leisure"="camping"]({{bbox}});
                 );
-                out body;
-                >;
-                out skel qt;
+                out center;
                 """
             ]
             
@@ -274,7 +313,7 @@ class RealCampingScraperService:
             if 'name' not in tags:
                 return None
             
-            # Determine location
+            # Determine location with null safety
             if element_type == 'node':
                 lat, lng = element.lat, element.lon
             else:  # way
@@ -283,7 +322,22 @@ class RealCampingScraperService:
                     lat, lng = element.center_lat, element.center_lon
                 else:
                     return None
-            
+
+            # Validate coordinates - ensure they are not None
+            if lat is None or lng is None:
+                return None
+
+            # Convert to float and validate range
+            try:
+                lat_float = float(lat)
+                lng_float = float(lng)
+
+                # Validate coordinate ranges
+                if not (-90 <= lat_float <= 90) or not (-180 <= lng_float <= 180):
+                    return None
+            except (ValueError, TypeError):
+                return None
+
             # Parse amenities
             amenities = {}
             if tags.get('toilets') == 'yes':
@@ -298,15 +352,15 @@ class RealCampingScraperService:
             # Determine if free
             is_free = tags.get('fee') == 'no' or tags.get('cost') == 'free'
             
-            # Determine country from coordinates
-            country = self._determine_country_from_coords(lat, lng)
-            
+            # Determine country from coordinates using converted values
+            country = self._determine_country_from_coords(lat_float, lng_float)
+
             return {
                 'name': tags.get('name'),
                 'data_type': 'camping_spots',
                 'country': country,
-                'latitude': lat,
-                'longitude': lng,
+                'latitude': lat_float,
+                'longitude': lng_float,
                 'description': tags.get('description', ''),
                 'camping_type': tags.get('tourism', 'camp_site'),
                 'is_free': is_free,
@@ -489,20 +543,20 @@ class RealCampingScraperService:
         return []
     
     def _deduplicate_spots(self, spots: List[Dict]) -> List[Dict]:
-        """Remove duplicate camping spots based on location"""
+        """Remove duplicate camping spots with relaxed distance threshold"""
         seen_locations = set()
         unique_spots = []
-        
+
         for spot in spots:
-            lat = round(spot.get('latitude', 0), 4)
-            lng = round(spot.get('longitude', 0), 4)
+            lat = round(spot.get('latitude', 0), 2)  # Relaxed from 4 to 2 decimal places (1km vs 10m)
+            lng = round(spot.get('longitude', 0), 2)
             location_key = f"{lat},{lng}"
-            
+
             if location_key not in seen_locations:
                 seen_locations.add(location_key)
                 unique_spots.append(spot)
-        
-        logger.info(f"Deduplication: {len(spots)} -> {len(unique_spots)} spots")
+
+        logger.info(f"Relaxed deduplication (1km threshold): {len(spots)} -> {len(unique_spots)} spots")
         return unique_spots
     
     def _determine_country_from_coords(self, lat: float, lng: float) -> str:

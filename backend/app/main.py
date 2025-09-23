@@ -1,6 +1,7 @@
 """
 PAM Backend Main Application
 High-performance FastAPI application with comprehensive monitoring and security.
+Updated: September 2025 - Gemini Flash Integration
 """
 
 import os
@@ -281,6 +282,55 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Voice Conversation Manager initialized")
         except Exception as e:
             logger.warning(f"⚠️ Voice Conversation Manager initialization failed: {e}")
+
+        # Initialize Enhanced PAM Orchestrator with AI providers (CRITICAL for WebSocket chat)
+        logger.info("🧠 Initializing Enhanced PAM Orchestrator...")
+        try:
+            from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator
+
+            # This will create and initialize the AI orchestrator with all providers
+            orchestrator_instance = await get_enhanced_orchestrator()
+
+            if orchestrator_instance.is_initialized:
+                logger.info("✅ Enhanced PAM Orchestrator fully initialized")
+
+                # Log AI provider status
+                if hasattr(orchestrator_instance, 'ai_orchestrator') and orchestrator_instance.ai_orchestrator:
+                    provider_count = len(orchestrator_instance.ai_orchestrator.providers) if orchestrator_instance.ai_orchestrator.providers else 0
+                    if provider_count > 0:
+                        provider_names = [p.name for p in orchestrator_instance.ai_orchestrator.providers]
+                        logger.info(f"✅ AI Providers ready: {', '.join(provider_names)} ({provider_count} total)")
+                    else:
+                        logger.warning("⚠️ Enhanced PAM Orchestrator initialized but no AI providers available")
+                else:
+                    logger.warning("⚠️ Enhanced PAM Orchestrator initialized but ai_orchestrator is None")
+            else:
+                logger.error("❌ Enhanced PAM Orchestrator failed to initialize properly")
+
+        except Exception as orchestrator_error:
+            logger.error(f"❌ Enhanced PAM Orchestrator initialization failed: {orchestrator_error}")
+            logger.error("🚨 PAM WebSocket will respond with 'unable to process' until this is fixed")
+            # Don't fail startup - continue without PAM AI functionality
+
+        # Initialize Simple Gemini Service as backup (CRITICAL fallback for PAM)
+        logger.info("💎 Initializing Simple Gemini Service as backup...")
+        try:
+            from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+            # Initialize the simple service
+            simple_service = await get_simple_gemini_service()
+
+            if simple_service.is_initialized:
+                logger.info("✅ Simple Gemini Service initialized successfully (fallback ready)")
+                service_status = simple_service.get_status()
+                logger.info(f"✅ Simple Gemini status: {service_status}")
+            else:
+                logger.error("❌ Simple Gemini Service failed to initialize")
+                logger.error("🚨 No fallback available for PAM - both orchestrator and simple service failed")
+
+        except Exception as simple_error:
+            logger.error(f"❌ Simple Gemini Service initialization failed: {simple_error}")
+            logger.error("🚨 No fallback available for PAM if orchestrator fails")
 
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
@@ -600,6 +650,23 @@ app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
+# PAM 2.0 - Clean, modular implementation (Phase 1 setup)
+# PAM 2.0 - Modular AI Assistant (New Architecture)
+try:
+    from app.services.pam_2.api.routes import router as pam_2_router
+    from app.services.pam_2.api.websocket import websocket_endpoint as pam_2_websocket
+    app.include_router(pam_2_router, prefix="/api/v1/pam-2", tags=["PAM 2.0"])
+    app.websocket("/api/v1/pam-2/chat/ws/{user_id}")(pam_2_websocket)
+    logger.info("✅ PAM 2.0 modular architecture loaded successfully")
+except Exception as pam2_error:
+    logger.error(f"❌ Failed to load PAM 2.0: {pam2_error}")
+    # Fallback to old PAM 2.0 if new structure fails
+    try:
+        from app.api.v1 import pam_2
+        app.include_router(pam_2.router, prefix="/api/v1/pam-2", tags=["PAM 2.0 Fallback"])
+        logger.warning("⚠️ Using fallback PAM 2.0 implementation")
+    except Exception as fallback_error:
+        logger.error(f"❌ PAM 2.0 fallback also failed: {fallback_error}")
 app.include_router(pam_ai_sdk.router, prefix="/api/v1/pam-ai-sdk", tags=["PAM AI SDK"])
 
 # Import and add intent classification routes

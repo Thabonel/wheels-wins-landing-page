@@ -65,10 +65,7 @@ export class GoogleImageService {
     'uk-cornwall-coast': 'https://www.visitbritain.com/sites/default/files/consumer/destinations/cornwall-st-ives.jpg',
     'uk-wales-circuit': 'https://www.visitwales.com/sites/visit-wales/files/hero-images/snowdon-mountain.jpg',
 
-    'world-coastal': 'https://via.placeholder.com/800x600/0088cc/ffffff?text=Coastal+Adventure',
-    'world-mountain': 'https://via.placeholder.com/800x600/6644cc/ffffff?text=Mountain+Explorer',
-    'world-cultural': 'https://via.placeholder.com/800x600/aa4488/ffffff?text=Cultural+Discovery',
-    'world-wine': 'https://via.placeholder.com/800x600/aa0044/ffffff?text=Wine+Region'
+    // Removed placeholder URLs - let TripTemplateCard generate Mapbox maps instead
   };
   
   /**
@@ -328,7 +325,7 @@ export class GoogleImageService {
       console.log(`⚠️ Using placeholder for ${template.id}, search: ${searchQuery}`);
       
       return {
-        imageUrl: this.getPlaceholderImage(template),
+        imageUrl: null, // Let TripTemplateCard handle the Mapbox fallback
         searchUrl,
         isVerified: false,
         isStored: false
@@ -391,26 +388,12 @@ export class GoogleImageService {
   
   /**
    * Get a category-appropriate placeholder image
+   * NOTE: Returning null to avoid placeholder images - let TripTemplateCard use Mapbox fallback
    */
-  private static getPlaceholderImage(template: TripTemplate): string {
-    // Category-specific placeholders (generic but appropriate)
-    const placeholders: Record<string, string> = {
-      'coastal': 'https://via.placeholder.com/800x600/0088cc/ffffff?text=Coastal+Adventure',
-      'outback': 'https://via.placeholder.com/800x600/cc6600/ffffff?text=Outback+Journey',
-      'adventure': 'https://via.placeholder.com/800x600/00aa44/ffffff?text=4WD+Adventure',
-      'mountain': 'https://via.placeholder.com/800x600/6644cc/ffffff?text=Mountain+Explorer',
-      'wine_culinary': 'https://via.placeholder.com/800x600/aa0044/ffffff?text=Wine+Region',
-      'island': 'https://via.placeholder.com/800x600/00aacc/ffffff?text=Island+Paradise',
-      'epic_journeys': 'https://via.placeholder.com/800x600/ff6600/ffffff?text=Epic+Journey',
-      'historical': 'https://via.placeholder.com/800x600/8B4513/ffffff?text=Historical+Tour',
-      'river_lakes': 'https://via.placeholder.com/800x600/4488cc/ffffff?text=River+Journey',
-      'scenic': 'https://via.placeholder.com/800x600/22aa66/ffffff?text=Scenic+Route',
-      'cultural': 'https://via.placeholder.com/800x600/aa4488/ffffff?text=Cultural+Discovery',
-      'national-parks': 'https://via.placeholder.com/800x600/228B22/ffffff?text=National+Parks',
-      'general': 'https://via.placeholder.com/800x600/888888/ffffff?text=Adventure+Awaits'
-    };
-    
-    return placeholders[template.category] || placeholders['general'];
+  private static getPlaceholderImage(template: TripTemplate): string | null {
+    // Don't return placeholder images - let the TripTemplateCard generate intelligent Mapbox maps
+    console.log(`⚠️ No verified image for ${template.id} - TripTemplateCard will generate Mapbox map`);
+    return null;
   }
   
   /**

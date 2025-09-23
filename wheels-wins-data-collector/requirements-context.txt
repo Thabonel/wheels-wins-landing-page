@@ -1,0 +1,4 @@
+# Dependencies for Intelligent Context Saver
+watchdog>=3.0.0  # File system monitoring
+asyncio-mqtt>=0.11.1  # Optional: for remote notifications
+requests>=2.31.0  # HTTP requests for external integrations
