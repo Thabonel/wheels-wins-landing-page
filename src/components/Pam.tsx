@@ -7,9 +7,8 @@ const pamEnabled = true;
 // Regular imports
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { pamUIController } from "@/lib/PamUIController";
-// Use Backend API instead of Direct Claude API to leverage PersonalizedPamAgent
-import { PamApiService } from "@/services/pamApiService";
+// Use WebSocket PAM Service for real-time communication
+import { pamService } from "@/services/pamService";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -207,33 +206,52 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     };
   }, [isSpeaking, currentAudio]);
 
-  // Initialize PAM with Direct Claude API when component mounts
+  // Initialize PAM WebSocket service when component mounts
   useEffect(() => {
     // Guard: Don't run side effects if PAM is disabled
     if (!pamEnabled) return;
-    
+
     logger.debug('🚀 PAM useEffect triggered with user:', { userId: user?.id, hasUser: !!user, hasSession: !!session });
-    
+
+    // Subscribe to connection status changes
+    const unsubscribe = pamService.onStatusChange((status) => {
+      logger.debug('🔄 PAM WebSocket status changed:', status);
+      setConnectionStatus(status.isConnected ? "Connected" :
+                         status.isConnecting ? "Connecting" : "Disconnected");
+
+      // Handle reconnection attempts
+      if (status.lastError) {
+        logger.warn('⚠️ PAM WebSocket error:', status.lastError);
+      }
+    });
+
     // Expose test functions to window for debugging (development only)
     if (import.meta.env.DEV) {
       (window as any).testPamConnection = testMinimalConnection;
-      
+      (window as any).pamService = pamService; // For debugging
+
       logger.debug('🧪 PAM DEBUG: Test functions exposed:');
-      logger.debug('  - window.testPamConnection() - Original connection test');
+      logger.debug('  - window.testPamConnection() - Connection test');
+      logger.debug('  - window.pamService - WebSocket service instance');
     }
-    
+
     if (user?.id) {
-      logger.debug('📋 PAM: Initializing with Direct Claude API...');
-      
+      logger.debug('📋 PAM: Initializing WebSocket service...');
+
       // Persist session ID for conversation continuity
       localStorage.setItem('pam_session_id', sessionId);
-      
-      // Load conversation from localStorage only (no backend calls)
+
+      // Load conversation from localStorage
       loadConversationMemory();
       connectToBackend();
     } else {
       logger.debug('❌ PAM: No user ID, skipping connection');
     }
+
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe();
+    };
     // eslint-disable-next-line
   }, [user?.id, sessionId]);
 
@@ -470,30 +488,44 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const connectToBackend = useCallback(async () => {
-    // Backend PersonalizedPamAgent API - uses authentication context
-    logger.debug('🤖 PAM: Using Backend PersonalizedPamAgent API');
+    logger.debug('🤖 PAM: Connecting to WebSocket backend');
 
-    // Check if we have user authentication and backend is accessible
-    if (user && sessionToken) {
-      setConnectionStatus("Connected");
-
-      // Show welcome message if first time
-      if (messages.length === 0 && !hasShownWelcomeRef.current) {
-        logger.debug('💬 PAM: Adding greeting message');
-        addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
-        hasShownWelcomeRef.current = true;
-      }
-
-      logger.debug('✅ PAM: Backend PersonalizedPamAgent API ready');
-      return;
-    } else {
+    // Check if we have user authentication
+    if (!user?.id || !sessionToken) {
       setConnectionStatus("Disconnected");
       addMessage("🤖 Hi! I'm PAM. Please sign in to continue...", "pam");
-      logger.warn('⚠️ PAM: Backend API not ready - missing user authentication');
+      logger.warn('⚠️ PAM: WebSocket connection failed - missing user authentication');
+      return;
     }
-    
-    // Original function was complex WebSocket setup - removed for Direct API
-  }, [user?.id, sessionToken]);
+
+    try {
+      setConnectionStatus("Connecting");
+
+      // Connect to PAM WebSocket service
+      const connected = await pamService.connect(user.id, sessionToken);
+
+      if (connected) {
+        setConnectionStatus("Connected");
+
+        // Show welcome message if first time
+        if (messages.length === 0 && !hasShownWelcomeRef.current) {
+          logger.debug('💬 PAM: Adding greeting message');
+          addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
+          hasShownWelcomeRef.current = true;
+        }
+
+        logger.debug('✅ PAM: WebSocket connection established');
+      } else {
+        setConnectionStatus("Disconnected");
+        addMessage("🤖 Unable to connect to PAM service. Please try again later.", "pam");
+        logger.error('❌ PAM: WebSocket connection failed');
+      }
+    } catch (error) {
+      setConnectionStatus("Disconnected");
+      addMessage("🤖 Connection error. Please check your internet and try again.", "pam");
+      logger.error('❌ PAM: WebSocket connection error:', error);
+    }
+  }, [user?.id, sessionToken, messages.length]);
 
   // Minimal test function for debugging Backend API connection
   const testMinimalConnection = useCallback(async () => {
@@ -725,11 +757,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         throw new Error('User authentication required');
       }
 
-      // Use Backend PersonalizedPamAgent API with user authentication context
-      logger.debug('🤖 Sending message to Backend PersonalizedPamAgent API');
+      // Use WebSocket PAM Service for real-time communication
+      logger.debug('🤖 Sending message to PAM WebSocket service');
 
-      const pamApiService = PamApiService.getInstance();
-      const pamResponse = await pamApiService.sendMessage({
+      const pamResponse = await pamService.sendMessage({
         message: message,
         user_id: user?.id || '',
         context: {
@@ -753,10 +784,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         await speakText(responseContent);
       }
 
-      logger.debug('✅ Backend PersonalizedPamAgent API response received successfully');
+      logger.debug('✅ PAM WebSocket response received successfully');
 
     } catch (error) {
-      logger.error('❌ Failed to send message via Backend PersonalizedPamAgent API:', error);
+      logger.error('❌ Failed to send message via PAM WebSocket service:', error);
       logger.error('❌ PAM Error Details:', {
         message: error?.message,
         user: !!user,
@@ -813,31 +844,34 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     return () => {
       logger.debug('🧹 PAM component unmounting - cleaning up resources...');
-      
+
+      // Disconnect WebSocket service
+      pamService.disconnect();
+
       // Clear timeouts
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      
-      // Close WebSocket
+
+      // Close WebSocket (legacy cleanup - pamService.disconnect() handles this)
       if (wsRef.current) {
         wsRef.current.close(1000, 'Component unmounting');
       }
-      
+
       // Stop all voice-related activities and release microphone
       stopAudioLevelMonitoring();
       stopWakeWordListening();
-      
+
       // Clean up audio manager
       audioManager.stopAll();
       logger.debug('🎵 Audio manager stats:', audioManager.getStats());
-      
+
       // Stop any active media recording
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
       }
-      
-      logger.debug('✅ PAM cleanup completed - microphone released');
+
+      logger.debug('✅ PAM cleanup completed - WebSocket disconnected, microphone released');
     };
   }, []);
 

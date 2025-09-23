@@ -5,7 +5,7 @@ Integrates with existing settings and secrets management
 
 import logging
 from typing import Optional
-from openai import OpenAI
+# OpenAI import removed - using Gemini Flash instead
 
 # AgentOps removed - no longer needed
 
@@ -42,7 +42,7 @@ class ObservabilityConfig:
 
     def __init__(self):
         self.settings = get_infra_settings()
-        self.openai_client: Optional[OpenAI] = None
+        # OpenAI client removed - using Gemini Flash instead
         self.langfuse_client: Optional[Langfuse] = None
         self.tracer = None
         self._initialized = False
@@ -77,26 +77,24 @@ class ObservabilityConfig:
         self.tracer = trace.get_tracer(__name__)
         logger.info("✅ OpenTelemetry tracing initialized")
 
-    def initialize_openai(self) -> Optional[OpenAI]:
-        """Initialize OpenAI client with tracing"""
-        if not self.settings.OPENAI_API_KEY:
+    def initialize_gemini(self) -> bool:
+        """Initialize Gemini client with tracing"""
+        if not self.settings.GEMINI_API_KEY:
             logger.info(
-                "OpenAI API key not configured - set OPENAI_API_KEY to enable OpenAI observability"
+                "Gemini API key not configured - set GEMINI_API_KEY to enable Gemini observability"
             )
-            return None
+            return False
 
         try:
-            self.openai_client = OpenAI(api_key=self.settings.OPENAI_API_KEY)
-
             # Ensure tracing is configured
             self.initialize_tracing()
 
-            logger.info("✅ OpenAI observability initialized")
-            return self.openai_client
+            logger.info("✅ Gemini observability initialized")
+            return True
 
         except Exception as e:
-            logger.warning(f"Failed to initialize OpenAI observability: {e}")
-            return None
+            logger.warning(f"Failed to initialize Gemini observability: {e}")
+            return False
 
     def initialize_langfuse(self) -> Optional["Langfuse"]:
         """Initialize Langfuse for LLM observability"""
@@ -142,9 +140,9 @@ class ObservabilityConfig:
         if self._initialized:
             return
 
-        logger.info("🚀 Initializing AI agent observability stack...")
+        logger.info("🚀 Initializing AI agent observability stack (Gemini + Langfuse)...")
         self.initialize_tracing()
-        self.initialize_openai()
+        self.initialize_gemini()
         self.initialize_langfuse()
 
         self._initialized = True
@@ -161,9 +159,9 @@ class ObservabilityConfig:
         return {
             "enabled": self.is_enabled(),
             "initialized": self._initialized,
-            "openai": {
-                "configured": bool(self.settings.OPENAI_API_KEY),
-                "client_ready": self.openai_client is not None,
+            "gemini": {
+                "configured": bool(self.settings.GEMINI_API_KEY),
+                "client_ready": True,  # Simplified for Gemini
             },
             "langfuse": {
                 "configured": bool(

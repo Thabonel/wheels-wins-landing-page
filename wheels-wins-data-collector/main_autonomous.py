@@ -24,6 +24,7 @@ from services.database_state import DatabaseStateManager, clean_decimal_data
 from services.monitoring import MonitoringService
 from services.photo_scraper import add_photos_to_locations
 from services.photo_storage import store_location_photos
+from services.enhanced_fallback_collector import EnhancedFallbackCollector
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import sentry_sdk
@@ -113,13 +114,17 @@ class AutonomousCollector:
         
         # Start a new run in database
         run_id = await self.state_manager.start_run('scheduled', self.weekly_target)
-        
+
         try:
             # Get configuration from database
             config = self.state_manager.get_config()
-            
+
+            # Enhanced debug logging for API keys
+            self._log_api_key_status()
+
             # Determine what to collect this week
             collection_plan = self._create_collection_plan()
+            logger.info(f"📋 Collection plan: {collection_plan}")
             
             # Execute collection with retry logic
             for data_type, target_count in collection_plan.items():
@@ -246,19 +251,99 @@ class AutonomousCollector:
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def _collect_with_retry(self, data_type: str, target_count: int) -> List[Dict]:
-        """Collect data with retry logic"""
+        """Enhanced collection with smart fallback system"""
+        logger.info(f"🎯 Starting enhanced collection for {data_type} (target: {target_count})")
+
+        # Try primary scrapers first
         scraper = self.scrapers.get(data_type)
-        if not scraper:
-            logger.warning(f"No scraper available for {data_type}")
-            return []
-        
-        try:
-            items = await scraper.collect_all_countries(limit=target_count)
+        primary_items = []
+
+        if scraper:
+            try:
+                primary_items = await scraper.collect_all_countries(limit=target_count)
+                logger.info(f"✅ Primary scraper collected {len(primary_items)} {data_type} items")
+            except Exception as e:
+                logger.warning(f"⚠️ Primary scraper failed for {data_type}: {e}")
+
+        # If primary collection is insufficient, use fallback system
+        if len(primary_items) < target_count * 0.3:  # Less than 30% of target
+            logger.info(f"🔄 Primary collection insufficient ({len(primary_items)}/{target_count}), engaging fallback system")
+
+            fallback_collector = EnhancedFallbackCollector()
+            remaining_target = target_count - len(primary_items)
+
+            try:
+                fallback_items = await fallback_collector.collect_with_fallbacks(data_type, remaining_target)
+                logger.info(f"✅ Fallback system collected {len(fallback_items)} additional items")
+
+                # Combine and deduplicate
+                all_items = primary_items + fallback_items
+                unique_items = self._enhanced_deduplicate(all_items)
+
+                logger.info(f"🎉 Total collection: {len(unique_items)} unique items from {len(all_items)} collected")
+                return unique_items[:target_count]
+
+            except Exception as e:
+                logger.error(f"❌ Fallback system also failed: {e}")
+                # Return whatever we got from primary scraper
+                return primary_items
+
+        return primary_items
+
+    def _enhanced_deduplicate(self, items: List[Dict]) -> List[Dict]:
+        """Enhanced deduplication with relaxed distance threshold"""
+        if not items:
             return items
-        except Exception as e:
-            logger.error(f"Collection failed for {data_type}: {e}")
-            raise
-    
+
+        unique_items = []
+        seen_locations = set()
+
+        for item in items:
+            lat = item.get('latitude')
+            lng = item.get('longitude')
+
+            if not lat or not lng:
+                continue
+
+            # Use 1km threshold instead of 100m (more relaxed for better collection)
+            location_key = f"{round(lat, 2)},{round(lng, 2)}"
+
+            if location_key not in seen_locations:
+                seen_locations.add(location_key)
+                unique_items.append(item)
+
+        logger.info(f"Enhanced deduplication: {len(items)} -> {len(unique_items)} items (relaxed 1km threshold)")
+        return unique_items
+
+    def _log_api_key_status(self):
+        """Log status of API keys for debugging"""
+        logger.info("🔑 API Key Status Check:")
+
+        api_keys = {
+            'RECREATION_GOV_KEY': os.getenv('RECREATION_GOV_KEY'),
+            'GOOGLE_PLACES_KEY': os.getenv('GOOGLE_PLACES_KEY'),
+            'OPENWEATHER_API_KEY': os.getenv('OPENWEATHER_API_KEY'),
+            'FOURSQUARE_API_KEY': os.getenv('FOURSQUARE_API_KEY'),
+            'SUPABASE_URL': os.getenv('SUPABASE_URL'),
+            'SUPABASE_KEY': os.getenv('SUPABASE_KEY')
+        }
+
+        for key_name, key_value in api_keys.items():
+            if key_value:
+                # Show first 4 and last 4 characters for security
+                masked_key = f"{key_value[:4]}...{key_value[-4:]}" if len(key_value) > 8 else "***"
+                logger.info(f"  ✅ {key_name}: {masked_key}")
+            else:
+                logger.warning(f"  ❌ {key_name}: NOT SET")
+
+        # Log data source strategy based on available keys
+        if api_keys['RECREATION_GOV_KEY']:
+            logger.info("🎯 Primary Strategy: Recreation.gov API (US Federal Campgrounds)")
+        elif api_keys['GOOGLE_PLACES_KEY']:
+            logger.info("🎯 Primary Strategy: Google Places API (Global)")
+        else:
+            logger.info("🔄 Fallback Strategy: OpenStreetMap + Web Scraping (API-free)")
+
     def _create_collection_plan(self) -> Dict[str, int]:
         """Create collection plan based on progress and priorities"""
         total_collected = self.state['total_collected']
@@ -407,7 +492,7 @@ class AutonomousCollector:
 
             template = {
                 'user_id': None,  # System-generated template (NULL user_id)
-                'title': item.get('name', 'Unnamed Location'),
+                'name': item.get('name', 'Unnamed Location'),  # Fixed: 'title' → 'name'
                 'description': item.get('description', '')[:500],
                 'category': category_map.get(data_type, 'adventure'),
                 'template_type': 'system',  # Mark as system template
@@ -415,7 +500,7 @@ class AutonomousCollector:
                 'is_featured': item.get('rating', 0) >= 4.0,  # Feature high-rated locations
                 'tags': tags[:10],  # Limit tags
                 'media_urls': media_urls,  # JSONB array of photo URLs
-                'route_data': {
+                'template_data': {  # Fixed: 'route_data' → 'template_data'
                     'type': data_type,
                     'coordinates': {
                         'latitude': item.get('latitude'),

@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import TripScraperControl from './TripScraperControl';
 import TripImageManager from './TripImageManager';
+import TripPhotoManager from './TripPhotoManager';
 import { TripTemplate } from '@/services/tripTemplateService';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -275,10 +276,11 @@ const TripTemplateManagement: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="templates">Templates</TabsTrigger>
               <TabsTrigger value="scraper">Scraper</TabsTrigger>
-              <TabsTrigger value="images">Images</TabsTrigger>
+              <TabsTrigger value="images">Legacy Images</TabsTrigger>
+              <TabsTrigger value="photos">Photo Manager</TabsTrigger>
             </TabsList>
 
             <TabsContent value="templates" className="space-y-4">
@@ -405,9 +407,17 @@ const TripTemplateManagement: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="images">
-              <TripImageManager 
+              <TripImageManager
                 templateId={selectedTemplate?.id}
                 onImagesUpdated={fetchTemplates}
+              />
+            </TabsContent>
+
+            <TabsContent value="photos">
+              <TripPhotoManager
+                templateId={selectedTemplate?.id}
+                templateName={selectedTemplate?.name}
+                onPhotosUpdated={fetchTemplates}
               />
             </TabsContent>
           </Tabs>
@@ -580,15 +590,16 @@ const TripTemplateManagement: React.FC = () => {
       <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Manage Template Images</DialogTitle>
+            <DialogTitle>Manage Template Photos</DialogTitle>
             <DialogDescription>
-              Upload and manage images for {selectedTemplate?.name}
+              Upload and manually assign photos for {selectedTemplate?.name}
             </DialogDescription>
           </DialogHeader>
           {selectedTemplate && (
-            <TripImageManager 
+            <TripPhotoManager
               templateId={selectedTemplate.id}
-              onImagesUpdated={() => {
+              templateName={selectedTemplate.name}
+              onPhotosUpdated={() => {
                 fetchTemplates();
                 setIsImageDialogOpen(false);
               }}

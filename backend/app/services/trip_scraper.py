@@ -307,9 +307,11 @@ class TripDiscoveryScraperService:
             }}
             """
             
-            # Call AI API (using configurable model)
-            response = await asyncio.to_thread(
-                openai.ChatCompletion.create,
+            # Call AI API (using configurable model and updated client)
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+            response = await client.chat.completions.create(
                 model=self.ai_model,  # Use configurable model
                 messages=[
                     {"role": "system", "content": "You are a travel content specialist."},

@@ -51,13 +51,21 @@ class LoadUserProfileTool(BaseTool):
             
             # Debug vehicle-specific fields
             if profile_response.data:
+                # Check both old and new field names
                 vehicle_fields = {
                     'vehicle_type': profile_response.data.get('vehicle_type'),
                     'make_model_year': profile_response.data.get('make_model_year'),
+                    'vehicle_make_model_year': profile_response.data.get('vehicle_make_model_year'),
                     'fuel_type': profile_response.data.get('fuel_type'),
                     'towing_info': profile_response.data.get('towing_info')
                 }
                 self.logger.info(f"🚐 VEHICLE DEBUG: Vehicle fields found: {vehicle_fields}")
+
+                # Log which field contains the make/model data
+                if profile_response.data.get('vehicle_make_model_year'):
+                    self.logger.info(f"🚐 VEHICLE DEBUG: Using vehicle_make_model_year: {profile_response.data.get('vehicle_make_model_year')}")
+                elif profile_response.data.get('make_model_year'):
+                    self.logger.info(f"🚐 VEHICLE DEBUG: Using make_model_year: {profile_response.data.get('make_model_year')}")
             
             if not profile_response.data:
                 # Return basic profile structure if none exists
@@ -128,7 +136,8 @@ class LoadUserProfileTool(BaseTool):
         """Extract and structure vehicle information from unified profile"""
         # Now reads directly from onboarding fields in the unified profile
         vehicle_type = profile.get("vehicle_type", "caravan")
-        make_model = profile.get("make_model_year", "")
+        # Fix field name mismatch: database uses vehicle_make_model_year, not make_model_year
+        make_model = profile.get("vehicle_make_model_year", "") or profile.get("make_model_year", "")
         
         # Enhanced vehicle type detection for better context
         enhanced_type = vehicle_type

@@ -3,7 +3,9 @@
  * Handles routing, validation, execution, and formatting of tool calls from Claude
  */
 
+import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
+import type { Database } from '@/integrations/supabase/types';
 import { 
   getToolByName, 
   validateToolDefinition,
@@ -71,6 +73,488 @@ What aspects of your travel planning can I assist you with today?`
 }
 
 // ===================
+// FINANCIAL TOOL IMPLEMENTATIONS
+// ===================
+
+const DEFAULT_EXPENSE_LIMIT = 50;
+const MAX_EXPENSE_LIMIT = 1000;
+
+type ExpenseRow = Database['public']['Tables']['expenses']['Row'];
+type BudgetRow = Database['public']['Tables']['budgets']['Row'];
+type IncomeEntryRow = Database['public']['Tables']['income_entries']['Row'];
+
+async function getUserExpenses(
+  userId: string,
+  options: {
+    start_date?: string;
+    end_date?: string;
+    category?: string;
+    min_amount?: number;
+    max_amount?: number;
+    limit?: number;
+  } = {}
+): Promise<FinancialToolResponse<ExpenseToolData>> {
+  try {
+    logger.debug('Fetching user expenses', { userId, options });
+
+    const appliedLimit = clampNumber(options.limit, 1, MAX_EXPENSE_LIMIT, DEFAULT_EXPENSE_LIMIT);
+
+    let query = supabase
+      .from('expenses')
+      .select('id, amount, category, date, description, created_at')
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
+
+    if (options.start_date) {
+      query = query.gte('date', options.start_date);
+    }
+
+    if (options.end_date) {
+      query = query.lte('date', options.end_date);
+    }
+
+    if (options.category) {
+      query = query.eq('category', options.category);
+    }
+
+    if (typeof options.min_amount === 'number') {
+      query = query.gte('amount', options.min_amount);
+    }
+
+    if (typeof options.max_amount === 'number') {
+      query = query.lte('amount', options.max_amount);
+    }
+
+    query = query.limit(appliedLimit);
+
+    const { data, error } = await query;
+
+    if (error) {
+      logger.error('Error retrieving expenses from Supabase', error);
+      return {
+        success: false,
+        error: 'Failed to fetch expenses',
+        message: 'We were unable to retrieve your expense data. Please try again shortly.'
+      };
+    }
+
+    const expenseRows = (Array.isArray(data) ? data : []) as ExpenseRow[];
+
+    const expenses: ExpenseRecord[] = expenseRows.map(expense => ({
+      id: expense.id,
+      amount: Number(expense.amount) || 0,
+      category: expense.category || 'uncategorized',
+      date: expense.date,
+      description: expense.description,
+      created_at: expense.created_at
+    }));
+
+    const baseResponse: ExpenseToolData = {
+      expenses,
+      summary: {
+        total_amount: 0,
+        average_amount: 0,
+        transaction_count: 0,
+        categories: [],
+        date_range: buildDateRangeMetadata(options.start_date, options.end_date)
+      },
+      metadata: {
+        filters: {
+          start_date: options.start_date,
+          end_date: options.end_date,
+          category: options.category,
+          min_amount: options.min_amount,
+          max_amount: options.max_amount,
+          limit: appliedLimit,
+          include_default_limit: options.limit === undefined
+        },
+        expense_count: expenses.length
+      }
+    };
+
+    if (expenses.length === 0) {
+      return {
+        success: true,
+        data: baseResponse,
+        message: 'No expenses found for the specified filters.'
+      };
+    }
+
+    const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const categoryMap = new Map<string, { total: number; count: number }>();
+
+    expenses.forEach(expense => {
+      const categoryKey = expense.category || 'uncategorized';
+      const entry = categoryMap.get(categoryKey) || { total: 0, count: 0 };
+      entry.total += expense.amount;
+      entry.count += 1;
+      categoryMap.set(categoryKey, entry);
+    });
+
+    const categories: ExpenseCategorySummary[] = Array.from(categoryMap.entries())
+      .map(([category, stats]) => ({
+        category,
+        total_amount: stats.total,
+        transaction_count: stats.count,
+        percentage: totalAmount > 0 ? (stats.total / totalAmount) * 100 : 0
+      }))
+      .sort((a, b) => b.total_amount - a.total_amount);
+
+    const derivedStart = options.start_date ?? findDateBoundary(expenses.map(expense => expense.date), 'min');
+    const derivedEnd = options.end_date ?? findDateBoundary(expenses.map(expense => expense.date), 'max');
+
+    const highestExpense = expenses.reduce<ExpenseSummary['highest_expense'] | undefined>((current, expense) => {
+      if (!current || expense.amount > current.amount) {
+        return {
+          amount: expense.amount,
+          category: expense.category,
+          date: expense.date,
+          description: expense.description
+        };
+      }
+      return current;
+    }, undefined);
+
+    baseResponse.summary = {
+      total_amount: totalAmount,
+      average_amount: expenses.length > 0 ? totalAmount / expenses.length : 0,
+      transaction_count: expenses.length,
+      categories,
+      date_range: buildDateRangeMetadata(derivedStart, derivedEnd),
+      highest_expense: highestExpense
+    };
+
+    return {
+      success: true,
+      data: baseResponse
+    };
+  } catch (error) {
+    logger.error('Unexpected error in getUserExpenses', error);
+    return {
+      success: false,
+      error: 'Unexpected error',
+      message: 'Something went wrong while retrieving expenses. Please try again later.'
+    };
+  }
+}
+
+async function getUserBudgets(
+  userId: string,
+  options: {
+    category?: string;
+    include_summary?: boolean;
+    include_history?: boolean;
+  } = {}
+): Promise<FinancialToolResponse<BudgetToolData>> {
+  try {
+    logger.debug('Fetching user budgets', { userId, options });
+
+    const includeHistory = options.include_history ?? false;
+    const includeSummary = options.include_summary ?? true;
+
+    let query = supabase
+      .from('budgets')
+      .select('id, category, name, start_date, end_date, budgeted_amount')
+      .eq('user_id', userId)
+      .order('start_date', { ascending: false });
+
+    if (options.category) {
+      query = query.eq('category', options.category);
+    }
+
+    if (!includeHistory) {
+      const today = new Date().toISOString().split('T')[0];
+      query = query.gte('end_date', today);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      logger.error('Error fetching budgets from Supabase', error);
+      return {
+        success: false,
+        error: 'Failed to fetch budgets',
+        message: 'We were unable to retrieve your budgets. Please try again shortly.'
+      };
+    }
+
+    const budgetRows = (Array.isArray(data) ? data : []) as BudgetRow[];
+
+    const budgets: BudgetRecord[] = budgetRows.map(budget => ({
+      id: String(budget.id),
+      category: budget.category,
+      name: budget.name,
+      start_date: budget.start_date,
+      end_date: budget.end_date,
+      budgeted_amount: Number(budget.budgeted_amount) || 0,
+      spent_amount: 0,
+      remaining_amount: 0,
+      utilization: 0,
+      status: 'under_budget'
+    }));
+
+    const response: BudgetToolData = {
+      budgets,
+      metadata: {
+        filters: {
+          category: options.category,
+          include_history: includeHistory,
+          include_summary: includeSummary
+        }
+      }
+    };
+
+    if (budgets.length === 0) {
+      return {
+        success: true,
+        data: response,
+        message: 'No budgets found for the selected filters.'
+      };
+    }
+
+    const earliestStart = findDateBoundary(budgets.map(budget => budget.start_date), 'min');
+    const latestEnd = findDateBoundary(budgets.map(budget => budget.end_date), 'max');
+
+    let relatedExpenses: ExpenseRecord[] = [];
+    try {
+      let expenseQuery = supabase
+        .from('expenses')
+        .select('id, amount, category, date, description')
+        .eq('user_id', userId);
+
+      if (earliestStart) {
+        expenseQuery = expenseQuery.gte('date', earliestStart);
+      }
+
+      if (latestEnd) {
+        expenseQuery = expenseQuery.lte('date', latestEnd);
+      }
+
+      const { data: expenseData, error: expenseError } = await expenseQuery;
+
+      if (!expenseError && expenseData) {
+        const expenseRows = (Array.isArray(expenseData) ? expenseData : []) as ExpenseRow[];
+
+        relatedExpenses = expenseRows.map(expense => ({
+          id: expense.id || `${expense.category}-${expense.date}`,
+          amount: Number(expense.amount) || 0,
+          category: expense.category || 'uncategorized',
+          date: expense.date,
+          description: expense.description
+        }));
+      } else if (expenseError) {
+        logger.warn('Unable to fetch related expenses for budgets', expenseError);
+      }
+    } catch (expenseFetchError) {
+      logger.warn('Unexpected error loading expenses for budget summaries', expenseFetchError);
+    }
+
+    budgets.forEach(budget => {
+      const relevantExpenses = relatedExpenses.filter(expense => {
+        if (budget.category && expense.category !== budget.category) {
+          return false;
+        }
+
+        if (budget.start_date && expense.date < budget.start_date) {
+          return false;
+        }
+
+        if (budget.end_date && expense.date > budget.end_date) {
+          return false;
+        }
+
+        return true;
+      });
+
+      const spentAmount = relevantExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const remainingAmount = budget.budgeted_amount - spentAmount;
+      const utilization = budget.budgeted_amount > 0 ? (spentAmount / budget.budgeted_amount) * 100 : 0;
+
+      let status: BudgetRecord['status'] = 'under_budget';
+      if (utilization >= 100.5) {
+        status = 'over_budget';
+      } else if (utilization >= 85) {
+        status = 'near_limit';
+      }
+
+      budget.spent_amount = spentAmount;
+      budget.remaining_amount = remainingAmount;
+      budget.utilization = utilization;
+      budget.status = status;
+    });
+
+    if (includeSummary) {
+      const totalBudgeted = budgets.reduce((sum, budget) => sum + budget.budgeted_amount, 0);
+      const totalSpent = budgets.reduce((sum, budget) => sum + budget.spent_amount, 0);
+      const today = new Date().toISOString().split('T')[0];
+
+      response.summary = {
+        total_budgeted: totalBudgeted,
+        total_spent: totalSpent,
+        total_remaining: totalBudgeted - totalSpent,
+        average_utilization: budgets.length > 0
+          ? budgets.reduce((sum, budget) => sum + budget.utilization, 0) / budgets.length
+          : 0,
+        over_budget_categories: budgets
+          .filter(budget => budget.status === 'over_budget')
+          .map(budget => budget.category),
+        active_budget_count: budgets.filter(budget => !budget.end_date || budget.end_date >= today).length
+      };
+    }
+
+    return {
+      success: true,
+      data: response
+    };
+  } catch (error) {
+    logger.error('Unexpected error in getUserBudgets', error);
+    return {
+      success: false,
+      error: 'Unexpected error',
+      message: 'Something went wrong while retrieving budgets. Please try again later.'
+    };
+  }
+}
+
+async function getIncomeData(
+  userId: string,
+  options: {
+    start_date?: string;
+    end_date?: string;
+    income_type?: string;
+    include_projections?: boolean;
+  } = {}
+): Promise<FinancialToolResponse<IncomeToolData>> {
+  try {
+    logger.debug('Fetching user income data', { userId, options });
+
+    let query = supabase
+      .from('income_entries')
+      .select('id, amount, source, date, type, description')
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
+
+    if (options.start_date) {
+      query = query.gte('date', options.start_date);
+    }
+
+    if (options.end_date) {
+      query = query.lte('date', options.end_date);
+    }
+
+    if (options.income_type && options.income_type !== 'all') {
+      query = query.eq('type', options.income_type);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      logger.error('Error fetching income entries from Supabase', error);
+      return {
+        success: false,
+        error: 'Failed to fetch income data',
+        message: 'We were unable to retrieve your income records. Please try again shortly.'
+      };
+    }
+
+    const incomeRows = (Array.isArray(data) ? data : []) as IncomeEntryRow[];
+
+    const entries: IncomeEntryRecord[] = incomeRows.map(entry => ({
+      id: entry.id,
+      amount: Number(entry.amount) || 0,
+      source: entry.source || 'Income',
+      date: entry.date,
+      type: entry.type || 'other',
+      description: entry.description
+    }));
+
+    const response: IncomeToolData = {
+      entries,
+      summary: {
+        total_amount: 0,
+        average_amount: 0,
+        entry_count: 0,
+        by_type: [],
+        date_range: buildDateRangeMetadata(options.start_date, options.end_date)
+      },
+      metadata: {
+        filters: {
+          start_date: options.start_date,
+          end_date: options.end_date,
+          income_type: options.income_type,
+          include_projections: !!options.include_projections
+        }
+      }
+    };
+
+    if (entries.length === 0) {
+      return {
+        success: true,
+        data: response,
+        message: 'No income records found for the selected filters.'
+      };
+    }
+
+    const totalAmount = entries.reduce((sum, entry) => sum + entry.amount, 0);
+    const typeMap = new Map<string, { total: number; count: number }>();
+
+    entries.forEach(entry => {
+      const typeKey = entry.type || 'other';
+      const stats = typeMap.get(typeKey) || { total: 0, count: 0 };
+      stats.total += entry.amount;
+      stats.count += 1;
+      typeMap.set(typeKey, stats);
+    });
+
+    const byType: IncomeTypeSummary[] = Array.from(typeMap.entries())
+      .map(([type, stats]) => ({
+        type,
+        total_amount: stats.total,
+        entry_count: stats.count,
+        percentage: totalAmount > 0 ? (stats.total / totalAmount) * 100 : 0
+      }))
+      .sort((a, b) => b.total_amount - a.total_amount);
+
+    const derivedStart = options.start_date ?? findDateBoundary(entries.map(entry => entry.date), 'min');
+    const derivedEnd = options.end_date ?? findDateBoundary(entries.map(entry => entry.date), 'max');
+
+    response.summary = {
+      total_amount: totalAmount,
+      average_amount: entries.length > 0 ? totalAmount / entries.length : 0,
+      entry_count: entries.length,
+      by_type: byType,
+      date_range: buildDateRangeMetadata(derivedStart, derivedEnd)
+    };
+
+    if (options.include_projections) {
+      const rangeDays = response.summary.date_range?.days && response.summary.date_range.days > 0
+        ? response.summary.date_range.days
+        : 30;
+
+      const averageDaily = rangeDays > 0 ? totalAmount / rangeDays : totalAmount;
+
+      response.projections = {
+        average_daily: averageDaily,
+        projected_next_30_days: averageDaily * 30,
+        projected_next_90_days: averageDaily * 90
+      };
+    }
+
+    return {
+      success: true,
+      data: response
+    };
+  } catch (error) {
+    logger.error('Unexpected error in getIncomeData', error);
+    return {
+      success: false,
+      error: 'Unexpected error',
+      message: 'Something went wrong while retrieving income data. Please try again later.'
+    };
+  }
+}
+
+// ===================
 // TYPE DEFINITIONS
 // ===================
 
@@ -109,6 +593,146 @@ export interface ToolUsageAnalytics {
   parameterCount: number;
   dataSize?: number;
   error?: string;
+}
+
+type FinancialToolResponse<T> = {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+};
+
+interface ExpenseRecord {
+  id: number | string;
+  amount: number;
+  category: string;
+  date: string;
+  description?: string | null;
+  created_at?: string | null;
+}
+
+interface ExpenseCategorySummary {
+  category: string;
+  total_amount: number;
+  transaction_count: number;
+  percentage: number;
+}
+
+interface ExpenseSummary {
+  total_amount: number;
+  average_amount: number;
+  transaction_count: number;
+  categories: ExpenseCategorySummary[];
+  date_range?: {
+    start_date: string | null;
+    end_date: string | null;
+    days: number | null;
+  };
+  highest_expense?: {
+    amount: number;
+    category: string;
+    date: string;
+    description?: string | null;
+  };
+}
+
+interface ExpenseToolData {
+  expenses: ExpenseRecord[];
+  summary: ExpenseSummary;
+  metadata: {
+    filters: {
+      start_date?: string;
+      end_date?: string;
+      category?: string;
+      min_amount?: number;
+      max_amount?: number;
+      limit: number;
+      include_default_limit: boolean;
+    };
+    expense_count: number;
+  };
+}
+
+interface BudgetRecord {
+  id: string;
+  category: string;
+  name?: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  budgeted_amount: number;
+  spent_amount: number;
+  remaining_amount: number;
+  utilization: number;
+  status: 'under_budget' | 'near_limit' | 'over_budget';
+}
+
+interface BudgetSummary {
+  total_budgeted: number;
+  total_spent: number;
+  total_remaining: number;
+  average_utilization: number;
+  over_budget_categories: string[];
+  active_budget_count: number;
+}
+
+interface BudgetToolData {
+  budgets: BudgetRecord[];
+  summary?: BudgetSummary;
+  metadata: {
+    filters: {
+      category?: string;
+      include_history: boolean;
+      include_summary: boolean;
+    };
+  };
+}
+
+interface IncomeEntryRecord {
+  id: string;
+  amount: number;
+  source: string;
+  date: string;
+  type: string;
+  description?: string | null;
+}
+
+interface IncomeTypeSummary {
+  type: string;
+  total_amount: number;
+  entry_count: number;
+  percentage: number;
+}
+
+interface IncomeSummary {
+  total_amount: number;
+  average_amount: number;
+  entry_count: number;
+  date_range?: {
+    start_date: string | null;
+    end_date: string | null;
+    days: number | null;
+  };
+  by_type: IncomeTypeSummary[];
+}
+
+interface IncomeProjections {
+  average_daily: number;
+  projected_next_30_days: number;
+  projected_next_90_days: number;
+}
+
+interface IncomeToolData {
+  entries: IncomeEntryRecord[];
+  summary: IncomeSummary;
+  projections?: IncomeProjections;
+  metadata: {
+    filters: {
+      start_date?: string;
+      end_date?: string;
+      income_type?: string;
+      include_projections: boolean;
+    };
+  };
 }
 
 // ===================
@@ -283,7 +907,7 @@ async function routeToolCall(
   toolDefinition: ToolDefinition,
   parameters: Record<string, any>,
   userId: string
-): Promise<ProfileToolResponse<any> | TripToolResponse<any>> {
+): Promise<ProfileToolResponse<any> | TripToolResponse<any> | FinancialToolResponse<any>> {
   
   switch (toolDefinition.name) {
     // Profile tools
@@ -341,25 +965,29 @@ async function routeToolCall(
 
     // Financial tools (placeholder - to be implemented)
     case 'getUserExpenses':
-      return {
-        success: false,
-        error: 'Tool not yet implemented',
-        message: 'Financial tools are coming in the next implementation phase.'
-      };
+      return await getUserExpenses(userId, {
+        start_date: parameters.start_date,
+        end_date: parameters.end_date,
+        category: parameters.category,
+        min_amount: parameters.min_amount,
+        max_amount: parameters.max_amount,
+        limit: parameters.limit
+      });
 
     case 'getUserBudgets':
-      return {
-        success: false,
-        error: 'Tool not yet implemented',
-        message: 'Budget tools are coming in the next implementation phase.'
-      };
+      return await getUserBudgets(userId, {
+        category: parameters.category,
+        include_summary: parameters.include_summary,
+        include_history: parameters.include_history
+      });
 
     case 'getIncomeData':
-      return {
-        success: false,
-        error: 'Tool not yet implemented',
-        message: 'Income tools are coming in the next implementation phase.'
-      };
+      return await getIncomeData(userId, {
+        start_date: parameters.start_date,
+        end_date: parameters.end_date,
+        income_type: parameters.income_type,
+        include_projections: parameters.include_projections
+      });
 
     case 'calculateSavings':
       return {
@@ -420,6 +1048,70 @@ async function routeToolCall(
         message: `Tool '${toolDefinition.name}' exists in registry but routing is not implemented.`
       };
   }
+}
+
+function clampNumber(value: number | undefined, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(value, min), max);
+}
+
+function buildDateRangeMetadata(start?: string | null, end?: string | null) {
+  const hasStart = typeof start === 'string' && isValidDateString(start);
+  const hasEnd = typeof end === 'string' && isValidDateString(end);
+
+  if (!hasStart && !hasEnd) {
+    return undefined;
+  }
+
+  const normalizedStart = hasStart ? start! : hasEnd ? end! : null;
+  const normalizedEnd = hasEnd ? end! : hasStart ? start! : null;
+  const days = calculateDateSpan(normalizedStart, normalizedEnd);
+
+  return {
+    start_date: normalizedStart,
+    end_date: normalizedEnd,
+    days
+  };
+}
+
+function findDateBoundary(dates: (string | null | undefined)[], type: 'min' | 'max'): string | null {
+  const validDates = dates
+    .filter((date): date is string => typeof date === 'string' && isValidDateString(date));
+
+  if (validDates.length === 0) {
+    return null;
+  }
+
+  const sorted = [...validDates].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return type === 'min' ? sorted[0] : sorted[sorted.length - 1];
+}
+
+function calculateDateSpan(start?: string | null, end?: string | null): number | null {
+  const validStart = start && isValidDateString(start) ? start : null;
+  const validEnd = end && isValidDateString(end) ? end : null;
+
+  if (!validStart && !validEnd) {
+    return null;
+  }
+
+  const startDate = validStart ? new Date(validStart) : new Date(validEnd!);
+  const endDate = validEnd ? new Date(validEnd) : new Date(validStart!);
+
+  const startMs = startDate.getTime();
+  const endMs = endDate.getTime();
+
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+    return null;
+  }
+
+  const minMs = Math.min(startMs, endMs);
+  const maxMs = Math.max(startMs, endMs);
+  const diffDays = Math.floor((maxMs - minMs) / (1000 * 60 * 60 * 24));
+
+  return diffDays + 1;
 }
 
 // ===================
@@ -631,9 +1323,18 @@ export function formatToolResponse(toolName: string, data: any): string {
 
   try {
     switch (toolName) {
+      case 'getUserExpenses':
+        return formatExpensesResponse(data);
+
+      case 'getUserBudgets':
+        return formatBudgetsResponse(data);
+
+      case 'getIncomeData':
+        return formatIncomeResponse(data);
+
       case 'getUserProfile':
         return formatProfileResponse(data);
-      
+
       case 'getUserSettings':
         return formatSettingsResponse(data);
       
@@ -666,6 +1367,9 @@ export function formatToolResponse(toolName: string, data: any): string {
  */
 function formatEmptyResponse(toolName: string): string {
   const responseMap: Record<string, string> = {
+    getUserExpenses: 'No expense records found for the selected timeframe.',
+    getUserBudgets: 'No budgets configured for this user.',
+    getIncomeData: 'No income entries found for the selected timeframe.',
     getUserProfile: "No profile information found for this user.",
     getUserSettings: "No custom settings found - using default settings.",
     getUserPreferences: "No custom preferences found - using default preferences.",
@@ -676,6 +1380,207 @@ function formatEmptyResponse(toolName: string): string {
   };
 
   return responseMap[toolName] || `No data found for ${toolName}.`;
+}
+
+/**
+ * Format expenses response for Claude
+ */
+function formatExpensesResponse(expenseData: ExpenseToolData): string {
+  const summary = expenseData.summary;
+
+  if (!summary || summary.transaction_count === 0) {
+    return 'No expense records found for the selected timeframe.';
+  }
+
+  const parts = ['Expense Overview:'];
+
+  parts.push(`• Total Spent: $${formatCurrency(summary.total_amount)}`);
+  parts.push(`• Transactions: ${summary.transaction_count}`);
+
+  if (summary.average_amount > 0) {
+    parts.push(`• Average Amount: $${formatCurrency(summary.average_amount)}`);
+  }
+
+  if (summary.date_range?.start_date && summary.date_range.end_date) {
+    parts.push(`• Date Range: ${formatDisplayDate(summary.date_range.start_date)} → ${formatDisplayDate(summary.date_range.end_date)}`);
+  }
+
+  if (summary.categories.length > 0) {
+    parts.push('• Top Categories:');
+    summary.categories.slice(0, 3).forEach(category => {
+      parts.push(
+        `  - ${formatCategoryName(category.category)}: $${formatCurrency(category.total_amount)} (${category.percentage.toFixed(1)}%)`
+      );
+    });
+  }
+
+  if (summary.highest_expense) {
+    const { amount, category, date, description } = summary.highest_expense;
+    const detail = description ? ` – ${description}` : '';
+    parts.push(
+      `• Largest Expense: $${formatCurrency(amount)} on ${formatDisplayDate(date)} (${formatCategoryName(category)})${detail}`
+    );
+  }
+
+  if (expenseData.expenses.length > 0) {
+    parts.push('• Recent Transactions:');
+    expenseData.expenses.slice(0, 3).forEach(expense => {
+      const details = expense.description ? ` – ${expense.description}` : '';
+      parts.push(
+        `  - ${formatDisplayDate(expense.date)}: $${formatCurrency(expense.amount)} on ${formatCategoryName(expense.category)}${details}`
+      );
+    });
+
+    if (expenseData.expenses.length > 3) {
+      parts.push(`  - …and ${expenseData.expenses.length - 3} more transactions`);
+    }
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Format budgets response for Claude
+ */
+function formatBudgetsResponse(budgetData: BudgetToolData): string {
+  if (!budgetData.budgets || budgetData.budgets.length === 0) {
+    return 'No budgets configured for this user.';
+  }
+
+  const parts = ['Budget Overview:'];
+
+  if (budgetData.summary) {
+    parts.push(`• Total Budgeted: $${formatCurrency(budgetData.summary.total_budgeted)}`);
+    parts.push(`• Total Spent: $${formatCurrency(budgetData.summary.total_spent)}`);
+    parts.push(`• Remaining: $${formatCurrency(budgetData.summary.total_remaining)}`);
+    parts.push(`• Average Utilization: ${budgetData.summary.average_utilization.toFixed(1)}%`);
+
+    if (budgetData.summary.over_budget_categories.length > 0) {
+      parts.push(
+        `• Over Budget: ${budgetData.summary.over_budget_categories.map(formatCategoryName).join(', ')}`
+      );
+    }
+  }
+
+  parts.push('• Budget Details:');
+
+  budgetData.budgets.slice(0, 5).forEach(budget => {
+    const statusLabel =
+      budget.status === 'over_budget'
+        ? 'Over budget'
+        : budget.status === 'near_limit'
+          ? 'Near limit'
+          : 'On track';
+
+    parts.push(
+      `  - ${budget.name || formatCategoryName(budget.category)}: $${formatCurrency(budget.spent_amount)} of $${formatCurrency(budget.budgeted_amount)} used (${budget.utilization.toFixed(1)}% – ${statusLabel})`
+    );
+
+    if (budget.start_date || budget.end_date) {
+      parts.push(
+        `     Period: ${formatDisplayDate(budget.start_date)} → ${formatDisplayDate(budget.end_date)}`
+      );
+    }
+  });
+
+  if (budgetData.budgets.length > 5) {
+    parts.push(`  - …and ${budgetData.budgets.length - 5} more budgets`);
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Format income response for Claude
+ */
+function formatIncomeResponse(incomeData: IncomeToolData): string {
+  const summary = incomeData.summary;
+
+  if (!summary || summary.entry_count === 0) {
+    return 'No income entries found for the selected timeframe.';
+  }
+
+  const parts = ['Income Overview:'];
+
+  parts.push(`• Total Income: $${formatCurrency(summary.total_amount)}`);
+  parts.push(`• Entries: ${summary.entry_count}`);
+
+  if (summary.average_amount > 0) {
+    parts.push(`• Average Amount: $${formatCurrency(summary.average_amount)}`);
+  }
+
+  if (summary.date_range?.start_date && summary.date_range.end_date) {
+    parts.push(`• Date Range: ${formatDisplayDate(summary.date_range.start_date)} → ${formatDisplayDate(summary.date_range.end_date)}`);
+  }
+
+  if (summary.by_type.length > 0) {
+    parts.push('• Income by Type:');
+    summary.by_type.slice(0, 3).forEach(typeSummary => {
+      parts.push(
+        `  - ${formatCategoryName(typeSummary.type)}: $${formatCurrency(typeSummary.total_amount)} (${typeSummary.percentage.toFixed(1)}%)`
+      );
+    });
+  }
+
+  if (incomeData.projections) {
+    parts.push('• Projections:');
+    parts.push(
+      `  - Average Daily: $${formatCurrency(incomeData.projections.average_daily)}`
+    );
+    parts.push(
+      `  - Next 30 Days: $${formatCurrency(incomeData.projections.projected_next_30_days)}`
+    );
+    parts.push(
+      `  - Next 90 Days: $${formatCurrency(incomeData.projections.projected_next_90_days)}`
+    );
+  }
+
+  if (incomeData.entries.length > 0) {
+    parts.push('• Recent Income:');
+    incomeData.entries.slice(0, 3).forEach(entry => {
+      const details = entry.description ? ` – ${entry.description}` : '';
+      parts.push(
+        `  - ${formatDisplayDate(entry.date)}: $${formatCurrency(entry.amount)} from ${entry.source}${details}`
+      );
+    });
+
+    if (incomeData.entries.length > 3) {
+      parts.push(`  - …and ${incomeData.entries.length - 3} more entries`);
+    }
+  }
+
+  return parts.join('\n');
+}
+
+function formatCurrency(amount: number): string {
+  return amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatDisplayDate(date?: string | null): string {
+  if (!date) {
+    return 'N/A';
+  }
+
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+
+  return parsed.toLocaleDateString();
+}
+
+function formatCategoryName(category?: string | null): string {
+  if (!category) {
+    return 'Uncategorized';
+  }
+
+  return category
+    .split('_')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 /**
