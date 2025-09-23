@@ -339,15 +339,38 @@ class GeminiFunctionCallHandler:
                     elif msg.get("role") == "assistant":
                         conversation_parts.append({"role": "model", "parts": [msg["content"]]})
 
-                # Start chat with history and tools
-                chat = model.start_chat(
-                    history=conversation_parts[:-1] if len(conversation_parts) > 1 else [],
-                    tools=tools
-                )
+                # Start chat with history - tools parameter not supported in older SDK versions
+                try:
+                    # Try new SDK format with tools parameter
+                    chat = model.start_chat(
+                        history=conversation_parts[:-1] if len(conversation_parts) > 1 else [],
+                        tools=tools
+                    )
+                except TypeError:
+                    # Fallback for older SDK versions - start chat without tools
+                    logger.warning("SDK version doesn't support tools parameter in start_chat, using generate_content with tools")
+                    chat = model.start_chat(
+                        history=conversation_parts[:-1] if len(conversation_parts) > 1 else []
+                    )
 
                 # Send the latest user message
                 latest_message = conversation_parts[-1]["parts"][0] if conversation_parts else ""
-                response = chat.send_message(latest_message)
+
+                # Handle tools with different SDK versions
+                try:
+                    # Try to use tools in send_message if start_chat failed with tools
+                    if hasattr(chat, '_tools') or 'tools' in str(type(chat)):
+                        response = chat.send_message(latest_message)
+                    else:
+                        # For older SDK versions, use generate_content with tools directly
+                        response = model.generate_content(
+                            latest_message,
+                            tools=tools,
+                            generation_config=generation_config
+                        )
+                except Exception as e:
+                    logger.warning(f"Error sending message with tools: {e}, falling back to basic generation")
+                    response = chat.send_message(latest_message)
             else:
                 # No tools available, regular chat
                 response = model.generate_content(messages[-1]["content"])
