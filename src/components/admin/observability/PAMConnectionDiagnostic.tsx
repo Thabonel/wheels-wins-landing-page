@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, Send, Activity, Brain, MessageSquare, Settings, Cloud } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-// Claude service removed - PAM now uses backend Gemini integration
 import { logger } from '@/lib/logger';
 
 interface TestResult {
@@ -19,7 +18,7 @@ interface TestResult {
 }
 
 interface DiagnosticResults {
-  apiKeyCheck: TestResult;
+  configCheck: TestResult;
   backendServiceCheck: TestResult;
   toolsCheck: TestResult;
   chatTest: TestResult;
@@ -31,7 +30,7 @@ export function PAMConnectionDiagnostic() {
   const [testing, setTesting] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [results, setResults] = useState<DiagnosticResults>({
-    apiKeyCheck: { status: 'checking' },
+    configCheck: { status: 'checking' },
     backendServiceCheck: { status: 'checking' },
     toolsCheck: { status: 'checking' },
     chatTest: { status: 'checking' },
@@ -46,54 +45,37 @@ export function PAMConnectionDiagnostic() {
     return 'staging';
   };
 
-  // Get PAM backend URLs based on environment
+  // Get PAM 2.0 backend URLs based on environment
   const getPamEndpoints = () => {
     const env = getEnvironment();
-    const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
 
-    if (usePam2) {
-      // PAM 2.0 endpoints
-      return {
-        production: {
-          health: 'https://pam-backend.onrender.com/api/v1/pam-2/health',
-          chat: 'https://pam-backend.onrender.com/api/v1/pam-2/chat'
-        },
-        staging: {
-          health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/health',
-          chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/chat'
-        }
-      }[env];
-    } else {
-      // PAM 1.0 endpoints (legacy)
-      return {
-        production: {
-          health: 'https://pam-backend.onrender.com/api/health',
-          chat: 'https://pam-backend.onrender.com/api/v1/pam/chat'
-        },
-        staging: {
-          health: 'https://wheels-wins-backend-staging.onrender.com/api/health',
-          chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat'
-        }
-      }[env];
-    }
+    // PAM 2.0 endpoints only
+    return {
+      production: {
+        health: 'https://pam-backend.onrender.com/api/v1/pam-2/health',
+        chat: 'https://pam-backend.onrender.com/api/v1/pam-2/chat'
+      },
+      staging: {
+        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/health',
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/chat'
+      }
+    }[env];
   };
 
-  const runApiKeyCheck = async (): Promise<TestResult> => {
+  const runConfigCheck = async (): Promise<TestResult> => {
     try {
       const startTime = Date.now();
-      const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
-
-      // Since PAM routes through backend, we test environment configuration
       const env = getEnvironment();
       const responseTime = Date.now() - startTime;
 
       return {
         status: 'success',
-        message: `${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} configured for ${env} environment`,
+        message: `PAM 2.0 configured for ${env} environment`,
         responseTime,
         data: {
           environment: env,
-          pamVersion: usePam2 ? '2.0' : '1.0',
+          pamVersion: '2.0',
+          provider: 'Google Gemini 1.5 Flash',
           note: 'Backend handles API key authentication'
         }
       };
@@ -111,7 +93,6 @@ export function PAMConnectionDiagnostic() {
       const startTime = Date.now();
       const endpoints = getPamEndpoints();
       const env = getEnvironment();
-      const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
 
       if (!endpoints) {
         return {
@@ -121,7 +102,7 @@ export function PAMConnectionDiagnostic() {
         };
       }
 
-      logger.info(`Testing ${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} health endpoint for ${env}:`, endpoints.health);
+      logger.info(`Testing PAM 2.0 health endpoint for ${env}:`, endpoints.health);
 
       // Real health check to current environment's PAM backend
       const controller = new AbortController();
@@ -143,13 +124,13 @@ export function PAMConnectionDiagnostic() {
         const data = await response.json();
         return {
           status: 'success',
-          message: `${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} backend healthy on ${env}`,
+          message: `PAM 2.0 backend healthy on ${env}`,
           responseTime,
           endpoint: endpoints.health,
           statusCode: response.status,
           data: {
-            service: data.service || 'PAM',
-            version: data.version || (usePam2 ? '2.0.0' : '1.0.0'),
+            service: data.service || 'pam-2.0',
+            version: data.version || '2.0.0',
             environment: env,
             modules: data.modules || {},
             status: data.status || 'ok'
@@ -159,7 +140,7 @@ export function PAMConnectionDiagnostic() {
         const errorText = await response.text().catch(() => 'Unable to read error response');
         return {
           status: 'error',
-          message: `PAM backend health check failed (${response.status})`,
+          message: `PAM 2.0 backend health check failed (${response.status})`,
           responseTime,
           endpoint: endpoints.health,
           statusCode: response.status,
@@ -172,7 +153,7 @@ export function PAMConnectionDiagnostic() {
       if (error.name === 'AbortError') {
         return {
           status: 'timeout',
-          message: 'PAM backend health check timed out (>10s)',
+          message: 'PAM 2.0 backend health check timed out (>10s)',
           responseTime,
           endpoint: getPamEndpoints()?.health,
           error: 'Request timeout'
@@ -181,7 +162,7 @@ export function PAMConnectionDiagnostic() {
 
       return {
         status: 'error',
-        message: 'PAM backend health check failed',
+        message: 'PAM 2.0 backend health check failed',
         responseTime,
         endpoint: getPamEndpoints()?.health,
         error: error.message || 'Network error'
@@ -194,7 +175,6 @@ export function PAMConnectionDiagnostic() {
       const startTime = Date.now();
       const endpoints = getPamEndpoints();
       const env = getEnvironment();
-      const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
 
       if (!endpoints) {
         return {
@@ -204,9 +184,8 @@ export function PAMConnectionDiagnostic() {
         };
       }
 
-      // For PAM 2.0, tools are integrated into the health endpoint response
-      // For PAM 1.0, we check if the service is responsive
-      logger.info(`Checking ${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} tools availability for ${env}`);
+      // PAM 2.0 tools are integrated into the health endpoint response
+      logger.info(`Checking PAM 2.0 tools availability for ${env}`);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
@@ -225,39 +204,24 @@ export function PAMConnectionDiagnostic() {
       if (response.ok) {
         const data = await response.json();
 
-        if (usePam2) {
-          // PAM 2.0 returns modules status
-          const modules = data.modules || {};
-          const moduleCount = Object.keys(modules).length;
-          const readyModules = Object.values(modules).filter(status => status === 'ready').length;
+        // PAM 2.0 returns modules status
+        const modules = data.modules || {};
+        const moduleCount = Object.keys(modules).length;
+        const readyModules = Object.values(modules).filter(status => status === 'ready' || status === 'healthy').length;
 
-          return {
-            status: readyModules === moduleCount ? 'success' : 'degraded',
-            message: `${readyModules}/${moduleCount} PAM 2.0 modules ready`,
-            responseTime,
-            endpoint: endpoints.health,
-            data: {
-              modules,
-              environment: env,
-              totalModules: moduleCount,
-              readyModules,
-              provider: 'Gemini'
-            }
-          };
-        } else {
-          // PAM 1.0 basic tools availability
-          return {
-            status: 'success',
-            message: 'PAM 1.0 tools available via backend',
-            responseTime,
-            endpoint: endpoints.health,
-            data: {
-              note: 'Tools integrated in backend service',
-              provider: 'Backend-integrated',
-              environment: env
-            }
-          };
-        }
+        return {
+          status: readyModules === moduleCount ? 'success' : 'degraded',
+          message: `${readyModules}/${moduleCount} PAM 2.0 modules ready`,
+          responseTime,
+          endpoint: endpoints.health,
+          data: {
+            modules,
+            environment: env,
+            totalModules: moduleCount,
+            readyModules,
+            provider: 'Google Gemini 1.5 Flash'
+          }
+        };
       } else {
         return {
           status: 'error',
@@ -301,7 +265,6 @@ export function PAMConnectionDiagnostic() {
       const startTime = Date.now();
       const endpoints = getPamEndpoints();
       const env = getEnvironment();
-      const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
 
       if (!endpoints) {
         return {
@@ -311,7 +274,7 @@ export function PAMConnectionDiagnostic() {
         };
       }
 
-      logger.info(`Testing ${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} chat for ${env}`, {
+      logger.info(`Testing PAM 2.0 chat for ${env}`, {
         userId: user.id,
         email: user.email,
         endpoint: endpoints.chat
@@ -325,13 +288,9 @@ export function PAMConnectionDiagnostic() {
           region: 'admin-diagnostic',
           current_page: 'admin-diagnostics',
           test: true
-        }
+        },
+        session_id: `diagnostic-${Date.now()}`
       };
-
-      // Add session_id for PAM 2.0
-      if (usePam2) {
-        testMessage['session_id'] = `diagnostic-${Date.now()}`;
-      }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
@@ -358,7 +317,7 @@ export function PAMConnectionDiagnostic() {
         return {
           status: hasResponse ? 'success' : 'degraded',
           message: hasResponse
-            ? `${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} chat test successful on ${env}`
+            ? `PAM 2.0 chat test successful on ${env}`
             : 'PAM responded but without message content',
           responseTime,
           endpoint: endpoints.chat,
@@ -366,7 +325,7 @@ export function PAMConnectionDiagnostic() {
           data: {
             response: hasResponse,
             environment: env,
-            pamVersion: usePam2 ? '2.0' : '1.0',
+            pamVersion: '2.0',
             metadata: data.metadata || null,
             fullResponse: data
           }
@@ -375,7 +334,7 @@ export function PAMConnectionDiagnostic() {
         const errorText = await response.text().catch(() => 'Unable to read error response');
         return {
           status: 'error',
-          message: `PAM chat test failed (${response.status})`,
+          message: `PAM 2.0 chat test failed (${response.status})`,
           responseTime,
           endpoint: endpoints.chat,
           statusCode: response.status,
@@ -389,18 +348,18 @@ export function PAMConnectionDiagnostic() {
       if (error.name === 'AbortError') {
         return {
           status: 'timeout',
-          message: 'PAM chat test timed out (>15s)',
+          message: 'PAM 2.0 chat test timed out (>15s)',
           responseTime,
           endpoint: getPamEndpoints()?.chat,
           error: 'Request timeout'
         };
       }
 
-      logger.error(`${import.meta.env.VITE_USE_PAM_2 === 'true' ? 'PAM 2.0' : 'PAM 1.0'} chat test failed`, error);
+      logger.error('PAM 2.0 chat test failed', error);
 
       return {
         status: 'error',
-        message: 'PAM chat test failed',
+        message: 'PAM 2.0 chat test failed',
         responseTime,
         endpoint: getPamEndpoints()?.chat,
         error: { message: error.message || 'Unknown error', stack: error.stack }
@@ -410,14 +369,14 @@ export function PAMConnectionDiagnostic() {
 
   const runComprehensiveTest = async (showIndividualToasts = false) => {
     setTesting(true);
-    
+
     if (showIndividualToasts) {
-      toast.info('Running comprehensive PAM diagnostics...');
+      toast.info('Running comprehensive PAM 2.0 diagnostics...');
     }
 
     // Initialize all tests as checking
     setResults(prev => ({
-      apiKeyCheck: { status: 'checking' },
+      configCheck: { status: 'checking' },
       backendServiceCheck: { status: 'checking' },
       toolsCheck: { status: 'checking' },
       chatTest: { status: 'checking' },
@@ -426,9 +385,9 @@ export function PAMConnectionDiagnostic() {
 
     try {
       // Run tests sequentially with progress updates
-      if (showIndividualToasts) toast.info('1/4 Checking API key...');
-      const apiKeyResult = await runApiKeyCheck();
-      setResults(prev => ({ ...prev, apiKeyCheck: apiKeyResult }));
+      if (showIndividualToasts) toast.info('1/4 Checking configuration...');
+      const configResult = await runConfigCheck();
+      setResults(prev => ({ ...prev, configCheck: configResult }));
 
       if (showIndividualToasts) toast.info('2/4 Checking backend service...');
       const backendServiceResult = await runBackendServiceCheck();
@@ -439,37 +398,37 @@ export function PAMConnectionDiagnostic() {
       setResults(prev => ({ ...prev, toolsCheck: toolsResult }));
 
       // Only test chat if core components are ready
-      if (apiKeyResult.status === 'success' && backendServiceResult.status === 'success') {
-        if (showIndividualToasts) toast.info('4/4 Testing PAM Backend Integration...');
+      if (configResult.status === 'success' && backendServiceResult.status === 'success') {
+        if (showIndividualToasts) toast.info('4/4 Testing PAM 2.0 Chat...');
         const chatResult = await runChatTest();
-        setResults(prev => ({ 
-          ...prev, 
+        setResults(prev => ({
+          ...prev,
           chatTest: chatResult,
           lastCheck: new Date()
         }));
       } else {
-        setResults(prev => ({ 
-          ...prev, 
-          chatTest: { status: 'error', message: 'Skipped due to API key or service initialization issues' },
+        setResults(prev => ({
+          ...prev,
+          chatTest: { status: 'error', message: 'Skipped due to configuration or service initialization issues' },
           lastCheck: new Date()
         }));
       }
 
       if (showIndividualToasts) {
-        const allPassed = [apiKeyResult, backendServiceResult, toolsResult].every(
+        const allPassed = [configResult, backendServiceResult, toolsResult].every(
           r => ['success', 'operational'].includes(r.status)
         );
 
         if (allPassed) {
-          toast.success('✅ All PAM diagnostics passed!');
+          toast.success('✅ All PAM 2.0 diagnostics passed!');
         } else {
-          toast.warning('⚠️ Some PAM diagnostics failed. Check details below.');
+          toast.warning('⚠️ Some PAM 2.0 diagnostics failed. Check details below.');
         }
       }
     } catch (error) {
       console.error('Comprehensive test failed:', error);
       if (showIndividualToasts) {
-        toast.error('❌ PAM diagnostics failed');
+        toast.error('❌ PAM 2.0 diagnostics failed');
       }
     } finally {
       setTesting(false);
@@ -478,13 +437,13 @@ export function PAMConnectionDiagnostic() {
 
   useEffect(() => {
     runComprehensiveTest(false);
-    
+
     // Auto-refresh every 30 seconds if enabled
     let interval: NodeJS.Timeout;
     if (autoRefresh) {
       interval = setInterval(() => runComprehensiveTest(false), 30000);
     }
-    
+
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -533,8 +492,8 @@ export function PAMConnectionDiagnostic() {
   };
 
   const getOverallStatus = () => {
-    const statuses = [results.apiKeyCheck.status, results.backendServiceCheck.status, results.toolsCheck.status];
-    
+    const statuses = [results.configCheck.status, results.backendServiceCheck.status, results.toolsCheck.status];
+
     if (statuses.includes('checking')) return 'checking';
     if (statuses.every(s => ['success', 'operational'].includes(s))) return 'success';
     if (statuses.some(s => ['error', 'offline'].includes(s))) return 'error';
@@ -546,8 +505,8 @@ export function PAMConnectionDiagnostic() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center">
-            <Activity className="w-5 h-5 mr-2" />
-            PAM Connection Diagnostic
+            <Brain className="w-5 h-5 mr-2" />
+            PAM 2.0 Connection Diagnostic
             <Badge variant={getStatusColor(getOverallStatus())} className="ml-2">
               {testing ? 'Testing...' : getOverallStatus()}
             </Badge>
@@ -562,17 +521,17 @@ export function PAMConnectionDiagnostic() {
               <RefreshCw className={`w-4 h-4 mr-1 ${autoRefresh ? 'animate-spin' : ''}`} />
               Auto
             </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => runComprehensiveTest(false)}
               disabled={testing}
             >
               <RefreshCw className={`w-4 h-4 mr-1 ${testing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Button 
-              onClick={() => runComprehensiveTest(true)} 
+            <Button
+              onClick={() => runComprehensiveTest(true)}
               disabled={testing}
               size="sm"
             >
@@ -590,7 +549,7 @@ export function PAMConnectionDiagnostic() {
         {/* Connection Details */}
         <div className="text-sm text-muted-foreground space-y-1 pb-2 border-b">
           <p><strong>Environment:</strong> {getEnvironment().toUpperCase()}</p>
-          <p><strong>PAM Version:</strong> {import.meta.env.VITE_USE_PAM_2 === 'true' ? '2.0 (Gemini)' : '1.0 (Legacy)'}</p>
+          <p><strong>PAM Version:</strong> 2.0 (Google Gemini 1.5 Flash)</p>
           <p><strong>Backend URL:</strong> {getPamEndpoints()?.health || 'Not configured'}</p>
           <p><strong>User:</strong> {user?.email || 'Not logged in'}</p>
           {results.lastCheck && (
@@ -600,30 +559,30 @@ export function PAMConnectionDiagnostic() {
 
         {/* Test Results */}
         <div className="space-y-3">
-          {/* API Key Check */}
+          {/* Configuration Check */}
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div className="flex items-center gap-3">
               <Cloud className="w-4 h-4 text-gray-500" />
               <div>
                 <span className="font-medium">1. Environment Configuration</span>
-                {results.apiKeyCheck.responseTime && (
+                {results.configCheck.responseTime && (
                   <div className="text-xs text-muted-foreground">
-                    Check: {results.apiKeyCheck.responseTime}ms
+                    Check: {results.configCheck.responseTime}ms
                   </div>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {getStatusIcon(results.apiKeyCheck.status)}
-              <Badge variant={getStatusColor(results.apiKeyCheck.status) as any}>
-                {results.apiKeyCheck.status}
+              {getStatusIcon(results.configCheck.status)}
+              <Badge variant={getStatusColor(results.configCheck.status) as any}>
+                {results.configCheck.status}
               </Badge>
             </div>
           </div>
-          {results.apiKeyCheck.message && (
+          {results.configCheck.message && (
             <div className="text-xs text-muted-foreground pl-4 -mt-2">
-              {results.apiKeyCheck.message}
-              {results.apiKeyCheck.error && ` | Error: ${results.apiKeyCheck.error}`}
+              {results.configCheck.message}
+              {results.configCheck.error && ` | Error: ${results.configCheck.error}`}
             </div>
           )}
 
@@ -658,7 +617,7 @@ export function PAMConnectionDiagnostic() {
             <div className="flex items-center gap-3">
               <Settings className="w-4 h-4 text-gray-500" />
               <div>
-                <span className="font-medium">3. PAM Tools Registry</span>
+                <span className="font-medium">3. PAM 2.0 Tools Registry</span>
                 {results.toolsCheck.responseTime && (
                   <div className="text-xs text-muted-foreground">
                     Loading: {results.toolsCheck.responseTime}ms
@@ -684,7 +643,7 @@ export function PAMConnectionDiagnostic() {
             <div className="flex items-center gap-3">
               <MessageSquare className="w-4 h-4 text-gray-500" />
               <div>
-                <span className="font-medium">4. PAM Chat Test</span>
+                <span className="font-medium">4. PAM 2.0 Chat Test</span>
                 {results.chatTest.responseTime && (
                   <div className="text-xs text-muted-foreground">
                     Response: {results.chatTest.responseTime}ms
@@ -706,7 +665,7 @@ export function PAMConnectionDiagnostic() {
                 <div className="mt-1 p-2 bg-green-50 border border-green-200 rounded text-xs overflow-auto max-h-40">
                   <strong>Backend Response:</strong>
                   <div className="mt-1 whitespace-pre-wrap break-words">
-                    {typeof results.chatTest.data.response === 'string' 
+                    {typeof results.chatTest.data.response === 'string'
                       ? results.chatTest.data.response
                       : JSON.stringify(results.chatTest.data, null, 2)}
                   </div>
@@ -714,8 +673,8 @@ export function PAMConnectionDiagnostic() {
               )}
               {results.chatTest.error && (
                 <div className="mt-1 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
-                  <strong>Error:</strong> {typeof results.chatTest.error === 'object' 
-                    ? JSON.stringify(results.chatTest.error) 
+                  <strong>Error:</strong> {typeof results.chatTest.error === 'object'
+                    ? JSON.stringify(results.chatTest.error)
                     : results.chatTest.error}
                 </div>
               )}
@@ -730,8 +689,8 @@ export function PAMConnectionDiagnostic() {
             <div className="flex items-center gap-2">
               {getStatusIcon(getOverallStatus())}
               <Badge variant={getStatusColor(getOverallStatus()) as any} className="capitalize">
-                {testing ? 'Testing in progress...' : 
-                 getOverallStatus() === 'success' ? 'All systems operational' :
+                {testing ? 'Testing in progress...' :
+                 getOverallStatus() === 'success' ? 'PAM 2.0 operational' :
                  getOverallStatus() === 'error' ? 'Issues detected' :
                  getOverallStatus() === 'warning' ? 'Partial functionality' :
                  'System check in progress'}
