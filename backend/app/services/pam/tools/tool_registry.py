@@ -648,7 +648,64 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Mapbox tool registration failed: {e}")
         failed_count += 1
     
-    # Weather Tool removed - ChatGPT handles weather with user location context
+    # Weather Tool - Essential for RV trip planning
+    try:
+        logger.debug("🔄 Attempting to register Weather tool...")
+        WeatherTool = lazy_import("app.services.pam.tools.weather_tool", "WeatherTool")
+
+        if WeatherTool is None:
+            raise ImportError("WeatherTool not available")
+
+        registry.register_tool(
+            tool=WeatherTool(),
+            function_definition={
+                "name": "weather_advisor",
+                "description": "Get current weather conditions, forecasts, and RV travel conditions for locations. Essential for trip planning and safety.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["get_current", "get_forecast", "get_alerts", "check_travel_conditions", "get_route_weather"],
+                            "description": "Weather action to perform"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Location for weather (city name, coordinates, or address)"
+                        },
+                        "days": {
+                            "type": "number",
+                            "description": "Number of days for forecast (1-7, default 5)"
+                        },
+                        "departure_time": {
+                            "type": "string",
+                            "description": "Planned departure time for travel conditions check"
+                        },
+                        "vehicle_type": {
+                            "type": "string",
+                            "description": "Type of RV for travel condition assessment"
+                        },
+                        "route_points": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of locations along a route for route weather"
+                        }
+                    },
+                    "required": ["action"]
+                }
+            },
+            capability=ToolCapability.WEATHER,
+            priority=1
+        )
+        logger.info("✅ Weather tool registered")
+        registered_count += 1
+
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Weather tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Weather tool registration failed: {e}")
+        failed_count += 1
     
     # Google Places Tool removed - ChatGPT handles place recommendations with user location context
     
