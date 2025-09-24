@@ -25,6 +25,9 @@ from ..core.types import (
 from ..core.exceptions import ConversationalEngineError, GeminiAPIError
 from ..core.config import pam2_settings
 
+# Import the working SimpleGeminiService
+from ...pam.simple_gemini_service import SimpleGeminiService
+
 logger = logging.getLogger(__name__)
 
 class ConversationalEngine:
@@ -41,6 +44,7 @@ class ConversationalEngine:
 
         # Initialize Gemini client (Phase 2 implementation)
         self._gemini_client = None
+        self._simple_gemini = SimpleGeminiService()
 
         logger.info(f"ConversationalEngine initialized with model: {self.model_name}")
 
@@ -175,18 +179,47 @@ class ConversationalEngine:
         context: Optional[ConversationContext] = None
     ) -> str:
         """
-        Call Google Gemini API
-        Phase 2 implementation placeholder
+        Call Google Gemini API using SimpleGeminiService
+        Phase 2 implementation
         """
 
-        # TODO Phase 2: Implement actual Gemini API integration
-        # - Set up Gemini client with API key
-        # - Format conversation history for context
-        # - Handle API rate limiting and retries
-        # - Process Gemini response
-        # - Apply content filtering
+        try:
+            # Ensure SimpleGeminiService is initialized
+            if not self._simple_gemini.is_initialized:
+                logger.info("Initializing SimpleGeminiService for PAM 2.0...")
+                await self._simple_gemini.initialize()
 
-        raise NotImplementedError("Gemini API integration pending Phase 2")
+            if not self._simple_gemini.is_initialized:
+                logger.warning("SimpleGeminiService failed to initialize, using placeholder")
+                return self._generate_placeholder_response(user_message, context)
+
+            # Convert conversation context to format expected by SimpleGeminiService
+            conversation_history = []
+            if context and hasattr(context, 'messages') and context.messages:
+                for msg in context.messages[-5:]:  # Last 5 messages for context
+                    conversation_history.append({
+                        "role": "user" if msg.type == MessageType.USER else "assistant",
+                        "content": msg.content
+                    })
+
+            # Call SimpleGeminiService
+            logger.info(f"Calling SimpleGeminiService with message: {user_message.content[:50]}...")
+            response = await self._simple_gemini.generate_response(
+                user_message=user_message.content,
+                conversation_history=conversation_history,
+                user_id=user_message.user_id
+            )
+
+            if response and response.get('response'):
+                logger.info("✅ SimpleGeminiService returned successful response")
+                return response['response']
+            else:
+                logger.warning("SimpleGeminiService returned empty response")
+                return self._generate_placeholder_response(user_message, context)
+
+        except Exception as e:
+            logger.error(f"Error calling SimpleGeminiService: {e}")
+            return self._generate_placeholder_response(user_message, context)
 
     def _analyze_ui_action(self, user_message: str, ai_response: str) -> Optional[str]:
         """
