@@ -38,22 +38,22 @@ class PAM2Settings(BaseSettings):
     # =====================================================
 
     # Google Gemini (Primary Provider)
-    gemini_api_key: SecretStr = Field(default="", description="Google Gemini API key")
-    gemini_model: str = Field(default="gemini-1.5-flash")
+    GEMINI_API_KEY: SecretStr = Field(default="", description="Google Gemini API key", alias="gemini_api_key")
+    GEMINI_DEFAULT_MODEL: str = Field(default="gemini-1.5-flash", alias="gemini_model")
     gemini_temperature: float = Field(default=0.7)
     gemini_max_tokens: int = Field(default=1000)
 
     # Anthropic Claude (Fallback Provider)
-    anthropic_api_key: Optional[SecretStr] = Field(default=None, description="Anthropic API key for fallback")
-    anthropic_model: str = Field(default="claude-3-5-sonnet-20241022")
+    ANTHROPIC_API_KEY: Optional[SecretStr] = Field(default=None, description="Anthropic API key for fallback", alias="anthropic_api_key")
+    ANTHROPIC_DEFAULT_MODEL: str = Field(default="claude-3-5-sonnet-20241022", alias="anthropic_model")
 
     # =====================================================
     # Database Configuration
     # =====================================================
 
     # Supabase/MCP Configuration
-    supabase_url: str = Field(description="Supabase project URL")
-    supabase_service_role_key: SecretStr = Field(description="Supabase service role key")
+    SUPABASE_URL: str = Field(default="https://placeholder.supabase.co", description="Supabase project URL", alias="supabase_url")
+    SUPABASE_SERVICE_ROLE_KEY: SecretStr = Field(default="placeholder-service-role-key", description="Supabase service role key", alias="supabase_service_role_key")
     mcp_enabled_tables: list[str] = Field(
         default=["profiles", "user_settings", "pam_conversations", "expenses", "budgets"],
         description="Tables accessible via MCP"
@@ -106,15 +106,16 @@ class PAM2Settings(BaseSettings):
     log_level: str = Field(default="INFO")
 
     class Config:
-        env_prefix = "PAM2_"
+        env_prefix = ""  # Accept standard environment variables
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Ignore extra environment variables
 
     def get_gemini_config(self) -> GeminiConfig:
         """Get Gemini configuration"""
         return GeminiConfig(
-            api_key=self.gemini_api_key.get_secret_value(),
-            model=self.gemini_model,
+            api_key=self.GEMINI_API_KEY.get_secret_value(),
+            model=self.GEMINI_DEFAULT_MODEL,
             temperature=self.gemini_temperature,
             max_tokens=self.gemini_max_tokens
         )
@@ -122,8 +123,8 @@ class PAM2Settings(BaseSettings):
     def get_mcp_config(self) -> MCPConfig:
         """Get MCP configuration"""
         return MCPConfig(
-            supabase_url=self.supabase_url,
-            service_role_key=self.supabase_service_role_key.get_secret_value(),
+            supabase_url=self.SUPABASE_URL,
+            service_role_key=self.SUPABASE_SERVICE_ROLE_KEY.get_secret_value(),
             enabled_tables=self.mcp_enabled_tables
         )
 
