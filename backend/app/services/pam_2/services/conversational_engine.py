@@ -76,8 +76,7 @@ class ConversationalEngine:
                 timestamp=datetime.now()
             )
 
-            # Phase 1: Return placeholder response
-            # Phase 2: Implement actual Gemini integration
+            # Phase 2: Call Gemini integration
             ai_response = await self._generate_ai_response(
                 user_message=user_message,
                 context=context
@@ -115,46 +114,17 @@ class ConversationalEngine:
         context: Optional[ConversationContext] = None
     ) -> str:
         """
-        Generate AI response using Google Gemini
+        Generate AI response using Google Gemini via SimpleGeminiService
 
-        Phase 1: Placeholder implementation
-        Phase 2: Full Gemini integration
+        Phase 2: Full Gemini integration via SimpleGeminiService
         """
 
         # Phase 1: Check if we should use mock responses
         if pam2_settings.mock_ai_responses:
             return self._generate_placeholder_response(user_message, context)
 
-        # Phase 2: Call actual Gemini API
-        try:
-            if not self._gemini_client:
-                logger.warning("Gemini client not initialized, attempting to initialize...")
-                await self.initialize_gemini_client()
-
-            if self._gemini_client:
-                # Convert conversation context to history format
-                conversation_history = []
-                if context and hasattr(context, 'messages') and context.messages:
-                    for msg in context.messages[-5:]:  # Last 5 messages for context
-                        conversation_history.append({
-                            "role": "user" if msg.type == MessageType.USER else "assistant",
-                            "content": msg.content
-                        })
-
-                # Call Gemini API
-                gemini_response = await self._gemini_client.generate_response(
-                    prompt=user_message.content,
-                    conversation_history=conversation_history
-                )
-
-                return gemini_response.get("response", "I'm here to help with your travel and financial planning!")
-            else:
-                logger.warning("Gemini client still not available, using placeholder")
-                return self._generate_placeholder_response(user_message, context)
-
-        except Exception as e:
-            logger.error(f"Error calling Gemini API: {e}")
-            return self._generate_placeholder_response(user_message, context)
+        # Phase 2: Call actual Gemini API via SimpleGeminiService
+        return await self._call_gemini_api(user_message, context)
 
     def _generate_placeholder_response(
         self,
@@ -203,18 +173,18 @@ class ConversationalEngine:
                     })
 
             # Call SimpleGeminiService
-            logger.info(f"Calling SimpleGeminiService with message: {user_message.content[:50]}...")
             response = await self._simple_gemini.generate_response(
-                user_message=user_message.content,
-                conversation_history=conversation_history,
+                message=user_message.content,
+                context={"conversation_history": conversation_history},
                 user_id=user_message.user_id
             )
 
-            if response and response.get('response'):
-                logger.info("✅ SimpleGeminiService returned successful response")
+            if response and isinstance(response, str):
+                return response
+            elif response and isinstance(response, dict) and response.get('response'):
                 return response['response']
             else:
-                logger.warning("SimpleGeminiService returned empty response")
+                logger.warning("SimpleGeminiService returned empty/invalid response")
                 return self._generate_placeholder_response(user_message, context)
 
         except Exception as e:
@@ -260,25 +230,6 @@ class ConversationalEngine:
 
         return health_status
 
-    async def initialize_gemini_client(self):
-        """
-        Initialize Google Gemini client
-        Phase 2 implementation
-        """
-
-        try:
-            logger.info("Initializing Gemini client...")
-
-            # Create and initialize Gemini client
-            self._gemini_client = create_gemini_client()
-            await self._gemini_client.initialize()
-
-            logger.info("Gemini client initialized successfully")
-
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {e}")
-            # Don't raise exception - fall back to placeholder responses
-            self._gemini_client = None
 
 # Service factory function
 def create_conversational_engine() -> ConversationalEngine:
