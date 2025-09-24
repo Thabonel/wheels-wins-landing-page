@@ -121,9 +121,36 @@ class ConversationalEngine:
         if pam2_settings.mock_ai_responses or not self._gemini_client:
             return self._generate_placeholder_response(user_message, context)
 
-        # Phase 2: Implement Gemini API call
-        # TODO: Implement actual Gemini integration
-        return await self._call_gemini_api(user_message, context)
+        # Phase 2: Call actual Gemini API
+        try:
+            if not self._gemini_client:
+                logger.warning("Gemini client not initialized, attempting to initialize...")
+                await self.initialize_gemini_client()
+
+            if self._gemini_client:
+                # Convert conversation context to history format
+                conversation_history = []
+                if context and hasattr(context, 'messages') and context.messages:
+                    for msg in context.messages[-5:]:  # Last 5 messages for context
+                        conversation_history.append({
+                            "role": "user" if msg.type == MessageType.USER else "assistant",
+                            "content": msg.content
+                        })
+
+                # Call Gemini API
+                gemini_response = await self._gemini_client.generate_response(
+                    prompt=user_message.content,
+                    conversation_history=conversation_history
+                )
+
+                return gemini_response.get("response", "I'm here to help with your travel and financial planning!")
+            else:
+                logger.warning("Gemini client still not available, using placeholder")
+                return self._generate_placeholder_response(user_message, context)
+
+        except Exception as e:
+            logger.error(f"Error calling Gemini API: {e}")
+            return self._generate_placeholder_response(user_message, context)
 
     def _generate_placeholder_response(
         self,
@@ -192,7 +219,7 @@ class ConversationalEngine:
         }
 
         # Phase 2: Add Gemini API connectivity check
-        if pam2_settings.gemini_api_key:
+        if pam2_settings.GEMINI_API_KEY and pam2_settings.GEMINI_API_KEY.get_secret_value():
             health_status["api_key_configured"] = True
         else:
             health_status["status"] = "degraded"
@@ -206,13 +233,19 @@ class ConversationalEngine:
         Phase 2 implementation
         """
 
-        # TODO Phase 2: Initialize Gemini client
-        # - Import Google Generative AI library
-        # - Configure client with API key
-        # - Set up model configuration
-        # - Test connectivity
+        try:
+            logger.info("Initializing Gemini client...")
 
-        logger.info("Gemini client initialization pending Phase 2")
+            # Create and initialize Gemini client
+            self._gemini_client = create_gemini_client()
+            await self._gemini_client.initialize()
+
+            logger.info("Gemini client initialized successfully")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize Gemini client: {e}")
+            # Don't raise exception - fall back to placeholder responses
+            self._gemini_client = None
 
 # Service factory function
 def create_conversational_engine() -> ConversationalEngine:
