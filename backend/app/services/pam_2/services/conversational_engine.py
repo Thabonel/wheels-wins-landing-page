@@ -117,8 +117,8 @@ class ConversationalEngine:
         Phase 2: Full Gemini integration
         """
 
-        # Phase 1: Placeholder response
-        if pam2_settings.mock_ai_responses or not self._gemini_client:
+        # Phase 1: Check if we should use mock responses
+        if pam2_settings.mock_ai_responses:
             return self._generate_placeholder_response(user_message, context)
 
         # Phase 2: Call actual Gemini API
