@@ -176,9 +176,14 @@ class GeminiFunctionCallHandler:
                             if hasattr(part, 'function_call'):
                                 function_call = part.function_call
 
-                                # Extract function call details
+                                # Extract function call details with validation
+                                function_name = getattr(function_call, 'name', '') or ''
+                                if not function_name.strip():
+                                    logger.error(f"❌ Empty function name in Gemini response, skipping call")
+                                    continue
+
                                 call_info = {
-                                    "name": function_call.name,
+                                    "name": function_name.strip(),
                                     "arguments": dict(function_call.args) if function_call.args else {}
                                 }
 
@@ -270,13 +275,20 @@ class GeminiFunctionCallHandler:
             List of response parts in Gemini format
         """
         response_parts = []
+        logger.debug(f"🔧 Creating function response parts for {len(function_results)} results")
 
         for result in function_results:
             try:
+                # Validate function name is not empty
+                function_name = result.function_name or "unknown_function"
+                if not function_name.strip():
+                    function_name = "unknown_function"
+                    logger.warning(f"Empty function name in result, using fallback: {function_name}")
+
                 # Create function response part
                 function_response = {
                     "function_response": {
-                        "name": result.function_name,
+                        "name": function_name,
                         "response": {
                             "success": result.success,
                             "result": result.result,
