@@ -231,7 +231,8 @@ class ToolRegistry:
         tool_name: str,
         user_id: str,
         parameters: Dict[str, Any],
-        timeout: Optional[int] = None
+        timeout: Optional[int] = None,
+        context: Optional[Dict[str, Any]] = None
     ) -> ToolExecutionResult:
         """
         Execute a tool with error handling and timeout
@@ -275,10 +276,18 @@ class ToolRegistry:
             logger.info(f"🔧 Executing tool: {tool_name} for user: {user_id}")
             
             # Execute tool with timeout
-            result = await asyncio.wait_for(
-                tool.execute(user_id, parameters),
-                timeout=execution_timeout
-            )
+            # Check if tool supports context parameter (like WeatherTool)
+            import inspect
+            if 'context' in inspect.signature(tool.execute).parameters:
+                result = await asyncio.wait_for(
+                    tool.execute(user_id, parameters, context),
+                    timeout=execution_timeout
+                )
+            else:
+                result = await asyncio.wait_for(
+                    tool.execute(user_id, parameters),
+                    timeout=execution_timeout
+                )
             
             execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             

@@ -199,7 +199,8 @@ class GeminiFunctionCallHandler:
         self,
         function_name: str,
         arguments: Dict[str, Any],
-        user_id: str
+        user_id: str,
+        context: Optional[Dict[str, Any]] = None
     ) -> FunctionCallResult:
         """
         Execute a function call using the tool registry.
@@ -228,7 +229,8 @@ class GeminiFunctionCallHandler:
             result = await self.tool_registry.execute_tool(
                 tool_name=function_name,
                 user_id=user_id,
-                parameters=arguments
+                parameters=arguments,
+                context=context
             )
 
             execution_time = (time.time() - start_time) * 1000
@@ -322,7 +324,8 @@ class GeminiFunctionCallHandler:
         messages: List[Dict[str, Any]],
         tools: List[Tool],
         user_id: str,
-        max_function_calls: int = 10
+        max_function_calls: int = 10,
+        context: Optional[Dict[str, Any]] = None
     ) -> Tuple[str, List[FunctionCallResult]]:
         """
         Handle a complete function-calling conversation with Gemini.
@@ -402,7 +405,8 @@ class GeminiFunctionCallHandler:
                     result = await self.execute_function_call(
                         function_name=call["name"],
                         arguments=call["arguments"],
-                        user_id=user_id
+                        user_id=user_id,
+                        context=context
                     )
                     function_results.append(result)
                     all_function_results.append(result)

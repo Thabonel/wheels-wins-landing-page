@@ -123,7 +123,7 @@ class WeatherTool(BaseTool):
             logger.error(f"❌ Failed to initialize weather tool: {e}")
             return False
     
-    async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> ToolResult:
+    async def execute(self, user_id: str, parameters: Dict[str, Any] = None, context: Dict[str, Any] = None) -> ToolResult:
         """Execute a weather tool action"""
         try:
             if not parameters:
@@ -131,13 +131,25 @@ class WeatherTool(BaseTool):
                     success=False,
                     error="Parameters required"
                 )
-            
+
             action = parameters.get("action")
             if not action:
                 return ToolResult(
                     success=False,
                     error="Action parameter required"
                 )
+
+            # Inject user location context if available
+            if context and "location" in context:
+                location_context = context["location"]
+                if not parameters.get("location") and location_context:
+                    # Use context location if no specific location provided
+                    if location_context.get("city") and location_context.get("region"):
+                        parameters["location"] = f"{location_context['city']}, {location_context['region']}"
+                        logger.info(f"🌍 Using user location context: {parameters['location']}")
+                    elif location_context.get("latitude") and location_context.get("longitude"):
+                        parameters["location"] = [location_context["latitude"], location_context["longitude"]]
+                        logger.info(f"🌍 Using user coordinates: {parameters['location']}")
                 
             if action == "get_current":
                 return await self._get_current_weather(parameters)
@@ -197,11 +209,11 @@ class WeatherTool(BaseTool):
     async def _get_current_weather(self, params: Dict[str, Any]) -> ToolResult:
         """Get current weather for a location with caching"""
         location = params.get("location")
-        
+
         if not location:
             return ToolResult(
                 success=False,
-                error="Location required"
+                error="Location not specified and no user location available. Please provide a location for weather information."
             )
         
         # Check cache first
@@ -294,11 +306,11 @@ class WeatherTool(BaseTool):
         """Get weather forecast for a location with caching"""
         location = params.get("location")
         days = params.get("days", 5)
-        
+
         if not location:
             return ToolResult(
                 success=False,
-                error="Location required"
+                error="Location not specified and no user location available. Please provide a location for weather forecast."
             )
         
         # Check cache first
