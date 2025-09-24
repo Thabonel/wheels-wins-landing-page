@@ -507,6 +507,24 @@ class Settings(BaseSettings):
     # Backend URLs
     BACKEND_URL: str = Field(default="http://localhost:8000")
     BACKEND_PORT: int = Field(default=8000)
+
+    # =====================================================
+    # ADDITIONAL SERVICE CONFIGURATION
+    # =====================================================
+
+    # ElevenLabs TTS Configuration (Optional)
+    ELEVENLABS_API_KEY: Optional[SecretStr] = Field(default=None)
+    ELEVENLABS_DEFAULT_VOICE: Optional[str] = Field(default="JBFqnCBsd6RMkjVDRZzb")
+    ELEVENLABS_MODEL: Optional[str] = Field(default="eleven_multilingual_v2")
+    ELEVENLABS_ENABLED: bool = Field(default=False)
+
+    # Redis Host/Port/DB (for Docker or custom Redis configurations)
+    REDIS_HOST: Optional[str] = Field(default="localhost")
+    REDIS_PORT: int = Field(default=6379, ge=1, le=65535)
+    REDIS_DB: int = Field(default=0, ge=0)
+
+    # Environment identifier (distinct from NODE_ENV)
+    ENVIRONMENT: Optional[str] = Field(default=None)
     
     class Config:
         """Pydantic configuration"""
