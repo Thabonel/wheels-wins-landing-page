@@ -27,6 +27,7 @@ from ..core.config import pam2_settings
 
 # Import the working SimpleGeminiService
 from ...pam.simple_gemini_service import SimpleGeminiService
+from .user_location_service import UserLocationService
 
 logger = logging.getLogger(__name__)
 
@@ -172,10 +173,22 @@ class ConversationalEngine:
                         "content": msg.content
                     })
 
-            # Call SimpleGeminiService
+            # Get user location context for weather and location-based queries
+            location_context = await UserLocationService.get_user_location_context(user_message.user_id)
+
+            # Build enhanced context for SimpleGeminiService
+            enhanced_context = {
+                "conversation_history": conversation_history
+            }
+
+            if location_context:
+                enhanced_context["location"] = location_context
+                logger.info(f"Including location context for user {user_message.user_id}: {location_context.get('location_name', 'coordinates only')}")
+
+            # Call SimpleGeminiService with enhanced context
             response = await self._simple_gemini.generate_response(
                 message=user_message.content,
-                context={"conversation_history": conversation_history},
+                context=enhanced_context,
                 user_id=user_message.user_id
             )
 

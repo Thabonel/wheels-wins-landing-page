@@ -146,7 +146,8 @@ class SimpleGeminiService:
                             messages=messages,
                             tools=gemini_tools,
                             user_id=user_id,
-                            max_function_calls=5
+                            max_function_calls=5,
+                            context=context
                         )
 
                         if function_results:
@@ -251,10 +252,24 @@ Key traits:
         if context:
             context_info = []
 
-            # Add user location if available
-            if context.get('userLocation'):
-                location = context['userLocation']
-                context_info.append(f"User location: {location.get('city', 'Unknown')}, {location.get('country', 'Unknown')}")
+            # Add user location if available (supports both old and new formats)
+            location = context.get('userLocation') or context.get('location')
+            if location:
+                if location.get('location_name'):
+                    # New format from UserLocationService
+                    context_info.append(f"User location: {location['location_name']}")
+                    logger.info(f"🌍 Added user location to prompt: {location['location_name']}")
+                elif location.get('city') or location.get('country'):
+                    # Legacy format
+                    city = location.get('city', 'Unknown')
+                    country = location.get('country', 'Unknown')
+                    context_info.append(f"User location: {city}, {country}")
+                    logger.info(f"🌍 Added user location to prompt: {city}, {country}")
+                elif location.get('coordinates'):
+                    # Coordinates only
+                    coords = location['coordinates']
+                    context_info.append(f"User location: {coords['latitude']}, {coords['longitude']}")
+                    logger.info(f"🌍 Added user coordinates to prompt: {coords['latitude']}, {coords['longitude']}")
 
             # Add environment context
             if context.get('environment'):
