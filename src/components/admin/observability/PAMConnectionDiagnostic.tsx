@@ -38,23 +38,69 @@ export function PAMConnectionDiagnostic() {
     lastCheck: null
   });
 
+  // Environment detection - determines which PAM backend to test
+  const getEnvironment = (): 'production' | 'staging' => {
+    if (typeof window !== 'undefined') {
+      return window.location.hostname === 'wheelsandwins.com' ? 'production' : 'staging';
+    }
+    return 'staging';
+  };
+
+  // Get PAM backend URLs based on environment
+  const getPamEndpoints = () => {
+    const env = getEnvironment();
+    const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
+
+    if (usePam2) {
+      // PAM 2.0 endpoints
+      return {
+        production: {
+          health: 'https://pam-backend.onrender.com/api/v1/pam-2/health',
+          chat: 'https://pam-backend.onrender.com/api/v1/pam-2/chat'
+        },
+        staging: {
+          health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/health',
+          chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/chat'
+        }
+      }[env];
+    } else {
+      // PAM 1.0 endpoints (legacy)
+      return {
+        production: {
+          health: 'https://pam-backend.onrender.com/api/health',
+          chat: 'https://pam-backend.onrender.com/api/v1/pam/chat'
+        },
+        staging: {
+          health: 'https://wheels-wins-backend-staging.onrender.com/api/health',
+          chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat'
+        }
+      }[env];
+    }
+  };
+
   const runApiKeyCheck = async (): Promise<TestResult> => {
     try {
       const startTime = Date.now();
+      const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
 
-      // PAM now routes through backend with Gemini - no frontend API key needed
+      // Since PAM routes through backend, we test environment configuration
+      const env = getEnvironment();
       const responseTime = Date.now() - startTime;
 
       return {
         status: 'success',
-        message: 'PAM uses backend Gemini integration - no frontend API key required',
+        message: `${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} configured for ${env} environment`,
         responseTime,
-        data: { note: 'Backend Gemini integration active' }
+        data: {
+          environment: env,
+          pamVersion: usePam2 ? '2.0' : '1.0',
+          note: 'Backend handles API key authentication'
+        }
       };
     } catch (error: any) {
       return {
         status: 'error',
-        message: 'API key validation failed',
+        message: 'Configuration check failed',
         error: error.message || 'Unknown error'
       };
     }
@@ -63,20 +109,82 @@ export function PAMConnectionDiagnostic() {
   const runBackendServiceCheck = async (): Promise<TestResult> => {
     try {
       const startTime = Date.now();
+      const endpoints = getPamEndpoints();
+      const env = getEnvironment();
+      const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
 
-      // Check backend service health
-      return {
-        status: 'success',
-        message: 'PAM backend service uses Gemini integration',
-        responseTime: Date.now() - startTime,
-        data: { provider: 'Gemini', architecture: 'Backend-routed' }
-      };
+      if (!endpoints) {
+        return {
+          status: 'error',
+          message: 'No PAM endpoints configured for current environment',
+          responseTime: Date.now() - startTime
+        };
+      }
+
+      logger.info(`Testing ${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} health endpoint for ${env}:`, endpoints.health);
+
+      // Real health check to current environment's PAM backend
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(endpoints.health, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          status: 'success',
+          message: `${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} backend healthy on ${env}`,
+          responseTime,
+          endpoint: endpoints.health,
+          statusCode: response.status,
+          data: {
+            service: data.service || 'PAM',
+            version: data.version || (usePam2 ? '2.0.0' : '1.0.0'),
+            environment: env,
+            modules: data.modules || {},
+            status: data.status || 'ok'
+          }
+        };
+      } else {
+        const errorText = await response.text().catch(() => 'Unable to read error response');
+        return {
+          status: 'error',
+          message: `PAM backend health check failed (${response.status})`,
+          responseTime,
+          endpoint: endpoints.health,
+          statusCode: response.status,
+          error: errorText
+        };
+      }
     } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+
+      if (error.name === 'AbortError') {
+        return {
+          status: 'timeout',
+          message: 'PAM backend health check timed out (>10s)',
+          responseTime,
+          endpoint: getPamEndpoints()?.health,
+          error: 'Request timeout'
+        };
+      }
+
       return {
         status: 'error',
-        message: 'Backend service check failed',
-        error: error.message || 'Unknown error',
-        responseTime: Date.now() - startTime
+        message: 'PAM backend health check failed',
+        responseTime,
+        endpoint: getPamEndpoints()?.health,
+        error: error.message || 'Network error'
       };
     }
   };
@@ -84,22 +192,98 @@ export function PAMConnectionDiagnostic() {
   const runToolsCheck = async (): Promise<TestResult> => {
     try {
       const startTime = Date.now();
-      
-      // PAM tools are now handled by backend Gemini integration
+      const endpoints = getPamEndpoints();
+      const env = getEnvironment();
+      const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
+
+      if (!endpoints) {
+        return {
+          status: 'error',
+          message: 'No PAM endpoints available for tools check',
+          responseTime: Date.now() - startTime
+        };
+      }
+
+      // For PAM 2.0, tools are integrated into the health endpoint response
+      // For PAM 1.0, we check if the service is responsive
+      logger.info(`Checking ${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} tools availability for ${env}`);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+      const response = await fetch(endpoints.health, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      clearTimeout(timeoutId);
       const responseTime = Date.now() - startTime;
 
-      return {
-        status: 'success',
-        message: 'PAM tools integrated in backend (Gemini)',
-        responseTime,
-        data: { note: 'Tools handled by backend service', provider: 'Gemini' }
-      };
+      if (response.ok) {
+        const data = await response.json();
+
+        if (usePam2) {
+          // PAM 2.0 returns modules status
+          const modules = data.modules || {};
+          const moduleCount = Object.keys(modules).length;
+          const readyModules = Object.values(modules).filter(status => status === 'ready').length;
+
+          return {
+            status: readyModules === moduleCount ? 'success' : 'degraded',
+            message: `${readyModules}/${moduleCount} PAM 2.0 modules ready`,
+            responseTime,
+            endpoint: endpoints.health,
+            data: {
+              modules,
+              environment: env,
+              totalModules: moduleCount,
+              readyModules,
+              provider: 'Gemini'
+            }
+          };
+        } else {
+          // PAM 1.0 basic tools availability
+          return {
+            status: 'success',
+            message: 'PAM 1.0 tools available via backend',
+            responseTime,
+            endpoint: endpoints.health,
+            data: {
+              note: 'Tools integrated in backend service',
+              provider: 'Backend-integrated',
+              environment: env
+            }
+          };
+        }
+      } else {
+        return {
+          status: 'error',
+          message: `Tools check failed - backend unreachable (${response.status})`,
+          responseTime,
+          endpoint: endpoints.health,
+          statusCode: response.status
+        };
+      }
     } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+
+      if (error.name === 'AbortError') {
+        return {
+          status: 'timeout',
+          message: 'Tools check timed out',
+          responseTime,
+          error: 'Request timeout'
+        };
+      }
+
       return {
         status: 'error',
         message: 'Tools check failed',
-        error: error.message || 'Unknown error',
-        responseTime: Date.now() - Date.now()
+        responseTime,
+        error: error.message || 'Network error'
       };
     }
   };
@@ -114,24 +298,111 @@ export function PAMConnectionDiagnostic() {
         };
       }
 
-      logger.info('Testing PAM Backend (Gemini) connection', { userId: user.id, email: user.email });
-
       const startTime = Date.now();
+      const endpoints = getPamEndpoints();
+      const env = getEnvironment();
+      const usePam2 = import.meta.env.VITE_USE_PAM_2 === 'true';
 
-      // Test backend PAM connection (now using Gemini instead of direct Claude API)
-      return {
-        status: 'success',
-        message: 'PAM now routes through backend with Gemini - use WebSocket for testing',
-        responseTime: Date.now() - startTime,
-        data: { note: 'Direct API test disabled - PAM uses backend Gemini integration' }
+      if (!endpoints) {
+        return {
+          status: 'error',
+          message: 'No PAM chat endpoints configured',
+          responseTime: Date.now() - startTime
+        };
+      }
+
+      logger.info(`Testing ${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} chat for ${env}`, {
+        userId: user.id,
+        email: user.email,
+        endpoint: endpoints.chat
+      });
+
+      // Prepare test message
+      const testMessage = {
+        user_id: user.id,
+        message: "PAM diagnostic test - please respond with 'OK'",
+        context: {
+          region: 'admin-diagnostic',
+          current_page: 'admin-diagnostics',
+          test: true
+        }
       };
 
+      // Add session_id for PAM 2.0
+      if (usePam2) {
+        testMessage['session_id'] = `diagnostic-${Date.now()}`;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+      const response = await fetch(endpoints.chat, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testMessage)
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Check if we got a valid response
+        const hasResponse = data.response || data.message;
+
+        return {
+          status: hasResponse ? 'success' : 'degraded',
+          message: hasResponse
+            ? `${usePam2 ? 'PAM 2.0' : 'PAM 1.0'} chat test successful on ${env}`
+            : 'PAM responded but without message content',
+          responseTime,
+          endpoint: endpoints.chat,
+          statusCode: response.status,
+          data: {
+            response: hasResponse,
+            environment: env,
+            pamVersion: usePam2 ? '2.0' : '1.0',
+            metadata: data.metadata || null,
+            fullResponse: data
+          }
+        };
+      } else {
+        const errorText = await response.text().catch(() => 'Unable to read error response');
+        return {
+          status: 'error',
+          message: `PAM chat test failed (${response.status})`,
+          responseTime,
+          endpoint: endpoints.chat,
+          statusCode: response.status,
+          error: errorText
+        };
+      }
+
     } catch (error: any) {
-      logger.error('PAM Backend (Gemini) test failed', error);
+      const responseTime = Date.now() - startTime;
+
+      if (error.name === 'AbortError') {
+        return {
+          status: 'timeout',
+          message: 'PAM chat test timed out (>15s)',
+          responseTime,
+          endpoint: getPamEndpoints()?.chat,
+          error: 'Request timeout'
+        };
+      }
+
+      logger.error(`${import.meta.env.VITE_USE_PAM_2 === 'true' ? 'PAM 2.0' : 'PAM 1.0'} chat test failed`, error);
 
       return {
         status: 'error',
-        message: 'PAM backend connection test failed',
+        message: 'PAM chat test failed',
+        responseTime,
+        endpoint: getPamEndpoints()?.chat,
         error: { message: error.message || 'Unknown error', stack: error.stack }
       };
     }
@@ -185,10 +456,10 @@ export function PAMConnectionDiagnostic() {
       }
 
       if (showIndividualToasts) {
-        const allPassed = [apiKeyResult, claudeServiceResult, toolsResult].every(
+        const allPassed = [apiKeyResult, backendServiceResult, toolsResult].every(
           r => ['success', 'operational'].includes(r.status)
         );
-        
+
         if (allPassed) {
           toast.success('✅ All PAM diagnostics passed!');
         } else {
@@ -318,8 +589,9 @@ export function PAMConnectionDiagnostic() {
       <CardContent className="space-y-4">
         {/* Connection Details */}
         <div className="text-sm text-muted-foreground space-y-1 pb-2 border-b">
-          <p><strong>PAM Architecture:</strong> Backend Integration (Gemini)</p>
-          <p><strong>API Provider:</strong> Google Gemini Flash</p>
+          <p><strong>Environment:</strong> {getEnvironment().toUpperCase()}</p>
+          <p><strong>PAM Version:</strong> {import.meta.env.VITE_USE_PAM_2 === 'true' ? '2.0 (Gemini)' : '1.0 (Legacy)'}</p>
+          <p><strong>Backend URL:</strong> {getPamEndpoints()?.health || 'Not configured'}</p>
           <p><strong>User:</strong> {user?.email || 'Not logged in'}</p>
           {results.lastCheck && (
             <p><strong>Last checked:</strong> {results.lastCheck.toLocaleTimeString()}</p>
@@ -333,10 +605,10 @@ export function PAMConnectionDiagnostic() {
             <div className="flex items-center gap-3">
               <Cloud className="w-4 h-4 text-gray-500" />
               <div>
-                <span className="font-medium">1. Anthropic API Key</span>
+                <span className="font-medium">1. Environment Configuration</span>
                 {results.apiKeyCheck.responseTime && (
                   <div className="text-xs text-muted-foreground">
-                    Validation: {results.apiKeyCheck.responseTime}ms
+                    Check: {results.apiKeyCheck.responseTime}ms
                   </div>
                 )}
               </div>
@@ -412,10 +684,10 @@ export function PAMConnectionDiagnostic() {
             <div className="flex items-center gap-3">
               <MessageSquare className="w-4 h-4 text-gray-500" />
               <div>
-                <span className="font-medium">4. Backend Integration Test</span>
+                <span className="font-medium">4. PAM Chat Test</span>
                 {results.chatTest.responseTime && (
                   <div className="text-xs text-muted-foreground">
-                    Backend Response: {results.chatTest.responseTime}ms
+                    Response: {results.chatTest.responseTime}ms
                   </div>
                 )}
               </div>

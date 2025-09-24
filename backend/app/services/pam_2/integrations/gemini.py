@@ -7,10 +7,15 @@ import logging
 from typing import Dict, Any, Optional, List
 import asyncio
 import json
+import time
+
+import google.generativeai as genai
+from google.generativeai.types import GenerationConfig
 
 from ..core.types import GeminiConfig
 from ..core.exceptions import GeminiAPIError
 from ..core.config import pam2_settings
+from ..tools import ALL_FUNCTIONS, FUNCTION_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -35,25 +40,33 @@ class GeminiClient:
 
     async def initialize(self):
         """
-        Initialize Gemini client
-        Phase 2 implementation placeholder
+        Initialize Gemini client with function calling support
+        Phase 2 implementation
         """
 
-        # TODO Phase 2: Initialize Google Generative AI client
-        # Example implementation structure:
-        #
-        # import google.generativeai as genai
-        # genai.configure(api_key=self.api_key)
-        # self._model = genai.GenerativeModel(self.model_name)
-        #
-        # # Test connection
-        # try:
-        #     test_response = await self._model.generate_content_async("Hello")
-        #     logger.info("Gemini client initialized successfully")
-        # except Exception as e:
-        #     raise GeminiAPIError(f"Failed to initialize Gemini client: {e}")
+        try:
+            # Configure Gemini with API key
+            genai.configure(api_key=self.api_key)
 
-        logger.info("Gemini client initialization pending Phase 2")
+            # Initialize model with function calling tools
+            self._model = genai.GenerativeModel(
+                model_name=self.model_name,
+                tools=ALL_FUNCTIONS,
+                system_instruction=self._get_system_instruction()
+            )
+
+            self._client = genai  # Set client reference
+
+            # Test connection with a simple query
+            test_response = self._model.generate_content("Hello PAM")
+            if test_response:
+                logger.info("Gemini client initialized successfully with function calling")
+            else:
+                raise GeminiAPIError("Empty response from Gemini API")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize Gemini client: {e}")
+            raise GeminiAPIError(f"Gemini initialization failed: {str(e)}")
 
     async def generate_response(
         self,
@@ -126,47 +139,48 @@ class GeminiClient:
         system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Call actual Gemini API
-        Phase 2 implementation placeholder
+        Call actual Gemini API with function calling support
+        Phase 2 implementation
         """
 
-        # TODO Phase 2: Implement actual Gemini API integration
-        #
-        # 1. Format conversation history for Gemini
-        # 2. Apply system prompt if provided
-        # 3. Set generation parameters (temperature, max_tokens, etc.)
-        # 4. Make API call with proper error handling
-        # 5. Parse response and extract metadata
-        # 6. Return structured response
+        try:
+            start_time = time.time()
 
-        # Example structure:
-        # try:
-        #     # Format messages for Gemini
-        #     messages = self._format_conversation_for_gemini(
-        #         prompt, conversation_history, system_prompt
-        #     )
-        #
-        #     # Generate response
-        #     response = await self._model.generate_content_async(
-        #         messages,
-        #         generation_config={
-        #             "temperature": self.temperature,
-        #             "max_output_tokens": self.max_tokens
-        #         }
-        #     )
-        #
-        #     return {
-        #         "response": response.text,
-        #         "model": self.model_name,
-        #         "tokens_used": response.usage_metadata.total_token_count,
-        #         "response_time_ms": response_time,
-        #         "is_placeholder": False
-        #     }
-        #
-        # except Exception as e:
-        #     raise GeminiAPIError(f"Gemini API call failed: {e}")
+            # Format conversation for Gemini
+            formatted_messages = self._format_conversation_for_gemini(
+                prompt, conversation_history, system_prompt
+            )
 
-        raise NotImplementedError("Gemini API integration pending Phase 2")
+            # Configure generation parameters
+            generation_config = GenerationConfig(
+                temperature=self.temperature,
+                max_output_tokens=self.max_tokens,
+                candidate_count=1,
+            )
+
+            # Generate response with function calling
+            response = self._model.generate_content(
+                formatted_messages,
+                generation_config=generation_config
+            )
+
+            response_time = int((time.time() - start_time) * 1000)
+
+            # Handle function calls if present
+            final_response = await self._handle_function_calls(response)
+
+            return {
+                "response": final_response,
+                "model": self.model_name,
+                "tokens_used": getattr(response.usage_metadata, 'total_token_count', 0) if hasattr(response, 'usage_metadata') else 0,
+                "response_time_ms": response_time,
+                "is_placeholder": False,
+                "function_calls_made": len(response.candidates[0].content.parts) > 1 if response.candidates else False
+            }
+
+        except Exception as e:
+            logger.error(f"Gemini API call failed: {e}")
+            raise GeminiAPIError(f"Gemini API call failed: {str(e)}")
 
     def _format_conversation_for_gemini(
         self,
@@ -216,6 +230,131 @@ class GeminiClient:
         formatted_prompt += f"\nUser: {current_prompt}\nPAM:"
 
         return formatted_prompt
+
+    def _get_system_instruction(self) -> str:
+        """
+        Get system instruction for Gemini model
+        """
+        return """
+You are PAM, the intelligent AI assistant for Wheels & Wins - a travel planning and financial wellness platform.
+
+Your personality:
+- Helpful, friendly, and knowledgeable about travel and finance
+- Focus on travel planning, budgeting, and financial wellness
+- Provide practical, actionable advice
+- Be conversational but concise
+
+Your capabilities:
+- Get real-time weather information for destinations
+- Provide detailed destination information and cultural tips
+- Estimate trip costs and create budget breakdowns
+- Suggest personalized itineraries for trips
+- Help with financial planning and savings goals
+
+Use the available functions when users ask about:
+- Weather conditions for travel planning
+- Destination information, costs, or travel advice
+- Trip planning and itinerary suggestions
+- Budget estimation for trips
+
+Always prioritize user safety and financial responsibility in your advice.
+"""
+
+    async def _handle_function_calls(self, response) -> str:
+        """
+        Handle function calls in Gemini response
+        """
+        try:
+            # Check if response contains function calls
+            if not response.candidates:
+                return "I apologize, but I couldn't generate a proper response. Please try again."
+
+            candidate = response.candidates[0]
+
+            # If no function calls, return text response
+            if not hasattr(candidate.content, 'parts') or len(candidate.content.parts) == 1:
+                return candidate.content.text if hasattr(candidate.content, 'text') else str(candidate.content)
+
+            # Process function calls
+            function_results = []
+            text_parts = []
+
+            for part in candidate.content.parts:
+                if hasattr(part, 'function_call'):
+                    # Execute function call
+                    func_name = part.function_call.name
+                    func_args = dict(part.function_call.args)
+
+                    if func_name in FUNCTION_REGISTRY:
+                        try:
+                            result = await FUNCTION_REGISTRY[func_name](**func_args)
+                            function_results.append({"function": func_name, "result": result})
+                            logger.info(f"Function {func_name} executed successfully")
+                        except Exception as e:
+                            logger.error(f"Function {func_name} failed: {e}")
+                            function_results.append({"function": func_name, "error": str(e)})
+                    else:
+                        logger.error(f"Unknown function: {func_name}")
+                        function_results.append({"function": func_name, "error": "Function not found"})
+
+                elif hasattr(part, 'text'):
+                    text_parts.append(part.text)
+
+            # If we have function results, generate a follow-up response
+            if function_results:
+                return await self._generate_follow_up_response(text_parts, function_results)
+            else:
+                return ' '.join(text_parts) if text_parts else "I'm here to help! What would you like to know about travel or financial planning?"
+
+        except Exception as e:
+            logger.error(f"Error handling function calls: {e}")
+            return "I encountered an issue while processing your request. Please try rephrasing your question."
+
+    async def _generate_follow_up_response(self, text_parts: List[str], function_results: List[Dict]) -> str:
+        """
+        Generate a natural response incorporating function call results
+        """
+        try:
+            # Create a prompt with function results for follow-up
+            follow_up_prompt = "Based on this information:\n\n"
+
+            for result in function_results:
+                if "error" not in result:
+                    follow_up_prompt += f"{result['function']} result: {json.dumps(result['result'], indent=2)}\n\n"
+                else:
+                    follow_up_prompt += f"{result['function']} error: {result['error']}\n\n"
+
+            follow_up_prompt += "Please provide a helpful, conversational response to the user incorporating this information."
+
+            # Generate follow-up response
+            follow_up_response = self._model.generate_content(
+                follow_up_prompt,
+                generation_config=GenerationConfig(temperature=0.7, max_output_tokens=500)
+            )
+
+            return follow_up_response.text if hasattr(follow_up_response, 'text') else str(follow_up_response)
+
+        except Exception as e:
+            logger.error(f"Error generating follow-up response: {e}")
+
+            # Fallback: format function results manually
+            response_parts = []
+            for result in function_results:
+                if "error" not in result:
+                    if result['function'] == 'get_weather':
+                        data = result['result']
+                        response_parts.append(
+                            f"The weather in {data.get('location', 'your location')} is currently "
+                            f"{data.get('temperature', 'N/A')} {data.get('unit', '')} with {data.get('description', 'unknown conditions')}."
+                        )
+                    elif result['function'] == 'get_destination_info':
+                        data = result['result']
+                        response_parts.append(
+                            f"Here's information about {data.get('name', 'your destination')}: "
+                            f"Best time to visit is {data.get('best_time_to_visit', 'year-round')}."
+                        )
+
+            return " ".join(response_parts) if response_parts else "I found some information, but had trouble formatting the response. Please try again."
 
     async def check_api_health(self) -> Dict[str, Any]:
         """Check Gemini API health and connectivity"""
