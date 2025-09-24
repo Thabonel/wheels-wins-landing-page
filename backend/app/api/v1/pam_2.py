@@ -8,6 +8,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import logging
+import asyncio
+
+# Import the ConversationalEngine service
+from app.services.pam_2.services.conversational_engine import ConversationalEngine
+from app.services.pam_2.core.types import ChatMessage, MessageType, ConversationContext
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -49,37 +55,59 @@ async def pam_health():
 async def chat_endpoint(request: ChatRequest):
     """
     PAM 2.0 Chat Endpoint (REST)
-    Phase 2 implementation: Gemini integration + guardrails
+    Phase 2 implementation: Real Gemini integration via ConversationalEngine
     """
     try:
-        # TODO Phase 2: Implement these modules
-        # - Guardrails middleware (medium-level content filtering)
-        # - Redis rate limiting (100 messages/hour per user)
-        # - Send to Gemini API (primary)
-        # - MCP database access
-        # - Log to Supabase pam_messages
+        logger.info(f"PAM 2.0 REST chat request from user {request.user_id}: {request.message[:50]}...")
 
-        # Placeholder response for Phase 1
-        response = ChatResponse(
-            response=f"Hello! PAM 2.0 received your message: '{request.message}'. Full implementation coming in Phase 2.",
-            ui_action=None,
-            metadata={
-                "user_id": request.user_id,
-                "phase": "1_placeholder",
-                "features_coming": [
-                    "Gemini 1.5 Flash integration",
-                    "Medium-level guardrails",
-                    "Redis rate limiting",
-                    "MCP database read/write",
-                    "Real-time UI updates"
-                ]
-            }
+        # Initialize ConversationalEngine
+        engine = ConversationalEngine()
+
+        # Create ChatMessage for the engine
+        user_message = ChatMessage(
+            user_id=request.user_id,
+            type=MessageType.USER,
+            content=request.message,
+            timestamp=datetime.now()
         )
 
-        return response
+        # Create context if provided
+        context = None
+        if request.context:
+            context = ConversationContext(
+                user_id=request.user_id,
+                current_topic=None,
+                messages=[],  # For REST, we don't have message history
+                context_data=request.context
+            )
+
+        # Process message through ConversationalEngine
+        service_response = await engine.process_message(
+            user_id=request.user_id,
+            message=request.message,
+            context=context
+        )
+
+        if service_response.success:
+            response = ChatResponse(
+                response=service_response.data.get('response', 'I\'m here to help!'),
+                ui_action=service_response.data.get('ui_action'),
+                metadata={
+                    "user_id": request.user_id,
+                    "phase": "2_active",
+                    "model_used": service_response.data.get('model_used', 'gemini-1.5-flash'),
+                    "timestamp": service_response.data.get('timestamp'),
+                    **service_response.metadata
+                }
+            )
+            logger.info(f"✅ PAM 2.0 successful response for user {request.user_id}")
+            return response
+        else:
+            logger.error(f"❌ ConversationalEngine failed for user {request.user_id}")
+            raise HTTPException(status_code=500, detail="AI service unavailable")
 
     except Exception as e:
-        logger.error(f"Chat endpoint error: {e}")
+        logger.error(f"PAM 2.0 chat endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # WebSocket Chat Endpoint
@@ -87,32 +115,70 @@ async def chat_endpoint(request: ChatRequest):
 async def chat_websocket(websocket: WebSocket):
     """
     PAM 2.0 WebSocket Chat Endpoint
-    Phase 2 implementation: Real-time conversation + database updates
+    Phase 2 implementation: Real-time conversation via ConversationalEngine
     """
     await websocket.accept()
+    engine = ConversationalEngine()
 
     try:
         while True:
             # Receive message
             data = await websocket.receive_json()
 
-            # TODO Phase 2: Implement
-            # - Real-time message processing
-            # - Database change notifications
-            # - User-isolated channels
-            # - Graceful degradation
+            user_id = data.get("user_id")
+            message = data.get("message", "")
 
-            # Placeholder response for Phase 1
-            response = {
-                "response": f"PAM 2.0 WebSocket received: {data.get('message', '')}",
-                "type": "placeholder",
-                "phase": "1_setup_complete"
-            }
+            if not user_id or not message:
+                error_response = {
+                    "error": "Missing user_id or message",
+                    "type": "error"
+                }
+                await websocket.send_json(error_response)
+                continue
 
-            await websocket.send_json(response)
+            logger.info(f"PAM 2.0 WebSocket message from user {user_id}: {message[:50]}...")
+
+            try:
+                # Process message through ConversationalEngine
+                service_response = await engine.process_message(
+                    user_id=user_id,
+                    message=message,
+                    context=None  # WebSocket context management to be implemented
+                )
+
+                if service_response.success:
+                    response = {
+                        "response": service_response.data.get('response', 'I\'m here to help!'),
+                        "ui_action": service_response.data.get('ui_action'),
+                        "type": "message",
+                        "metadata": {
+                            "user_id": user_id,
+                            "phase": "2_active",
+                            "model_used": service_response.data.get('model_used', 'gemini-1.5-flash'),
+                            "timestamp": service_response.data.get('timestamp'),
+                            **service_response.metadata
+                        }
+                    }
+                    logger.info(f"✅ PAM 2.0 WebSocket successful response for user {user_id}")
+                else:
+                    logger.error(f"❌ ConversationalEngine failed for user {user_id}")
+                    response = {
+                        "error": "AI service unavailable",
+                        "type": "error"
+                    }
+
+                await websocket.send_json(response)
+
+            except Exception as e:
+                logger.error(f"Error processing WebSocket message: {e}")
+                error_response = {
+                    "error": "Failed to process message",
+                    "type": "error"
+                }
+                await websocket.send_json(error_response)
 
     except WebSocketDisconnect:
-        logger.info("WebSocket disconnected")
+        logger.info("PAM 2.0 WebSocket disconnected")
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.error(f"PAM 2.0 WebSocket error: {e}")
         await websocket.close(code=1000)
