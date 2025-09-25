@@ -5,7 +5,7 @@ Retrieves user location information from user settings and provides it to PAM co
 
 import logging
 from typing import Optional, Dict, Any
-from app.integrations.supabase.client import supabase
+from app.db.supabase import supabase
 
 logger = logging.getLogger(__name__)
 
