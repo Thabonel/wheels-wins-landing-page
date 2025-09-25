@@ -503,8 +503,24 @@ class ConversationalEngine:
 
         except Exception as e:
             logger.error(f"Error in intelligent function calling: {e}")
-            # Fallback to regular AI response
-            return await self._call_gemini_api(user_message, context)
+            # Fallback to basic AI response WITHOUT PAM v1 tools to avoid dual tool system
+            logger.warning("🔄 Function calling failed, falling back to basic response (no tools)")
+
+            # Generate basic response through SimpleGeminiService but without tools
+            try:
+                if not self._simple_gemini.is_initialized:
+                    await self._simple_gemini.initialize()
+
+                if self._simple_gemini.is_initialized and hasattr(self._simple_gemini, 'model'):
+                    # Use model directly for basic text generation without function calling
+                    basic_prompt = f"You are PAM, a helpful RV travel assistant. Respond to: {user_message.content}"
+                    response = self._simple_gemini.model.generate_content(basic_prompt)
+                    return response.text if hasattr(response, 'text') and response.text else "I'm having trouble with my tools right now, but I'm here to help with your RV travels!"
+                else:
+                    return self._generate_placeholder_response(user_message, context)
+            except Exception as fallback_error:
+                logger.error(f"Fallback response generation failed: {fallback_error}")
+                return self._generate_placeholder_response(user_message, context)
 
     def _build_system_instruction_with_location(self, location_context: Optional[Dict[str, Any]]) -> str:
         """
