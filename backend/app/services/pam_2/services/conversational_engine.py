@@ -89,9 +89,12 @@ class ConversationalEngine:
             logger.info(f"Processing message for user {user_id}: {message[:50]}...")
 
             # Initialize tool bridge if not already done
+            logger.info(f"🔍 DEBUG: Tool bridge state - initialized: {self._tool_bridge.initialized}, tools: {len(self._tool_bridge.tools)}")
             if not self._tool_bridge.initialized:
                 logger.info("🔗 Initializing PAM Tool Bridge...")
                 await self._tool_bridge.initialize()
+            else:
+                logger.info(f"🔗 Tool Bridge already initialized with {len(self._tool_bridge.tools)} tools: {list(self._tool_bridge.tools.keys())}")
 
             # Phase 2.1: Load enhanced conversation context with persistent memory
             if not context:
