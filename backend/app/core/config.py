@@ -393,6 +393,10 @@ class Settings(BaseSettings):
     VITE_MAPBOX_PUBLIC_TOKEN: Optional[str] = Field(default=None)
     VITE_MAPBOX_TOKEN: Optional[str] = Field(default=None)  # Alias
     MAPBOX_SECRET_TOKEN: Optional[SecretStr] = Field(default=None)
+
+    # OpenWeatherMap (Weather API)
+    OPENWEATHER_API_KEY: Optional[SecretStr] = Field(default=None, description="OpenWeatherMap API key for weather data")
+    OPENWEATHER_UNITS: str = Field(default="imperial", description="Weather units (metric, imperial, kelvin)")
     
     # =====================================================
     # CACHING & STORAGE

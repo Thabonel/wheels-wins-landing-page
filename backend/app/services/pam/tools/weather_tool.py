@@ -184,7 +184,7 @@ class WeatherTool(BaseTool):
     def _get_cached_result(self, cache_key: str, cache_type: str) -> Optional[ToolResult]:
         """Get cached result if still valid"""
         if cache_key in self._cache:
-            result, timestamp = self._cache[cache_key]
+            data, timestamp = self._cache[cache_key]
             age = datetime.now() - timestamp
             ttl = self._cache_ttl.get(cache_type, timedelta(minutes=5))
             
@@ -224,7 +224,7 @@ class WeatherTool(BaseTool):
         
         # Mock response if no API key
         if not self.api_key:
-            result = self._mock_current_weather(location)
+            data = self._mock_current_weather(location)
             self._cache_result(cache_key, result)
             return result
         
@@ -269,9 +269,9 @@ class WeatherTool(BaseTool):
                         conditions=weather.conditions
                     )
                     
-                    result = ToolResult(
+                    data = ToolResult(
                         success=True,
-                        result={
+                        data={
                             "current": {
                                 "location": weather.location,
                                 "temperature": f"{weather.temperature}°F",
@@ -321,7 +321,7 @@ class WeatherTool(BaseTool):
         
         # Mock response if no API key
         if not self.api_key:
-            result = self._mock_forecast(location, days)
+            data = self._mock_forecast(location, days)
             self._cache_result(cache_key, result)
             return result
         
@@ -351,9 +351,9 @@ class WeatherTool(BaseTool):
                     # Process forecast data into daily summaries
                     daily_forecasts = self._process_forecast_data(data["list"])
                     
-                    result = ToolResult(
+                    data = ToolResult(
                         success=True,
-                        result={
+                        data={
                             "forecast": [{
                                 "date": f.date.strftime("%Y-%m-%d"),
                                 "high": f"{f.high_temp}°F",
@@ -389,7 +389,7 @@ class WeatherTool(BaseTool):
         # Mock alerts for now (would need NWS API for real alerts)
         return ToolResult(
             success=True,
-            result={
+            data={
                 "alerts": [
                     {
                         "type": "Wind Advisory",
@@ -417,7 +417,7 @@ class WeatherTool(BaseTool):
         if not weather_result.success:
             return weather_result
         
-        current = weather_result.result["current"]
+        current = weather_result.data["current"]
         rating = current["rv_travel_rating"]
         
         # Provide detailed recommendations
@@ -448,7 +448,7 @@ class WeatherTool(BaseTool):
         
         return ToolResult(
             success=True,
-            result={
+            data={
                 "travel_rating": rating,
                 "safe_to_travel": len(warnings) == 0,
                 "warnings": warnings,
@@ -477,10 +477,10 @@ class WeatherTool(BaseTool):
             if weather_result.success:
                 route_weather.append({
                     "point": i + 1,
-                    "location": weather_result.result["current"]["location"],
-                    "conditions": weather_result.result["current"]["conditions"],
-                    "temperature": weather_result.result["current"]["temperature"],
-                    "rv_rating": weather_result.result["current"]["rv_travel_rating"]
+                    "location": weather_result.data["current"]["location"],
+                    "conditions": weather_result.data["current"]["conditions"],
+                    "temperature": weather_result.data["current"]["temperature"],
+                    "rv_rating": weather_result.data["current"]["rv_travel_rating"]
                 })
         
         # Determine overall route conditions
@@ -498,7 +498,7 @@ class WeatherTool(BaseTool):
         
         return ToolResult(
             success=True,
-            result={
+            data={
                 "route_weather": route_weather,
                 "overall_rating": overall,
                 "message": f"Weather checked for {len(route_weather)} points. Overall: {overall}"
@@ -625,7 +625,7 @@ class WeatherTool(BaseTool):
         
         return ToolResult(
             success=True,
-            result={
+            data={
                 "current": {
                     "location": location,
                     "temperature": f"{temp}°F",
@@ -688,7 +688,7 @@ class WeatherTool(BaseTool):
         
         return ToolResult(
             success=True,
-            result={
+            data={
                 "forecast": mock_days,
                 "location": location,
                 "message": f"{days}-day forecast for {location}"
