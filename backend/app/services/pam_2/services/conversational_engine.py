@@ -469,10 +469,8 @@ class ConversationalEngine:
             # Set up the function calling handler with our tool bridge
             handler = get_gemini_function_handler()
 
-            # Register our tools with the function handler
-            handler.function_map = {}
-            for tool_name in self._tool_bridge.get_tool_names():
-                handler.function_map[tool_name] = lambda name=tool_name, **kwargs: self._execute_function(name, user_message.user_id, **kwargs)
+            # Register our tools with the function handler - pass the tool registry directly
+            handler.tool_registry = self._tool_bridge
 
             # Convert PAM function definitions to Gemini tools format
             gemini_tools = handler.convert_openai_tools_to_gemini(self._tool_bridge.get_function_definitions())
@@ -480,19 +478,12 @@ class ConversationalEngine:
             # Use function calling with the Gemini model
             logger.info(f"🧠 Initiating intelligent function calling with {len(gemini_tools)} available tools...")
 
-            # Create a new model instance with tools and system instruction
-            model = self._simple_gemini.model.start_chat()
-            if hasattr(self._simple_gemini.model, 'configure'):
-                configured_model = self._simple_gemini.model.configure(
-                    tools=gemini_tools,
-                    system_instruction=system_instruction
-                )
-            else:
-                configured_model = self._simple_gemini.model
+            # Use the model directly (not start_chat) for function calling
+            model = self._simple_gemini.model
 
             # Handle function calling conversation
             response_text, function_results = await handler.handle_function_calling_conversation(
-                model=configured_model,
+                model=model,
                 messages=messages,
                 tools=gemini_tools,
                 user_id=user_message.user_id,
