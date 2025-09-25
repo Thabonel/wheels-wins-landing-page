@@ -70,6 +70,7 @@ class ConversationContext(BaseModel):
     messages: List[ChatMessage]
     current_topic: Optional[str] = None
     last_activity: datetime
+    context_data: Dict[str, Any] = {}  # Added for Phase 2.3 multimodal compatibility
 
 class ServiceResponse(BaseModel):
     """Standard response from PAM services"""

@@ -3,10 +3,11 @@ PAM 2.0 API Routes
 Enhanced router with service integration
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Form, File, UploadFile
 from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any
 import logging
+import json
 from datetime import datetime
 
 # Import models from the new structure
@@ -22,6 +23,8 @@ from .models import (
     TripActivityResponse,
     FinancialAnalysisRequest,
     FinancialAnalysisResponse,
+    MultimodalChatRequest,
+    MultimodalChatResponse,
     ErrorResponse
 )
 
@@ -36,6 +39,7 @@ from ..services import (
 
 # Import core utilities
 from ..core.exceptions import PAMBaseException, format_error_response
+from ....core.auth import get_current_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +103,7 @@ async def get_all_service_health() -> Dict[str, Dict[str, Any]]:
 # =====================================================
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(request: ChatRequest, current_user_id: str = Depends(get_current_user_id)):
     """
     PAM 2.0 Enhanced Chat Endpoint
     Integrates all services for comprehensive AI assistance
@@ -193,6 +197,144 @@ async def chat_endpoint(request: ChatRequest):
         raise HTTPException(status_code=500, detail=format_error_response(e))
     except Exception as e:
         logger.error(f"Chat endpoint error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# =====================================================
+# Multimodal Chat Endpoints (Phase 2.3)
+# =====================================================
+
+@router.post("/multimodal-chat", response_model=MultimodalChatResponse)
+async def multimodal_chat_endpoint(
+    user_id: str = Form(...),
+    message: str = Form(...),
+    analysis_type: str = Form("general"),
+    context: Optional[str] = Form(None),
+    session_id: Optional[str] = Form(None),
+    image: Optional[UploadFile] = File(None),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    PAM 2.0 Multimodal Chat Endpoint with Image Processing
+    Phase 2.3: Supports text + image analysis via Gemini Vision
+    """
+    try:
+        logger.info(f"PAM 2.0 multimodal chat request from user {user_id}: {message[:50]}... with image: {image.filename if image else 'None'}")
+
+        # Phase 1: Safety check first
+        safety_check = await safety_layer.check_message_safety(
+            user_id=user_id,
+            message=message,
+            context=None
+        )
+
+        if not safety_check.data.get("is_safe", False):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Message blocked: {safety_check.data.get('detected_issues', [])}"
+            )
+
+        # Process image if provided
+        image_data = None
+        image_format = None
+        if image:
+            # Validate image file
+            if not image.content_type or not image.content_type.startswith('image/'):
+                raise HTTPException(status_code=400, detail="Invalid image file type")
+
+            # Read image data
+            image_data = await image.read()
+            image_format = image.content_type.split('/')[1]  # Extract format (jpeg, png, etc.)
+
+            logger.info(f"Processing image: {image.filename}, type: {image.content_type}, size: {len(image_data)} bytes")
+
+        # Get conversation context
+        context_dict = {}
+        if context:
+            try:
+                context_dict = json.loads(context) if isinstance(context, str) else context
+            except Exception as e:
+                logger.warning(f"Failed to parse context: {e}")
+
+        conversation_context = await context_manager.get_conversation_context(
+            user_id=user_id,
+            session_id=session_id
+        )
+
+        # Create context if none exists
+        if not conversation_context:
+            conversation_context = await context_manager.create_conversation_context(
+                user_id=user_id,
+                session_id=session_id
+            )
+
+        # Process multimodal message through conversational engine
+        ai_response = await conversational_engine.process_multimodal_message(
+            user_id=user_id,
+            message=message,
+            image_data=image_data,
+            image_format=image_format,
+            analysis_type=analysis_type,
+            context=conversation_context
+        )
+
+        # Analyze for trip activity (passive logging)
+        trip_analysis = await trip_logger.analyze_conversation_for_trip_activity(
+            user_id=user_id,
+            message=message,
+            context=context_dict
+        )
+
+        # Analyze for financial content
+        financial_analysis = await savings_tracker.analyze_financial_conversation(
+            user_id=user_id,
+            message=message,
+            context=context_dict
+        )
+
+        # Update conversation context
+        from ..core.types import ChatMessage, MessageType
+        user_message = ChatMessage(
+            user_id=user_id,
+            type=MessageType.USER,
+            content=message,
+            timestamp=datetime.now()
+        )
+        await context_manager.update_conversation_context(conversation_context, user_message)
+
+        # Build enhanced response with multimodal data
+        image_analysis = ai_response.data.get('image_analysis', {})
+        enhanced_metadata = {
+            "user_id": user_id,
+            "session_id": conversation_context.session_id,
+            "phase": "2.3_multimodal",
+            "analysis_type": analysis_type,
+            "has_image": image_data is not None,
+            "image_filename": image.filename if image else None,
+            "service_analyses": {
+                "trip_activity": trip_analysis.data,
+                "financial_content": financial_analysis.data,
+                "safety_check": safety_check.data
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+        response = MultimodalChatResponse(
+            response=ai_response.data.get("response", ""),
+            ui_action=ai_response.data.get("ui_action"),
+            image_analysis=image_analysis,
+            metadata=enhanced_metadata,
+            session_id=conversation_context.session_id
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except PAMBaseException as e:
+        logger.error(f"PAM multimodal service error: {e}")
+        raise HTTPException(status_code=500, detail=format_error_response(e))
+    except Exception as e:
+        logger.error(f"Multimodal chat endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # =====================================================

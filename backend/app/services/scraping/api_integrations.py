@@ -426,8 +426,18 @@ class WeatherAPI(RateLimitedAPI):
     
     def __init__(self):
         super().__init__(rate_limit_per_minute=60)
-        
-        self.api_key = getattr(settings, 'OPENWEATHER_API_KEY', None)
+
+        # Handle SecretStr properly
+        api_key_raw = getattr(settings, 'OPENWEATHER_API_KEY', None)
+        if api_key_raw:
+            from pydantic import SecretStr
+            if isinstance(api_key_raw, SecretStr):
+                self.api_key = api_key_raw.get_secret_value()
+            else:
+                self.api_key = str(api_key_raw)
+        else:
+            self.api_key = None
+
         self.base_url = "https://api.openweathermap.org/data/2.5"
         self.session = None
     

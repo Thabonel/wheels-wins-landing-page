@@ -138,3 +138,23 @@ class FinancialAnalysisResponse(BaseModel):
     confidence: float = Field(..., description="Confidence in detection")
     recommendations: List[Dict[str, Any]] = Field(default=[], description="Financial recommendations")
     detected_amounts: List[Dict[str, Any]] = Field(default=[], description="Detected monetary amounts")
+
+# =====================================================
+# Multimodal Models (Phase 2.3)
+# =====================================================
+
+class MultimodalChatRequest(BaseModel):
+    """Multimodal chat request with image support"""
+    user_id: str = Field(..., description="User identifier")
+    message: str = Field(..., description="User message content")
+    analysis_type: str = Field(default="general", description="Analysis type: general, damage_assessment, campsite, document, troubleshooting")
+    context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context")
+    session_id: Optional[str] = Field(default=None, description="Session identifier")
+
+class MultimodalChatResponse(BaseModel):
+    """Multimodal chat response with image analysis"""
+    response: str = Field(..., description="AI response")
+    ui_action: Optional[str] = Field(default=None, description="UI action to trigger")
+    image_analysis: Optional[Dict[str, Any]] = Field(default=None, description="Image analysis results")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Response metadata")
+    session_id: Optional[str] = Field(default=None, description="Session identifier")
