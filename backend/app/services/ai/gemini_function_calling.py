@@ -240,7 +240,7 @@ class GeminiFunctionCallHandler:
                 return FunctionCallResult(
                     function_name=function_name,
                     success=True,
-                    result=result.result,
+                    result=result.result.data if hasattr(result.result, 'data') else result.result,
                     execution_time_ms=execution_time
                 )
             else:
@@ -249,7 +249,7 @@ class GeminiFunctionCallHandler:
                     function_name=function_name,
                     success=False,
                     result=None,
-                    error=result.error,
+                    error=result.result.error if hasattr(result.result, 'error') else result.error,
                     execution_time_ms=execution_time
                 )
 
@@ -380,8 +380,7 @@ class GeminiFunctionCallHandler:
                         # For older SDK versions, use generate_content with tools directly
                         response = model.generate_content(
                             latest_message,
-                            tools=tools,
-                            generation_config=generation_config
+                            tools=tools
                         )
                 except Exception as e:
                     logger.warning(f"Error sending message with tools: {e}, falling back to basic generation")
