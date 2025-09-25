@@ -8,6 +8,14 @@ from typing import Dict, List, Any, Optional
 import asyncio
 import inspect
 from datetime import datetime
+from dataclasses import dataclass
+
+@dataclass
+class ToolResult:
+    """Simple result wrapper for tool execution"""
+    success: bool
+    result: Any = None
+    error: str = None
 
 # Import existing PAM tools safely - individual imports to avoid dependency issues
 # Let's start with just a minimal set for the demo
@@ -209,13 +217,20 @@ class PAMToolBridge:
         # For now, focus on the working MCP tools
         pass
 
-    async def execute_tool(self, tool_name: str, user_id: str, **kwargs) -> Dict[str, Any]:
+    async def execute_tool(self, tool_name: str, user_id: str, parameters: Optional[Dict[str, Any]] = None, context: Optional[Dict[str, Any]] = None, **kwargs) -> ToolResult:
         """Execute a tool and return results"""
         try:
             if tool_name not in self.tools:
-                return {"error": f"Tool '{tool_name}' not found"}
+                return ToolResult(
+                    success=False,
+                    error=f"Tool '{tool_name}' not found"
+                )
 
             tool_func = self.tools[tool_name]
+
+            # Merge parameters into kwargs
+            if parameters:
+                kwargs.update(parameters)
 
             # Add user_id to kwargs if not present
             if "user_id" not in kwargs and tool_name != "get_weather" and tool_name != "get_weather_forecast":
@@ -228,11 +243,25 @@ class PAMToolBridge:
                 result = tool_func(**kwargs)
 
             logger.info(f"✅ Executed tool '{tool_name}' successfully")
-            return result
+
+            # Check if result indicates an error
+            if isinstance(result, dict) and "error" in result:
+                return ToolResult(
+                    success=False,
+                    error=result["error"]
+                )
+
+            return ToolResult(
+                success=True,
+                result=result
+            )
 
         except Exception as e:
             logger.error(f"❌ Tool execution failed for '{tool_name}': {e}")
-            return {"error": f"Tool execution failed: {str(e)}"}
+            return ToolResult(
+                success=False,
+                error=f"Tool execution failed: {str(e)}"
+            )
 
     def get_function_definitions(self) -> List[Dict[str, Any]]:
         """Get all function definitions for Gemini"""
