@@ -103,7 +103,7 @@ async def get_all_service_health() -> Dict[str, Dict[str, Any]]:
 # =====================================================
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest, current_user_id: str = Depends(get_current_user_id)):
+async def chat_endpoint(request: ChatRequest):
     """
     PAM 2.0 Enhanced Chat Endpoint
     Integrates all services for comprehensive AI assistance
@@ -210,8 +210,7 @@ async def multimodal_chat_endpoint(
     analysis_type: str = Form("general"),
     context: Optional[str] = Form(None),
     session_id: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
-    current_user_id: str = Depends(get_current_user_id)
+    image: Optional[UploadFile] = File(None)
 ):
     """
     PAM 2.0 Multimodal Chat Endpoint with Image Processing
