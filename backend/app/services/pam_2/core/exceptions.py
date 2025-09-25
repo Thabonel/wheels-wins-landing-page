@@ -47,6 +47,10 @@ class SafetyLayerError(PAMBaseException):
     """Errors from the safety layer service"""
     pass
 
+class MemoryServiceError(PAMBaseException):
+    """Errors from the memory service (Phase 2.1)"""
+    pass
+
 # =====================================================
 # Integration Exceptions
 # =====================================================
@@ -109,7 +113,8 @@ def create_service_error(
         "context_manager": ContextManagerError,
         "trip_logger": TripLoggerError,
         "savings_tracker": SavingsTrackerError,
-        "safety_layer": SafetyLayerError
+        "safety_layer": SafetyLayerError,
+        "memory_service": MemoryServiceError
     }
 
     exception_class = service_exceptions.get(service_name, PAMBaseException)
