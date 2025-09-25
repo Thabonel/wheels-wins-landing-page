@@ -476,7 +476,11 @@ class ConversationalEngine:
             handler.tool_registry = self._tool_bridge
 
             # Convert PAM function definitions to Gemini tools format
-            gemini_tools = handler.convert_openai_tools_to_gemini(self._tool_bridge.get_function_definitions())
+            function_definitions = self._tool_bridge.get_function_definitions()
+            logger.info(f"🔧 DEBUG: Tool bridge function definitions: {[f.get('name') for f in function_definitions]}")
+
+            gemini_tools = handler.convert_openai_tools_to_gemini(function_definitions)
+            logger.info(f"🔧 DEBUG: Converted Gemini tools: {len(gemini_tools)} tools")
 
             # Use function calling with the Gemini model
             logger.info(f"🧠 Initiating intelligent function calling with {len(gemini_tools)} available tools...")
