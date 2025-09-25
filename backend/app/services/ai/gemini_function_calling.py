@@ -350,9 +350,17 @@ class GeminiFunctionCallHandler:
                 conversation_parts = []
                 for msg in messages:
                     if msg.get("role") == "user":
-                        conversation_parts.append({"role": "user", "parts": [msg["content"]]})
-                    elif msg.get("role") == "assistant":
-                        conversation_parts.append({"role": "model", "parts": [msg["content"]]})
+                        # Handle both content and parts formats
+                        if "content" in msg:
+                            conversation_parts.append({"role": "user", "parts": [msg["content"]]})
+                        elif "parts" in msg:
+                            conversation_parts.append({"role": "user", "parts": msg["parts"]})
+                    elif msg.get("role") == "assistant" or msg.get("role") == "model":
+                        # Handle both content and parts formats
+                        if "content" in msg:
+                            conversation_parts.append({"role": "model", "parts": [msg["content"]]})
+                        elif "parts" in msg:
+                            conversation_parts.append({"role": "model", "parts": msg["parts"]})
 
                 # Start chat with history - tools parameter not supported in older SDK versions
                 try:
@@ -369,7 +377,14 @@ class GeminiFunctionCallHandler:
                     )
 
                 # Send the latest user message
-                latest_message = conversation_parts[-1]["parts"][0] if conversation_parts else ""
+                if conversation_parts:
+                    latest_part = conversation_parts[-1]["parts"][0]
+                    if isinstance(latest_part, dict) and "text" in latest_part:
+                        latest_message = latest_part["text"]
+                    else:
+                        latest_message = str(latest_part)
+                else:
+                    latest_message = ""
 
                 # Handle tools with different SDK versions
                 try:

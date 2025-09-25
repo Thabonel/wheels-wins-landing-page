@@ -374,28 +374,25 @@ class ConversationalEngine:
 
             logger.info(f"✅ Advanced prompt generated ({len(enhanced_prompt)} chars)")
 
-            # Use direct Gemini API call with enhanced prompt
-            response = self.model.generate_content(enhanced_prompt)
+            # Use SimpleGeminiService with enhanced prompt (avoid direct model call)
+            logger.info("📡 Using SimpleGeminiService with enhanced prompt...")
 
-            # Fallback to SimpleGeminiService if direct call fails
-            if not response or not response.text:
-                logger.warning("⚠️ Direct Gemini call failed, falling back to SimpleGeminiService...")
+            # Build enhanced context for SimpleGeminiService
+            enhanced_context = {
+                "conversation_history": conversation_history,
+                "memory_enhanced": True,
+                "advanced_prompt": True,
+                "enhanced_prompt": enhanced_prompt
+            }
 
-                # Build enhanced context for SimpleGeminiService as fallback
-                enhanced_context = {
-                    "conversation_history": conversation_history,
-                    "memory_enhanced": True,
-                    "advanced_prompt": True
-                }
+            if location_context:
+                enhanced_context["location"] = location_context
 
-                if location_context:
-                    enhanced_context["location"] = location_context
-
-                response = await self._simple_gemini.generate_response(
-                    message=user_message.content,
-                    context=enhanced_context,
-                    user_id=user_message.user_id
-                )
+            response = await self._simple_gemini.generate_response(
+                message=user_message.content,
+                context=enhanced_context,
+                user_id=user_message.user_id
+            )
 
             # Handle response from direct Gemini call or SimpleGeminiService
             if hasattr(response, 'text') and response.text:
@@ -435,6 +432,10 @@ class ConversationalEngine:
 
             if not self._simple_gemini.is_initialized:
                 logger.warning("SimpleGeminiService failed to initialize")
+                return self._generate_placeholder_response(user_message, context)
+
+            if not hasattr(self._simple_gemini, 'model') or not self._simple_gemini.model:
+                logger.warning("SimpleGeminiService model not available for function calling")
                 return self._generate_placeholder_response(user_message, context)
 
             # Import the function calling handler
