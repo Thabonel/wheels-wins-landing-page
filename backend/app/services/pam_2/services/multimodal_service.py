@@ -139,8 +139,13 @@ class MultimodalService:
             else:
                 raise PAMBaseException("Gemini API key not configured for multimodal processing")
 
-            # Initialize Gemini Vision model
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # Initialize Gemini Vision model with fallback
+            try:
+                model = genai.GenerativeModel('gemini-1.5-flash')
+            except Exception as model_error:
+                logger.warning(f"Failed to initialize gemini-1.5-flash: {model_error}")
+                # Fallback to gemini-pro
+                model = genai.GenerativeModel('gemini-pro')
 
             # Prepare image for Gemini
             image_parts = [
@@ -416,7 +421,13 @@ Provide detailed, contextual observations that would be valuable to an RV travel
                     api_key = str(infra_settings.GEMINI_API_KEY)
 
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+
+                # Initialize Gemini model with fallback
+                try:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                except Exception as model_error:
+                    logger.warning(f"Failed to initialize gemini-1.5-flash: {model_error}")
+                    model = genai.GenerativeModel('gemini-pro')
 
                 response = model.generate_content(final_prompt)
 
