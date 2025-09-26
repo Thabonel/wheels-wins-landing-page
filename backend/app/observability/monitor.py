@@ -102,8 +102,9 @@ class ObservabilityMonitor:
         return {
             "status": "active" if observability.is_enabled() else "disabled",
             "platforms": {
-                "gemini": metrics["platform_status"]["gemini"]["client_ready"],
-                "langfuse": metrics["platform_status"]["langfuse"]["client_ready"]
+                "openai": metrics["platform_status"].get("openai", {}).get("client_ready", False),
+                "gemini": metrics["platform_status"].get("gemini", {}).get("client_ready", False),
+                "langfuse": metrics["platform_status"].get("langfuse", {}).get("client_ready", False)
             },
             "key_metrics": {
                 "total_observations": metrics["observation_metrics"]["total_observations"],
@@ -142,7 +143,7 @@ class ObservabilityMonitor:
                 logger.warning(f"Failed to initialize observability during health check: {e}")
         
         # Check each platform
-        for platform in ["gemini", "langfuse"]:
+        for platform in ["openai", "gemini", "langfuse"]:
             platform_status = status.get(platform, {})
             configured = platform_status.get("configured", False)
             ready = platform_status.get("client_ready", False) or platform_status.get("initialized", False)
@@ -167,7 +168,9 @@ class ObservabilityMonitor:
             if configured and not ready:
                 health["issues"].append(f"{platform} is configured but not ready - check credentials")
             elif not configured:
-                if platform == "langfuse":
+                if platform == "openai":
+                    health["issues"].append(f"{platform} is not configured - set OPENAI_API_KEY environment variable")
+                elif platform == "langfuse":
                     health["issues"].append(f"{platform} is not configured - set LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY")
                 elif platform == "gemini":
                     health["issues"].append(f"{platform} is not configured - set GEMINI_API_KEY environment variable")
