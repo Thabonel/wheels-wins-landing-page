@@ -87,15 +87,27 @@ export const PAM_CONFIG = {
     ]
   },
 
-  // PAM 2.0 REST endpoints
+  // PAM 2.0 REST endpoints with PAM 1.0 fallback
   REST_ENDPOINTS: {
     production: {
-      chat: 'https://pam-backend.onrender.com/api/v1/pam-2/chat',
-      health: 'https://pam-backend.onrender.com/api/v1/pam-2/health'
+      primary: {
+        chat: 'https://pam-backend.onrender.com/api/v1/pam-2/chat',
+        health: 'https://pam-backend.onrender.com/api/v1/pam-2/health'
+      },
+      fallback: {
+        chat: 'https://pam-backend.onrender.com/api/v1/pam/chat',
+        health: 'https://pam-backend.onrender.com/api/v1/pam/health'
+      }
     },
     staging: {
-      chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/chat',
-      health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/health'
+      primary: {
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/chat',
+        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/health'
+      },
+      fallback: {
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat',
+        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health'
+      }
     }
   },
 
@@ -336,99 +348,218 @@ class PamService {
     const startTime = Date.now();
     this.metrics.requestCount++;
 
+    // Try WebSocket first, then fallback to REST
     try {
-      logger.info('🚀 Routing message to PAM 2.0');
+      return await this.sendMessageViaWebSocket(message, startTime);
+    } catch (error) {
+      logger.warn('⚠️ WebSocket failed, trying REST API fallback:', error);
+      return await this.sendMessageViaRest(message, startTime);
+    }
+  }
 
-      // Ensure WebSocket connection is established
-      if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-        if (!message.user_id) {
-          throw new Error('WebSocket connection requires userId');
-        }
-        await this.connectWebSocket(message.user_id);
+  private async sendMessageViaWebSocket(message: PamApiMessage, startTime: number): Promise<PamApiResponse> {
+    logger.info('🚀 Routing message to PAM 2.0 via WebSocket');
+
+    // Ensure WebSocket connection is established
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      if (!message.user_id) {
+        throw new Error('WebSocket connection requires userId');
       }
+      await this.connectWebSocket(message.user_id);
+    }
 
-      // Enhance message with location context
-      const enhancedMessage = await this.enhanceMessageWithLocation(message);
+    // Enhance message with location context
+    const enhancedMessage = await this.enhanceMessageWithLocation(message);
 
-      // Create PAM 2.0 request
-      const pam2Request: Pam2ChatRequest = {
-        user_id: enhancedMessage.user_id,
-        message: enhancedMessage.message,
-        context: enhancedMessage.context,
-        session_id: this.sessionId || undefined
-      };
+    // Create PAM 2.0 request
+    const pam2Request: Pam2ChatRequest = {
+      user_id: enhancedMessage.user_id,
+      message: enhancedMessage.message,
+      context: enhancedMessage.context,
+      session_id: this.sessionId || undefined
+    };
 
-      // Send message via WebSocket and wait for response
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('PAM 2.0 WebSocket message timeout'));
-        }, PAM_CONFIG.MESSAGE_TIMEOUT);
+    // Send message via WebSocket and wait for response
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('PAM 2.0 WebSocket message timeout'));
+      }, PAM_CONFIG.MESSAGE_TIMEOUT);
 
-        const messageHandler = (event: MessageEvent) => {
-          try {
-            const response: Pam2ChatResponse = JSON.parse(event.data);
+      const messageHandler = (event: MessageEvent) => {
+        try {
+          const response: Pam2ChatResponse = JSON.parse(event.data);
 
-            if (response.response) {
-              clearTimeout(timeout);
-              this.websocket?.removeEventListener('message', messageHandler);
-
-              // Store session_id for future requests
-              if (response.session_id) {
-                this.sessionId = response.session_id;
-              }
-
-              const latency = Date.now() - startTime;
-              this.metrics.successCount++;
-              this.metrics.averageLatency = (
-                (this.metrics.averageLatency * (this.metrics.successCount - 1) + latency) /
-                this.metrics.successCount
-              );
-
-              this.updateStatus({
-                isConnected: true,
-                healthScore: Math.min(100, this.status.healthScore + 5)
-              });
-
-              // Convert PAM 2.0 response to compatible format
-              const legacyResponse: PamApiResponse = {
-                response: response.response,
-                message: response.response,
-                content: response.response,
-                ui_action: response.ui_action,
-                metadata: response.metadata
-              };
-
-              console.log(`✅ PAM 2.0 WebSocket response (${latency}ms):`, response);
-              resolve(legacyResponse);
-            } else if (response.type === 'ping') {
-              // Respond to ping with pong to maintain connection
-              console.log(`🏓 Received ping, sending pong response`);
-              this.websocket?.send(JSON.stringify({ type: 'pong', timestamp: response.timestamp }));
-            }
-          } catch (error) {
+          if (response.response) {
             clearTimeout(timeout);
             this.websocket?.removeEventListener('message', messageHandler);
-            reject(new Error(`Failed to parse PAM 2.0 response: ${error}`));
-          }
-        };
 
-        this.websocket!.addEventListener('message', messageHandler);
-        this.websocket!.send(JSON.stringify(pam2Request));
-        console.log(`🌐 Sent PAM 2.0 WebSocket message:`, pam2Request);
+            // Store session_id for future requests
+            if (response.session_id) {
+              this.sessionId = response.session_id;
+            }
+
+            const latency = Date.now() - startTime;
+            this.metrics.successCount++;
+            this.metrics.averageLatency = (
+              (this.metrics.averageLatency * (this.metrics.successCount - 1) + latency) /
+              this.metrics.successCount
+            );
+
+            this.updateStatus({
+              isConnected: true,
+              healthScore: Math.min(100, this.status.healthScore + 5),
+              backend: this.getEnvironment()
+            });
+
+            // Convert PAM 2.0 response to compatible format
+            const legacyResponse: PamApiResponse = {
+              response: response.response,
+              message: response.response,
+              content: response.response,
+              ui_action: response.ui_action,
+              metadata: response.metadata
+            };
+
+            console.log(`✅ PAM 2.0 WebSocket response (${latency}ms):`, response);
+            resolve(legacyResponse);
+          } else if (response.type === 'ping') {
+            // Respond to ping with pong to maintain connection
+            console.log(`🏓 Received ping, sending pong response`);
+            this.websocket?.send(JSON.stringify({ type: 'pong', timestamp: response.timestamp }));
+          }
+        } catch (error) {
+          clearTimeout(timeout);
+          this.websocket?.removeEventListener('message', messageHandler);
+          reject(new Error(`Failed to parse PAM 2.0 response: ${error}`));
+        }
+      };
+
+      this.websocket!.addEventListener('message', messageHandler);
+      this.websocket!.send(JSON.stringify(pam2Request));
+      console.log(`🌐 Sent PAM 2.0 WebSocket message:`, pam2Request);
+    });
+  }
+
+  private async sendMessageViaRest(message: PamApiMessage, startTime: number): Promise<PamApiResponse> {
+    const env = this.getEnvironment();
+    const endpoints = PAM_CONFIG.REST_ENDPOINTS[env];
+
+    // Enhance message with location context
+    const enhancedMessage = await this.enhanceMessageWithLocation(message);
+
+    const pam2Request: Pam2ChatRequest = {
+      user_id: enhancedMessage.user_id,
+      message: enhancedMessage.message,
+      context: enhancedMessage.context,
+      session_id: this.sessionId || undefined
+    };
+
+    // Try primary endpoint first (PAM 2.0)
+    try {
+      logger.info(`🚀 Trying PAM 2.0 REST API: ${endpoints.primary.chat}`);
+      const response = await fetch(endpoints.primary.chat, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pam2Request)
       });
 
+      if (response.ok) {
+        const pam2Response: Pam2ChatResponse = await response.json();
+
+        // Store session_id for future requests
+        if (pam2Response.session_id) {
+          this.sessionId = pam2Response.session_id;
+        }
+
+        const latency = Date.now() - startTime;
+        this.metrics.successCount++;
+        this.metrics.averageLatency = (
+          (this.metrics.averageLatency * (this.metrics.successCount - 1) + latency) /
+          this.metrics.successCount
+        );
+
+        this.updateStatus({
+          backend: this.getEnvironment(),
+          healthScore: Math.min(100, this.status.healthScore + 5)
+        });
+
+        // Convert PAM 2.0 response to compatible format
+        const legacyResponse: PamApiResponse = {
+          response: pam2Response.response,
+          message: pam2Response.response,
+          content: pam2Response.response,
+          ui_action: pam2Response.ui_action,
+          metadata: pam2Response.metadata
+        };
+
+        console.log(`✅ PAM 2.0 REST response (${latency}ms):`, pam2Response);
+        return legacyResponse;
+      } else {
+        logger.warn(`⚠️ PAM 2.0 REST failed: ${response.status}, trying fallback`);
+      }
+    } catch (error) {
+      logger.warn('⚠️ PAM 2.0 REST error, trying fallback:', error);
+    }
+
+    // Fallback to PAM 1.0
+    try {
+      logger.info(`🚀 Trying PAM 1.0 fallback REST API: ${endpoints.fallback.chat}`);
+      const response = await fetch(endpoints.fallback.chat, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: enhancedMessage.user_id,
+          message: enhancedMessage.message,
+          context: enhancedMessage.context
+        })
+      });
+
+      if (response.ok) {
+        const pam1Response = await response.json();
+
+        const latency = Date.now() - startTime;
+        this.metrics.successCount++;
+        this.metrics.averageLatency = (
+          (this.metrics.averageLatency * (this.metrics.successCount - 1) + latency) /
+          this.metrics.successCount
+        );
+
+        this.updateStatus({
+          backend: 'fallback',
+          healthScore: Math.min(100, this.status.healthScore + 3)
+        });
+
+        // Convert PAM 1.0 response to compatible format
+        const legacyResponse: PamApiResponse = {
+          response: pam1Response.response || pam1Response.message,
+          message: pam1Response.response || pam1Response.message,
+          content: pam1Response.response || pam1Response.message,
+          ui_action: pam1Response.ui_action,
+          metadata: { ...pam1Response.metadata, fallback: true, version: '1.0' }
+        };
+
+        console.log(`✅ PAM 1.0 fallback REST response (${latency}ms):`, pam1Response);
+        return legacyResponse;
+      } else {
+        logger.error(`❌ PAM 1.0 fallback REST failed: ${response.status}`);
+        throw new Error(`Both PAM 2.0 and PAM 1.0 REST endpoints failed`);
+      }
     } catch (error) {
       this.metrics.failureCount++;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ PAM 2.0 WebSocket sendMessage failed:', error);
+      logger.error('❌ All PAM endpoints failed:', error);
 
       this.updateStatus({
-        isConnected: false,
+        backend: 'offline',
         lastError: errorMessage,
-        healthScore: Math.max(0, this.status.healthScore - 10)
+        healthScore: Math.max(0, this.status.healthScore - 15)
       });
 
-      throw error;
+      throw new Error(`PAM service unavailable: ${errorMessage}`);
     }
   }
 
@@ -571,24 +702,51 @@ class PamService {
   }
 
   /**
-   * Get PAM 2.0 health status
+   * Get PAM 2.0 health status with fallback to PAM 1.0
    */
   async getHealthStatus(): Promise<Pam2HealthResponse | null> {
-    try {
-      const env = this.getEnvironment();
-      const healthEndpoint = PAM_CONFIG.REST_ENDPOINTS[env].health;
+    const env = this.getEnvironment();
+    const endpoints = PAM_CONFIG.REST_ENDPOINTS[env];
 
-      const response = await fetch(healthEndpoint);
+    // Try primary endpoint first (PAM 2.0)
+    try {
+      logger.info(`🩺 Checking PAM 2.0 health: ${endpoints.primary.health}`);
+      const response = await fetch(endpoints.primary.health);
       if (response.ok) {
-        return await response.json() as Pam2HealthResponse;
+        const healthData = await response.json() as Pam2HealthResponse;
+        logger.info('✅ PAM 2.0 health check successful');
+        return healthData;
       } else {
-        logger.error(`❌ PAM 2.0 health check failed: ${response.status}`);
-        return null;
+        logger.warn(`⚠️ PAM 2.0 health check failed: ${response.status}, trying fallback`);
       }
     } catch (error) {
-      logger.error('❌ PAM 2.0 health check error:', error);
-      return null;
+      logger.warn('⚠️ PAM 2.0 health check error, trying fallback:', error);
     }
+
+    // Fallback to PAM 1.0
+    try {
+      logger.info(`🩺 Checking PAM 1.0 fallback health: ${endpoints.fallback.health}`);
+      const response = await fetch(endpoints.fallback.health);
+      if (response.ok) {
+        const healthData = await response.json();
+        logger.info('✅ PAM 1.0 fallback health check successful');
+        // Convert PAM 1.0 response to PAM 2.0 format
+        return {
+          status: 'healthy',
+          service: 'pam-1.0-fallback',
+          version: '1.0.0',
+          modules: healthData.modules || {},
+          features: healthData.features || {},
+          timestamp: new Date().toISOString()
+        };
+      } else {
+        logger.error(`❌ PAM 1.0 fallback health check failed: ${response.status}`);
+      }
+    } catch (error) {
+      logger.error('❌ PAM 1.0 fallback health check error:', error);
+    }
+
+    return null;
   }
 
   /**

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import PAMWebSocketMockTester from '@/components/pam/PAMWebSocketMockTester';
+import PAMWebSocketTester from '@/dev/PAMWebSocketTester';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -90,7 +90,7 @@ const PAMDevTestPage: React.FC = () => {
           </Card>
 
           {/* Mock Testing Component */}
-          <PAMWebSocketMockTester />
+          <PAMWebSocketTester />
 
           {/* Test Results Guide */}
           <Card>
