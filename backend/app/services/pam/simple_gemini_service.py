@@ -62,7 +62,18 @@ class SimpleGeminiService:
             genai.configure(api_key=self._api_key)
 
             # Initialize model
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            # Use standard model name - avoid version suffixes that may not be available
+            try:
+                self.model = genai.GenerativeModel('gemini-1.5-flash')
+            except Exception as model_error:
+                logger.warning(f"Failed to initialize gemini-1.5-flash: {model_error}")
+                # Fallback to gemini-pro if flash not available
+                try:
+                    self.model = genai.GenerativeModel('gemini-pro')
+                    logger.info("✅ Fallback to gemini-pro successful")
+                except Exception as fallback_error:
+                    logger.error(f"❌ All Gemini models failed: {fallback_error}")
+                    raise
 
             # Initialize function calling handler with tool registry
             try:
