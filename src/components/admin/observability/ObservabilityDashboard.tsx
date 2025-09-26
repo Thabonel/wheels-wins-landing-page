@@ -385,6 +385,17 @@ export default function ObservabilityDashboard() {
                     <Badge variant={status.ready ? "default" : "destructive"}>
                       {status.status}
                     </Badge>
+                    {platform === 'openai' && (
+                      <a
+                        href="https://platform.openai.com/usage"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-700"
+                        title="OpenAI API Console"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
                     {platform === 'gemini' && (
                       <a
                         href="https://makersuite.google.com/app/usage"

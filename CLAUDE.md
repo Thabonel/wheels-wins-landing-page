@@ -6,14 +6,17 @@
 
 ## 🎯 Strategic AI Decision (September 2025)
 
-**PAM AI Provider**: **Google Gemini 1.5 Flash** (Primary)
-- ✅ **Ultra Cost Effective**: $0.075/M input tokens (25x cheaper than Claude)
-- ✅ **Lightning Fast**: Optimized for sub-second response times
-- ✅ **Massive Context**: 1M token context window vs 200K for Claude
-- ✅ **Superior Multimodal**: Native vision, audio, and document processing
-- ✅ **Google Infrastructure**: Reliable global scaling and availability
-- 🔄 **Claude Fallback**: Available if needed, but Gemini is primary
-- 🔄 **OpenAI Deprecated**: Removed due to high costs and complexity
+**PAM AI Provider**: **OpenAI GPT-5** (Primary)
+- ✅ **State-of-the-Art Intelligence**: Latest GPT-5 model (August 2025 release)
+- ✅ **45% Fewer Errors**: Significantly improved factual accuracy vs GPT-4o
+- ✅ **Superior Reasoning**: Advanced reasoning capabilities with smart routing
+- ✅ **Best-in-Class Function Calling**: Industry-leading tool integration
+- ✅ **Enhanced Performance**: Major gains in coding and instruction following
+- ✅ **1M Token Context**: Massive context window with improved comprehension
+- 🔄 **GPT-5 Mini Fallback**: Lower-cost GPT-5 variant for simpler tasks
+- 🔄 **Anthropic Fallback**: Claude 3.5 Sonnet as secondary provider
+- 🔄 **Gemini Tertiary**: Available as cost-effective backup option
+- 💰 **Cost**: $1.25/1M input + $10/1M output tokens (premium but justified by performance)
 
 ## Critical Commands
 ```bash
