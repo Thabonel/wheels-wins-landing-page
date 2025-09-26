@@ -17,7 +17,7 @@ async def get_weather(
     Get current weather information using FREE OpenMeteo API (No API key required!)
 
     Args:
-        location: "latitude,longitude" format
+        location: City name (e.g., "Paris, France") or "latitude,longitude" format
         units: Temperature units (metric, imperial, kelvin)
 
     Returns:
@@ -25,20 +25,29 @@ async def get_weather(
     """
 
     try:
-        # Parse coordinates from location string
+        # Try to parse as coordinates first
         if "," in location and len(location.split(",")) == 2:
+            parts = location.split(",")
             try:
-                lat, lon = map(float, location.split(","))
+                lat, lon = map(float, parts)
             except ValueError:
+                # Not coordinates, treat as city name
+                lat, lon = await _get_coordinates_for_city(location)
+                if lat is None:
+                    return {
+                        "error": f"Could not find location: {location}",
+                        "suggestion": "Try a major city like 'New York', 'Paris', 'Tokyo', or use coordinates",
+                        "location": location
+                    }
+        else:
+            # Single word or city name without comma
+            lat, lon = await _get_coordinates_for_city(location)
+            if lat is None:
                 return {
-                    "error": f"Invalid coordinates format. Use 'latitude,longitude' (e.g., '37.7749,-122.4194')",
+                    "error": f"Could not find location: {location}",
+                    "suggestion": "Try adding country (e.g., 'Paris, France') or use coordinates",
                     "location": location
                 }
-        else:
-            return {
-                "error": f"Please provide coordinates in 'latitude,longitude' format. City name lookup not implemented yet.",
-                "location": location
-            }
 
         # Call OpenMeteo API (completely free, no API key needed!)
         url = "https://api.open-meteo.com/v1/forecast"
@@ -108,6 +117,91 @@ async def get_weather(
             "location": location
         }
 
+async def _get_coordinates_for_city(city_name: str) -> tuple:
+    """
+    Get coordinates for a city name using free geocoding service
+    Returns (latitude, longitude) or (None, None) if not found
+    """
+    try:
+        # Use Nominatim (OpenStreetMap) geocoding - completely free!
+        url = "https://nominatim.openstreetmap.org/search"
+        headers = {
+            "User-Agent": "PAM-RV-Assistant/2.0"  # Required by Nominatim
+        }
+        params = {
+            "q": city_name,
+            "format": "json",
+            "limit": 1
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, headers=headers) as response:
+                if response.status != 200:
+                    logger.error(f"Geocoding failed for {city_name}: HTTP {response.status}")
+                    return None, None
+
+                data = await response.json()
+
+                if data and len(data) > 0:
+                    result = data[0]
+                    lat = float(result["lat"])
+                    lon = float(result["lon"])
+                    logger.info(f"Found coordinates for {city_name}: {lat}, {lon}")
+                    return lat, lon
+                else:
+                    logger.warning(f"No coordinates found for {city_name}")
+
+                    # Try some common city coordinates as fallback
+                    common_cities = {
+                        "new york": (40.7128, -74.0060),
+                        "nyc": (40.7128, -74.0060),
+                        "los angeles": (34.0522, -118.2437),
+                        "la": (34.0522, -118.2437),
+                        "chicago": (41.8781, -87.6298),
+                        "houston": (29.7604, -95.3698),
+                        "phoenix": (33.4484, -112.0740),
+                        "philadelphia": (39.9526, -75.1652),
+                        "san antonio": (29.4241, -98.4936),
+                        "san diego": (32.7157, -117.1611),
+                        "dallas": (32.7767, -96.7970),
+                        "austin": (30.2672, -97.7431),
+                        "san francisco": (37.7749, -122.4194),
+                        "sf": (37.7749, -122.4194),
+                        "seattle": (47.6062, -122.3321),
+                        "denver": (39.7392, -104.9903),
+                        "boston": (42.3601, -71.0589),
+                        "miami": (25.7617, -80.1918),
+                        "atlanta": (33.7490, -84.3880),
+                        "las vegas": (36.1699, -115.1398),
+                        "portland": (45.5152, -122.6784),
+                        "paris": (48.8566, 2.3522),
+                        "london": (51.5074, -0.1278),
+                        "tokyo": (35.6762, 139.6503),
+                        "beijing": (39.9042, 116.4074),
+                        "moscow": (55.7558, 37.6173),
+                        "sydney": (33.8688, 151.2093),
+                        "toronto": (43.6532, -79.3832),
+                        "mexico city": (19.4326, -99.1332),
+                        "berlin": (52.5200, 13.4050),
+                        "rome": (41.9028, 12.4964),
+                        "madrid": (40.4168, -3.7038),
+                        "dubai": (25.2048, 55.2708),
+                        "singapore": (1.3521, 103.8198)
+                    }
+
+                    # Check if it's a known common city
+                    city_lower = city_name.lower().split(",")[0].strip()
+                    if city_lower in common_cities:
+                        lat, lon = common_cities[city_lower]
+                        logger.info(f"Using fallback coordinates for {city_name}: {lat}, {lon}")
+                        return lat, lon
+
+                    return None, None
+
+    except Exception as e:
+        logger.error(f"Error getting coordinates for {city_name}: {e}")
+        return None, None
+
 def _get_weather_description(code: int) -> str:
     """Convert WMO weather codes to descriptions"""
     weather_codes = {
@@ -135,7 +229,7 @@ async def get_weather_forecast(
     Get real weather forecast using FREE OpenMeteo API (up to 16 days free!)
 
     Args:
-        location: "latitude,longitude" format
+        location: City name (e.g., "Paris, France") or "latitude,longitude" format
         days: Number of forecast days (1-7 recommended for free tier)
         units: Temperature units
 
@@ -144,20 +238,29 @@ async def get_weather_forecast(
     """
 
     try:
-        # Parse coordinates
+        # Try to parse as coordinates first
         if "," in location and len(location.split(",")) == 2:
+            parts = location.split(",")
             try:
-                lat, lon = map(float, location.split(","))
+                lat, lon = map(float, parts)
             except ValueError:
+                # Not coordinates, treat as city name
+                lat, lon = await _get_coordinates_for_city(location)
+                if lat is None:
+                    return {
+                        "error": f"Could not find location: {location}",
+                        "suggestion": "Try a major city like 'New York', 'Paris', 'Tokyo', or use coordinates",
+                        "location": location
+                    }
+        else:
+            # Single word or city name without comma
+            lat, lon = await _get_coordinates_for_city(location)
+            if lat is None:
                 return {
-                    "error": f"Invalid coordinates format. Use 'latitude,longitude'",
+                    "error": f"Could not find location: {location}",
+                    "suggestion": "Try adding country (e.g., 'Paris, France') or use coordinates",
                     "location": location
                 }
-        else:
-            return {
-                "error": f"Please provide coordinates in 'latitude,longitude' format",
-                "location": location
-            }
 
         # Limit to reasonable forecast days
         forecast_days = min(days, 7)
