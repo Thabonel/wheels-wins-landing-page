@@ -31,7 +31,7 @@ services:
     container_name: pam2-redis
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-pam2_redis_pass}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -64,7 +64,7 @@ services:
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-pam2}
       - POSTGRES_USER=${POSTGRES_USER:-pam2}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-pam2_secure_pass}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
