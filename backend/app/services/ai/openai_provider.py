@@ -120,8 +120,33 @@ class OpenAIProvider(AIProviderInterface):
             self.record_success(latency_ms)
             
             # Build response
+            message_payload = response.choices[0].message
+
+            function_calls = None
+            if hasattr(message_payload, "function_calls") and message_payload.function_calls:
+                function_calls = [
+                    self._serialize_function_call(call)
+                    for call in message_payload.function_calls
+                ]
+            elif hasattr(message_payload, "tool_calls") and message_payload.tool_calls:
+                function_calls = [
+                    self._serialize_tool_call(call)
+                    for call in message_payload.tool_calls
+                ]
+            elif hasattr(message_payload, "function_call") and message_payload.function_call:
+                function_calls = [
+                    {
+                        "id": getattr(message_payload.function_call, "id", None),
+                        "type": "function",
+                        "function": {
+                            "name": getattr(message_payload.function_call, "name", None),
+                            "arguments": getattr(message_payload.function_call, "arguments", None)
+                        }
+                    }
+                ]
+
             return AIResponse(
-                content=response.choices[0].message.content,
+                content=message_payload.content,
                 model=response.model,
                 provider="openai",
                 usage={
@@ -131,7 +156,7 @@ class OpenAIProvider(AIProviderInterface):
                 },
                 latency_ms=latency_ms,
                 finish_reason=response.choices[0].finish_reason,
-                function_calls=[call.model_dump() for call in response.choices[0].message.function_calls] if hasattr(response.choices[0].message, 'function_calls') and response.choices[0].message.function_calls else None
+                function_calls=function_calls
             )
             
         except OpenAIError as e:
@@ -142,7 +167,62 @@ class OpenAIProvider(AIProviderInterface):
             self.record_failure(e)
             logger.error(f"Unexpected error in OpenAI completion: {e}")
             raise
-    
+
+    def _extract_function_payload(self, function_payload: Any) -> Dict[str, Any]:
+        """Normalize OpenAI function payloads into a consistent dictionary."""
+        if function_payload is None:
+            return {"name": None, "arguments": None}
+
+        if isinstance(function_payload, dict):
+            return {
+                "name": function_payload.get("name"),
+                "arguments": function_payload.get("arguments")
+            }
+
+        if hasattr(function_payload, "model_dump"):
+            dumped = function_payload.model_dump()
+            return {
+                "name": dumped.get("name"),
+                "arguments": dumped.get("arguments")
+            }
+
+        return {
+            "name": getattr(function_payload, "name", None),
+            "arguments": getattr(function_payload, "arguments", None)
+        }
+
+    def _serialize_function_call(self, call: Any) -> Dict[str, Any]:
+        """Serialize OpenAI function call payloads for downstream tooling."""
+        if hasattr(call, "model_dump"):
+            data = call.model_dump()
+            if "function" in data:
+                data["function"] = self._extract_function_payload(data["function"])
+            else:
+                data["function"] = self._extract_function_payload(call)
+            data.setdefault("type", "function")
+            return data
+
+        return {
+            "id": getattr(call, "id", None),
+            "type": getattr(call, "type", "function"),
+            "function": self._extract_function_payload(getattr(call, "function", call))
+        }
+
+    def _serialize_tool_call(self, call: Any) -> Dict[str, Any]:
+        """Serialize OpenAI tool call payloads into function-call compatible dictionaries."""
+        if hasattr(call, "model_dump"):
+            data = call.model_dump()
+            data.setdefault("type", getattr(call, "type", "tool"))
+            if "function" in data:
+                data["function"] = self._extract_function_payload(data["function"])
+            return data
+
+        return {
+            "id": getattr(call, "id", None),
+            "type": getattr(call, "type", "tool"),
+            "function": self._extract_function_payload(getattr(call, "function", None))
+        }
+
     async def stream(
         self,
         messages: List[AIMessage],

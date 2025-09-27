@@ -9,22 +9,15 @@ export const safeImageService = {
 
   // Template-specific fallback images using reliable sources
   getTemplateImage: (templateId: string) => {
+    // Map template IDs to their correct Supabase storage images
     const imageMap: { [key: string]: string } = {
-      'aus-great-ocean-road': 'https://picsum.photos/seed/greatoceanroad/400/250',
-      'aus-east-coast': 'https://picsum.photos/seed/eastcoast/400/250',
-      'aus-big-lap': 'https://picsum.photos/seed/biglap/400/250',
-      'aus-tasmania-circuit': 'https://picsum.photos/seed/tasmania/400/250',
-      'aus-red-centre': 'https://picsum.photos/seed/redcentre/400/250',
-      'aus-savannah-way': 'https://picsum.photos/seed/savannah/400/250',
-      'aus-southwest-wa': 'https://picsum.photos/seed/southwest/400/250',
-      'aus-queensland-outback': 'https://picsum.photos/seed/queensland/400/250',
-      'aus-murray-river': 'https://picsum.photos/seed/murray/400/250',
-      'aus-gibb-river-road': 'https://picsum.photos/seed/gibbriver/400/250',
-      'aus-high-country': 'https://picsum.photos/seed/highcountry/400/250',
-      'aus-nullarbor': 'https://picsum.photos/seed/nullarbor/400/250',
-      'aus-cape-york': 'https://picsum.photos/seed/capeyork/400/250',
-      'aus-flinders-ranges': 'https://picsum.photos/seed/flinders/400/250',
-      'aus-sunshine-coast': 'https://picsum.photos/seed/sunshine/400/250',
+      'aus-great-ocean-road': 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/twelve_apostles_victoria_2006.jpg',
+      'aus-east-coast': 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/great_barrier_reef.jpg',
+      'aus-big-lap': 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/uluru_sunset_2007.jpg',
+      'aus-tasmania-circuit': 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/cradle_mountain_dove_lake.jpg',
+      'aus-red-centre': 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/uluru_sunset_2007.jpg',
+      'aus-southwest-wa': 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/margaret_river_winery.jpg',
+      'aus-flinders-ranges': 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/wilpena_pound_eastern_boundary.jpg',
     };
 
     return imageMap[templateId] || safeImageService.getFallbackImage(templateId);

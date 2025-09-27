@@ -303,6 +303,8 @@ docker run -p 10000:10000 wheels-wins-backend
 
 ## 🤝 Contributing
 
+Review the repository conventions in [AGENTS.md](AGENTS.md) before starting new work, and use [CODEX.md](CODEX.md) when operating the Codex CLI.
+
 ### Development Workflow
 1. **Fork** the repository
 2. **Create** a feature branch: `git checkout -b feature/amazing-feature`

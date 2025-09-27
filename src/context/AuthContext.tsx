@@ -4,6 +4,7 @@ import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { recordLogin, endSession } from '@/lib/authLogging';
 import { setUser as setSentryUser, setTag, captureMessage } from '@/lib/sentry';
 import { AuthErrorHandler, AuthError, AuthErrorType } from '@/utils/authErrorHandler';
+import { authSessionManager } from '@/context/authSessionManager';
 
 interface User {
   id: string;
@@ -130,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const previousSession = session;
           setSession(session);
           setToken(session?.access_token || null);
+          authSessionManager.setSession(session || null);
           
           console.log('[AuthContext] Session updated:', {
             hadSession: !!previousSession,
@@ -181,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       setSession(session);
       setToken(session?.access_token || null);
+      authSessionManager.setSession(session || null);
       
       if (session?.user) {
         const userData = {
@@ -345,6 +348,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setSession(null);
       setToken(null);
+      authSessionManager.clearSession();
 
       // Clear Sentry user context
       setSentryUser(null);

@@ -37,8 +37,9 @@ class InfrastructureSettings(BaseSettings):
     # External APIs
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
-    SUPABASE_URL: str
-    SUPABASE_KEY: str
+    GEMINI_API_KEY: Optional[str] = None
+    SUPABASE_URL: Optional[str] = "https://placeholder.supabase.co"
+    SUPABASE_KEY: Optional[str] = "placeholder-anon-key"
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
     SITE_URL: str = "http://localhost:3000"
     MUNDI_URL: Optional[str] = None

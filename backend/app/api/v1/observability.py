@@ -349,16 +349,16 @@ async def test_platform_connection(
 ) -> Dict[str, Any]:
     """Test connection to a specific observability platform"""
     try:
-        if platform not in ["openai", "langfuse"]:
+        if platform not in ["gemini", "langfuse"]:
             raise HTTPException(status_code=400, detail="Invalid platform")
-        
-        if platform == "openai":
-            client = observability.initialize_openai()
-            if client:
+
+        if platform == "gemini":
+            success = observability.initialize_gemini()
+            if success:
                 # Simple test - just check if client is initialized
-                result = {"connected": True, "message": "OpenAI client initialized successfully"}
+                result = {"connected": True, "message": "Gemini client initialized successfully"}
             else:
-                result = {"connected": False, "message": "Failed to initialize OpenAI client"}
+                result = {"connected": False, "message": "Failed to initialize Gemini client"}
                 
         elif platform == "langfuse":
             client = observability.initialize_langfuse()
@@ -372,8 +372,9 @@ async def test_platform_connection(
                     result = {"connected": False, "message": f"Langfuse connection failed: {e}"}
             else:
                 result = {"connected": False, "message": "Failed to initialize Langfuse client"}
-                
-        
+
+
+
         return {
             "status": "success",
             "data": result

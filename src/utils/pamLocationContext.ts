@@ -4,8 +4,7 @@
  * This enables PAM with Claude to provide detailed weather and local information without asking for location
  */
 
-import { locationService } from '@/services/locationService';
-import { getUserRegion } from '@/services/locationDetectionService';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 export interface LocationContext {
   latitude?: number;
@@ -38,22 +37,15 @@ export async function getPamLocationContext(userId?: string): Promise<LocationCo
       };
     }
 
-    // Try to get location from database if user is logged in
-    if (userId) {
-      try {
-        const dbLocation = await locationService.getUserLocation(userId);
-        if (dbLocation?.current_latitude && dbLocation?.current_longitude) {
-          console.log('🗄️ Using database location for PAM context');
-          return {
-            latitude: dbLocation.current_latitude,
-            longitude: dbLocation.current_longitude,
-            source: 'cached',
-            timestamp: Date.now()
-          };
-        }
-      } catch (error) {
-        console.warn('⚠️ Could not get location from database:', error);
-      }
+    // Try to get location from browser cache (localStorage)
+    const cachedLocation = getCachedLocation();
+    if (cachedLocation) {
+      console.log('💾 Using cached location for PAM context');
+      return {
+        ...cachedLocation,
+        source: 'cached',
+        timestamp: Date.now()
+      };
     }
 
     // Try to get location from IP detection
@@ -127,19 +119,51 @@ async function tryGetGPSLocation(): Promise<Partial<LocationContext> | null> {
 }
 
 /**
- * Try to get approximate location from IP detection
+ * Get cached location from localStorage (from useGeolocation hook)
+ */
+function getCachedLocation(): Partial<LocationContext> | null {
+  try {
+    const cached = localStorage.getItem('lastKnownLocation');
+    if (!cached) return null;
+
+    const data = JSON.parse(cached);
+    if (!data.location) return null;
+
+    const { location } = data;
+    const age = Date.now() - data.timestamp;
+
+    // Use cached location if less than 1 hour old
+    if (age < 60 * 60 * 1000) {
+      return {
+        latitude: location.lat,
+        longitude: location.lng,
+        city: location.city,
+        region: location.state,
+        country: location.country,
+        accuracy: location.accuracy,
+        timestamp: location.timestamp
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.debug('Failed to get cached location:', error);
+    return null;
+  }
+}
+
+/**
+ * Try to get approximate location from IP detection (simplified)
  */
 async function tryGetIPLocation(): Promise<Partial<LocationContext> | null> {
   try {
-    const region = await getUserRegion();
-
-    // Map regions to approximate coordinates and cities
-    const regionData = getRegionLocationData(region);
+    // Simple timezone-based fallback
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const locationFromTimezone = inferLocationFromTimezone(timezone);
 
     return {
-      ...regionData,
-      region,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      ...locationFromTimezone,
+      timezone
     };
 
   } catch (error) {

@@ -123,7 +123,7 @@ class WeatherTool(BaseTool):
             logger.error(f"❌ Failed to initialize weather tool: {e}")
             return False
     
-    async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> ToolResult:
+    async def execute(self, user_id: str, parameters: Dict[str, Any] = None, context: Dict[str, Any] = None) -> ToolResult:
         """Execute a weather tool action"""
         try:
             if not parameters:
@@ -131,13 +131,25 @@ class WeatherTool(BaseTool):
                     success=False,
                     error="Parameters required"
                 )
-            
+
             action = parameters.get("action")
             if not action:
                 return ToolResult(
                     success=False,
                     error="Action parameter required"
                 )
+
+            # Inject user location context if available
+            if context and "location" in context:
+                location_context = context["location"]
+                if not parameters.get("location") and location_context:
+                    # Use context location if no specific location provided
+                    if location_context.get("city") and location_context.get("region"):
+                        parameters["location"] = f"{location_context['city']}, {location_context['region']}"
+                        logger.info(f"🌍 Using user location context: {parameters['location']}")
+                    elif location_context.get("latitude") and location_context.get("longitude"):
+                        parameters["location"] = [location_context["latitude"], location_context["longitude"]]
+                        logger.info(f"🌍 Using user coordinates: {parameters['location']}")
                 
             if action == "get_current":
                 return await self._get_current_weather(parameters)
@@ -172,7 +184,7 @@ class WeatherTool(BaseTool):
     def _get_cached_result(self, cache_key: str, cache_type: str) -> Optional[ToolResult]:
         """Get cached result if still valid"""
         if cache_key in self._cache:
-            result, timestamp = self._cache[cache_key]
+            data, timestamp = self._cache[cache_key]
             age = datetime.now() - timestamp
             ttl = self._cache_ttl.get(cache_type, timedelta(minutes=5))
             
@@ -197,11 +209,11 @@ class WeatherTool(BaseTool):
     async def _get_current_weather(self, params: Dict[str, Any]) -> ToolResult:
         """Get current weather for a location with caching"""
         location = params.get("location")
-        
+
         if not location:
             return ToolResult(
                 success=False,
-                error="Location required"
+                error="Location not specified and no user location available. Please provide a location for weather information."
             )
         
         # Check cache first
@@ -212,7 +224,7 @@ class WeatherTool(BaseTool):
         
         # Mock response if no API key
         if not self.api_key:
-            result = self._mock_current_weather(location)
+            data = self._mock_current_weather(location)
             self._cache_result(cache_key, result)
             return result
         
@@ -257,9 +269,9 @@ class WeatherTool(BaseTool):
                         conditions=weather.conditions
                     )
                     
-                    result = ToolResult(
+                    data = ToolResult(
                         success=True,
-                        result={
+                        data={
                             "current": {
                                 "location": weather.location,
                                 "temperature": f"{weather.temperature}°F",
@@ -294,11 +306,11 @@ class WeatherTool(BaseTool):
         """Get weather forecast for a location with caching"""
         location = params.get("location")
         days = params.get("days", 5)
-        
+
         if not location:
             return ToolResult(
                 success=False,
-                error="Location required"
+                error="Location not specified and no user location available. Please provide a location for weather forecast."
             )
         
         # Check cache first
@@ -309,7 +321,7 @@ class WeatherTool(BaseTool):
         
         # Mock response if no API key
         if not self.api_key:
-            result = self._mock_forecast(location, days)
+            data = self._mock_forecast(location, days)
             self._cache_result(cache_key, result)
             return result
         
@@ -339,9 +351,9 @@ class WeatherTool(BaseTool):
                     # Process forecast data into daily summaries
                     daily_forecasts = self._process_forecast_data(data["list"])
                     
-                    result = ToolResult(
+                    data = ToolResult(
                         success=True,
-                        result={
+                        data={
                             "forecast": [{
                                 "date": f.date.strftime("%Y-%m-%d"),
                                 "high": f"{f.high_temp}°F",
@@ -377,7 +389,7 @@ class WeatherTool(BaseTool):
         # Mock alerts for now (would need NWS API for real alerts)
         return ToolResult(
             success=True,
-            result={
+            data={
                 "alerts": [
                     {
                         "type": "Wind Advisory",
@@ -405,7 +417,7 @@ class WeatherTool(BaseTool):
         if not weather_result.success:
             return weather_result
         
-        current = weather_result.result["current"]
+        current = weather_result.data["current"]
         rating = current["rv_travel_rating"]
         
         # Provide detailed recommendations
@@ -436,7 +448,7 @@ class WeatherTool(BaseTool):
         
         return ToolResult(
             success=True,
-            result={
+            data={
                 "travel_rating": rating,
                 "safe_to_travel": len(warnings) == 0,
                 "warnings": warnings,
@@ -465,10 +477,10 @@ class WeatherTool(BaseTool):
             if weather_result.success:
                 route_weather.append({
                     "point": i + 1,
-                    "location": weather_result.result["current"]["location"],
-                    "conditions": weather_result.result["current"]["conditions"],
-                    "temperature": weather_result.result["current"]["temperature"],
-                    "rv_rating": weather_result.result["current"]["rv_travel_rating"]
+                    "location": weather_result.data["current"]["location"],
+                    "conditions": weather_result.data["current"]["conditions"],
+                    "temperature": weather_result.data["current"]["temperature"],
+                    "rv_rating": weather_result.data["current"]["rv_travel_rating"]
                 })
         
         # Determine overall route conditions
@@ -486,7 +498,7 @@ class WeatherTool(BaseTool):
         
         return ToolResult(
             success=True,
-            result={
+            data={
                 "route_weather": route_weather,
                 "overall_rating": overall,
                 "message": f"Weather checked for {len(route_weather)} points. Overall: {overall}"
@@ -613,7 +625,7 @@ class WeatherTool(BaseTool):
         
         return ToolResult(
             success=True,
-            result={
+            data={
                 "current": {
                     "location": location,
                     "temperature": f"{temp}°F",
@@ -676,7 +688,7 @@ class WeatherTool(BaseTool):
         
         return ToolResult(
             success=True,
-            result={
+            data={
                 "forecast": mock_days,
                 "location": location,
                 "message": f"{days}-day forecast for {location}"

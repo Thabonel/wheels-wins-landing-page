@@ -13,6 +13,7 @@ from .provider_interface import (
     AIProviderInterface, AIMessage, AIResponse, AICapability,
     AIProviderStatus, ProviderConfig
 )
+from .gemini_function_calling import get_gemini_function_handler
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ class GeminiProvider(AIProviderInterface):
 
         super().__init__(config)
         self.model = None
+        self.function_handler = None  # Initialize function calling handler
         self.generation_config = {
             "temperature": 0.7,
             "top_p": 0.8,
@@ -96,6 +98,9 @@ class GeminiProvider(AIProviderInterface):
                 safety_settings=self.safety_settings
             )
 
+            # Initialize function calling handler (will be set up later with tool registry)
+            self.function_handler = None
+
             # Test the connection
             status, message = await self.health_check()
             return status == AIProviderStatus.HEALTHY
@@ -128,6 +133,8 @@ class GeminiProvider(AIProviderInterface):
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        user_id: Optional[str] = None,
         **kwargs
     ) -> AIResponse:
         """Generate a completion using Gemini"""
@@ -149,11 +156,27 @@ class GeminiProvider(AIProviderInterface):
                 elif msg.role == "assistant":
                     conversation_parts.append({"role": "model", "parts": [msg.content]})
 
+            # Convert messages to the format expected by function handler
+            message_dicts = [{"role": msg.role, "content": msg.content} for msg in messages]
+
             # Update generation config if parameters provided
             generation_config = self.generation_config.copy()
             generation_config["temperature"] = temperature
             if max_tokens:
                 generation_config["max_output_tokens"] = min(max_tokens, 8192)
+
+            # Handle function calling if tools provided
+            gemini_tools = None
+            function_results = []
+
+            if tools and self.function_handler and user_id:
+                try:
+                    # Convert OpenAI tools to Gemini format
+                    gemini_tools = self.function_handler.convert_openai_tools_to_gemini(tools)
+                    logger.info(f"🔧 Converted {len(tools)} tools for function calling")
+                except Exception as e:
+                    logger.error(f"❌ Failed to convert tools: {e}")
+                    gemini_tools = None
 
             # Create model instance with updated config
             model_name = self._get_model_with_fallback(model)
@@ -164,18 +187,49 @@ class GeminiProvider(AIProviderInterface):
                 system_instruction=system_instruction
             )
 
-            # Generate response
-            if len(conversation_parts) == 0:
-                # Handle case with only system message
-                response = current_model.generate_content("")
-            elif len(conversation_parts) == 1 and conversation_parts[0]["role"] == "user":
-                # Single user message
-                response = current_model.generate_content(conversation_parts[0]["parts"][0])
+            # Generate response with or without function calling
+            if gemini_tools and self.function_handler and user_id:
+                # Use function calling handler for complex conversation
+                try:
+                    response_text, function_results = await self.function_handler.handle_function_calling_conversation(
+                        model=current_model,
+                        messages=message_dicts,
+                        tools=gemini_tools,
+                        user_id=user_id
+                    )
+
+                    # Create a mock response object for compatibility
+                    class MockResponse:
+                        def __init__(self, text):
+                            self.text = text
+                            self.usage_metadata = None
+                            self.candidates = []
+
+                    response = MockResponse(response_text)
+                    logger.info(f"✅ Function calling completed with {len(function_results)} function calls")
+
+                except Exception as e:
+                    logger.error(f"❌ Function calling failed, falling back to regular chat: {e}")
+                    # Fall back to regular generation
+                    if len(conversation_parts) == 1 and conversation_parts[0]["role"] == "user":
+                        response = current_model.generate_content(conversation_parts[0]["parts"][0])
+                    else:
+                        chat = current_model.start_chat(history=conversation_parts[:-1])
+                        last_message = conversation_parts[-1]["parts"][0]
+                        response = chat.send_message(last_message)
             else:
-                # Multi-turn conversation
-                chat = current_model.start_chat(history=conversation_parts[:-1])
-                last_message = conversation_parts[-1]["parts"][0]
-                response = chat.send_message(last_message)
+                # Regular generation without function calling
+                if len(conversation_parts) == 0:
+                    # Handle case with only system message
+                    response = current_model.generate_content("")
+                elif len(conversation_parts) == 1 and conversation_parts[0]["role"] == "user":
+                    # Single user message
+                    response = current_model.generate_content(conversation_parts[0]["parts"][0])
+                else:
+                    # Multi-turn conversation
+                    chat = current_model.start_chat(history=conversation_parts[:-1])
+                    last_message = conversation_parts[-1]["parts"][0]
+                    response = chat.send_message(last_message)
 
             # Calculate latency
             end_time = time.time()
@@ -195,6 +249,20 @@ class GeminiProvider(AIProviderInterface):
                 if hasattr(candidate, 'finish_reason'):
                     finish_reason = str(candidate.finish_reason)
 
+            # Convert function results to format expected by AIResponse
+            function_calls_data = None
+            if function_results:
+                function_calls_data = [
+                    {
+                        "name": result.function_name,
+                        "success": result.success,
+                        "result": result.result,
+                        "error": result.error,
+                        "execution_time_ms": result.execution_time_ms
+                    }
+                    for result in function_results
+                ]
+
             return AIResponse(
                 content=response.text,
                 model=model_name,
@@ -202,6 +270,7 @@ class GeminiProvider(AIProviderInterface):
                 usage=usage,
                 latency_ms=latency_ms,
                 finish_reason=finish_reason,
+                function_calls=function_calls_data,
                 cached=False  # Gemini doesn't expose cache info
             )
 
@@ -335,3 +404,12 @@ class GeminiProvider(AIProviderInterface):
             output_cost = (output_tokens / 1000) * 0.0003
 
         return input_cost + output_cost
+
+    def set_tool_registry(self, tool_registry):
+        """Set up function calling with tool registry"""
+        try:
+            self.function_handler = get_gemini_function_handler(tool_registry=tool_registry)
+            logger.info("✅ Gemini function calling handler initialized with tool registry")
+        except Exception as e:
+            logger.warning(f"⚠️ Function calling handler failed to initialize: {e}")
+            self.function_handler = None

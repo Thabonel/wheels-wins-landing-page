@@ -9,7 +9,10 @@ import { logger } from '../lib/logger';
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_BACKEND_URL ||
-  'https://pam-backend.onrender.com';  // Always use production backend for main
+  // Environment-based backend selection
+  (window.location.hostname.includes('staging') || window.location.hostname.includes('wheels-wins-staging'))
+    ? 'https://wheels-wins-backend-staging.onrender.com'
+    : 'https://pam-backend.onrender.com';
 
 /**
  * WebSocket endpoint for PAM connections - uses environment variable or derives from API_BASE_URL
