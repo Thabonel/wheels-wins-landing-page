@@ -669,6 +669,14 @@ except Exception as pam2_error:
         logger.error(f"❌ PAM 2.0 fallback also failed: {fallback_error}")
 app.include_router(pam_ai_sdk.router, prefix="/api/v1/pam-ai-sdk", tags=["PAM AI SDK"])
 
+# PAM Hybrid System - GPT-4o-mini + Claude Agent SDK (Cost-optimized)
+try:
+    from app.api.v1 import pam_hybrid
+    app.include_router(pam_hybrid.router, prefix="/api/v1/pam-hybrid", tags=["PAM Hybrid"])
+    logger.info("✅ PAM Hybrid System (GPT-4o-mini + Claude Agent SDK) loaded successfully")
+except Exception as hybrid_error:
+    logger.error(f"❌ Failed to load PAM Hybrid System: {hybrid_error}")
+
 # Import and add intent classification routes
 try:
     from app.api.v1 import intent
