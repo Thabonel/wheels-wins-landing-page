@@ -4,6 +4,7 @@ import DashboardOverview from './DashboardOverview';
 import AuthDebugAdmin from './AuthDebugAdmin';
 import AuthTestingPanel from './AuthTestingPanel';
 import IntegrationTestingDashboard from './IntegrationTestingDashboard';
+import ContactMessages from './ContactMessages';
 import {
   LearningDashboard,
   UserManagement,
@@ -42,6 +43,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <PAMAnalyticsDashboard />;
       case 'User Feedback':
         return <UserFeedback />;
+      case 'Contact Messages':
+        return <ContactMessages />;
       case 'Learning Dashboard':
         return <LearningDashboard />;
       case 'AI Observability':

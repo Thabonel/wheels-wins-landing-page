@@ -91,6 +91,7 @@ from app.api.v1 import (
     digistore24,
     national_parks,
     health_consultation,
+    contact,
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import observability as observability_api
@@ -719,6 +720,7 @@ app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysi
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
 app.include_router(openroute.router, prefix="/api/v1/openroute", tags=["OpenRoute Service Proxy"])
 app.include_router(health_consultation.router, prefix="/api/v1", tags=["Health Consultation"])
+app.include_router(contact.router, prefix="/api/v1", tags=["Contact"])
 
 # Conditionally register routers that might fail to import
 if camping_router:

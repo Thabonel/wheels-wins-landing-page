@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CheckCircle, AlertCircle, ShoppingBag, ArrowRight } from "lucide-react";
 import { digistore24Service } from "@/services/digistore24Service";
 import { useAuth } from "@/context/AuthContext";
+import { ContactLink } from "@/components/contact/ContactLink";
 
 export default function ThankYouDigistore24() {
   const [searchParams] = useSearchParams();
@@ -162,9 +163,9 @@ export default function ThankYouDigistore24() {
           <div className="mt-6 pt-6 border-t text-center text-sm text-gray-600">
             <p>
               Need help? Contact support at{" "}
-              <a href="mailto:support@wheelsandwins.com" className="text-purple-600 hover:underline">
+              <ContactLink category="support" subject="Purchase Support">
                 support@wheelsandwins.com
-              </a>
+              </ContactLink>
             </p>
           </div>
         </CardContent>

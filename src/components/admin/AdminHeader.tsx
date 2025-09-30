@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Menu } from 'lucide-react';
@@ -6,6 +6,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { ContactForm } from '@/components/contact/ContactForm';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface AdminHeaderProps {
   isSidebarOpen: boolean;
@@ -16,6 +24,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ isSidebarOpen, setIsSidebarOp
   const isMobile = useIsMobile();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [showContactForm, setShowContactForm] = useState(false);
 
   const handleLogout = () => {
     signOut();
@@ -28,9 +37,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ isSidebarOpen, setIsSidebarOp
   };
 
   const handleSupport = () => {
-    toast.info('Opening support center...');
-    // In a real app, this might open a support modal, redirect to help docs, or create a support ticket
-    window.open('mailto:support@wheelsandwins.com?subject=Admin Panel Support Request', '_blank');
+    setShowContactForm(true);
   };
 
   const userInitials = user?.full_name 
@@ -85,6 +92,24 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ isSidebarOpen, setIsSidebarOp
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
+
+      {/* Contact Form Dialog */}
+      <Dialog open={showContactForm} onOpenChange={setShowContactForm}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Admin Support Request</DialogTitle>
+            <DialogDescription>
+              Need help with the admin panel? Fill out the form below and we'll get back to you soon.
+            </DialogDescription>
+          </DialogHeader>
+          <ContactForm
+            defaultCategory="technical"
+            defaultSubject="Admin Panel Support Request"
+            inline={true}
+            onSuccess={() => setShowContactForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
