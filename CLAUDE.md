@@ -1,5 +1,14 @@
 # Claude Code Instructions for Wheels & Wins
 
+## 📚 Essential Context Files (Read These First)
+When starting a new session, read these files to get up to speed:
+
+- **@docs/pam-rebuild-2025/PAM_FINAL_PLAN.md** - Complete 7-day rebuild plan and progress
+- **@docs/pam-rebuild-2025/DAY_4_COMPLETE.md** - Latest completed work
+- **@backend/docs/architecture.md** - System architecture overview
+- **@backend/docs/api.md** - API endpoint documentation
+- **@CLAUDE.local.md** - Current session context (if exists)
+
 ## 🚀 Quick Start
 **Dev Server**: http://localhost:8080 (NOT 3000!)
 **Stack**: React 18.3 + TypeScript + Vite + Tailwind + Supabase + FastAPI
