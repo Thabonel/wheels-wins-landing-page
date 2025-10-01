@@ -32,6 +32,18 @@ from app.services.pam.tools.budget.find_savings_opportunities import find_saving
 from app.services.pam.tools.budget.categorize_transaction import categorize_transaction
 from app.services.pam.tools.budget.export_budget_report import export_budget_report
 
+# Import trip tools
+from app.services.pam.tools.trip.plan_trip import plan_trip
+from app.services.pam.tools.trip.find_rv_parks import find_rv_parks
+from app.services.pam.tools.trip.get_weather_forecast import get_weather_forecast
+from app.services.pam.tools.trip.calculate_gas_cost import calculate_gas_cost
+from app.services.pam.tools.trip.find_cheap_gas import find_cheap_gas
+from app.services.pam.tools.trip.optimize_route import optimize_route
+from app.services.pam.tools.trip.get_road_conditions import get_road_conditions
+from app.services.pam.tools.trip.find_attractions import find_attractions
+from app.services.pam.tools.trip.estimate_travel_time import estimate_travel_time
+from app.services.pam.tools.trip.save_favorite_spot import save_favorite_spot
+
 logger = logging.getLogger(__name__)
 
 
@@ -230,6 +242,142 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     },
                     "required": []
                 }
+            },
+            # Trip planning tools
+            {
+                "name": "plan_trip",
+                "description": "Plan a multi-stop trip with budget constraints. Use when user wants to plan a road trip.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "origin": {"type": "string", "description": "Starting location"},
+                        "destination": {"type": "string", "description": "End location"},
+                        "budget": {"type": "number", "description": "Optional budget limit in USD"},
+                        "stops": {"type": "array", "items": {"type": "string"}, "description": "Optional intermediate stops"},
+                        "start_date": {"type": "string", "description": "Optional start date in ISO format"}
+                    },
+                    "required": ["origin", "destination"]
+                }
+            },
+            {
+                "name": "find_rv_parks",
+                "description": "Find RV parks and campgrounds near a location. Use when user asks for campgrounds.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string", "description": "Location to search near"},
+                        "radius_miles": {"type": "integer", "description": "Search radius (default: 50)"},
+                        "amenities": {"type": "array", "items": {"type": "string"}, "description": "Required amenities"},
+                        "max_price": {"type": "number", "description": "Maximum price per night"}
+                    },
+                    "required": ["location"]
+                }
+            },
+            {
+                "name": "get_weather_forecast",
+                "description": "Get weather forecast for a location. Use when user asks about weather.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string", "description": "Location for forecast"},
+                        "days": {"type": "integer", "description": "Number of days (default: 7, max: 14)"}
+                    },
+                    "required": ["location"]
+                }
+            },
+            {
+                "name": "calculate_gas_cost",
+                "description": "Calculate estimated gas cost for a trip. Use when user asks about fuel costs.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "distance_miles": {"type": "number", "description": "Trip distance in miles"},
+                        "mpg": {"type": "number", "description": "Vehicle MPG (default: 10 for RV)"},
+                        "gas_price": {"type": "number", "description": "Price per gallon (default: $3.50)"}
+                    },
+                    "required": ["distance_miles"]
+                }
+            },
+            {
+                "name": "find_cheap_gas",
+                "description": "Find cheapest gas stations near a location. Use when user wants to find cheap gas.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string", "description": "Location to search near"},
+                        "radius_miles": {"type": "integer", "description": "Search radius (default: 25)"},
+                        "fuel_type": {"type": "string", "enum": ["regular", "diesel", "premium"], "description": "Type of fuel"}
+                    },
+                    "required": ["location"]
+                }
+            },
+            {
+                "name": "optimize_route",
+                "description": "Optimize route for cost and time efficiency. Use when user wants the best route.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "origin": {"type": "string", "description": "Starting location"},
+                        "destination": {"type": "string", "description": "End location"},
+                        "stops": {"type": "array", "items": {"type": "string"}, "description": "Intermediate stops"},
+                        "optimization_type": {"type": "string", "enum": ["cost", "time", "balanced"], "description": "Optimization priority"}
+                    },
+                    "required": ["origin", "destination"]
+                }
+            },
+            {
+                "name": "get_road_conditions",
+                "description": "Check road conditions and traffic alerts. Use when user asks about road conditions.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string", "description": "Location or route to check"},
+                        "route": {"type": "string", "description": "Optional specific route number (e.g., I-80)"}
+                    },
+                    "required": ["location"]
+                }
+            },
+            {
+                "name": "find_attractions",
+                "description": "Find attractions and points of interest near a location. Use when user wants things to see.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string", "description": "Location to search near"},
+                        "radius_miles": {"type": "integer", "description": "Search radius (default: 50)"},
+                        "categories": {"type": "array", "items": {"type": "string"}, "description": "Categories (national_parks, museums, etc.)"}
+                    },
+                    "required": ["location"]
+                }
+            },
+            {
+                "name": "estimate_travel_time",
+                "description": "Estimate travel time with breaks. Use when user asks how long a trip will take.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "origin": {"type": "string", "description": "Starting location"},
+                        "destination": {"type": "string", "description": "End location"},
+                        "distance_miles": {"type": "number", "description": "Optional distance (calculated if not provided)"},
+                        "include_breaks": {"type": "boolean", "description": "Include rest stops (default: true)"}
+                    },
+                    "required": ["origin", "destination"]
+                }
+            },
+            {
+                "name": "save_favorite_spot",
+                "description": "Save a location as a favorite. Use when user wants to bookmark a place.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location_name": {"type": "string", "description": "Name of the location"},
+                        "location_address": {"type": "string", "description": "Address or coordinates"},
+                        "category": {"type": "string", "description": "Category (campground, restaurant, attraction, etc.)"},
+                        "notes": {"type": "string", "description": "Optional personal notes"},
+                        "rating": {"type": "integer", "description": "Optional rating (1-5)"}
+                    },
+                    "required": ["location_name", "location_address"]
+                }
             }
         ]
 
@@ -394,6 +542,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
 
         # Map tool names to functions
         tool_functions = {
+            # Budget tools
             "create_expense": create_expense,
             "track_savings": track_savings,
             "analyze_budget": analyze_budget,
@@ -403,7 +552,18 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             "predict_end_of_month": predict_end_of_month,
             "find_savings_opportunities": find_savings_opportunities,
             "categorize_transaction": categorize_transaction,
-            "export_budget_report": export_budget_report
+            "export_budget_report": export_budget_report,
+            # Trip tools
+            "plan_trip": plan_trip,
+            "find_rv_parks": find_rv_parks,
+            "get_weather_forecast": get_weather_forecast,
+            "calculate_gas_cost": calculate_gas_cost,
+            "find_cheap_gas": find_cheap_gas,
+            "optimize_route": optimize_route,
+            "get_road_conditions": get_road_conditions,
+            "find_attractions": find_attractions,
+            "estimate_travel_time": estimate_travel_time,
+            "save_favorite_spot": save_favorite_spot
         }
 
         for block in content:
