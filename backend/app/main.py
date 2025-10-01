@@ -673,6 +673,15 @@ app.include_router(pam_ai_sdk.router, prefix="/api/v1/pam-ai-sdk", tags=["PAM AI
 # Hybrid system deleted during Day 1 cleanup (October 1, 2025)
 # See docs/DELETION_MANIFEST_20251001.md for details
 
+# PAM Simple - NEW clean implementation (Day 2, October 1, 2025)
+# Simple WebSocket + REST endpoints using core PAM brain
+try:
+    from app.api.v1 import pam_simple
+    app.include_router(pam_simple.router, prefix="/api/v1/pam-simple", tags=["PAM Simple"])
+    logger.info("✅ PAM Simple (Claude Sonnet 4.5) loaded successfully")
+except Exception as simple_error:
+    logger.error(f"❌ Failed to load PAM Simple: {simple_error}")
+
 # Import and add intent classification routes
 try:
     from app.api.v1 import intent
