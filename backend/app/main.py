@@ -682,6 +682,15 @@ try:
 except Exception as simple_error:
     logger.error(f"❌ Failed to load PAM Simple: {simple_error}")
 
+# PAM Savings API - Day 3 (October 1, 2025)
+# Savings tracking and celebration endpoints
+try:
+    from app.api.v1.pam import savings
+    app.include_router(savings.router, prefix="/api/v1/pam/savings", tags=["PAM Savings"])
+    logger.info("✅ PAM Savings API loaded successfully")
+except Exception as savings_error:
+    logger.error(f"❌ Failed to load PAM Savings API: {savings_error}")
+
 # Import and add intent classification routes
 try:
     from app.api.v1 import intent
