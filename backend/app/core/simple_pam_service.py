@@ -63,8 +63,20 @@ class SimplePamService:
         self.tools_registry = {}
         self.tools_initialized = False
 
-        # Initialize services asynchronously
-        asyncio.create_task(self._initialize_services())
+        # Track initialization status
+        self._initialization_lock = asyncio.Lock()
+        self._initialization_started = False
+
+    async def ensure_initialized(self):
+        """Ensure services are initialized (lazy initialization)"""
+        if self._initialization_started:
+            return
+
+        async with self._initialization_lock:
+            if self._initialization_started:
+                return
+            self._initialization_started = True
+            await self._initialize_services()
 
     async def _initialize_services(self):
         """Initialize all services asynchronously"""
@@ -89,6 +101,9 @@ class SimplePamService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Perform comprehensive health check on PAM service"""
+        # Ensure services are initialized
+        await self.ensure_initialized()
+
         try:
             if not self.ai_service_initialized or not self.ai_service:
                 return {
@@ -600,6 +615,9 @@ class SimplePamService:
         Process a message and return structured response with caching
         Compatible with existing PAM API endpoints
         """
+        # Ensure services are initialized
+        await self.ensure_initialized()
+
         session_id = session_id or str(uuid.uuid4())
         context = context or {}
         context["user_id"] = user_id
