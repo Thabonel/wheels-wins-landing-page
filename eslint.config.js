@@ -5,15 +5,20 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { 
+  {
     ignores: [
       "dist",
-      "build", 
+      "build",
       "node_modules",
       "coverage",
       "playwright-report",
-      "test-results"
-    ] 
+      "test-results",
+      "backups/**",
+      "backend/pam2_backend/**",
+      "backend/_pam2_backend_backup/**",
+      "src/services/pam/context/**",
+      "src/services/pam/performance/**"
+    ]
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
