@@ -44,6 +44,32 @@ from app.services.pam.tools.trip.find_attractions import find_attractions
 from app.services.pam.tools.trip.estimate_travel_time import estimate_travel_time
 from app.services.pam.tools.trip.save_favorite_spot import save_favorite_spot
 
+# Import social tools
+from app.services.pam.tools.social.create_post import create_post
+from app.services.pam.tools.social.message_friend import message_friend
+from app.services.pam.tools.social.comment_on_post import comment_on_post
+from app.services.pam.tools.social.search_posts import search_posts
+from app.services.pam.tools.social.get_feed import get_feed
+from app.services.pam.tools.social.like_post import like_post
+from app.services.pam.tools.social.follow_user import follow_user
+from app.services.pam.tools.social.share_location import share_location
+from app.services.pam.tools.social.find_nearby_rvers import find_nearby_rvers
+from app.services.pam.tools.social.create_event import create_event
+
+# Import shop tools
+from app.services.pam.tools.shop.search_products import search_products
+from app.services.pam.tools.shop.add_to_cart import add_to_cart
+from app.services.pam.tools.shop.get_cart import get_cart
+from app.services.pam.tools.shop.checkout import checkout
+from app.services.pam.tools.shop.track_order import track_order
+
+# Import profile tools
+from app.services.pam.tools.profile.update_profile import update_profile
+from app.services.pam.tools.profile.update_settings import update_settings
+from app.services.pam.tools.profile.manage_privacy import manage_privacy
+from app.services.pam.tools.profile.get_user_stats import get_user_stats
+from app.services.pam.tools.profile.export_data import export_data
+
 logger = logging.getLogger(__name__)
 
 
@@ -378,6 +404,270 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     },
                     "required": ["location_name", "location_address"]
                 }
+            },
+            # Social tools
+            {
+                "name": "create_post",
+                "description": "Create a social post to share with the community. Use when user wants to post updates.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "content": {"type": "string", "description": "Post content"},
+                        "title": {"type": "string", "description": "Optional post title"},
+                        "location": {"type": "string", "description": "Optional location tag"},
+                        "image_url": {"type": "string", "description": "Optional image URL"},
+                        "tags": {"type": "array", "items": {"type": "string"}, "description": "Optional tags"}
+                    },
+                    "required": ["content"]
+                }
+            },
+            {
+                "name": "message_friend",
+                "description": "Send a direct message to another user. Use when user wants to DM someone.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "recipient_id": {"type": "string", "description": "UUID of the recipient"},
+                        "message": {"type": "string", "description": "Message content"}
+                    },
+                    "required": ["recipient_id", "message"]
+                }
+            },
+            {
+                "name": "comment_on_post",
+                "description": "Add a comment to a post. Use when user wants to comment on community posts.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {"type": "string", "description": "UUID of the post"},
+                        "comment": {"type": "string", "description": "Comment content"}
+                    },
+                    "required": ["post_id", "comment"]
+                }
+            },
+            {
+                "name": "search_posts",
+                "description": "Search for posts in the community. Use when user wants to find specific content.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query"},
+                        "tags": {"type": "array", "items": {"type": "string"}, "description": "Optional tags to filter by"},
+                        "location": {"type": "string", "description": "Optional location filter"},
+                        "limit": {"type": "integer", "description": "Max results (default: 20)"}
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "get_feed",
+                "description": "Get user's social feed. Use when user wants to see community posts.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "filter_type": {"type": "string", "enum": ["all", "friends", "following"], "description": "Feed filter type"},
+                        "limit": {"type": "integer", "description": "Max posts (default: 20)"},
+                        "offset": {"type": "integer", "description": "Pagination offset"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "like_post",
+                "description": "Like or unlike a post. Use when user wants to react to posts.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {"type": "string", "description": "UUID of the post"},
+                        "unlike": {"type": "boolean", "description": "Set to true to unlike (default: false)"}
+                    },
+                    "required": ["post_id"]
+                }
+            },
+            {
+                "name": "follow_user",
+                "description": "Follow or unfollow another user. Use when user wants to connect with RVers.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "target_user_id": {"type": "string", "description": "UUID of user to follow/unfollow"},
+                        "unfollow": {"type": "boolean", "description": "Set to true to unfollow (default: false)"}
+                    },
+                    "required": ["target_user_id"]
+                }
+            },
+            {
+                "name": "share_location",
+                "description": "Share current location or spot with community. Use when user wants to share where they are.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location_name": {"type": "string", "description": "Name of the location"},
+                        "latitude": {"type": "number", "description": "Location latitude"},
+                        "longitude": {"type": "number", "description": "Location longitude"},
+                        "description": {"type": "string", "description": "Optional description"},
+                        "is_public": {"type": "boolean", "description": "Public visibility (default: true)"}
+                    },
+                    "required": ["location_name", "latitude", "longitude"]
+                }
+            },
+            {
+                "name": "find_nearby_rvers",
+                "description": "Find RVers near a location. Use when user wants to discover local community.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "latitude": {"type": "number", "description": "Search center latitude"},
+                        "longitude": {"type": "number", "description": "Search center longitude"},
+                        "radius_miles": {"type": "integer", "description": "Search radius (default: 50)"},
+                        "limit": {"type": "integer", "description": "Max results (default: 20)"}
+                    },
+                    "required": ["latitude", "longitude"]
+                }
+            },
+            {
+                "name": "create_event",
+                "description": "Create a community meetup event. Use when user wants to plan gatherings.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "description": "Event title"},
+                        "description": {"type": "string", "description": "Event description"},
+                        "event_date": {"type": "string", "description": "Event date/time (ISO format)"},
+                        "location": {"type": "string", "description": "Event location name"},
+                        "latitude": {"type": "number", "description": "Optional location latitude"},
+                        "longitude": {"type": "number", "description": "Optional location longitude"},
+                        "max_attendees": {"type": "integer", "description": "Optional max attendees"}
+                    },
+                    "required": ["title", "description", "event_date", "location"]
+                }
+            },
+            # Shop tools
+            {
+                "name": "search_products",
+                "description": "Search for RV parts and gear in the shop. Use when user wants to find products.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query"},
+                        "category": {"type": "string", "description": "Optional category filter"},
+                        "max_price": {"type": "number", "description": "Optional max price filter"},
+                        "min_rating": {"type": "number", "description": "Optional min rating (1-5)"},
+                        "limit": {"type": "integer", "description": "Max results (default: 20)"}
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "add_to_cart",
+                "description": "Add product to shopping cart. Use when user wants to purchase items.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "product_id": {"type": "string", "description": "UUID of the product"},
+                        "quantity": {"type": "integer", "description": "Quantity to add (default: 1)"}
+                    },
+                    "required": ["product_id"]
+                }
+            },
+            {
+                "name": "get_cart",
+                "description": "View shopping cart contents. Use when user wants to see their cart.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "checkout",
+                "description": "Complete purchase from cart. Use when user wants to checkout.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "payment_method_id": {"type": "string", "description": "Optional payment method ID"},
+                        "shipping_address_id": {"type": "string", "description": "Optional shipping address ID"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "track_order",
+                "description": "Track order status and shipping. Use when user wants to check order status.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "order_id": {"type": "string", "description": "Optional order UUID"},
+                        "order_number": {"type": "string", "description": "Optional order number (e.g., ORD-12345)"}
+                    },
+                    "required": []
+                }
+            },
+            # Profile tools
+            {
+                "name": "update_profile",
+                "description": "Update user profile information. Use when user wants to modify their profile.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "username": {"type": "string", "description": "Optional new username"},
+                        "bio": {"type": "string", "description": "Optional bio text"},
+                        "avatar_url": {"type": "string", "description": "Optional avatar image URL"},
+                        "location": {"type": "string", "description": "Optional location"},
+                        "rv_type": {"type": "string", "description": "Optional RV type"},
+                        "rv_year": {"type": "integer", "description": "Optional RV year"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "update_settings",
+                "description": "Update user settings and preferences. Use when user wants to change settings.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "email_notifications": {"type": "boolean", "description": "Email notification setting"},
+                        "push_notifications": {"type": "boolean", "description": "Push notification setting"},
+                        "theme": {"type": "string", "enum": ["light", "dark", "auto"], "description": "Theme preference"},
+                        "language": {"type": "string", "description": "Language code"},
+                        "budget_alerts": {"type": "boolean", "description": "Budget alert setting"},
+                        "trip_reminders": {"type": "boolean", "description": "Trip reminder setting"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "manage_privacy",
+                "description": "Manage privacy and data sharing settings. Use when user wants to control privacy.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "profile_visibility": {"type": "string", "enum": ["public", "friends", "private"], "description": "Profile visibility"},
+                        "location_sharing": {"type": "boolean", "description": "Whether to share location"},
+                        "show_activity": {"type": "boolean", "description": "Whether to show activity status"},
+                        "allow_messages": {"type": "string", "enum": ["everyone", "friends", "none"], "description": "Who can message"},
+                        "data_collection": {"type": "boolean", "description": "Allow data collection for analytics"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "get_user_stats",
+                "description": "Get user statistics and activity summary. Use when user wants to see their stats.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "export_data",
+                "description": "Export all user data (GDPR compliance). Use when user wants to download their data.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
         ]
 
@@ -563,7 +853,30 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             "get_road_conditions": get_road_conditions,
             "find_attractions": find_attractions,
             "estimate_travel_time": estimate_travel_time,
-            "save_favorite_spot": save_favorite_spot
+            "save_favorite_spot": save_favorite_spot,
+            # Social tools
+            "create_post": create_post,
+            "message_friend": message_friend,
+            "comment_on_post": comment_on_post,
+            "search_posts": search_posts,
+            "get_feed": get_feed,
+            "like_post": like_post,
+            "follow_user": follow_user,
+            "share_location": share_location,
+            "find_nearby_rvers": find_nearby_rvers,
+            "create_event": create_event,
+            # Shop tools
+            "search_products": search_products,
+            "add_to_cart": add_to_cart,
+            "get_cart": get_cart,
+            "checkout": checkout,
+            "track_order": track_order,
+            # Profile tools
+            "update_profile": update_profile,
+            "update_settings": update_settings,
+            "manage_privacy": manage_privacy,
+            "get_user_stats": get_user_stats,
+            "export_data": export_data
         }
 
         for block in content:
