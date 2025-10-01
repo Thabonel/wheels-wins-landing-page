@@ -22,9 +22,10 @@ except ImportError:
 
 # Minimal environment defaults for tests before importing settings
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
-os.environ.setdefault("DATABASE_URL", "sqlite:///test.db")
+os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test_db")
 os.environ.setdefault("POSTGRES_PASSWORD", "password")
-os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
+os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-key-1234567890abcdefghijklmnopqrstuvwxyz")
+os.environ.setdefault("GEMINI_API_KEY", "AIzaTest-1234567890abcdefghijklmnopqrstuv")
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-key")
 os.environ.setdefault("SUPABASE_KEY", "test-anon-key")

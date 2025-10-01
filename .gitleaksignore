@@ -1,0 +1,5 @@
+# Allow test API keys in test configuration files
+# Format: path:rule:lineNumber
+backend/pytest.ini:generic-api-key:45
+backend/tests/conftest.py:generic-api-key:28
+backend/tests/conftest.py:generic-api-key:27
