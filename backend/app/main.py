@@ -68,7 +68,6 @@ from app.api.v1 import (
     monitoring,
     receipts,
     pam,
-    pam_ai_sdk,
     auth,
     subscription,
     support,
@@ -667,7 +666,6 @@ except Exception as pam2_error:
         logger.warning("⚠️ Using fallback PAM 2.0 implementation")
     except Exception as fallback_error:
         logger.error(f"❌ PAM 2.0 fallback also failed: {fallback_error}")
-app.include_router(pam_ai_sdk.router, prefix="/api/v1/pam-ai-sdk", tags=["PAM AI SDK"])
 
 # PAM Hybrid System - REMOVED (simplified to single Claude Sonnet 4.5 implementation)
 # Hybrid system deleted during Day 1 cleanup (October 1, 2025)
