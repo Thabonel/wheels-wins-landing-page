@@ -20,6 +20,18 @@ from datetime import datetime
 from anthropic import Anthropic, AsyncAnthropic
 import json
 
+# Import budget tools
+from app.services.pam.tools.budget.create_expense import create_expense
+from app.services.pam.tools.budget.track_savings import track_savings
+from app.services.pam.tools.budget.analyze_budget import analyze_budget
+from app.services.pam.tools.budget.get_spending_summary import get_spending_summary
+from app.services.pam.tools.budget.update_budget import update_budget
+from app.services.pam.tools.budget.compare_vs_budget import compare_vs_budget
+from app.services.pam.tools.budget.predict_end_of_month import predict_end_of_month
+from app.services.pam.tools.budget.find_savings_opportunities import find_savings_opportunities
+from app.services.pam.tools.budget.categorize_transaction import categorize_transaction
+from app.services.pam.tools.budget.export_budget_report import export_budget_report
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,7 +62,10 @@ class PAM:
         # System prompt (defines PAM's behavior)
         self.system_prompt = self._build_system_prompt()
 
-        logger.info(f"PAM initialized for user {user_id}")
+        # Tool registry (simple - just Claude function definitions)
+        self.tools = self._build_tools()
+
+        logger.info(f"PAM initialized for user {user_id} with {len(self.tools)} tools")
 
     def _build_system_prompt(self) -> str:
         """
@@ -97,6 +112,126 @@ You can:
 Remember: You're here to help RVers travel smarter and save money. Be helpful, be secure, be awesome.""".format(
             current_date=datetime.now().strftime("%Y-%m-%d")
         )
+
+    def _build_tools(self) -> List[Dict[str, Any]]:
+        """
+        Build Claude function calling tool definitions
+
+        Simple approach - no lazy loading, just define all tools directly.
+        """
+        return [
+            {
+                "name": "create_expense",
+                "description": "Add an expense to the user's budget tracker. Use this when the user mentions spending money on something.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "amount": {"type": "number", "description": "Amount spent (must be positive)"},
+                        "category": {"type": "string", "description": "Category: gas, food, campground, maintenance, etc."},
+                        "description": {"type": "string", "description": "Optional description of what was purchased"},
+                        "date": {"type": "string", "description": "Optional date in ISO format (defaults to today)"}
+                    },
+                    "required": ["amount", "category"]
+                }
+            },
+            {
+                "name": "track_savings",
+                "description": "Log money saved by PAM for the user. Use this when you find a deal, cheaper option, or help save money.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "amount_saved": {"type": "number", "description": "Amount of money saved"},
+                        "category": {"type": "string", "description": "What was saved on (gas, campground, route, etc.)"},
+                        "description": {"type": "string", "description": "How the money was saved"},
+                        "event_type": {"type": "string", "enum": ["gas", "campground", "route", "other"], "description": "Type of savings"}
+                    },
+                    "required": ["amount_saved", "category"]
+                }
+            },
+            {
+                "name": "analyze_budget",
+                "description": "Analyze the user's budget and spending patterns. Use when user asks how their budget is doing.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "get_spending_summary",
+                "description": "Get a summary of user's spending for a time period. Use when user asks what they spent.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "days": {"type": "integer", "description": "Number of days to look back (default: 30)"},
+                        "category": {"type": "string", "description": "Optional category filter"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "update_budget",
+                "description": "Set or update a budget category amount. Use when user wants to set a budget.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "category": {"type": "string", "description": "Budget category"},
+                        "amount": {"type": "number", "description": "Monthly budget amount"}
+                    },
+                    "required": ["category", "amount"]
+                }
+            },
+            {
+                "name": "compare_vs_budget",
+                "description": "Compare actual spending vs budgeted amounts. Use when user asks if they're on track.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "predict_end_of_month",
+                "description": "Forecast end-of-month spending based on current trends. Use for predictions.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "find_savings_opportunities",
+                "description": "Find ways the user can save money. Use when user asks how to save or cut costs.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "categorize_transaction",
+                "description": "Auto-categorize an expense based on description. Use when category is unclear.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "description": {"type": "string", "description": "Transaction description"},
+                        "amount": {"type": "number", "description": "Transaction amount"}
+                    },
+                    "required": ["description"]
+                }
+            },
+            {
+                "name": "export_budget_report",
+                "description": "Generate and export a budget report. Use when user wants a report.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "format": {"type": "string", "enum": ["json", "csv", "summary"], "description": "Export format"}
+                    },
+                    "required": []
+                }
+            }
+        ]
 
     async def chat(
         self,
@@ -162,35 +297,159 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
 
     async def _get_response(self, messages: List[Dict[str, str]]) -> str:
         """
-        Get a complete response from Claude (non-streaming)
+        Get a complete response from Claude with tool support (non-streaming)
 
-        This is simpler and good for most use cases.
+        This handles the tool calling loop:
+        1. Call Claude with tools
+        2. If Claude wants to use a tool, execute it
+        3. Send tool result back to Claude
+        4. Get final response
         """
         try:
+            # Call Claude with tools
             response = await self.client.messages.create(
                 model=self.model,
-                max_tokens=1024,
+                max_tokens=2048,
                 system=self.system_prompt,
-                messages=messages
+                messages=messages,
+                tools=self.tools
             )
 
-            # Extract text from response
-            assistant_message = response.content[0].text
+            # Check if Claude wants to use tools
+            if response.stop_reason == "tool_use":
+                # Execute tools and get results
+                tool_results = await self._execute_tools(response.content)
 
-            # Add to conversation history
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": assistant_message,
-                "timestamp": datetime.now().isoformat()
-            })
+                # Add tool use to history
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": response.content,
+                    "timestamp": datetime.now().isoformat()
+                })
 
-            logger.info(f"PAM response generated ({len(assistant_message)} chars)")
+                # Build new messages with tool results
+                messages_with_tools = self._build_claude_messages()
+                messages_with_tools.append({
+                    "role": "user",
+                    "content": tool_results
+                })
 
-            return assistant_message
+                # Call Claude again with tool results
+                final_response = await self.client.messages.create(
+                    model=self.model,
+                    max_tokens=2048,
+                    system=self.system_prompt,
+                    messages=messages_with_tools,
+                    tools=self.tools
+                )
+
+                # Extract final text response
+                assistant_message = ""
+                for block in final_response.content:
+                    if hasattr(block, 'text'):
+                        assistant_message += block.text
+
+                # Add final response to history
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": assistant_message,
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                logger.info(f"PAM response with tools ({len(assistant_message)} chars)")
+                return assistant_message
+
+            else:
+                # No tools used, extract text response
+                assistant_message = ""
+                for block in response.content:
+                    if hasattr(block, 'text'):
+                        assistant_message += block.text
+
+                # Add to conversation history
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": assistant_message,
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                logger.info(f"PAM response without tools ({len(assistant_message)} chars)")
+                return assistant_message
 
         except Exception as e:
             logger.error(f"Error calling Claude API: {e}", exc_info=True)
             raise
+
+    async def _execute_tools(self, content: List[Any]) -> List[Dict[str, Any]]:
+        """
+        Execute tools that Claude requested
+
+        Args:
+            content: Claude's response content blocks
+
+        Returns:
+            List of tool results for Claude
+        """
+        tool_results = []
+
+        # Map tool names to functions
+        tool_functions = {
+            "create_expense": create_expense,
+            "track_savings": track_savings,
+            "analyze_budget": analyze_budget,
+            "get_spending_summary": get_spending_summary,
+            "update_budget": update_budget,
+            "compare_vs_budget": compare_vs_budget,
+            "predict_end_of_month": predict_end_of_month,
+            "find_savings_opportunities": find_savings_opportunities,
+            "categorize_transaction": categorize_transaction,
+            "export_budget_report": export_budget_report
+        }
+
+        for block in content:
+            if block.type == "tool_use":
+                tool_name = block.name
+                tool_input = block.input
+                tool_use_id = block.id
+
+                logger.info(f"Executing tool: {tool_name}")
+
+                try:
+                    # Execute the tool function
+                    if tool_name in tool_functions:
+                        # Add user_id to all tool calls
+                        tool_input["user_id"] = self.user_id
+
+                        # Call the tool
+                        result = await tool_functions[tool_name](**tool_input)
+
+                        # Format result for Claude
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "content": json.dumps(result)
+                        })
+
+                        logger.info(f"Tool {tool_name} executed successfully")
+                    else:
+                        # Tool not found
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "content": json.dumps({"success": False, "error": f"Tool {tool_name} not found"})
+                        })
+                        logger.error(f"Tool {tool_name} not found")
+
+                except Exception as e:
+                    # Tool execution failed
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tool_use_id,
+                        "content": json.dumps({"success": False, "error": str(e)})
+                    })
+                    logger.error(f"Error executing tool {tool_name}: {e}", exc_info=True)
+
+        return tool_results
 
     async def _stream_response(self, messages: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
         """
