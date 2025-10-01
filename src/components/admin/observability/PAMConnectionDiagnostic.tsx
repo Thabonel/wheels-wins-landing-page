@@ -549,7 +549,7 @@ export function PAMConnectionDiagnostic() {
         {/* Connection Details */}
         <div className="text-sm text-muted-foreground space-y-1 pb-2 border-b">
           <p><strong>Environment:</strong> {getEnvironment().toUpperCase()}</p>
-          <p><strong>PAM Version:</strong> 2.0 (OpenAI GPT-5)</p>
+          <p><strong>PAM Version:</strong> 2.0 (Claude Sonnet 4.5)</p>
           <p><strong>Backend URL:</strong> {getPamEndpoints()?.health || 'Not configured'}</p>
           <p><strong>User:</strong> {user?.email || 'Not logged in'}</p>
           {results.lastCheck && (
