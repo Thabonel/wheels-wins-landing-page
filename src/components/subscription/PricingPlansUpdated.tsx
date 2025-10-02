@@ -16,9 +16,9 @@ const PricingPlansUpdated = () => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // AUD base prices
-  const basicPrice = convertPrice(9, region);
-  const premiumPrice = convertPrice(18, region);
+  // USD base prices
+  const monthlyPrice = convertPrice(9.99, region);
+  const annualPrice = convertPrice(99, region);
 
   const handleSubscription = async (priceId: string, planName: string) => {
     if (!isAuthenticated) {
@@ -63,31 +63,31 @@ const PricingPlansUpdated = () => {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {/* Basic Plan */}
+          {/* Monthly Plan */}
           <Card className="border-2 border-primary/20 flex flex-col">
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-xl">Basic Plan</CardTitle>
-              <CardDescription className="text-sm">Get started with essential features</CardDescription>
+              <CardTitle className="text-xl">Monthly Membership</CardTitle>
+              <CardDescription className="text-sm">Full access to our platform and community</CardDescription>
             </CardHeader>
             <CardContent className="text-center pb-4 flex-grow">
               <div className="mb-6">
-                <span className="text-4xl font-bold">{basicPrice.formatted}</span>
+                <span className="text-4xl font-bold">{monthlyPrice.formatted}</span>
                 <span className="text-muted-foreground ml-1">/month</span>
               </div>
               <ul className="space-y-2 text-left">
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0" />
-                  <span>Core features access</span>
+                  <span>Full access to our platform and community</span>
                 </li>
               </ul>
             </CardContent>
             <CardFooter>
-              <Button 
+              <Button
                 className="w-full bg-primary hover:bg-primary/90"
-                onClick={() => handleSubscription("price_basic", "Basic Plan")}
-                disabled={isLoading === "price_basic"}
+                onClick={() => handleSubscription("price_1QT2XeDXysaVZSVhFiWGHV4Y", "Monthly Plan")}
+                disabled={isLoading === "price_1QT2XeDXysaVZSVhFiWGHV4Y"}
               >
-                {isLoading === "price_basic" ? (
+                {isLoading === "price_1QT2XeDXysaVZSVhFiWGHV4Y" ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
@@ -97,24 +97,24 @@ const PricingPlansUpdated = () => {
             </CardFooter>
           </Card>
 
-          {/* Premium Plan */}
+          {/* Annual Plan */}
           <Card className="border-2 border-accent flex flex-col relative overflow-hidden">
             <div className="absolute top-0 right-0 bg-accent text-accent-foreground px-3 py-1 text-xs font-semibold">
-              Popular
+              Best Value
             </div>
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-xl">Premium Plan</CardTitle>
-              <CardDescription className="text-sm">Full access with premium features</CardDescription>
+              <CardTitle className="text-xl">Annual Membership</CardTitle>
+              <CardDescription className="text-sm">Just $8.25/month - save 17%</CardDescription>
             </CardHeader>
             <CardContent className="text-center pb-4 flex-grow">
               <div className="mb-6">
-                <span className="text-4xl font-bold">{premiumPrice.formatted}</span>
-                <span className="text-muted-foreground ml-1">/month</span>
+                <span className="text-4xl font-bold">{annualPrice.formatted}</span>
+                <span className="text-muted-foreground ml-1">/year</span>
               </div>
               <ul className="space-y-2 text-left">
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0" />
-                  <span>All features included</span>
+                  <span>Full access to our platform and community</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0" />
@@ -123,17 +123,17 @@ const PricingPlansUpdated = () => {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button 
+              <Button
                 className="w-full bg-accent hover:bg-accent/90"
-                onClick={() => handleSubscription("price_premium", "Premium Plan")}
-                disabled={isLoading === "price_premium"}
+                onClick={() => handleSubscription("price_1QT2YqDXysaVZSVh7XaE9rJ8", "Annual Plan")}
+                disabled={isLoading === "price_1QT2YqDXysaVZSVh7XaE9rJ8"}
               >
-                {isLoading === "price_premium" ? (
+                {isLoading === "price_1QT2YqDXysaVZSVh7XaE9rJ8" ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
                   </>
-                ) : "Go Premium"}
+                ) : "Go Annual"}
               </Button>
             </CardFooter>
           </Card>

@@ -20,8 +20,8 @@ const PricingPlans = () => {
   const { region, regionConfig } = useRegion();
 
   // Convert prices based on region
-  const monthlyPrice = convertPrice(18, region);
-  const annualPrice = convertPrice(216, region);
+  const monthlyPrice = convertPrice(9.99, region);
+  const annualPrice = convertPrice(99, region);
   const videoCourseValue = convertPrice(97, region);
 
   const handleSubscription = async (priceId: string, planName: string) => {
@@ -166,7 +166,7 @@ const PricingPlans = () => {
               </div>
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-xl">Annual Membership</CardTitle>
-                <CardDescription className="text-sm">Save 33% plus get the $97 Video Course FREE</CardDescription>
+                <CardDescription className="text-sm">Best value - just $8.25/month plus get the $97 Video Course FREE</CardDescription>
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
