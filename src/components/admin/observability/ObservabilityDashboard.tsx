@@ -375,23 +375,43 @@ export default function ObservabilityDashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.entries(healthStatus.platforms).map(([platform, status]) => (
+              {/* Sort platforms to show Anthropic (primary) first */}
+              {Object.entries(healthStatus.platforms)
+                .sort(([a], [b]) => {
+                  const order = ['anthropic', 'langfuse', 'gemini', 'openai'];
+                  return order.indexOf(a) - order.indexOf(b);
+                })
+                .map(([platform, status]) => (
                 <div key={platform} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center space-x-2">
                     {getStatusIcon(status.ready)}
-                    <span className="font-medium capitalize">{platform}</span>
+                    <span className="font-medium capitalize">
+                      {platform}
+                      {platform === 'anthropic' && <span className="ml-1 text-xs text-blue-600">(Primary)</span>}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Badge variant={status.ready ? "default" : "destructive"}>
                       {status.status}
                     </Badge>
-                    {platform === 'openai' && (
+                    {platform === 'anthropic' && (
                       <a
-                        href="https://platform.openai.com/usage"
+                        href="https://console.anthropic.com/usage"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-500 hover:text-blue-700"
-                        title="OpenAI API Console"
+                        title="Anthropic Console (Claude Sonnet 4.5)"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+                    {platform === 'langfuse' && (
+                      <a
+                        href="https://cloud.langfuse.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-700"
+                        title="Langfuse Observability"
                       >
                         <ExternalLink className="h-4 w-4" />
                       </a>
@@ -407,23 +427,13 @@ export default function ObservabilityDashboard() {
                         <ExternalLink className="h-4 w-4" />
                       </a>
                     )}
-                    {platform === 'anthropic' && (
+                    {platform === 'openai' && (
                       <a
-                        href="https://console.anthropic.com/usage"
+                        href="https://platform.openai.com/usage"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-500 hover:text-blue-700"
-                        title="Anthropic Console (Fallback)"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    )}
-                    {platform === 'langfuse' && (
-                      <a
-                        href="https://cloud.langfuse.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-700"
+                        title="OpenAI API Console"
                       >
                         <ExternalLink className="h-4 w-4" />
                       </a>
@@ -581,9 +591,9 @@ export default function ObservabilityDashboard() {
                     Configure your observability platforms through environment variables or the settings panel.
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-3 border rounded-lg">
-                      <h4 className="font-medium">Anthropic Claude</h4>
-                      <p className="text-sm text-gray-600">API key required for Claude AI tracking</p>
+                    <div className="p-3 border rounded-lg bg-blue-50">
+                      <h4 className="font-medium text-blue-700">Claude Sonnet 4.5 (Primary)</h4>
+                      <p className="text-sm text-gray-600">Anthropic API key required for PAM AI interactions</p>
                     </div>
                     <div className="p-3 border rounded-lg">
                       <h4 className="font-medium">Langfuse</h4>
