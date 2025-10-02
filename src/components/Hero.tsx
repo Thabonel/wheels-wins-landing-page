@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 const Hero = () => {
-  // Use hero image from Supabase storage for staging site
-  const heroImageUrl = 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/sign/site-assets/hero-wheels.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wMDVhN2QzNy05NjBjLTQ0ZmMtYTNmZi03ODE4ODIyNGY0OTEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzaXRlLWFzc2V0cy9oZXJvLXdoZWVscy5qcGciLCJpYXQiOjE3NTQ3MzIxNTgsImV4cCI6MTEyMTU1MzIxNTh9.HGzLe-6WZqvE77YtNGRTPhc4gAsyKDAsplveo1a1EVU';
+  // Use Unimog and fire hero image from Supabase storage
+  const heroImageUrl = 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/site-assets/Unimog%20and%20fire.png';
   
   return <section className="w-full h-screen flex items-start justify-center overflow-hidden pt-32">
       <div className="absolute inset-0 bg-cover bg-center" style={{
