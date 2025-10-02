@@ -321,7 +321,7 @@ class ConversationalEngine:
         if context and context.current_topic:
             base_response += f" I see we were discussing {context.current_topic}."
 
-        base_response += " Powered by OpenAI GPT-5 with advanced reasoning!"
+        base_response += " Powered by Claude Sonnet 4.5 AI!"
 
         return base_response
 
