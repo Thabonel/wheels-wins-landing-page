@@ -13,19 +13,18 @@ When starting a new session, read these files to get up to speed:
 **Dev Server**: http://localhost:8080 (NOT 3000!)
 **Stack**: React 18.3 + TypeScript + Vite + Tailwind + Supabase + FastAPI
 
-## 🎯 Strategic AI Decision (September 2025)
+## 🎯 Strategic AI Decision (January 2025)
 
-**PAM AI Provider**: **OpenAI GPT-5** (Primary)
-- ✅ **State-of-the-Art Intelligence**: Latest GPT-5 model (August 2025 release)
-- ✅ **45% Fewer Errors**: Significantly improved factual accuracy vs GPT-4o
-- ✅ **Superior Reasoning**: Advanced reasoning capabilities with smart routing
-- ✅ **Best-in-Class Function Calling**: Industry-leading tool integration
-- ✅ **Enhanced Performance**: Major gains in coding and instruction following
-- ✅ **1M Token Context**: Massive context window with improved comprehension
-- 🔄 **GPT-5 Mini Fallback**: Lower-cost GPT-5 variant for simpler tasks
-- 🔄 **Anthropic Fallback**: Claude 3.5 Sonnet as secondary provider
-- 🔄 **Gemini Tertiary**: Available as cost-effective backup option
-- 💰 **Cost**: $1.25/1M input + $10/1M output tokens (premium but justified by performance)
+**PAM AI Provider**: **Claude Sonnet 4.5** (Primary)
+- ✅ **Primary AI Brain**: Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
+- ✅ **Superior Performance**: State-of-the-art reasoning and function calling
+- ✅ **200K Token Context**: Massive context window for conversation history
+- ✅ **Best-in-Class**: Industry-leading accuracy and response quality
+- ✅ **Simple Architecture**: ONE AI brain via AsyncAnthropic client
+- 🔄 **Gemini Flash Fallback**: Cost-effective backup for simple queries
+- 🔄 **OpenAI Tertiary**: Available as additional fallback option
+- 💰 **Cost**: $3/1M input + $15/1M output tokens (Claude Sonnet 4.5)
+- 📋 **Reference**: See `/docs/pam-rebuild-2025/PAM_FINAL_PLAN.md` for full architecture
 
 ## Critical Commands
 ```bash
