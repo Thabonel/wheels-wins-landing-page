@@ -122,8 +122,8 @@ class ConversationalEngine:
                 timestamp=datetime.now()
             )
 
-            # Phase 2: Call Gemini integration with intelligent function calling
-            ai_response = await self._generate_ai_response_with_tools(
+            # Phase 2: Call Claude Sonnet 4.5 via PAM core service
+            ai_response = await self._call_gemini_api(
                 user_message=user_message,
                 context=context
             )
