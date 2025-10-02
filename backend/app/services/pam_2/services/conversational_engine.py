@@ -27,8 +27,8 @@ from ..core.types import (
 from ..core.exceptions import ConversationalEngineError, GeminiAPIError
 from ..core.config import pam2_settings
 
-# Import the working SimpleOpenAIService
-from ...pam.simple_openai_service import SimpleOpenAIService
+# Import the actual PAM Claude service (as per PAM_FINAL_PLAN.md - Claude Sonnet 4.5 is primary)
+from ...pam.core.pam import PAM
 from .user_location_service import UserLocationService
 from .memory_service import MemoryService
 from .prompt_service import PromptEngineeringService
@@ -49,9 +49,8 @@ class ConversationalEngine:
         self.temperature = self.config.temperature
         self.max_tokens = self.config.max_tokens
 
-        # Initialize Gemini client (Phase 2 implementation)
-        self._gemini_client = None
-        self._simple_openai = SimpleOpenAIService()
+        # Initialize Claude client via PAM core (Phase 2 implementation)
+        self._pam_claude = None  # Will be initialized per-user in process_message
 
         # Initialize enhanced memory service (Phase 2.1)
         self._memory_service = MemoryService()
@@ -303,10 +302,17 @@ class ConversationalEngine:
 
         # Phase 1: Check if we should use mock responses
         if pam2_settings.mock_ai_responses:
+            logger.warning("Mock AI responses enabled - using placeholder")
             return self._generate_placeholder_response(user_message, context)
 
-        # Phase 2: Call actual OpenAI API via SimpleOpenAIService
-        return await self._call_gemini_api(user_message, context)
+        # Phase 2: Call actual AI API (Gemini or Claude via SimpleOpenAIService)
+        response = await self._call_gemini_api(user_message, context)
+
+        # If response is still a placeholder, log it for debugging
+        if "PAM 2.0 received your message" in response:
+            logger.error(f"AI service returned placeholder response - check if OPENAI_API_KEY or ANTHROPIC_API_KEY is set")
+
+        return response
 
     def _generate_placeholder_response(
         self,
@@ -331,90 +337,28 @@ class ConversationalEngine:
         context: Optional[ConversationContext] = None
     ) -> str:
         """
-        Call OpenAI API using SimpleOpenAIService
-        Phase 2 implementation
+        Call Claude API using PAM core service
+        As per PAM_FINAL_PLAN.md - Claude Sonnet 4.5 is the primary AI brain
         """
 
         try:
-            # Ensure SimpleOpenAIService is initialized
-            if not self._simple_openai.is_initialized:
-                logger.info("Initializing SimpleOpenAIService for PAM 2.0...")
-                await self._simple_openai.initialize()
+            # Initialize PAM Claude service for this user if not already done
+            if not self._pam_claude:
+                logger.info(f"Initializing PAM Claude service for user {user_message.user_id}...")
+                self._pam_claude = PAM(user_id=user_message.user_id)
+                logger.info("✅ PAM Claude (Sonnet 4.5) initialized successfully")
 
-            if not self._simple_openai.is_initialized:
-                logger.warning("SimpleOpenAIService failed to initialize, using placeholder")
-                return self._generate_placeholder_response(user_message, context)
+            # Call PAM Claude's chat method with the user's message
+            logger.info(f"📡 Sending message to Claude Sonnet 4.5: '{user_message.content[:50]}...'")
 
-            # Convert enhanced conversation context to format expected by SimpleOpenAIService
-            conversation_history = []
-            if context and hasattr(context, 'messages') and context.messages:
-                # Use more messages for better context (enhanced memory)
-                recent_messages = context.messages[-10:] if len(context.messages) > 10 else context.messages
+            response = await self._pam_claude.chat(user_message.content)
 
-                for msg in recent_messages:
-                    conversation_history.append({
-                        "role": "user" if msg.type == MessageType.USER else "assistant",
-                        "content": msg.content
-                    })
-
-            # Use location context we already loaded (or get it if we don't have it)
-            location_context = context.context_data.get('user_location') if context else None
-            if not location_context:
-                location_context = await UserLocationService.get_user_location_context(user_message.user_id)
-
-            # Phase 2.2: Use advanced prompt engineering service
-            logger.info("🎯 Using advanced prompt engineering for enhanced AI response...")
-
-            # Classify user intent for better prompt optimization
-            intent_analysis = await self._classify_user_intent(user_message.content)
-
-            # Build advanced prompt using prompt engineering service
-            enhanced_prompt = self._prompt_service.build_enhanced_prompt(
-                user_message=user_message.content,
-                conversation_context=context,
-                user_profile=None,  # Will be loaded by prompt service if needed
-                location_context=location_context,
-                intent_analysis=intent_analysis
-            )
-
-            logger.info(f"✅ Advanced prompt generated ({len(enhanced_prompt)} chars)")
-
-            # Use SimpleOpenAIService with enhanced prompt (avoid direct model call)
-            logger.info("📡 Using SimpleOpenAIService with enhanced prompt...")
-
-            # Build enhanced context for SimpleOpenAIService
-            enhanced_context = {
-                "conversation_history": conversation_history,
-                "memory_enhanced": True,
-                "advanced_prompt": True,
-                "enhanced_prompt": enhanced_prompt
-            }
-
-            if location_context:
-                enhanced_context["location"] = location_context
-
-            response = await self._simple_openai.generate_response(
-                message=user_message.content,
-                context=enhanced_context,
-                user_id=user_message.user_id
-            )
-
-            # Handle response from direct OpenAI call or SimpleOpenAIService
-            if hasattr(response, 'text') and response.text:
-                # Direct OpenAI response
-                return response.text
-            elif isinstance(response, str):
-                # SimpleOpenAIService string response
-                return response
-            elif isinstance(response, dict) and response.get('response'):
-                # SimpleOpenAIService dict response
-                return response['response']
-            else:
-                logger.warning("All AI response generation methods failed")
-                return self._generate_placeholder_response(user_message, context)
+            logger.info(f"✅ Claude Sonnet 4.5 response received ({len(response)} chars)")
+            return response
 
         except Exception as e:
-            logger.error(f"Error calling SimpleOpenAIService: {e}")
+            logger.error(f"❌ Error calling Claude Sonnet 4.5: {e}")
+            logger.error(f"Falling back to placeholder response")
             return self._generate_placeholder_response(user_message, context)
 
     async def _generate_ai_response_with_tools(
