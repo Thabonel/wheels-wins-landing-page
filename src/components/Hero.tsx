@@ -1,9 +1,25 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
 const Hero = () => {
-  // Use Unimog and fire hero image from Supabase storage
-  const heroImageUrl = 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/site-assets/Unimog%20and%20fire.png';
+  const [heroImageUrl, setHeroImageUrl] = useState<string>('');
+
+  useEffect(() => {
+    // Get signed URL for hero image from private bucket
+    const getHeroImage = async () => {
+      const { data } = await supabase.storage
+        .from('site-assets')
+        .createSignedUrl('Unimog and fire.png', 60 * 60 * 24 * 365); // 1 year expiry
+
+      if (data?.signedUrl) {
+        setHeroImageUrl(data.signedUrl);
+      }
+    };
+
+    getHeroImage();
+  }, []);
   
   return <section className="w-full h-screen flex items-start justify-center overflow-hidden pt-32">
       <div className="absolute inset-0 bg-cover bg-center" style={{
