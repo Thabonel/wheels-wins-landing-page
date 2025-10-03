@@ -1,4 +1,5 @@
 from typing import Optional
+from functools import lru_cache
 try:
     from supabase import create_client, Client
 except Exception:  # pragma: no cover - fallback when supabase isn't installed
@@ -26,17 +27,25 @@ logger = get_logger(__name__)
 supabase_client: Optional[Client] = None
 
 
-def init_supabase() -> Client:
-    """Initialize Supabase client"""
-    global supabase_client
+@lru_cache(maxsize=1)
+def get_cached_supabase_client() -> Client:
+    """
+    Create a single shared Supabase client with connection pooling
+
+    Using @lru_cache ensures only one client instance is created and reused
+    across all requests, preventing connection exhaustion under high load.
+
+    Returns:
+        Supabase Client instance (cached)
+    """
     try:
         url = getattr(settings, "SUPABASE_URL", None)
         key = getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None)
-        
+
         # Convert SecretStr to string if needed
         if hasattr(key, 'get_secret_value'):
             key = key.get_secret_value()
-        
+
         if not url or not key:
             logger.warning("Supabase settings not configured; using dummy client")
             class MockClient:
@@ -44,15 +53,24 @@ def init_supabase() -> Client:
                     return lambda *args, **kwargs: None
             return MockClient()
 
-        supabase_client = create_client(str(url), key)
-        logger.info("Supabase client initialized successfully")
-        return supabase_client
+        client = create_client(str(url), key)
+        logger.info("✅ Cached Supabase client created (connection pooling enabled)")
+        return client
     except Exception as e:
-        logger.error(f"Failed to initialize Supabase: {str(e)}")
+        logger.error(f"Failed to create cached Supabase client: {str(e)}")
         class MockClient:
             def __getattr__(self, name):
                 return lambda *args, **kwargs: None
         return MockClient()
+
+
+def init_supabase() -> Client:
+    """Initialize Supabase client using cached instance"""
+    global supabase_client
+    if not supabase_client:
+        supabase_client = get_cached_supabase_client()
+        logger.info("Supabase client initialized from cache")
+    return supabase_client
 
 
 def get_supabase() -> Client:
