@@ -734,19 +734,25 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             claude_messages = self._build_claude_messages()
 
             # Apply tool prefiltering to reduce token usage by ~87%
-            filtered_tools = tool_prefilter.filter_tools(
-                user_message=message,
-                all_tools=self.tools,
-                context=context,
-                max_tools=10
-            )
+            # With error recovery fallback to all tools
+            try:
+                filtered_tools = tool_prefilter.filter_tools(
+                    user_message=message,
+                    all_tools=self.tools,
+                    context=context,
+                    max_tools=10
+                )
 
-            # Log filtering stats
-            stats = tool_prefilter.get_last_stats()
-            logger.info(
-                f"Tool prefiltering: {stats['filtered_tools']}/{stats['total_tools']} tools "
-                f"({stats['reduction_percentage']}% reduction, {stats['tokens_saved']} tokens saved)"
-            )
+                # Log filtering stats
+                stats = tool_prefilter.get_last_stats()
+                logger.info(
+                    f"Tool prefiltering: {stats['filtered_tools']}/{stats['total_tools']} tools "
+                    f"({stats['reduction_percentage']}% reduction, {stats['tokens_saved']} tokens saved)"
+                )
+            except Exception as e:
+                # Fallback to all tools if prefiltering fails
+                logger.error(f"Tool prefiltering failed: {e}, using all tools as fallback")
+                filtered_tools = self.tools
 
             # Call Claude with filtered tools
             if stream:
