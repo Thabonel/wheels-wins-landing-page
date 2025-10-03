@@ -18,9 +18,11 @@ Token Impact:
 """
 
 import re
+import asyncio
 from typing import List, Dict, Set, Optional
-from collections import deque
+from collections import OrderedDict, deque
 from datetime import datetime
+import signal
 
 
 class ToolPrefilter:
@@ -190,6 +192,13 @@ class ToolPrefilter:
         self.recent_tools = deque(maxlen=max_recent_tools)
         self.last_filter_stats = {}
 
+        # Thread safety for async operations
+        self._lock = asyncio.Lock()
+
+        # Memory management for recent tools per user
+        self._user_recent_tools: OrderedDict = OrderedDict()
+        self._max_cache_size = 1000  # Max users to track
+
     def filter_tools(
         self,
         user_message: str,
@@ -272,6 +281,7 @@ class ToolPrefilter:
     def detect_categories(self, user_message: str) -> Set[str]:
         """
         Detect relevant categories from user message using keyword matching
+        with regex timeout protection against ReDoS attacks
 
         Args:
             user_message: User's message text
@@ -284,9 +294,25 @@ class ToolPrefilter:
 
         for category, patterns in self.CATEGORY_KEYWORDS.items():
             for pattern in patterns:
-                if re.search(pattern, message_lower, re.IGNORECASE):
-                    detected.add(category)
-                    break  # No need to check other patterns for this category
+                try:
+                    # Regex timeout protection (1 second max)
+                    def timeout_handler(signum, frame):
+                        raise TimeoutError("Regex timeout")
+
+                    # Set signal alarm for timeout
+                    signal.signal(signal.SIGALRM, timeout_handler)
+                    signal.alarm(1)  # 1 second timeout
+
+                    try:
+                        if re.search(pattern, message_lower, re.IGNORECASE):
+                            detected.add(category)
+                            break  # No need to check other patterns for this category
+                    finally:
+                        signal.alarm(0)  # Cancel alarm
+
+                except (TimeoutError, Exception):
+                    # Skip pattern if it times out or errors
+                    continue
 
         return detected
 
@@ -316,15 +342,29 @@ class ToolPrefilter:
 
         return None
 
-    def add_recent_tool(self, tool_name: str):
+    def add_recent_tool(self, tool_name: str, user_id: Optional[str] = None):
         """
         Track a recently used tool for conversation continuity
+        with memory management and LRU eviction
 
         Args:
             tool_name: Name of the tool that was just used
+            user_id: Optional user ID for per-user tracking
         """
-        # Add to deque (automatically removes oldest if at max capacity)
+        # Global recent tools (for all users)
         self.recent_tools.append(tool_name)
+
+        # Per-user tracking with LRU eviction
+        if user_id:
+            if user_id not in self._user_recent_tools:
+                self._user_recent_tools[user_id] = deque(maxlen=5)
+
+            self._user_recent_tools[user_id].append(tool_name)
+            self._user_recent_tools.move_to_end(user_id)
+
+            # LRU eviction - keep only most recent users
+            while len(self._user_recent_tools) > self._max_cache_size:
+                self._user_recent_tools.popitem(last=False)
 
     def get_filtering_stats(self, all_tools: List[Dict], filtered_tools: List[Dict]) -> Dict:
         """
