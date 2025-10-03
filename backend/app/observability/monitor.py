@@ -169,7 +169,8 @@ class ObservabilityMonitor:
                 health["issues"].append(f"{platform} is configured but not ready - check credentials")
             elif not configured:
                 if platform == "openai":
-                    health["issues"].append(f"{platform} is not configured - set OPENAI_API_KEY environment variable")
+                    # OpenAI is optional - we use Anthropic Claude for PAM
+                    health["issues"].append(f"{platform} is not configured (optional - using Anthropic Claude for PAM)")
                 elif platform == "langfuse":
                     health["issues"].append(f"{platform} is not configured - set LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY")
                 elif platform == "gemini":
