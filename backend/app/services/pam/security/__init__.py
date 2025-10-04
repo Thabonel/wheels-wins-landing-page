@@ -1,12 +1,15 @@
-"""
-PAM Security Module
-Provides AI-specific security features including prompt injection protection,
-jailbreak prevention, and data exfiltration detection.
-"""
+"""PAM Security Module"""
 
-from .ai_guardrail import PAMSecurityGuardrail, create_pam_guardrail
+from .safety_layer import (
+    SafetyLayer,
+    SafetyResult,
+    get_safety_layer,
+    check_message_safety,
+)
 
 __all__ = [
-    "PAMSecurityGuardrail",
-    "create_pam_guardrail"
+    "SafetyLayer",
+    "SafetyResult",
+    "get_safety_layer",
+    "check_message_safety",
 ]
