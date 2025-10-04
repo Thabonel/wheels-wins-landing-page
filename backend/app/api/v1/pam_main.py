@@ -48,6 +48,7 @@ from app.services.voice.edge_processing_service import edge_processing_service
 from app.services.pam_visual_actions import pam_visual_actions
 from app.services.tts.manager import get_tts_manager, synthesize_text, VoiceSettings
 from app.services.tts.redis_optimization import get_redis_tts_manager
+from app.services.pam.security.safety_layer import check_message_safety
 from app.services.financial_context_service import financial_context_service
 from app.services.stt.manager import get_stt_manager
 from app.core.simple_pam_service import simple_pam_service
@@ -648,6 +649,45 @@ async def websocket_endpoint(
                     message_content = secure_message.get_message_content()
                     if message_content:
                         logger.debug(f"🔍 [SECURITY] Checking message content: {message_content[:100]}")  # Log first 100 chars
+
+                        # STAGE 1: Two-stage safety layer (Regex + LLM)
+                        safety_result = await check_message_safety(
+                            message_content,
+                            context={"user_id": user_id, "connection_id": connection_id}
+                        )
+
+                        if safety_result.is_malicious:
+                            # Log prompt injection detection
+                            pam_logger.log_security_event(
+                                event_type="PROMPT_INJECTION_DETECTED",
+                                user_id=user_id,
+                                details=f"{safety_result.detection_method}: {safety_result.reason}",
+                                ip_address=client_ip,
+                                additional_context={
+                                    "connection_id": connection_id,
+                                    "confidence": safety_result.confidence,
+                                    "latency_ms": safety_result.latency_ms,
+                                    "detection_method": safety_result.detection_method
+                                }
+                            )
+
+                            should_block = security_middleware.log_security_event("PROMPT_INJECTION", user_id, safety_result.reason)
+
+                            if should_block:
+                                # Severe violation - close connection
+                                logger.error(f"🚨 [SECURITY] Closing WebSocket for user {user_id} - repeated prompt injection attempts")
+                                await websocket.close(code=4003, reason="Security violation")
+                                return
+
+                            # Send warning and skip message processing
+                            await safe_send_json(websocket, {
+                                "type": "error",
+                                "message": "Message blocked by security system. Please try again with a different message.",
+                                "error_code": "SECURITY_VIOLATION"
+                            })
+                            continue
+
+                        # STAGE 2: Legacy suspicious pattern check (backward compatibility)
                         is_suspicious, suspicion_reason = security_middleware.detect_suspicious_patterns(user_id, message_content)
                         if is_suspicious:
                             # Enhanced security event logging
@@ -663,13 +703,13 @@ async def websocket_endpoint(
                                 }
                             )
                             should_block = security_middleware.log_security_event("SUSPICIOUS_MESSAGE", user_id, suspicion_reason)
-                            
+
                             if should_block:
                                 # Severe violation - close connection
                                 logger.error(f"🚨 [SECURITY] Closing WebSocket connection for user {user_id} due to repeated violations")
                                 await websocket.close(code=4003, reason="Security violation")
                                 return
-                            
+
                             # Send warning and skip message processing
                             await safe_send_json(websocket, {
                                 "type": "error",
@@ -2093,23 +2133,9 @@ async def handle_context_update(websocket: WebSocket, data: dict, user_id: str, 
 
 # OPTIONS handlers removed - using global OPTIONS handler in main.py
 
-# Handle OPTIONS for chat endpoint explicitly
-@router.options("/chat")
-async def chat_options(request: Request):
-    """Handle CORS preflight for chat endpoint"""
-    from app.core.cors_config import cors_config
-    
-    # Get the origin from the request
-    origin = request.headers.get("origin")
-    requested_method = request.headers.get("access-control-request-method")
-    requested_headers = request.headers.get("access-control-request-headers")
-    
-    return cors_config.create_options_response(
-        origin=origin,
-        requested_method=requested_method,
-        requested_headers=requested_headers,
-        cache_bust=True
-    )
+# OPTIONS handler removed - FastAPI CORSMiddleware handles this automatically
+# Manual OPTIONS handlers can conflict with CORSMiddleware
+# See: https://fastapi.tiangolo.com/tutorial/cors/
 
 # Security dependency for PAM endpoints
 async def verify_pam_security(

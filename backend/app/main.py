@@ -26,6 +26,12 @@ from app.core.cors_settings import CORSSettings
 # Import enhanced security setup
 from app.core.enhanced_security_setup import setup_enhanced_security, SecurityConfiguration
 
+# Import security headers middleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
+
+# Import rate limiting middleware
+from app.middleware.rate_limit import RateLimitMiddleware
+
 # Temporarily disabled due to WebSocket route conflicts
 # from langserve import add_routes
 # from app.services.pam.mcp.controllers.pauter_router import PauterRouter
@@ -446,6 +452,17 @@ logger.info("✅ Enhanced security system fully operational")
 
 # Setup other middleware
 app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
+
+# Add security headers middleware (must be early in chain)
+environment = getattr(settings, 'NODE_ENV', 'production')
+app.add_middleware(SecurityHeadersMiddleware, environment=environment)
+logger.info(f"✅ Security headers middleware added (environment: {environment})")
+
+# Add rate limiting middleware
+redis_url = os.getenv("REDIS_URL")
+app.add_middleware(RateLimitMiddleware, redis_url=redis_url)
+logger.info(f"✅ Rate limiting middleware added (Redis: {redis_url or 'localhost'})")
+
 setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
@@ -476,6 +493,28 @@ print(f"🔒 CORS: Security level = {'PRODUCTION' if is_production_cors else 'DE
 print(f"🔒 CORS: Credentials support = ENABLED")
 print(f"🔒 CORS: Origin validation = EXPLICIT_ONLY (no wildcards)")
 print(f"🔒 CORS: Total allowed origins = {len(allowed_origins)}")
+
+# Add ServerErrorMiddleware FIRST to catch errors and ensure they have CORS headers
+from starlette.middleware.errors import ServerErrorMiddleware
+from datetime import datetime
+
+async def server_error_handler(request: Request, exc: Exception):
+    """Handle server errors and ensure proper response format for CORS"""
+    logger.error(f"Server error in {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "path": str(request.url.path),
+            "timestamp": datetime.utcnow().isoformat()
+        },
+    )
+
+app.add_middleware(
+    ServerErrorMiddleware,
+    handler=server_error_handler,
+)
+print("✅ ServerErrorMiddleware added (ensures errors have CORS headers)")
 
 # Add CORS middleware - Using CORSSettings configuration
 try:
