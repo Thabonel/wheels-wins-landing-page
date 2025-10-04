@@ -718,6 +718,16 @@ try:
 except Exception as simple_error:
     logger.error(f"❌ Failed to load PAM Simple: {simple_error}")
 
+# PAM 2.0 Simple + Tools - Barry-inspired architecture (October 4, 2025)
+# Combines Barry AI's proven simplicity with PAM's 40 action tools
+try:
+    from app.api.v1 import pam_simple_with_tools
+    app.include_router(pam_simple_with_tools.router, prefix="/api/v1", tags=["PAM 2.0 Simple"])
+    logger.info("✅ PAM 2.0 Simple + Tools (Barry-inspired) loaded successfully")
+except Exception as pam2_error:
+    logger.error(f"❌ Failed to load PAM 2.0 Simple: {pam2_error}")
+    print(f"⚠️ PAM 2.0 Simple unavailable: {pam2_error}")
+
 # PAM Savings API - Day 3 (October 1, 2025)
 # Savings tracking and celebration endpoints
 try:
