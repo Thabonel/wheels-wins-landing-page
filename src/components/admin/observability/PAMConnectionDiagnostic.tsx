@@ -45,19 +45,19 @@ export function PAMConnectionDiagnostic() {
     return 'staging';
   };
 
-  // Get PAM 2.0 backend URLs based on environment
+  // Get PAM backend URLs based on environment
   const getPamEndpoints = () => {
     const env = getEnvironment();
 
-    // PAM 2.0 endpoints only
+    // PAM v1 endpoints
     return {
       production: {
-        health: 'https://pam-backend.onrender.com/api/v1/pam-2/health',
-        chat: 'https://pam-backend.onrender.com/api/v1/pam-2/chat'
+        health: 'https://pam-backend.onrender.com/api/v1/pam/health',
+        chat: 'https://pam-backend.onrender.com/api/v1/pam/chat'
       },
       staging: {
-        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/health',
-        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/chat'
+        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health',
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat'
       }
     }[env];
   };

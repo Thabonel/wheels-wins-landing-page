@@ -22,9 +22,10 @@ export interface PamIntent {
 // =====================================================
 
 /**
- * PAM 2.0 Chat Request - matches backend ChatRequest model
+ * PAM 2.0 Chat Request - matches backend SecureWebSocketMessage model
  */
 export interface Pam2ChatRequest {
+  type: 'chat'; // Required by backend SecureWebSocketMessage schema
   user_id: string;
   message: string;
   context?: {
