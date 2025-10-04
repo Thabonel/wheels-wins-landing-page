@@ -98,10 +98,10 @@ class PAM:
         """
         self.user_id = user_id
 
-        # Initialize Claude client
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        # Initialize Claude client (try both key names for compatibility)
+        api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC-WHEELS-KEY")
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+            raise ValueError("ANTHROPIC_API_KEY or ANTHROPIC-WHEELS-KEY environment variable not set")
 
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = "claude-sonnet-4-5-20250929"
