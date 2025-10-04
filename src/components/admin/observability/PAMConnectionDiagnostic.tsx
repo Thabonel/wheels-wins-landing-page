@@ -26,7 +26,7 @@ interface DiagnosticResults {
 }
 
 export function PAMConnectionDiagnostic() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [testing, setTesting] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [results, setResults] = useState<DiagnosticResults>({
@@ -301,6 +301,7 @@ export function PAMConnectionDiagnostic() {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify(testMessage)
       });
