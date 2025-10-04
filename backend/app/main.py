@@ -496,7 +496,6 @@ print(f"🔒 CORS: Total allowed origins = {len(allowed_origins)}")
 
 # Add ServerErrorMiddleware FIRST to catch errors and ensure they have CORS headers
 from starlette.middleware.errors import ServerErrorMiddleware
-from datetime import datetime
 
 async def server_error_handler(request: Request, exc: Exception):
     """Handle server errors and ensure proper response format for CORS"""
