@@ -253,16 +253,17 @@ export function PAMConnectionDiagnostic() {
   };
 
   const runChatTest = async (): Promise<TestResult> => {
+    const startTime = Date.now();
+
     try {
       // Check if user is authenticated
       if (!user) {
         return {
           status: 'error',
-          message: 'No user logged in. Please log in to test PAM chat.'
+          message: 'No user logged in. Please log in to test PAM chat.',
+          responseTime: Date.now() - startTime
         };
       }
-
-      const startTime = Date.now();
       const endpoints = getPamEndpoints();
       const env = getEnvironment();
 
