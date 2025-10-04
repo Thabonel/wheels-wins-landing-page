@@ -76,23 +76,23 @@ export interface PamServiceMetrics {
 // =====================================================
 
 export const PAM_CONFIG = {
-  // PAM 2.0 WebSocket endpoints
+  // PAM WebSocket endpoints (v1)
   WEBSOCKET_ENDPOINTS: {
     production: [
-      'wss://pam-backend.onrender.com/api/v1/pam-2/chat/ws',
-      'wss://api.wheelsandwins.com/api/v1/pam-2/chat/ws',
+      'wss://pam-backend.onrender.com/api/v1/pam/ws',
+      'wss://api.wheelsandwins.com/api/v1/pam/ws',
     ],
     staging: [
-      'wss://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/chat/ws',
+      'wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws',
     ]
   },
 
-  // PAM 2.0 REST endpoints with PAM 1.0 fallback
+  // PAM REST endpoints (v1)
   REST_ENDPOINTS: {
     production: {
       primary: {
-        chat: 'https://pam-backend.onrender.com/api/v1/pam-2/chat',
-        health: 'https://pam-backend.onrender.com/api/v1/pam-2/health'
+        chat: 'https://pam-backend.onrender.com/api/v1/pam/chat',
+        health: 'https://pam-backend.onrender.com/api/v1/pam/health'
       },
       fallback: {
         chat: 'https://pam-backend.onrender.com/api/v1/pam/chat',
@@ -101,8 +101,8 @@ export const PAM_CONFIG = {
     },
     staging: {
       primary: {
-        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/chat',
-        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/health'
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat',
+        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health'
       },
       fallback: {
         chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat',
@@ -118,8 +118,8 @@ export const PAM_CONFIG = {
   CONNECTION_TIMEOUT: 15000,
   HEALTH_CHECK_INTERVAL: 60000,
 
-  // WebSocket message timeout
-  MESSAGE_TIMEOUT: 30000
+  // WebSocket message timeout (60s to account for Render cold starts + Claude API)
+  MESSAGE_TIMEOUT: 60000
 };
 
 // =====================================================
@@ -136,6 +136,7 @@ class PamService {
   private retryTimeout?: NodeJS.Timeout;
   private currentEndpointIndex = 0;
   private currentUserId: string | null = null;
+  private currentToken: string | null = null; // Store token for reconnections
   private sessionId: string | null = null; // PAM 2.0 session tracking
 
   private constructor() {
@@ -178,7 +179,7 @@ class PamService {
 
   private getWebSocketEndpoints(): string[] {
     const env = this.getEnvironment();
-    logger.info('🚀 Using PAM 2.0 WebSocket endpoints');
+    logger.info('🚀 Using PAM WebSocket endpoints');
     return PAM_CONFIG.WEBSOCKET_ENDPOINTS[env] || PAM_CONFIG.WEBSOCKET_ENDPOINTS.staging;
   }
 
@@ -186,7 +187,7 @@ class PamService {
   // CONNECTION MANAGEMENT
   // =====================================================
 
-  async connect(userId: string): Promise<boolean> {
+  async connect(userId: string, token?: string): Promise<boolean> {
     if (this.status.isConnecting) {
       logger.debug('Already connecting to PAM WebSocket...');
       return false;
@@ -197,10 +198,13 @@ class PamService {
       return false;
     }
 
+    // Store token for reconnections
+    this.currentToken = token || null;
+
     this.updateStatus({ isConnecting: true, lastError: undefined });
 
     try {
-      await this.connectWebSocket(userId);
+      await this.connectWebSocket(userId, token);
       logger.info(`✅ Connected to PAM 2.0 WebSocket backend (${this.getEnvironment()})`);
       return true;
     } catch (error) {
@@ -232,7 +236,7 @@ class PamService {
       // Reconnect WebSocket if we have stored credentials
       if (this.currentUserId) {
         try {
-          await this.connectWebSocket(this.currentUserId);
+          await this.connectWebSocket(this.currentUserId, this.currentToken || undefined);
         } catch (error) {
           console.error('❌ WebSocket retry failed:', error);
         }
@@ -252,6 +256,7 @@ class PamService {
     }
 
     this.currentUserId = null;
+    this.currentToken = null;
 
     this.updateStatus({
       isConnected: false,
@@ -266,7 +271,7 @@ class PamService {
   // WEBSOCKET CONNECTION METHODS
   // =====================================================
 
-  private async connectWebSocket(userId: string): Promise<void> {
+  private async connectWebSocket(userId: string, token?: string): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
         // Close existing connection if any
@@ -280,11 +285,14 @@ class PamService {
         // Try first endpoint (we can add fallback logic later)
         const endpoint = endpoints[0];
 
-        // Build WebSocket URL for PAM 2.0: /api/v1/pam-2/chat/ws/{user_id}
-        const wsUrl = `${endpoint}/${userId}`;
-        logger.info(`🚀 Connecting to PAM 2.0 WebSocket: ${wsUrl}`);
+        // Build WebSocket URL for PAM: /api/v1/pam/ws/{user_id}?token={jwt}
+        let wsUrl = `${endpoint}/${userId}`;
+        if (token) {
+          wsUrl += `?token=${token}`;
+        }
+        logger.info(`🚀 Connecting to PAM WebSocket: ${wsUrl.replace(/token=[^&]+/, 'token=***')}`);
 
-        console.log(`🌐 Connecting to PAM 2.0 WebSocket: ${wsUrl}`);
+        console.log(`🌐 Connecting to PAM 2.0 WebSocket (auth: ${token ? 'yes' : 'no'})`);
 
         this.websocket = new WebSocket(wsUrl);
         this.currentUserId = userId;
@@ -362,10 +370,7 @@ class PamService {
 
     // Ensure WebSocket connection is established
     if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-      if (!message.user_id) {
-        throw new Error('WebSocket connection requires userId');
-      }
-      await this.connectWebSocket(message.user_id);
+      throw new Error('WebSocket not connected - please ensure connect() was called first');
     }
 
     // Enhance message with location context
@@ -373,6 +378,7 @@ class PamService {
 
     // Create PAM 2.0 request
     const pam2Request: Pam2ChatRequest = {
+      type: 'chat', // Required by backend SecureWebSocketMessage schema
       user_id: enhancedMessage.user_id,
       message: enhancedMessage.message,
       context: enhancedMessage.context,
@@ -448,6 +454,7 @@ class PamService {
     const enhancedMessage = await this.enhanceMessageWithLocation(message);
 
     const pam2Request: Pam2ChatRequest = {
+      type: 'chat', // Required by backend SecureWebSocketMessage schema
       user_id: enhancedMessage.user_id,
       message: enhancedMessage.message,
       context: enhancedMessage.context,
@@ -457,11 +464,19 @@ class PamService {
     // Try primary endpoint first (PAM 2.0)
     try {
       logger.info(`🚀 Trying PAM 2.0 REST API: ${endpoints.primary.chat}`);
+
+      // Get JWT token for authentication
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.currentToken) {
+        headers['Authorization'] = `Bearer ${this.currentToken}`;
+      }
+
       const response = await fetch(endpoints.primary.chat, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(pam2Request)
       });
 
@@ -506,11 +521,19 @@ class PamService {
     // Fallback to PAM 1.0
     try {
       logger.info(`🚀 Trying PAM 1.0 fallback REST API: ${endpoints.fallback.chat}`);
+
+      // Get JWT token for authentication
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.currentToken) {
+        headers['Authorization'] = `Bearer ${this.currentToken}`;
+      }
+
       const response = await fetch(endpoints.fallback.chat, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           user_id: enhancedMessage.user_id,
           message: enhancedMessage.message,
