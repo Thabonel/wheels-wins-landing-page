@@ -222,11 +222,16 @@ export const useAnalyticsData = (dateRange: string) => {
         .limit(1000);
 
       if (error) {
-        // Check if the error is due to table not existing
-        if (error.message?.includes('relation "public.agent_logs" does not exist')) {
-          console.warn('Agent logs table does not exist yet. Using demo data.');
-          // Use demo data for now
+        // Check if the error is due to table not existing or permission issues
+        const isTableMissing = error.message?.includes('relation "public.agent_logs" does not exist');
+        const isPermissionIssue = error.message?.includes('permission denied') || error.code === '42501';
+
+        if (isTableMissing || isPermissionIssue) {
+          console.warn('Agent logs table not accessible. Using demo data.', error.message);
+          // Use demo data for now - don't throw error
           setData(getDemoData());
+          setError(null); // Clear error since demo data works fine
+          setIsLoading(false);
           return;
         }
         throw error;
@@ -304,16 +309,20 @@ export const useAnalyticsData = (dateRange: string) => {
       setData(realData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      
-      // Check if it's a table missing error
-      if (errorMessage.includes('relation "public.agent_logs" does not exist')) {
-        console.warn('Agent logs table does not exist. Using demo data.');
+
+      // Check if it's a table missing error or permission issue
+      const isTableMissing = errorMessage.includes('relation "public.agent_logs" does not exist');
+      const isPermissionIssue = errorMessage.includes('permission denied') || errorMessage.includes('42501');
+
+      if (isTableMissing || isPermissionIssue) {
+        console.warn('Agent logs table not accessible. Using demo data.', errorMessage);
         setData(getDemoData());
         setError(null); // Clear error since we're showing demo data
       } else {
+        // Only show error for unexpected issues
         setError(errorMessage);
         console.error('Error fetching analytics data:', err);
-        // Show demo data instead of empty data for better UX
+        // Still show demo data for better UX
         setData(getDemoData());
       }
     } finally {
