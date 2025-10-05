@@ -224,7 +224,8 @@ class ToolPrefilter:
 
         # 1. Add core tools
         for tool in all_tools:
-            tool_name = tool.get("function", {}).get("name", "")
+            # Support both formats: {"function": {"name": "..."}} and {"name": "..."}
+            tool_name = tool.get("function", {}).get("name") or tool.get("name", "")
             if tool_name in self.CORE_TOOLS:
                 filtered_tools.append(tool)
                 tool_names_included.add(tool_name)
@@ -239,7 +240,8 @@ class ToolPrefilter:
 
         # 4. Add tools from detected categories
         for tool in all_tools:
-            tool_name = tool.get("function", {}).get("name", "")
+            # Support both formats: {"function": {"name": "..."}} and {"name": "..."}
+            tool_name = tool.get("function", {}).get("name") or tool.get("name", "")
             if tool_name in tool_names_included:
                 continue
 
@@ -254,7 +256,8 @@ class ToolPrefilter:
                 continue
 
             for tool in all_tools:
-                tool_name = tool.get("function", {}).get("name", "")
+                # Support both formats: {"function": {"name": "..."}} and {"name": "..."}
+                tool_name = tool.get("function", {}).get("name") or tool.get("name", "")
                 if tool_name == recent_tool_name:
                     filtered_tools.append(tool)
                     tool_names_included.add(tool_name)
@@ -263,11 +266,12 @@ class ToolPrefilter:
         # 6. Enforce max_tools limit
         if len(filtered_tools) > max_tools:
             # Prioritize: core tools > category tools > recent tools
+            # Support both formats: {"function": {"name": "..."}} and {"name": "..."}
             core_tools_list = [t for t in filtered_tools
-                             if t.get("function", {}).get("name") in self.CORE_TOOLS]
+                             if (t.get("function", {}).get("name") or t.get("name", "")) in self.CORE_TOOLS]
 
             category_tools_list = [t for t in filtered_tools
-                                 if t.get("function", {}).get("name") not in self.CORE_TOOLS]
+                                 if (t.get("function", {}).get("name") or t.get("name", "")) not in self.CORE_TOOLS]
 
             # Keep all core tools + as many category tools as fit
             remaining_slots = max_tools - len(core_tools_list)
