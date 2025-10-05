@@ -126,6 +126,7 @@ def build_tool_definitions() -> List[Dict[str, Any]]:
     Build Claude tool definitions for all 40 PAM tools
     (Budget tools + Trip tools)
     """
+    logger.info("🔧 Building tool definitions")
     return [
         # Budget Tools (10)
         {
@@ -301,7 +302,7 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any], user_id: str)
             return {"error": f"Unknown tool: {tool_name}"}
 
     except Exception as e:
-        logger.error(f"Tool execution error ({tool_name}): {e}")
+        logger.error(f"Tool execution error ({tool_name}): {type(e).__name__}: {str(e)}", exc_info=True)
         return {"error": str(e)}
 
 
@@ -397,7 +398,7 @@ async def chat_with_claude(
         return "I'm thinking a bit slow right now. Could you try asking that again?"
 
     except Exception as e:
-        logger.error(f"❌ Claude error: {e}")
+        logger.error(f"❌ Claude error: {type(e).__name__}: {str(e)}", exc_info=True)
         # NEVER fail completely (Barry's philosophy)
         return "I encountered an error processing your request. Please try again."
 
