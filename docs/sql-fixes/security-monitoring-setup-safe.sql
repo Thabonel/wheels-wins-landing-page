@@ -1,10 +1,18 @@
--- Security & Monitoring Setup for Wheels & Wins
--- Based on Master Security Guide from UnimogCommunityHub
+-- Security & Monitoring Setup for Wheels & Wins (SAFE VERSION)
+-- This version has defensive checks and won't fail if tables don't exist
 -- Date: January 10, 2025
+
+-- ============================================================================
+-- INSTALLATION INSTRUCTIONS
+-- ============================================================================
+-- Run each section separately in Supabase SQL Editor
+-- Skip sections if tables don't exist yet
+-- Come back and run skipped sections after tables are created
 
 -- ============================================================================
 -- 1. SIGNUP HEALTH MONITORING
 -- ============================================================================
+-- Dependencies: auth.users (Supabase built-in - always exists)
 
 CREATE OR REPLACE VIEW signup_health_check AS
 SELECT
@@ -22,30 +30,12 @@ SELECT
     END as health_status
 FROM auth.users;
 
--- ============================================================================
--- 2. PAM HEALTH MONITORING
--- ============================================================================
-
--- Note: This view requires pam_conversations table to exist
--- If table doesn't exist, view will fail. Create table first or skip this section.
-
-CREATE OR REPLACE VIEW pam_health_check AS
-SELECT
-    COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 hour') as conversations_last_hour,
-    COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as conversations_last_24h,
-    MAX(created_at) as last_conversation_time,
-    EXTRACT(EPOCH FROM (NOW() - MAX(created_at))) / 3600 as hours_since_last_conversation,
-    CASE
-        WHEN MAX(created_at) IS NULL THEN '⚠️ WARNING: No PAM conversations ever'
-        WHEN EXTRACT(EPOCH FROM (NOW() - MAX(created_at))) / 3600 > 48 THEN '⚠️ WARNING: No PAM activity in 48+ hours'
-        WHEN EXTRACT(EPOCH FROM (NOW() - MAX(created_at))) / 3600 > 24 THEN '⚡ NOTICE: No PAM activity in 24+ hours'
-        ELSE '✅ OK: Recent PAM activity'
-    END as health_status
-FROM pam_conversations;
+-- Test: SELECT * FROM signup_health_check;
 
 -- ============================================================================
--- 3. SECURITY DEFINER VERIFICATION FUNCTION
+-- 2. SECURITY DEFINER VERIFICATION FUNCTION
 -- ============================================================================
+-- Dependencies: None (uses PostgreSQL system catalogs)
 
 CREATE OR REPLACE FUNCTION verify_security_definer_functions()
 RETURNS TABLE(
@@ -90,9 +80,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Test: SELECT * FROM verify_security_definer_functions();
+
 -- ============================================================================
--- 4. RLS POLICY VERIFICATION
+-- 3. RLS POLICY VERIFICATION
 -- ============================================================================
+-- Dependencies: None (uses PostgreSQL system catalogs)
+-- Note: Only checks tables that exist
 
 CREATE OR REPLACE FUNCTION verify_rls_policies()
 RETURNS TABLE(
@@ -146,62 +140,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ============================================================================
--- 5. ADMIN NOTIFICATION SYSTEM
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS admin_notification_preferences (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_user_id UUID REFERENCES auth.users(id) UNIQUE,
-  email TEXT NOT NULL,
-  enabled BOOLEAN DEFAULT true,
-  notify_signup_issues BOOLEAN DEFAULT true,
-  notify_pam_errors BOOLEAN DEFAULT true,
-  notify_security_events BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS admin_notification_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_type TEXT NOT NULL,
-  event_id UUID,
-  message TEXT NOT NULL,
-  recipient_email TEXT NOT NULL,
-  status TEXT DEFAULT 'pending',
-  sent_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE admin_notification_preferences ENABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_notification_log ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Only admins can manage notifications" ON admin_notification_preferences
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = auth.uid()
-      AND (preferences->>'role' = 'admin' OR email LIKE '%@wheelsandwins.com')
-    )
-  );
-
-CREATE POLICY "Admins can view notification logs" ON admin_notification_log
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = auth.uid()
-      AND (preferences->>'role' = 'admin' OR email LIKE '%@wheelsandwins.com')
-    )
-  );
-
-CREATE POLICY "System can insert notification logs" ON admin_notification_log
-  FOR INSERT WITH CHECK (true);
+-- Test: SELECT * FROM verify_rls_policies();
 
 -- ============================================================================
--- 6. COMPREHENSIVE HEALTH CHECK FUNCTION
+-- 4. BASIC HEALTH CHECK (NO PAM DEPENDENCY)
 -- ============================================================================
+-- Use this if pam_conversations table doesn't exist yet
 
-CREATE OR REPLACE FUNCTION comprehensive_health_check()
+CREATE OR REPLACE FUNCTION basic_health_check()
 RETURNS TABLE(
     check_category text,
     check_name text,
@@ -222,19 +168,6 @@ BEGIN
         s.signups_last_24h || ' signups, last: ' ||
         COALESCE(TO_CHAR(s.last_signup_time, 'YYYY-MM-DD HH24:MI'), 'NEVER')
     FROM signup_health_check s;
-
-    -- PAM Health
-    RETURN QUERY
-    SELECT
-        'PAM Health'::text,
-        'Last 24h Conversations'::text,
-        CASE
-            WHEN p.conversations_last_24h = 0 THEN '⚠️ WARNING'
-            ELSE '✅ OK'
-        END,
-        p.conversations_last_24h || ' conversations, last: ' ||
-        COALESCE(TO_CHAR(p.last_conversation_time, 'YYYY-MM-DD HH24:MI'), 'NEVER')
-    FROM pam_health_check p;
 
     -- Security Functions
     RETURN QUERY
@@ -277,28 +210,81 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ============================================================================
--- 7. EMERGENCY ROLLBACK PROCEDURES (COMMENTS ONLY - NO EXECUTION)
--- ============================================================================
-
--- EMERGENCY: IF SIGNUPS BREAK, RUN THESE COMMANDS TO DIAGNOSE:
--- SELECT * FROM signup_health_check;
--- SELECT * FROM verify_security_definer_functions();
--- SELECT * FROM verify_rls_policies();
--- SELECT * FROM comprehensive_health_check();
-
--- EMERGENCY: IF PAM BREAKS, RUN THESE COMMANDS:
--- SELECT * FROM pam_health_check;
--- SELECT * FROM pam_conversations ORDER BY created_at DESC LIMIT 10;
--- SELECT * FROM pam_messages WHERE created_at > NOW() - INTERVAL '1 hour' ORDER BY created_at DESC;
+-- Test: SELECT * FROM basic_health_check();
 
 -- ============================================================================
--- 8. GRANT PERMISSIONS
+-- 5. ADMIN NOTIFICATION SYSTEM (OPTIONAL)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS admin_notification_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+  email TEXT NOT NULL,
+  enabled BOOLEAN DEFAULT true,
+  notify_signup_issues BOOLEAN DEFAULT true,
+  notify_pam_errors BOOLEAN DEFAULT true,
+  notify_security_events BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS admin_notification_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type TEXT NOT NULL,
+  event_id UUID,
+  message TEXT NOT NULL,
+  recipient_email TEXT NOT NULL,
+  status TEXT DEFAULT 'pending',
+  sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE admin_notification_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_notification_log ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+DROP POLICY IF EXISTS "Only admins can manage notifications" ON admin_notification_preferences;
+CREATE POLICY "Only admins can manage notifications" ON admin_notification_preferences
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+      AND (preferences->>'role' = 'admin' OR email LIKE '%@wheelsandwins.com')
+    )
+  );
+
+DROP POLICY IF EXISTS "Admins can view notification logs" ON admin_notification_log;
+CREATE POLICY "Admins can view notification logs" ON admin_notification_log
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+      AND (preferences->>'role' = 'admin' OR email LIKE '%@wheelsandwins.com')
+    )
+  );
+
+DROP POLICY IF EXISTS "System can insert notification logs" ON admin_notification_log;
+CREATE POLICY "System can insert notification logs" ON admin_notification_log
+  FOR INSERT WITH CHECK (true);
+
+-- ============================================================================
+-- 6. GRANT PERMISSIONS
 -- ============================================================================
 
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT SELECT ON signup_health_check TO authenticated;
-GRANT SELECT ON pam_health_check TO authenticated;
 GRANT EXECUTE ON FUNCTION verify_security_definer_functions() TO authenticated;
 GRANT EXECUTE ON FUNCTION verify_rls_policies() TO authenticated;
-GRANT EXECUTE ON FUNCTION comprehensive_health_check() TO authenticated;
+GRANT EXECUTE ON FUNCTION basic_health_check() TO authenticated;
+
+-- ============================================================================
+-- INSTALLATION COMPLETE
+-- ============================================================================
+
+-- Test everything:
+-- SELECT * FROM signup_health_check;
+-- SELECT * FROM verify_security_definer_functions();
+-- SELECT * FROM verify_rls_policies();
+-- SELECT * FROM basic_health_check();
+
+-- If all tests pass, you're ready to use the monitoring system!
