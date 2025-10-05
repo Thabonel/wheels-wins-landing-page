@@ -101,39 +101,46 @@ RETURNS TABLE(
 ) AS $$
 BEGIN
     RETURN QUERY
+    WITH policy_counts AS (
+        SELECT
+            t.tablename,
+            t.rowsecurity,
+            COUNT(p.policyname) as num_policies
+        FROM pg_tables t
+        LEFT JOIN pg_policies p ON t.tablename = p.tablename
+        WHERE t.schemaname = 'public'
+          AND t.tablename IN (
+              'profiles',
+              'user_settings',
+              'pam_conversations',
+              'pam_messages',
+              'expenses',
+              'budgets',
+              'trips'
+          )
+        GROUP BY t.tablename, t.rowsecurity
+    )
     SELECT
-        t.tablename::text,
+        pc.tablename::text,
         CASE
-            WHEN t.rowsecurity THEN '✅ ENABLED'
+            WHEN pc.rowsecurity THEN '✅ ENABLED'
             ELSE '❌ DISABLED'
         END as rls_enabled,
-        COUNT(p.policyname) as policy_count,
+        pc.num_policies as policy_count,
         CASE
-            WHEN NOT t.rowsecurity THEN '🚨 CRITICAL: RLS NOT ENABLED'
-            WHEN COUNT(p.policyname) = 0 THEN '🚨 CRITICAL: NO POLICIES (lockout!)'
-            WHEN COUNT(p.policyname) < 2 THEN '⚠️ WARNING: Only ' || COUNT(p.policyname) || ' policy'
-            ELSE '✅ OK: ' || COUNT(p.policyname) || ' policies'
+            WHEN NOT pc.rowsecurity THEN '🚨 CRITICAL: RLS NOT ENABLED'
+            WHEN pc.num_policies = 0 THEN '🚨 CRITICAL: NO POLICIES (lockout!)'
+            WHEN pc.num_policies < 2 THEN '⚠️ WARNING: Only ' || pc.num_policies || ' policy'
+            ELSE '✅ OK: ' || pc.num_policies || ' policies'
         END as status
-    FROM pg_tables t
-    LEFT JOIN pg_policies p ON t.tablename = p.tablename
-    WHERE t.schemaname = 'public'
-      AND t.tablename IN (
-          'profiles',
-          'user_settings',
-          'pam_conversations',
-          'pam_messages',
-          'expenses',
-          'budgets',
-          'trips'
-      )
-    GROUP BY t.tablename, t.rowsecurity
+    FROM policy_counts pc
     ORDER BY
         CASE
-            WHEN NOT t.rowsecurity OR COUNT(p.policyname) = 0 THEN 1
-            WHEN COUNT(p.policyname) < 2 THEN 2
+            WHEN NOT pc.rowsecurity OR pc.num_policies = 0 THEN 1
+            WHEN pc.num_policies < 2 THEN 2
             ELSE 3
         END,
-        t.tablename;
+        pc.tablename;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -229,28 +236,42 @@ BEGIN
 
     -- Security Functions
     RETURN QUERY
+    WITH security_function_stats AS (
+        SELECT
+            COUNT(*) as total_functions,
+            COUNT(*) FILTER (WHERE status LIKE '%SECURE%') as secure_functions
+        FROM verify_security_definer_functions()
+    )
     SELECT
         'Security'::text,
         'SECURITY DEFINER Functions'::text,
         CASE
-            WHEN COUNT(*) FILTER (WHERE status LIKE '%SECURE%') = COUNT(*) THEN '✅ OK'
+            WHEN sfs.secure_functions = sfs.total_functions THEN '✅ OK'
             ELSE '🚨 CRITICAL'
         END,
-        COUNT(*) FILTER (WHERE status LIKE '%SECURE%')::text || '/' || COUNT(*)::text || ' secure'
-    FROM verify_security_definer_functions();
+        sfs.secure_functions::text || '/' || sfs.total_functions::text || ' secure'
+    FROM security_function_stats sfs;
 
     -- RLS Policies
     RETURN QUERY
+    WITH rls_policy_stats AS (
+        SELECT
+            COUNT(*) as total_tables,
+            COUNT(*) FILTER (WHERE status LIKE '🚨%') as critical_tables,
+            COUNT(*) FILTER (WHERE status LIKE '⚠️%') as warning_tables,
+            COUNT(*) FILTER (WHERE status LIKE '✅%') as ok_tables
+        FROM verify_rls_policies()
+    )
     SELECT
         'Security'::text,
         'RLS Policies'::text,
         CASE
-            WHEN COUNT(*) FILTER (WHERE status LIKE '🚨%') > 0 THEN '🚨 CRITICAL'
-            WHEN COUNT(*) FILTER (WHERE status LIKE '⚠️%') > 0 THEN '⚠️ WARNING'
+            WHEN rps.critical_tables > 0 THEN '🚨 CRITICAL'
+            WHEN rps.warning_tables > 0 THEN '⚠️ WARNING'
             ELSE '✅ OK'
         END,
-        COUNT(*) FILTER (WHERE status LIKE '✅%')::text || '/' || COUNT(*)::text || ' tables OK'
-    FROM verify_rls_policies();
+        rps.ok_tables::text || '/' || rps.total_tables::text || ' tables OK'
+    FROM rls_policy_stats rps;
 END;
 $$ LANGUAGE plpgsql;
 
