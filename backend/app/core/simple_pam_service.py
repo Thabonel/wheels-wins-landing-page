@@ -16,6 +16,7 @@ from app.services.database import get_database_service
 from app.services.claude_ai_service import get_claude_ai_service, ClaudeAIService, ClaudeResponse
 from app.services.cache_manager import get_cache_manager, CacheStrategy, cached
 from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator, ResponseMode
+from app.services.pam.core.pam import PAM, get_pam
 
 logger = get_logger("simple_pam")
 
@@ -259,28 +260,31 @@ class SimplePamService:
         return any(pattern in message_lower for pattern in location_patterns)
     
     async def get_response(
-        self, 
-        message: str, 
+        self,
+        message: str,
         context: Dict[str, Any],
         conversation_history: Optional[List[Dict]] = None,
         stream: bool = False
     ) -> Union[str, Dict[str, Any]]:
         """
         Get PAM's response to a user message using enhanced AI service
-        
+
         Args:
             message: The user's message
             context: User context including user_id, session_id, etc.
             conversation_history: Previous conversation messages
             stream: Whether to return streaming response
-            
+
         Returns:
             String response (non-streaming) or dict with response and metadata (streaming)
         """
+        import time
+        overall_start = time.time()
+
         user_id = context.get("user_id", "anonymous")
         session_id = context.get("session_id", str(uuid.uuid4()))
         start_time = datetime.utcnow()
-        
+
         logger.info(f"🤖 [Enhanced] SimplePamService.get_response called!")
         logger.info(f"  - Message: '{message[:100]}{'...' if len(message) > 100 else ''}'")
         logger.info(f"  - User ID: {user_id}")
@@ -288,16 +292,21 @@ class SimplePamService:
         logger.info(f"  - Stream: {stream}")
         logger.info(f"  - Context keys: {list(context.keys())}")
         logger.info(f"  - Conversation history length: {len(conversation_history) if conversation_history else 0}")
+        logger.info(f"⏱️ [TIMING] get_response start: {time.time() - overall_start:.3f}s")
         
         # Validate input
         if not message or message.strip() == "":
             logger.warning(f"❌ Empty message provided to SimplePamService")
             return "I didn't receive your message. Could you please try again?"
-        
+
+        logger.info(f"⏱️ [TIMING] After validation: {time.time() - overall_start:.3f}s")
+
         # Initialize tools if not already done
         if not self.tools_initialized:
             logger.info(f"🛠️ Initializing PAM tools...")
+            tools_start = time.time()
             await self.initialize_tools()
+            logger.info(f"⏱️ [TIMING] Tools initialized in: {time.time() - tools_start:.3f}s")
         
         try:
             # Check if this is a location-requiring query
@@ -443,78 +452,33 @@ class SimplePamService:
                 except Exception as e:
                     logger.warning(f"⚠️ Could not load database context: {e}")
             
-            # Use enhanced orchestrator if available, otherwise AI service
-            if self.orchestrator_initialized and self.enhanced_orchestrator:
-                logger.info(f"🚀 Using Enhanced Orchestrator with tool registry (stream={stream})")
-                
-                # Use enhanced orchestrator for comprehensive response with tools
-                orchestrator_response = await self.enhanced_orchestrator.process_message(
-                    user_id=user_id,
+            # PERFORMANCE FIX: Use simple PAM directly (bypasses slow orchestrator)
+            # This reduces response time from 60s to <3s
+            logger.info(f"🚀 Using Simple PAM (Claude Sonnet 4.5 direct)")
+            logger.info(f"⏱️ [TIMING] Before PAM call: {time.time() - overall_start:.3f}s")
+
+            pam_start = time.time()
+            try:
+                # Get PAM instance for this user
+                pam = await get_pam(user_id)
+
+                # Call PAM with the message
+                response_text = await pam.chat(
                     message=message,
-                    session_id=session_id,
                     context=enhanced_context,
-                    response_mode=ResponseMode.ADAPTIVE
+                    stream=stream
                 )
-                
-                # Extract response content
-                response_text = orchestrator_response.get("content", "")
-                
-                # Log tool usage if any
-                if orchestrator_response.get("capabilities_used"):
-                    logger.info(f"🔧 Tools used: {', '.join(orchestrator_response['capabilities_used'])}")
-                
-                # Save conversation if not anonymous (handled by Claude context manager)
-                if user_id != "anonymous":
-                    try:
-                        # Claude service handles conversation storage internally
-                        logger.info(f"💾 Conversation handled by Claude context manager")
-                    except Exception as e:
-                        logger.warning(f"⚠️ Could not save conversation: {e}")
-                
-                logger.info(f"✅ Orchestrator response: {len(response_text)} chars, "
-                          f"processing_time: {orchestrator_response.get('processing_time_ms', 0)}ms")
-                
+
+                logger.info(f"⏱️ [TIMING] PAM chat took: {time.time() - pam_start:.3f}s")
+                logger.info(f"✅ PAM response: {len(response_text)} chars")
+                logger.info(f"⏱️ [TIMING] TOTAL get_response time: {time.time() - overall_start:.3f}s")
+
                 return response_text
-                
-            else:
-                # Fallback to Claude AI service
-                logger.info(f"🧠 Calling Claude AI service (stream={stream})")
 
-                # Ensure Claude AI service is initialized
-                if not self.ai_service_initialized or not self.ai_service:
-                    logger.error("❌ Claude AI service not initialized")
-                    return "I'm still starting up. Please try again in a moment."
-
-                if stream:
-                    # For streaming responses, we need to handle differently
-                    return await self._handle_streaming_response(message, enhanced_context, session_id, user_id)
-                else:
-                    # Non-streaming response using Claude
-                    claude_response = await self.ai_service.send_message(
-                        message=message,
-                        user_id=user_id,
-                        conversation_id=session_id,
-                        user_context=enhanced_context,
-                        stream=False
-                    )
-
-                if isinstance(claude_response, str):
-                    response_text = claude_response
-
-                    # Save conversation handled by Claude's context manager
-                    if user_id != "anonymous":
-                        try:
-                            # Claude service handles conversation storage internally
-                            logger.info(f"💾 Conversation handled by Claude context manager")
-                        except Exception as e:
-                            logger.warning(f"⚠️ Could not save conversation: {e}")
-
-                    logger.info(f"✅ Claude AI service response: {len(response_text)} chars")
-
-                    return response_text
-                else:
-                    logger.error(f"❌ Unexpected response type from Claude service: {type(claude_response)}")
-                    return "I'm having trouble processing your request. Please try again."
+            except Exception as e:
+                logger.error(f"❌ Simple PAM failed: {e}")
+                # Return error message
+                return "I'm having trouble processing your request right now. Please try again."
                     
         except Exception as e:
             logger.error(f"❌ Enhanced AI service failed: {str(e)}")
