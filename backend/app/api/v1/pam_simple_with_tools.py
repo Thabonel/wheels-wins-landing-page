@@ -316,11 +316,20 @@ async def chat_with_claude(
     Simple Claude chat with tools (Barry-inspired)
     ALWAYS returns a response, even on error
     """
+    import time
+    start_time = time.time()
+
     try:
         # Fast pre-filter (Barry's trick)
-        if is_simple_query(message):
+        prefilter_start = time.time()
+        is_simple = is_simple_query(message)
+        prefilter_ms = (time.time() - prefilter_start) * 1000
+        logger.info(f"⏱️  Pre-filter: {prefilter_ms:.1f}ms (simple={is_simple})")
+
+        if is_simple:
             logger.info(f"⚡ Fast path: Simple query detected")
             # Quick Claude call without tools
+            claude_start = time.time()
             response = await asyncio.wait_for(
                 anthropic_client.messages.create(
                     model=CLAUDE_MODEL,
@@ -330,18 +339,28 @@ async def chat_with_claude(
                 ),
                 timeout=CLAUDE_TIMEOUT_SECONDS
             )
+            claude_ms = (time.time() - claude_start) * 1000
+            total_ms = (time.time() - start_time) * 1000
+            logger.info(f"⏱️  Claude (no tools): {claude_ms:.1f}ms | Total: {total_ms:.1f}ms")
             return response.content[0].text
 
         # Build conversation messages
+        msg_start = time.time()
         messages = conversation_history or []
         messages.append({"role": "user", "content": message})
+        msg_ms = (time.time() - msg_start) * 1000
+        logger.info(f"⏱️  Build messages: {msg_ms:.1f}ms")
 
         # Get tool definitions
+        tools_start = time.time()
         tools = build_tool_definitions()
+        tools_ms = (time.time() - tools_start) * 1000
+        logger.info(f"⏱️  Build tools: {tools_ms:.1f}ms ({len(tools)} tools)")
 
         logger.info(f"🔧 Calling Claude with {len(tools)} tools available")
 
         # Call Claude with tools (with timeout like Barry)
+        claude_start = time.time()
         response = await asyncio.wait_for(
             anthropic_client.messages.create(
                 model=CLAUDE_MODEL,
@@ -352,31 +371,42 @@ async def chat_with_claude(
             ),
             timeout=CLAUDE_TIMEOUT_SECONDS
         )
+        claude_ms = (time.time() - claude_start) * 1000
+        logger.info(f"⏱️  Claude (with tools): {claude_ms:.1f}ms")
 
         # Check if Claude wants to use tools
         if response.stop_reason == "tool_use":
             logger.info(f"🛠️  Claude requesting tool execution")
 
             # Extract tool calls
+            tool_exec_start = time.time()
             tool_results = []
             for block in response.content:
                 if block.type == "tool_use":
                     tool_name = block.name
                     tool_input = block.input
+                    tool_start = time.time()
                     logger.info(f"   Executing: {tool_name}")
 
                     # Execute tool
                     result = await execute_tool(tool_name, tool_input, user_id)
+                    tool_time = (time.time() - tool_start) * 1000
+                    logger.info(f"   ⏱️  {tool_name}: {tool_time:.1f}ms")
+
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": block.id,
                         "content": json.dumps(result)
                     })
 
+            tool_exec_ms = (time.time() - tool_exec_start) * 1000
+            logger.info(f"⏱️  Tool execution total: {tool_exec_ms:.1f}ms")
+
             # Send results back to Claude for final response
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": tool_results})
 
+            final_start = time.time()
             final_response = await asyncio.wait_for(
                 anthropic_client.messages.create(
                     model=CLAUDE_MODEL,
@@ -387,14 +417,20 @@ async def chat_with_claude(
                 ),
                 timeout=CLAUDE_TIMEOUT_SECONDS
             )
+            final_ms = (time.time() - final_start) * 1000
+            total_ms = (time.time() - start_time) * 1000
+            logger.info(f"⏱️  Claude (final): {final_ms:.1f}ms | Total: {total_ms:.1f}ms")
 
             return final_response.content[0].text
 
         # No tools needed, return response
+        total_ms = (time.time() - start_time) * 1000
+        logger.info(f"⏱️  Total (no tool execution): {total_ms:.1f}ms")
         return response.content[0].text
 
     except asyncio.TimeoutError:
-        logger.error("⏱️ Claude timeout - using fallback")
+        total_ms = (time.time() - start_time) * 1000
+        logger.error(f"⏱️ Claude timeout after {total_ms:.1f}ms - using fallback")
         return "I'm thinking a bit slow right now. Could you try asking that again?"
 
     except Exception as e:
