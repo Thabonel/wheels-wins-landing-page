@@ -1,0 +1,225 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "submit": "Soumettre",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "settings": "Paramètres",
+    "logout": "Se Déconnecter",
+    "login": "Se Connecter",
+    "signup": "S'Inscrire"
+  },
+  "nav": {
+    "wheels": "Roues",
+    "wins": "Gains",
+    "social": "Social",
+    "shop": "Boutique",
+    "profile": "Profil",
+    "admin": "Administrateur"
+  },
+  "landing": {
+    "hero": {
+      "title": "Votre Compagnon de Voyage IA sur la Route",
+      "subtitle": "Wheels & Wins aide les voyageurs en VR à économiser de l'argent, planifier des voyages et rester connectés avec un assistant IA qui se paie lui-même",
+      "cta": "Commencez Votre Voyage",
+      "learnMore": "En Savoir Plus"
+    },
+    "features": {
+      "title": "Tout Ce Dont Vous Avez Besoin pour la Vie sur la Route",
+      "pam": {
+        "title": "PAM - Votre Assistant IA",
+        "description": "IA activée par la voix qui aide avec les budgets, la planification de voyages et vous fait économiser de l'argent"
+      },
+      "trips": {
+        "title": "Planification Intelligente de Voyages",
+        "description": "Optimisez les itinéraires, trouvez des campings, suivez les coûts de carburant et obtenez des prévisions météo"
+      },
+      "budget": {
+        "title": "Gestion Financière",
+        "description": "Suivez les dépenses, gérez les budgets et atteignez vos objectifs financiers"
+      },
+      "community": {
+        "title": "Connectez-vous avec d'Autres Voyageurs",
+        "description": "Partagez des expériences, trouvez des compagnons de voyage et découvrez des trésors cachés"
+      }
+    }
+  },
+  "auth": {
+    "signIn": "Se Connecter",
+    "signUp": "S'Inscrire",
+    "email": "Email",
+    "password": "Mot de Passe",
+    "confirmPassword": "Confirmer le Mot de Passe",
+    "forgotPassword": "Mot de Passe Oublié?",
+    "resetPassword": "Réinitialiser le Mot de Passe",
+    "createAccount": "Créer un Compte",
+    "alreadyHaveAccount": "Vous avez déjà un compte?",
+    "dontHaveAccount": "Vous n'avez pas de compte?",
+    "emailPlaceholder": "vous@exemple.com",
+    "passwordPlaceholder": "Entrez votre mot de passe",
+    "signingIn": "Connexion en cours...",
+    "signingUp": "Création du compte...",
+    "signInSuccess": "Bon retour!",
+    "signUpSuccess": "Compte créé avec succès!",
+    "signInError": "Email ou mot de passe invalide",
+    "signUpError": "Erreur lors de la création du compte"
+  },
+  "pam": {
+    "greeting": "Bonjour! Je suis PAM, votre compagnon de voyage IA. Comment puis-je vous aider aujourd'hui?",
+    "placeholder": "Demandez-moi n'importe quoi...",
+    "voiceButton": "Démarrer le chat vocal",
+    "wakeWord": "Dites 'Hey PAM' pour activer",
+    "listening": "En écoute...",
+    "thinking": "Réflexion...",
+    "speaking": "En train de parler...",
+    "savings": {
+      "title": "Argent Économisé Ce Mois",
+      "celebration": "🎉 PAM vous a fait économiser ${{amount}} ce mois!",
+      "share": "Partager mes économies"
+    },
+    "tools": {
+      "budget": "Gestion de votre budget",
+      "trip": "Planification de votre voyage",
+      "expense": "Ajout d'une dépense",
+      "weather": "Vérification de la météo"
+    }
+  },
+  "wheels": {
+    "title": "Roues",
+    "subtitle": "Planifiez des voyages, suivez l'entretien et optimisez vos déplacements",
+    "tripPlanner": {
+      "title": "Planificateur de Voyage",
+      "origin": "Point de Départ",
+      "destination": "Destination",
+      "budget": "Budget",
+      "planTrip": "Planifier le Voyage",
+      "optimizeRoute": "Optimiser l'Itinéraire"
+    },
+    "rvParks": {
+      "title": "Parcs pour VR",
+      "search": "Rechercher des campings...",
+      "filters": "Filtres",
+      "amenities": "Commodités",
+      "priceRange": "Gamme de Prix"
+    },
+    "maintenance": {
+      "title": "Entretien",
+      "addRecord": "Ajouter un Enregistrement",
+      "task": "Tâche",
+      "date": "Date",
+      "cost": "Coût",
+      "mileage": "Kilométrage"
+    }
+  },
+  "wins": {
+    "title": "Gains",
+    "subtitle": "Suivez les dépenses et atteignez vos objectifs financiers",
+    "overview": {
+      "totalBudget": "Budget Total",
+      "totalSpent": "Total Dépensé",
+      "remaining": "Restant",
+      "savingsGoal": "Objectif d'Épargne"
+    },
+    "expenses": {
+      "title": "Dépenses",
+      "addExpense": "Ajouter une Dépense",
+      "category": "Catégorie",
+      "amount": "Montant",
+      "description": "Description",
+      "date": "Date",
+      "categories": {
+        "fuel": "Carburant",
+        "food": "Nourriture",
+        "campground": "Camping",
+        "maintenance": "Entretien",
+        "entertainment": "Divertissement",
+        "other": "Autre"
+      }
+    },
+    "budget": {
+      "title": "Budget",
+      "setBudget": "Définir le Budget",
+      "monthly": "Mensuel",
+      "weekly": "Hebdomadaire",
+      "alerts": "Alertes de Budget"
+    },
+    "income": {
+      "title": "Revenus",
+      "addIncome": "Ajouter un Revenu",
+      "source": "Source",
+      "amount": "Montant"
+    }
+  },
+  "social": {
+    "title": "Social",
+    "subtitle": "Connectez-vous avec d'autres voyageurs et partagez vos aventures",
+    "feed": {
+      "title": "Fil d'Actualité",
+      "createPost": "Partagez votre voyage...",
+      "post": "Publier",
+      "like": "J'aime",
+      "comment": "Commenter",
+      "share": "Partager"
+    },
+    "messages": {
+      "title": "Messages",
+      "newMessage": "Nouveau Message",
+      "sendMessage": "Envoyer"
+    },
+    "nearby": {
+      "title": "Voyageurs à Proximité",
+      "distance": "{{distance}} miles de distance"
+    }
+  },
+  "shop": {
+    "title": "Boutique",
+    "subtitle": "Pièces de VR, équipement et essentiels",
+    "search": "Rechercher des produits...",
+    "cart": "Panier",
+    "checkout": "Payer",
+    "addToCart": "Ajouter au Panier",
+    "categories": {
+      "parts": "Pièces de VR",
+      "gear": "Équipement de Camping",
+      "electronics": "Électronique",
+      "accessories": "Accessoires"
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "profile": "Profil",
+    "display": "Affichage",
+    "notifications": "Notifications",
+    "privacy": "Confidentialité",
+    "language": {
+      "title": "Langue",
+      "english": "Anglais",
+      "spanish": "Espagnol",
+      "french": "Français"
+    },
+    "theme": {
+      "title": "Thème",
+      "light": "Clair",
+      "dark": "Sombre",
+      "system": "Système"
+    },
+    "units": {
+      "title": "Unités",
+      "imperial": "Impérial (miles, °F)",
+      "metric": "Métrique (km, °C)"
+    },
+    "currency": {
+      "title": "Devise",
+      "usd": "USD ($)",
+      "eur": "EUR (€)",
+      "cad": "CAD ($)"
+    }
+  }
+}

@@ -6,6 +6,7 @@ import { OfflineProvider } from './context/OfflineContext';
 import { ExpensesProvider } from './context/ExpensesContext';
 import { WheelsProvider } from './context/WheelsContext';
 import Layout from './components/Layout';
+import './i18n';
 // Lazy load all page components for optimal bundle splitting
 const Index = lazy(() => import('./pages/Index'));
 const Wheels = lazy(() => import('./pages/Wheels'));

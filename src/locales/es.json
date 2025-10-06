@@ -1,0 +1,225 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "submit": "Enviar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "settings": "Configuración",
+    "logout": "Cerrar Sesión",
+    "login": "Iniciar Sesión",
+    "signup": "Registrarse"
+  },
+  "nav": {
+    "wheels": "Ruedas",
+    "wins": "Ganancias",
+    "social": "Social",
+    "shop": "Tienda",
+    "profile": "Perfil",
+    "admin": "Administrador"
+  },
+  "landing": {
+    "hero": {
+      "title": "Tu Compañero de Viaje con IA",
+      "subtitle": "Wheels & Wins ayuda a los viajeros en RV a ahorrar dinero, planificar viajes y mantenerse conectados con un asistente IA que se paga solo",
+      "cta": "Comienza Tu Viaje",
+      "learnMore": "Más Información"
+    },
+    "features": {
+      "title": "Todo lo Que Necesitas para la Vida en el Camino",
+      "pam": {
+        "title": "PAM - Tu Asistente IA",
+        "description": "IA activada por voz que ayuda con presupuestos, planificación de viajes y te ahorra dinero"
+      },
+      "trips": {
+        "title": "Planificación Inteligente de Viajes",
+        "description": "Optimiza rutas, encuentra campamentos, rastrea costos de combustible y obtén pronósticos del tiempo"
+      },
+      "budget": {
+        "title": "Gestión Financiera",
+        "description": "Rastrea gastos, administra presupuestos y alcanza tus metas financieras"
+      },
+      "community": {
+        "title": "Conéctate con Otros Viajeros",
+        "description": "Comparte experiencias, encuentra compañeros de viaje y descubre joyas ocultas"
+      }
+    }
+  },
+  "auth": {
+    "signIn": "Iniciar Sesión",
+    "signUp": "Registrarse",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar Contraseña",
+    "forgotPassword": "¿Olvidaste tu Contraseña?",
+    "resetPassword": "Restablecer Contraseña",
+    "createAccount": "Crear Cuenta",
+    "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+    "dontHaveAccount": "¿No tienes una cuenta?",
+    "emailPlaceholder": "tu@ejemplo.com",
+    "passwordPlaceholder": "Ingresa tu contraseña",
+    "signingIn": "Iniciando sesión...",
+    "signingUp": "Creando cuenta...",
+    "signInSuccess": "¡Bienvenido de nuevo!",
+    "signUpSuccess": "¡Cuenta creada exitosamente!",
+    "signInError": "Correo o contraseña inválidos",
+    "signUpError": "Error al crear la cuenta"
+  },
+  "pam": {
+    "greeting": "¡Hola! Soy PAM, tu compañera de viaje IA. ¿Cómo puedo ayudarte hoy?",
+    "placeholder": "Pregúntame lo que quieras...",
+    "voiceButton": "Iniciar chat por voz",
+    "wakeWord": "Di 'Hey PAM' para activar",
+    "listening": "Escuchando...",
+    "thinking": "Pensando...",
+    "speaking": "Hablando...",
+    "savings": {
+      "title": "Dinero Ahorrado Este Mes",
+      "celebration": "🎉 ¡PAM te ahorró ${{amount}} este mes!",
+      "share": "Compartir mis ahorros"
+    },
+    "tools": {
+      "budget": "Gestionando tu presupuesto",
+      "trip": "Planificando tu viaje",
+      "expense": "Agregando gasto",
+      "weather": "Verificando el clima"
+    }
+  },
+  "wheels": {
+    "title": "Ruedas",
+    "subtitle": "Planifica viajes, rastrea mantenimiento y optimiza tus viajes",
+    "tripPlanner": {
+      "title": "Planificador de Viajes",
+      "origin": "Punto de Partida",
+      "destination": "Destino",
+      "budget": "Presupuesto",
+      "planTrip": "Planificar Viaje",
+      "optimizeRoute": "Optimizar Ruta"
+    },
+    "rvParks": {
+      "title": "Parques para RV",
+      "search": "Buscar campamentos...",
+      "filters": "Filtros",
+      "amenities": "Comodidades",
+      "priceRange": "Rango de Precio"
+    },
+    "maintenance": {
+      "title": "Mantenimiento",
+      "addRecord": "Agregar Registro",
+      "task": "Tarea",
+      "date": "Fecha",
+      "cost": "Costo",
+      "mileage": "Kilometraje"
+    }
+  },
+  "wins": {
+    "title": "Ganancias",
+    "subtitle": "Rastrea gastos y alcanza tus metas financieras",
+    "overview": {
+      "totalBudget": "Presupuesto Total",
+      "totalSpent": "Total Gastado",
+      "remaining": "Restante",
+      "savingsGoal": "Meta de Ahorro"
+    },
+    "expenses": {
+      "title": "Gastos",
+      "addExpense": "Agregar Gasto",
+      "category": "Categoría",
+      "amount": "Monto",
+      "description": "Descripción",
+      "date": "Fecha",
+      "categories": {
+        "fuel": "Combustible",
+        "food": "Comida",
+        "campground": "Campamento",
+        "maintenance": "Mantenimiento",
+        "entertainment": "Entretenimiento",
+        "other": "Otro"
+      }
+    },
+    "budget": {
+      "title": "Presupuesto",
+      "setBudget": "Establecer Presupuesto",
+      "monthly": "Mensual",
+      "weekly": "Semanal",
+      "alerts": "Alertas de Presupuesto"
+    },
+    "income": {
+      "title": "Ingresos",
+      "addIncome": "Agregar Ingreso",
+      "source": "Fuente",
+      "amount": "Monto"
+    }
+  },
+  "social": {
+    "title": "Social",
+    "subtitle": "Conéctate con otros viajeros y comparte tus aventuras",
+    "feed": {
+      "title": "Feed",
+      "createPost": "Comparte tu viaje...",
+      "post": "Publicar",
+      "like": "Me gusta",
+      "comment": "Comentar",
+      "share": "Compartir"
+    },
+    "messages": {
+      "title": "Mensajes",
+      "newMessage": "Nuevo Mensaje",
+      "sendMessage": "Enviar"
+    },
+    "nearby": {
+      "title": "Viajeros Cercanos",
+      "distance": "{{distance}} millas de distancia"
+    }
+  },
+  "shop": {
+    "title": "Tienda",
+    "subtitle": "Partes para RV, equipo y esenciales",
+    "search": "Buscar productos...",
+    "cart": "Carrito",
+    "checkout": "Pagar",
+    "addToCart": "Agregar al Carrito",
+    "categories": {
+      "parts": "Partes para RV",
+      "gear": "Equipo de Camping",
+      "electronics": "Electrónicos",
+      "accessories": "Accesorios"
+    }
+  },
+  "settings": {
+    "title": "Configuración",
+    "profile": "Perfil",
+    "display": "Pantalla",
+    "notifications": "Notificaciones",
+    "privacy": "Privacidad",
+    "language": {
+      "title": "Idioma",
+      "english": "Inglés",
+      "spanish": "Español",
+      "french": "Francés"
+    },
+    "theme": {
+      "title": "Tema",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Sistema"
+    },
+    "units": {
+      "title": "Unidades",
+      "imperial": "Imperial (millas, °F)",
+      "metric": "Métrico (km, °C)"
+    },
+    "currency": {
+      "title": "Moneda",
+      "usd": "USD ($)",
+      "eur": "EUR (€)",
+      "cad": "CAD ($)"
+    }
+  }
+}

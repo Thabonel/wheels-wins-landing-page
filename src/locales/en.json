@@ -1,0 +1,225 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "settings": "Settings",
+    "logout": "Log Out",
+    "login": "Log In",
+    "signup": "Sign Up"
+  },
+  "nav": {
+    "wheels": "Wheels",
+    "wins": "Wins",
+    "social": "Social",
+    "shop": "Shop",
+    "profile": "Profile",
+    "admin": "Admin"
+  },
+  "landing": {
+    "hero": {
+      "title": "Your AI Travel Companion on the Road",
+      "subtitle": "Wheels & Wins helps RVers save money, plan trips, and stay connected with an AI assistant that pays for itself",
+      "cta": "Start Your Journey",
+      "learnMore": "Learn More"
+    },
+    "features": {
+      "title": "Everything You Need for Life on the Road",
+      "pam": {
+        "title": "PAM - Your AI Assistant",
+        "description": "Voice-activated AI that helps with budgets, trip planning, and saves you money"
+      },
+      "trips": {
+        "title": "Smart Trip Planning",
+        "description": "Optimize routes, find campgrounds, track fuel costs, and get weather forecasts"
+      },
+      "budget": {
+        "title": "Financial Management",
+        "description": "Track expenses, manage budgets, and achieve your financial goals"
+      },
+      "community": {
+        "title": "Connect with RVers",
+        "description": "Share experiences, find travel buddies, and discover hidden gems"
+      }
+    }
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "createAccount": "Create Account",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "Enter your password",
+    "signingIn": "Signing in...",
+    "signingUp": "Creating account...",
+    "signInSuccess": "Welcome back!",
+    "signUpSuccess": "Account created successfully!",
+    "signInError": "Invalid email or password",
+    "signUpError": "Error creating account"
+  },
+  "pam": {
+    "greeting": "Hi! I'm PAM, your AI travel companion. How can I help you today?",
+    "placeholder": "Ask me anything...",
+    "voiceButton": "Start voice chat",
+    "wakeWord": "Say 'Hey PAM' to activate",
+    "listening": "Listening...",
+    "thinking": "Thinking...",
+    "speaking": "Speaking...",
+    "savings": {
+      "title": "Money Saved This Month",
+      "celebration": "🎉 PAM saved you ${{amount}} this month!",
+      "share": "Share my savings"
+    },
+    "tools": {
+      "budget": "Managing your budget",
+      "trip": "Planning your trip",
+      "expense": "Adding expense",
+      "weather": "Checking weather"
+    }
+  },
+  "wheels": {
+    "title": "Wheels",
+    "subtitle": "Plan trips, track maintenance, and optimize your travels",
+    "tripPlanner": {
+      "title": "Trip Planner",
+      "origin": "Starting Point",
+      "destination": "Destination",
+      "budget": "Budget",
+      "planTrip": "Plan Trip",
+      "optimizeRoute": "Optimize Route"
+    },
+    "rvParks": {
+      "title": "RV Parks",
+      "search": "Search campgrounds...",
+      "filters": "Filters",
+      "amenities": "Amenities",
+      "priceRange": "Price Range"
+    },
+    "maintenance": {
+      "title": "Maintenance",
+      "addRecord": "Add Record",
+      "task": "Task",
+      "date": "Date",
+      "cost": "Cost",
+      "mileage": "Mileage"
+    }
+  },
+  "wins": {
+    "title": "Wins",
+    "subtitle": "Track expenses and achieve your financial goals",
+    "overview": {
+      "totalBudget": "Total Budget",
+      "totalSpent": "Total Spent",
+      "remaining": "Remaining",
+      "savingsGoal": "Savings Goal"
+    },
+    "expenses": {
+      "title": "Expenses",
+      "addExpense": "Add Expense",
+      "category": "Category",
+      "amount": "Amount",
+      "description": "Description",
+      "date": "Date",
+      "categories": {
+        "fuel": "Fuel",
+        "food": "Food",
+        "campground": "Campground",
+        "maintenance": "Maintenance",
+        "entertainment": "Entertainment",
+        "other": "Other"
+      }
+    },
+    "budget": {
+      "title": "Budget",
+      "setBudget": "Set Budget",
+      "monthly": "Monthly",
+      "weekly": "Weekly",
+      "alerts": "Budget Alerts"
+    },
+    "income": {
+      "title": "Income",
+      "addIncome": "Add Income",
+      "source": "Source",
+      "amount": "Amount"
+    }
+  },
+  "social": {
+    "title": "Social",
+    "subtitle": "Connect with fellow RVers and share your adventures",
+    "feed": {
+      "title": "Feed",
+      "createPost": "Share your journey...",
+      "post": "Post",
+      "like": "Like",
+      "comment": "Comment",
+      "share": "Share"
+    },
+    "messages": {
+      "title": "Messages",
+      "newMessage": "New Message",
+      "sendMessage": "Send"
+    },
+    "nearby": {
+      "title": "Nearby RVers",
+      "distance": "{{distance}} miles away"
+    }
+  },
+  "shop": {
+    "title": "Shop",
+    "subtitle": "RV parts, gear, and essentials",
+    "search": "Search products...",
+    "cart": "Cart",
+    "checkout": "Checkout",
+    "addToCart": "Add to Cart",
+    "categories": {
+      "parts": "RV Parts",
+      "gear": "Camping Gear",
+      "electronics": "Electronics",
+      "accessories": "Accessories"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "display": "Display",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "language": {
+      "title": "Language",
+      "english": "English",
+      "spanish": "Spanish",
+      "french": "French"
+    },
+    "theme": {
+      "title": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "units": {
+      "title": "Units",
+      "imperial": "Imperial (miles, °F)",
+      "metric": "Metric (km, °C)"
+    },
+    "currency": {
+      "title": "Currency",
+      "usd": "USD ($)",
+      "eur": "EUR (€)",
+      "cad": "CAD ($)"
+    }
+  }
+}
