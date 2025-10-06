@@ -89,14 +89,16 @@ logger = logging.getLogger(__name__)
 class PAM:
     """The AI brain of Wheels & Wins"""
 
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, user_language: str = "en"):
         """
         Initialize PAM for a specific user
 
         Args:
             user_id: UUID of the user this PAM instance serves
+            user_language: User's preferred language (en, es, fr)
         """
         self.user_id = user_id
+        self.user_language = user_language
 
         # Initialize Claude client (try both key names for compatibility)
         api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC-WHEELS-KEY")
@@ -116,7 +118,7 @@ class PAM:
         # Tool registry (simple - just Claude function definitions)
         self.tools = self._build_tools()
 
-        logger.info(f"PAM initialized for user {user_id} with {len(self.tools)} tools")
+        logger.info(f"PAM initialized for user {user_id} with {len(self.tools)} tools, language: {user_language}")
 
     def _build_system_prompt(self) -> str:
         """
@@ -124,7 +126,18 @@ class PAM:
 
         This is the most important part - it defines who PAM is and how she behaves.
         """
-        return """You are PAM (Personal AI Manager), the AI travel companion for Wheels & Wins RV travelers.
+        # Language mapping
+        language_instructions = {
+            "en": "Respond in English.",
+            "es": "Responde en español. (Respond in Spanish.)",
+            "fr": "Répondez en français. (Respond in French.)",
+        }
+
+        lang_instruction = language_instructions.get(self.user_language, language_instructions["en"])
+
+        return f"""You are PAM (Personal AI Manager), the AI travel companion for Wheels & Wins RV travelers.
+
+**IMPORTANT - Language:** {lang_instruction}
 
 **Your Core Identity:**
 - You're a competent, friendly travel partner (not a servant, not a boss - an equal)
@@ -158,11 +171,9 @@ You can:
 - Confirm actions taken ("Added $50 gas expense")
 - Mention savings when relevant ("You saved $8 vs area average")
 
-**Current date:** {current_date}
+**Current date:** {datetime.now().strftime("%Y-%m-%d")}
 
-Remember: You're here to help RVers travel smarter and save money. Be helpful, be secure, be awesome.""".format(
-            current_date=datetime.now().strftime("%Y-%m-%d")
-        )
+Remember: You're here to help RVers travel smarter and save money. Be helpful, be secure, be awesome."""
 
     def _build_tools(self) -> List[Dict[str, Any]]:
         """
@@ -1058,7 +1069,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
 _pam_instances: Dict[str, PAM] = {}
 
 
-async def get_pam(user_id: str) -> PAM:
+async def get_pam(user_id: str, user_language: str = "en") -> PAM:
     """
     Get or create a PAM instance for a user
 
@@ -1067,13 +1078,20 @@ async def get_pam(user_id: str) -> PAM:
 
     Args:
         user_id: UUID of the user
+        user_language: User's preferred language (en, es, fr)
 
     Returns:
         PAM instance for this user
     """
     if user_id not in _pam_instances:
-        _pam_instances[user_id] = PAM(user_id)
-        logger.info(f"Created new PAM instance for user {user_id}")
+        _pam_instances[user_id] = PAM(user_id, user_language)
+        logger.info(f"Created new PAM instance for user {user_id}, language: {user_language}")
+    else:
+        # Update language if it changed
+        if _pam_instances[user_id].user_language != user_language:
+            _pam_instances[user_id].user_language = user_language
+            _pam_instances[user_id].system_prompt = _pam_instances[user_id]._build_system_prompt()
+            logger.info(f"Updated language for user {user_id} to {user_language}")
 
     return _pam_instances[user_id]
 

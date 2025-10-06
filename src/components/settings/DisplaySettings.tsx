@@ -5,9 +5,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Monitor } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { useLanguage } from '@/hooks/useLanguage';
+import { useTranslation } from 'react-i18next';
 
 export const DisplaySettings = () => {
   const { settings, updateSettings, updating, loading } = useUserSettings();
+  const { language, changeLanguage } = useLanguage();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
@@ -126,19 +130,22 @@ export const DisplaySettings = () => {
         ))}
 
         <div className="space-y-2">
-          <Label>Language</Label>
+          <Label>{t('settings.language.title')}</Label>
           <Select
-            value={settings.display_preferences.language}
-            onValueChange={(val) => handleSelect('language', val)}
+            value={language}
+            onValueChange={(val) => {
+              changeLanguage(val);
+              handleSelect('language', val);
+            }}
             disabled={updating}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="es">Spanish</SelectItem>
-              <SelectItem value="fr">French</SelectItem>
+              <SelectItem value="en">{t('settings.language.english')}</SelectItem>
+              <SelectItem value="es">{t('settings.language.spanish')}</SelectItem>
+              <SelectItem value="fr">{t('settings.language.french')}</SelectItem>
             </SelectContent>
           </Select>
         </div>

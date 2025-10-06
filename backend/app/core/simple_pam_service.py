@@ -457,10 +457,23 @@ class SimplePamService:
             logger.info(f"🚀 Using Simple PAM (Claude Sonnet 4.5 direct)")
             logger.info(f"⏱️ [TIMING] Before PAM call: {time.time() - overall_start:.3f}s")
 
+            # Fetch user's language preference from database
+            user_language = "en"  # Default to English
+            if user_id != "anonymous":
+                try:
+                    from app.services.database import get_supabase
+                    supabase = get_supabase()
+                    result = await supabase.table("user_settings").select("display_preferences").eq("user_id", user_id).single().execute()
+                    if result.data and result.data.get("display_preferences"):
+                        user_language = result.data["display_preferences"].get("language", "en")
+                        logger.info(f"🌍 User language: {user_language}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not fetch user language: {e}, using default 'en'")
+
             pam_start = time.time()
             try:
-                # Get PAM instance for this user
-                pam = await get_pam(user_id)
+                # Get PAM instance for this user with language preference
+                pam = await get_pam(user_id, user_language)
 
                 # Call PAM with the message
                 response_text = await pam.chat(
