@@ -316,5 +316,36 @@
     "terms": "Conditions d'Utilisation",
     "privacy": "Politique de Confidentialité",
     "cookies": "Politique des Cookies"
+  },
+  "pricing": {
+    "title": "Choisissez Votre Formule",
+    "subtitle": "Sélectionnez la formule parfaite pour votre voyage. Commencez avec un essai gratuit sur n'importe quelle formule.",
+    "currency_note": "Prix affichés en {{currency}}",
+    "processing": "Traitement...",
+    "free_trial": {
+      "badge": "Essai Gratuit",
+      "title": "Premier Mois Gratuit",
+      "description": "Essayez avant de vous engager",
+      "duration": "pendant 30 jours",
+      "feature1": "Accès complet à notre plateforme et communauté",
+      "feature2": "Cours Vidéo non inclus",
+      "button": "Commencer"
+    },
+    "monthly": {
+      "title": "Abonnement Mensuel",
+      "description": "Accès complet à notre plateforme et communauté",
+      "period": "/mois",
+      "feature1": "Accès complet à notre plateforme et communauté",
+      "button": "Sélectionner la Formule"
+    },
+    "annual": {
+      "badge": "Meilleur Rapport Qualité-Prix",
+      "title": "Abonnement Annuel",
+      "description": "Meilleur rapport qualité-prix - seulement 8,25 $/mois plus le Cours Vidéo à 97 $ OFFERT",
+      "period": "/an",
+      "feature1": "Accès complet à notre plateforme et communauté",
+      "feature2": "Comprend le Cours Vidéo (valeur de {{value}})",
+      "button": "Sélectionner la Formule"
+    }
   }
 }
