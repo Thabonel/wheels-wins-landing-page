@@ -225,8 +225,8 @@ fix: rebuild frontend to resolve stale /pam-2/ endpoint cache
 
 ---
 
-### Step 9: User Viewing Diagnostic - Cache Still Present! (14:59 UTC - CURRENT)
-**Action:** User checked diagnostic but still seeing old cached version
+### Step 9: User Viewing Diagnostic - Still Seeing `/pam-2/`! (14:59 UTC)
+**Action:** User checked diagnostic but still seeing old `/pam-2/` endpoints
 
 **Observation from Screenshot:**
 ```
@@ -234,28 +234,112 @@ Backend URL: https://wheels-wins-backend-staging.onrender.com/api/v1/pam-2/healt
 Backend Service: error - PAM 2.0 backend health check failed (404)
 ```
 
-**Analysis:**
-- Diagnostic component source code (line 553) shows: `getPamEndpoints()?.health`
-- getPamEndpoints() function (lines 55-60) returns correct `/api/v1/pam/health`
-- User seeing `/pam-2/health` means **browser is STILL running old JavaScript**
-- Netlify deployed new code, but browser has NOT loaded it yet
+**Initial Analysis:**
+- Thought it was browser cache issue
+- Thought Netlify deployment didn't complete
+- But source code locally showed correct endpoints!
 
-**Critical Issue:**
-User has NOT performed a hard refresh yet! Browser is serving cached JavaScript from before deployment.
+**Status:** ❌ INCORRECT DIAGNOSIS - Further investigation needed
 
-**Solution:**
-User MUST perform a hard refresh to force browser to download new JavaScript:
-- **Mac:** Cmd + Shift + R
-- **Windows/Linux:** Ctrl + Shift + R
-- **Alternative:** Clear all browser cache for site
+---
 
-**Why This Matters:**
-- New code is deployed on Netlify ✅
-- New code has correct endpoints ✅
-- Browser cache has old code ❌
-- Browser won't fetch new code until forced ❌
+### Step 10: Deep Root Cause Investigation (15:10 UTC)
+**Action:** Comprehensive investigation to find source of `/pam-2/`
 
-**Current Status:** 📍 YOU ARE HERE - Awaiting user hard refresh
+**Research Conducted:**
+1. ✅ Checked pamService.ts locally - shows `/pam/ws` (correct)
+2. ✅ Searched for `/chat/ws` pattern - not found in source
+3. ✅ Checked git history for `/pam-2/` references
+4. ✅ Found old commit (4768b9aa) had `/pam-2/chat/ws` endpoints
+5. 🔍 **CRITICAL**: Checked `git show HEAD:src/services/pamService.ts`
+
+**ROOT CAUSE DISCOVERED:**
+```bash
+# Git repository HEAD still has OLD code:
+WEBSOCKET_ENDPOINTS: {
+  staging: ['wss://...onrender.com/api/v1/pam-2/chat/ws']
+}
+
+# But local file has CORRECT code:
+WEBSOCKET_ENDPOINTS: {
+  staging: ['wss://...onrender.com/api/v1/pam/ws']
+}
+
+# Conclusion: CHANGES WERE NEVER COMMITTED TO GIT!
+```
+
+**Verification:**
+```bash
+git diff src/services/pamService.ts | grep "pam"
+# Result: Shows uncommitted changes from /pam-2/ to /pam/
+```
+
+**Why This Happened:**
+- File was edited locally (correct endpoints)
+- Changes were NOT committed to git
+- Previous commits only committed docs/config files
+- Netlify builds from git, so it built OLD code
+- That's why browser always saw `/pam-2/` even after hard refresh!
+
+**Status:** ✅ ROOT CAUSE IDENTIFIED
+
+---
+
+### Step 11: Commit the Actual Fix (15:15 UTC)
+**Action:** Commit pamService.ts and related files with correct endpoints
+
+**Files Committed:**
+1. **src/services/pamService.ts** (commit ddec2385)
+   - Changed: `/pam-2/chat/ws` → `/pam/ws`
+   - Changed: `/pam-2/chat` → `/pam/chat`
+   - Changed: `/pam-2/health` → `/pam/health`
+
+2. **src/components/admin/observability/PAMConnectionDiagnostic.tsx** (commit 30cdb4d0)
+   - Updated health/chat endpoint references
+
+3. **src/types/pamTypes.ts** (commit 30cdb4d0)
+   - Updated type definitions
+
+4. **docs/pam-rebuild-2025/PAM_DEBUGGING_SESSION_2025-10-04.md**
+   - This debugging log
+
+**Git Commands:**
+```bash
+git add src/services/pamService.ts
+git commit -m "fix: update PAM WebSocket endpoints from /pam-2/chat/ws to /pam/ws"
+
+git add src/components/admin/observability/PAMConnectionDiagnostic.tsx src/types/pamTypes.ts docs/...
+git commit -m "fix: update PAM diagnostic and types to use /pam/ endpoints"
+
+git push origin staging
+```
+
+**Status:** ✅ COMPLETED - Commits pushed, Netlify rebuilding
+
+---
+
+### Step 12: Awaiting Netlify Deployment (15:17 UTC - CURRENT)
+**Action:** Wait for Netlify to rebuild with correct code
+
+**What's Happening:**
+1. ✅ Commits pushed to staging branch
+2. ⏳ Netlify webhook triggered
+3. ⏳ Building from updated source code
+4. ⏳ Will deploy new bundle with correct endpoints
+
+**Monitor Deployment:**
+- URL: https://app.netlify.com/sites/wheels-wins-staging/deploys
+- Expected: New bundle hash (NOT `index.BpSuAEh9.js`)
+- Timeline: 2-3 minutes
+
+**Next Steps After Deployment:**
+1. Wait for "Published" status
+2. Hard refresh browser (Cmd/Ctrl + Shift + R)
+3. Check console logs should show: `/api/v1/pam/ws/` (NO `/pam-2/`)
+4. Test PAM diagnostic - should show all green
+5. Send test message to PAM
+
+**Current Status:** 📍 YOU ARE HERE - Awaiting Netlify deployment
 
 ---
 
