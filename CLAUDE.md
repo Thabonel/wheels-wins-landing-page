@@ -103,7 +103,6 @@ We operate **two complete separate systems** sharing one Supabase database:
 
 #### 🔄 Shared Services
 - **Database**: Single Supabase PostgreSQL (shared between systems)
-- **Data Collector**: wheels-wins-data-collector.onrender.com
 - **Redis**: Separate Redis instances per environment
 
 ### Environment Variable Configuration
@@ -119,14 +118,14 @@ Frontend (wheelsandwins.com) ◄──► Backend (pam-backend) ◄──► Sha
 ├── React/TS/PWA (Netlify)         ├── FastAPI/Redis               ├── Supabase DB
 ├── Vite 5.4.19                    ├── Celery Workers              ├── Mapbox GL
 ├── Tailwind 3.4.11                ├── WebSocket                   ├── Google Gemini Flash
-└── PWA Manifest                   └── TTS/STT                     └── Data Collector
+└── PWA Manifest                   └── TTS/STT
 
 Staging:
 Frontend (staging.netlify.app) ◄──► Backend (staging.onrender.com) ◄──► Shared Services
 ├── React/TS/PWA (Netlify)          ├── FastAPI/Redis                ├── Supabase DB
 ├── Vite 5.4.19                     ├── Celery Workers               ├── Mapbox GL
 ├── Tailwind 3.4.11                 ├── WebSocket                    ├── Google Gemini Flash
-└── PWA Manifest                    └── TTS/STT                      └── Data Collector
+└── PWA Manifest                    └── TTS/STT
 ```
 
 ## Environment Variables
@@ -182,8 +181,6 @@ src/
 5. **wheels-wins-backend-staging**: https://wheels-wins-backend-staging.onrender.com
 6. **wheels-wins-celery-worker-staging**: Staging background tasks
 
-#### Shared Services
-7. **wheels-wins-data-collector**: https://wheels-wins-data-collector.onrender.com
 
 ### Database (Supabase - Shared)
 - **Single PostgreSQL instance** shared between staging and production
