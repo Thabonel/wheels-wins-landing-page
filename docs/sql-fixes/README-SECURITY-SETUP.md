@@ -2,20 +2,26 @@
 
 ## Which File Should I Use?
 
-### ✅ Use `security-monitoring-setup-safe.sql` (RECOMMENDED)
+### ✅ Use `security-monitoring-setup-v3.sql` (RECOMMENDED - TYPE-SAFE)
 
-**This is the safer, tested version that:**
-- Won't fail if tables don't exist
-- Has defensive checks
-- Includes only essential monitoring
-- Can be run section-by-section
+**This is the newest, most reliable version that:**
+- ✅ Completely avoids bigint/uuid type comparison errors
+- ✅ Uses explicit type casts and subqueries
+- ✅ Has SECURITY DEFINER and search_path protection
+- ✅ Works on all PostgreSQL/Supabase versions
+- ✅ Can be run as a single script
 
-### ⚠️ Use `security-monitoring-setup.sql` (ADVANCED)
+### ⚠️ Use `security-monitoring-setup-safe.sql` (OLDER VERSION)
 
 **Only use this if:**
-- All database tables already exist
-- You want the full monitoring suite (including PAM health check)
-- You're comfortable debugging SQL errors
+- You already ran it successfully
+- V3 gives you issues (unlikely)
+
+### ⚠️ Use `security-monitoring-setup.sql` (LEGACY - NOT RECOMMENDED)
+
+**Avoid this version:**
+- Has known type comparison issues
+- Kept for reference only
 
 ---
 
@@ -30,24 +36,20 @@
 
 ### 2. Copy & Paste SQL
 
-**Option A: Safe Installation** (Recommended)
+**RECOMMENDED: Use V3 (Type-Safe Version)**
 ```sql
 -- Copy ALL contents from:
-docs/sql-fixes/security-monitoring-setup-safe.sql
+docs/sql-fixes/security-monitoring-setup-v3.sql
 
 -- Paste into SQL Editor
 -- Click "Run" (or press Cmd/Ctrl + Enter)
 ```
 
-**Option B: Full Installation** (Advanced)
-```sql
--- Copy ALL contents from:
-docs/sql-fixes/security-monitoring-setup.sql
-
--- Paste into SQL Editor
--- Click "Run"
--- If errors occur, switch to safe version
-```
+**This V3 version:**
+- ✅ Fixes the "operator does not exist: bigint = uuid" error
+- ✅ Uses proper subqueries to avoid type comparisons
+- ✅ Includes SECURITY DEFINER and search_path protection
+- ✅ Can be run as one complete script
 
 ### 3. Test Installation
 

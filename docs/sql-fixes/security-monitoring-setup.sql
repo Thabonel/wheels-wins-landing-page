@@ -110,6 +110,7 @@ BEGIN
             COUNT(p.policyname) as num_policies
         FROM pg_tables t
         LEFT JOIN pg_policies p ON t.tablename = p.tablename
+            AND t.schemaname = p.schemaname
         WHERE t.schemaname = 'public'
           AND t.tablename IN (
               'profiles',
