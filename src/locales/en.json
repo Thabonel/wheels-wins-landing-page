@@ -33,6 +33,22 @@
     },
     "features": {
       "title": "Everything You Need for Life on the Road",
+      "track_budget": {
+        "title": "Track Your Travel Budget",
+        "description": "Easily manage expenses specific to life on the road, from fuel costs to campsite fees."
+      },
+      "plan_routes": {
+        "title": "Plan Perfect Routes",
+        "description": "Discover scenic destinations, hidden gems, and RV-friendly stops along your journey."
+      },
+      "connect_travelers": {
+        "title": "Connect with Fellow Travelers",
+        "description": "Join a community of experienced roadtrippers who share tips, stories, and meet-ups."
+      },
+      "ai_companion": {
+        "title": "AI Travel Companion",
+        "description": "Ask Pam any travel question and get personalized recommendations for your adventure."
+      },
       "pam": {
         "title": "PAM - Your AI Assistant",
         "description": "Voice-activated AI that helps with budgets, trip planning, and saves you money"
@@ -225,6 +241,7 @@
   "pamspotlight.title": "Pam Handles the Details — You Enjoy the Journey",
   "pamspotlight.description": "Let Pam handle the details—route planning, expense tracking, and traveler meetups—so you can focus on the journey.",
   "pamspotlight.imageAlt": "PAM AI Assistant - Your intelligent RV trip planning companion for route optimization and expense tracking",
+  "howitworks.title": "How It Works",
   "howitworks.plan_your_trip": "Plan Your Trip",
   "howitworks.professionalgrade_route_planni": "Professional-grade route planning to avoid costly mistakes",
   "howitworks.financial_security": "Financial Security",
@@ -262,5 +279,42 @@
   "testimonials.s_time_to_get_the_rv_serviced": "s time to get the RV serviced.",
   "testimonials.james_t": "James T.",
   "testimonials.fulltime_rver_72": "Full-time RVer, 72",
-  "testimonials.i_was_hesitant_about_using_an_": "I was hesitant about using an AI assistant at my age, but Pam is so easy to talk to. She"
+  "testimonials.i_was_hesitant_about_using_an_": "I was hesitant about using an AI assistant at my age, but Pam is so easy to talk to. She",
+  "featuredproduct": {
+    "title": "Make Fun Travel Videos for Friends & Family",
+    "description": "Learn to film, edit, and share adventures using just your smartphone.",
+    "price": "$97",
+    "button": "View Course →"
+  },
+  "testimonials2": {
+    "title": "Why Travelers Love Pam",
+    "subtitle": "Join thousands of travelers who've discovered easier, more enjoyable journeys",
+    "margaret": {
+      "name": "Margaret R.",
+      "location": "Retired Nomad, 68",
+      "quote": "Pam has been my travel buddy for 6 months now. She's helped me plan routes that avoid heavy traffic and finds the coziest diners along the way!"
+    },
+    "robert_linda": {
+      "name": "Robert & Linda",
+      "location": "Snowbirds from Canada",
+      "quote": "We love how Pam keeps track of our expenses. No more spreadsheets! She even reminds us when it's time to get the RV serviced."
+    },
+    "james": {
+      "name": "James T.",
+      "location": "Full-time RVer, 72",
+      "quote": "I was hesitant about using an AI assistant at my age, but Pam is so easy to talk to. She's helped me connect with other travelers in each new town."
+    }
+  },
+  "calltoaction": {
+    "title": "Join Wheels and Wins Today",
+    "description": "Join Wheels and Wins today—enjoy stress-free planning and a supportive community.",
+    "button": "Start Free Trial",
+    "nocreditcard": "No credit card required. Cancel anytime."
+  },
+  "footer": {
+    "copyright": "Wheels and Wins. All rights reserved.",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "cookies": "Cookie Policy"
+  }
 }

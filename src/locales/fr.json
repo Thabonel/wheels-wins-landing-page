@@ -33,6 +33,22 @@
     },
     "features": {
       "title": "Tout Ce Dont Vous Avez Besoin pour la Vie sur la Route",
+      "track_budget": {
+        "title": "Suivez Votre Budget de Voyage",
+        "description": "Gérez facilement les dépenses spécifiques à la vie sur la route, des coûts de carburant aux frais de camping."
+      },
+      "plan_routes": {
+        "title": "Planifiez des Itinéraires Parfaits",
+        "description": "Découvrez des destinations pittoresques, des trésors cachés et des arrêts adaptés aux VR tout au long de votre voyage."
+      },
+      "connect_travelers": {
+        "title": "Connectez-vous avec d'Autres Voyageurs",
+        "description": "Rejoignez une communauté de voyageurs expérimentés qui partagent conseils, histoires et rencontres."
+      },
+      "ai_companion": {
+        "title": "Compagnon de Voyage IA",
+        "description": "Posez n'importe quelle question de voyage à Pam et obtenez des recommandations personnalisées pour votre aventure."
+      },
       "pam": {
         "title": "PAM - Votre Assistant IA",
         "description": "IA activée par la voix qui aide avec les budgets, la planification de voyages et vous fait économiser de l'argent"
@@ -225,6 +241,7 @@
   "pamspotlight.title": "Pam Gère les Détails — Vous Profitez du Voyage",
   "pamspotlight.description": "Laissez Pam gérer les détails—planification d'itinéraire, suivi des dépenses et rencontres de voyageurs—pour que vous puissiez vous concentrer sur le voyage.",
   "pamspotlight.imageAlt": "Assistant IA PAM - Votre compagnon intelligent pour la planification de voyages en camping-car, optimisant votre itinéraire et suivant vos dépenses",
+  "howitworks.title": "Comment Ça Marche",
   "howitworks.plan_your_trip": "Planifiez Votre Voyage",
   "howitworks.professionalgrade_route_planni": "Planification d'itinéraire de qualité professionnelle pour éviter les erreurs coûteuses",
   "howitworks.financial_security": "Sécurité Financière",
@@ -262,5 +279,42 @@
   "testimonials.s_time_to_get_the_rv_serviced": "Il est temps de faire réviser le camping-car (RV).",
   "testimonials.james_t": "James T.",
   "testimonials.fulltime_rver_72": "Camping-cariste à temps plein, 72 ans",
-  "testimonials.i_was_hesitant_about_using_an_": "J'étais hésitant à utiliser un assistant IA à mon âge, mais il est si facile de parler à Pam. Elle"
+  "testimonials.i_was_hesitant_about_using_an_": "J'étais hésitant à utiliser un assistant IA à mon âge, mais il est si facile de parler à Pam. Elle",
+  "featuredproduct": {
+    "title": "Créez des Vidéos de Voyage Amusantes pour Amis et Famille",
+    "description": "Apprenez à filmer, monter et partager vos aventures en utilisant uniquement votre smartphone.",
+    "price": "97 $",
+    "button": "Voir le Cours →"
+  },
+  "testimonials2": {
+    "title": "Pourquoi les Voyageurs Aiment Pam",
+    "subtitle": "Rejoignez des milliers de voyageurs qui ont découvert des voyages plus faciles et agréables",
+    "margaret": {
+      "name": "Margaret R.",
+      "location": "Nomade Retraitée, 68 ans",
+      "quote": "Pam est ma compagne de voyage depuis 6 mois maintenant. Elle m'a aidée à planifier des itinéraires qui évitent la circulation dense et trouve les restaurants les plus confortables en chemin."
+    },
+    "robert_linda": {
+      "name": "Robert et Linda",
+      "location": "Snowbirds du Canada",
+      "quote": "Nous adorons la façon dont Pam suit nos dépenses. Fini les feuilles de calcul ! Elle nous rappelle même quand il est temps de faire réviser le VR."
+    },
+    "james": {
+      "name": "James T.",
+      "location": "VRiste à Temps Plein, 72 ans",
+      "quote": "J'hésitais à utiliser un assistant IA à mon âge, mais Pam est si facile à utiliser. Elle m'a aidé à me connecter avec d'autres voyageurs dans chaque nouvelle ville."
+    }
+  },
+  "calltoaction": {
+    "title": "Rejoignez Wheels and Wins Aujourd'hui",
+    "description": "Rejoignez Wheels and Wins aujourd'hui : profitez d'une planification sans stress et d'une communauté solidaire.",
+    "button": "Commencer l'Essai Gratuit",
+    "nocreditcard": "Aucune carte de crédit requise. Annulez à tout moment."
+  },
+  "footer": {
+    "copyright": "Wheels and Wins. Tous droits réservés.",
+    "terms": "Conditions d'Utilisation",
+    "privacy": "Politique de Confidentialité",
+    "cookies": "Politique des Cookies"
+  }
 }
