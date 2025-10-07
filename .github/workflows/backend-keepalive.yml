@@ -1,0 +1,56 @@
+name: Backend Keepalive
+
+on:
+  schedule:
+    # Run every 10 minutes to prevent Render cold starts
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        backend:
+          - name: Staging
+            url: https://wheels-wins-backend-staging.onrender.com/api/health
+          - name: Production
+            url: https://pam-backend.onrender.com/api/health
+
+    steps:
+      - name: Ping ${{ matrix.backend.name }} Backend
+        run: |
+          echo "🏓 Pinging ${{ matrix.backend.name }} backend..."
+
+          # Make request with timeout
+          RESPONSE=$(curl -s -w "\n%{http_code}\n%{time_total}" \
+            --max-time 30 \
+            ${{ matrix.backend.url }})
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n 2 | head -n 1)
+          TIME=$(echo "$RESPONSE" | tail -n 1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response Time: ${TIME}s"
+
+          # Check if healthy
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ ${{ matrix.backend.name }} backend is healthy"
+          else
+            echo "⚠️ ${{ matrix.backend.name }} backend returned status $HTTP_CODE"
+            exit 1
+          fi
+
+          # Warn if slow (possible cold start)
+          if (( $(echo "$TIME > 5.0" | bc -l) )); then
+            echo "⚠️ Slow response (${TIME}s) - possible cold start"
+          fi
+
+      - name: Report Status
+        if: always()
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ Keepalive successful for ${{ matrix.backend.name }}"
+          else
+            echo "❌ Keepalive failed for ${{ matrix.backend.name }}"
+          fi

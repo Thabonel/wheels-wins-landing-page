@@ -356,10 +356,37 @@ class PamService {
     const startTime = Date.now();
     this.metrics.requestCount++;
 
-    // Try WebSocket first, then fallback to REST
+    // Detect potential cold start (Render free tier spins down after inactivity)
+    const coldStartThreshold = 3000; // 3 seconds
+    let coldStartWarningShown = false;
+
+    // Show cold start warning if response takes >3s
+    const coldStartTimer = setTimeout(() => {
+      if (!coldStartWarningShown) {
+        coldStartWarningShown = true;
+        console.warn('⏰ PAM is taking longer than usual - backend may be waking up from idle (Render cold start)');
+        // Emit event for UI to show "Waking up PAM..." message
+        this.updateStatus({
+          lastError: 'cold_start_detected',
+          healthScore: this.status.healthScore
+        });
+      }
+    }, coldStartThreshold);
+
     try {
-      return await this.sendMessageViaWebSocket(message, startTime);
+      // Try WebSocket first, then fallback to REST
+      const response = await this.sendMessageViaWebSocket(message, startTime);
+      clearTimeout(coldStartTimer);
+
+      // Log cold start if it occurred
+      const latency = Date.now() - startTime;
+      if (latency > coldStartThreshold) {
+        console.warn(`🐌 Cold start detected: ${latency}ms (${(latency/1000).toFixed(1)}s)`);
+      }
+
+      return response;
     } catch (error) {
+      clearTimeout(coldStartTimer);
       logger.warn('⚠️ WebSocket failed, trying REST API fallback:', error);
       return await this.sendMessageViaRest(message, startTime);
     }

@@ -89,6 +89,21 @@ logger = logging.getLogger(__name__)
 class PAM:
     """The AI brain of Wheels & Wins"""
 
+    # Class-level tool definitions (built once, reused for all instances)
+    # PERFORMANCE: Huge optimization - tools are 12,000+ tokens, building them once saves ~100ms per init
+    _TOOLS_CACHE = None
+
+    @classmethod
+    def _get_tools(cls) -> List[Dict[str, Any]]:
+        """Get cached tool definitions (built once, reused forever)"""
+        if cls._TOOLS_CACHE is None:
+            import time
+            start = time.time()
+            cls._TOOLS_CACHE = cls._build_tools_schema()
+            elapsed_ms = (time.time() - start) * 1000
+            logger.info(f"Built tool definitions cache: {len(cls._TOOLS_CACHE)} tools in {elapsed_ms:.1f}ms")
+        return cls._TOOLS_CACHE
+
     def __init__(self, user_id: str, user_language: str = "en"):
         """
         Initialize PAM for a specific user
@@ -97,6 +112,9 @@ class PAM:
             user_id: UUID of the user this PAM instance serves
             user_language: User's preferred language (en, es, fr)
         """
+        import time
+        init_start = time.time()
+
         self.user_id = user_id
         self.user_language = user_language
 
@@ -115,10 +133,11 @@ class PAM:
         # System prompt (defines PAM's behavior)
         self.system_prompt = self._build_system_prompt()
 
-        # Tool registry (simple - just Claude function definitions)
-        self.tools = self._build_tools()
+        # Tool registry (use cached class-level definitions)
+        self.tools = self._get_tools()
 
-        logger.info(f"PAM initialized for user {user_id} with {len(self.tools)} tools, language: {user_language}")
+        init_time_ms = (time.time() - init_start) * 1000
+        logger.info(f"PAM initialized for user {user_id} with {len(self.tools)} tools, language: {user_language} ({init_time_ms:.1f}ms)")
 
     def _build_system_prompt(self) -> str:
         """
@@ -175,10 +194,12 @@ You can:
 
 Remember: You're here to help RVers travel smarter and save money. Be helpful, be secure, be awesome."""
 
-    def _build_tools(self) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _build_tools_schema() -> List[Dict[str, Any]]:
         """
         Build Claude function calling tool definitions
 
+        PERFORMANCE: This is called once and cached at class level.
         Simple approach - no lazy loading, just define all tools directly.
         """
         return [
@@ -803,12 +824,16 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
         3. Send tool result back to Claude
         4. Get final response
         """
+        import time
         try:
             # Use filtered tools if provided, otherwise use all tools
             tools_to_use = filtered_tools if filtered_tools is not None else self.tools
 
             # Call Claude with tools and prompt caching
             # Cache the system prompt and tools (they don't change per request)
+            claude_start = time.time()
+            logger.info(f"🧠 Calling Claude API with {len(tools_to_use)} tools...")
+
             response = await self.client.messages.create(
                 model=self.model,
                 max_tokens=2048,
@@ -822,6 +847,9 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                 messages=messages,
                 tools=tools_to_use
             )
+
+            claude_elapsed_ms = (time.time() - claude_start) * 1000
+            logger.info(f"✅ Claude API response received in {claude_elapsed_ms:.1f}ms")
 
             # Check if Claude wants to use tools
             if response.stop_reason == "tool_use":
