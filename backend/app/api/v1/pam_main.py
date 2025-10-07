@@ -1100,75 +1100,144 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         
         # Load financial context from cache/database for enhanced PAM responses
         try:
-            financial_context = await financial_context_service.get_user_financial_context(user_id)
-            if financial_context:
-                context["financial_context"] = {
-                    "expenses": {
-                        "total_amount": financial_context.expenses.total_amount,
-                        "transaction_count": financial_context.expenses.transaction_count,
-                        "categories": financial_context.expenses.categories,
-                        "average_daily": financial_context.expenses.average_daily
-                    },
-                    "budgets": {
-                        "total_budget": financial_context.budgets.total_budget,
-                        "remaining_budget": financial_context.budgets.remaining_budget,
-                        "budget_utilization": financial_context.budgets.budget_utilization,
-                        "over_budget_categories": financial_context.budgets.over_budget_categories
-                    },
-                    "context_summary": {
-                        "has_recent_expenses": financial_context.expenses.transaction_count > 0,
-                        "has_active_budgets": financial_context.budgets.total_budget > 0,
-                        "financial_health_score": calculate_financial_health_score(financial_context)
+            import time
+            financial_start = time.time()
+
+            # Try Redis cache first
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"pam:financial:{user_id}"
+
+            financial_data = await cache.get(cache_key)
+
+            if financial_data:
+                logger.info(f"💰 [CACHE HIT] Financial context from Redis in {(time.time()-financial_start)*1000:.1f}ms")
+                context["financial_context"] = financial_data
+            else:
+                # Cache miss - load from database
+                financial_context = await financial_context_service.get_user_financial_context(user_id)
+                if financial_context:
+                    financial_data = {
+                        "expenses": {
+                            "total_amount": financial_context.expenses.total_amount,
+                            "transaction_count": financial_context.expenses.transaction_count,
+                            "categories": financial_context.expenses.categories,
+                            "average_daily": financial_context.expenses.average_daily
+                        },
+                        "budgets": {
+                            "total_budget": financial_context.budgets.total_budget,
+                            "remaining_budget": financial_context.budgets.remaining_budget,
+                            "budget_utilization": financial_context.budgets.budget_utilization,
+                            "over_budget_categories": financial_context.budgets.over_budget_categories
+                        },
+                        "context_summary": {
+                            "has_recent_expenses": financial_context.expenses.transaction_count > 0,
+                            "has_active_budgets": financial_context.budgets.total_budget > 0,
+                            "financial_health_score": calculate_financial_health_score(financial_context)
+                        }
                     }
-                }
-                logger.info(f"💰 [CACHE] Financial context loaded for user {user_id}")
+                    context["financial_context"] = financial_data
+
+                    # Cache for 5 minutes (300 seconds)
+                    await cache.set(cache_key, financial_data, ttl=300)
+
+                    elapsed_ms = (time.time() - financial_start) * 1000
+                    logger.info(f"💰 [CACHE MISS] Financial context from DB in {elapsed_ms:.1f}ms (cached for 5 min)")
         except Exception as e:
             logger.error(f"❌ [CACHE] Error loading financial context: {e}")
             # Continue without financial context - don't block chat
         
         # Load user profile to ensure PAM has access to vehicle and travel info
         try:
-            from app.services.pam.tools.load_user_profile import LoadUserProfileTool
-            profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
-            profile_result = await profile_tool.execute(user_id)
-            
-            if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
-                user_profile = profile_result["result"]
+            import time
+            profile_start = time.time()
+
+            # Try Redis cache first
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"pam:profile:{user_id}"
+
+            cached_profile = await cache.get(cache_key)
+
+            if cached_profile:
+                logger.info(f"👤 [CACHE HIT] Profile from Redis in {(time.time()-profile_start)*1000:.1f}ms")
+                user_profile = cached_profile
                 context["user_profile"] = user_profile
                 context["vehicle_info"] = user_profile.get("vehicle_info", {})
                 context["travel_preferences"] = user_profile.get("travel_preferences", {})
                 context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
-                
-                # Log vehicle info for debugging Unimog recognition
-                vehicle_info = user_profile.get("vehicle_info", {})
-                logger.info(f"🚐 [PROFILE] Vehicle loaded: {vehicle_info.get('type', 'unknown')} - {vehicle_info.get('make_model_year', 'N/A')}")
-                logger.info(f"🚐 [PROFILE] Is RV: {vehicle_info.get('is_rv', False)}")
             else:
-                logger.info(f"👤 [PROFILE] No profile found for user {user_id}")
+                # Cache miss - load from database
+                from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+                profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
+                profile_result = await profile_tool.execute(user_id)
+
+                if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
+                    user_profile = profile_result["result"]
+                    context["user_profile"] = user_profile
+                    context["vehicle_info"] = user_profile.get("vehicle_info", {})
+                    context["travel_preferences"] = user_profile.get("travel_preferences", {})
+                    context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
+
+                    # Cache for 10 minutes (600 seconds) - profiles change less frequently
+                    await cache.set(cache_key, user_profile, ttl=600)
+
+                    elapsed_ms = (time.time() - profile_start) * 1000
+                    # Log vehicle info for debugging Unimog recognition
+                    vehicle_info = user_profile.get("vehicle_info", {})
+                    logger.info(f"🚐 [CACHE MISS] Profile from DB in {elapsed_ms:.1f}ms (cached for 10 min)")
+                    logger.info(f"🚐 [PROFILE] Vehicle loaded: {vehicle_info.get('type', 'unknown')} - {vehicle_info.get('make_model_year', 'N/A')}")
+                    logger.info(f"🚐 [PROFILE] Is RV: {vehicle_info.get('is_rv', False)}")
+                else:
+                    logger.info(f"👤 [PROFILE] No profile found for user {user_id}")
         except Exception as e:
             logger.error(f"❌ [PROFILE] Error loading user profile: {e}")
             # Continue without profile - don't block chat
         
         # Load social context to enable friend meetup suggestions during travel
         try:
-            from app.services.pam.tools.load_social_context import LoadSocialContextTool
-            social_tool = LoadSocialContextTool()
-            social_result = await social_tool.execute(user_id)
-            
-            if social_result.get("success") and social_result.get("result"):
-                social_context = social_result["result"]
+            import time
+            social_start = time.time()
+
+            # Try Redis cache first
+            from app.services.cache_service import get_cache
+            cache = await get_cache()
+            cache_key = f"pam:social:{user_id}"
+
+            cached_social = await cache.get(cache_key)
+
+            if cached_social:
+                logger.info(f"🤝 [CACHE HIT] Social context from Redis in {(time.time()-social_start)*1000:.1f}ms")
+                social_context = cached_social
                 context["social_context"] = social_context
                 context["friends_nearby"] = social_context.get("friend_locations", {})
                 context["upcoming_events"] = social_context.get("nearby_events", {})
                 context["friend_travel_activity"] = social_context.get("friend_travel_activity", {})
-                
-                # Log social context for debugging
-                friends_count = social_context.get("friends", {}).get("count", 0)
-                locations_count = social_context.get("friend_locations", {}).get("count", 0)
-                events_count = social_context.get("nearby_events", {}).get("count", 0)
-                logger.info(f"🤝 [SOCIAL] Loaded: {friends_count} friends, {locations_count} recent locations, {events_count} events")
             else:
-                logger.info(f"🤝 [SOCIAL] No social context available for user {user_id}")
+                # Cache miss - load from database
+                from app.services.pam.tools.load_social_context import LoadSocialContextTool
+                social_tool = LoadSocialContextTool()
+                social_result = await social_tool.execute(user_id)
+
+                if social_result.get("success") and social_result.get("result"):
+                    social_context = social_result["result"]
+                    context["social_context"] = social_context
+                    context["friends_nearby"] = social_context.get("friend_locations", {})
+                    context["upcoming_events"] = social_context.get("nearby_events", {})
+                    context["friend_travel_activity"] = social_context.get("friend_travel_activity", {})
+
+                    # Cache for 5 minutes (300 seconds) - social updates frequently
+                    await cache.set(cache_key, social_context, ttl=300)
+
+                    elapsed_ms = (time.time() - social_start) * 1000
+                    # Log social context for debugging
+                    friends_count = social_context.get("friends", {}).get("count", 0)
+                    locations_count = social_context.get("friend_locations", {}).get("count", 0)
+                    events_count = social_context.get("nearby_events", {}).get("count", 0)
+                    logger.info(f"🤝 [CACHE MISS] Social context from DB in {elapsed_ms:.1f}ms (cached for 5 min)")
+                    logger.info(f"🤝 [SOCIAL] Loaded: {friends_count} friends, {locations_count} recent locations, {events_count} events")
+                else:
+                    logger.info(f"🤝 [SOCIAL] No social context available for user {user_id}")
         except Exception as e:
             logger.error(f"❌ [SOCIAL] Error loading social context: {e}")
             # Continue without social context - don't block chat
