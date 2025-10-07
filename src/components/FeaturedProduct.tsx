@@ -1,9 +1,11 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Video } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const FeaturedProduct = () => {
+  const { t } = useTranslation();
+
   return (
     <section className="py-20 bg-white">
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -15,24 +17,24 @@ const FeaturedProduct = () => {
                   <Video className="w-12 h-12 text-accent-foreground" />
                 </div>
               </div>
-              
+
               <div className="w-full md:w-3/4">
                 <h2 className="text-2xl md:text-3xl font-bold mb-3">
-                  Make Fun Travel Videos for Friends & Family
+                  {t('featuredproduct.title')}
                 </h2>
-                
+
                 <p className="text-lg mb-6">
-                  Learn to film, edit, and share adventures using just your smartphone.
+                  {t('featuredproduct.description')}
                 </p>
-                
+
                 <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <span className="text-2xl font-bold text-primary">$97</span>
-                  <Button 
+                  <span className="text-2xl font-bold text-primary">{t('featuredproduct.price')}</span>
+                  <Button
                     className="font-semibold"
                     size="lg"
                     onClick={() => window.open('https://videocourse.wheelsandwins.com', '_blank')}
                   >
-                    View Course →
+                    {t('featuredproduct.button')}
                   </Button>
                 </div>
               </div>

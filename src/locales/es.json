@@ -33,6 +33,22 @@
     },
     "features": {
       "title": "Todo lo Que Necesitas para la Vida en el Camino",
+      "track_budget": {
+        "title": "Rastrea Tu Presupuesto de Viaje",
+        "description": "Gestiona fácilmente los gastos específicos de la vida en el camino, desde costos de combustible hasta tarifas de campamento."
+      },
+      "plan_routes": {
+        "title": "Planifica Rutas Perfectas",
+        "description": "Descubre destinos pintorescos, joyas ocultas y paradas amigables para RV en tu viaje."
+      },
+      "connect_travelers": {
+        "title": "Conéctate con Otros Viajeros",
+        "description": "Únete a una comunidad de roadtrippers experimentados que comparten consejos, historias y encuentros."
+      },
+      "ai_companion": {
+        "title": "Compañero de Viaje IA",
+        "description": "Pregúntale a Pam cualquier duda de viaje y obtén recomendaciones personalizadas para tu aventura."
+      },
       "pam": {
         "title": "PAM - Tu Asistente IA",
         "description": "IA activada por voz que ayuda con presupuestos, planificación de viajes y te ahorra dinero"
@@ -225,6 +241,7 @@
   "pamspotlight.title": "Pam se Encarga de los Detalles — Tú Disfrutas del Viaje",
   "pamspotlight.description": "Deja que Pam se encargue de los detalles—planificación de rutas, seguimiento de gastos y reuniones de viajeros—para que puedas concentrarte en el viaje.",
   "pamspotlight.imageAlt": "Asistente de IA PAM - Tu compañero inteligente de planificación de viajes en RV para optimización de rutas y seguimiento de gastos",
+  "howitworks.title": "Cómo Funciona",
   "howitworks.plan_your_trip": "Planifica Tu Viaje",
   "howitworks.professionalgrade_route_planni": "Planificación de rutas de nivel profesional para evitar errores costosos",
   "howitworks.financial_security": "Seguridad Financiera",
@@ -262,5 +279,42 @@
   "testimonials.s_time_to_get_the_rv_serviced": "Es hora de darle servicio a la RV.",
   "testimonials.james_t": "James T.",
   "testimonials.fulltime_rver_72": "RVero de tiempo completo, 72 años",
-  "testimonials.i_was_hesitant_about_using_an_": "Tenía dudas sobre usar un asistente de IA a mi edad, pero es muy fácil hablar con Pam. Ella"
+  "testimonials.i_was_hesitant_about_using_an_": "Tenía dudas sobre usar un asistente de IA a mi edad, pero es muy fácil hablar con Pam. Ella",
+  "featuredproduct": {
+    "title": "Crea Videos de Viaje Divertidos para Amigos y Familia",
+    "description": "Aprende a filmar, editar y compartir aventuras usando solo tu smartphone.",
+    "price": "$97",
+    "button": "Ver Curso →"
+  },
+  "testimonials2": {
+    "title": "Por Qué los Viajeros Aman a Pam",
+    "subtitle": "Únete a miles de viajeros que han descubierto viajes más fáciles y agradables",
+    "margaret": {
+      "name": "Margaret R.",
+      "location": "Nómada Jubilada, 68",
+      "quote": "Pam ha sido mi compañera de viaje durante 6 meses. Me ha ayudado a planificar rutas que evitan el tráfico pesado y encuentra los restaurantes más acogedores en el camino."
+    },
+    "robert_linda": {
+      "name": "Robert y Linda",
+      "location": "Snowbirds de Canadá",
+      "quote": "Nos encanta cómo Pam rastrea nuestros gastos. ¡No más hojas de cálculo! Incluso nos recuerda cuándo es hora de dar servicio al RV."
+    },
+    "james": {
+      "name": "James T.",
+      "location": "RVero de Tiempo Completo, 72",
+      "quote": "Tenía dudas sobre usar un asistente de IA a mi edad, pero Pam es muy fácil de usar. Me ha ayudado a conectarme con otros viajeros en cada ciudad nueva."
+    }
+  },
+  "calltoaction": {
+    "title": "Únete a Wheels and Wins Hoy",
+    "description": "Únete a Wheels and Wins hoy: disfruta de planificación sin estrés y una comunidad solidaria.",
+    "button": "Comienza la Prueba Gratuita",
+    "nocreditcard": "No se requiere tarjeta de crédito. Cancela en cualquier momento."
+  },
+  "footer": {
+    "copyright": "Wheels and Wins. Todos los derechos reservados.",
+    "terms": "Términos de Servicio",
+    "privacy": "Política de Privacidad",
+    "cookies": "Política de Cookies"
+  }
 }
