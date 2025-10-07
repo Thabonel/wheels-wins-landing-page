@@ -316,5 +316,36 @@
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "cookies": "Cookie Policy"
+  },
+  "pricing": {
+    "title": "Choose Your Plan",
+    "subtitle": "Select the perfect plan for your journey. Start with a free trial on any plan.",
+    "currency_note": "Prices shown in {{currency}}",
+    "processing": "Processing...",
+    "free_trial": {
+      "badge": "Free Trial",
+      "title": "First Month Free",
+      "description": "Try before you commit",
+      "duration": "for 30 days",
+      "feature1": "Full access to our platform and community",
+      "feature2": "Video Course not included",
+      "button": "Get Started"
+    },
+    "monthly": {
+      "title": "Monthly Membership",
+      "description": "Full access to our platform and community",
+      "period": "/month",
+      "feature1": "Full access to our platform and community",
+      "button": "Select Plan"
+    },
+    "annual": {
+      "badge": "Best Value",
+      "title": "Annual Membership",
+      "description": "Best value - just $8.25/month plus get the $97 Video Course FREE",
+      "period": "/year",
+      "feature1": "Full access to our platform and community",
+      "feature2": "Includes Video Course ({{value}} value)",
+      "button": "Select Plan"
+    }
   }
 }

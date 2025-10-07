@@ -316,5 +316,36 @@
     "terms": "Términos de Servicio",
     "privacy": "Política de Privacidad",
     "cookies": "Política de Cookies"
+  },
+  "pricing": {
+    "title": "Elige Tu Plan",
+    "subtitle": "Selecciona el plan perfecto para tu viaje. Comienza con una prueba gratuita en cualquier plan.",
+    "currency_note": "Precios mostrados en {{currency}}",
+    "processing": "Procesando...",
+    "free_trial": {
+      "badge": "Prueba Gratuita",
+      "title": "Primer Mes Gratis",
+      "description": "Prueba antes de comprometerte",
+      "duration": "por 30 días",
+      "feature1": "Acceso completo a nuestra plataforma y comunidad",
+      "feature2": "Video Curso no incluido",
+      "button": "Comenzar"
+    },
+    "monthly": {
+      "title": "Membresía Mensual",
+      "description": "Acceso completo a nuestra plataforma y comunidad",
+      "period": "/mes",
+      "feature1": "Acceso completo a nuestra plataforma y comunidad",
+      "button": "Seleccionar Plan"
+    },
+    "annual": {
+      "badge": "Mejor Valor",
+      "title": "Membresía Anual",
+      "description": "Mejor valor - solo $8.25/mes más el Video Curso de $97 GRATIS",
+      "period": "/año",
+      "feature1": "Acceso completo a nuestra plataforma y comunidad",
+      "feature2": "Incluye Video Curso (valor {{value}})",
+      "button": "Seleccionar Plan"
+    }
   }
 }
