@@ -36,6 +36,68 @@ npm run lint             # ESLint
 npm run type-check       # TypeScript validation
 ```
 
+## 🧹 Dead Code Analysis & Cleanup (October 2025)
+
+### Knip - Dead Code Detector
+**Status**: Installed in devDependencies only (NEVER deploys to production)
+**Version**: v5.64.2
+**License**: ISC (free, open-source)
+
+**What Knip Does:**
+- Static analysis to detect unused files, exports, types, dependencies
+- October 8, 2025 baseline: 288 unused files (33.8% of frontend)
+- Used ONLY in development/staging environments
+- Results excluded from git (.gitignore)
+
+**Key Files:**
+- `knip.json` - Configuration for TypeScript scanning
+- `BASELINE_METRICS.md` - October 8, 2025 snapshot before cleanup
+- `MONITORING_PERIOD_OCT_8_22.md` - 2-week monitoring plan
+- `docs/CLEANUP_SAFETY_PROTOCOL.md` - Safety rules and incident log
+
+**Commands:**
+```bash
+# Run Knip scan (development only)
+npx knip
+
+# Analyze results
+./scripts/analyze-knip-results.sh
+
+# View baseline metrics
+cat BASELINE_METRICS.md
+```
+
+### Production Usage Tracking (Oct 8-22, 2025)
+**Purpose:** Collect real production data before ANY code deletion
+
+**Backend Tracking:**
+- Middleware: `backend/app/middleware/usage_tracker.py`
+- Storage: Redis (30-day retention)
+- Tracks: Endpoint paths, call counts, timestamps
+- API: `/api/v1/usage-tracking/stats?days=14`
+
+**Frontend Tracking:**
+- Utility: `src/utils/usageTracking.ts`
+- Storage: localStorage (production only)
+- Tracks: Component render counts, timestamps
+- Export: `exportUsageData()` function in browser console
+
+**Safety Protocol:**
+⛔ **DO NOT DELETE ANY CODE until October 22, 2025**
+⛔ **DO NOT delete files flagged by Knip without cross-referencing usage logs**
+⛔ **Maximum 5 files per deployment** (micro-batch deletions only)
+
+**Critical Lessons from Cleanup Incidents:**
+1. **Incident #1 (Oct 8):** Deleted `pam_simple.py` → PAM outage → Restored
+2. **Incident #2 (Oct 8):** Cleanup exposed orchestrator naming bug → Fixed in 15min
+3. **Key takeaway:** Static analysis reveals latent bugs (GOOD), but need integration tests first
+
+**Next Steps (After Oct 22):**
+1. Export production usage logs
+2. Cross-reference Knip results with zero-usage files
+3. Create deletion plan (5 files max per batch)
+4. Test each batch thoroughly before next deletion
+
 ## 🛡️ Git Safety Systems (IMPORTANT FOR ALL SESSIONS)
 
 ### Available Git Safety Tools
