@@ -32,6 +32,12 @@ REPO_HEALTH_CHECK.md
 scripts/git-safe-config
 git-safety-functions.sh
 
+# Knip Dead Code Analysis (Development Only - DO NOT COMMIT)
+knip-*.json
+knip-scan.json
+knip-initial-scan.json
+.knip-cache/
+
 # 🔒 Security & Secrets Prevention (DO NOT COMMIT)
 # Environment files with potential secrets
 *.env*

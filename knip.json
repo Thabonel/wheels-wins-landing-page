@@ -1,0 +1,22 @@
+{
+  "entry": [
+    "src/main.tsx",
+    "src/App.tsx"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}"
+  ],
+  "ignore": [
+    "**/__tests__/**",
+    "**/*.test.{ts,tsx}",
+    "**/*.spec.{ts,tsx}",
+    "**/dist/**",
+    "**/build/**",
+    "**/node_modules/**",
+    "launch-preparation/**",
+    "backups/**",
+    "backend/**"
+  ],
+  "ignoreDependencies": [],
+  "ignoreBinaries": []
+}
