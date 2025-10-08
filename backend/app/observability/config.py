@@ -46,6 +46,7 @@ class ObservabilityConfig:
         self.langfuse_client: Optional[Langfuse] = None
         self.tracer = None
         self._initialized = False
+        self.agentops_initialized = False  # AgentOps removed, always False
 
     def is_enabled(self) -> bool:
         """Check if observability is enabled"""
