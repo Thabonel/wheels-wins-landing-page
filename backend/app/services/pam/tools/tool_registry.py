@@ -657,25 +657,25 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Mapbox tool registration failed: {e}")
         failed_count += 1
     
-    # Weather Tool - Essential for RV trip planning
+    # Weather Tool - FREE OpenMeteo API (no API key required!)
     try:
-        logger.debug("🔄 Attempting to register Weather tool...")
-        WeatherTool = lazy_import("app.services.pam.tools.weather_tool", "WeatherTool")
+        logger.debug("🔄 Attempting to register Weather tool (FREE OpenMeteo)...")
+        OpenMeteoWeatherTool = lazy_import("app.services.pam.tools.openmeteo_weather_tool", "OpenMeteoWeatherTool")
 
-        if WeatherTool is None:
-            raise ImportError("WeatherTool not available")
+        if OpenMeteoWeatherTool is None:
+            raise ImportError("OpenMeteoWeatherTool not available")
 
         registry.register_tool(
-            tool=WeatherTool(),
+            tool=OpenMeteoWeatherTool(),
             function_definition={
                 "name": "weather_advisor",
-                "description": "Get current weather conditions, forecasts, and RV travel conditions for locations. Essential for trip planning and safety.",
+                "description": "Get current weather conditions, forecasts, and RV travel conditions for locations. Essential for trip planning and safety. Uses FREE OpenMeteo API (no API key required).",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "action": {
                             "type": "string",
-                            "enum": ["get_current", "get_forecast", "get_alerts", "check_travel_conditions", "get_route_weather"],
+                            "enum": ["get_current", "get_forecast", "check_travel_conditions", "get_route_weather"],
                             "description": "Weather action to perform"
                         },
                         "location": {
@@ -700,13 +700,13 @@ async def _register_all_tools(registry: ToolRegistry):
                             "description": "List of locations along a route for route weather"
                         }
                     },
-                    "required": ["action"]
+                    "required": ["action", "location"]
                 }
             },
             capability=ToolCapability.WEATHER,
             priority=1
         )
-        logger.info("✅ Weather tool registered")
+        logger.info("✅ Weather tool registered (FREE OpenMeteo API)")
         registered_count += 1
 
     except ImportError as e:
