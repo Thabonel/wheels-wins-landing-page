@@ -286,3 +286,88 @@ curl https://wheels-wins-backend-staging.onrender.com/api/health
 ---
 
 **Bottom Line:** When in doubt, keep it. A little "dead code" is infinitely better than a broken production system.
+
+---
+
+## 📝 Incident Log
+
+### Incident #2: Orchestrator Naming Bug (October 8, 2025)
+
+**What Happened:**
+- Cleanup exposed latent bug in `pam_main.py`
+- Bug: Line 2284 called `Depends(get_pam_orchestrator)` but function didn't exist
+- Actual function: `get_enhanced_orchestrator()` in `enhanced_orchestrator.py`
+- Result: All PAM chat requests returned HTTP 500 errors
+
+**Root Cause:**
+- Naming mismatch between endpoint dependency and actual function
+- Bug existed for 6+ days but never triggered (different endpoint was active)
+- Cleanup changed which endpoints were called, exposing the bug
+
+**Resolution:**
+- Added alias function `get_pam_orchestrator()` → `get_enhanced_orchestrator()`
+- Fixed in commit 2dd85f57
+- Recovery time: 15 minutes
+
+**Key Lessons:**
+
+1. **Cleanup Can Expose Latent Bugs (This is GOOD)**
+   - Static analysis reveals issues static testing missed
+   - Better to find bugs in staging than production
+   - Exposed bugs = opportunity to fix before they impact users
+
+2. **Need Integration Tests for Critical Paths**
+   - NO tests existed for PAM WebSocket endpoints
+   - NO tests for visual actions service
+   - NO tests for orchestrator dependency injection
+   - **Action item:** Add integration tests BEFORE future cleanups
+
+3. **Critical Features Need Documentation**
+   - Visual actions = CRITICAL user requirement
+   - Only integrated in pam_main.py
+   - Was not documented anywhere
+   - **Action item:** Create `CRITICAL_DEPENDENCIES.md` registry
+
+4. **File Headers Prevent Confusion**
+   - 4 PAM implementations running simultaneously
+   - Only 1 actually used by frontend
+   - No way to know which without deep code analysis
+   - **Action item:** Added deprecation warnings to unused PAM files (completed)
+
+**New Safety Rules Added:**
+
+1. ✅ **Add Deprecation Headers to Unused Files**
+   - Mark files as "DEPRECATED - NOT IN USE"
+   - Document which file IS active
+   - Explain what's missing (e.g., "No visual actions")
+   - Update verification date
+
+2. ✅ **Create Critical Dependencies Registry**
+   - Document must-preserve features (visual actions, voice, etc.)
+   - Map features to implementation files
+   - Flag files that cannot be deleted without migration plan
+
+3. ✅ **Integration Tests Before Cleanup**
+   - Test ALL critical user flows
+   - Test with real authentication
+   - Test visual actions (all 7 types)
+   - Test WebSocket + REST endpoints
+
+4. ✅ **Monitor Error Rates Post-Deploy**
+   - Check for HTTP 500 spikes
+   - Validate no regression in response times
+   - Confirm health checks pass
+   - Wait 24 hours before next batch
+
+**Files Updated:**
+- `backend/app/api/v1/pam_simple.py` - Added deprecation header
+- `backend/app/api/v1/pam_simple_with_tools.py` - Added deprecation header
+- `backend/app/services/pam/core/pam.py` - Added library usage notice
+- `backend/app/services/pam/enhanced_orchestrator.py` - Added alias function
+
+**Status:** ✅ RESOLVED - System operational, lessons documented
+
+---
+
+**Updated:** October 8, 2025
+**Next Review:** After 2-week monitoring period (October 22, 2025)
