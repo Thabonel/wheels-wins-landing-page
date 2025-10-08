@@ -1,4 +1,29 @@
 """
+⚠️ DEPRECATED - NOT IN USE ⚠️
+
+This weather tool has been REPLACED by openmeteo_weather_tool.py
+
+Reason for replacement:
+- OpenWeatherMap requires API key ($40/month cost)
+- This file has a runtime bug: "name 'result' is not defined"
+- Replacement uses FREE OpenMeteo API (no API key, no cost)
+- Replacement is fully functional and tested ✅
+
+Current active weather tool: app/services/pam/tools/openmeteo_weather_tool.py
+  - Tool name: weather_advisor
+  - API: OpenMeteo (European Weather Service)
+  - Cost: $0 (FREE)
+  - Status: Working ✅
+
+Flagged for deletion: October 8, 2025
+Monitoring period: October 8-22, 2025
+Will be deleted if zero usage confirmed after monitoring period.
+
+Last verified: October 8, 2025
+
+---
+
+ORIGINAL DOCUMENTATION (for reference):
 Weather API Integration Tool for PAM
 Provides weather forecasts, alerts, and trip weather planning
 """
