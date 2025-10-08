@@ -25,6 +25,7 @@ class ErrorCode(Enum):
     PAM_ORCHESTRATOR_ERROR = "pam_orchestrator_error"
     PAM_SERVICE_UNAVAILABLE = "pam_service_unavailable"
     PAM_TIMEOUT = "pam_timeout"
+    EXTERNAL_SERVICE_UNAVAILABLE = "external_service_unavailable"
     
     # WebSocket errors
     WEBSOCKET_CONNECTION_ERROR = "websocket_connection_error"
