@@ -1,4 +1,24 @@
 """
+⚠️ DEPRECATED - NOT IN USE ⚠️
+
+This PAM implementation is NOT currently used by the frontend.
+
+Current active PAM: backend/app/api/v1/pam_main.py
+  - Endpoints: /api/v1/pam/chat, /api/v1/pam/ws
+  - Features: Visual actions, voice, 40 tools, rate limiting
+
+This file (pam_simple_with_tools.py):
+  - Endpoints: /api/v1/pam-simple/* (CONFLICTS with pam_simple.py!)
+  - Missing: Visual actions (CRITICAL user requirement)
+  - Status: Barry-inspired architecture, experimental
+
+Do NOT modify this file unless migrating away from pam_main.py.
+See: docs/pam-rebuild-2025/PAM_FINAL_PLAN.md for architecture decisions.
+
+Last verified: October 8, 2025
+
+---
+
 PAM 2.0: Simple Architecture with Full Tool Power
 ==================================================
 

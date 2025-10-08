@@ -1,4 +1,25 @@
 """
+✅ PAM CORE BRAIN - Used as Library (NOT Active Endpoint)
+
+This is NOT a standalone PAM endpoint. It's a reusable brain used by:
+  - backend/app/api/v1/pam_simple.py (wrapper, but NOT currently active)
+
+Current active PAM endpoint: backend/app/api/v1/pam_main.py
+  - pam_main.py does NOT use this core brain
+  - pam_main.py uses EnhancedPamOrchestrator instead
+
+This file provides:
+  - 40 tools (budget, trip, social, shop, profile)
+  - Claude Sonnet 4.5 integration
+  - Prompt caching for 40-60% latency reduction
+
+If modifying, check which files import this:
+  - backend/app/api/v1/pam_simple.py (line 23: from app.services.pam.core import get_pam)
+
+Last verified: October 8, 2025
+
+---
+
 PAM Core - Simple AI Brain for Wheels & Wins
 
 ONE Claude Sonnet 4.5 brain. No routing, no agents, no hybrid complexity.
