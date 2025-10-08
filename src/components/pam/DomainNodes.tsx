@@ -16,7 +16,8 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePamAssistant, usePamDomainAssistant } from '@/hooks/pam/usePamAssistant';
+// TEMP: Disabled during cleanup (used deleted PamContext)
+// import { usePamAssistant, usePamDomainAssistant } from '@/hooks/pam/usePamAssistant';
 import {
   Card,
   CardContent,
@@ -110,7 +111,9 @@ interface DomainNodeCardProps {
 }
 
 const DomainNodeCard: React.FC<DomainNodeCardProps> = ({ node, isActive, onClick }) => {
-  const domainAssistant = usePamDomainAssistant(node.domain);
+  // TEMP: Disabled during cleanup
+  // const domainAssistant = usePamDomainAssistant(node.domain);
+  const domainAssistant = { isAvailable: false, getRecommendations: async () => [], ask: () => {} };
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
 
@@ -247,7 +250,9 @@ export const DomainNodes: React.FC<{
   className?: string;
   compact?: boolean;
 }> = ({ className, compact = false }) => {
-  const { capabilities, isReady } = usePamAssistant();
+  // TEMP: Disabled during cleanup
+  // const { capabilities, isReady } = usePamAssistant();
+  const isReady = false;
   const [activeNode, setActiveNode] = useState<string | null>(null);
 
   if (!isReady) {
