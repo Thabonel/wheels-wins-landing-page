@@ -30,6 +30,8 @@ from app.core.errors import (
     raise_external_service_error, raise_rate_limit_error
 )
 from app.services.pam.intelligent_conversation import AdvancedIntelligentConversation
+from app.services.claude_ai_service import get_claude_ai_service, ClaudeAIService
+from app.services.pam.claude_conversation_adapter import ClaudeConversationAdapter
 
 # Import domain-specific nodes
 from app.services.pam.nodes.wheels_node import wheels_node
@@ -297,23 +299,37 @@ class EnhancedPamOrchestrator:
         """Initialize the intelligent conversation service for AI-powered responses"""
         try:
             logger.info("🧠 Initializing Intelligent Conversation Service...")
-            
-            # Create instance of AdvancedIntelligentConversation
-            self.intelligent_conversation = AdvancedIntelligentConversation()
-            
-            # Initialize the service
-            await self.intelligent_conversation.initialize()
-            
+            logger.info("🎯 Using Claude Sonnet 4.5 as primary AI brain")
+
+            # Try to use Claude AI Service first (preferred)
+            try:
+                claude_service = await get_claude_ai_service()
+                # Wrap Claude service in adapter to match expected interface
+                self.intelligent_conversation = ClaudeConversationAdapter(claude_service)
+                await self.intelligent_conversation.initialize()  # No-op for Claude, but maintains interface
+                logger.info("✅ Using ClaudeAIService (Claude Sonnet 4.5) via adapter")
+                service_type = "claude"
+            except Exception as claude_error:
+                logger.warning(f"⚠️ Claude unavailable ({claude_error}), trying OpenAI fallback...")
+                # Fallback to OpenAI if Claude fails
+                self.intelligent_conversation = AdvancedIntelligentConversation()
+                await self.intelligent_conversation.initialize()
+                logger.info("✅ Using AdvancedIntelligentConversation (OpenAI fallback)")
+                service_type = "openai"
+
             self.service_capabilities["intelligent_conversation"] = ServiceCapability(
                 name="intelligent_conversation",
                 status=ServiceStatus.HEALTHY,
                 confidence=1.0,
                 last_check=datetime.utcnow(),
-                metadata={"capabilities": ["emotional_intelligence", "context_aware", "learning"]}
+                metadata={
+                    "service_type": service_type,
+                    "capabilities": ["emotional_intelligence", "context_aware", "learning"]
+                }
             )
-            
-            logger.info("✅ Intelligent Conversation Service initialized successfully")
-            
+
+            logger.info(f"✅ Intelligent Conversation Service initialized successfully ({service_type})")
+
         except Exception as e:
             logger.error(f"❌ Intelligent Conversation initialization failed: {e}")
             self.service_capabilities["intelligent_conversation"] = ServiceCapability(
