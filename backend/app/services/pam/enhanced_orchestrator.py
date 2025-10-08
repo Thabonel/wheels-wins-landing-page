@@ -2052,3 +2052,9 @@ async def get_enhanced_orchestrator() -> EnhancedPamOrchestrator:
     if not enhanced_orchestrator.is_initialized:
         await enhanced_orchestrator.initialize()
     return enhanced_orchestrator
+
+
+# Alias for backward compatibility (pam_main.py uses this name)
+async def get_pam_orchestrator() -> EnhancedPamOrchestrator:
+    """Alias for get_enhanced_orchestrator - maintains backward compatibility"""
+    return await get_enhanced_orchestrator()
