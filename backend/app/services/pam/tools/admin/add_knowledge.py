@@ -1,14 +1,18 @@
 """
 Admin Knowledge Management Tool - Add Knowledge
 Allows admins to teach PAM new information that will be recalled in future conversations
+
+SECURITY: All knowledge content is validated to prevent prompt injection attacks
 """
 
 import logging
+import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from app.core.database import get_supabase_client
 from app.core.logging import get_logger
+from app.services.pam.security import check_message_safety
 
 logger = get_logger(__name__)
 
@@ -58,6 +62,73 @@ async def add_knowledge(
     """
     try:
         logger.info(f"💡 Admin adding knowledge: '{title}' (type: {knowledge_type}, category: {category})")
+
+        # SECURITY: Validate knowledge content for prompt injection
+        safety_result = await check_message_safety(
+            f"{title}\n{content}",
+            context={"user_id": user_id, "action": "add_knowledge"}
+        )
+
+        if safety_result.is_malicious:
+            logger.warning(
+                f"🚨 BLOCKED malicious knowledge submission from {user_id}: "
+                f"{safety_result.reason} (confidence: {safety_result.confidence})"
+            )
+            return {
+                "success": False,
+                "error": "Knowledge content failed security validation. Please rephrase without system instructions or code.",
+                "security_reason": safety_result.reason
+            }
+
+        # SECURITY: Additional validation - check for suspicious patterns in content
+        suspicious_patterns = [
+            r"ignore\s+(previous|above|prior)\s+instructions",
+            r"you\s+are\s+(now|actually|really)\s+a",
+            r"system\s*:\s*",  # Trying to inject system messages
+            r"assistant\s*:\s*",  # Trying to inject assistant messages
+            r"<\s*system\s*>",  # XML-style injection
+            r"\[SYSTEM\]",  # Bracket-style injection
+        ]
+
+        content_lower = content.lower()
+        for pattern in suspicious_patterns:
+            if re.search(pattern, content_lower, re.IGNORECASE):
+                logger.warning(f"🚨 BLOCKED knowledge with suspicious pattern: {pattern}")
+                return {
+                    "success": False,
+                    "error": "Knowledge content contains suspicious patterns. Please use plain language only.",
+                }
+
+        # SECURITY: Length limits to prevent abuse
+        MAX_TITLE_LENGTH = 200
+        MAX_CONTENT_LENGTH = 5000
+        MAX_TAGS = 20
+
+        if len(title) > MAX_TITLE_LENGTH:
+            return {
+                "success": False,
+                "error": f"Title too long (max {MAX_TITLE_LENGTH} characters)"
+            }
+
+        if len(content) > MAX_CONTENT_LENGTH:
+            return {
+                "success": False,
+                "error": f"Content too long (max {MAX_CONTENT_LENGTH} characters)"
+            }
+
+        if tags and len(tags) > MAX_TAGS:
+            return {
+                "success": False,
+                "error": f"Too many tags (max {MAX_TAGS})"
+            }
+
+        # SECURITY: Sanitize HTML/script tags if present
+        if "<script" in content.lower() or "<iframe" in content.lower():
+            logger.warning(f"🚨 BLOCKED knowledge with script/iframe tags")
+            return {
+                "success": False,
+                "error": "Knowledge content cannot contain script or iframe tags."
+            }
 
         # TODO: Add admin privilege check
         # For now, we'll allow any authenticated user to add knowledge

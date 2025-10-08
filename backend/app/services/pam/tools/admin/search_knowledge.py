@@ -1,9 +1,12 @@
 """
 Admin Knowledge Management Tool - Search Knowledge
 Searches PAM's admin knowledge base for relevant information
+
+SECURITY: Retrieved knowledge is sanitized before being used in responses
 """
 
 import logging
+import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -11,6 +14,37 @@ from app.core.database import get_supabase_client
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def sanitize_knowledge_content(content: str) -> str:
+    """
+    Sanitize knowledge content to prevent injection attacks.
+
+    This is a defense-in-depth measure in case malicious content was stored.
+    Removes or escapes patterns that could manipulate PAM's behavior.
+    """
+    # Remove any attempts to inject system-level instructions
+    sanitized = content
+
+    # Remove XML-style tags that could be interpreted as system messages
+    sanitized = re.sub(r"<\s*system\s*>.*?<\s*/\s*system\s*>", "", sanitized, flags=re.IGNORECASE | re.DOTALL)
+    sanitized = re.sub(r"<\s*assistant\s*>.*?<\s*/\s*assistant\s*>", "", sanitized, flags=re.IGNORECASE | re.DOTALL)
+
+    # Remove bracket-style injections
+    sanitized = re.sub(r"\[SYSTEM\].*?\[/SYSTEM\]", "", sanitized, flags=re.IGNORECASE | re.DOTALL)
+    sanitized = re.sub(r"\[ASSISTANT\].*?\[/ASSISTANT\]", "", sanitized, flags=re.IGNORECASE | re.DOTALL)
+
+    # Remove markdown code blocks that could contain instructions
+    sanitized = re.sub(r"```[\s\S]*?```", "", sanitized)
+
+    # Escape any remaining potentially dangerous patterns
+    # Replace "system:" or "assistant:" prefixes that could be interpreted as role markers
+    sanitized = re.sub(r"^\s*(system|assistant)\s*:\s*", "Note - ", sanitized, flags=re.IGNORECASE | re.MULTILINE)
+
+    # Remove excessive whitespace that could be hiding injection attempts
+    sanitized = re.sub(r"\s+", " ", sanitized).strip()
+
+    return sanitized
 
 
 async def search_knowledge(
@@ -97,13 +131,17 @@ async def search_knowledge(
         if result.data:
             logger.info(f"✅ Found {len(result.data)} knowledge entries")
 
-            # Format results
+            # Format results with sanitization
             knowledge_items = []
             for item in result.data:
+                # SECURITY: Sanitize content before returning
+                sanitized_content = sanitize_knowledge_content(item["content"])
+                sanitized_title = sanitize_knowledge_content(item["title"])
+
                 knowledge_items.append({
                     "id": item["id"],
-                    "title": item["title"],
-                    "content": item["content"],
+                    "title": sanitized_title,
+                    "content": sanitized_content,
                     "type": item["knowledge_type"],
                     "category": item["category"],
                     "priority": item["priority"],
