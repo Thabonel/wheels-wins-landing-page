@@ -450,6 +450,11 @@ logger.info("🛡️ Initializing enhanced security system...")
 security_config = setup_enhanced_security(app)
 logger.info("✅ Enhanced security system fully operational")
 
+# Setup usage tracking middleware (for dead code removal - Oct 8-22, 2025)
+from app.middleware.usage_tracker import track_api_usage
+app.middleware("http")(track_api_usage)
+logger.info("✅ Usage tracking middleware enabled (2-week monitoring period)")
+
 # Setup other middleware
 app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
 
@@ -736,6 +741,14 @@ try:
     logger.info("✅ PAM Savings API loaded successfully")
 except Exception as savings_error:
     logger.error(f"❌ Failed to load PAM Savings API: {savings_error}")
+
+# Usage Tracking API - For safe code cleanup (October 8-22, 2025)
+try:
+    from app.api.v1 import usage_tracking
+    app.include_router(usage_tracking.router, prefix="/api/v1/usage-tracking", tags=["Usage Tracking"])
+    logger.info("✅ Usage tracking API loaded successfully")
+except Exception as tracking_error:
+    logger.error(f"❌ Failed to load usage tracking API: {tracking_error}")
 
 # Import and add intent classification routes
 try:
