@@ -76,37 +76,37 @@ export interface PamServiceMetrics {
 // =====================================================
 
 export const PAM_CONFIG = {
-  // PAM 2.0 WebSocket endpoints (Barry-inspired simple architecture)
+  // PAM 2.0 WebSocket endpoints (with Redis caching for performance)
   WEBSOCKET_ENDPOINTS: {
     production: [
-      'wss://pam-backend.onrender.com/api/v1/pam-simple/ws',
-      'wss://api.wheelsandwins.com/api/v1/pam-simple/ws',
+      'wss://pam-backend.onrender.com/api/v1/pam/ws',
+      'wss://api.wheelsandwins.com/api/v1/pam/ws',
     ],
     staging: [
-      'wss://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/ws',
+      'wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws',
     ]
   },
 
-  // PAM 2.0 REST endpoints (Barry-inspired simple architecture)
+  // PAM 2.0 REST endpoints (with Redis caching for performance)
   REST_ENDPOINTS: {
     production: {
       primary: {
-        chat: 'https://pam-backend.onrender.com/api/v1/pam-simple/chat',
-        health: 'https://pam-backend.onrender.com/api/v1/pam-simple/health'
+        chat: 'https://pam-backend.onrender.com/api/v1/pam/chat',
+        health: 'https://pam-backend.onrender.com/api/v1/pam/health'
       },
       fallback: {
-        chat: 'https://pam-backend.onrender.com/api/v1/pam-simple/chat',
-        health: 'https://pam-backend.onrender.com/api/v1/pam-simple/health'
+        chat: 'https://pam-backend.onrender.com/api/v1/pam/chat',
+        health: 'https://pam-backend.onrender.com/api/v1/pam/health'
       }
     },
     staging: {
       primary: {
-        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/chat',
-        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/health'
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat',
+        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health'
       },
       fallback: {
-        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/chat',
-        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/health'
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat',
+        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health'
       }
     }
   },
