@@ -138,6 +138,10 @@ class EnhancedPamOrchestrator:
             "provider_health_checks": 0,
             "intelligent_responses": 0
         }
+
+        # Performance optimization: Cache service capabilities to avoid checking every request
+        self.last_capability_check = None
+        self.capability_cache_ttl_seconds = 60  # Check services max once per minute
         
         # Configuration
         self.config = {
@@ -643,35 +647,26 @@ class EnhancedPamOrchestrator:
         
         start_time = datetime.utcnow()
         self.performance_metrics["total_requests"] += 1
-        
-        logger.info(f"🎯 Processing message: '{message[:100]}...' for user: {user_id}")
-        logger.debug(f"🔍 Input context: {context}")
-        logger.debug(f"🔍 Response mode: {response_mode}")
-        
+
+        logger.info(f"🎯 Processing message for user: {user_id}")
+
         try:
             # Check if orchestrator is initialized
             if not self.is_initialized:
                 logger.error("❌ Enhanced orchestrator not initialized")
                 raise Exception("Enhanced orchestrator not initialized")
-            
-            # Assess current service capabilities
-            logger.debug("Step 1: Assessing service capabilities...")
+
+            # Assess current service capabilities (with 60s caching)
             await self._assess_service_capabilities()
-            logger.debug("✅ Step 1: Service capabilities assessed")
-            
+
             # Build enhanced context
-            logger.debug("Step 2: Building enhanced context...")
             enhanced_context = await self._build_enhanced_context(
                 user_id, session_id, context, response_mode, user_location
             )
-            logger.debug("✅ Step 2: Enhanced context built")
             
             # Update conversation memory
             await self._update_conversation_memory(user_id, message)
-            
-            # Step 3: Process with Intelligent Conversation first for context-aware understanding
-            logger.debug("Step 3: Processing with Intelligent Conversation...")
-            
+
             # Get conversation state for context
             conversation_state = self._get_conversation_state(user_id)
             
@@ -763,8 +758,6 @@ class EnhancedPamOrchestrator:
                         "relationship_depth": ai_response.get('relationship_depth'),
                         "processing_type": "intelligent_ai"
                     }
-                    
-                    logger.debug("✅ Step 3: Intelligent Conversation processing completed")
                     
                 except Exception as e:
                     logger.error(f"❌ Intelligent Conversation failed: {e}")
@@ -1254,12 +1247,8 @@ Based on these results, please provide a helpful response to the user's original
                 preferences=context.get('user_preferences', {}) if context else {},
                 conversation_history=context.get('conversation_history', []) if context else []
             )
-            logger.debug("✅ Base PamContext created")
-            
-            # Determine service availability
-            logger.debug("📋 Checking service availability...")
-            logger.debug(f"📋 Available service capabilities: {list(self.service_capabilities.keys())}")
-            
+
+            # Determine service availability (reduced logging for performance)
             knowledge_available = (
                 self.service_capabilities.get("knowledge", type('obj', (object,), {'status': ServiceStatus.UNAVAILABLE})()).status == ServiceStatus.HEALTHY
             )
@@ -1269,20 +1258,16 @@ Based on these results, please provide a helpful response to the user's original
             voice_streaming_available = (
                 self.service_capabilities.get("voice_streaming", type('obj', (object,), {'status': ServiceStatus.UNAVAILABLE})()).status == ServiceStatus.HEALTHY
             )
-            
-            logger.debug(f"📋 Service availability - Knowledge: {knowledge_available}, TTS: {tts_available}, Voice Streaming: {voice_streaming_available}")
-            
+
             # Determine conversation mode from context
             conversation_mode = context.get("input_type", "text") if context else "text"
-            logger.debug(f"📋 Conversation mode: {conversation_mode}")
-            
+
             # Set quality requirements based on mode
             quality_requirements = {
                 "response_time_ms": 3000 if conversation_mode == "voice" else 5000,
                 "knowledge_depth": 0.8 if response_mode == ResponseMode.ADAPTIVE else 0.6,
                 "voice_quality": 0.9 if tts_available else 0.0
             }
-            logger.debug(f"📋 Quality requirements: {quality_requirements}")
         
         except Exception as e:
             logger.error(f"❌ Failed to build enhanced context: {e}")
@@ -1506,8 +1491,19 @@ Based on these results, please provide a helpful response to the user's original
             return None
     
     async def _assess_service_capabilities(self):
-        """Assess current service capabilities and health"""
-        
+        """Assess current service capabilities and health (with caching to reduce overhead)"""
+
+        # Performance optimization: Only check capabilities once per minute
+        now = datetime.utcnow()
+        if self.last_capability_check:
+            time_since_check = (now - self.last_capability_check).total_seconds()
+            if time_since_check < self.capability_cache_ttl_seconds:
+                # Cache hit - skip expensive health checks
+                return
+
+        # Cache miss - perform health checks
+        self.last_capability_check = now
+
         # Knowledge service health check
         if self.knowledge_service:
             try:
@@ -1522,7 +1518,7 @@ Based on these results, please provide a helpful response to the user's original
             except Exception as e:
                 self.service_capabilities["knowledge"].status = ServiceStatus.UNAVAILABLE
                 self.service_capabilities["knowledge"].error_message = str(e)
-        
+
         # TTS service health check (using tts_manager instead of tts_service)
         if hasattr(self, 'tts_manager') and self.tts_manager:
             try:
@@ -1537,10 +1533,10 @@ Based on these results, please provide a helpful response to the user's original
             except Exception as e:
                 self.service_capabilities["tts"].status = ServiceStatus.UNAVAILABLE
                 self.service_capabilities["tts"].error_message = str(e)
-        
+
         # Update last check time
         for capability in self.service_capabilities.values():
-            capability.last_check = datetime.utcnow()
+            capability.last_check = now
     
     def _update_performance_metrics(self, response: Dict[str, Any], processing_time_ms: float):
         """Update performance metrics"""
