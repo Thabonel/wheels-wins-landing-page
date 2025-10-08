@@ -26,6 +26,16 @@ verify_jwt = false
 [functions.nari-dia-tts]
 verify_jwt = true
 
+# PAM Edge Functions (fast lane for UI-ready data)
+[functions.pam-spend-summary]
+verify_jwt = true
+
+[functions.pam-expense-create]
+verify_jwt = true
+
+[functions.pam-fuel-estimate]
+verify_jwt = true
+
 [db]
 port = 54323
 shadow_port = 54324

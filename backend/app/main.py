@@ -709,15 +709,6 @@ except Exception as pam2_error:
 # Hybrid system deleted during Day 1 cleanup (October 1, 2025)
 # See docs/DELETION_MANIFEST_20251001.md for details
 
-# PAM Simple - NEW clean implementation (Day 2, October 1, 2025)
-# Simple WebSocket + REST endpoints using core PAM brain
-try:
-    from app.api.v1 import pam_simple
-    app.include_router(pam_simple.router, prefix="/api/v1/pam-simple", tags=["PAM Simple"])
-    logger.info("✅ PAM Simple (Claude Sonnet 4.5) loaded successfully")
-except Exception as simple_error:
-    logger.error(f"❌ Failed to load PAM Simple: {simple_error}")
-
 # PAM 2.0 Simple + Tools - Barry-inspired architecture (October 4, 2025)
 # Combines Barry AI's proven simplicity with PAM's 40 action tools
 try:

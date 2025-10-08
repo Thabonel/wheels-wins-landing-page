@@ -7,7 +7,8 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, Brain, Smile, Frown, Meh, Sun, Cloud, CloudRain } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePamAssistant } from '@/hooks/pam/usePamAssistant';
+// TEMP: Disabled during cleanup (used deleted PamContext)
+// import { usePamAssistant } from '@/hooks/pam/usePamAssistant';
 
 interface EmotionalState {
   mood: 'happy' | 'neutral' | 'sad' | 'excited' | 'stressed' | 'relaxed';
@@ -26,7 +27,10 @@ export const EmotionalIntelligence: React.FC<{
   className?: string;
   compact?: boolean;
 }> = ({ className, compact = false }) => {
-  const { ask, isReady } = usePamAssistant();
+  // TEMP: Disabled during cleanup
+  // const { ask, isReady } = usePamAssistant();
+  const isReady = false;
+  const ask = async () => "Emotional intelligence is temporarily unavailable during cleanup.";
   const [emotionalState, setEmotionalState] = useState<EmotionalState>({
     mood: 'neutral',
     energy: 'medium',
