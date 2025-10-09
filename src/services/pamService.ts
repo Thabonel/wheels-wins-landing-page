@@ -26,6 +26,7 @@
 import { getPamLocationContext, formatLocationForPam } from '@/utils/pamLocationContext';
 import { logger } from '@/lib/logger';
 import type { Pam2ChatRequest, Pam2ChatResponse, Pam2HealthResponse } from '@/types/pamTypes';
+import { MessageQueue, type QueuedMessage } from '@/utils/messageQueue';
 
 // =====================================================
 // TYPES & INTERFACES
@@ -114,12 +115,15 @@ export const PAM_CONFIG = {
   // Connection settings
   RECONNECT_ATTEMPTS: 5,
   RECONNECT_DELAY: 2000,
-  HEARTBEAT_INTERVAL: 30000,
-  CONNECTION_TIMEOUT: 15000,
   HEALTH_CHECK_INTERVAL: 60000,
 
-  // WebSocket message timeout (10s - backend should respond quickly now)
-  MESSAGE_TIMEOUT: 10000
+  // Ping/Pong keepalive settings (optimized for reliability)
+  PING_INTERVAL: 20000,     // Send ping every 20 seconds
+  PONG_TIMEOUT: 10000,      // Wait 10 seconds for pong response
+  CONNECTION_TIMEOUT: 15000,
+
+  // WebSocket message timeout (30s - allow time for cold starts and processing)
+  MESSAGE_TIMEOUT: 30000
 };
 
 // =====================================================
@@ -138,6 +142,14 @@ class PamService {
   private currentUserId: string | null = null;
   private currentToken: string | null = null; // Store token for reconnections
   private sessionId: string | null = null; // PAM 2.0 session tracking
+  private messageQueue: MessageQueue; // Message queue with IndexedDB persistence
+  private queueInitialized: boolean = false;
+  private tokenRefreshTimeout?: NodeJS.Timeout; // Token refresh scheduler
+  private tokenExpiresAt: number | null = null; // Track token expiration
+  private pingInterval?: NodeJS.Timeout; // Ping interval timer
+  private pongTimeout?: NodeJS.Timeout; // Pong timeout timer
+  private lastPongTime: number = 0; // Track last successful pong
+  private missedPongs: number = 0; // Count missed pongs
 
   private constructor() {
     this.status = {
@@ -157,7 +169,37 @@ class PamService {
       lastHealthCheck: 0
     };
 
+    // Initialize message queue
+    this.messageQueue = new MessageQueue();
+    this.initializeMessageQueue();
+
     this.startHealthChecking();
+  }
+
+  /**
+   * Initialize message queue and set up send callback
+   */
+  private async initializeMessageQueue(): Promise<void> {
+    try {
+      await this.messageQueue.initialize();
+
+      // Set callback for sending queued messages
+      this.messageQueue.setSendCallback(async (queuedMsg: QueuedMessage) => {
+        await this.sendMessageDirectly({
+          message: queuedMsg.message,
+          user_id: queuedMsg.userId,
+          context: queuedMsg.context
+        });
+      });
+
+      // Start auto-processing every 5 seconds
+      this.messageQueue.startAutoProcessing(5000);
+
+      this.queueInitialized = true;
+      logger.info('✅ Message queue initialized and auto-processing started');
+    } catch (error) {
+      logger.error('Failed to initialize message queue:', error);
+    }
   }
 
   public static getInstance(): PamService {
@@ -187,7 +229,7 @@ class PamService {
   // CONNECTION MANAGEMENT
   // =====================================================
 
-  async connect(userId: string, token?: string): Promise<boolean> {
+  async connect(userId: string, token?: string, tokenExpiresAt?: number): Promise<boolean> {
     if (this.status.isConnecting) {
       logger.debug('Already connecting to PAM WebSocket...');
       return false;
@@ -200,6 +242,12 @@ class PamService {
 
     // Store token for reconnections
     this.currentToken = token || null;
+    this.tokenExpiresAt = tokenExpiresAt || null;
+
+    // Schedule proactive token refresh
+    if (tokenExpiresAt) {
+      this.scheduleTokenRefresh(tokenExpiresAt);
+    }
 
     this.updateStatus({ isConnecting: true, lastError: undefined });
 
@@ -226,6 +274,75 @@ class PamService {
     }
   }
 
+  /**
+   * Schedule proactive token refresh (5 minutes before expiry)
+   */
+  private scheduleTokenRefresh(expiresAt: number): void {
+    // Clear existing timeout
+    if (this.tokenRefreshTimeout) {
+      clearTimeout(this.tokenRefreshTimeout);
+    }
+
+    // Calculate when to refresh (5 minutes before expiry)
+    const now = Date.now();
+    const expiryMs = expiresAt * 1000; // Convert to milliseconds
+    const refreshAt = expiryMs - (5 * 60 * 1000); // 5 minutes before
+    const delay = Math.max(0, refreshAt - now);
+
+    if (delay === 0) {
+      logger.warn('⚠️ Token already expired or expires in less than 5 minutes');
+      return;
+    }
+
+    logger.info(`🔐 Token refresh scheduled in ${Math.round(delay / 1000 / 60)} minutes (at ${new Date(refreshAt).toLocaleTimeString()})`);
+
+    this.tokenRefreshTimeout = setTimeout(async () => {
+      logger.info('🔄 Proactively refreshing token (5min before expiry)');
+
+      try {
+        // Import supabase client dynamically to avoid circular dependencies
+        const { supabase } = await import('@/integrations/supabase/client');
+
+        // Refresh session
+        const { data, error } = await supabase.auth.refreshSession();
+
+        if (error) {
+          logger.error('❌ Token refresh failed:', error);
+          // Disconnect - user will need to re-authenticate
+          this.disconnect();
+          return;
+        }
+
+        if (data.session) {
+          logger.info('✅ Token refreshed successfully');
+
+          // Update stored token
+          this.currentToken = data.session.access_token;
+          this.tokenExpiresAt = data.session.expires_at || null;
+
+          // Reconnect with new token
+          if (this.currentUserId) {
+            logger.info('🔄 Reconnecting with refreshed token');
+            await this.disconnect();
+            await this.connect(
+              this.currentUserId,
+              data.session.access_token,
+              data.session.expires_at
+            );
+          }
+
+          // Schedule next refresh
+          if (data.session.expires_at) {
+            this.scheduleTokenRefresh(data.session.expires_at);
+          }
+        }
+      } catch (error) {
+        logger.error('❌ Token refresh error:', error);
+        this.disconnect();
+      }
+    }, delay);
+  }
+
   private scheduleRetry(): void {
     const delay = PAM_CONFIG.RECONNECT_DELAY * Math.pow(2, this.status.retryCount);
     logger.info(`🔄 Retrying PAM 2.0 WebSocket connection in ${delay}ms (attempt ${this.status.retryCount + 1}/${PAM_CONFIG.RECONNECT_ATTEMPTS})`);
@@ -245,10 +362,19 @@ class PamService {
   }
 
   disconnect(): void {
+    // Clear all timers
     if (this.retryTimeout) {
       clearTimeout(this.retryTimeout);
       this.retryTimeout = undefined;
     }
+
+    if (this.tokenRefreshTimeout) {
+      clearTimeout(this.tokenRefreshTimeout);
+      this.tokenRefreshTimeout = undefined;
+    }
+
+    // Stop ping/pong
+    this.stopPingPong();
 
     if (this.websocket) {
       this.websocket.close(1000, 'Client disconnect');
@@ -257,6 +383,7 @@ class PamService {
 
     this.currentUserId = null;
     this.currentToken = null;
+    this.tokenExpiresAt = null;
 
     this.updateStatus({
       isConnected: false,
@@ -265,6 +392,85 @@ class PamService {
     });
 
     logger.info('🔌 Disconnected from PAM 2.0 WebSocket backend');
+  }
+
+  /**
+   * Start ping/pong keepalive mechanism
+   */
+  private startPingPong(): void {
+    this.stopPingPong(); // Clear any existing timers
+
+    this.lastPongTime = Date.now();
+    this.missedPongs = 0;
+
+    // Send ping every PING_INTERVAL
+    this.pingInterval = setInterval(() => {
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        logger.debug('🏓 Sending ping');
+
+        // Send ping message
+        this.websocket.send(JSON.stringify({
+          type: 'ping',
+          timestamp: Date.now()
+        }));
+
+        // Set timeout for pong response
+        this.pongTimeout = setTimeout(() => {
+          const timeSinceLastPong = Date.now() - this.lastPongTime;
+
+          // Only disconnect if we haven't received pong in a while AND missed multiple pongs
+          if (timeSinceLastPong > PAM_CONFIG.PONG_TIMEOUT * 3) {
+            this.missedPongs++;
+            logger.warn(`⚠️ Pong timeout (${this.missedPongs} missed, last pong ${Math.round(timeSinceLastPong/1000)}s ago)`);
+
+            if (this.missedPongs >= 3) {
+              logger.error('❌ Connection appears dead (3 missed pongs) - reconnecting');
+              this.scheduleRetry();
+            }
+          } else {
+            // Just slow, not dead - reset missed pongs
+            logger.debug(`🐌 Slow pong (${Math.round(timeSinceLastPong/1000)}s latency)`);
+            this.missedPongs = 0;
+          }
+        }, PAM_CONFIG.PONG_TIMEOUT);
+      }
+    }, PAM_CONFIG.PING_INTERVAL);
+
+    logger.info(`✅ Ping/pong keepalive started (ping: ${PAM_CONFIG.PING_INTERVAL/1000}s, timeout: ${PAM_CONFIG.PONG_TIMEOUT/1000}s)`);
+  }
+
+  /**
+   * Stop ping/pong keepalive mechanism
+   */
+  private stopPingPong(): void {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = undefined;
+    }
+
+    if (this.pongTimeout) {
+      clearTimeout(this.pongTimeout);
+      this.pongTimeout = undefined;
+    }
+
+    this.missedPongs = 0;
+    logger.debug('⏹️ Ping/pong keepalive stopped');
+  }
+
+  /**
+   * Handle pong response
+   */
+  private handlePongResponse(): void {
+    this.lastPongTime = Date.now();
+    this.missedPongs = 0;
+
+    // Clear pong timeout
+    if (this.pongTimeout) {
+      clearTimeout(this.pongTimeout);
+      this.pongTimeout = undefined;
+    }
+
+    logger.debug('🏓 Pong received');
   }
 
   // =====================================================
@@ -305,6 +511,18 @@ class PamService {
             retryCount: 0,
             healthScore: Math.min(100, this.status.healthScore + 10)
           });
+
+          // Start ping/pong keepalive
+          this.startPingPong();
+
+          // Process any queued messages now that connection is restored
+          if (this.queueInitialized) {
+            logger.info('🔄 Connection restored - processing queued messages');
+            this.messageQueue.processQueue().catch(error => {
+              logger.error('Error processing queue on reconnection:', error);
+            });
+          }
+
           resolve();
         };
 
@@ -335,6 +553,13 @@ class PamService {
         this.websocket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+
+            // Handle pong responses
+            if (data.type === 'pong') {
+              this.handlePongResponse();
+              return; // Don't log pong messages (too noisy)
+            }
+
             console.log('📨 PAM 2.0 WebSocket message received:', data);
             // Message handling is done in sendMessage method
           } catch (error) {
@@ -352,9 +577,52 @@ class PamService {
   // MESSAGE API METHODS
   // =====================================================
 
+  /**
+   * Public API: Send message (uses queue for reliability)
+   */
   async sendMessage(message: PamApiMessage): Promise<PamApiResponse> {
-    const startTime = Date.now();
     this.metrics.requestCount++;
+
+    // If WebSocket is connected, try sending directly
+    if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+      try {
+        return await this.sendMessageDirectly(message);
+      } catch (error) {
+        logger.warn('⚠️ Direct send failed, queueing message:', error);
+        // Fall through to queuing
+      }
+    }
+
+    // WebSocket not connected or direct send failed - queue the message
+    if (this.queueInitialized) {
+      logger.info('📝 WebSocket not ready - queueing message for later delivery');
+
+      await this.messageQueue.enqueue(
+        message.message,
+        message.user_id,
+        message.context,
+        0 // Normal priority
+      );
+
+      // Return placeholder response
+      return {
+        response: "Your message has been queued and will be sent when connection is restored.",
+        message: "Message queued - PAM will respond shortly",
+        metadata: { queued: true, status: 'pending' }
+      };
+    }
+
+    // Queue not ready - try REST as last resort
+    logger.warn('⚠️ Message queue not ready, falling back to REST');
+    const startTime = Date.now();
+    return await this.sendMessageViaRest(message, startTime);
+  }
+
+  /**
+   * Internal: Send message directly via WebSocket or REST (no queueing)
+   */
+  private async sendMessageDirectly(message: PamApiMessage): Promise<PamApiResponse> {
+    const startTime = Date.now();
 
     // Detect potential cold start (Render free tier spins down after inactivity)
     const coldStartThreshold = 3000; // 3 seconds
@@ -844,10 +1112,25 @@ class PamService {
   }
 
   // Cleanup
-  destroy(): void {
+  async destroy(): Promise<void> {
     this.disconnect();
     this.stopHealthChecking();
     this.listeners.clear();
+
+    // Cleanup message queue
+    if (this.messageQueue) {
+      await this.messageQueue.destroy();
+    }
+  }
+
+  /**
+   * Get message queue stats (for debugging)
+   */
+  async getQueueStats() {
+    if (this.queueInitialized) {
+      return await this.messageQueue.getStats();
+    }
+    return null;
   }
 }
 
