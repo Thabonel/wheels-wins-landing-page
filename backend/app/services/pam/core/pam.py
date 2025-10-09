@@ -846,6 +846,12 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     max_tools=10
                 )
 
+                # CRITICAL: Never send 0 tools to Claude - it causes minimal/empty responses
+                # Always keep at least 5 core tools for basic conversation
+                if len(filtered_tools) == 0:
+                    logger.warning("⚠️ Tool prefiltering returned 0 tools, using all tools as fallback")
+                    filtered_tools = self.tools
+
                 # Log filtering stats
                 stats = tool_prefilter.get_last_stats()
                 logger.info(
