@@ -386,15 +386,16 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             },
             {
                 "name": "calculate_gas_cost",
-                "description": "Calculate estimated gas cost for a trip. Use when user asks about fuel costs.",
+                "description": "Calculate estimated gas cost for a trip. Automatically formats response in user's preferred units (imperial/metric). Use when user asks about fuel costs.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "distance_miles": {"type": "number", "description": "Trip distance in miles"},
-                        "mpg": {"type": "number", "description": "Vehicle MPG (default: 10 for RV)"},
-                        "gas_price": {"type": "number", "description": "Price per gallon (default: $3.50)"}
+                        "distance_miles": {"type": "number", "description": "Trip distance in miles (for US/imperial users)"},
+                        "distance_km": {"type": "number", "description": "Trip distance in kilometers (for international/metric users)"},
+                        "mpg": {"type": "number", "description": "Vehicle MPG (optional, uses stored vehicle data if not provided)"},
+                        "gas_price": {"type": "number", "description": "Price per gallon (optional, default: $3.50)"}
                     },
-                    "required": ["distance_miles"]
+                    "required": []
                 }
             },
             {
