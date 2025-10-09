@@ -1399,41 +1399,59 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             else:
                 logger.info(f"🤖 [DEBUG] ENABLE_PAM_AGENTIC disabled for user {user_id}")
         
-        # 🔄 PRIMARY: Use Simple Gemini Service with profile integration (formerly fallback)
-        # The Enhanced Orchestrator was causing issues with incorrect time responses
-        # Simple Gemini Service has proper profile integration and should be primary
-        logger.info(f"🧠 [PRIMARY] Using Simple Gemini Service with profile integration...")
+        # 🔄 PRIMARY: Use Claude PAM Core (per October 2025 rebuild plan)
+        # Claude Sonnet 4.5 is the primary AI brain with 40+ tools and prompt caching
+        # Gemini is fallback only (cost-effective for simple queries)
+        logger.info(f"🧠 [PRIMARY] Using Claude PAM Core (Sonnet 4.5)...")
 
         try:
-            from app.services.pam.simple_gemini_service import get_simple_gemini_service
+            from app.services.pam.core import get_pam
 
-            # Get simple Gemini service
-            simple_service = await get_simple_gemini_service()
+            # Get Claude PAM instance for this user
+            pam = await get_pam(user_id, user_language=context.get("language", "en"))
 
-            if simple_service.is_initialized:
-                logger.info("✅ [PRIMARY] Simple Gemini Service available, generating response...")
+            logger.info("✅ [PRIMARY] Claude PAM Core available, generating response...")
 
-                # Generate response using simple service with profile access
-                response_message = await simple_service.generate_response(message, context, user_id, user_jwt)
+            # Generate response using Claude with all tools available
+            response_message = await pam.chat(message, context, stream=False)
 
-                logger.info(f"✅ [PRIMARY] Simple Gemini response: {response_message[:100]}...")
+            logger.info(f"✅ [PRIMARY] Claude PAM response: {response_message[:100]}...")
 
-                # Send successful response from simple service
-                await safe_send_json(websocket, {
-                    "type": "chat_response",
-                    "message": response_message,
-                    "content": response_message,
-                    "source": "simple_gemini_primary",
-                    "error": False,
-                    "profile_enhanced": True,
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                return
-            else:
-                logger.warning("⚠️ [PRIMARY] Simple Gemini Service not initialized, falling back to orchestrator")
+            # Send successful response from Claude PAM
+            await safe_send_json(websocket, {
+                "type": "chat_response",
+                "message": response_message,
+                "content": response_message,
+                "source": "claude_pam_primary",
+                "model": "claude-sonnet-4-5-20250929",
+                "error": False,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            return
 
-        except Exception as simple_error:
-            logger.warning(f"⚠️ [PRIMARY] Simple Gemini Service failed: {simple_error}, falling back to orchestrator")
+        except Exception as claude_error:
+            logger.warning(f"⚠️ [PRIMARY] Claude PAM failed: {claude_error}, falling back to Gemini")
+
+            # FALLBACK to Gemini if Claude fails
+            try:
+                from app.services.pam.simple_gemini_service import get_simple_gemini_service
+                simple_service = await get_simple_gemini_service()
+
+                if simple_service.is_initialized:
+                    logger.info("✅ [FALLBACK] Using Gemini as fallback...")
+                    response_message = await simple_service.generate_response(message, context, user_id, user_jwt)
+
+                    await safe_send_json(websocket, {
+                        "type": "chat_response",
+                        "message": response_message,
+                        "content": response_message,
+                        "source": "gemini_fallback",
+                        "error": False,
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    return
+            except Exception as gemini_error:
+                logger.warning(f"⚠️ [FALLBACK] Gemini also failed: {gemini_error}, trying orchestrator")
 
         # FALLBACK: Use enhanced orchestrator only if Simple Gemini Service fails
         logger.info(f"🔄 [FALLBACK] Using enhanced orchestrator as fallback...")
