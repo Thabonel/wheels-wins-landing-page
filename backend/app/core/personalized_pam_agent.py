@@ -295,14 +295,10 @@ Respond naturally and conversationally, always considering the user's specific c
         """Process message with PAM (Claude Sonnet 4.5 + 40 tools)"""
 
         try:
-            logger.info(f"🤖 [PAM] Getting PAM instance for user: {user_context.user_id}")
-
             # Get PAM instance for this user
             pam = await get_pam(user_context.user_id)
-            logger.info(f"✅ [PAM] PAM instance created successfully")
 
             # Use PAM's chat method (has Claude + tools + error handling)
-            logger.info(f"📨 [PAM] Calling pam.chat() with message: {message[:50]}...")
             response = await pam.chat(
                 message=message,
                 context={
@@ -313,8 +309,6 @@ Respond naturally and conversationally, always considering the user's specific c
                 stream=False
             )
 
-            logger.info(f"✅ [PAM] Response received (length: {len(str(response))})")
-
             return {
                 "content": response,
                 "success": True,
@@ -322,9 +316,7 @@ Respond naturally and conversationally, always considering the user's specific c
                 "conversation_mode": user_context.conversation_mode.value
             }
         except Exception as e:
-            logger.error(f"❌ [PAM] Error in _process_with_ai: {type(e).__name__}: {e}", exc_info=True)
-            logger.error(f"❌ [PAM] user_context.user_id type: {type(user_context.user_id)}")
-            logger.error(f"❌ [PAM] user_context.user_id value: {user_context.user_id}")
+            logger.error(f"Error in PAM chat: {e}", exc_info=True)
             return {
                 "content": "I'm having trouble processing your request. Please try again.",
                 "success": False,
