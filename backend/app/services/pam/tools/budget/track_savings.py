@@ -54,14 +54,29 @@ async def track_savings(
         # Get Supabase client
         supabase = get_supabase_client()
 
-        # Build savings event data
+        # Map event_type to valid savings_type for schema
+        savings_type_map = {
+            'gas': 'fuel_optimization',
+            'campground': 'camping_alternative',
+            'route': 'route_optimization',
+            'other': 'price_comparison'
+        }
+        savings_type = savings_type_map.get(event_type, 'price_comparison')
+
+        # Build savings event data matching actual schema
+        # Schema requires: savings_type, predicted_savings, actual_savings, baseline_cost,
+        # optimized_cost, savings_description, verification_method, category, saved_date
         savings_data = {
             "user_id": user_id,
-            "amount_saved": float(amount_saved),
+            "savings_type": savings_type,
+            "predicted_savings": float(amount_saved),  # Predicted == actual for user-confirmed savings
+            "actual_savings": float(amount_saved),
+            "baseline_cost": float(amount_saved),  # Simplified: savings = baseline - optimized
+            "optimized_cost": 0.0,  # Simplified: user saved full amount
+            "savings_description": description or f"Saved on {category}",
+            "verification_method": "user_confirmation",  # User confirmed via PAM
             "category": category.lower(),
-            "description": description or f"Saved on {category}",
-            "event_type": event_type,
-            "created_at": datetime.now().isoformat()
+            "saved_date": datetime.now().date().isoformat()
         }
 
         # Insert savings event
@@ -71,11 +86,11 @@ async def track_savings(
             savings_event = response.data[0]
             logger.info(f"Created savings event: {savings_event['id']} for user {user_id}")
 
-            # Calculate monthly total savings
-            month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            monthly_response = supabase.table("pam_savings_events").select("amount_saved").eq("user_id", user_id).gte("created_at", month_start.isoformat()).execute()
+            # Calculate monthly total savings (using actual_savings field from schema)
+            month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).date()
+            monthly_response = supabase.table("pam_savings_events").select("actual_savings").eq("user_id", user_id).gte("saved_date", month_start.isoformat()).execute()
 
-            monthly_total = sum(event.get("amount_saved", 0) for event in monthly_response.data) if monthly_response.data else 0
+            monthly_total = sum(event.get("actual_savings", 0) for event in monthly_response.data) if monthly_response.data else 0
 
             return {
                 "success": True,
