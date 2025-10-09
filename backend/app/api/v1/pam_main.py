@@ -1087,20 +1087,22 @@ async def websocket_endpoint(
 
 async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, orchestrator, user_jwt: str = None):
     """Handle chat messages over WebSocket with edge processing integration"""
+    import time
+    start_time = time.time()  # Initialize start_time for processing time tracking
+
     try:
         # Support both 'message' and 'content' fields for backwards compatibility
         message = data.get("message") or data.get("content", "")
-        
+
         # No HTML escaping needed for voice transcripts - they're just plain text
         # Trust the authenticated user's input after size validation
-        
+
         context = data.get("context", {})
         context["user_id"] = user_id
         context["connection_type"] = "websocket"
-        
+
         # Load financial context from cache/database for enhanced PAM responses
         try:
-            import time
             financial_start = time.time()
 
             # Try Redis cache first
@@ -2285,9 +2287,10 @@ async def chat_endpoint(
     current_user: dict = Depends(verify_pam_security),  # Enhanced security verification (includes rate limiting)
 ):
     """Process a chat message via REST API - uses standard JWT auth with OPTIONS support"""
-    start_time = datetime.utcnow()
+    import time
+    start_time = time.time()  # Use time.time() for performance tracking
     request_id = str(uuid.uuid4())
-    
+
     try:
         # Extract request metadata
         client_ip = fastapi_request.client.host if fastapi_request.client else "unknown"
@@ -2399,9 +2402,9 @@ async def chat_endpoint(
             additional_context=context
         )
         actions = pam_response.get("actions", [])
-        
+
         # Calculate processing time
-        processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+        processing_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds
         processing_time_seconds = processing_time / 1000.0
 
         # Determine response message
