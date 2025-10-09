@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignore": [
+    "src/services/pam/analytics/**",
+    "src/services/pam/learning/**"
+  ],
+  "ignoreDependencies": [
+    "src/services/pam/tools/toolExecutor.ts",
+    "src/services/pamService.ts",
+    "src/services/pamSavingsService.ts"
+  ]
+}
