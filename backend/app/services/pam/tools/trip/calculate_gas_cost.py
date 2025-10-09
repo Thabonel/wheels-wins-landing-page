@@ -9,6 +9,8 @@ Example usage:
 
 import logging
 from typing import Any, Dict, Optional
+import os
+from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,7 @@ async def calculate_gas_cost(
     Args:
         user_id: UUID of the user
         distance_miles: Trip distance in miles
-        mpg: Vehicle miles per gallon (default: 10 for RV)
+        mpg: Vehicle miles per gallon (uses stored vehicle data if not provided)
         gas_price: Price per gallon (default: $3.50)
 
     Returns:
@@ -40,8 +42,27 @@ async def calculate_gas_cost(
                 "error": "Distance must be positive"
             }
 
-        # Use RV defaults if not provided
-        mpg = mpg or 10.0  # Typical RV MPG
+        # If MPG not provided, try to get from user's primary vehicle
+        if mpg is None:
+            try:
+                supabase: Client = create_client(
+                    os.getenv("SUPABASE_URL"),
+                    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+                )
+
+                vehicle_response = supabase.table("vehicles").select("fuel_consumption_mpg, name").eq("user_id", user_id).eq("is_primary", True).single().execute()
+
+                if vehicle_response.data and vehicle_response.data.get("fuel_consumption_mpg"):
+                    mpg = float(vehicle_response.data["fuel_consumption_mpg"])
+                    vehicle_name = vehicle_response.data.get("name", "your vehicle")
+                    logger.info(f"Using stored fuel consumption: {mpg} MPG from {vehicle_name}")
+                else:
+                    mpg = 10.0  # Fallback to RV default
+                    logger.info(f"No stored fuel consumption found, using default: {mpg} MPG")
+            except Exception as e:
+                logger.warning(f"Could not fetch vehicle fuel consumption: {e}")
+                mpg = 10.0  # Fallback to RV default
+
         gas_price = gas_price or 3.50  # National average
 
         # Calculate gallons needed

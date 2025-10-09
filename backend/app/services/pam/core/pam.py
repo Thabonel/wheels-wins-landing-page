@@ -77,6 +77,7 @@ from app.services.pam.tools.trip.get_road_conditions import get_road_conditions
 from app.services.pam.tools.trip.find_attractions import find_attractions
 from app.services.pam.tools.trip.estimate_travel_time import estimate_travel_time
 from app.services.pam.tools.trip.save_favorite_spot import save_favorite_spot
+from app.services.pam.tools.trip.update_vehicle_fuel_consumption import update_vehicle_fuel_consumption
 
 # Import social tools
 from app.services.pam.tools.social.create_post import create_post
@@ -475,6 +476,18 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                         "rating": {"type": "integer", "description": "Optional rating (1-5)"}
                     },
                     "required": ["location_name", "location_address"]
+                }
+            },
+            {
+                "name": "update_vehicle_fuel_consumption",
+                "description": "Update vehicle fuel consumption data. Use when user tells you their vehicle's MPG or liters per 100km. Examples: 'my truck uses 24 liters per 100km', 'my RV gets 8 miles per gallon'",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "mpg": {"type": "number", "description": "Fuel consumption in miles per gallon (MPG)"},
+                        "l_per_100km": {"type": "number", "description": "Fuel consumption in liters per 100 kilometers"},
+                        "vehicle_id": {"type": "string", "description": "Specific vehicle ID (optional, uses primary vehicle if not provided)"}
+                    }
                 }
             },
             # Social tools
@@ -1091,6 +1104,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             "find_attractions": find_attractions,
             "estimate_travel_time": estimate_travel_time,
             "save_favorite_spot": save_favorite_spot,
+            "update_vehicle_fuel_consumption": update_vehicle_fuel_consumption,
             # Social tools
             "create_post": create_post,
             "message_friend": message_friend,
