@@ -42,38 +42,23 @@ async def get_weather_forecast(
         # Validate days
         days = max(1, min(days, 14))  # Limit to 1-14 days
 
-        # In production, this would call OpenWeather API
-        # For now, return mock data structure
+        # Check for API key
         api_key = os.getenv("OPENWEATHER_API_KEY")
 
         if not api_key:
             logger.warning("OpenWeather API key not configured")
             return {
                 "success": False,
-                "error": "Weather API not configured"
+                "error": "Weather service temporarily unavailable",
+                "message": "I don't have access to weather data right now. The weather service needs to be configured."
             }
 
-        # Mock forecast structure (replace with actual API call)
-        forecast_days = []
-        for day_offset in range(days):
-            forecast_date = datetime.now() + timedelta(days=day_offset)
-            forecast_days.append({
-                "date": forecast_date.strftime("%Y-%m-%d"),
-                "temp_high": 75,
-                "temp_low": 55,
-                "conditions": "Partly Cloudy",
-                "precipitation_chance": 20,
-                "wind_speed": 10
-            })
-
-        logger.info(f"Retrieved {days}-day forecast for {location} for user {user_id}")
-
+        # TODO: Implement actual OpenWeather API call
+        # For now, return error indicating service not fully implemented
         return {
-            "success": True,
-            "location": location,
-            "forecast_days": days,
-            "forecast": forecast_days,
-            "message": f"{days}-day weather forecast for {location}"
+            "success": False,
+            "error": "Weather service not fully implemented",
+            "message": "Weather forecasting is coming soon! The API integration is still in development."
         }
 
     except Exception as e:
