@@ -59,11 +59,11 @@ async def plan_trip(
             trip_start = datetime.now()
 
         # Build trip plan data
+        # Note: 'budget' field removed - not in current trips table schema
         trip_data = {
             "user_id": user_id,
             "origin": origin,
             "destination": destination,
-            "budget": float(budget) if budget else None,
             "stops": stops or [],
             "start_date": trip_start.isoformat(),
             "created_at": datetime.now().isoformat(),
