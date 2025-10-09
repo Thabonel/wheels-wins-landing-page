@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from app.services.pam.tools.load_user_profile import LoadUserProfileTool
-from app.services.pam.core import get_pam
+from app.services.ai.ai_orchestrator import ai_orchestrator
 from app.core.travel_domain.vehicle_capability_mapper import VehicleCapabilityMapper
 from app.core.travel_domain.travel_mode_detector import TravelModeDetector
 from app.core.travel_domain.travel_response_personalizer import TravelResponsePersonalizer
@@ -292,36 +292,37 @@ Respond naturally and conversationally, always considering the user's specific c
         user_context: UserContext,
         travel_mode: str
     ) -> Dict[str, Any]:
-        """Process message with PAM (Claude Sonnet 4.5 + 40 tools)"""
-
-        try:
-            # Get PAM instance for this user
-            pam = await get_pam(user_context.user_id)
-
-            # Use PAM's chat method (has Claude + tools + error handling)
-            response = await pam.chat(
-                message=message,
-                context={
-                    "travel_mode": travel_mode,
-                    "conversation_mode": user_context.conversation_mode.value,
-                    "vehicle_info": user_context.vehicle_info
-                },
-                stream=False
-            )
-
-            return {
-                "content": response,
-                "success": True,
-                "travel_mode": travel_mode,
-                "conversation_mode": user_context.conversation_mode.value
-            }
-        except Exception as e:
-            logger.error(f"Error in PAM chat: {e}", exc_info=True)
-            return {
-                "content": "I'm having trouble processing your request. Please try again.",
-                "success": False,
-                "error": str(e)
-            }
+        """Process message with AI using personalized system prompt"""
+        
+        # Prepare messages for AI
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message}
+        ]
+        
+        # Add recent conversation history
+        for hist_msg in user_context.conversation_history[-5:]:  # Last 5 messages
+            messages.append({
+                "role": "user" if hist_msg["sender"] == "user" else "assistant",
+                "content": hist_msg["content"]
+            })
+        
+        # Add current message
+        messages.append({"role": "user", "content": message})
+        
+        # Process with AI orchestrator
+        response = await ai_orchestrator.complete(
+            messages=messages,
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        return {
+            "content": response.content,
+            "success": True,
+            "travel_mode": travel_mode,
+            "conversation_mode": user_context.conversation_mode.value
+        }
     
     async def _update_conversation_history(
         self,
