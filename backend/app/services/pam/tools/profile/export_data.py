@@ -68,8 +68,8 @@ async def export_data(
         ).execute()
         export_data_obj["budgets"] = budgets_response.data or []
 
-        # Export trips
-        trips_response = supabase.table("trips").select("*").eq(
+        # Export trips (schema uses user_trips, not trips)
+        trips_response = supabase.table("user_trips").select("*").eq(
             "user_id", user_id
         ).execute()
         export_data_obj["trips"] = trips_response.data or []
