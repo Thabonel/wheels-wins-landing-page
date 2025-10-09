@@ -41,10 +41,10 @@ async def export_budget_report(
         budgets = supabase.table("budgets").select("*").eq("user_id", user_id).execute()
         savings = supabase.table("pam_savings_events").select("*").eq("user_id", user_id).gte("created_at", month_start.isoformat()).execute()
 
-        # Calculate totals
+        # Calculate totals (schema uses monthly_limit for budgets, actual_savings for savings)
         total_expenses = sum(float(e.get("amount", 0)) for e in (expenses.data if expenses.data else []))
-        total_budgeted = sum(float(b.get("amount", 0)) for b in (budgets.data if budgets.data else []))
-        total_savings = sum(float(s.get("amount_saved", 0)) for s in (savings.data if savings.data else []))
+        total_budgeted = sum(float(b.get("monthly_limit", 0)) for b in (budgets.data if budgets.data else []))  # Correct field name
+        total_savings = sum(float(s.get("actual_savings", 0)) for s in (savings.data if savings.data else []))  # Correct field name
 
         # Build report
         report = {

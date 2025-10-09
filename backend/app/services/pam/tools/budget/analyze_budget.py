@@ -54,11 +54,11 @@ async def analyze_budget(
             spending_by_category[category] = spending_by_category.get(category, 0) + amount
             total_spending += amount
 
-        # Compare with budgets
+        # Compare with budgets (schema uses monthly_limit, not amount)
         budget_status = []
         for budget in budgets:
             category = budget.get("category", "other")
-            budget_amount = float(budget.get("amount", 0))
+            budget_amount = float(budget.get("monthly_limit", 0))  # Correct field name
             spent = spending_by_category.get(category, 0)
             remaining = budget_amount - spent
             percent_used = (spent / budget_amount * 100) if budget_amount > 0 else 0

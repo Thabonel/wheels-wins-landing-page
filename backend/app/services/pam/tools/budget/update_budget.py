@@ -46,10 +46,11 @@ async def update_budget(
         # Check if budget exists for this category
         existing = supabase.table("budgets").select("*").eq("user_id", user_id).eq("category", category.lower()).execute()
 
+        # Schema uses monthly_limit, not amount
         budget_data = {
             "user_id": user_id,
             "category": category.lower(),
-            "amount": float(amount),
+            "monthly_limit": float(amount),  # Correct field name
             "updated_at": datetime.now().isoformat()
         }
 
