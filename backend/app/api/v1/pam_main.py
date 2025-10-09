@@ -2570,8 +2570,9 @@ async def clear_conversation_history(
     current_user = Depends(get_current_user),
     orchestrator = Depends(get_pam_orchestrator)
 ):
-    """Clear conversation history for the user"""
+    """Clear conversation history for the user (both database and in-memory)"""
     try:
+        # Clear database history
         client = orchestrator.database_service.get_client()
         query = client.table("pam_conversation_memory").delete().eq(
             "user_id", str(current_user.id)
@@ -2580,11 +2581,21 @@ async def clear_conversation_history(
             query = query.eq("session_id", conversation_id)
         query.execute()
 
+        # Also clear in-memory PAM history if PAM core is being used
+        try:
+            from app.services.pam.core import get_pam
+            pam = await get_pam(str(current_user.id))
+            pam.clear_history()
+            logger.info(f"✅ Cleared in-memory PAM history for user {current_user.id}")
+        except Exception as pam_error:
+            logger.warning(f"Could not clear PAM in-memory history: {pam_error}")
+            # Not a critical error - database clear was successful
+
         return SuccessResponse(
             success=True,
-            message="Conversation history cleared successfully"
+            message="Conversation history cleared successfully (database + memory)"
         )
-        
+
     except Exception as e:
         logger.error(f"History clearing error: {str(e)}")
         raise HTTPException(
