@@ -58,20 +58,26 @@ async def plan_trip(
         else:
             trip_start = datetime.now()
 
-        # Build trip plan data
-        # Note: 'budget' field removed - not in current trips table schema
+        # Build trip plan data for user_trips table
+        # Schema: user_trips has total_budget, not budget
         trip_data = {
             "user_id": user_id,
-            "origin": origin,
-            "destination": destination,
-            "stops": stops or [],
-            "start_date": trip_start.isoformat(),
-            "created_at": datetime.now().isoformat(),
-            "status": "planned"
+            "title": f"Trip from {origin} to {destination}",
+            "description": f"Planned trip with {len(stops) if stops else 0} stops",
+            "start_date": trip_start.date().isoformat(),
+            "total_budget": float(budget) if budget else None,
+            "status": "planning",
+            "trip_type": "road_trip",
+            "metadata": {
+                "origin": origin,
+                "destination": destination,
+                "stops": stops or [],
+                "created_by": "pam_ai"
+            }
         }
 
-        # Save trip to database
-        response = supabase.table("trips").insert(trip_data).execute()
+        # Save trip to database (correct table name: user_trips)
+        response = supabase.table("user_trips").insert(trip_data).execute()
 
         if response.data:
             trip = response.data[0]
