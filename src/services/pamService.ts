@@ -118,8 +118,8 @@ export const PAM_CONFIG = {
   CONNECTION_TIMEOUT: 15000,
   HEALTH_CHECK_INTERVAL: 60000,
 
-  // WebSocket message timeout (60s to account for Render cold starts + Claude API)
-  MESSAGE_TIMEOUT: 60000
+  // WebSocket message timeout (10s - backend should respond quickly now)
+  MESSAGE_TIMEOUT: 10000
 };
 
 // =====================================================
@@ -422,7 +422,40 @@ class PamService {
         try {
           const response: Pam2ChatResponse = JSON.parse(event.data);
 
-          if (response.response) {
+          // Handle ping messages (keep-alive)
+          if (response.type === 'ping') {
+            console.log(`🏓 Received ping, sending pong response`);
+            this.websocket?.send(JSON.stringify({ type: 'pong', timestamp: response.timestamp }));
+            return; // Don't resolve, just respond to ping
+          }
+
+          // Handle error responses from backend
+          if (response.error || response.type === 'error') {
+            clearTimeout(timeout);
+            this.websocket?.removeEventListener('message', messageHandler);
+
+            const latency = Date.now() - startTime;
+            this.metrics.errorCount++;
+
+            // Extract error message from various possible fields
+            const errorMessage = response.message || response.content || response.response || "I'm currently unable to process your request.";
+
+            const errorResponse: PamApiResponse = {
+              response: errorMessage,
+              message: errorMessage,
+              content: errorMessage,
+              error: true,
+              metadata: response.metadata
+            };
+
+            console.log(`⚠️ PAM 2.0 WebSocket error response (${latency}ms):`, response);
+            resolve(errorResponse); // Resolve with error, don't reject (so UI can display it)
+            return;
+          }
+
+          // Handle success responses - check multiple possible content fields
+          const content = response.response || response.message || response.content;
+          if (content) {
             clearTimeout(timeout);
             this.websocket?.removeEventListener('message', messageHandler);
 
@@ -446,20 +479,17 @@ class PamService {
 
             // Convert PAM 2.0 response to compatible format
             const legacyResponse: PamApiResponse = {
-              response: response.response,
-              message: response.response,
-              content: response.response,
+              response: content,
+              message: content,
+              content: content,
               ui_action: response.ui_action,
               metadata: response.metadata
             };
 
             console.log(`✅ PAM 2.0 WebSocket response (${latency}ms):`, response);
             resolve(legacyResponse);
-          } else if (response.type === 'ping') {
-            // Respond to ping with pong to maintain connection
-            console.log(`🏓 Received ping, sending pong response`);
-            this.websocket?.send(JSON.stringify({ type: 'pong', timestamp: response.timestamp }));
           }
+          // If no recognizable response format, ignore (might be status message, etc.)
         } catch (error) {
           clearTimeout(timeout);
           this.websocket?.removeEventListener('message', messageHandler);
