@@ -46,11 +46,11 @@ async def compare_vs_budget(
             cat = exp.get("category", "other")
             spending[cat] = spending.get(cat, 0) + float(exp.get("amount", 0))
 
-        # Compare
+        # Compare (schema uses monthly_limit, not amount)
         comparisons = []
         for budget in budgets.data if budgets.data else []:
             cat = budget.get("category")
-            budgeted = float(budget.get("amount", 0))
+            budgeted = float(budget.get("monthly_limit", 0))  # Correct field name
             spent = spending.get(cat, 0)
             difference = budgeted - spent
             percent = (spent / budgeted * 100) if budgeted > 0 else 0
