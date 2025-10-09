@@ -18,16 +18,32 @@ logger = logging.getLogger(__name__)
 # Redis connection (optional - graceful degradation if unavailable)
 try:
     import redis
-    redis_client = redis.Redis(
-        host=os.getenv('REDIS_HOST', 'localhost'),
-        port=int(os.getenv('REDIS_PORT', 6379)),
-        db=1,
-        socket_connect_timeout=1,
-        decode_responses=True
-    )
+
+    # Support both REDIS_URL (Render/production) and REDIS_HOST/PORT (local dev)
+    redis_url = os.getenv('REDIS_URL')
+    if redis_url:
+        # Parse connection string (e.g., redis://user:pass@host:port/db)
+        redis_client = redis.from_url(
+            redis_url,
+            db=1,
+            socket_connect_timeout=1,
+            decode_responses=True
+        )
+        logger.info(f"✅ Usage tracker: Connecting to Redis via REDIS_URL")
+    else:
+        # Fall back to host/port format for local development
+        redis_client = redis.Redis(
+            host=os.getenv('REDIS_HOST', 'localhost'),
+            port=int(os.getenv('REDIS_PORT', 6379)),
+            db=1,
+            socket_connect_timeout=1,
+            decode_responses=True
+        )
+        logger.info(f"✅ Usage tracker: Connecting to Redis via REDIS_HOST/PORT")
+
     redis_client.ping()
     REDIS_AVAILABLE = True
-    logger.info("✅ Usage tracker: Redis connected")
+    logger.info("✅ Usage tracker: Redis connected successfully")
 except Exception as e:
     REDIS_AVAILABLE = False
     logger.warning(f"⚠️ Usage tracker: Redis not available ({e}), tracking disabled")
