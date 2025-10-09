@@ -62,18 +62,31 @@ class SimpleGeminiService:
             genai.configure(api_key=self._api_key)
 
             # Initialize model
-            # Use standard model name - avoid version suffixes that may not be available
-            try:
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
-            except Exception as model_error:
-                logger.warning(f"Failed to initialize gemini-1.5-flash: {model_error}")
-                # Fallback to gemini-pro if flash not available
+            # Try multiple model names in order of preference
+            model_names = [
+                'gemini-1.5-flash-latest',  # Latest Flash model
+                'gemini-1.5-flash',          # Standard Flash
+                'gemini-1.5-pro-latest',     # Latest Pro model
+                'gemini-pro'                 # Fallback to older Pro
+            ]
+
+            model_initialized = False
+            last_error = None
+
+            for model_name in model_names:
                 try:
-                    self.model = genai.GenerativeModel('gemini-pro')
-                    logger.info("✅ Fallback to gemini-pro successful")
-                except Exception as fallback_error:
-                    logger.error(f"❌ All Gemini models failed: {fallback_error}")
-                    raise
+                    self.model = genai.GenerativeModel(model_name)
+                    logger.info(f"✅ Successfully initialized {model_name}")
+                    model_initialized = True
+                    break
+                except Exception as model_error:
+                    last_error = model_error
+                    logger.warning(f"Failed to initialize {model_name}: {model_error}")
+                    continue
+
+            if not model_initialized:
+                logger.error(f"❌ All Gemini models failed. Last error: {last_error}")
+                raise Exception(f"Could not initialize any Gemini model: {last_error}")
 
             # Initialize function calling handler with tool registry
             try:
