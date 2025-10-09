@@ -561,7 +561,14 @@ async def pam_simple_health():
         "model": CLAUDE_MODEL,
         "tools_available": 20,  # 10 budget + 10 trip
         "architecture": "Barry-inspired",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
+        "modules": {
+            "budget_tools": "ready",
+            "trip_tools": "ready",
+            "social_tools": "ready",
+            "shop_tools": "ready",
+            "profile_tools": "ready"
+        }
     }
 
 

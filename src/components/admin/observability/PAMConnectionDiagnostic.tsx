@@ -314,7 +314,7 @@ export function PAMConnectionDiagnostic() {
         const data = await response.json();
 
         // Check if we got a valid response
-        const hasResponse = data.response || data.message;
+        const hasResponse = data.response || data.message || data.content;
 
         return {
           status: hasResponse ? 'success' : 'degraded',
