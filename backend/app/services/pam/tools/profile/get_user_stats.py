@@ -51,8 +51,8 @@ async def get_user_stats(
             "avg_expense": round(total_expenses / expense_count, 2) if expense_count > 0 else 0
         }
 
-        # Trip stats
-        trip_response = supabase.table("trips").select("*").eq(
+        # Trip stats (schema uses user_trips, not trips)
+        trip_response = supabase.table("user_trips").select("*").eq(
             "user_id", user_id
         ).execute()
 
