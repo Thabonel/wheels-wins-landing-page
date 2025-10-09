@@ -981,8 +981,14 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             else:
                 # No tools used, extract text response
                 assistant_message = ""
-                for block in response.content:
+
+                # DEBUG: Log the raw response structure
+                logger.info(f"🔍 Claude response blocks: {len(response.content)}")
+                for i, block in enumerate(response.content):
+                    logger.info(f"🔍 Block {i}: type={type(block).__name__}, has_text={hasattr(block, 'text')}")
                     if hasattr(block, 'text'):
+                        logger.info(f"🔍 Block {i} text length: {len(block.text)} chars")
+                        logger.info(f"🔍 Block {i} text preview: {block.text[:100]}")
                         assistant_message += block.text
 
                 # Add to conversation history
@@ -993,6 +999,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                 })
 
                 logger.info(f"PAM response without tools ({len(assistant_message)} chars)")
+                logger.info(f"🔍 Full assistant message: {assistant_message}")
                 return assistant_message
 
         except Exception as e:
