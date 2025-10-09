@@ -11,13 +11,19 @@ import logging
 from typing import Any, Dict, Optional
 import os
 from supabase import create_client, Client
+from .unit_conversion import (
+    get_user_unit_preference,
+    format_gas_cost_response,
+    convert_km_to_miles
+)
 
 logger = logging.getLogger(__name__)
 
 
 async def calculate_gas_cost(
     user_id: str,
-    distance_miles: float,
+    distance_miles: Optional[float] = None,
+    distance_km: Optional[float] = None,
     mpg: Optional[float] = None,
     gas_price: Optional[float] = None,
     **kwargs
@@ -27,14 +33,24 @@ async def calculate_gas_cost(
 
     Args:
         user_id: UUID of the user
-        distance_miles: Trip distance in miles
+        distance_miles: Trip distance in miles (preferred for internal use)
+        distance_km: Trip distance in kilometers (auto-converted to miles)
         mpg: Vehicle miles per gallon (uses stored vehicle data if not provided)
         gas_price: Price per gallon (default: $3.50)
 
     Returns:
-        Dict with gas cost estimate
+        Dict with gas cost estimate formatted in user's preferred units
     """
     try:
+        # Handle distance input (accept either miles or km, convert to miles internally)
+        if distance_km is not None:
+            distance_miles = convert_km_to_miles(distance_km)
+        elif distance_miles is None:
+            return {
+                "success": False,
+                "error": "Must provide either distance_miles or distance_km"
+            }
+
         # Validate distance
         if distance_miles <= 0:
             return {
@@ -76,6 +92,19 @@ async def calculate_gas_cost(
 
         logger.info(f"Calculated gas cost: ${total_cost:.2f} for {distance_miles} miles for user {user_id}")
 
+        # Get user's unit preference to format response
+        unit_system = await get_user_unit_preference(user_id)
+
+        # Format response message in user's preferred units
+        message = format_gas_cost_response(
+            distance_miles=distance_miles,
+            mpg=mpg,
+            gallons_needed=gallons_needed,
+            total_cost=total_cost,
+            unit_system=unit_system,
+            gas_price=gas_price
+        )
+
         return {
             "success": True,
             "distance_miles": distance_miles,
@@ -84,7 +113,7 @@ async def calculate_gas_cost(
             "gallons_needed": round(gallons_needed, 2),
             "total_cost": round(total_cost, 2),
             "cost_per_mile": round(cost_per_mile, 2),
-            "message": f"Estimated gas cost: ${total_cost:.2f} for {distance_miles} miles ({gallons_needed:.1f} gallons at {mpg} MPG)"
+            "message": message
         }
 
     except Exception as e:

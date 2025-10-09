@@ -13,24 +13,14 @@ from typing import Any, Dict, Optional
 from datetime import datetime
 import os
 from supabase import create_client, Client
+from .unit_conversion import (
+    convert_l_per_100km_to_mpg,
+    convert_mpg_to_l_per_100km,
+    get_user_unit_preference,
+    format_fuel_consumption
+)
 
 logger = logging.getLogger(__name__)
-
-
-def convert_l_per_100km_to_mpg(l_per_100km: float) -> float:
-    """Convert liters per 100km to miles per gallon"""
-    # Formula: MPG = 235.214 / (L/100km)
-    if l_per_100km <= 0:
-        raise ValueError("Liters per 100km must be positive")
-    return round(235.214 / l_per_100km, 2)
-
-
-def convert_mpg_to_l_per_100km(mpg: float) -> float:
-    """Convert miles per gallon to liters per 100km"""
-    # Formula: L/100km = 235.214 / MPG
-    if mpg <= 0:
-        raise ValueError("MPG must be positive")
-    return round(235.214 / mpg, 2)
 
 
 async def update_vehicle_fuel_consumption(
@@ -102,13 +92,17 @@ async def update_vehicle_fuel_consumption(
 
         logger.info(f"Updated fuel consumption for vehicle {vehicle['id']}: {fuel_mpg} MPG / {fuel_l_per_100km} L/100km")
 
+        # Get user's unit preference to format response
+        unit_system = await get_user_unit_preference(user_id)
+        fuel_consumption_str = format_fuel_consumption(fuel_mpg, unit_system)
+
         return {
             "success": True,
             "vehicle_id": vehicle["id"],
             "vehicle_name": vehicle.get("name", "Your vehicle"),
             "fuel_consumption_mpg": fuel_mpg,
             "fuel_consumption_l_per_100km": fuel_l_per_100km,
-            "message": f"Got it! I've recorded that your {vehicle.get('name', 'vehicle')} uses {fuel_l_per_100km} L/100km ({fuel_mpg} MPG). I'll use this for trip cost calculations."
+            "message": f"Got it! I've recorded that your {vehicle.get('name', 'vehicle')} uses {fuel_consumption_str}. I'll use this for trip cost calculations."
         }
 
     except ValueError as e:
