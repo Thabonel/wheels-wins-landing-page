@@ -38,30 +38,30 @@ Verify that all 40+ PAM tools use correct database table names and column names 
 10. ⚠️ `save_favorite_spot.py` - Location bookmarking (table `favorite_locations` missing from schema)
 
 ### Social Tools (10 total)
-1. ⬜ `create_post.py` - Social posts
-2. ⬜ `message_friend.py` - Direct messaging
-3. ⬜ `comment_on_post.py` - Post comments
-4. ⬜ `search_posts.py` - Post search
-5. ⬜ `get_feed.py` - Social feed
-6. ⬜ `like_post.py` - Post reactions
-7. ⬜ `follow_user.py` - User connections
-8. ⬜ `share_location.py` - Location sharing
-9. ⬜ `find_nearby_rvers.py` - Nearby users
-10. ⬜ `create_event.py` - Event creation
+1. ✅ `create_post.py` - Social posts (uses `posts` table, correct)
+2. ✅ `message_friend.py` - Direct messaging (uses `messages` table, correct)
+3. ⚠️ `comment_on_post.py` - Post comments (table `comments` missing from schema)
+4. ✅ `search_posts.py` - Post search (uses `posts` table, correct)
+5. ✅ `get_feed.py` - Social feed (uses `posts` table, correct)
+6. ⚠️ `like_post.py` - Post reactions (table `post_likes` missing from schema)
+7. ✅ `follow_user.py` - User connections (uses `user_follows` table, correct)
+8. ⚠️ `share_location.py` - Location sharing (table `shared_locations` missing from schema)
+9. ❌ `find_nearby_rvers.py` - Nearby users (calculation only, no DB)
+10. ✅ `create_event.py` - Event creation (uses `events`, `event_attendees` tables, correct)
 
 ### Shop Tools (5 total)
-1. ⬜ `search_products.py` - Product search
-2. ⬜ `add_to_cart.py` - Cart management
-3. ⬜ `get_cart.py` - Cart retrieval
-4. ⬜ `checkout.py` - Checkout process
-5. ⬜ `track_order.py` - Order tracking
+1. ⚠️ `search_products.py` - Product search (table `products` missing from schema)
+2. ⚠️ `add_to_cart.py` - Cart management (tables `products`, `cart_items` missing)
+3. ⚠️ `get_cart.py` - Cart retrieval (table `cart_items` missing)
+4. ⚠️ `checkout.py` - Checkout process (tables `cart_items`, `orders`, `order_items` missing)
+5. ⚠️ `track_order.py` - Order tracking (table `orders` missing)
 
 ### Profile Tools (5 total)
-1. ⬜ `update_profile.py` - Profile updates
-2. ⬜ `update_settings.py` - Settings management
-3. ⬜ `manage_privacy.py` - Privacy controls
-4. ⬜ `get_user_stats.py` - User statistics
-5. ⬜ `export_data.py` - Data export (GDPR)
+1. ✅ `update_profile.py` - Profile updates (uses `profiles` table, correct)
+2. ✅ `update_settings.py` - Settings management (uses `user_settings` table, correct)
+3. ⚠️ `manage_privacy.py` - Privacy controls (table `privacy_settings` missing)
+4. ✅ `get_user_stats.py` - **FIXED** (trips → user_trips)
+5. ✅ `export_data.py` - **FIXED** (trips → user_trips)
 
 ---
 
