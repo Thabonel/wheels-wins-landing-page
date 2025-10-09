@@ -878,16 +878,65 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
         Convert our conversation history to Claude's message format
 
         Claude expects: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+
+        CRITICAL: Claude validates that tool_use blocks are immediately followed by tool_result blocks.
+        If we have incomplete tool execution in history, we must clean it to prevent API errors.
         """
         messages = []
 
-        for msg in self.conversation_history:
+        for i, msg in enumerate(self.conversation_history):
             # Only include user and assistant messages (skip system context)
-            if msg["role"] in ["user", "assistant"]:
-                messages.append({
-                    "role": msg["role"],
-                    "content": msg["content"]
-                })
+            if msg["role"] not in ["user", "assistant"]:
+                continue
+
+            content = msg["content"]
+
+            # CRITICAL FIX: Detect and clean incomplete tool execution
+            # If this is an assistant message with tool_use blocks, check if next message has tool_result
+            if msg["role"] == "assistant" and isinstance(content, list):
+                # Check if any content block is a tool_use
+                has_tool_use = any(
+                    isinstance(block, dict) and block.get("type") == "tool_use"
+                    for block in content
+                )
+
+                if has_tool_use:
+                    # Check if next message is a user message with tool_result
+                    next_idx = i + 1
+                    has_tool_result = False
+
+                    if next_idx < len(self.conversation_history):
+                        next_msg = self.conversation_history[next_idx]
+                        if next_msg["role"] == "user" and isinstance(next_msg["content"], list):
+                            has_tool_result = any(
+                                isinstance(block, dict) and block.get("type") == "tool_result"
+                                for block in next_msg["content"]
+                            )
+
+                    # If tool_use without tool_result, filter out tool_use blocks
+                    # This prevents Claude API validation error
+                    if not has_tool_result:
+                        logger.warning(
+                            f"Found tool_use without tool_result at message {i}, "
+                            f"filtering tool_use blocks to prevent API error"
+                        )
+                        # Keep only text blocks, remove tool_use blocks
+                        filtered_content = [
+                            block for block in content
+                            if not (isinstance(block, dict) and block.get("type") == "tool_use")
+                        ]
+
+                        # If no text blocks remain, skip this message entirely
+                        if not filtered_content:
+                            logger.warning(f"Skipping message {i} - only contained tool_use blocks")
+                            continue
+
+                        content = filtered_content
+
+            messages.append({
+                "role": msg["role"],
+                "content": content
+            })
 
         return messages
 
