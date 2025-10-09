@@ -91,21 +91,21 @@ export const PAM_CONFIG = {
   REST_ENDPOINTS: {
     production: {
       primary: {
-        chat: 'https://pam-backend.onrender.com/api/v1/pam/chat',
+        chat: 'https://pam-backend.onrender.com/api/v1/pam-simple/chat',
         health: 'https://pam-backend.onrender.com/api/v1/pam/health'
       },
       fallback: {
-        chat: 'https://pam-backend.onrender.com/api/v1/pam/chat',
+        chat: 'https://pam-backend.onrender.com/api/v1/pam-simple/chat',
         health: 'https://pam-backend.onrender.com/api/v1/pam/health'
       }
     },
     staging: {
       primary: {
-        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat',
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/chat',
         health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health'
       },
       fallback: {
-        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat',
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/chat',
         health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health'
       }
     }
