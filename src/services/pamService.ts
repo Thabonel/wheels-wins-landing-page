@@ -2,25 +2,25 @@
  * PAM Service - Unified Service Layer
  * PAM 2.0 - Google Gemini 1.5 Flash Integration
  *
- * 🚨 CRITICAL: This is the SINGLE SOURCE OF TRUTH for PAM WebSocket connections
+ * CRITICAL: This is the SINGLE SOURCE OF TRUTH for PAM WebSocket connections
  *
- * ❌ DO NOT CREATE ALTERNATIVE WEBSOCKET IMPLEMENTATIONS
- * ❌ DO NOT BYPASS THIS SERVICE FOR PRODUCTION FEATURES
- * ❌ DO NOT DUPLICATE CONNECTION LOGIC
+ * DO NOT CREATE ALTERNATIVE WEBSOCKET IMPLEMENTATIONS
+ * DO NOT BYPASS THIS SERVICE FOR PRODUCTION FEATURES
+ * DO NOT DUPLICATE CONNECTION LOGIC
  *
- * ✅ EXTEND this service for new features
- * ✅ See ADR-PAM-WEBSOCKET-ARCHITECTURE.md for guidelines
- * ✅ Get architectural approval for major changes
+ * EXTEND this service for new features
+ * See ADR-PAM-WEBSOCKET-ARCHITECTURE.md for guidelines
+ * Get architectural approval for major changes
  *
  * Features:
- * ✅ Environment-aware endpoint selection
- * ✅ Circuit breaker pattern for resilience
- * ✅ Location context enhancement
- * ✅ Connection health monitoring
- * ✅ Retry logic with exponential backoff
- * ✅ Fallback endpoint support
- * ✅ Performance metrics
- * ✅ PAM 2.0 Google Gemini integration
+ * - Environment-aware endpoint selection
+ * - Circuit breaker pattern for resilience
+ * - Location context enhancement
+ * - Connection health monitoring
+ * - Retry logic with exponential backoff
+ * - Fallback endpoint support
+ * - Performance metrics
+ * - PAM 2.0 Google Gemini integration
  */
 
 import { getPamLocationContext, formatLocationForPam } from '@/utils/pamLocationContext';

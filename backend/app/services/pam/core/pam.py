@@ -103,11 +103,12 @@ from app.services.pam.tools.profile.update_profile import update_profile
 from app.services.pam.tools.profile.update_settings import update_settings
 from app.services.pam.tools.profile.manage_privacy import manage_privacy
 from app.services.pam.tools.profile.get_user_stats import get_user_stats
+from app.services.pam.tools.profile.export_data import export_data
+from app.services.pam.tools.profile.create_vehicle import create_vehicle
 
 # Import admin tools
 from app.services.pam.tools.admin.add_knowledge import add_knowledge
 from app.services.pam.tools.admin.search_knowledge import search_knowledge
-from app.services.pam.tools.profile.export_data import export_data
 
 logger = logging.getLogger(__name__)
 
@@ -755,6 +756,31 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     "required": []
                 }
             },
+            {
+                "name": "create_vehicle",
+                "description": "Create a new vehicle for the user. Use when user wants to add a vehicle to their garage. Examples: 'add my truck', 'I have a 2019 RAM 1500', 'create a vehicle for my RV'",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Vehicle nickname (e.g., 'My RV', 'Blue Truck')"},
+                        "make": {"type": "string", "description": "Manufacturer (e.g., 'Ford', 'RAM', 'Winnebago')"},
+                        "model": {"type": "string", "description": "Model name (e.g., 'F-350', '1500', 'Vista')"},
+                        "year": {"type": "integer", "description": "Year of manufacture"},
+                        "vehicle_type": {
+                            "type": "string",
+                            "enum": ["rv", "motorhome", "travel_trailer", "fifth_wheel", "truck", "car", "motorcycle", "boat"],
+                            "description": "Type of vehicle (default: rv)"
+                        },
+                        "fuel_type": {
+                            "type": "string",
+                            "enum": ["gasoline", "diesel", "electric", "hybrid", "propane"],
+                            "description": "Type of fuel (default: gasoline)"
+                        },
+                        "set_as_primary": {"type": "boolean", "description": "Make this the primary vehicle (default: true)"}
+                    },
+                    "required": ["name"]
+                }
+            },
             # Admin tools (for admins to teach PAM)
             {
                 "name": "add_knowledge",
@@ -1129,6 +1155,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             "manage_privacy": manage_privacy,
             "get_user_stats": get_user_stats,
             "export_data": export_data,
+            "create_vehicle": create_vehicle,
             # Admin tools
             "add_knowledge": add_knowledge,
             "search_knowledge": search_knowledge
