@@ -58,7 +58,10 @@
     "ai:pam": "npm run ai-agents pam",
     "ai:all": "npm run ai-agents all",
     "agents:init": "./scripts/init-agents.sh",
-    "agents:check": "./scripts/init-agents.sh"
+    "agents:check": "./scripts/init-agents.sh",
+    "translate": "tsx scripts/translate.ts",
+    "translate:missing": "tsx scripts/translate.ts --missing-only",
+    "translate:lang": "tsx scripts/translate.ts --lang"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.1",
@@ -187,6 +190,7 @@
     "postcss": "^8.4.47",
     "prettier": "^3.6.2",
     "tailwindcss": "^3.4.11",
+    "tsx": "^4.19.2",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.19",

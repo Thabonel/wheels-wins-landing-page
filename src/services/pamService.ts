@@ -554,6 +554,18 @@ class PamService {
           try {
             const data = JSON.parse(event.data);
 
+            // Handle ping requests from backend
+            if (data.type === 'ping') {
+              if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                this.websocket.send(JSON.stringify({
+                  type: 'pong',
+                  timestamp: data.timestamp
+                }));
+                logger.debug('🏓 Received ping from backend, sent pong response');
+              }
+              return;
+            }
+
             // Handle pong responses
             if (data.type === 'pong') {
               this.handlePongResponse();
