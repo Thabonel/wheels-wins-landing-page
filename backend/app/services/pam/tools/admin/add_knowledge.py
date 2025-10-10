@@ -61,7 +61,7 @@ async def add_knowledge(
         )
     """
     try:
-        logger.info(f"💡 Admin adding knowledge: '{title}' (type: {knowledge_type}, category: {category})")
+        logger.info(f"Admin adding knowledge: '{title}' (type: {knowledge_type}, category: {category})")
 
         # SECURITY: Validate knowledge content for prompt injection
         safety_result = await check_message_safety(
@@ -71,7 +71,7 @@ async def add_knowledge(
 
         if safety_result.is_malicious:
             logger.warning(
-                f"🚨 BLOCKED malicious knowledge submission from {user_id}: "
+                f"BLOCKED malicious knowledge submission from {user_id}: "
                 f"{safety_result.reason} (confidence: {safety_result.confidence})"
             )
             return {
@@ -93,7 +93,7 @@ async def add_knowledge(
         content_lower = content.lower()
         for pattern in suspicious_patterns:
             if re.search(pattern, content_lower, re.IGNORECASE):
-                logger.warning(f"🚨 BLOCKED knowledge with suspicious pattern: {pattern}")
+                logger.warning(f"BLOCKED knowledge with suspicious pattern: {pattern}")
                 return {
                     "success": False,
                     "error": "Knowledge content contains suspicious patterns. Please use plain language only.",
@@ -124,15 +124,37 @@ async def add_knowledge(
 
         # SECURITY: Sanitize HTML/script tags if present
         if "<script" in content.lower() or "<iframe" in content.lower():
-            logger.warning(f"🚨 BLOCKED knowledge with script/iframe tags")
+            logger.warning(f"BLOCKED knowledge with script/iframe tags")
             return {
                 "success": False,
                 "error": "Knowledge content cannot contain script or iframe tags."
             }
 
-        # TODO: Add admin privilege check
-        # For now, we'll allow any authenticated user to add knowledge
-        # In production, check if user_id has admin role
+        # SECURITY: Check if user has admin privileges
+        supabase = get_supabase_client()
+        try:
+            profile_response = supabase.table("profiles").select("role").eq("id", user_id).execute()
+
+            if not profile_response.data or len(profile_response.data) == 0:
+                logger.warning(f"User {user_id} profile not found while attempting to add knowledge")
+                return {
+                    "success": False,
+                    "error": "User profile not found"
+                }
+
+            user_role = profile_response.data[0].get("role")
+            if user_role != "admin":
+                logger.warning(f"Non-admin user {user_id} (role: {user_role}) attempted to add knowledge")
+                return {
+                    "success": False,
+                    "error": "Admin privileges required to add knowledge"
+                }
+        except Exception as auth_error:
+            logger.error(f"Error checking admin privileges for {user_id}: {auth_error}")
+            return {
+                "success": False,
+                "error": "Failed to verify admin privileges"
+            }
 
         # Validate knowledge_type
         valid_types = ['location_tip', 'travel_rule', 'seasonal_advice', 'general_knowledge', 'policy', 'warning']
@@ -157,8 +179,7 @@ async def add_knowledge(
                 "error": "Priority must be between 1 and 10"
             }
 
-        # Insert into database
-        supabase = get_supabase_client()
+        # Insert into database (supabase client already initialized above)
 
         knowledge_data = {
             "admin_user_id": user_id,
@@ -186,7 +207,7 @@ async def add_knowledge(
 
         if result.data and len(result.data) > 0:
             knowledge_id = result.data[0]["id"]
-            logger.info(f"✅ Knowledge added successfully: {knowledge_id}")
+            logger.info(f"Knowledge added successfully: {knowledge_id}")
 
             return {
                 "success": True,
@@ -203,14 +224,14 @@ async def add_knowledge(
                 }
             }
         else:
-            logger.error("❌ Failed to insert knowledge into database")
+            logger.error("Failed to insert knowledge into database")
             return {
                 "success": False,
                 "error": "Failed to save knowledge to database"
             }
 
     except Exception as e:
-        logger.error(f"❌ Error adding admin knowledge: {e}")
+        logger.error(f"Error adding admin knowledge: {e}")
         return {
             "success": False,
             "error": f"Failed to add knowledge: {str(e)}"
