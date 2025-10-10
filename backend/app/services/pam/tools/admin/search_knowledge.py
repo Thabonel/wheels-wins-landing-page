@@ -87,7 +87,7 @@ async def search_knowledge(
         Returns: "May to August is the best time to travel in Port Headland vicinity"
     """
     try:
-        logger.info(f"🔍 Searching admin knowledge: query='{query}', category={category}, type={knowledge_type}")
+        logger.info(f"Searching admin knowledge: query='{query}', category={category}, type={knowledge_type}")
 
         supabase = get_supabase_client()
 
@@ -129,7 +129,7 @@ async def search_knowledge(
         result = query_builder.execute()
 
         if result.data:
-            logger.info(f"✅ Found {len(result.data)} knowledge entries")
+            logger.info(f"Found {len(result.data)} knowledge entries")
 
             # Format results with sanitization
             knowledge_items = []
@@ -162,7 +162,7 @@ async def search_knowledge(
                         "used_at": datetime.utcnow().isoformat()
                     }).execute()
                 except Exception as log_error:
-                    logger.warning(f"⚠️ Failed to log knowledge usage: {log_error}")
+                    logger.warning(f"Failed to log knowledge usage: {log_error}")
 
             return {
                 "success": True,
@@ -171,7 +171,7 @@ async def search_knowledge(
                 "message": f"Found {len(knowledge_items)} relevant knowledge entries"
             }
         else:
-            logger.info("ℹ️ No matching knowledge found")
+            logger.info("No matching knowledge found")
             return {
                 "success": True,
                 "count": 0,
@@ -180,7 +180,7 @@ async def search_knowledge(
             }
 
     except Exception as e:
-        logger.error(f"❌ Error searching admin knowledge: {e}")
+        logger.error(f"Error searching admin knowledge: {e}")
         return {
             "success": False,
             "error": f"Failed to search knowledge: {str(e)}",
